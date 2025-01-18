@@ -18,26 +18,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::settings::build::BuildSettings;
 use crate::{
     fyrox::core::{log::Log, reflect::prelude::*},
     settings::{
-        camera::CameraSettings, debugging::DebuggingSettings, general::GeneralSettings,
-        graphics::GraphicsSettings, keys::KeyBindings, model::ModelSettings,
-        move_mode::MoveInteractionModeSettings, navmesh::NavmeshSettings, recent::RecentFiles,
-        rotate_mode::RotateInteractionModeSettings, scene::SceneSettings,
+        build::BuildSettings, camera::CameraSettings, debugging::DebuggingSettings,
+        general::GeneralSettings, graphics::GraphicsSettings, keys::KeyBindings,
+        model::ModelSettings, move_mode::MoveInteractionModeSettings, navmesh::NavmeshSettings,
+        recent::RecentFiles, rotate_mode::RotateInteractionModeSettings, scene::SceneSettings,
         selection::SelectionSettings, windows::WindowsSettings,
     },
 };
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
-use std::sync::mpsc::Sender;
 use std::{
     collections::HashMap,
     fs::File,
     io::Write,
     ops::{Deref, DerefMut},
     path::PathBuf,
+    sync::mpsc::Sender,
 };
 
 pub mod build;
@@ -57,18 +56,29 @@ pub mod windows;
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Default, Debug, Reflect)]
 pub struct SettingsData {
+    #[reflect(tag = "Group.Selection")]
     pub selection: SelectionSettings,
+    #[reflect(tag = "Group.Graphics")]
     pub graphics: GraphicsSettings,
+    #[reflect(tag = "Group.Build")]
     #[serde(default)]
     pub build: BuildSettings,
+    #[reflect(tag = "Group.General")]
     #[serde(default)]
     pub general: GeneralSettings,
+    #[reflect(tag = "Group.Debugging")]
     pub debugging: DebuggingSettings,
+    #[reflect(tag = "Group.MoveMode")]
     pub move_mode_settings: MoveInteractionModeSettings,
+    #[reflect(tag = "Group.RotateMode")]
     pub rotate_mode_settings: RotateInteractionModeSettings,
+    #[reflect(tag = "Group.Model")]
     pub model: ModelSettings,
+    #[reflect(tag = "Group.Camera")]
     pub camera: CameraSettings,
+    #[reflect(tag = "Group.Navmesh")]
     pub navmesh: NavmeshSettings,
+    #[reflect(tag = "Group.KeyBindings")]
     pub key_bindings: KeyBindings,
     #[reflect(hidden)]
     pub scene_settings: HashMap<PathBuf, SceneSettings>,

@@ -51,8 +51,10 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::{BaseSceneGraph, SceneGraph};
+use fyrox_graph::{
+    constructor::{ConstructorProvider, GraphNodeConstructor},
+    BaseSceneGraph, SceneGraph,
+};
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -534,6 +536,10 @@ impl From<CastError> for InspectorError {
 pub struct ContextEntry {
     /// The name of the field being edited, as found in [FieldInfo::name].
     pub property_name: String,
+    /// The name of the field being edited, as found in [FieldInfo::display_name].
+    pub property_display_name: String,
+    /// The name of the field being edited, as found in [FieldInfo::tag].
+    pub property_tag: String,
     /// The type of the objects whose fields are being inspected, as found in [FieldInfo::owner_type_id].
     pub property_owner_type_id: TypeId,
     /// The type of the property being edited, as found in [PropertyEditorDefinition::value_type_id](editors::PropertyEditorDefinition::value_type_id).
@@ -901,6 +907,8 @@ impl InspectorContext {
                                 property_value_type_id: definition.property_editor.value_type_id(),
                                 property_editor_definition_container: definition_container.clone(),
                                 property_name: info.name.to_string(),
+                                property_display_name: info.display_name.to_string(),
+                                property_tag: info.tag.to_string(),
                                 property_owner_type_id: info.owner_type_id,
                                 property_debug_output: field_text.clone(),
                                 property_container: container,
@@ -1079,6 +1087,11 @@ impl InspectorContext {
     /// Return the entry for the property with the given name.
     pub fn find_property_editor(&self, name: &str) -> Option<&ContextEntry> {
         self.entries.iter().find(|e| e.property_name == name)
+    }
+
+    /// Return the entry for the property with the given tag.
+    pub fn find_property_editor_by_tag(&self, tag: &str) -> Option<&ContextEntry> {
+        self.entries.iter().find(|e| e.property_tag == tag)
     }
 
     /// Shortcut for getting the editor widget from the property with the given name.

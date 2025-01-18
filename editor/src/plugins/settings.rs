@@ -20,12 +20,11 @@
 
 //! Settings window plugin.
 
-use crate::settings::build::BuildSettings;
-use crate::settings::general::EditorStyle;
 use crate::{
     fyrox::{
-        core::{log::Log, pool::Handle, some_or_return},
+        core::{log::Log, parking_lot::lock_api::Mutex, pool::Handle, some_or_return},
         engine::Engine,
+        graph::{BaseSceneGraph, SceneGraph},
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             dock::DockingManagerMessage,
@@ -37,11 +36,11 @@ use crate::{
                     inspectable::InspectablePropertyEditorDefinition,
                     key::HotKeyPropertyEditorDefinition, PropertyEditorDefinitionContainer,
                 },
-                InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
+                Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
             },
             menu::MenuItemMessage,
             message::{MessageDirection, UiMessage},
-            scroll_viewer::ScrollViewerBuilder,
+            scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -53,9 +52,10 @@ use crate::{
     message::MessageSender,
     plugin::EditorPlugin,
     settings::{
+        build::BuildSettings,
         camera::CameraSettings,
         debugging::DebuggingSettings,
-        general::{GeneralSettings, ScriptEditor},
+        general::{EditorStyle, GeneralSettings, ScriptEditor},
         graphics::GraphicsSettings,
         keys::{KeyBindings, TerrainKeyBindings},
         model::ModelSettings,
@@ -106,11 +106,16 @@ fn make_property_editors_container(
     Arc::new(container)
 }
 
+#[derive(Clone, PartialEq)]
+struct GroupName(String);
+
 pub struct SettingsWindow {
     pub window: Handle<UiNode>,
     ok: Handle<UiNode>,
     default: Handle<UiNode>,
     inspector: Handle<UiNode>,
+    groups: Handle<UiNode>,
+    scroll_viewer: Handle<UiNode>,
 }
 
 impl SettingsWindow {
@@ -122,50 +127,70 @@ impl SettingsWindow {
 
         let inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
 
+        let groups = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .on_row(0)
+                .on_column(0)
+                .with_uniform_margin(2.0),
+        )
+        .with_orientation(Orientation::Vertical)
+        .build(ctx);
+
+        let scroll_viewer = ScrollViewerBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(2.0))
+                .on_row(0)
+                .on_column(1),
+        )
+        .with_content(inspector)
+        .build(ctx);
+
+        let inner_content = GridBuilder::new(
+            WidgetBuilder::new()
+                .on_row(0)
+                .on_column(0)
+                .with_child(groups)
+                .with_child(scroll_viewer),
+        )
+        .add_column(Column::auto())
+        .add_column(Column::stretch())
+        .add_row(Row::stretch())
+        .build(ctx);
+
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(600.0))
             .open(false)
             .with_title(WindowTitle::text("Settings"))
             .with_content(
                 GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
-                            ScrollViewerBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(2.0))
-                                    .on_row(0),
-                            )
-                            .with_content(inspector)
-                            .build(ctx),
+                    WidgetBuilder::new().with_child(inner_content).with_child(
+                        StackPanelBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(1)
+                                .with_horizontal_alignment(HorizontalAlignment::Right)
+                                .with_child({
+                                    default = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_width(80.0)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("Default")
+                                    .build(ctx);
+                                    default
+                                })
+                                .with_child({
+                                    ok = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_width(80.0)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("OK")
+                                    .build(ctx);
+                                    ok
+                                }),
                         )
-                        .with_child(
-                            StackPanelBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(1)
-                                    .with_horizontal_alignment(HorizontalAlignment::Right)
-                                    .with_child({
-                                        default = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_width(80.0)
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_text("Default")
-                                        .build(ctx);
-                                        default
-                                    })
-                                    .with_child({
-                                        ok = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_width(80.0)
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_text("OK")
-                                        .build(ctx);
-                                        ok
-                                    }),
-                            )
-                            .with_orientation(Orientation::Horizontal)
-                            .build(ctx),
-                        ),
+                        .with_orientation(Orientation::Horizontal)
+                        .build(ctx),
+                    ),
                 )
                 .add_row(Row::stretch())
                 .add_row(Row::strict(25.0))
@@ -179,6 +204,8 @@ impl SettingsWindow {
             ok,
             default,
             inspector,
+            groups,
+            scroll_viewer,
         }
     }
 
@@ -194,9 +221,10 @@ impl SettingsWindow {
     }
 
     fn sync_to_model(&self, ui: &mut UserInterface, settings: &Settings, sender: &MessageSender) {
+        let ctx = &mut ui.build_ctx();
         let context = InspectorContext::from_object(
             &**settings,
-            &mut ui.build_ctx(),
+            ctx,
             make_property_editors_container(sender.clone()),
             None,
             MSG_SYNC_FLAG,
@@ -205,6 +233,23 @@ impl SettingsWindow {
             Default::default(),
             150.0,
         );
+        let groups =
+            context
+                .entries
+                .iter()
+                .map(|entry| {
+                    ButtonBuilder::new(WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(
+                        GroupName(entry.property_tag.clone()),
+                    ))))
+                    .with_text(&entry.property_display_name)
+                    .build(ctx)
+                })
+                .collect::<Vec<_>>();
+        ui.send_message(WidgetMessage::replace_children(
+            self.groups,
+            MessageDirection::ToWidget,
+            groups,
+        ));
         ui.send_message(InspectorMessage::context(
             self.inspector,
             MessageDirection::ToWidget,
@@ -232,6 +277,21 @@ impl SettingsWindow {
                 **settings = Default::default();
 
                 self.sync_to_model(ui, settings, sender);
+            }
+
+            if let Some(node) = ui.try_get(message.destination()) {
+                if let Some(user_data) = node.user_data_cloned::<GroupName>() {
+                    let inspector = ui.try_get_of_type::<Inspector>(self.inspector).unwrap();
+
+                    if let Some(entry) = inspector.context.find_property_editor_by_tag(&user_data.0)
+                    {
+                        ui.send_message(ScrollViewerMessage::bring_into_view(
+                            self.scroll_viewer,
+                            MessageDirection::ToWidget,
+                            entry.property_container,
+                        ));
+                    }
+                }
             }
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data() {
             if message.destination() == self.inspector {
