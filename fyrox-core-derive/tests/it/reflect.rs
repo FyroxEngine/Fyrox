@@ -344,6 +344,7 @@ fn default_prop() -> FieldInfo<'static, 'static> {
         step: None,
         precision: None,
         description: "",
+        tag: "",
         type_name: "",
         doc: "",
     }
@@ -400,7 +401,8 @@ fn inspect_attributes() {
             max_value = 1.1,
             step = 0.1,
             precision = 3,
-            description = "This is a property description."
+            description = "This is a property description.",
+            tag = "SomeTag"
         )]
         y: f32,
     }
@@ -429,6 +431,7 @@ fn inspect_attributes() {
             step: Some(0.1),
             precision: Some(3),
             description: "This is a property description.",
+            tag: "SomeTag",
             type_name: std::any::type_name::<f32>(),
             doc: "",
         },

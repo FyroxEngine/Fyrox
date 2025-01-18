@@ -188,6 +188,13 @@ pub struct FieldArgs {
     #[darling(default)]
     pub display_name: Option<String>,
 
+    /// #[reflect(tag = "<tag>")]
+    ///
+    /// Tag of the property. Could be used to group properties by a certain criteria or to find a
+    /// specific property by its tag.
+    #[darling(default)]
+    pub tag: Option<String>,
+
     /// `#[reflect(read_only)]`
     ///
     /// The field is not meant to be edited.

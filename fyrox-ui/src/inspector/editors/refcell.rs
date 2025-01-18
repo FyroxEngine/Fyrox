@@ -85,6 +85,7 @@ where
         step: property_info.step,
         precision: property_info.precision,
         description: property_info.description,
+        tag: property_info.tag,
         type_name: property_info.type_name,
         doc: property_info.doc,
     })

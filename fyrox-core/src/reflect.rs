@@ -78,6 +78,10 @@ pub struct FieldInfo<'a, 'b> {
     /// Description of the property.
     pub description: &'b str,
 
+    /// Tag of the property. Could be used to group properties by a certain criteria or to find a
+    /// specific property by its tag.
+    pub tag: &'b str,
+
     /// Type name of the property.
     pub type_name: &'b str,
 

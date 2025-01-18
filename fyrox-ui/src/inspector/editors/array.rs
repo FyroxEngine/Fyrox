@@ -137,6 +137,7 @@ where
         step: array_property_info.step,
         precision: array_property_info.precision,
         description: array_property_info.description,
+        tag: array_property_info.tag,
         type_name: array_property_info.type_name,
         doc: array_property_info.doc,
     })

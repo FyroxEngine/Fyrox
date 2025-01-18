@@ -119,6 +119,8 @@ fn quote_field_prop(
         Some(v) => quote! { Some(#v) },
     };
 
+    let tag = field.tag.clone().unwrap_or_default();
+
     let ty = field.ty.clone();
 
     let read_only = field.read_only;
@@ -132,6 +134,7 @@ fn quote_field_prop(
             owner_type_id: std::any::TypeId::of::<Self>(),
             name: #prop_key_name,
             display_name: #display_name,
+            tag: #tag,
             doc: #doc,
             read_only: #read_only,
             immutable_collection: #immutable_collection,
