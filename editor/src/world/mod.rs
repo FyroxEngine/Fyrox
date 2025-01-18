@@ -40,7 +40,7 @@ use crate::{
                 TreeBuilder, TreeExpansionStrategy, TreeMessage, TreeRoot, TreeRootBuilder,
                 TreeRootMessage,
             },
-            utils::make_image_button_with_tooltip,
+            utils::{make_image_button_with_tooltip, make_simple_tooltip},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowTitle},
             wrap_panel::WrapPanelBuilder,
@@ -231,13 +231,22 @@ impl WorldViewer {
 
         let size = 15.0;
 
+        let track_selection_tooltip = make_simple_tooltip(
+            ctx,
+            "Track selection. If enabled, \
+        then the world viewer will automatically scroll to the \
+        selected object. If multiple objects are selected then \
+        first one will be brought into view.",
+        );
+
         let track_selection = ToggleButtonBuilder::new(
             WidgetBuilder::new()
                 .with_tab_index(Some(3))
                 .with_vertical_alignment(VerticalAlignment::Center)
                 .with_margin(Thickness::uniform(1.0))
                 .with_width(22.0)
-                .with_height(22.0),
+                .with_height(22.0)
+                .with_tooltip(track_selection_tooltip),
         )
         .with_content(
             ImageBuilder::new(
