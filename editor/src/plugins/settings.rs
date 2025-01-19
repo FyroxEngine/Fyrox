@@ -24,7 +24,7 @@ use crate::{
     fyrox::{
         core::{log::Log, parking_lot::lock_api::Mutex, pool::Handle, some_or_return},
         engine::Engine,
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             dock::DockingManagerMessage,
@@ -41,7 +41,9 @@ use crate::{
             menu::MenuItemMessage,
             message::{MessageDirection, UiMessage},
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
+            searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
+            text::Text,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
@@ -65,9 +67,10 @@ use crate::{
         selection::SelectionSettings,
         Settings,
     },
-    Editor, MSG_SYNC_FLAG,
+    utils, Editor, MSG_SYNC_FLAG,
 };
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
+use rust_fuzzy_search::fuzzy_compare;
 use std::sync::Arc;
 
 fn make_property_editors_container(
@@ -116,6 +119,7 @@ pub struct SettingsWindow {
     inspector: Handle<UiNode>,
     groups: Handle<UiNode>,
     scroll_viewer: Handle<UiNode>,
+    search_bar: Handle<UiNode>,
 }
 
 impl SettingsWindow {
@@ -124,6 +128,14 @@ impl SettingsWindow {
         let default;
 
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
+
+        let search_bar = SearchBarBuilder::new(
+            WidgetBuilder::new()
+                .on_row(0)
+                .on_column(0)
+                .with_uniform_margin(2.0),
+        )
+        .build(ctx);
 
         let inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
 
@@ -147,7 +159,7 @@ impl SettingsWindow {
 
         let inner_content = GridBuilder::new(
             WidgetBuilder::new()
-                .on_row(0)
+                .on_row(1)
                 .on_column(0)
                 .with_child(groups)
                 .with_child(scroll_viewer),
@@ -162,36 +174,40 @@ impl SettingsWindow {
             .with_title(WindowTitle::text("Settings"))
             .with_content(
                 GridBuilder::new(
-                    WidgetBuilder::new().with_child(inner_content).with_child(
-                        StackPanelBuilder::new(
-                            WidgetBuilder::new()
-                                .on_row(1)
-                                .with_horizontal_alignment(HorizontalAlignment::Right)
-                                .with_child({
-                                    default = ButtonBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_width(80.0)
-                                            .with_margin(Thickness::uniform(1.0)),
-                                    )
-                                    .with_text("Default")
-                                    .build(ctx);
-                                    default
-                                })
-                                .with_child({
-                                    ok = ButtonBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_width(80.0)
-                                            .with_margin(Thickness::uniform(1.0)),
-                                    )
-                                    .with_text("OK")
-                                    .build(ctx);
-                                    ok
-                                }),
-                        )
-                        .with_orientation(Orientation::Horizontal)
-                        .build(ctx),
-                    ),
+                    WidgetBuilder::new()
+                        .with_child(search_bar)
+                        .with_child(inner_content)
+                        .with_child(
+                            StackPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(2)
+                                    .with_horizontal_alignment(HorizontalAlignment::Right)
+                                    .with_child({
+                                        default = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_width(80.0)
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_text("Default")
+                                        .build(ctx);
+                                        default
+                                    })
+                                    .with_child({
+                                        ok = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_width(80.0)
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_text("OK")
+                                        .build(ctx);
+                                        ok
+                                    }),
+                            )
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx),
+                        ),
                 )
+                .add_row(Row::strict(25.0))
                 .add_row(Row::stretch())
                 .add_row(Row::strict(25.0))
                 .add_column(Column::stretch())
@@ -206,6 +222,7 @@ impl SettingsWindow {
             inspector,
             groups,
             scroll_viewer,
+            search_bar,
         }
     }
 
@@ -313,6 +330,23 @@ impl SettingsWindow {
                     self.window,
                 ));
                 return None;
+            }
+        } else if let Some(SearchBarMessage::Text(search_text)) = message.data() {
+            if message.destination() == self.search_bar
+                && message.direction() == MessageDirection::FromWidget
+            {
+                let filter = search_text.to_lowercase();
+
+                utils::apply_visibility_filter(self.inspector, ui, |widget| {
+                    if let Some(text_widget) = widget.component_ref::<Text>() {
+                        let text = text_widget.text().to_lowercase();
+                        Some(
+                            text.contains(&filter) || fuzzy_compare(&filter, text.as_str()) >= 0.33,
+                        )
+                    } else {
+                        None
+                    }
+                });
             }
         }
 
