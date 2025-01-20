@@ -24,7 +24,7 @@ use crate::{
     fyrox::{
         core::{log::Log, parking_lot::lock_api::Mutex, pool::Handle, some_or_return},
         engine::Engine,
-        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graph::{BaseSceneGraph, SceneGraph},
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             dock::DockingManagerMessage,
@@ -43,7 +43,6 @@ use crate::{
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
-            text::Text,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
@@ -67,7 +66,7 @@ use crate::{
         selection::SelectionSettings,
         Settings,
     },
-    utils, Editor, MSG_SYNC_FLAG,
+    Editor, MSG_SYNC_FLAG,
 };
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 use rust_fuzzy_search::fuzzy_compare;
@@ -274,6 +273,45 @@ impl SettingsWindow {
         ));
     }
 
+    fn apply_filter(&self, filter_text: &str, ui: &UserInterface) {
+        fn apply_recursive(
+            filter_text: &str,
+            inspector: Handle<UiNode>,
+            ui: &UserInterface,
+        ) -> bool {
+            let inspector = some_or_return!(ui.try_get_of_type::<Inspector>(inspector), false);
+
+            let mut is_any_match = false;
+            for entry in inspector.context.entries.iter() {
+                // First look at any inner inspectors, because they could also contain properties
+                // matching search criteria.
+                let mut inner_match = false;
+                let sub_inspector = ui.find_handle(entry.property_editor, &mut |node| {
+                    node.has_component::<Inspector>()
+                });
+                if sub_inspector.is_some() {
+                    inner_match |= apply_recursive(filter_text, sub_inspector, ui);
+                }
+
+                let display_name = entry.property_display_name.to_lowercase();
+                inner_match |= display_name.contains(filter_text)
+                    || fuzzy_compare(filter_text, display_name.as_str()) >= 0.5;
+
+                ui.send_message(WidgetMessage::visibility(
+                    entry.property_container,
+                    MessageDirection::ToWidget,
+                    inner_match,
+                ));
+
+                is_any_match |= inner_match;
+            }
+
+            is_any_match
+        }
+
+        apply_recursive(filter_text, self.inspector, ui);
+    }
+
     pub fn handle_ui_message(
         self,
         message: &UiMessage,
@@ -336,17 +374,7 @@ impl SettingsWindow {
                 && message.direction() == MessageDirection::FromWidget
             {
                 let filter = search_text.to_lowercase();
-
-                utils::apply_visibility_filter(self.inspector, ui, |widget| {
-                    if let Some(text_widget) = widget.component_ref::<Text>() {
-                        let text = text_widget.text().to_lowercase();
-                        Some(
-                            text.contains(&filter) || fuzzy_compare(&filter, text.as_str()) >= 0.33,
-                        )
-                    } else {
-                        None
-                    }
-                });
+                self.apply_filter(&filter, ui);
             }
         }
 
