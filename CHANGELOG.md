@@ -1,22 +1,21 @@
-# 0.36 (WIP)
+# 0.36
 
 This version unifies versions of sub-crates - now all sub-crates have the same version. This makes it easier to migrate
 to future versions.
 
-f9cd957c2209cff3f9fae3f3536ee1d78259d1f0
-
 ## Added
 
 - Tile maps
+- UI styling support.
 - Project manager to manage multiple Fyrox projects at once.
 - Dropdown list docs
 - Implemented PartialEq for sprite sheet animation entities
 - Property editor for SurfaceDataResource
 - Surface data viewer for surface resource
 - `BaseSceneGraph::remove_nodes`
-- ability to add/remove interaction modes dynamically
+- Ability to add/remove interaction modes dynamically
 - Shape editing for colliders
-- shader for sprite-based gizmos ( allows to draw sprite-based gizmos on top of everything else)
+- Shader for sprite-based gizmos ( allows to draw sprite-based gizmos on top of everything else)
 - `math::get_arbitrary_line_perpendicular`
 - Added ability to specify font-+its size for value indicator in scrollbar
 - Ability to specify font size when building a button
@@ -30,265 +29,332 @@ f9cd957c2209cff3f9fae3f3536ee1d78259d1f0
 - `Color::repeat_opaque`
 - `DrawingContext::push_grid`
 - `save + save_back` methods for resource
-- added "refresh" button for asset browser
+- Added "refresh" button for asset browser
 - `ResourceDataRef::as_loaded_ref/mut`
-- ability to open assets using double click
-- multiselection support for `ListVIew` widget
+- Ability to open assets using double click
+- Multi-selection support for `ListVIew` widget
 - `impl PartialEq for Ray`
 - Add an ability to rotate the editor camera using scene gizmo
 - `impl From<&String> for ImmutableString`
-- improved material api - `Material::set_property` is now much less verbose
-- better support for fbx materials from 3ds max
-- validation for 2d colliders
-- added folders into asset browser
+- Improved material api - `Material::set_property` is now much less verbose
+- Better support for fbx materials from 3ds max
+- Validation for 2d colliders
+- Added folders into asset browser
 - Ability to cut holes in terrain
 - Experimental occlusion culling for light sources
 - `read_pixels_of_type` to get typed pixels instead of raw bytes
-- added `R32UI` texture format
+- Added `R32UI` texture format
 - `get_image` for gpu texture
-- pixel buffer for async framebuffer reads
-- include cache sizes in rendering statistics (helps in catching uncontrollable GPU memory usage growth)
-- ability to duplicate resources in asset browser
-- added visible distance for particle systems
-    - automatically excludes distant particle systems from rendering to improve performance
-    - can be tweaked on per-system basis
-- ability to enable/disable scissor test from custom shaders
-- ability to specify depth func in custom shaders
-- added uniform buffers
-- added `UniformBufferCache` for easier handling of multiple UBOs
-- added bind groups + mandatory texture binding via render resources
-- ability to fetch graphics server capabilities
-- experimental `UniformMemoryAllocator`
-- frustum culling for light sources
-- support a saving/restoring the maximized flag of the editor's window
-- ability to save all opened scenes at once + hotkeys
+- Pixel buffer for async framebuffer reads
+- Include cache sizes in rendering statistics (helps in catching uncontrollable GPU memory usage growth)
+- Ability to duplicate resources in asset browser
+- Added visible distance for particle systems
+    - Automatically excludes distant particle systems from rendering to improve performance
+    - Can be tweaked on per-system basis
+- Ability to enable/disable scissor test from custom shaders
+- Ability to specify depth func in custom shaders
+- Added uniform buffers
+- Added `UniformBufferCache` for easier handling of multiple UBOs
+- Added bind groups + mandatory texture binding via render resources
+- Ability to fetch graphics server capabilities
+- Experimental `UniformMemoryAllocator`
+- Frustum culling for light sources
+- Support a saving/restoring the maximized flag of the editor's window
+- Ability to save all opened scenes at once + hotkeys
 - `AxisAlignedBoundingBox::project`
 - `post_update` callback for `Plugin`
-- editor plugins container - adds some useful methods for plugins search
-- more dockable windows
-- ability to copy/paste selection in the curve editor widget
-- added a configurable limit for message log to prevent excessive bloat
-- configurable coordinate system for particle systems - allows to select coordinate system for generated particles -
+- Editor plugins container - adds some useful methods for plugins search
+- More dockable windows
+- Ability to copy/paste selection in the curve editor widget
+- Added a configurable limit for message log to prevent excessive bloat
+- Configurable coordinate system for particle systems - allows to select coordinate system for generated particles -
   local or world
-- lighting support for particle systems
+- Lighting support for particle systems
 - `ModelResource::instantiate_and_attach`
-- ability to add keys on multiple curves at once
-- hotkey for `zoom to fit` for curve editor widget
-- useful macros for early return statements - while let-else exists, it still takes more lines of code than it should.
+- Ability to add keys on multiple curves at once
+- Hotkey for `zoom to fit` for curve editor widget
+- Useful macros for early return statements - while let-else exists, it still takes more lines of code than it should.
   these macros are much more compact and easier to read
 - `BaseControl::self_size`
-- editor ui statistics plugin - allows to track total amount of widget used by the editor, which is useful to find if
+- Editor ui statistics plugin - allows to track total amount of widget used by the editor, which is useful to find if
   there are "dangling" widgets
 - `DockingManagerLayoutDescriptor::has_window`
-- print total number of drawing commands of ui for current frame
+- Print total number of drawing commands of ui for current frame
 - `remove_on_close` flag for `Window` widget
-- ability to apply custom sorting for children widgets of a widget
-- ability to sort menu items
+- Ability to apply custom sorting for children widgets of a widget
+- Ability to sort menu items
+- Track processed ui messages in the editor - helps to find message queue overload
+- `has_component` helper methods
+- `StyleResource`
+- Configurable routing strategy for ui messages
+- Helper methods for easier setting window icon
+- Add Zed editor option into editor settings
+- Added configurable delay for tooltips
+    - Prevents tooltips from popping up instantly on mouse hover, instead there's a configurable (0.55 s by default)
+      delay
+    - Removes annoying tooltip popping when moving mouse
+- Added more texture settings - base level, max level, min lod, max lod, lod bias
+- Added home/desktop directories shortcut buttons for file browser widget
+- Ability to focus current path in the file browser widgets
+- Ability to specify graphics server constructor
+    - Essentially gives an ability to change graphics servers at creation/runtime stages
+    - By default still uses OpenGL graphics server
+- Added kerning support for fonts
+- `BuildContext::send_message`
+- Added project manager ci
+- Backward compatibility for deserialization of `Untyped->Typed` resource
+- Ability to specify usage for element buffer
+- `info! + warn! + err!` log macros
+- Documentation improvements.
+- `Downcast` trait to remove code bloat.
+- Added tooltip for shader field in the material editor
+- Toggle button widget.
+- Added tags for reflection
+- `WidgetBuilder::with_uniform_margin(..)`
+- Shortcuts for groups in editor settings - allows to quickly jump to a particular settings group
+- Searching functionality for editor settings
 
 ## Changed
 
 - Included project license in every source file.
-- reset scene node transform to identity when making it root
-- take z index into account when linking widgets
-- split fyrox-template into lib + cli
-- ability to specify project root dir for template-core
-- optional app arguments - prevents crash when trying to parse program arguments
-- change key bindings to make more intuitive up/down motion
-- replaced `SurfaceSharedData` into `Resource<SurfaceData>`
-    - surface shared data was essentially a resource of some sort anyway
-    - allows to save meshes as resources externally
-    - allows to use standard resource pipeline for surface data
-- simplified camera picking API in the editor
+- Reset scene node transform to identity when making it root
+- Take z index into account when linking widgets
+- Split fyrox-template into lib + cli
+- Ability to specify project root dir for template-core
+- Optional app arguments - prevents crash when trying to parse program arguments
+- Change key bindings to make more intuitive up/down motion
+- Replaced `SurfaceSharedData` into `Resource<SurfaceData>`
+    - Surface shared data was essentially a resource of some sort anyway
+    - Allows to save meshes as resources externally
+    - Allows to use standard resource pipeline for surface data
+- Simplified camera picking API in the editor
 - Improved terrain brush system
-- print surface resource kind in the property editor
-- fixed new object placement
-    - children objects will stay at (0,0,0)
-    - when creating via "Create" menu a new object will be located in front of the camera
-    - when creating parent object whose parent is root, it will also be located in front of the camera
-- ability to specify name column width of inspector widget
-- save camera projection mode in editor settings
-- refactored editor camera controller - allows to drag the camera using mmb in 2d mode
-- sort items of built-in resources
-- remove native collider when its shape cannot be created
-- hijack control over animations from animations container in absm - now absm itself updates the animations it uses,
+- Print surface resource kind in the property editor
+- Fixed new object placement
+    - Children objects will stay at (0,0,0)
+    - When creating via "Create" menu a new object will be located in front of the camera
+    - When creating parent object whose parent is root, it will also be located in front of the camera
+- Ability to specify name column width of inspector widget
+- Save camera projection mode in editor settings
+- Refactored editor camera controller - allows to drag the camera using mmb in 2d mode
+- Sort items of built-in resources
+- Remove native collider when its shape cannot be created
+- Hijack control over animations from animations container in absm - now absm itself updates the animations it uses,
   and only those that are currently used either by a state or states of active transition
-- extracted rendering framework into a separate crate
-- make fbx elements of mesh geometry optional
-    - prints warning message and continues reading
-    - this is needed to be able to load "malformed" fbx, that has no mesh geometry, such as animation-only fbx
-- enable resource hot reloading by default in executor
-- move `rotateVec2` to shared shader functions
-- store initial data and file extension (if any) of built-in resources
-- moved opengl initialization to rendering framework
-- use uniform buffer for bone matrices instead of texture matrix storage
-- use uniform buffer to pass object instance data to shaders
-- moved camera properties into its own uniform block
-- switched to uniform buffers across the renderer
-- pass material properties using uniform buffers
-    - automatically generate uniform buffer description for material properties
-    - automatically define uniforms for samplers
-    - no more need to manually define material properties in shaders, just use `properies.your_property_name`
-- isolated opengl-specific code of gpu program into its own module
-- use uniform memory allocator to speed up uniform data upload to gpu
-    - splits rendering of render bundles in two steps: uniform data collection + upload and the actual rendering
-    - more efficient use of memory by utilizing all available space in uniform buffers (prevents having uniform
+- Extracted rendering framework into a separate crate
+- Make fbx elements of mesh geometry optional
+    - Prints warning message and continues reading
+    - This is needed to be able to load "malformed" fbx, that has no mesh geometry, such as animation-only fbx
+- Enable resource hot reloading by default in executor
+- Move `rotateVec2` to shared shader functions
+- Store initial data and file extension (if any) of built-in resources
+- Moved opengl initialization to rendering framework
+- Use uniform buffer for bone matrices instead of texture matrix storage
+- Use uniform buffer to pass object instance data to shaders
+- Moved camera properties into its own uniform block
+- Switched to uniform buffers across the renderer
+- Pass material properties using uniform buffers
+    - Automatically generate uniform buffer description for material properties
+    - Automatically define uniforms for samplers
+    - No more need to manually define material properties in shaders, just use `properies.your_property_name`
+- Isolated opengl-specific code of gpu program into its own module
+- Use uniform memory allocator to speed up uniform data upload to gpu
+    - Splits rendering of render bundles in two steps: uniform data collection + upload and the actual rendering
+    - More efficient use of memory by utilizing all available space in uniform buffers (prevents having uniform
       buffers with just 200-300 bytes of memory, where the actual memory block on gpu is 4kb)
-    - significantly reduces amount of individual data transfers and gapi calls in general
-    - improves performance by 12-15%
-- removed redundant buffer binding/unbinding - saves some time on api calls (especially in WebGL, where everything is
+    - Significantly reduces amount of individual data transfers and gapi calls in general
+    - Improves performance by 12-15%
+- Removed redundant buffer binding/unbinding - saves some time on api calls (especially in WebGL, where everything is
   proxied through JS)
-- pass sceneDepth texture to shaders explicitly
-- use explicit binding for textures - prevents dozens of `glUniform1i` calls when drawing stuff, thus improving
+- Pass sceneDepth texture to shaders explicitly
+- Use explicit binding for textures - prevents dozens of `glUniform1i` calls when drawing stuff, thus improving
   performance by 5-10% (more on WebAssembly, where each gl call is passed through JS)
-- refactored shader structure to include resource bindings
-    - makes shader structure more rigid and removes implicit built-in variables
-    - makes binding points of resources explicit
-    - first pass, the editor is still broken an requires material editor refactoring as well
-- turned `Matrix2Editor` into generic-over-size `MatrixEditor`
-- use immutable string in shader property name
-- reworked materials
-    - material now stores only changed shader properties
-    - moved validation from set_property/bind to the renderer where it simply prints an error message to the log
+- Refactored shader structure to include resource bindings
+    - Makes shader structure more rigid and removes implicit built-in variables
+    - Makes binding points of resources explicit
+    - First pass, the editor is still broken an requires material editor refactoring as well
+- Turned `Matrix2Editor` into generic-over-size `MatrixEditor`
+- Use immutable string in shader property name
+- Reworked materials
+    - Material now stores only changed shader properties
+    - Moved validation from set_property/bind to the renderer where it simply prints an error message to the log
       if something's wrong
-    - removed fallback value from texture resource binding, it makes no sense to duplicate this info since the correct
+    - Removed fallback value from texture resource binding, it makes no sense to duplicate this info since the correct
       one is stored in the shader anyway
-    - removed `default` property from texture definition in shaders
-- collect light info when constructing render bundle - removes redundant loop over scene graph nodes
+    - Removed `default` property from texture definition in shaders
+- Collect light info when constructing render bundle - removes redundant loop over scene graph nodes
 - Refactor hot reload to allow custom dynamic plugins besides dylib-based
-- improved gpu texture api
-- checked borrow in node message processing to prevent crashes - crash could happen if a node is already deleted, but
+- Improved gpu texture api
+- Checked borrow in node message processing to prevent crashes - crash could happen if a node is already deleted, but
   its message was still in the queue
-- replaced component querying from nodes with ComponentProvider trait
-- turned editor inspector into a plugin
+- Replaced component querying from nodes with ComponentProvider trait
+- Turned editor inspector into a plugin
 - Cloning physics when cloning Graph to persist Scene settings when saving Scene from the editor
 - TabControl improvements.
-- changed `traverse_iter` to return a pair of handle and ref - much more convenient when there's a need to handle a
+- Changed `traverse_iter` to return a pair of handle and ref - much more convenient when there's a need to handle a
   handle with a reference at the same time, no need to do re-borrow which is double work anyway
 - Added `AnimationResource` which decoupled animation tracks data into a shared resource
-    - significantly reduces memory consumption when cloning animations, since it does not need to clone the tracks
+    - Significantly reduces memory consumption when cloning animations, since it does not need to clone the tracks
       anymore.
-    - animation resource can be shared across multiple animations using the same tracks
-    - significantly speeds up instantiation of animation player scene node
-    - backward compatibility is preserved
-- focus search bar's text box when focusing toolbar itself - toolbar focus makes no sense anyway, because it does not
+    - Animation resource can be shared across multiple animations using the same tracks
+    - Significantly speeds up instantiation of animation player scene node
+    - Backward compatibility is preserved
+- Focus search bar's text box when focusing toolbar itself - toolbar focus makes no sense anyway, because it does not
   interact with keyboard, but text box does
-- node selector usability improvements
-    - focus search bar on open
-    - ability to confirm selection by enter key
-    - bring first selected item into view on open
-    - added tab navigation
-- lazy z-index sorting instead of on-demand
-- exclude samples buffer from a list of animatable properties
-- improved property selector
-    - focus search bar on opening
-    - tab navigation
-    - highlight selected properties on rebinding
-    - ability to confirm selection by hitting enter key
-- detached material-related parts of the editor into its own plugin - material editor is now non-existent by default and
+- Node selector usability improvements
+    - Focus search bar on open
+    - Ability to confirm selection by enter key
+    - Bring first selected item into view on open
+    - Added tab navigation
+- Lazy z-index sorting instead of on-demand
+- Exclude samples buffer from a list of animatable properties
+- Improved property selector
+    - Focus search bar on opening
+    - Tab navigation
+    - Highlight selected properties on rebinding
+    - Ability to confirm selection by hitting enter key
+- Detached material-related parts of the editor into its own plugin - material editor is now non-existent by default and
   created only when needed, which saves memory (both ram and vram) and cpu/gpu time
-- detached ragdoll wizard into a separate plugin
-- moved settings window into a separate plugin
-- moved animation editor into its own plugin
-- improved editor plugins api
-- create animation editor on editor start if animation editor was docked before
-- moved absm editor to a separate plugin
-- create save file selector for prefabs on demand
-- moved curve editor window into its own plugin
-- moved path fixer into a plugin
-- use builtin surfaces for meshes created in the editor
+- Detached ragdoll wizard into a separate plugin
+- Moved settings window into a separate plugin
+- Moved animation editor into its own plugin
+- Improved editor plugins api
+- Create animation editor on editor start if animation editor was docked before
+- Moved absm editor to a separate plugin
+- Create save file selector for prefabs on demand
+- Moved curve editor window into its own plugin
+- Moved path fixer into a plugin
+- Use builtin surfaces for meshes created in the editor
 - Migrated to latest `tinyaudio`.
-- removed hardcoded ui widgets constructors - replaced with user-defined constructors via `ConstructorProvider` trait.
-- sort menu items in alphabetical order in creation menus
+- Removed hardcoded ui widgets constructors - replaced with user-defined constructors via `ConstructorProvider` trait.
+- Sort menu items in alphabetical order in creation menus
+- Replaced hardcoded ui style variables with configurable styles
+- Make tooltips invisible for hit test
+- Moved log panel to `fyrox-ui`
+- Keep the editor running until the active popup is fully shown
+- Change default path of file browser to `./`
+- Disable log file by default - - log file could be undesirable in some cases and now it is off by default and can be
+  enabled by `Log::set_file_name/set_file` in `fn main`
+- Explicit api to change log file
+- Replaced proprietary arial font with roboto in project manager
+- Do not precompile built-in shaders on engine start
+    - it is faster to compile them on-demand
+    - on WebAssembly such compilation could take 10-15 seconds
+- Detached texture-related code to separate crate - allows to attach it to `fyrox-ui` to use textures directly without
+  using hacky `UntypedResource`
+- Use TextureResource directly in ui code where possible - removes redundant juggling with untyped<->typed conversions
+- Force `Image` widget to use texture size on measurement stage - removes "surprising effect" with collapsed image, if
+  width/height is not set explicitly
+- Made audio initialization errors non-fatal - allows to run the engine in environments without proper audio output
+  support
+- Print editor version in the window title
+- Print editor version in the log on start
+- Replace hardcoded version of the engine with the one from Cargo.toml - this is semi-reliable solution, but much better
+  than having hardcoded version
+- Close projection (2d/3d) selector on selection
+- Use toggle button for `track selection` in the world viewer
+- Put search bar of the world viewer on the same row with other buttons
 
 ## Fixed
 
+- Fixed blurry fonts
 - Significantly improved editor performance.
-- improved joint stability after migration to rapier 0.20
-- use z index from respective message
-- fixed crash when trying to change window title using respective message
-- fixed procedural meshes serialization
-- fixed inspector syncing when replacing selected object with other type
+- Improved joint stability after migration to rapier 0.20
+- Use z index from respective message
+- Fixed crash when trying to change window title using respective message
+- Fixed procedural meshes serialization
+- Fixed inspector syncing when replacing selected object with other type
 - Fixing Rect tests in fyrox-math.
 - `transmute_vec_as_bytes` potential fix
-- fixed crash when trying to drag'n'drop non-texture in texture field
-- refresh asset browser after asset deletion
-- better validation for colliders
-- support for chained texture nodes in fbx - fixes normal map import on FBX files made in latest 3ds max/Maya/etc.
-- watch for changes in current directory and refresh asset browser content
-- fixed potential crash when cloning ui nodes
-- fixed tool installation check in project exporter
-    - do not try to install already installed tools
-    - prevents accessing network when there's no actual need
-- fixed redundant texture binding if it is already bound to pipeline
-- discard scaling from rotation matrix before passing it to bounding shape - fixes clipping issues of light sources
-- do not skip light scatter rendering even if there's no fragments lit - fixes flashing of light scattering
-- fixed shadow map lod selection condition
-- speed up access to animation curve data
-- use `ImmutableString` in `ValueBinding` to make it smaller results in faster copying (32 bytes vs 16 bytes)
-- prevent render targets from registering multiple times in texture cache
-- improved performance of render data collection
-- drop inherited `RUSTFLAGS` for project exporter child processes
-- fixed crash when rendering large bundles
-- do not reallocate gpu buffer if there's enough space for data already
-- ignore buffer write commands when the data is empty
-- set glsl es precision to `highp`
-- fixed an invalid editor window size on second startup at the hidpi display
+- Fixed crash when trying to drag'n'drop non-texture in texture field
+- Refresh asset browser after asset deletion
+- Better validation for colliders
+- Support for chained texture nodes in fbx - fixes normal map import on FBX files made in latest 3ds max/Maya/etc.
+- Watch for changes in current directory and refresh asset browser content
+- Fixed potential crash when cloning ui nodes
+- Fixed tool installation check in project exporter
+    - Do not try to install already installed tools
+    - Prevents accessing network when there's no actual need
+- Fixed redundant texture binding if it is already bound to pipeline
+- Discard scaling from rotation matrix before passing it to bounding shape - fixes clipping issues of light sources
+- Do not skip light scatter rendering even if there's no fragments lit - fixes flashing of light scattering
+- Fixed shadow map lod selection condition
+- Speed up access to animation curve data
+- Use `ImmutableString` in `ValueBinding` to make it smaller results in faster copying (32 bytes vs 16 bytes)
+- Prevent render targets from registering multiple times in texture cache
+- Improved performance of render data collection
+- Drop inherited `RUSTFLAGS` for project exporter child processes
+- Fixed crash when rendering large bundles
+- Do not reallocate gpu buffer if there's enough space for data already
+- Ignore buffer write commands when the data is empty
+- Set glsl es precision to `highp`
+- Fixed an invalid editor window size on second startup at the hidpi display
 - Ensure vector images have a set size
-- fix crash on MacOS in notify crate when path is set first time
-- reduced code bloat by isolating fallback textures into their own struct
-- fix wasm tests fails due to using of the deprecated PanicInfo
-- discard scaling part when calculating light source bounding box
-- excluded some non-animatable properties from property selector
-- detached perf of hierarchical properties propagation from graph size
-    - graph now updates hierarchical properties only for ones that actually changed
-    - significantly improves performance in static scenes
-- prevent redundant global transform update for 2d rigid bodies
-- fixed "teleportation" bug (when a scene node was located at world's origin for 1 frame and then teleports back
+- Fix crash on MacOS in notify crate when path is set first time
+- Reduced code bloat by isolating fallback textures into their own struct
+- Fix wasm tests fails due to using of the deprecated PanicInfo
+- Discard scaling part when calculating light source bounding box
+- Excluded some non-animatable properties from property selector
+- Detached perf of hierarchical properties propagation from graph size
+    - Graph now updates hierarchical properties only for ones that actually changed
+    - Significantly improves performance in static scenes
+- Prevent redundant global transform update for 2d rigid bodies
+- Fixed "teleportation" bug (when a scene node was located at world's origin for 1 frame and then teleports back
   where it should be)
-- prevent potential nan in `vector_to_quat`
-- fixed convergence in reverb sound effect
-- fixed root motion jitter on looping animations - - loop boundaries were handled incorrectly, thus leading to error
+- Prevent potential nan in `vector_to_quat`
+- Fixed convergence in reverb sound effect
+- Fixed root motion jitter on looping animations - - loop boundaries were handled incorrectly, thus leading to error
   accumulation that led to annoying jitter after some iterations
-- fixed visible borders around point lights
-- reduced code bloat in the engine internals
-- fixed transform syncing of colliders
-- fixed `Inspector` widget syncing issues
-- fixed crash when deleting multiple animation tracks at once
+- Fixed visible borders around point lights
+- Reduced code bloat in the engine internals
+- Fixed transform syncing of colliders
+- Fixed `Inspector` widget syncing issues
+- Fixed crash when deleting multiple animation tracks at once
 - Fix for UI layout, including Grid and Text.
-- fixed crash when trying to fetch intersections from a deleted collider
-- fixed crash when trying to collect animation events without a root state
-- fixed crash when using `accurate_world_bounding_box` on some meshes - it would crash if a mesh has no position/bone
+- Fixed crash when trying to fetch intersections from a deleted collider
+- Fixed crash when trying to collect animation events without a root state
+- Fixed crash when using `accurate_world_bounding_box` on some meshes - it would crash if a mesh has no position/bone
   indices/bone weights attributes in its vertex buffer
-- fixed name of ragdoll joint generated by ragdoll wizard
-- improved overall editor performance and ui nodes linking in particular
-- prevent redundant syncing of editor settings window - saves ~10% of time
-- prevent the editor to load the same texture over and over again
-- fixed keyboard navigation for tree root - fixes annoying issue which causes keyboard focus to stuck at tree root
-- fixed camera preview panel size
+- Fixed name of ragdoll joint generated by ragdoll wizard
+- Improved overall editor performance and ui nodes linking in particular
+- Prevent redundant syncing of editor settings window - saves ~10% of time
+- Prevent the editor to load the same texture over and over again
+- Fixed keyboard navigation for tree root - fixes annoying issue which causes keyboard focus to stuck at tree root
+- Fixed camera preview panel size
 - Fixed deletion of some widgets
-- fixed arrow visibility of menu item when dynamically changing its items
+- Fixed arrow visibility of menu item when dynamically changing its items
+- Fixed `MenuItem` performance issues
+- Fixed syncing of material editor shader field
+- Added `fyrox-build-tools` crate which essentially contains build tools from the editor
+- Fixed incorrect texture bindings invalidation - caused weird bug with incorrect textures applied to some objects (very
+  noticable in the ui after resizing the window)
+- Use mip mapping for icons in the editor to smooth icons in the editor
+- Fixed background color "leaking" during `Border` widget rendering
+- Fixed syncing bug of R coordinate for volume textures
+- Fixed transform order in visual transform calculation
+- Fixed incorrect memory alignment when deserializing `BinaryBlob`
 
 ## Removed
 
-- removed redundant data hash calculation in textures
-- removed redundant field from render data bundle - is_skinned flag makes no sense, because it could be derived
+- Removed redundant data hash calculation in textures
+- Removed redundant field from render data bundle - is_skinned flag makes no sense, because it could be derived
   from bone matrix count anyway and it is always defined on per-instance basis, not per-bundle.
-- removed redundant decal layer index from mesh/terrain/render data bundle - these are residuals from before
+- Removed redundant decal layer index from mesh/terrain/render data bundle - these are residuals from before
   custom material era, it makes no sense now since decal layer index is defined in materials and these fields simply had
   no effect
-- removed depth offset
-    - it could be done with shaders
-    - removed because it adds unnecessary projection matrix juggling for each rendered instance
-- removed implicit blend shapes storage passing to material shaders - - it is now controlled directly from `Mesh` node
+- Removed depth offset
+    - It could be done with shaders
+    - Removed because it adds unnecessary projection matrix juggling for each rendered instance
+- Removed implicit blend shapes storage passing to material shaders - - it is now controlled directly from `Mesh` node
   and it creates temp material to pass blend shape storage explicitly
-- removed `PersistentIdentifier` and `MatrixStorageCache`
-- removed `cast_shadows` property from `BaseLight` - this property at some point started to be redundant, because `Base`
+- Removed `PersistentIdentifier` and `MatrixStorageCache`
+- Removed `cast_shadows` property from `BaseLight` - this property at some point started to be redundant, because `Base`
   already has such property and the one in `BaseLight` must be deleted to prevent confusion
-- removed incorrect error message in animation editor
-- removed `Node::query_component_ref/mut`
-    - it duplicates existing functionality
-    - replaced with `SceneGraphNode::component_ref/mut`
-- removed redundant boxing when applying animation values - makes animation of arbitrary numeric properies significantly
+- Removed incorrect error message in animation editor
+- Removed `Node::query_component_ref/mut`
+    - It duplicates existing functionality
+    - Replaced with `SceneGraphNode::component_ref/mut`
+- Removed redundant boxing when applying animation values - makes animation of arbitrary numeric properies significantly
   faster
 
 # 0.35
