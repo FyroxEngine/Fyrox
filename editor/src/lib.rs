@@ -618,7 +618,7 @@ impl Editor {
         light_style
             .set(
                 WorldViewer::INSTANCE_BRUSH,
-                Brush::Solid(Color::opaque(160, 160, 200)),
+                Brush::Solid(Color::opaque(70, 70, 120)),
             )
             .set(
                 AssetItem::SELECTED_FOREGROUND,

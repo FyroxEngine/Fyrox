@@ -377,8 +377,11 @@ impl Style {
             )
             .set(Self::BRUSH_TEXT, Brush::Solid(Color::repeat_opaque(0)))
             .set(Self::BRUSH_FOREGROUND, Brush::Solid(Color::WHITE))
-            .set(Self::BRUSH_INFORMATION, Brush::Solid(Color::ANTIQUE_WHITE))
-            .set(Self::BRUSH_WARNING, Brush::Solid(Color::GOLD))
+            .set(Self::BRUSH_INFORMATION, Brush::Solid(Color::ROYAL_BLUE))
+            .set(
+                Self::BRUSH_WARNING,
+                Brush::Solid(Color::opaque(255, 242, 0)),
+            )
             .set(Self::BRUSH_ERROR, Brush::Solid(Color::RED));
         style
     }
