@@ -43,14 +43,14 @@ use crate::{
             gpu_program::GpuProgram,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
-            CompareFunc, DrawParameters, ElementKind, ElementRange,
+            CompareFunc, DrawParameters, ElementRange,
         },
         RenderPassStatistics,
     },
     scene::debug::Line,
 };
 use bytemuck::{Pod, Zeroable};
-use fyrox_graphics::framebuffer::BufferLocation;
+use fyrox_graphics::{framebuffer::BufferLocation, geometry_buffer::ElementsDescriptor};
 
 #[repr(C)]
 #[derive(Copy, Pod, Zeroable, Clone)]
@@ -104,7 +104,7 @@ impl DebugShader {
 impl DebugRenderer {
     pub(crate) fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let desc = GeometryBufferDescriptor {
-            element_kind: ElementKind::Line,
+            elements: ElementsDescriptor::Lines(&[]),
             buffers: &[VertexBufferDescriptor {
                 usage: BufferUsage::DynamicDraw,
                 attributes: &[

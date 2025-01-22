@@ -29,7 +29,7 @@ use crate::{
                 Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
                 ResourceBinding,
             },
-            geometry_buffer::{DrawCallStatistics, GeometryBuffer},
+            geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
@@ -40,6 +40,7 @@ use crate::{
     },
     scene::mesh::surface::SurfaceData,
 };
+use fyrox_graphics::framebuffer::DrawCallStatistics;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {

@@ -32,6 +32,7 @@ use crate::{
     },
     scene::mesh::{buffer::VertexAttributeDataType, surface::SurfaceData},
 };
+use fyrox_graphics::geometry_buffer::ElementsDescriptor;
 pub use fyrox_graphics::*;
 
 /// Extension trait for [`GeometryBuffer`].
@@ -69,7 +70,6 @@ impl GeometryBufferExt for dyn GeometryBuffer {
             .collect::<Vec<_>>();
 
         let geometry_buffer_desc = GeometryBufferDescriptor {
-            element_kind: ElementKind::Triangle,
             buffers: &[VertexBufferDescriptor {
                 usage,
                 attributes: &attributes,
@@ -79,12 +79,9 @@ impl GeometryBufferExt for dyn GeometryBuffer {
                 },
             }],
             usage,
+            elements: ElementsDescriptor::Triangles(data.geometry_buffer.triangles_ref()),
         };
 
-        let geometry_buffer = server.create_geometry_buffer(geometry_buffer_desc)?;
-
-        geometry_buffer.set_triangles(data.geometry_buffer.triangles_ref());
-
-        Ok(geometry_buffer)
+        server.create_geometry_buffer(geometry_buffer_desc)
     }
 }

@@ -86,7 +86,7 @@ use crate::{
                 Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
                 ResourceBinding,
             },
-            geometry_buffer::{DrawCallStatistics, GeometryBuffer},
+            geometry_buffer::GeometryBuffer,
             gpu_program::SamplerFallback,
             gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::{GraphicsServer, SharedGraphicsServer},
@@ -104,6 +104,7 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::framebuffer::DrawCallStatistics;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 pub use stats::*;

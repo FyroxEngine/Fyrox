@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::geometry_buffer::ElementsDescriptor;
 use crate::{
     buffer::{Buffer, BufferKind},
     core::{array_as_u8_slice, math::TriangleDefinition},
@@ -61,6 +62,12 @@ impl GlGeometryBuffer {
         server.set_vertex_array_object(Some(vao));
 
         let element_buffer = GlBuffer::new(server, 0, BufferKind::Index, desc.usage)?;
+
+        element_buffer.write_data(match desc.elements {
+            ElementsDescriptor::Triangles(triangles) => array_as_u8_slice(triangles),
+            ElementsDescriptor::Lines(lines) => array_as_u8_slice(lines),
+            ElementsDescriptor::Points(points) => array_as_u8_slice(points),
+        })?;
 
         let mut buffers = Vec::new();
         for buffer in desc.buffers {
@@ -111,7 +118,7 @@ impl GlGeometryBuffer {
             buffers,
             element_buffer,
             element_count: Cell::new(0),
-            element_kind: desc.element_kind,
+            element_kind: desc.elements.element_kind(),
             thread_mark: PhantomData,
         })
     }
@@ -158,6 +165,12 @@ impl GeometryBuffer for GlGeometryBuffer {
         assert_eq!(self.element_kind, ElementKind::Line);
         self.element_count.set(lines.len());
         self.set_elements(array_as_u8_slice(lines));
+    }
+
+    fn set_points(&self, points: &[u32]) {
+        assert_eq!(self.element_kind, ElementKind::Point);
+        self.element_count.set(points.len());
+        self.set_elements(array_as_u8_slice(points));
     }
 }
 

@@ -33,7 +33,7 @@ use crate::{
                 Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
                 ResourceBinding,
             },
-            geometry_buffer::{DrawCallStatistics, GeometryBuffer},
+            geometry_buffer::GeometryBuffer,
             gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -49,6 +49,7 @@ use crate::{
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
+use fyrox_graphics::framebuffer::DrawCallStatistics;
 use std::{cell::RefCell, rc::Rc};
 
 mod adaptation;

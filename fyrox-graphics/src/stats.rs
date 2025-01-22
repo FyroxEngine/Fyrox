@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::geometry_buffer::DrawCallStatistics;
+use crate::framebuffer::DrawCallStatistics;
 use std::fmt::{Display, Formatter};
 
 /// Graphics pipeline statistics.

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::framebuffer::DrawCallStatistics;
 use crate::{
     buffer::{Buffer, BufferKind},
     core::{color::Color, math::Rect},
@@ -26,7 +27,7 @@ use crate::{
         Attachment, AttachmentKind, BufferDataUsage, BufferLocation, FrameBuffer,
         ResourceBindGroup, ResourceBinding, TextureShaderLocation,
     },
-    geometry_buffer::{DrawCallStatistics, GeometryBuffer},
+    geometry_buffer::GeometryBuffer,
     gl::{
         buffer::GlBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram,
         server::GlGraphicsServer, texture::GlTexture, ToGlConstant,

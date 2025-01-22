@@ -20,7 +20,6 @@
 
 //! See [`UiRenderer`] docs.
 
-use crate::renderer::FallbackResources;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -48,13 +47,13 @@ use crate::{
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
-            ElementKind, ElementRange, ScissorBox, StencilAction, StencilFunc, StencilOp,
+            ElementRange, ScissorBox, StencilAction, StencilFunc, StencilOp,
         },
-        RenderPassStatistics, TextureCache,
+        FallbackResources, RenderPassStatistics, TextureCache,
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
-use fyrox_graphics::framebuffer::BufferLocation;
+use fyrox_graphics::{framebuffer::BufferLocation, geometry_buffer::ElementsDescriptor};
 
 struct UiShader {
     program: Box<dyn GpuProgram>,
@@ -109,7 +108,7 @@ pub struct UiRenderContext<'a, 'b, 'c> {
 impl UiRenderer {
     pub(in crate::renderer) fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let geometry_buffer_desc = GeometryBufferDescriptor {
-            element_kind: ElementKind::Triangle,
+            elements: ElementsDescriptor::Triangles(&[]),
             buffers: &[VertexBufferDescriptor {
                 usage: BufferUsage::DynamicDraw,
                 attributes: &[
@@ -141,7 +140,7 @@ impl UiRenderer {
         };
 
         let clipping_geometry_buffer_desc = GeometryBufferDescriptor {
-            element_kind: ElementKind::Triangle,
+            elements: ElementsDescriptor::Triangles(&[]),
             buffers: &[VertexBufferDescriptor {
                 usage: BufferUsage::DynamicDraw,
                 attributes: &[

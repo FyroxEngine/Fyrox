@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::framework::geometry_buffer::DrawCallStatistics;
 use fyrox_core::instant;
+use fyrox_graphics::framebuffer::DrawCallStatistics;
 pub use fyrox_graphics::stats::*;
 use std::fmt::{Display, Formatter};
 use std::ops::AddAssign;
