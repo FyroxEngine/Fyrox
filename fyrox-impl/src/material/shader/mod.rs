@@ -581,7 +581,7 @@ impl ShaderDefinition {
     pub const MAX_LIGHTS: usize = 16;
 
     /// Maximum amount of bone matrices per shader.
-    pub const MAX_BONE_MATRICES: usize = 256;
+    pub const MAX_BONE_MATRICES: usize = 255;
 
     /// Maximum amount of blend shape weight groups (packed weights of blend shapes into vec4).
     pub const MAX_BLEND_SHAPE_WEIGHT_GROUPS: usize = 32;
