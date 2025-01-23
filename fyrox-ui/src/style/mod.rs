@@ -41,6 +41,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_resource::{io::ResourceIo, manager::BuiltInResource};
+use fyrox_texture::TextureResource;
 use lazy_static::lazy_static;
 use std::{
     ops::{Deref, DerefMut},
@@ -58,6 +59,9 @@ pub enum StyleProperty {
     Color(Color),
     /// A brush property, that defines how to render an arbitrary surface (solid, with gradient, etc.).
     Brush(Brush),
+    /// A texture property. Could be used together with [`crate::image::Image`] widget or [`crate::nine_patch::NinePatch`]
+    /// widget.
+    Texture(TextureResource),
 }
 
 impl Default for StyleProperty {
@@ -96,6 +100,7 @@ impl_casts!(f32 => Number);
 impl_casts!(Thickness => Thickness);
 impl_casts!(Color => Color);
 impl_casts!(Brush => Brush);
+impl_casts!(TextureResource => Texture);
 
 lazy_static! {
     /// Default style of the library.
