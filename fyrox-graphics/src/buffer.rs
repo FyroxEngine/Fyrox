@@ -89,6 +89,36 @@ pub enum BufferUsage {
 
 /// Buffer is a type-agnostic data storage located directly in GPU memory. It could be considered
 /// as a data block which content is a pile of bytes, whose meaning is defined externally.
+///
+/// ## Example
+///
+/// The following example shows how to create a uniform buffer, that could be used for rendering
+/// a static object.
+///
+/// ```rust
+/// use fyrox_graphics::{
+///     buffer::{Buffer, BufferKind, BufferUsage},
+///     core::{algebra::Vector3, color::Color},
+///     error::FrameworkError,
+///     server::GraphicsServer,
+///     uniform::DynamicUniformBuffer,
+/// };
+///
+/// fn create_buffer(server: &dyn GraphicsServer) -> Result<Box<dyn Buffer>, FrameworkError> {
+///     let uniforms = DynamicUniformBuffer::new()
+///         .with(&Vector3::new(1.0, 2.0, 3.0))
+///         .with(&Color::WHITE)
+///         .with(&123.0f32)
+///         .finish();
+///
+///     let buffer =
+///         server.create_buffer(uniforms.len(), BufferKind::Uniform, BufferUsage::StaticDraw)?;
+///
+///     buffer.write_data(&uniforms)?;
+///
+///     Ok(buffer)
+/// }
+/// ```
 pub trait Buffer: Downcast {
     /// Returns usage kind of the buffer.
     fn usage(&self) -> BufferUsage;
