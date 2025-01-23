@@ -18,12 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::geometry_buffer::ElementsDescriptor;
 use crate::{
     buffer::{Buffer, BufferKind},
     core::{array_as_u8_slice, math::TriangleDefinition},
     error::FrameworkError,
-    geometry_buffer::{AttributeKind, GeometryBuffer, GeometryBufferDescriptor},
+    geometry_buffer::{
+        AttributeKind, ElementsDescriptor, GeometryBuffer, GeometryBufferDescriptor,
+    },
     gl::{buffer::GlBuffer, server::GlGraphicsServer, ToGlConstant},
     ElementKind,
 };
@@ -63,11 +64,15 @@ impl GlGeometryBuffer {
 
         let element_buffer = GlBuffer::new(server, 0, BufferKind::Index, desc.usage)?;
 
-        element_buffer.write_data(match desc.elements {
-            ElementsDescriptor::Triangles(triangles) => array_as_u8_slice(triangles),
-            ElementsDescriptor::Lines(lines) => array_as_u8_slice(lines),
-            ElementsDescriptor::Points(points) => array_as_u8_slice(points),
-        })?;
+        let (element_count, data) = match desc.elements {
+            ElementsDescriptor::Triangles(triangles) => {
+                (triangles.len(), array_as_u8_slice(triangles))
+            }
+            ElementsDescriptor::Lines(lines) => (lines.len(), array_as_u8_slice(lines)),
+            ElementsDescriptor::Points(points) => (points.len(), array_as_u8_slice(points)),
+        };
+
+        element_buffer.write_data(data)?;
 
         let mut buffers = Vec::new();
         for buffer in desc.buffers {
@@ -117,7 +122,7 @@ impl GlGeometryBuffer {
             vertex_array_object: vao,
             buffers,
             element_buffer,
-            element_count: Cell::new(0),
+            element_count: Cell::new(element_count),
             element_kind: desc.elements.element_kind(),
             thread_mark: PhantomData,
         })
