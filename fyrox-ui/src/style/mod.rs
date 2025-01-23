@@ -26,7 +26,6 @@
 
 pub mod resource;
 
-use crate::toggle::ToggleButton;
 use crate::{
     brush::Brush,
     button::Button,
@@ -37,15 +36,20 @@ use crate::{
     },
     dropdown_list::DropdownList,
     style::resource::{StyleResource, StyleResourceError, StyleResourceExt},
+    toggle::ToggleButton,
     Thickness,
 };
 use fxhash::FxHashMap;
-use fyrox_resource::{io::ResourceIo, manager::BuiltInResource};
+use fyrox_resource::{
+    io::ResourceIo,
+    manager::{BuiltInResource, ResourceManager},
+};
 use fyrox_texture::TextureResource;
 use lazy_static::lazy_static;
 use std::{
     ops::{Deref, DerefMut},
     path::Path,
+    sync::Arc,
 };
 
 /// A set of potential values for styled properties.
@@ -512,9 +516,14 @@ impl Style {
     }
 
     /// Tries to load a style from the given path.
-    pub async fn from_file(path: &Path, io: &dyn ResourceIo) -> Result<Self, StyleResourceError> {
+    pub async fn from_file(
+        path: &Path,
+        io: &dyn ResourceIo,
+        resource_manager: ResourceManager,
+    ) -> Result<Self, StyleResourceError> {
         let bytes = io.load_file(path).await?;
         let mut visitor = Visitor::load_from_memory(&bytes)?;
+        visitor.blackboard.register(Arc::new(resource_manager));
         let mut style = Style::default();
         style.visit("Style", &mut visitor)?;
         Ok(style)

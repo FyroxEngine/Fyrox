@@ -31,6 +31,7 @@ use fyrox_core::{
 use fyrox_resource::{
     io::ResourceIo,
     loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
+    manager::ResourceManager,
     state::LoadError,
     Resource, ResourceData,
 };
@@ -97,7 +98,10 @@ impl ResourceData for Style {
 }
 
 /// A loader for style resource.
-pub struct StyleLoader;
+pub struct StyleLoader {
+    /// Resource manager handle.
+    pub resource_manager: ResourceManager,
+}
 
 impl ResourceLoader for StyleLoader {
     fn extensions(&self) -> &[&str] {
@@ -109,8 +113,9 @@ impl ResourceLoader for StyleLoader {
     }
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
+        let resource_manager = self.resource_manager.clone();
         Box::pin(async move {
-            let tile_set = Style::from_file(&path, io.as_ref())
+            let tile_set = Style::from_file(&path, io.as_ref(), resource_manager)
                 .await
                 .map_err(LoadError::new)?;
             Ok(LoaderPayload::new(tile_set))

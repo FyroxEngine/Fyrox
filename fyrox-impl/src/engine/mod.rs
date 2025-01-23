@@ -1317,7 +1317,9 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.loaders.set(TileMapBrushLoader {
         resource_manager: resource_manager.clone(),
     });
-    state.loaders.set(StyleLoader);
+    state.loaders.set(StyleLoader {
+        resource_manager: resource_manager.clone(),
+    });
 }
 
 impl Engine {
