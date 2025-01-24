@@ -23,8 +23,6 @@
 
 #![warn(missing_docs)]
 
-use crate::style::resource::StyleResourceExt;
-use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -38,11 +36,14 @@ use crate::{
     message::{KeyCode, MessageDirection, UiMessage},
     scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
     stack_panel::StackPanelBuilder,
+    style::{resource::StyleResourceExt, Style},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::{
+    constructor::{ConstructorProvider, GraphNodeConstructor},
+    BaseSceneGraph,
+};
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be used to modify/fetch the state of a [`ListView`] widget at runtime.
@@ -536,6 +537,7 @@ pub struct ListViewBuilder {
     items: Vec<Handle<UiNode>>,
     panel: Option<Handle<UiNode>>,
     scroll_viewer: Option<Handle<UiNode>>,
+    selection: Vec<usize>,
 }
 
 impl ListViewBuilder {
@@ -546,6 +548,7 @@ impl ListViewBuilder {
             items: Vec::new(),
             panel: None,
             scroll_viewer: None,
+            selection: Default::default(),
         }
     }
 
@@ -567,9 +570,38 @@ impl ListViewBuilder {
         self
     }
 
+    /// Sets the desired selected items.
+    pub fn with_selection(mut self, items: Vec<usize>) -> Self {
+        self.selection = items;
+        self
+    }
+
     /// Finishes list view building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let item_containers = generate_item_containers(ctx, &self.items);
+
+        // Sync the decorators to the actual state of items.
+        for (i, &container) in item_containers.iter().enumerate() {
+            let select = self.selection.contains(&i);
+            if let Some(container) = ctx[container].cast::<ListViewItem>() {
+                let mut stack = container.children().to_vec();
+                while let Some(handle) = stack.pop() {
+                    let node = &mut ctx[handle];
+                    if node.cast::<ListView>().is_some() {
+                        // Do nothing.
+                    } else if let Some(decorator) = node.cast_mut::<Decorator>() {
+                        decorator.is_selected.set_value_and_mark_modified(select);
+                        if select {
+                            decorator.background = (*decorator.selected_brush).clone().into();
+                        } else {
+                            decorator.background = (*decorator.normal_brush).clone().into();
+                        }
+                    } else {
+                        stack.extend_from_slice(node.children())
+                    }
+                }
+            }
+        }
 
         let panel = self
             .panel
@@ -607,7 +639,7 @@ impl ListViewBuilder {
                 .with_accepts_input(true)
                 .with_child(back)
                 .build(ctx),
-            selection: Default::default(),
+            selection: self.selection,
             item_containers: item_containers.into(),
             items: self.items.into(),
             panel: panel.into(),
