@@ -26,10 +26,6 @@ use fyrox::{
         widget::WidgetBuilder, BuildContext, HorizontalAlignment, Thickness, UiNode,
         VerticalAlignment,
     },
-    resource::texture::{
-        CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
-        TextureResourceExtension,
-    },
 };
 use std::{
     path::{Path, PathBuf},
@@ -81,18 +77,6 @@ pub fn make_button(
                 .build(ctx),
         )
         .build(ctx)
-}
-
-pub fn load_image(data: &[u8]) -> Option<TextureResource> {
-    TextureResource::load_from_memory(
-        Default::default(),
-        data,
-        TextureImportOptions::default()
-            .with_compression(CompressionOptions::NoCompression)
-            .with_minification_filter(TextureMinificationFilter::LinearMipMapLinear)
-            .with_lod_bias(-1.0),
-    )
-    .ok()
 }
 
 pub fn folder_to_manifest_path(path: &Path) -> PathBuf {

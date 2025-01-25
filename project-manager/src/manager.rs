@@ -22,7 +22,7 @@ use crate::{
     project::ProjectWizard,
     settings::{Project, Settings, SettingsWindow, MANIFEST_PATH_VAR},
     upgrade::UpgradeTool,
-    utils::{self, is_production_ready, load_image},
+    utils::{self, is_production_ready},
 };
 use fyrox::{
     core::{color::Color, log::Log, pool::Handle, some_or_return},
@@ -46,7 +46,7 @@ use fyrox::{
         style::{resource::StyleResourceExt, Style},
         text::{TextBuilder, TextMessage},
         utils::{
-            make_image_button_with_tooltip, make_simple_tooltip,
+            load_image, make_image_button_with_tooltip, make_simple_tooltip,
             make_text_and_image_button_with_tooltip,
         },
         widget::{WidgetBuilder, WidgetMessage},
