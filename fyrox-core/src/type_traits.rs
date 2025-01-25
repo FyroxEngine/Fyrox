@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::math::Rect;
 pub use fyrox_core_derive::ComponentProvider;
 pub use fyrox_core_derive::TypeUuidProvider;
 use std::any::{Any, TypeId};
@@ -72,6 +73,15 @@ uuid_provider!(isize = "0a06591a-1c66-4299-ba6f-2b205b795575");
 uuid_provider!(bool = "3b104074-9d39-4a2b-b974-da8cc1759fe8");
 uuid_provider!(PathBuf = "3b104074-9d39-4a2b-b974-da8cc1759666");
 uuid_provider!(String = "3b104074-9d39-4a2b-b974-da8cc1759999");
+
+impl<T: TypeUuidProvider> TypeUuidProvider for Rect<T> {
+    fn type_uuid() -> Uuid {
+        combine_uuids(
+            uuid::uuid!("0f88dcde-f145-4ba0-a5c1-cf5036fa0706"),
+            T::type_uuid(),
+        )
+    }
+}
 
 impl<T: TypeUuidProvider> TypeUuidProvider for Option<T> {
     fn type_uuid() -> Uuid {
