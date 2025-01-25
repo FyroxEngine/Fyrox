@@ -18,22 +18,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox_core::uuid_provider;
-
 use crate::{
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
-        type_traits::prelude::*, visitor::prelude::*,
+        some_or_return, type_traits::prelude::*, uuid_provider, variable::InheritableVariable,
+        visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
-use fyrox_core::variable::InheritableVariable;
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::{
+    constructor::{ConstructorProvider, GraphNodeConstructor},
+    BaseSceneGraph,
+};
 use fyrox_texture::TextureResource;
 use std::ops::{Deref, DerefMut};
 
@@ -119,7 +119,7 @@ impl Control for NinePatch {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let texture = self.texture.as_ref().unwrap();
+        let texture = some_or_return!(self.texture.as_ref());
 
         let patch_bounds = self.widget.bounding_rect();
 
