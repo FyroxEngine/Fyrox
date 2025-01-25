@@ -21,7 +21,6 @@
 //! A collection of [PropertyEditorDefinition] objects for a wide variety of types,
 //! including standard Rust types and Fyrox core types.
 
-use crate::inspector::editors::path::PathPropertyEditorDefinition;
 use crate::{
     absm::{EventAction, EventKind},
     bit::BitField,
@@ -33,11 +32,11 @@ use crate::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
         color::Color,
         color_gradient::ColorGradient,
-        math::curve::Curve,
-        math::{Rect, SmoothAngle},
+        math::{curve::Curve, Rect, SmoothAngle},
         parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard},
         pool::Handle,
         reflect::{FieldInfo, FieldValue, Reflect},
+        sstorage::ImmutableString,
         uuid::Uuid,
         visitor::prelude::*,
     },
@@ -61,11 +60,13 @@ use crate::{
             key::KeyBindingPropertyEditorDefinition,
             matrix2::MatrixPropertyEditorDefinition,
             numeric::NumericPropertyEditorDefinition,
+            path::PathPropertyEditorDefinition,
             quat::QuatPropertyEditorDefinition,
             range::RangePropertyEditorDefinition,
             rect::RectPropertyEditorDefinition,
             refcell::RefCellPropertyEditorDefinition,
             string::StringPropertyEditorDefinition,
+            style::StyledPropertyEditorDefinition,
             utf32::Utf32StringPropertyEditorDefinition,
             uuid::UuidPropertyEditorDefinition,
             vec::{
@@ -90,6 +91,7 @@ use crate::{
     scroll_bar::ScrollBar,
     scroll_panel::ScrollPanel,
     stack_panel::StackPanel,
+    style::StyledProperty,
     tab_control::TabControl,
     text::Text,
     text_box::{Position, SelectionRange, TextBox, TextCommitMode},
@@ -105,12 +107,12 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_animation::machine::Parameter;
-use fyrox_core::sstorage::ImmutableString;
-use std::fmt::Formatter;
+use fyrox_texture::TextureResource;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
     fmt::Debug,
+    fmt::Formatter,
     ops::Range,
     path::PathBuf,
     str::FromStr,
@@ -137,6 +139,7 @@ pub mod range;
 pub mod rect;
 pub mod refcell;
 pub mod string;
+mod style;
 pub mod utf32;
 pub mod uuid;
 pub mod vec;
@@ -521,7 +524,7 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InheritablePropertyEditorDefinition::<Curve>::new());
 
         // UI
-        container.register_inheritable_enum::<Brush, _>();
+        container.register_inheritable_styleable_enum::<Brush, _>();
         container.register_inheritable_enum::<Orientation, _>();
         container.register_inheritable_enum::<VerticalAlignment, _>();
         container.register_inheritable_enum::<HorizontalAlignment, _>();
@@ -571,6 +574,23 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InspectablePropertyEditorDefinition::<
             Arc<Mutex<RcUiNodeHandleInner>>,
         >::new());
+
+        // Styled.
+        container.insert(InheritablePropertyEditorDefinition::<StyledProperty<f32>>::new());
+        container.insert(StyledPropertyEditorDefinition::<f32>::new());
+
+        container.insert(InheritablePropertyEditorDefinition::<StyledProperty<Color>>::new());
+        container.insert(StyledPropertyEditorDefinition::<Color>::new());
+
+        container.insert(InheritablePropertyEditorDefinition::<
+            StyledProperty<Thickness>,
+        >::new());
+        container.insert(StyledPropertyEditorDefinition::<Thickness>::new());
+
+        container.insert(InheritablePropertyEditorDefinition::<
+            StyledProperty<TextureResource>,
+        >::new());
+        container.insert(StyledPropertyEditorDefinition::<TextureResource>::new());
 
         reg_inspectables!(
             container,
@@ -760,6 +780,24 @@ impl PropertyEditorDefinitionContainer {
             .is_none());
     }
 
+    pub fn register_inheritable_styleable_inspectable<T>(&self)
+    where
+        T: Reflect + FieldValue,
+    {
+        assert!(self
+            .insert(InspectablePropertyEditorDefinition::<T>::new())
+            .is_none());
+        assert!(self
+            .insert(InheritablePropertyEditorDefinition::<T>::new())
+            .is_none());
+        assert!(self
+            .insert(InheritablePropertyEditorDefinition::<StyledProperty<T>>::new())
+            .is_none());
+        assert!(self
+            .insert(StyledPropertyEditorDefinition::<T>::new())
+            .is_none());
+    }
+
     /// Insert property editor definitions to allow enum T to be edited
     /// using a dropdown list, as well as `InheritableVariable<T>`.
     ///
@@ -773,6 +811,24 @@ impl PropertyEditorDefinitionContainer {
             .is_none());
         assert!(self
             .insert(InheritablePropertyEditorDefinition::<T>::new())
+            .is_none());
+    }
+
+    pub fn register_inheritable_styleable_enum<T, E: Debug>(&self)
+    where
+        T: InspectableEnum + FieldValue + VariantNames + AsRef<str> + FromStr<Err = E> + Debug,
+    {
+        assert!(self
+            .insert(EnumPropertyEditorDefinition::<T>::new())
+            .is_none());
+        assert!(self
+            .insert(InheritablePropertyEditorDefinition::<T>::new())
+            .is_none());
+        assert!(self
+            .insert(InheritablePropertyEditorDefinition::<StyledProperty<T>>::new())
+            .is_none());
+        assert!(self
+            .insert(StyledPropertyEditorDefinition::<T>::new())
             .is_none());
     }
 
