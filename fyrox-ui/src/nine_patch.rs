@@ -22,7 +22,7 @@ use crate::{
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
-        some_or_return, type_traits::prelude::*, uuid_provider, variable::InheritableVariable,
+        some_or_return, type_traits::prelude::*, variable::InheritableVariable,
         visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
@@ -34,23 +34,19 @@ use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
 };
-use fyrox_texture::TextureResource;
+use fyrox_texture::{TextureKind, TextureResource};
 use std::ops::{Deref, DerefMut};
 
-/// Automatically arranges children by rows and columns
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
+#[type_uuid(id = "c345033e-8c10-4186-b101-43f73b85981d")]
 pub struct NinePatch {
     pub widget: Widget,
     pub texture: InheritableVariable<Option<TextureResource>>,
-    pub bottom_margin_uv: InheritableVariable<f32>,
-    pub left_margin_uv: InheritableVariable<f32>,
-    pub right_margin_uv: InheritableVariable<f32>,
-    pub top_margin_uv: InheritableVariable<f32>,
-
-    pub bottom_margin_pixel: InheritableVariable<u32>,
-    pub left_margin_pixel: InheritableVariable<u32>,
-    pub right_margin_pixel: InheritableVariable<u32>,
-    pub top_margin_pixel: InheritableVariable<u32>,
+    pub bottom_margin: InheritableVariable<u32>,
+    pub left_margin: InheritableVariable<u32>,
+    pub right_margin: InheritableVariable<u32>,
+    pub top_margin: InheritableVariable<u32>,
+    pub texture_region: InheritableVariable<Option<Rect<u32>>>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for NinePatch {
@@ -67,17 +63,28 @@ impl ConstructorProvider<UiNode, UserInterface> for NinePatch {
 
 crate::define_widget_deref!(NinePatch);
 
-uuid_provider!(NinePatch = "c345033e-8c10-4186-b101-43f73b85981d");
+fn draw_image(
+    image: &TextureResource,
+    bounds: Rect<f32>,
+    tex_coords: &[Vector2<f32>; 4],
+    clip_bounds: Rect<f32>,
+    background: Brush,
+    drawing_context: &mut DrawingContext,
+) {
+    drawing_context.push_rect_filled(&bounds, Some(tex_coords));
+    let texture = CommandTexture::Texture(image.clone());
+    drawing_context.commit(clip_bounds, background, texture, None);
+}
 
 impl Control for NinePatch {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         let mut size: Vector2<f32> = available_size;
 
-        let column1_width_pixels = *self.left_margin_pixel as f32;
-        let column3_width_pixels = *self.right_margin_pixel as f32;
+        let column1_width_pixels = *self.left_margin as f32;
+        let column3_width_pixels = *self.right_margin as f32;
 
-        let row1_height_pixels = *self.top_margin_pixel as f32;
-        let row3_height_pixels = *self.bottom_margin_pixel as f32;
+        let row1_height_pixels = *self.top_margin as f32;
+        let row3_height_pixels = *self.bottom_margin as f32;
 
         let x_overflow = column1_width_pixels + column3_width_pixels;
         let y_overflow = row1_height_pixels + row3_height_pixels;
@@ -95,11 +102,11 @@ impl Control for NinePatch {
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        let column1_width_pixels = *self.left_margin_pixel as f32;
-        let column3_width_pixels = *self.right_margin_pixel as f32;
+        let column1_width_pixels = *self.left_margin as f32;
+        let column3_width_pixels = *self.right_margin as f32;
 
-        let row1_height_pixels = *self.top_margin_pixel as f32;
-        let row3_height_pixels = *self.bottom_margin_pixel as f32;
+        let row1_height_pixels = *self.top_margin as f32;
+        let row3_height_pixels = *self.bottom_margin as f32;
 
         let x_overflow = column1_width_pixels + column3_width_pixels;
         let y_overflow = row1_height_pixels + row3_height_pixels;
@@ -121,32 +128,54 @@ impl Control for NinePatch {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let texture = some_or_return!(self.texture.as_ref());
 
+        let texture_state = texture.state();
+        let texture_state = some_or_return!(texture_state.data_ref());
+
+        // Only 2D textures can be used with nine-patch.
+        let TextureKind::Rectangle { width, height } = texture_state.kind() else {
+            return;
+        };
+
+        let texture_width = width as f32;
+        let texture_height = height as f32;
+
         let patch_bounds = self.widget.bounding_rect();
 
-        let column1_width_pixels = *self.left_margin_pixel as f32;
-        let column3_width_pixels = *self.right_margin_pixel as f32;
+        let left_margin = *self.left_margin as f32;
+        let right_margin = *self.right_margin as f32;
+        let top_margin = *self.top_margin as f32;
+        let bottom_margin = *self.bottom_margin as f32;
 
-        let row1_height_pixels = *self.top_margin_pixel as f32;
-        let row3_height_pixels = *self.bottom_margin_pixel as f32;
+        let region = self
+            .texture_region
+            .map(|region| Rect {
+                position: region.position.cast::<f32>(),
+                size: region.size.cast::<f32>(),
+            })
+            .unwrap_or_else(|| Rect::new(0.0, 0.0, texture_width, texture_height));
 
-        let x_fence_post1_uv = *self.left_margin_uv;
-        let x_fence_post2_uv = 1.0 - *self.right_margin_uv;
-        let y_fence_post1_uv = *self.top_margin_uv;
-        let y_fence_post2_uv = 1.0 - *self.bottom_margin_uv;
+        let center_uv_x_min = (region.position.x + left_margin) / texture_width;
+        let center_uv_x_max = (region.position.x + region.size.x - right_margin) / texture_width;
+        let center_uv_y_min = (region.position.y + top_margin) / texture_height;
+        let center_uv_y_max = (region.position.y + region.size.y - bottom_margin) / texture_height;
+        let uv_x_min = region.position.x / texture_width;
+        let uv_x_max = (region.position.x + region.size.x) / texture_width;
+        let uv_y_min = region.position.y / texture_height;
+        let uv_y_max = (region.position.y + region.size.y) / texture_height;
 
-        let x_overflow = column1_width_pixels + column3_width_pixels;
-        let y_overlfow = row1_height_pixels + row3_height_pixels;
+        let x_overflow = left_margin + right_margin;
+        let y_overflow = top_margin + bottom_margin;
 
         //top left
         let bounds = Rect {
             position: patch_bounds.position,
-            size: Vector2::new(column1_width_pixels, row1_height_pixels),
+            size: Vector2::new(left_margin, top_margin),
         };
         let tex_coords = [
-            Vector2::<f32>::new(0.0, 0.0),
-            Vector2::new(x_fence_post1_uv, 0.0),
-            Vector2::new(x_fence_post1_uv, y_fence_post1_uv),
-            Vector2::new(0.0, y_fence_post1_uv),
+            Vector2::new(uv_x_min, uv_y_min),
+            Vector2::new(center_uv_x_min, uv_y_min),
+            Vector2::new(center_uv_x_min, center_uv_y_min),
+            Vector2::new(uv_x_min, center_uv_y_min),
         ];
         draw_image(
             texture,
@@ -160,16 +189,16 @@ impl Control for NinePatch {
         //top center
         let bounds = Rect {
             position: Vector2::new(
-                patch_bounds.position.x + column1_width_pixels,
+                patch_bounds.position.x + left_margin,
                 patch_bounds.position.y,
             ),
-            size: Vector2::new(patch_bounds.size.x - x_overflow, row1_height_pixels),
+            size: Vector2::new(patch_bounds.size.x - x_overflow, top_margin),
         };
         let tex_coords = [
-            Vector2::<f32>::new(x_fence_post1_uv, 0.0),
-            Vector2::new(x_fence_post2_uv, 0.0),
-            Vector2::new(x_fence_post2_uv, y_fence_post1_uv),
-            Vector2::new(x_fence_post1_uv, y_fence_post1_uv),
+            Vector2::<f32>::new(center_uv_x_min, uv_y_min),
+            Vector2::new(center_uv_x_max, uv_y_min),
+            Vector2::new(center_uv_x_max, center_uv_y_min),
+            Vector2::new(center_uv_x_min, center_uv_y_min),
         ];
         draw_image(
             texture,
@@ -183,16 +212,16 @@ impl Control for NinePatch {
         //top right
         let bounds = Rect {
             position: Vector2::new(
-                (patch_bounds.position.x + patch_bounds.size.x) - column3_width_pixels,
+                (patch_bounds.position.x + patch_bounds.size.x) - right_margin,
                 patch_bounds.position.y,
             ),
-            size: Vector2::new(column3_width_pixels, row1_height_pixels),
+            size: Vector2::new(right_margin, top_margin),
         };
         let tex_coords = [
-            Vector2::<f32>::new(x_fence_post2_uv, 0.0),
-            Vector2::new(1.0, 0.0),
-            Vector2::new(1.0, y_fence_post1_uv),
-            Vector2::new(x_fence_post2_uv, y_fence_post1_uv),
+            Vector2::new(center_uv_x_max, uv_y_min),
+            Vector2::new(uv_x_max, uv_y_min),
+            Vector2::new(uv_x_max, center_uv_y_min),
+            Vector2::new(center_uv_x_max, center_uv_y_min),
         ];
         draw_image(
             texture,
@@ -207,15 +236,15 @@ impl Control for NinePatch {
         let bounds = Rect {
             position: Vector2::new(
                 patch_bounds.position.x,
-                patch_bounds.position.y + row1_height_pixels,
+                patch_bounds.position.y + top_margin,
             ),
-            size: Vector2::new(column1_width_pixels, patch_bounds.size.y - y_overlfow),
+            size: Vector2::new(left_margin, patch_bounds.size.y - y_overflow),
         };
         let tex_coords = [
-            Vector2::<f32>::new(0.0, y_fence_post1_uv),
-            Vector2::new(x_fence_post1_uv, y_fence_post1_uv),
-            Vector2::new(x_fence_post1_uv, y_fence_post2_uv),
-            Vector2::new(0.0, y_fence_post2_uv),
+            Vector2::new(uv_x_min, center_uv_y_min),
+            Vector2::new(center_uv_x_min, center_uv_y_min),
+            Vector2::new(center_uv_x_min, center_uv_y_max),
+            Vector2::new(uv_x_min, center_uv_y_max),
         ];
         draw_image(
             texture,
@@ -229,19 +258,19 @@ impl Control for NinePatch {
         //middle center
         let bounds = Rect {
             position: Vector2::new(
-                patch_bounds.position.x + column1_width_pixels,
-                patch_bounds.position.y + row1_height_pixels,
+                patch_bounds.position.x + left_margin,
+                patch_bounds.position.y + top_margin,
             ),
             size: Vector2::new(
                 patch_bounds.size.x - x_overflow,
-                patch_bounds.size.y - y_overlfow,
+                patch_bounds.size.y - y_overflow,
             ),
         };
         let tex_coords = [
-            Vector2::<f32>::new(x_fence_post1_uv, y_fence_post1_uv),
-            Vector2::new(x_fence_post2_uv, y_fence_post1_uv),
-            Vector2::new(x_fence_post2_uv, y_fence_post2_uv),
-            Vector2::new(x_fence_post1_uv, y_fence_post2_uv),
+            Vector2::new(center_uv_x_min, center_uv_y_min),
+            Vector2::new(center_uv_x_max, center_uv_y_min),
+            Vector2::new(center_uv_x_max, center_uv_y_max),
+            Vector2::new(center_uv_x_min, center_uv_y_max),
         ];
         draw_image(
             texture,
@@ -255,16 +284,16 @@ impl Control for NinePatch {
         //middle right
         let bounds = Rect {
             position: Vector2::new(
-                (patch_bounds.position.x + patch_bounds.size.x) - column3_width_pixels,
-                patch_bounds.position.y + row1_height_pixels,
+                (patch_bounds.position.x + patch_bounds.size.x) - right_margin,
+                patch_bounds.position.y + top_margin,
             ),
-            size: Vector2::new(column3_width_pixels, patch_bounds.size.y - y_overlfow),
+            size: Vector2::new(right_margin, patch_bounds.size.y - y_overflow),
         };
         let tex_coords = [
-            Vector2::<f32>::new(x_fence_post2_uv, y_fence_post1_uv),
-            Vector2::new(1.0, y_fence_post1_uv),
-            Vector2::new(1.0, y_fence_post2_uv),
-            Vector2::new(x_fence_post2_uv, y_fence_post2_uv),
+            Vector2::new(center_uv_x_max, center_uv_y_min),
+            Vector2::new(uv_x_max, center_uv_y_min),
+            Vector2::new(uv_x_max, center_uv_y_max),
+            Vector2::new(center_uv_x_max, center_uv_y_max),
         ];
         draw_image(
             texture,
@@ -280,15 +309,15 @@ impl Control for NinePatch {
         let bounds = Rect {
             position: Vector2::new(
                 patch_bounds.position.x,
-                (patch_bounds.position.y + patch_bounds.size.y) - row3_height_pixels,
+                (patch_bounds.position.y + patch_bounds.size.y) - bottom_margin,
             ),
-            size: Vector2::new(column1_width_pixels, row3_height_pixels),
+            size: Vector2::new(left_margin, bottom_margin),
         };
         let tex_coords = [
-            Vector2::<f32>::new(0.0, y_fence_post2_uv),
-            Vector2::new(x_fence_post1_uv, y_fence_post2_uv),
-            Vector2::new(x_fence_post1_uv, 1.0),
-            Vector2::new(0.0, 1.0),
+            Vector2::new(uv_x_min, center_uv_y_max),
+            Vector2::new(center_uv_x_min, center_uv_y_max),
+            Vector2::new(center_uv_x_min, uv_y_max),
+            Vector2::new(uv_x_min, uv_y_max),
         ];
         draw_image(
             texture,
@@ -302,16 +331,16 @@ impl Control for NinePatch {
         //bottom center
         let bounds = Rect {
             position: Vector2::new(
-                patch_bounds.position.x + column1_width_pixels,
-                (patch_bounds.position.y + patch_bounds.size.y) - row3_height_pixels,
+                patch_bounds.position.x + left_margin,
+                (patch_bounds.position.y + patch_bounds.size.y) - bottom_margin,
             ),
-            size: Vector2::new(patch_bounds.size.x - x_overflow, row3_height_pixels),
+            size: Vector2::new(patch_bounds.size.x - x_overflow, bottom_margin),
         };
         let tex_coords = [
-            Vector2::<f32>::new(x_fence_post1_uv, y_fence_post2_uv),
-            Vector2::new(x_fence_post2_uv, y_fence_post2_uv),
-            Vector2::new(x_fence_post2_uv, 1.0),
-            Vector2::new(x_fence_post1_uv, 1.0),
+            Vector2::new(center_uv_x_min, center_uv_y_max),
+            Vector2::new(center_uv_x_max, center_uv_y_max),
+            Vector2::new(center_uv_x_max, uv_y_max),
+            Vector2::new(center_uv_x_min, uv_y_max),
         ];
         draw_image(
             texture,
@@ -325,16 +354,16 @@ impl Control for NinePatch {
         //bottom right
         let bounds = Rect {
             position: Vector2::new(
-                (patch_bounds.position.x + patch_bounds.size.x) - column3_width_pixels,
-                (patch_bounds.position.y + patch_bounds.size.y) - row3_height_pixels,
+                (patch_bounds.position.x + patch_bounds.size.x) - right_margin,
+                (patch_bounds.position.y + patch_bounds.size.y) - bottom_margin,
             ),
-            size: Vector2::new(column3_width_pixels, row3_height_pixels),
+            size: Vector2::new(right_margin, bottom_margin),
         };
         let tex_coords = [
-            Vector2::<f32>::new(x_fence_post2_uv, y_fence_post2_uv),
-            Vector2::new(1.0, y_fence_post2_uv),
-            Vector2::new(1.0, 1.0),
-            Vector2::new(x_fence_post2_uv, 1.0),
+            Vector2::new(center_uv_x_max, center_uv_y_max),
+            Vector2::new(uv_x_max, center_uv_y_max),
+            Vector2::new(uv_x_max, uv_y_max),
+            Vector2::new(center_uv_x_max, uv_y_max),
         ];
         draw_image(
             texture,
@@ -354,18 +383,13 @@ impl Control for NinePatch {
 }
 
 pub struct NinePatchBuilder {
-    widget_builder: WidgetBuilder,
-    texture: Option<TextureResource>,
-
-    pub bottom_margin_pixel: Option<u32>,
-    pub left_margin_pixel: Option<u32>,
-    pub right_margin_pixel: Option<u32>,
-    pub top_margin_pixel: Option<u32>,
-
-    pub bottom_margin_uv: Option<f32>,
-    pub left_margin_uv: Option<f32>,
-    pub right_margin_uv: Option<f32>,
-    pub top_margin_uv: Option<f32>,
+    pub widget_builder: WidgetBuilder,
+    pub texture: Option<TextureResource>,
+    pub bottom_margin: u32,
+    pub left_margin: u32,
+    pub right_margin: u32,
+    pub top_margin: u32,
+    pub texture_region: Option<Rect<u32>>,
 }
 
 impl NinePatchBuilder {
@@ -373,16 +397,11 @@ impl NinePatchBuilder {
         Self {
             widget_builder,
             texture: None,
-
-            bottom_margin_uv: None,
-            left_margin_uv: None,
-            right_margin_uv: None,
-            top_margin_uv: None,
-
-            bottom_margin_pixel: None,
-            left_margin_pixel: None,
-            right_margin_pixel: None,
-            top_margin_pixel: None,
+            bottom_margin: 0,
+            left_margin: 0,
+            right_margin: 0,
+            top_margin: 0,
+            texture_region: None,
         }
     }
 
@@ -390,100 +409,47 @@ impl NinePatchBuilder {
         self.texture = Some(texture);
         self
     }
-    pub fn with_bottom_margin_uv(mut self, margin: f32) -> Self {
-        self.bottom_margin_uv = Some(margin);
+
+    pub fn with_bottom_margin(mut self, margin: u32) -> Self {
+        self.bottom_margin = margin;
         self
     }
-    pub fn with_left_margin_uv(mut self, margin: f32) -> Self {
-        self.left_margin_uv = Some(margin);
+
+    pub fn with_left_margin(mut self, margin: u32) -> Self {
+        self.left_margin = margin;
         self
     }
-    pub fn with_right_margin_uv(mut self, margin: f32) -> Self {
-        self.right_margin_uv = Some(margin);
+
+    pub fn with_right_margin(mut self, margin: u32) -> Self {
+        self.right_margin = margin;
         self
     }
-    pub fn with_top_margin_uv(mut self, margin: f32) -> Self {
-        self.top_margin_uv = Some(margin);
+
+    pub fn with_top_margin(mut self, margin: u32) -> Self {
+        self.top_margin = margin;
         self
     }
-    pub fn with_bottom_margin_pixel(mut self, margin: u32) -> Self {
-        self.bottom_margin_pixel = Some(margin);
+
+    pub fn with_texture_region(mut self, rect: Rect<u32>) -> Self {
+        self.texture_region = Some(rect);
         self
     }
-    pub fn with_left_margin_pixel(mut self, margin: u32) -> Self {
-        self.left_margin_pixel = Some(margin);
-        self
-    }
-    pub fn with_right_margin_pixel(mut self, margin: u32) -> Self {
-        self.right_margin_pixel = Some(margin);
-        self
-    }
-    pub fn with_top_margin_pixel(mut self, margin: u32) -> Self {
-        self.top_margin_pixel = Some(margin);
-        self
-    }
+
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         if self.widget_builder.background.is_none() {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE).into())
         }
 
-        // if one of the margins hasn't been set just mirror the opposite one.
-        let (left_margin_pixel, right_margin_pixel) =
-            match (self.left_margin_pixel, self.right_margin_pixel) {
-                (Some(x), None) => (x, x),
-                (None, Some(x)) => (x, x),
-                (Some(one), Some(two)) => (one, two),
-                (None, None) => (0, 0),
-            };
-
-        let (top_margin_pixel, bottom_margin_pixel) =
-            match (self.top_margin_pixel, self.bottom_margin_pixel) {
-                (Some(y), None) => (y, y),
-                (None, Some(y)) => (y, y),
-                (Some(one), Some(two)) => (one, two),
-                (None, None) => (0, 0),
-            };
-
-        let (left_margin_uv, right_margin_uv) = match (self.left_margin_uv, self.right_margin_uv) {
-            (Some(x), None) => (x, x),
-            (None, Some(x)) => (x, x),
-            (Some(one), Some(two)) => (one, two),
-            (None, None) => (0.0, 0.0),
-        };
-
-        let (top_margin_uv, bottom_margin_uv) = match (self.top_margin_uv, self.bottom_margin_uv) {
-            (Some(y), None) => (y, y),
-            (None, Some(y)) => (y, y),
-            (Some(one), Some(two)) => (one, two),
-            (None, None) => (0.0, 0.0),
-        };
-
-        let grid = NinePatch {
+        ctx.add_node(UiNode::new(NinePatch {
             widget: self.widget_builder.build(ctx),
             texture: self.texture.into(),
-            bottom_margin_pixel: bottom_margin_pixel.into(),
-            bottom_margin_uv: bottom_margin_uv.into(),
-            left_margin_pixel: left_margin_pixel.into(),
-            left_margin_uv: left_margin_uv.into(),
-            right_margin_pixel: right_margin_pixel.into(),
-            right_margin_uv: right_margin_uv.into(),
-            top_margin_pixel: top_margin_pixel.into(),
-            top_margin_uv: top_margin_uv.into(),
-        };
-        ctx.add_node(UiNode::new(grid))
+            bottom_margin: self.bottom_margin.into(),
+            left_margin: self.left_margin.into(),
+            right_margin: self.right_margin.into(),
+            top_margin: self.top_margin.into(),
+            texture_region: self.texture_region.into(),
+        }))
     }
-}
-fn draw_image(
-    image: &TextureResource,
-    bounds: Rect<f32>,
-    tex_coords: &[Vector2<f32>; 4],
-    clip_bounds: Rect<f32>,
-    background: Brush,
-    drawing_context: &mut DrawingContext,
-) {
-    drawing_context.push_rect_filled(&bounds, Some(tex_coords));
-    let texture = CommandTexture::Texture(image.clone());
-    drawing_context.commit(clip_bounds, background, texture, None);
 }
 
 #[cfg(test)]
