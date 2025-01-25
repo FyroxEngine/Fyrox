@@ -473,6 +473,14 @@ impl PropertyEditorDefinitionContainer {
             Rect<f64>, Rect<f32>, Rect<i64>, Rect<u64>, Rect<i32>, Rect<u32>,
             Rect<i16>, Rect<u16>, Rect<i8>, Rect<u8>, Rect<usize>, Rect<isize>
         }
+        reg_property_editor! { container, InheritablePropertyEditorDefinition: new,
+            Option<Rect<f64>>, Option<Rect<f32>>, Option<Rect<i64>>, Option<Rect<u64>>, Option<Rect<i32>>, Option<Rect<u32>>,
+            Option<Rect<i16>>, Option<Rect<u16>>, Option<Rect<i8>>, Option<Rect<u8>>, Option<Rect<usize>>, Option<Rect<isize>>
+        }
+        reg_property_editor! { container, EnumPropertyEditorDefinition: new_optional,
+            Rect<f64>, Rect<f32>, Rect<i64>, Rect<u64>, Rect<i32>, Rect<u32>,
+            Rect<i16>, Rect<u16>, Rect<i8>, Rect<u8>, Rect<usize>, Rect<isize>
+        }
 
         // Option<NumericType> + InheritableVariable<Option<NumericType>>
         reg_property_editor! { container, EnumPropertyEditorDefinition: new_optional, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
