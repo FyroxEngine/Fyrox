@@ -21,6 +21,7 @@
 //! A collection of [PropertyEditorDefinition] objects for a wide variety of types,
 //! including standard Rust types and Fyrox core types.
 
+use crate::nine_patch::StretchMode;
 use crate::{
     absm::{EventAction, EventKind},
     bit::BitField,
@@ -562,6 +563,8 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InheritablePropertyEditorDefinition::<Thickness>::new());
 
         container.register_inheritable_enum::<EventKind, _>();
+
+        container.register_inheritable_enum::<StretchMode, _>();
 
         container.insert(InspectablePropertyEditorDefinition::<EventAction>::new());
         container.register_inheritable_vec_collection::<EventAction>();

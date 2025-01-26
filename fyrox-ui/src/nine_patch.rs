@@ -36,6 +36,29 @@ use fyrox_graph::{
 };
 use fyrox_texture::{TextureKind, TextureResource};
 use std::ops::{Deref, DerefMut};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
+
+#[derive(
+    Debug,
+    Default,
+    Copy,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    Reflect,
+    Visit,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+    TypeUuidProvider,
+)]
+#[type_uuid(id = "c5bb0a5c-6581-45f7-899c-78aa1da8b659")]
+pub enum StretchMode {
+    #[default]
+    Stretch,
+    Tile,
+}
 
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "c345033e-8c10-4186-b101-43f73b85981d")]
@@ -48,6 +71,7 @@ pub struct NinePatch {
     pub top_margin: InheritableVariable<u32>,
     pub texture_region: InheritableVariable<Option<Rect<u32>>>,
     pub draw_center: InheritableVariable<bool>,
+    pub stretch_mode: InheritableVariable<StretchMode>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for NinePatch {
@@ -75,6 +99,47 @@ fn draw_image(
     drawing_context.push_rect_filled(&bounds, Some(tex_coords));
     let texture = CommandTexture::Texture(image.clone());
     drawing_context.commit(clip_bounds, background, texture, None);
+}
+
+fn draw_tiled_image(
+    image: &TextureResource,
+    texture_width: f32,
+    texture_height: f32,
+    bounds: Rect<f32>,
+    tex_coords: &[Vector2<f32>; 4],
+    clip_bounds: Rect<f32>,
+    background: Brush,
+    drawing_context: &mut DrawingContext,
+) {
+    let region_bounds = Rect::new(
+        tex_coords[0].x * texture_width,
+        tex_coords[0].y * texture_height,
+        (tex_coords[1].x - tex_coords[0].x) * texture_width,
+        (tex_coords[2].y - tex_coords[0].y) * texture_height,
+    );
+
+    let nx = (bounds.size.x / region_bounds.size.x).ceil() as usize;
+    let ny = (bounds.size.y / region_bounds.size.y).ceil() as usize;
+
+    for y in 0..ny {
+        for x in 0..nx {
+            let tile_bounds = Rect::new(
+                bounds.position.x + x as f32 * region_bounds.size.x,
+                bounds.position.y + y as f32 * region_bounds.size.y,
+                region_bounds.size.x,
+                region_bounds.size.y,
+            );
+
+            drawing_context.push_rect_filled(&tile_bounds, Some(tex_coords));
+        }
+    }
+
+    drawing_context.commit(
+        clip_bounds,
+        background,
+        CommandTexture::Texture(image.clone()),
+        None,
+    );
 }
 
 impl Control for NinePatch {
@@ -167,6 +232,31 @@ impl Control for NinePatch {
         let x_overflow = left_margin + right_margin;
         let y_overflow = top_margin + bottom_margin;
 
+        let stretch_mode = *self.stretch_mode;
+        let mut draw_piece = |bounds: Rect<f32>, tex_coords: &[Vector2<f32>; 4]| match stretch_mode
+        {
+            StretchMode::Stretch => {
+                draw_image(
+                    texture,
+                    bounds,
+                    tex_coords,
+                    self.clip_bounds(),
+                    self.widget.background(),
+                    drawing_context,
+                );
+            }
+            StretchMode::Tile => draw_tiled_image(
+                texture,
+                texture_width,
+                texture_height,
+                bounds,
+                tex_coords,
+                self.clip_bounds(),
+                self.widget.background(),
+                drawing_context,
+            ),
+        };
+
         //top left
         let bounds = Rect {
             position: patch_bounds.position,
@@ -178,14 +268,7 @@ impl Control for NinePatch {
             Vector2::new(center_uv_x_min, center_uv_y_min),
             Vector2::new(uv_x_min, center_uv_y_min),
         ];
-        draw_image(
-            texture,
-            bounds,
-            &tex_coords,
-            self.clip_bounds(),
-            self.widget.background(),
-            drawing_context,
-        );
+        draw_piece(bounds, &tex_coords);
 
         //top center
         let bounds = Rect {
@@ -201,14 +284,7 @@ impl Control for NinePatch {
             Vector2::new(center_uv_x_max, center_uv_y_min),
             Vector2::new(center_uv_x_min, center_uv_y_min),
         ];
-        draw_image(
-            texture,
-            bounds,
-            &tex_coords,
-            self.clip_bounds(),
-            self.widget.background(),
-            drawing_context,
-        );
+        draw_piece(bounds, &tex_coords);
 
         //top right
         let bounds = Rect {
@@ -224,14 +300,7 @@ impl Control for NinePatch {
             Vector2::new(uv_x_max, center_uv_y_min),
             Vector2::new(center_uv_x_max, center_uv_y_min),
         ];
-        draw_image(
-            texture,
-            bounds,
-            &tex_coords,
-            self.clip_bounds(),
-            self.widget.background(),
-            drawing_context,
-        );
+        draw_piece(bounds, &tex_coords);
         ////////////////////////////////////////////////////////////////////////////////
         //middle left
         let bounds = Rect {
@@ -247,14 +316,7 @@ impl Control for NinePatch {
             Vector2::new(center_uv_x_min, center_uv_y_max),
             Vector2::new(uv_x_min, center_uv_y_max),
         ];
-        draw_image(
-            texture,
-            bounds,
-            &tex_coords,
-            self.clip_bounds(),
-            self.widget.background(),
-            drawing_context,
-        );
+        draw_piece(bounds, &tex_coords);
 
         if *self.draw_center {
             //middle center
@@ -274,14 +336,7 @@ impl Control for NinePatch {
                 Vector2::new(center_uv_x_max, center_uv_y_max),
                 Vector2::new(center_uv_x_min, center_uv_y_max),
             ];
-            draw_image(
-                texture,
-                bounds,
-                &tex_coords,
-                self.clip_bounds(),
-                self.widget.background(),
-                drawing_context,
-            );
+            draw_piece(bounds, &tex_coords);
         }
 
         //middle right
@@ -298,14 +353,7 @@ impl Control for NinePatch {
             Vector2::new(uv_x_max, center_uv_y_max),
             Vector2::new(center_uv_x_max, center_uv_y_max),
         ];
-        draw_image(
-            texture,
-            bounds,
-            &tex_coords,
-            self.clip_bounds(),
-            self.widget.background(),
-            drawing_context,
-        );
+        draw_piece(bounds, &tex_coords);
 
         ////////////////////////////////////////////////////////////////////////////////
         //bottom left
@@ -322,14 +370,7 @@ impl Control for NinePatch {
             Vector2::new(center_uv_x_min, uv_y_max),
             Vector2::new(uv_x_min, uv_y_max),
         ];
-        draw_image(
-            texture,
-            bounds,
-            &tex_coords,
-            self.clip_bounds(),
-            self.widget.background(),
-            drawing_context,
-        );
+        draw_piece(bounds, &tex_coords);
 
         //bottom center
         let bounds = Rect {
@@ -345,14 +386,7 @@ impl Control for NinePatch {
             Vector2::new(center_uv_x_max, uv_y_max),
             Vector2::new(center_uv_x_min, uv_y_max),
         ];
-        draw_image(
-            texture,
-            bounds,
-            &tex_coords,
-            self.clip_bounds(),
-            self.widget.background(),
-            drawing_context,
-        );
+        draw_piece(bounds, &tex_coords);
 
         //bottom right
         let bounds = Rect {
@@ -368,14 +402,7 @@ impl Control for NinePatch {
             Vector2::new(uv_x_max, uv_y_max),
             Vector2::new(center_uv_x_max, uv_y_max),
         ];
-        draw_image(
-            texture,
-            bounds,
-            &tex_coords,
-            self.clip_bounds(),
-            self.widget.background(),
-            drawing_context,
-        );
+        draw_piece(bounds, &tex_coords);
 
         //end drawing
     }
@@ -394,6 +421,7 @@ pub struct NinePatchBuilder {
     pub top_margin: u32,
     pub texture_region: Option<Rect<u32>>,
     pub draw_center: bool,
+    pub stretch_mode: StretchMode,
 }
 
 impl NinePatchBuilder {
@@ -407,6 +435,7 @@ impl NinePatchBuilder {
             top_margin: 0,
             texture_region: None,
             draw_center: true,
+            stretch_mode: Default::default(),
         }
     }
 
@@ -445,6 +474,11 @@ impl NinePatchBuilder {
         self
     }
 
+    pub fn with_stretch_mode(mut self, stretch: StretchMode) -> Self {
+        self.stretch_mode = stretch;
+        self
+    }
+
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         if self.widget_builder.background.is_none() {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE).into())
@@ -459,6 +493,7 @@ impl NinePatchBuilder {
             top_margin: self.top_margin.into(),
             texture_region: self.texture_region.into(),
             draw_center: self.draw_center.into(),
+            stretch_mode: self.stretch_mode.into(),
         }))
     }
 }
