@@ -47,6 +47,7 @@ pub struct NinePatch {
     pub right_margin: InheritableVariable<u32>,
     pub top_margin: InheritableVariable<u32>,
     pub texture_region: InheritableVariable<Option<Rect<u32>>>,
+    pub draw_center: InheritableVariable<bool>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for NinePatch {
@@ -195,7 +196,7 @@ impl Control for NinePatch {
             size: Vector2::new(patch_bounds.size.x - x_overflow, top_margin),
         };
         let tex_coords = [
-            Vector2::<f32>::new(center_uv_x_min, uv_y_min),
+            Vector2::new(center_uv_x_min, uv_y_min),
             Vector2::new(center_uv_x_max, uv_y_min),
             Vector2::new(center_uv_x_max, center_uv_y_min),
             Vector2::new(center_uv_x_min, center_uv_y_min),
@@ -255,31 +256,33 @@ impl Control for NinePatch {
             drawing_context,
         );
 
-        //middle center
-        let bounds = Rect {
-            position: Vector2::new(
-                patch_bounds.position.x + left_margin,
-                patch_bounds.position.y + top_margin,
-            ),
-            size: Vector2::new(
-                patch_bounds.size.x - x_overflow,
-                patch_bounds.size.y - y_overflow,
-            ),
-        };
-        let tex_coords = [
-            Vector2::new(center_uv_x_min, center_uv_y_min),
-            Vector2::new(center_uv_x_max, center_uv_y_min),
-            Vector2::new(center_uv_x_max, center_uv_y_max),
-            Vector2::new(center_uv_x_min, center_uv_y_max),
-        ];
-        draw_image(
-            texture,
-            bounds,
-            &tex_coords,
-            self.clip_bounds(),
-            self.widget.background(),
-            drawing_context,
-        );
+        if *self.draw_center {
+            //middle center
+            let bounds = Rect {
+                position: Vector2::new(
+                    patch_bounds.position.x + left_margin,
+                    patch_bounds.position.y + top_margin,
+                ),
+                size: Vector2::new(
+                    patch_bounds.size.x - x_overflow,
+                    patch_bounds.size.y - y_overflow,
+                ),
+            };
+            let tex_coords = [
+                Vector2::new(center_uv_x_min, center_uv_y_min),
+                Vector2::new(center_uv_x_max, center_uv_y_min),
+                Vector2::new(center_uv_x_max, center_uv_y_max),
+                Vector2::new(center_uv_x_min, center_uv_y_max),
+            ];
+            draw_image(
+                texture,
+                bounds,
+                &tex_coords,
+                self.clip_bounds(),
+                self.widget.background(),
+                drawing_context,
+            );
+        }
 
         //middle right
         let bounds = Rect {
@@ -390,6 +393,7 @@ pub struct NinePatchBuilder {
     pub right_margin: u32,
     pub top_margin: u32,
     pub texture_region: Option<Rect<u32>>,
+    pub draw_center: bool,
 }
 
 impl NinePatchBuilder {
@@ -402,6 +406,7 @@ impl NinePatchBuilder {
             right_margin: 0,
             top_margin: 0,
             texture_region: None,
+            draw_center: true,
         }
     }
 
@@ -435,6 +440,11 @@ impl NinePatchBuilder {
         self
     }
 
+    pub fn with_draw_center(mut self, draw_center: bool) -> Self {
+        self.draw_center = draw_center;
+        self
+    }
+
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         if self.widget_builder.background.is_none() {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE).into())
@@ -448,6 +458,7 @@ impl NinePatchBuilder {
             right_margin: self.right_margin.into(),
             top_margin: self.top_margin.into(),
             texture_region: self.texture_region.into(),
+            draw_center: self.draw_center.into(),
         }))
     }
 }
