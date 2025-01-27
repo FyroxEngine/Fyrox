@@ -21,6 +21,7 @@
 //! A collection of [PropertyEditorDefinition] objects for a wide variety of types,
 //! including standard Rust types and Fyrox core types.
 
+use crate::inspector::editors::texture_slice::TextureSlicePropertyEditorDefinition;
 use crate::{
     absm::{EventAction, EventKind},
     bit::BitField,
@@ -585,6 +586,8 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InspectablePropertyEditorDefinition::<
             Arc<Mutex<RcUiNodeHandleInner>>,
         >::new());
+
+        container.insert(TextureSlicePropertyEditorDefinition);
 
         // Styled.
         container.insert(InheritablePropertyEditorDefinition::<StyledProperty<f32>>::new());

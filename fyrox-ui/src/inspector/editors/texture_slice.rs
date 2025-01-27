@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    button::{ButtonBuilder, ButtonMessage},
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, some_or_return,
         type_traits::prelude::*, visitor::prelude::*,
@@ -36,7 +37,7 @@ use crate::{
     nine_patch::TextureSlice,
     scroll_viewer::ScrollViewerBuilder,
     widget::{Widget, WidgetBuilder},
-    window::{Window, WindowBuilder},
+    window::{Window, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_texture::TextureKind;
@@ -319,15 +320,26 @@ impl Control for TextureSliceEditorWindow {
 
 pub struct TextureSliceEditorWindowBuilder {
     window_builder: WindowBuilder,
+    texture_slice: TextureSlice,
 }
 
 impl TextureSliceEditorWindowBuilder {
     pub fn new(window_builder: WindowBuilder) -> Self {
-        Self { window_builder }
+        Self {
+            window_builder,
+            texture_slice: Default::default(),
+        }
+    }
+
+    pub fn with_texture_slice(mut self, slice: TextureSlice) -> Self {
+        self.texture_slice = slice;
+        self
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let slice_editor = TextureSliceEditorBuilder::new(WidgetBuilder::new()).build(ctx);
+        let slice_editor = TextureSliceEditorBuilder::new(WidgetBuilder::new())
+            .with_texture_slice(self.texture_slice)
+            .build(ctx);
         let scroll_viewer = ScrollViewerBuilder::new(WidgetBuilder::new())
             .with_content(slice_editor)
             .build(ctx);
@@ -340,6 +352,76 @@ impl TextureSliceEditorWindowBuilder {
             slice_editor,
         });
 
+        ctx.add_node(node)
+    }
+}
+
+#[derive(Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider, Debug)]
+#[type_uuid(id = "024f3a3a-6784-4675-bd99-a4c6c19a8d91")]
+pub struct TextureSliceFieldEditor {
+    widget: Widget,
+    texture_slice: TextureSlice,
+    edit: Handle<UiNode>,
+    editor: Handle<UiNode>,
+}
+
+define_widget_deref!(TextureSliceFieldEditor);
+
+impl Control for TextureSliceFieldEditor {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        self.widget.handle_routed_message(ui, message);
+
+        if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.edit {
+                self.editor = TextureSliceEditorWindowBuilder::new(
+                    WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(400.0))
+                        .with_title(WindowTitle::text("Texture Slice Editor"))
+                        .open(false)
+                        .with_remove_on_close(true),
+                )
+                .with_texture_slice(self.texture_slice.clone())
+                .build(&mut ui.build_ctx());
+
+                ui.send_message(WindowMessage::open_modal(
+                    self.editor,
+                    MessageDirection::ToWidget,
+                    true,
+                    true,
+                ));
+            }
+        }
+    }
+}
+
+pub struct TextureSliceFieldEditorBuilder {
+    widget_builder: WidgetBuilder,
+    texture_slice: TextureSlice,
+}
+
+impl TextureSliceFieldEditorBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
+        Self {
+            widget_builder,
+            texture_slice: Default::default(),
+        }
+    }
+
+    pub fn with_texture_slice(mut self, slice: TextureSlice) -> Self {
+        self.texture_slice = slice;
+        self
+    }
+
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let edit = ButtonBuilder::new(WidgetBuilder::new())
+            .with_text("Edit...")
+            .build(ctx);
+
+        let node = UiNode::new(TextureSliceFieldEditor {
+            widget: self.widget_builder.with_child(edit).build(ctx),
+            texture_slice: self.texture_slice,
+            edit,
+            editor: Default::default(),
+        });
         ctx.add_node(node)
     }
 }
@@ -358,7 +440,7 @@ impl PropertyEditorDefinition for TextureSlicePropertyEditorDefinition {
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<TextureSlice>()?;
         Ok(PropertyEditorInstance::Simple {
-            editor: TextureSliceEditorBuilder::new(
+            editor: TextureSliceFieldEditorBuilder::new(
                 WidgetBuilder::new()
                     .with_margin(Thickness::top_bottom(1.0))
                     .with_vertical_alignment(VerticalAlignment::Center),
@@ -372,10 +454,12 @@ impl PropertyEditorDefinition for TextureSlicePropertyEditorDefinition {
         &self,
         _ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        todo!()
+        // TODO
+        Ok(None)
     }
 
     fn translate_message(&self, _ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        todo!()
+        // TODO
+        None
     }
 }
