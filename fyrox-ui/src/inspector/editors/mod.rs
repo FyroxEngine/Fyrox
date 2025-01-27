@@ -21,7 +21,6 @@
 //! A collection of [PropertyEditorDefinition] objects for a wide variety of types,
 //! including standard Rust types and Fyrox core types.
 
-use crate::nine_patch::StretchMode;
 use crate::{
     absm::{EventAction, EventKind},
     bit::BitField,
@@ -82,7 +81,7 @@ use crate::{
     menu::{Menu, MenuItem},
     message::{CursorIcon, UiMessage},
     messagebox::MessageBox,
-    nine_patch::NinePatch,
+    nine_patch::{NinePatch, StretchMode},
     numeric::NumericUpDown,
     path::PathEditor,
     popup::Popup,
@@ -141,6 +140,7 @@ pub mod rect;
 pub mod refcell;
 pub mod string;
 mod style;
+pub mod texture_slice;
 pub mod utf32;
 pub mod uuid;
 pub mod vec;

@@ -60,16 +60,21 @@ pub enum StretchMode {
     Tile,
 }
 
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
-#[type_uuid(id = "c345033e-8c10-4186-b101-43f73b85981d")]
-pub struct NinePatch {
-    pub widget: Widget,
+#[derive(Default, Clone, Visit, Reflect, Debug, PartialEq)]
+pub struct TextureSlice {
     pub texture: InheritableVariable<Option<TextureResource>>,
     pub bottom_margin: InheritableVariable<u32>,
     pub left_margin: InheritableVariable<u32>,
     pub right_margin: InheritableVariable<u32>,
     pub top_margin: InheritableVariable<u32>,
     pub texture_region: InheritableVariable<Option<Rect<u32>>>,
+}
+
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
+#[type_uuid(id = "c345033e-8c10-4186-b101-43f73b85981d")]
+pub struct NinePatch {
+    pub widget: Widget,
+    pub texture_slice: TextureSlice,
     pub draw_center: InheritableVariable<bool>,
     pub stretch_mode: InheritableVariable<StretchMode>,
 }
@@ -146,11 +151,11 @@ impl Control for NinePatch {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         let mut size: Vector2<f32> = available_size;
 
-        let column1_width_pixels = *self.left_margin as f32;
-        let column3_width_pixels = *self.right_margin as f32;
+        let column1_width_pixels = *self.texture_slice.left_margin as f32;
+        let column3_width_pixels = *self.texture_slice.right_margin as f32;
 
-        let row1_height_pixels = *self.top_margin as f32;
-        let row3_height_pixels = *self.bottom_margin as f32;
+        let row1_height_pixels = *self.texture_slice.top_margin as f32;
+        let row3_height_pixels = *self.texture_slice.bottom_margin as f32;
 
         let x_overflow = column1_width_pixels + column3_width_pixels;
         let y_overflow = row1_height_pixels + row3_height_pixels;
@@ -168,11 +173,11 @@ impl Control for NinePatch {
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        let column1_width_pixels = *self.left_margin as f32;
-        let column3_width_pixels = *self.right_margin as f32;
+        let column1_width_pixels = *self.texture_slice.left_margin as f32;
+        let column3_width_pixels = *self.texture_slice.right_margin as f32;
 
-        let row1_height_pixels = *self.top_margin as f32;
-        let row3_height_pixels = *self.bottom_margin as f32;
+        let row1_height_pixels = *self.texture_slice.top_margin as f32;
+        let row3_height_pixels = *self.texture_slice.bottom_margin as f32;
 
         let x_overflow = column1_width_pixels + column3_width_pixels;
         let y_overflow = row1_height_pixels + row3_height_pixels;
@@ -192,7 +197,7 @@ impl Control for NinePatch {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let texture = some_or_return!(self.texture.as_ref());
+        let texture = some_or_return!(self.texture_slice.texture.as_ref());
 
         let texture_state = texture.state();
         let texture_state = some_or_return!(texture_state.data_ref());
@@ -207,12 +212,13 @@ impl Control for NinePatch {
 
         let patch_bounds = self.widget.bounding_rect();
 
-        let left_margin = *self.left_margin as f32;
-        let right_margin = *self.right_margin as f32;
-        let top_margin = *self.top_margin as f32;
-        let bottom_margin = *self.bottom_margin as f32;
+        let left_margin = *self.texture_slice.left_margin as f32;
+        let right_margin = *self.texture_slice.right_margin as f32;
+        let top_margin = *self.texture_slice.top_margin as f32;
+        let bottom_margin = *self.texture_slice.bottom_margin as f32;
 
         let region = self
+            .texture_slice
             .texture_region
             .map(|region| Rect {
                 position: region.position.cast::<f32>(),
@@ -486,12 +492,14 @@ impl NinePatchBuilder {
 
         ctx.add_node(UiNode::new(NinePatch {
             widget: self.widget_builder.build(ctx),
-            texture: self.texture.into(),
-            bottom_margin: self.bottom_margin.into(),
-            left_margin: self.left_margin.into(),
-            right_margin: self.right_margin.into(),
-            top_margin: self.top_margin.into(),
-            texture_region: self.texture_region.into(),
+            texture_slice: TextureSlice {
+                texture: self.texture.into(),
+                bottom_margin: self.bottom_margin.into(),
+                left_margin: self.left_margin.into(),
+                right_margin: self.right_margin.into(),
+                top_margin: self.top_margin.into(),
+                texture_region: self.texture_region.into(),
+            },
             draw_center: self.draw_center.into(),
             stretch_mode: self.stretch_mode.into(),
         }))
