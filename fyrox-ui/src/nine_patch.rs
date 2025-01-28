@@ -62,12 +62,13 @@ pub enum StretchMode {
 
 #[derive(Default, Clone, Visit, Reflect, Debug, PartialEq)]
 pub struct TextureSlice {
-    pub texture: InheritableVariable<Option<TextureResource>>,
+    // This field is used only for editing purposes in the UI.
+    pub texture_source: Option<TextureResource>,
     pub bottom_margin: InheritableVariable<u32>,
     pub left_margin: InheritableVariable<u32>,
     pub right_margin: InheritableVariable<u32>,
     pub top_margin: InheritableVariable<u32>,
-    pub texture_region: InheritableVariable<Option<Rect<u32>>>,
+    pub texture_region: InheritableVariable<Rect<u32>>,
 }
 
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
@@ -76,7 +77,16 @@ pub struct NinePatch {
     pub widget: Widget,
     pub texture_slice: TextureSlice,
     pub draw_center: InheritableVariable<bool>,
+    #[reflect(setter = "set_texture")]
+    pub texture: InheritableVariable<Option<TextureResource>>,
     pub stretch_mode: InheritableVariable<StretchMode>,
+}
+
+impl NinePatch {
+    pub fn set_texture(&mut self, texture: Option<TextureResource>) {
+        self.texture.set_value_and_mark_modified(texture.clone());
+        self.texture_slice.texture_source = texture;
+    }
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for NinePatch {
@@ -197,7 +207,7 @@ impl Control for NinePatch {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let texture = some_or_return!(self.texture_slice.texture.as_ref());
+        let texture = some_or_return!(self.texture.as_ref());
 
         let texture_state = texture.state();
         let texture_state = some_or_return!(texture_state.data_ref());
@@ -217,14 +227,15 @@ impl Control for NinePatch {
         let top_margin = *self.texture_slice.top_margin as f32;
         let bottom_margin = *self.texture_slice.bottom_margin as f32;
 
-        let region = self
-            .texture_slice
-            .texture_region
-            .map(|region| Rect {
-                position: region.position.cast::<f32>(),
-                size: region.size.cast::<f32>(),
-            })
-            .unwrap_or_else(|| Rect::new(0.0, 0.0, texture_width, texture_height));
+        let mut region = Rect {
+            position: self.texture_slice.texture_region.position.cast::<f32>(),
+            size: self.texture_slice.texture_region.size.cast::<f32>(),
+        };
+
+        if region.size.x == 0.0 && region.size.y == 0.0 {
+            region.size.x = texture_width;
+            region.size.y = texture_height;
+        }
 
         let center_uv_x_min = (region.position.x + left_margin) / texture_width;
         let center_uv_x_max = (region.position.x + region.size.x - right_margin) / texture_width;
@@ -425,7 +436,7 @@ pub struct NinePatchBuilder {
     pub left_margin: u32,
     pub right_margin: u32,
     pub top_margin: u32,
-    pub texture_region: Option<Rect<u32>>,
+    pub texture_region: Rect<u32>,
     pub draw_center: bool,
     pub stretch_mode: StretchMode,
 }
@@ -439,7 +450,7 @@ impl NinePatchBuilder {
             left_margin: 0,
             right_margin: 0,
             top_margin: 0,
-            texture_region: None,
+            texture_region: Default::default(),
             draw_center: true,
             stretch_mode: Default::default(),
         }
@@ -471,7 +482,7 @@ impl NinePatchBuilder {
     }
 
     pub fn with_texture_region(mut self, rect: Rect<u32>) -> Self {
-        self.texture_region = Some(rect);
+        self.texture_region = rect;
         self
     }
 
@@ -493,7 +504,7 @@ impl NinePatchBuilder {
         ctx.add_node(UiNode::new(NinePatch {
             widget: self.widget_builder.build(ctx),
             texture_slice: TextureSlice {
-                texture: self.texture.into(),
+                texture_source: self.texture.clone(),
                 bottom_margin: self.bottom_margin.into(),
                 left_margin: self.left_margin.into(),
                 right_margin: self.right_margin.into(),
@@ -501,6 +512,7 @@ impl NinePatchBuilder {
                 texture_region: self.texture_region.into(),
             },
             draw_center: self.draw_center.into(),
+            texture: self.texture.into(),
             stretch_mode: self.stretch_mode.into(),
         }))
     }
