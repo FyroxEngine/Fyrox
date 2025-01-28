@@ -479,11 +479,11 @@ impl NinePatchBuilder {
         Self {
             widget_builder,
             texture: None,
-            bottom_margin: 0,
-            left_margin: 0,
-            right_margin: 0,
-            top_margin: 0,
-            texture_region: Default::default(),
+            bottom_margin: 20,
+            left_margin: 20,
+            right_margin: 20,
+            top_margin: 20,
+            texture_region: Rect::new(0, 0, 200, 200),
             draw_center: true,
             stretch_mode: Default::default(),
         }
