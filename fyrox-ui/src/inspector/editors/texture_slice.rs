@@ -276,10 +276,10 @@ impl Control for TextureSliceEditor {
                             );
                         } else if message.destination() == self.slice_max_thumb {
                             self.slice.bottom_margin.set_value_and_mark_modified(
-                                (drag_context.bottom_margin as f32 + offset.y) as u32,
+                                (drag_context.bottom_margin as f32 - offset.y) as u32,
                             );
                             self.slice.right_margin.set_value_and_mark_modified(
-                                (drag_context.right_margin as f32 + offset.x) as u32,
+                                (drag_context.right_margin as f32 - offset.x) as u32,
                             );
                         } else if message.destination() == self.region_min_thumb {
                             self.slice.texture_region.position = Vector2::new(
@@ -402,6 +402,36 @@ pub struct TextureSliceEditorWindow {
     region: Handle<UiNode>,
 }
 
+impl TextureSliceEditorWindow {
+    fn on_slice_changed(&self, ui: &UserInterface) {
+        ui.send_message(RectEditorMessage::value(
+            self.region,
+            MessageDirection::ToWidget,
+            *self.texture_slice.texture_region,
+        ));
+
+        for (widget, value) in [
+            (self.left_margin, &self.texture_slice.left_margin),
+            (self.right_margin, &self.texture_slice.right_margin),
+            (self.top_margin, &self.texture_slice.top_margin),
+            (self.bottom_margin, &self.texture_slice.bottom_margin),
+        ] {
+            ui.send_message(NumericUpDownMessage::value(
+                widget,
+                MessageDirection::ToWidget,
+                **value,
+            ));
+        }
+
+        // Send the slice to the parent editor.
+        ui.send_message(TextureSliceEditorMessage::slice(
+            self.parent_editor,
+            MessageDirection::ToWidget,
+            self.texture_slice.clone(),
+        ));
+    }
+}
+
 impl Deref for TextureSliceEditorWindow {
     type Target = Widget;
 
@@ -451,13 +481,8 @@ impl Control for TextureSliceEditorWindow {
             if message.direction() == MessageDirection::FromWidget
                 && message.destination() == self.slice_editor
             {
-                // Re-cast the message to parent editor.
-                ui.send_message(
-                    message
-                        .clone()
-                        .with_destination(self.parent_editor)
-                        .with_direction(MessageDirection::FromWidget),
-                );
+                self.texture_slice = slice.clone();
+                self.on_slice_changed(ui);
             }
 
             if message.destination() == self.handle()
@@ -472,31 +497,7 @@ impl Control for TextureSliceEditorWindow {
                     self.texture_slice.clone(),
                 ));
 
-                ui.send_message(RectEditorMessage::value(
-                    self.region,
-                    MessageDirection::ToWidget,
-                    *self.texture_slice.texture_region,
-                ));
-
-                for (widget, value) in [
-                    (self.left_margin, &self.texture_slice.left_margin),
-                    (self.right_margin, &self.texture_slice.right_margin),
-                    (self.top_margin, &self.texture_slice.top_margin),
-                    (self.bottom_margin, &self.texture_slice.bottom_margin),
-                ] {
-                    ui.send_message(NumericUpDownMessage::value(
-                        widget,
-                        MessageDirection::ToWidget,
-                        **value,
-                    ));
-                }
-
-                // Send the slice to the parent editor.
-                ui.send_message(TextureSliceEditorMessage::slice(
-                    self.parent_editor,
-                    MessageDirection::ToWidget,
-                    self.texture_slice.clone(),
-                ));
+                self.on_slice_changed(ui);
             }
         } else if let Some(NumericUpDownMessage::Value(value)) =
             message.data::<NumericUpDownMessage<u32>>()
