@@ -188,24 +188,28 @@ impl Control for TextureSliceEditor {
 
         // Draw handles.
         let half_handle_size = self.handle_size / 2.0;
-        drawing_context.push_rect_filled(
-            &Rect::new(
-                bounds.position.x + left_margin - half_handle_size,
-                bounds.position.y + top_margin - half_handle_size,
-                self.handle_size,
-                self.handle_size,
+        for position in [
+            // Margin bounds.
+            Vector2::new(
+                bounds.position.x + left_margin,
+                bounds.position.y + top_margin,
             ),
-            None,
-        );
-        drawing_context.push_rect_filled(
-            &Rect::new(
-                bounds.position.x + bounds.size.x - right_margin - half_handle_size,
-                bounds.position.y + bounds.size.y - bottom_margin - half_handle_size,
-                self.handle_size,
-                self.handle_size,
+            Vector2::new(
+                bounds.position.x + bounds.size.x - right_margin,
+                bounds.position.y + bounds.size.y - bottom_margin,
             ),
-            None,
-        );
+            // Region bounds.
+            bounds.position,
+            bounds.right_bottom_corner(),
+        ] {
+            drawing_context.push_rect_filled(
+                &Rect {
+                    position: position - Vector2::repeat(half_handle_size),
+                    size: Vector2::repeat(self.handle_size),
+                },
+                None,
+            );
+        }
         drawing_context.commit(
             self.clip_bounds(),
             self.foreground(),
