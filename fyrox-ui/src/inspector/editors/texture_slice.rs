@@ -109,6 +109,14 @@ impl Control for TextureSliceEditor {
         let texture_width = width as f32;
         let texture_height = height as f32;
 
+        drawing_context.push_rect_filled(&Rect::new(0.0, 0.0, texture_width, texture_height), None);
+        drawing_context.commit(
+            self.clip_bounds(),
+            self.background(),
+            CommandTexture::Texture(texture.clone()),
+            None,
+        );
+
         let mut bounds = Rect {
             position: self.slice.texture_region.position.cast::<f32>(),
             size: self.slice.texture_region.size.cast::<f32>(),
@@ -119,10 +127,10 @@ impl Control for TextureSliceEditor {
             bounds.size.y = texture_height;
         }
 
-        drawing_context.push_rect_filled(&bounds, None);
+        drawing_context.push_rect(&bounds, 1.0);
         drawing_context.commit(
             self.clip_bounds(),
-            self.background(),
+            self.foreground(),
             CommandTexture::Texture(texture.clone()),
             None,
         );
@@ -198,6 +206,12 @@ impl Control for TextureSliceEditor {
             ),
             None,
         );
+        drawing_context.commit(
+            self.clip_bounds(),
+            self.foreground(),
+            CommandTexture::None,
+            None,
+        );
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
@@ -224,7 +238,7 @@ impl TextureSliceEditorBuilder {
         Self {
             widget_builder,
             slice: Default::default(),
-            handle_size: 4.0,
+            handle_size: 8.0,
         }
     }
 
@@ -487,8 +501,10 @@ impl TextureSliceEditorWindowBuilder {
 
         let slice_editor = TextureSliceEditorBuilder::new(
             WidgetBuilder::new()
+                .with_clip_to_bounds(false)
                 .with_background(Brush::Solid(Color::WHITE).into())
-                .with_foreground(Brush::Solid(Color::GREEN).into()),
+                .with_foreground(Brush::Solid(Color::GREEN).into())
+                .with_margin(Thickness::uniform(3.0)),
         )
         .with_texture_slice(self.texture_slice.clone())
         .build(ctx);
