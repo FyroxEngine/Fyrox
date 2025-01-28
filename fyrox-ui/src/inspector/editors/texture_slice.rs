@@ -19,12 +19,14 @@
 // SOFTWARE.
 
 use crate::{
+    border::BorderBuilder,
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
         some_or_return, type_traits::prelude::*, visitor::prelude::*,
     },
+    decorator::DecoratorBuilder,
     define_constructor, define_widget_deref,
     draw::{CommandTexture, Draw, DrawingContext},
     grid::{Column, GridBuilder, Row},
@@ -35,14 +37,15 @@ use crate::{
         },
         FieldKind, InspectorError, PropertyChanged,
     },
-    message::{MessageDirection, OsEvent, UiMessage},
+    message::{CursorIcon, MessageDirection, OsEvent, UiMessage},
     nine_patch::TextureSlice,
     numeric::{NumericUpDownBuilder, NumericUpDownMessage},
     rect::{RectEditorBuilder, RectEditorMessage},
     scroll_viewer::ScrollViewerBuilder,
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
-    widget::{Widget, WidgetBuilder},
+    thumb::{ThumbBuilder, ThumbMessage},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
@@ -62,12 +65,29 @@ impl TextureSliceEditorMessage {
     define_constructor!(TextureSliceEditorMessage:Slice => fn slice(TextureSlice), layout: false);
 }
 
+#[derive(Debug, Clone, PartialEq)]
+struct DragContext {
+    initial_position: Vector2<f32>,
+    bottom_margin: u32,
+    left_margin: u32,
+    right_margin: u32,
+    top_margin: u32,
+    texture_region: Rect<u32>,
+}
+
 #[derive(Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider, Debug)]
 #[type_uuid(id = "bd89b59f-13be-4804-bd9c-ed40cfd48b92")]
 pub struct TextureSliceEditor {
     widget: Widget,
     slice: TextureSlice,
     handle_size: f32,
+    region_min_thumb: Handle<UiNode>,
+    region_max_thumb: Handle<UiNode>,
+    slice_min_thumb: Handle<UiNode>,
+    slice_max_thumb: Handle<UiNode>,
+    #[reflect(hidden)]
+    #[visit(skip)]
+    drag_context: Option<DragContext>,
 }
 
 define_widget_deref!(TextureSliceEditor);
@@ -93,6 +113,23 @@ impl Control for TextureSliceEditor {
         }
 
         size
+    }
+
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
+        for &child_handle in self.widget.children() {
+            let child = ui.nodes.borrow(child_handle);
+            ui.arrange_node(
+                child_handle,
+                &Rect::new(
+                    child.desired_local_position().x,
+                    child.desired_local_position().y,
+                    child.desired_size().x,
+                    child.desired_size().y,
+                ),
+            );
+        }
+
+        final_size
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
@@ -185,37 +222,6 @@ impl Control for TextureSliceEditor {
             CommandTexture::None,
             None,
         );
-
-        // Draw handles.
-        let half_handle_size = self.handle_size / 2.0;
-        for position in [
-            // Margin bounds.
-            Vector2::new(
-                bounds.position.x + left_margin,
-                bounds.position.y + top_margin,
-            ),
-            Vector2::new(
-                bounds.position.x + bounds.size.x - right_margin,
-                bounds.position.y + bounds.size.y - bottom_margin,
-            ),
-            // Region bounds.
-            bounds.position,
-            bounds.right_bottom_corner(),
-        ] {
-            drawing_context.push_rect_filled(
-                &Rect {
-                    position: position - Vector2::repeat(half_handle_size),
-                    size: Vector2::repeat(self.handle_size),
-                },
-                None,
-            );
-        }
-        drawing_context.commit(
-            self.clip_bounds(),
-            self.foreground(),
-            CommandTexture::None,
-            None,
-        );
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
@@ -227,6 +233,80 @@ impl Control for TextureSliceEditor {
             {
                 self.slice = slice.clone();
             }
+        } else if let Some(msg) = message.data::<ThumbMessage>() {
+            match msg {
+                ThumbMessage::DragStarted { position } => {
+                    self.drag_context = Some(DragContext {
+                        initial_position: *position,
+                        bottom_margin: *self.slice.bottom_margin,
+                        left_margin: *self.slice.left_margin,
+                        right_margin: *self.slice.right_margin,
+                        top_margin: *self.slice.top_margin,
+                        texture_region: *self.slice.texture_region,
+                    });
+                }
+                ThumbMessage::DragDelta { offset } => {
+                    if let Some(drag_context) = self.drag_context.as_ref() {
+                        let texture = some_or_return!(self.slice.texture_source.clone());
+                        let state = texture.state();
+                        let texture_data = some_or_return!(state.data_ref());
+                        let TextureKind::Rectangle { width, height } = texture_data.kind() else {
+                            return;
+                        };
+
+                        let texture_width = width as f32;
+                        let texture_height = height as f32;
+
+                        let mut new_pos = drag_context.initial_position + *offset;
+                        new_pos.x = new_pos.x.clamp(0.0, texture_width);
+                        new_pos.y = new_pos.y.clamp(0.0, texture_height);
+
+                        ui.send_message(WidgetMessage::desired_position(
+                            message.destination(),
+                            MessageDirection::ToWidget,
+                            new_pos,
+                        ));
+
+                        if message.destination() == self.slice_min_thumb {
+                            self.slice.top_margin.set_value_and_mark_modified(
+                                (drag_context.top_margin as f32 + offset.y) as u32,
+                            );
+                            self.slice.left_margin.set_value_and_mark_modified(
+                                (drag_context.left_margin as f32 + offset.x) as u32,
+                            );
+                        } else if message.destination() == self.slice_max_thumb {
+                            self.slice.bottom_margin.set_value_and_mark_modified(
+                                (drag_context.bottom_margin as f32 + offset.y) as u32,
+                            );
+                            self.slice.right_margin.set_value_and_mark_modified(
+                                (drag_context.right_margin as f32 + offset.x) as u32,
+                            );
+                        } else if message.destination() == self.region_min_thumb {
+                            self.slice.texture_region.position = Vector2::new(
+                                (drag_context.texture_region.position.x as f32 + offset.x) as u32,
+                                (drag_context.texture_region.position.y as f32 + offset.y) as u32,
+                            );
+                            self.slice.texture_region.size = Vector2::new(
+                                (drag_context.texture_region.size.x as f32 - offset.x) as u32,
+                                (drag_context.texture_region.size.y as f32 - offset.y) as u32,
+                            );
+                        } else if message.destination() == self.region_max_thumb {
+                            self.slice.texture_region.size = Vector2::new(
+                                (drag_context.texture_region.size.x as f32 + offset.x) as u32,
+                                (drag_context.texture_region.size.y as f32 + offset.y) as u32,
+                            );
+                        }
+                    }
+                }
+                ThumbMessage::DragCompleted { .. } => {
+                    self.drag_context = None;
+                    ui.send_message(TextureSliceEditorMessage::slice(
+                        self.handle(),
+                        MessageDirection::FromWidget,
+                        self.slice.clone(),
+                    ));
+                }
+            }
         }
     }
 }
@@ -235,6 +315,28 @@ pub struct TextureSliceEditorBuilder {
     widget_builder: WidgetBuilder,
     slice: TextureSlice,
     handle_size: f32,
+}
+
+fn make_thumb(position: Vector2<u32>, handle_size: f32, ctx: &mut BuildContext) -> Handle<UiNode> {
+    ThumbBuilder::new(
+        WidgetBuilder::new()
+            .with_desired_position(position.cast::<f32>())
+            .with_child(
+                DecoratorBuilder::new(BorderBuilder::new(
+                    WidgetBuilder::new()
+                        .with_width(handle_size)
+                        .with_height(handle_size)
+                        .with_cursor(Some(CursorIcon::Grab))
+                        .with_foreground(Brush::Solid(Color::opaque(0, 150, 0)).into()),
+                ))
+                .with_pressable(false)
+                .with_selected(false)
+                .with_normal_brush(Brush::Solid(Color::opaque(0, 150, 0)).into())
+                .with_hover_brush(Brush::Solid(Color::opaque(0, 255, 0)).into())
+                .build(ctx),
+            ),
+    )
+    .build(ctx)
 }
 
 impl TextureSliceEditorBuilder {
@@ -257,10 +359,31 @@ impl TextureSliceEditorBuilder {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let region_min_thumb =
+            make_thumb(self.slice.texture_region.position, self.handle_size, ctx);
+        let region_max_thumb = make_thumb(
+            self.slice.texture_region.right_bottom_corner(),
+            self.handle_size,
+            ctx,
+        );
+        let slice_min_thumb = make_thumb(self.slice.margin_min(), self.handle_size, ctx);
+        let slice_max_thumb = make_thumb(self.slice.margin_max(), self.handle_size, ctx);
+
         ctx.add_node(UiNode::new(TextureSliceEditor {
-            widget: self.widget_builder.build(ctx),
+            widget: self
+                .widget_builder
+                .with_child(region_min_thumb)
+                .with_child(region_max_thumb)
+                .with_child(slice_min_thumb)
+                .with_child(slice_max_thumb)
+                .build(ctx),
             slice: self.slice,
             handle_size: self.handle_size,
+            region_min_thumb,
+            region_max_thumb,
+            slice_min_thumb,
+            slice_max_thumb,
+            drag_context: None,
         }))
     }
 }
@@ -328,11 +451,11 @@ impl Control for TextureSliceEditorWindow {
             if message.direction() == MessageDirection::FromWidget
                 && message.destination() == self.slice_editor
             {
-                // Re-cast the message to self.
+                // Re-cast the message to parent editor.
                 ui.send_message(
                     message
                         .clone()
-                        .with_destination(self.handle)
+                        .with_destination(self.parent_editor)
                         .with_direction(MessageDirection::FromWidget),
                 );
             }

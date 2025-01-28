@@ -71,6 +71,34 @@ pub struct TextureSlice {
     pub texture_region: InheritableVariable<Rect<u32>>,
 }
 
+impl TextureSlice {
+    /// Returns the top left point.
+    pub fn margin_min(&self) -> Vector2<u32> {
+        Vector2::new(
+            self.texture_region.position.x + *self.left_margin,
+            self.texture_region.position.y + *self.top_margin,
+        )
+    }
+
+    /// Returns the bottom right point.
+    pub fn margin_max(&self) -> Vector2<u32> {
+        Vector2::new(
+            self.texture_region.position.x
+                + self
+                    .texture_region
+                    .size
+                    .x
+                    .saturating_sub(*self.right_margin),
+            self.texture_region.position.y
+                + self
+                    .texture_region
+                    .size
+                    .y
+                    .saturating_sub(*self.bottom_margin),
+        )
+    }
+}
+
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "c345033e-8c10-4186-b101-43f73b85981d")]
 pub struct NinePatch {
