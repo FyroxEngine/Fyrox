@@ -121,9 +121,14 @@ impl ConstructorProvider<UiNode, UserInterface> for NinePatch {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
             .with_variant("Nine Patch", |ui| {
-                NinePatchBuilder::new(WidgetBuilder::new().with_name("Nine Patch"))
-                    .build(&mut ui.build_ctx())
-                    .into()
+                NinePatchBuilder::new(
+                    WidgetBuilder::new()
+                        .with_name("Nine Patch")
+                        .with_width(200.0)
+                        .with_height(200.0),
+                )
+                .build(&mut ui.build_ctx())
+                .into()
             })
             .with_group("Visual")
     }
