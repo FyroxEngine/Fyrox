@@ -102,7 +102,7 @@ impl Control for TextureEditor {
                         ui.send_message(TextureEditorMessage::texture(
                             self.handle(),
                             MessageDirection::ToWidget,
-                            Some(self.resource_manager.request::<Texture>(relative_path)),
+                            self.resource_manager.try_request::<Texture>(relative_path),
                         ));
                     }
                 }
