@@ -19,11 +19,11 @@ members = [
     "project-manager",
     "fyrox-graphics",
     "fyrox-build-tools"
-, "fyrox-texture"]
+    , "fyrox-texture"]
 resolver = "2"
 
 [profile.dev]
-opt-level = 0
+opt-level = 1
 
 [profile.release]
 opt-level = 3
