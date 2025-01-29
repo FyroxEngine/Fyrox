@@ -232,6 +232,22 @@ impl Control for TextureSliceEditor {
                 && message.direction() == MessageDirection::ToWidget
             {
                 self.slice = slice.clone();
+
+                for (thumb, position) in [
+                    (self.region_min_thumb, self.slice.texture_region.position),
+                    (
+                        self.region_max_thumb,
+                        self.slice.texture_region.right_bottom_corner(),
+                    ),
+                    (self.slice_min_thumb, self.slice.margin_min()),
+                    (self.slice_max_thumb, self.slice.margin_max()),
+                ] {
+                    ui.send_message(WidgetMessage::desired_position(
+                        thumb,
+                        MessageDirection::ToWidget,
+                        position.cast::<f32>(),
+                    ))
+                }
             }
         } else if let Some(msg) = message.data::<ThumbMessage>() {
             match msg {
@@ -644,7 +660,7 @@ impl TextureSliceEditorWindowBuilder {
                 .with_child(toolbar)
                 .with_child(scroll_viewer),
         )
-        .add_column(Column::strict(150.0))
+        .add_column(Column::strict(200.0))
         .add_column(Column::stretch())
         .add_row(Row::stretch())
         .build(ctx);
@@ -704,13 +720,12 @@ impl Control for TextureSliceFieldEditor {
                 && &self.texture_slice != slice
             {
                 self.texture_slice = slice.clone();
-
-                ui.send_message(
-                    message
-                        .clone()
-                        .with_destination(self.handle)
-                        .with_direction(MessageDirection::FromWidget),
-                );
+                ui.send_message(message.reverse());
+                ui.send_message(TextureSliceEditorMessage::slice(
+                    self.editor,
+                    MessageDirection::ToWidget,
+                    self.texture_slice.clone(),
+                ));
             }
         }
     }
