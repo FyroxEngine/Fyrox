@@ -25,10 +25,9 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::uuid_provider,
     core::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
+        uuid_provider, visitor::prelude::*,
     },
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -38,8 +37,10 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::{
+    constructor::{ConstructorProvider, GraphNodeConstructor},
+    BaseSceneGraph,
+};
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that could be used to alternate the state of a [`ScrollViewer`] widget.
@@ -55,6 +56,10 @@ pub enum ScrollViewerMessage {
     HScrollSpeed(f32),
     /// Scrolls to end of the content.
     ScrollToEnd,
+    /// Sets the vertical scrolling value.
+    VerticalScroll(f32),
+    /// Sets the horizontal scrolling value.
+    HorizontalScroll(f32),
 }
 
 impl ScrollViewerMessage {
@@ -77,6 +82,14 @@ impl ScrollViewerMessage {
     define_constructor!(
         /// Creates [`ScrollViewerMessage::ScrollToEnd`] message.
         ScrollViewerMessage:ScrollToEnd => fn scroll_to_end(), layout: true
+    );
+    define_constructor!(
+        /// Creates [`ScrollViewerMessage::HorizontalScroll`] message.
+        ScrollViewerMessage:HorizontalScroll => fn horizontal_scroll(f32), layout: false
+    );
+    define_constructor!(
+        /// Creates [`ScrollViewerMessage::VerticalScroll`] message.
+        ScrollViewerMessage:VerticalScroll => fn vertical_scroll(f32), layout: false
     );
 }
 
@@ -388,6 +401,20 @@ impl Control for ScrollViewer {
                         ui.send_message(ScrollPanelMessage::scroll_to_end(
                             self.scroll_panel,
                             MessageDirection::ToWidget,
+                        ));
+                    }
+                    ScrollViewerMessage::HorizontalScroll(value) => {
+                        ui.send_message(ScrollBarMessage::value(
+                            self.h_scroll_bar,
+                            MessageDirection::ToWidget,
+                            *value,
+                        ));
+                    }
+                    ScrollViewerMessage::VerticalScroll(value) => {
+                        ui.send_message(ScrollBarMessage::value(
+                            self.v_scroll_bar,
+                            MessageDirection::ToWidget,
+                            *value,
                         ));
                     }
                 }
