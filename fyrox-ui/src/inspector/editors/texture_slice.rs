@@ -23,8 +23,14 @@ use crate::{
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
-        some_or_return, type_traits::prelude::*, visitor::prelude::*,
+        algebra::{Matrix3, Vector2},
+        color::Color,
+        math::Rect,
+        pool::Handle,
+        reflect::prelude::*,
+        some_or_return,
+        type_traits::prelude::*,
+        visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
     define_constructor, define_widget_deref,
@@ -88,6 +94,9 @@ pub struct TextureSliceEditor {
     #[reflect(hidden)]
     #[visit(skip)]
     drag_context: Option<DragContext>,
+    #[reflect(hidden)]
+    #[visit(skip)]
+    scale: f32,
 }
 
 define_widget_deref!(TextureSliceEditor);
@@ -176,6 +185,7 @@ impl Control for TextureSliceEditor {
         let right_margin = *self.slice.right_margin as f32;
         let top_margin = *self.slice.top_margin as f32;
         let bottom_margin = *self.slice.bottom_margin as f32;
+        let thickness = 1.0 / self.scale;
 
         // Draw nine slices.
         drawing_context.push_line(
@@ -184,7 +194,7 @@ impl Control for TextureSliceEditor {
                 bounds.position.x + left_margin,
                 bounds.position.y + bounds.size.y,
             ),
-            1.0,
+            thickness,
         );
         drawing_context.push_line(
             Vector2::new(
@@ -195,7 +205,7 @@ impl Control for TextureSliceEditor {
                 bounds.position.x + bounds.size.x - right_margin,
                 bounds.position.y + bounds.size.y,
             ),
-            1.0,
+            thickness,
         );
         drawing_context.push_line(
             Vector2::new(bounds.position.x, bounds.position.y + top_margin),
@@ -203,7 +213,7 @@ impl Control for TextureSliceEditor {
                 bounds.position.x + bounds.size.x,
                 bounds.position.y + top_margin,
             ),
-            1.0,
+            thickness,
         );
         drawing_context.push_line(
             Vector2::new(
@@ -214,7 +224,7 @@ impl Control for TextureSliceEditor {
                 bounds.position.x + bounds.size.x,
                 bounds.position.y + bounds.size.y - bottom_margin,
             ),
-            1.0,
+            thickness,
         );
         drawing_context.commit(
             self.clip_bounds(),
@@ -323,6 +333,32 @@ impl Control for TextureSliceEditor {
                     ));
                 }
             }
+        } else if let Some(WidgetMessage::MouseWheel { amount, .. }) = message.data() {
+            self.scale = (self.scale + 0.1 * *amount).clamp(1.0, 10.0);
+
+            ui.send_message(WidgetMessage::layout_transform(
+                self.handle,
+                MessageDirection::ToWidget,
+                Matrix3::new_scaling(self.scale),
+            ));
+
+            for thumb in [
+                self.slice_min_thumb,
+                self.slice_max_thumb,
+                self.region_min_thumb,
+                self.region_max_thumb,
+            ] {
+                ui.send_message(WidgetMessage::width(
+                    thumb,
+                    MessageDirection::ToWidget,
+                    self.handle_size / self.scale,
+                ));
+                ui.send_message(WidgetMessage::height(
+                    thumb,
+                    MessageDirection::ToWidget,
+                    self.handle_size / self.scale,
+                ));
+            }
         }
     }
 }
@@ -400,6 +436,7 @@ impl TextureSliceEditorBuilder {
             slice_min_thumb,
             slice_max_thumb,
             drag_context: None,
+            scale: 1.0,
         }))
     }
 }
@@ -653,6 +690,8 @@ impl TextureSliceEditorWindowBuilder {
         .with_texture_slice(self.texture_slice.clone())
         .build(ctx);
         let scroll_viewer = ScrollViewerBuilder::new(WidgetBuilder::new().on_column(1))
+            .with_horizontal_scroll_allowed(true)
+            .with_vertical_scroll_allowed(true)
             .with_content(slice_editor)
             .build(ctx);
         let content = GridBuilder::new(
