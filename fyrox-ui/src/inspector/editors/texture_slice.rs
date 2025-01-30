@@ -99,6 +99,107 @@ pub struct TextureSliceEditor {
     scale: f32,
 }
 
+impl TextureSliceEditor {
+    fn sync_thumbs(&self, ui: &UserInterface) {
+        for (thumb, position) in [
+            (self.region_min_thumb, self.slice.texture_region.position),
+            (
+                self.region_max_thumb,
+                self.slice.texture_region.right_bottom_corner(),
+            ),
+            (self.slice_min_thumb, self.slice.margin_min()),
+            (self.slice_max_thumb, self.slice.margin_max()),
+        ] {
+            ui.send_message(WidgetMessage::desired_position(
+                thumb,
+                MessageDirection::ToWidget,
+                position.cast::<f32>(),
+            ))
+        }
+    }
+
+    fn on_thumb_dragged(&mut self, thumb: Handle<UiNode>, offset: Vector2<f32>) {
+        let ctx = some_or_return!(self.drag_context.as_ref());
+        let texture = some_or_return!(self.slice.texture_source.clone());
+        let texture_state = texture.state();
+        let texture_data = some_or_return!(texture_state.data_ref());
+        let TextureKind::Rectangle { width, height } = texture_data.kind() else {
+            return;
+        };
+
+        let offset = Vector2::new(offset.x as i32, offset.y as i32);
+
+        let margin_min = self.slice.margin_min();
+        let margin_max = self.slice.margin_max();
+        let initial_region = ctx.texture_region;
+        let region = self.slice.texture_region.deref_mut();
+
+        if thumb == self.slice_min_thumb {
+            let top_margin = ctx.top_margin.saturating_add_signed(offset.y);
+            if top_margin + region.position.y <= margin_max.y {
+                *self.slice.top_margin = top_margin;
+            } else {
+                *self.slice.top_margin = margin_max.y - region.position.y;
+            }
+
+            let left_margin = ctx.left_margin.saturating_add_signed(offset.x);
+            if left_margin + region.position.x <= margin_max.x {
+                *self.slice.left_margin = left_margin;
+            } else {
+                *self.slice.left_margin = margin_max.x - region.position.x;
+            }
+        } else if thumb == self.slice_max_thumb {
+            let bottom_margin = ctx.bottom_margin.saturating_add_signed(-offset.y);
+            if (region.position.y + region.size.y).saturating_sub(bottom_margin) >= margin_min.y {
+                *self.slice.bottom_margin = bottom_margin;
+            } else {
+                *self.slice.bottom_margin = region.position.y + region.size.y - margin_min.y;
+            }
+
+            let right_margin = ctx.right_margin.saturating_add_signed(-offset.x);
+            if (region.position.x + region.size.x).saturating_sub(right_margin) >= margin_min.x {
+                *self.slice.right_margin = right_margin;
+            } else {
+                *self.slice.right_margin = region.position.x + region.size.x - margin_min.x;
+            }
+        } else if thumb == self.region_min_thumb {
+            let x = initial_region.position.x.saturating_add_signed(offset.x);
+            let max_x = initial_region.position.x + initial_region.size.x;
+            region.position.x = x.min(max_x);
+
+            let y = initial_region.position.y.saturating_add_signed(offset.y);
+            let max_y = initial_region.position.y + initial_region.size.y;
+            region.position.y = y.min(max_y);
+
+            region.size.x = ctx
+                .texture_region
+                .size
+                .x
+                .saturating_add_signed(-offset.x)
+                .min(initial_region.position.x + initial_region.size.x);
+            region.size.y = ctx
+                .texture_region
+                .size
+                .y
+                .saturating_add_signed(-offset.y)
+                .min(initial_region.position.y + initial_region.size.y);
+        } else if thumb == self.region_max_thumb {
+            region.size.x = ctx
+                .texture_region
+                .size
+                .x
+                .saturating_add_signed(offset.x)
+                .min(width);
+            region.size.y = ctx
+                .texture_region
+                .size
+                .y
+                .saturating_add_signed(offset.y)
+                .min(height);
+        }
+    }
+}
+
 define_widget_deref!(TextureSliceEditor);
 
 impl Control for TextureSliceEditor {
@@ -242,22 +343,7 @@ impl Control for TextureSliceEditor {
                 && message.direction() == MessageDirection::ToWidget
             {
                 self.slice = slice.clone();
-
-                for (thumb, position) in [
-                    (self.region_min_thumb, self.slice.texture_region.position),
-                    (
-                        self.region_max_thumb,
-                        self.slice.texture_region.right_bottom_corner(),
-                    ),
-                    (self.slice_min_thumb, self.slice.margin_min()),
-                    (self.slice_max_thumb, self.slice.margin_max()),
-                ] {
-                    ui.send_message(WidgetMessage::desired_position(
-                        thumb,
-                        MessageDirection::ToWidget,
-                        position.cast::<f32>(),
-                    ))
-                }
+                self.sync_thumbs(ui);
             }
         } else if let Some(msg) = message.data::<ThumbMessage>() {
             match msg {
@@ -272,57 +358,8 @@ impl Control for TextureSliceEditor {
                     });
                 }
                 ThumbMessage::DragDelta { offset } => {
-                    if let Some(drag_context) = self.drag_context.as_ref() {
-                        let texture = some_or_return!(self.slice.texture_source.clone());
-                        let state = texture.state();
-                        let texture_data = some_or_return!(state.data_ref());
-                        let TextureKind::Rectangle { width, height } = texture_data.kind() else {
-                            return;
-                        };
-
-                        let texture_width = width as f32;
-                        let texture_height = height as f32;
-
-                        let mut new_pos = drag_context.initial_position + *offset;
-                        new_pos.x = new_pos.x.clamp(0.0, texture_width);
-                        new_pos.y = new_pos.y.clamp(0.0, texture_height);
-
-                        ui.send_message(WidgetMessage::desired_position(
-                            message.destination(),
-                            MessageDirection::ToWidget,
-                            new_pos,
-                        ));
-
-                        if message.destination() == self.slice_min_thumb {
-                            self.slice.top_margin.set_value_and_mark_modified(
-                                (drag_context.top_margin as f32 + offset.y) as u32,
-                            );
-                            self.slice.left_margin.set_value_and_mark_modified(
-                                (drag_context.left_margin as f32 + offset.x) as u32,
-                            );
-                        } else if message.destination() == self.slice_max_thumb {
-                            self.slice.bottom_margin.set_value_and_mark_modified(
-                                (drag_context.bottom_margin as f32 - offset.y) as u32,
-                            );
-                            self.slice.right_margin.set_value_and_mark_modified(
-                                (drag_context.right_margin as f32 - offset.x) as u32,
-                            );
-                        } else if message.destination() == self.region_min_thumb {
-                            self.slice.texture_region.position = Vector2::new(
-                                (drag_context.texture_region.position.x as f32 + offset.x) as u32,
-                                (drag_context.texture_region.position.y as f32 + offset.y) as u32,
-                            );
-                            self.slice.texture_region.size = Vector2::new(
-                                (drag_context.texture_region.size.x as f32 - offset.x) as u32,
-                                (drag_context.texture_region.size.y as f32 - offset.y) as u32,
-                            );
-                        } else if message.destination() == self.region_max_thumb {
-                            self.slice.texture_region.size = Vector2::new(
-                                (drag_context.texture_region.size.x as f32 + offset.x) as u32,
-                                (drag_context.texture_region.size.y as f32 + offset.y) as u32,
-                            );
-                        }
-                    }
+                    self.on_thumb_dragged(message.destination(), *offset);
+                    self.sync_thumbs(ui);
                 }
                 ThumbMessage::DragCompleted { .. } => {
                     self.drag_context = None;
