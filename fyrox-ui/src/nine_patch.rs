@@ -25,8 +25,9 @@ use crate::{
         some_or_return, type_traits::prelude::*, variable::InheritableVariable,
         visitor::prelude::*,
     },
+    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
-    message::UiMessage,
+    message::{compare_and_set, MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
@@ -38,6 +39,7 @@ use fyrox_texture::{TextureKind, TextureResource};
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
+/// Stretch mode for the middle sections of [`NinePatch`] widget.
 #[derive(
     Debug,
     Default,
@@ -55,19 +57,72 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 )]
 #[type_uuid(id = "c5bb0a5c-6581-45f7-899c-78aa1da8b659")]
 pub enum StretchMode {
+    /// Stretches middle sections of the widget. Could lead to distorted image.
     #[default]
     Stretch,
+    /// Tiles middle sections of the widget. Prevents distortion of the image.
     Tile,
 }
 
+/// A set of possible nine patch messages.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NinePatchMessage {
+    LeftMargin(u32),
+    RightMargin(u32),
+    TopMargin(u32),
+    BottomMargin(u32),
+    TextureRegion(Rect<u32>),
+    Texture(Option<TextureResource>),
+    DrawCenter(bool),
+}
+
+impl NinePatchMessage {
+    define_constructor!(
+        /// Creates [`NinePatchMessage::LeftMargin`] message.
+        NinePatchMessage:LeftMargin => fn left_margin(u32), layout: false
+    );
+    define_constructor!(
+        /// Creates [`NinePatchMessage::RightMargin`] message.
+        NinePatchMessage:RightMargin => fn right_margin(u32), layout: false
+    );
+    define_constructor!(
+        /// Creates [`NinePatchMessage::TopMargin`] message.
+        NinePatchMessage:TopMargin => fn top_margin(u32), layout: false
+    );
+    define_constructor!(
+        /// Creates [`NinePatchMessage::BottomMargin`] message.
+        NinePatchMessage:BottomMargin => fn bottom_margin(u32), layout: false
+    );
+    define_constructor!(
+        /// Creates [`NinePatchMessage::TextureRegion`] message.
+        NinePatchMessage:TextureRegion => fn texture_region(Rect<u32>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`NinePatchMessage::Texture`] message.
+        NinePatchMessage:Texture => fn texture(Option<TextureResource>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`NinePatchMessage::DrawCenter`] message.
+        NinePatchMessage:DrawCenter => fn draw_center(bool), layout: false
+    );
+}
+
+/// A texture slice that defines a region in a texture and margins that will be used to split the
+/// section in nine pieces.
 #[derive(Default, Clone, Visit, Reflect, Debug, PartialEq)]
 pub struct TextureSlice {
-    // This field is used only for editing purposes in the UI.
+    /// Texture of the slice. This field is used only for editing purposes in the UI. Can be [`None`]
+    /// if no editing is needed.
     pub texture_source: Option<TextureResource>,
+    /// Offset from the bottom side of the texture region.
     pub bottom_margin: InheritableVariable<u32>,
+    /// Offset from the left side of the texture region.
     pub left_margin: InheritableVariable<u32>,
+    /// Offset from the right side of the texture region.
     pub right_margin: InheritableVariable<u32>,
+    /// Offset from the top of the texture region.
     pub top_margin: InheritableVariable<u32>,
+    /// Region in the texture. Default is all zeros, which means that the entire texture is used.
     pub texture_region: InheritableVariable<Rect<u32>>,
 }
 
@@ -99,6 +154,37 @@ impl TextureSlice {
     }
 }
 
+/// `NinePatch` widget is used to split an image in nine sections, where each corner section will
+/// remain the same, while the middle parts between each corner will be used to evenly fill the
+/// space. This widget is primarily used in the UI to create resizable frames, buttons, windows, etc.
+///
+/// ## Example
+///
+/// The following examples shows how to create a nine-patch widget with a texture and some margins.
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::{math::Rect, pool::Handle},
+/// #     nine_patch::NinePatchBuilder,
+/// #     widget::WidgetBuilder,
+/// #     UiNode, UserInterface,
+/// # };
+/// # use fyrox_texture::TextureResource;
+/// #
+/// fn create_nine_patch(texture: TextureResource, ui: &mut UserInterface) -> Handle<UiNode> {
+///     NinePatchBuilder::new(WidgetBuilder::new())
+///         // Specify margins for each side in pixels.
+///         .with_left_margin(50)
+///         .with_right_margin(50)
+///         .with_top_margin(40)
+///         .with_bottom_margin(40)
+///         .with_texture(texture)
+///         // Optionally, you can also specify a region in a texture to use. It is useful if you
+///         // have a texture atlas where most of the UI elements are packed.
+///         .with_texture_region(Rect::new(200, 200, 400, 400))
+///         .build(&mut ui.build_ctx())
+/// }
+/// ```
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "c345033e-8c10-4186-b101-43f73b85981d")]
 pub struct NinePatch {
@@ -459,9 +545,41 @@ impl Control for NinePatch {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
+
+        if let Some(msg) = message.data::<NinePatchMessage>() {
+            if message.destination() == self.handle()
+                && message.direction() == MessageDirection::ToWidget
+            {
+                let slice = &mut self.texture_slice;
+                match msg {
+                    NinePatchMessage::LeftMargin(margin) => {
+                        compare_and_set(slice.left_margin.deref_mut(), margin, message, ui);
+                    }
+                    NinePatchMessage::RightMargin(margin) => {
+                        compare_and_set(slice.right_margin.deref_mut(), margin, message, ui);
+                    }
+                    NinePatchMessage::TopMargin(margin) => {
+                        compare_and_set(slice.top_margin.deref_mut(), margin, message, ui);
+                    }
+                    NinePatchMessage::BottomMargin(margin) => {
+                        compare_and_set(slice.bottom_margin.deref_mut(), margin, message, ui);
+                    }
+                    NinePatchMessage::TextureRegion(region) => {
+                        compare_and_set(slice.texture_region.deref_mut(), region, message, ui);
+                    }
+                    NinePatchMessage::Texture(texture) => {
+                        compare_and_set(&mut slice.texture_source, texture, message, ui);
+                    }
+                    NinePatchMessage::DrawCenter(draw_center) => {
+                        compare_and_set(self.draw_center.deref_mut(), draw_center, message, ui);
+                    }
+                }
+            }
+        }
     }
 }
 
+/// Creates instances of [`NinePatch`] widget.
 pub struct NinePatchBuilder {
     pub widget_builder: WidgetBuilder,
     pub texture: Option<TextureResource>,
