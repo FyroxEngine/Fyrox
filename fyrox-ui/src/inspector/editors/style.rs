@@ -25,7 +25,7 @@ use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
         pool::Handle, reflect::prelude::*, reflect::FieldValue, type_traits::prelude::*,
-        visitor::prelude::*, PhantomDataSendSync,
+        visitor::prelude::*, ImmutableString, PhantomDataSendSync,
     },
     define_widget_deref,
     grid::{Column, GridBuilder, Row},
@@ -95,6 +95,7 @@ struct StyledPropertyEditorBuilder {
     widget_builder: WidgetBuilder,
     inner_editor: Handle<UiNode>,
     container: Handle<UiNode>,
+    style_property_name: ImmutableString,
 }
 
 impl StyledPropertyEditorBuilder {
@@ -103,6 +104,7 @@ impl StyledPropertyEditorBuilder {
             widget_builder,
             inner_editor: Handle::NONE,
             container: Handle::NONE,
+            style_property_name: Default::default(),
         }
     }
 
@@ -116,13 +118,31 @@ impl StyledPropertyEditorBuilder {
         self
     }
 
+    pub fn with_style_property_name(mut self, style_property_name: ImmutableString) -> Self {
+        self.style_property_name = style_property_name;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let is_bound = !self.style_property_name.is_empty();
+        let brush = if is_bound {
+            ctx.style.property(Style::BRUSH_BRIGHT_BLUE)
+        } else {
+            ctx.style.property(Style::BRUSH_BRIGHTEST)
+        };
+
+        let tooltip = if is_bound {
+            &format!("Bound To `{}` Property", self.style_property_name)
+        } else {
+            "Bind To Style Property"
+        };
+
         let bind;
         let grid = GridBuilder::new(WidgetBuilder::new().with_child(self.container).with_child({
             bind = ButtonBuilder::new(
                 WidgetBuilder::new()
                     .on_column(1)
-                    .with_tooltip(make_simple_tooltip(ctx, "Bind To Style"))
+                    .with_tooltip(make_simple_tooltip(ctx, tooltip))
                     .with_margin(Thickness::uniform(1.0))
                     .with_vertical_alignment(VerticalAlignment::Top)
                     .with_width(18.0)
@@ -131,7 +151,7 @@ impl StyledPropertyEditorBuilder {
             .with_content(
                 ImageBuilder::new(
                     WidgetBuilder::new()
-                        .with_background(ctx.style.property(Style::BRUSH_BRIGHTEST))
+                        .with_background(brush)
                         .with_margin(Thickness::uniform(2.0))
                         .with_width(16.0)
                         .with_height(16.0),
@@ -223,6 +243,7 @@ where
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
+        let value = ctx.property_info.cast_value::<StyledProperty<T>>()?;
         if let Some(definition) = ctx
             .definition_container
             .definitions()
@@ -252,6 +273,7 @@ where
                     PropertyEditorInstance::Simple { editor } => editor,
                     PropertyEditorInstance::Custom { editor, .. } => editor,
                 })
+                .with_style_property_name(value.name.clone())
                 .build(ctx.build_context);
 
             Ok(match instance {
