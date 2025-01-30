@@ -693,6 +693,9 @@ impl TextureSliceEditorWindowBuilder {
             .with_horizontal_scroll_allowed(true)
             .with_vertical_scroll_allowed(true)
             .with_content(slice_editor)
+            // Disable scrolling via mouse wheel. Mouse wheel is used to change zoom.
+            .with_h_scroll_speed(0.0)
+            .with_v_scroll_speed(0.0)
             .build(ctx);
         let content = GridBuilder::new(
             WidgetBuilder::new()
