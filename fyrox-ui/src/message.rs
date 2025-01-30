@@ -25,7 +25,7 @@
 
 use crate::{
     core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
-    UiNode,
+    UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
 use serde::{Deserialize, Serialize};
@@ -319,6 +319,27 @@ pub struct UiMessage {
 
     /// A custom user flags. Use it if `handled` flag is not enough.
     pub flags: u64,
+}
+
+/// Compares the new value with the existing one, and if they do not match, sets the new value to it
+/// and sends the given message back to the message queue with the opposite direction. This function
+/// is useful to reduce boilerplate code when reacting to widget messages.
+pub fn compare_and_set<T>(
+    value: &mut T,
+    new_value: &T,
+    message: &UiMessage,
+    ui: &UserInterface,
+) -> bool
+where
+    T: PartialEq + Clone,
+{
+    if value != new_value {
+        *value = new_value.clone();
+        ui.send_message(message.reverse());
+        true
+    } else {
+        false
+    }
 }
 
 impl Debug for UiMessage {
