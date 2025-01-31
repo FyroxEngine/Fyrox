@@ -180,6 +180,7 @@ impl ImageMessage {
 /// and changing texture coordinates over the time.
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "18e18d0f-cb84-4ac1-8050-3480a2ec3de5")]
+#[visit(optional)]
 pub struct Image {
     /// Base widget of the image.
     pub widget: Widget,
@@ -187,10 +188,12 @@ pub struct Image {
     pub texture: InheritableVariable<Option<TextureResource>>,
     /// Defines whether to vertically flip the image or not.
     pub flip: InheritableVariable<bool>,
-    /// Specifies arbitrary portion of the texture.
+    /// Specifies an arbitrary portion of the texture.
     pub uv_rect: InheritableVariable<Rect<f32>>,
-    /// Defines whether to use checkerboard background or not.
+    /// Defines whether to use the checkerboard background or not.
     pub checkerboard_background: InheritableVariable<bool>,
+    /// Defines whether the image should keep its aspect ratio or stretch to the available size.
+    pub keep_aspect_ratio: InheritableVariable<bool>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for Image {
@@ -222,11 +225,14 @@ impl Control for Image {
                 if let TextureKind::Rectangle { width, height } = data.kind() {
                     let width = width as f32;
                     let height = height as f32;
-                    if size.x < width {
-                        size.x = width;
-                    }
-                    if size.y < height {
-                        size.y = height;
+
+                    if *self.keep_aspect_ratio {
+                        let aspect_ratio = width / height;
+                        size.x = size.x.max(width).min(available_size.x);
+                        size.y = size.x * aspect_ratio;
+                    } else {
+                        size.x = size.x.max(width);
+                        size.y = size.y.max(height);
                     }
                 }
             }
@@ -317,6 +323,7 @@ pub struct ImageBuilder {
     flip: bool,
     uv_rect: Rect<f32>,
     checkerboard_background: bool,
+    keep_aspect_ratio: bool,
 }
 
 impl ImageBuilder {
@@ -328,6 +335,7 @@ impl ImageBuilder {
             flip: false,
             uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
             checkerboard_background: false,
+            keep_aspect_ratio: true,
         }
     }
 
@@ -364,6 +372,12 @@ impl ImageBuilder {
         self
     }
 
+    /// Sets whether the image should keep its aspect ratio or stretch to the available size.
+    pub fn with_keep_aspect_ratio(mut self, keep_aspect_ratio: bool) -> Self {
+        self.keep_aspect_ratio = keep_aspect_ratio;
+        self
+    }
+
     /// Builds the [`Image`] widget, but does not add it to the UI.
     pub fn build_node(mut self, ctx: &BuildContext) -> UiNode {
         if self.widget_builder.background.is_none() {
@@ -376,6 +390,7 @@ impl ImageBuilder {
             flip: self.flip.into(),
             uv_rect: self.uv_rect.into(),
             checkerboard_background: self.checkerboard_background.into(),
+            keep_aspect_ratio: self.keep_aspect_ratio.into(),
         };
         UiNode::new(image)
     }
