@@ -939,8 +939,12 @@ impl Renderer {
 
         let shader_cache = ShaderCache::default();
 
+        let one_megabyte = 1024 * 1024;
         let uniform_memory_allocator = UniformMemoryAllocator::new(
-            caps.max_uniform_block_size,
+            // Clamp max uniform block size from the upper bound, to prevent allocating huge
+            // uniform buffers when GPU supports it. Some AMD GPUs are able to allocate ~500 Mb
+            // uniform buffers, which will lead to ridiculous VRAM consumption.
+            caps.max_uniform_block_size.min(one_megabyte),
             caps.uniform_buffer_offset_alignment,
         );
 
