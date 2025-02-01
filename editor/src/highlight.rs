@@ -131,9 +131,12 @@ pub struct HighlightRenderPass {
 impl HighlightRenderPass {
     fn create_frame_buffer(
         server: &dyn GraphicsServer,
-        width: usize,
-        height: usize,
+        mut width: usize,
+        mut height: usize,
     ) -> Box<dyn FrameBuffer> {
+        width = width.max(1);
+        height = height.max(1);
+
         let depth_stencil = server
             .create_2d_render_target(PixelKind::D24S8, width, height)
             .unwrap();
