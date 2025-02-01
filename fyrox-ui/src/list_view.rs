@@ -238,6 +238,7 @@ impl ListViewMessage {
 /// }
 /// ```
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[visit(optional)]
 pub struct ListView {
     /// Base widget of the list view.
     pub widget: Widget,
