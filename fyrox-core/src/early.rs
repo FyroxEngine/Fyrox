@@ -89,3 +89,39 @@ macro_rules! ok_or_continue {
         }
     }};
 }
+
+#[macro_export]
+macro_rules! some_or_break {
+    ($expr:expr) => {{
+        if let Some(v) = $expr {
+            v
+        } else {
+            break;
+        }
+    }};
+    ($expr:expr, $lifetime:lifetime) => {{
+        if let Some(v) = $expr {
+            v
+        } else {
+            break $lifetime;
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! ok_or_break {
+    ($expr:expr) => {{
+        if let Ok(v) = $expr {
+            v
+        } else {
+            break;
+        }
+    }};
+    ($expr:expr, $lifetime:lifetime) => {{
+        if let Ok(v) = $expr {
+            v
+        } else {
+            break $lifetime;
+        }
+    }};
+}
