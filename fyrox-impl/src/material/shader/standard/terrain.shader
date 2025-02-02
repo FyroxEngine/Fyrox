@@ -185,8 +185,8 @@
                     float hx1 = texture(heightMapTexture, heightCoords + vec2(1.0, 0.0) * pixelSize).r;
                     float hy0 = texture(heightMapTexture, heightCoords + vec2(0.0, -1.0) * pixelSize).r;
                     float hy1 = texture(heightMapTexture, heightCoords + vec2(0.0, 1.0) * pixelSize).r;
-                    vec2 pixelFactor = heightSize / properties.nodeUvOffsets.zw;
-                    vec3 n = vec3(hx0-hx1, 2.0, hy0-hy1) * vec3(pixelFactor.x, 1.0, pixelFactor.y);
+
+                    vec3 n = vec3((hx0 - hx1) / 2.0, 1.0, (hy0 - hy1) / 2.0);
                     vec3 tan = vec3(n.y, -n.x, 0.0);
 
                     mat3 nm = mat3(fyrox_instanceData.worldMatrix);
