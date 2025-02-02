@@ -323,7 +323,7 @@ impl ConstructorProvider<Node, Graph> for AnimationPlayer {
     fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
             .with_variant("Animation Player", |_| {
-                AnimationPlayerBuilder::new(BaseBuilder::new())
+                AnimationPlayerBuilder::new(BaseBuilder::new().with_name("Animation Player"))
                     .build_node()
                     .into()
             })
