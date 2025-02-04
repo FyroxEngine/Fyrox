@@ -466,8 +466,7 @@ impl Control for Window {
 
                         // Check grips.
                         for grip in self.grips.borrow_mut().iter_mut() {
-                            let offset = self.screen_position();
-                            let screen_bounds = grip.bounds.translate(offset);
+                            let screen_bounds = grip.bounds.transform(&self.visual_transform);
                             if screen_bounds.contains(pos) {
                                 grip.is_dragging = true;
                                 self.initial_position = self.screen_position();
@@ -491,8 +490,7 @@ impl Control for Window {
                         let mut new_cursor = None;
 
                         for grip in self.grips.borrow().iter() {
-                            let offset = self.screen_position();
-                            let screen_bounds = grip.bounds.translate(offset);
+                            let screen_bounds = grip.bounds.transform(&self.visual_transform);
                             if grip.is_dragging || screen_bounds.contains(pos) {
                                 new_cursor = Some(grip.cursor);
                             }
