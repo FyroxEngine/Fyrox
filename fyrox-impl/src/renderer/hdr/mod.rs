@@ -51,13 +51,13 @@ use crate::{
 };
 use fyrox_graphics::framebuffer::DrawCallStatistics;
 use std::{cell::RefCell, rc::Rc};
+use std::ops::Deref;
 
 mod adaptation;
 mod downscale;
 mod luminance;
 mod map;
 
-#[allow(dead_code)] // TODO
 pub enum LuminanceCalculationMethod {
     Histogram,
     DownSampling,
@@ -204,8 +204,6 @@ impl HighDynamicRangeRenderer {
         match self.lum_calculation_method {
             LuminanceCalculationMethod::Histogram => {
                 let luminance_range = 0.00778f32..8.0f32;
-                let log2_luminance_range = luminance_range.start.log2()..luminance_range.end.log2();
-                let log2_lum_range = luminance_range.end.log2() - luminance_range.start.log2();
 
                 // TODO: Cloning memory from GPU to CPU is slow, but since the engine is limited
                 // by macOS's OpenGL 4.1 support and lack of compute shaders we'll build histogram
@@ -214,28 +212,35 @@ impl HighDynamicRangeRenderer {
 
                 let pixels = transmute_slice::<u8, f32>(&data);
 
-                // Build histogram.
-                let mut bins = [0usize; 64];
-                for &luminance in pixels {
-                    let k = (luminance.log2() - log2_luminance_range.start) / log2_lum_range;
-                    let index =
-                        ((bins.len() as f32 * k) as usize).clamp(0, bins.len().saturating_sub(1));
-                    bins[index] += 1;
-                }
+                let avg_luminance_pixel_value = {
+                    const BIN_COUNT: f32 = 64;
 
-                // Compute mean value.
-                let mut total_luminance = 0.0;
-                let mut counter = 0;
-                for (bin_index, count) in bins.iter().cloned().enumerate() {
-                    let avg_luminance = log2_luminance_range.start
-                        + (bin_index + 1) as f32 / bins.len() as f32 * log2_lum_range;
-                    total_luminance += avg_luminance * (count as f32);
-                    counter += count;
-                }
+                    let mut bins = [Vec::<&f32>::new(); BIN_COUNT]; // Subject to benchmarking; Vec::with_capacity() - with the maximum of the frame pixels will be significantly faster but also use significantly more memory
+                    let bin_width = luminance_range.end - luminance_range.start / BIN_COUNT;
 
-                let weighted_lum = (total_luminance / counter as f32).exp2();
-                let avg_lum = luminance_range.start
-                    + weighted_lum * (luminance_range.end - luminance_range.start);
+                    for p in pixels {
+                        // pixel value to bin index
+                        let bin_index = p / bin_width;
+                        let bin_index = bin_index.floor() as usize;
+
+                        bins[bin_index].push(p);
+                    }
+
+                    let mut biggest_bin = &bins[0];
+                    for bin in bins {
+                        if bin.len() > biggest_bin.len() {
+                            biggest_bin = &bin;
+                        }
+                    }
+
+                    let mut bin_value_sum: f32 = 0;
+                    for v in *biggest_bin {
+                        bin_value_sum = bin_value_sum + v;
+                    }
+
+                    bin_value_sum / *biggest_bin.len() as f32
+                };
+
 
                 self.downscale_chain
                     .last()
@@ -249,7 +254,7 @@ impl HighDynamicRangeRenderer {
                         },
                         PixelKind::R32F,
                         1,
-                        Some(value_as_u8_slice(&avg_lum)),
+                        Some(value_as_u8_slice(&avg_luminance_pixel_value)),
                     )?;
             }
             LuminanceCalculationMethod::DownSampling => {
