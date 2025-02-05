@@ -2,6 +2,15 @@
 name = "fyrox-texture"
 version = "0.36.0"
 edition = "2021"
+license = "MIT"
+description = "Texture utilities for Fyrox Engine"
+keywords = ["graphics"]
+categories = ["game-development"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
+homepage = "https://fyrox.rs"
+documentation = "https://docs.rs/fyrox-texture"
+repository = "https://github.com/FyroxEngine/Fyrox"
+rust-version = "1.80"
 
 [dependencies]
 fyrox-core = { path = "../fyrox-core", version = "0.36.0" }
