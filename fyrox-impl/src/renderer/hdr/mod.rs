@@ -140,7 +140,7 @@ impl HighDynamicRangeRenderer {
                 data: Some(&[0, 0, 0]),
                 ..Default::default()
             })?,
-            lum_calculation_method: LuminanceCalculationMethod::DownSampling,
+            lum_calculation_method: LuminanceCalculationMethod::Histogram,
         })
     }
 

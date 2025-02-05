@@ -152,7 +152,11 @@ impl CameraController {
                                 .with_name("EditorCamera"),
                         )
                         .with_projection(settings.projection)
-                        .with_exposure(Exposure::Manual(std::f32::consts::E))
+                        .with_exposure(Exposure::Auto {
+                            key_value: 0.06,
+                            min_luminance: 0.00778,
+                            max_luminance: 64.0,
+                        })
                         .with_z_far(512.0)
                         .build(graph);
                         camera
