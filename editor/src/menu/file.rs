@@ -31,6 +31,7 @@ use crate::fyrox::{
         BuildContext, UiNode, UserInterface,
     },
 };
+use crate::scene::GameScene;
 use crate::{
     make_save_file_selector, make_scene_file_filter,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
@@ -318,7 +319,11 @@ impl FileMenu {
                 export_window.open(engine.user_interfaces.first());
                 *panels.export_window = Some(export_window);
             } else if message.destination() == self.open_scene_settings {
-                panels.scene_settings.open(engine.user_interfaces.first());
+                if let Some(game_scene) = entry {
+                    if let Some(game_scene) = game_scene.controller.downcast_ref::<GameScene>() {
+                        panels.scene_settings.open(game_scene, engine);
+                    }
+                }
             } else if let Some(recent_file) = self
                 .recent_files
                 .iter()
