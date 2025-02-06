@@ -215,6 +215,7 @@ pub struct RigidBody {
     #[reflect(setter = "set_gravity_scale")]
     pub(crate) gravity_scale: InheritableVariable<f32>,
 
+    #[visit(optional)]
     #[reflect(setter = "set_mass_properties_type")]
     pub(crate) mass_properties_type: InheritableVariable<RigidBodyMassPropertiesType>,
 
