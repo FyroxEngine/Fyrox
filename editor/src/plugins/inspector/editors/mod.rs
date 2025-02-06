@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::scene::tilemap::TileDefinitionHandle;
+use fyrox::scene::{rigidbody::RigidBodyMassPropertiesType, tilemap::TileDefinitionHandle};
 
 use crate::plugins::{
     inspector::editors::{
@@ -485,6 +485,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_vec_collection::<Tile>();
 
     container.register_inheritable_enum::<TileCollider, _>();
+    container.register_inheritable_enum::<RigidBodyMassPropertiesType, _>();
 
     container
 }
