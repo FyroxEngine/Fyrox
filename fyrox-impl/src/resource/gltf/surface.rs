@@ -267,12 +267,9 @@ fn build_morph_data(
     morph_info: &BlendShapeInfoContainer,
     buffers: &[Vec<u8>],
 ) -> Result<Vec<InputBlendShapeData>> {
-    #[cfg(feature = "gltf_blend_shapes")]
-    return inner_build_morph_data(primitive, morph_info, buffers);
-    #[cfg(not(feature = "gltf_blend_shapes"))]
-    return Ok(Vec::new());
+    inner_build_morph_data(primitive, morph_info, buffers)
 }
-#[cfg(feature = "gltf_blend_shapes")]
+
 fn inner_build_morph_data(
     primitive: &Primitive,
     morph_info: &BlendShapeInfoContainer,

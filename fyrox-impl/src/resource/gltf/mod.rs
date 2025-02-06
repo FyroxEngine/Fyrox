@@ -68,7 +68,6 @@ pub use uri::{parse_uri, Scheme, Uri};
 
 type Result<T> = std::result::Result<T, GltfLoadError>;
 
-#[cfg(feature = "gltf_blend_shapes")]
 const TARGET_NAMES_KEY: &str = "targetNames";
 
 #[derive(Debug)]
@@ -476,10 +475,7 @@ fn import_mesh(
     path: &Path,
     stats: &mut GeometryStatistics,
 ) -> Result<MeshData> {
-    #[cfg(feature = "gltf_blend_shapes")]
     let morph_info = import_morph_info(&mesh)?;
-    #[cfg(not(feature = "gltf_blend_shapes"))]
-    let morph_info = BlendShapeInfoContainer::default();
     let mut surfs: Vec<Surface> = Vec::with_capacity(mesh.primitives().len());
     let mut blend_shapes: Option<Vec<BlendShape>> = None;
     for prim in mesh.primitives() {
@@ -494,7 +490,6 @@ fn import_mesh(
     })
 }
 
-#[cfg(feature = "gltf_blend_shapes")]
 fn import_morph_info(mesh: &gltf::Mesh) -> Result<BlendShapeInfoContainer> {
     let weights: &[f32] = mesh.weights().unwrap_or_default();
     let weights: Vec<f32> = weights.iter().map(|w| w * 100.0).collect();
@@ -528,7 +523,6 @@ fn import_morph_info(mesh: &gltf::Mesh) -> Result<BlendShapeInfoContainer> {
     Ok(BlendShapeInfoContainer::new(names, weights))
 }
 
-#[cfg(feature = "gltf_blend_shapes")]
 fn values_to_strings(values: &[json::Value]) -> Option<Vec<String>> {
     let mut result: Vec<String> = Vec::with_capacity(values.len());
     for v in values {

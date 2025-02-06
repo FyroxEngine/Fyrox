@@ -44,7 +44,7 @@ base64 = "0.22.1"
 uvgen = "0.2.0"
 lightmap = "0.2"
 libloading = "0.8.1"
-gltf = { version = "1.4.0", optional = true, default-features = false, features = ["names", "utils"] }
+gltf = { version = "1.4.0", default-features = false, features = ["names", "utils", "extras"] }
 bytemuck = { version = "1.16.1", features = ["derive"] }
 # These dependencies isn't actually used by the engine, but it is needed to prevent cargo from rebuilding
 # the engine lib on different packages.
@@ -53,7 +53,6 @@ imageproc = "0.25.0"
 
 [features]
 enable_profiler = ["fyrox-core/enable_profiler"]
-gltf_blend_shapes = ["gltf", "gltf/extras"]
 mesh_analysis = []
 
 [target.'cfg(target_os = "android")'.dependencies]
