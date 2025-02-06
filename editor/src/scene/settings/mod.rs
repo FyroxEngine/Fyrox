@@ -64,19 +64,24 @@ pub struct SceneSettingsWindow {
 impl SceneSettingsWindow {
     pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let inspector;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(500.0))
-            .with_content(
-                ScrollViewerBuilder::new(WidgetBuilder::new())
-                    .with_content({
-                        inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
-                        inspector
-                    })
-                    .build(ctx),
-            )
-            .open(false)
-            .can_minimize(false)
-            .with_title(WindowTitle::text("Scene Settings"))
-            .build(ctx);
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_width(400.0)
+                .with_height(500.0)
+                .with_name("SceneSettingsWindow"),
+        )
+        .with_content(
+            ScrollViewerBuilder::new(WidgetBuilder::new())
+                .with_content({
+                    inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
+                    inspector
+                })
+                .build(ctx),
+        )
+        .open(false)
+        .can_minimize(false)
+        .with_title(WindowTitle::text("Scene Settings"))
+        .build(ctx);
 
         let container = make_property_editors_container(sender);
 

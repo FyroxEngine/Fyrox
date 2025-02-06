@@ -119,21 +119,26 @@ impl MeshControlPanel {
             rigid body.",
             ctx,
         );
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(210.0).with_height(200.0))
-            .open(false)
-            .with_title(WindowTitle::text("Mesh Control Panel"))
-            .with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(create_trimesh_collider)
-                        .with_child(create_convex_collider)
-                        .with_child(create_trimesh_rigid_body)
-                        .with_child(add_convex_collider)
-                        .with_child(add_trimesh_collider),
-                )
-                .build(ctx),
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_width(210.0)
+                .with_height(200.0)
+                .with_name("MeshControlPanel"),
+        )
+        .open(false)
+        .with_title(WindowTitle::text("Mesh Control Panel"))
+        .with_content(
+            StackPanelBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(create_trimesh_collider)
+                    .with_child(create_convex_collider)
+                    .with_child(create_trimesh_rigid_body)
+                    .with_child(add_convex_collider)
+                    .with_child(add_trimesh_collider),
             )
-            .build(ctx);
+            .build(ctx),
+        )
+        .build(ctx);
 
         Self {
             scene_viewer_frame,
