@@ -35,8 +35,8 @@
 //!
 //! # Supported formats
 //!
-//! Currently only FBX (common format in game industry for storing complex 3d models)
-//! and RGS (native Fyroxed format) formats are supported.
+//! Currently only FBX (common format in game industry for storing complex 3d models),
+//! RGS (native Fyroxed format), GLTF formats are supported.
 
 use crate::{
     asset::{

@@ -467,7 +467,7 @@ impl Toolbar {
                                         .with_tooltip(make_simple_tooltip(
                                             ctx,
                                             "Import Animation.\n\
-                                            Imports an animation from external file (FBX) \
+                                            Imports an animation from external file (FBX/GLTF) \
                                             and adds it to the animation player.",
                                         )),
                                 )
@@ -494,7 +494,7 @@ impl Toolbar {
                                         .with_tooltip(make_simple_tooltip(
                                             ctx,
                                             "Reimport Animation.\n\
-                                            Imports an animation from external file (FBX) and \
+                                            Imports an animation from external file (FBX/GLTF) and \
                                             replaces content of the current animation. Use it \
                                             if you need to keep references to the animation valid \
                                             in some animation blending state machine, but just \
@@ -825,12 +825,14 @@ impl Toolbar {
                 .with_title(WindowTitle::text("Select Animation To Import")),
         )
         .with_filter(Filter::new(|p: &Path| {
-            // TODO: Here we allow importing only FBX files, but they can contain
+            // TODO: Here we allow importing only FBX and GLTF files, but they can contain
             // multiple animations and it might be good to also add animation selector
             // that will be used to select a particular animation to import.
             p.is_dir()
-                || p.extension()
-                    .is_some_and(|ext| ext.to_string_lossy().as_ref() == "fbx")
+                || p.extension().is_some_and(|ext| {
+                    let ext = ext.to_string_lossy();
+                    ext.as_ref() == "fbx" || ext.as_ref() == "gltf" || ext.as_ref() == "glb"
+                })
         }))
         .build(ctx);
 

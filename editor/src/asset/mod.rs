@@ -1269,10 +1269,10 @@ impl AssetBrowser {
                     path.extension()
                         .map(|ext| ext.to_string_lossy().to_lowercase())
                 }) {
-                    if ext == "fbx" {
+                    if ext == "fbx" || ext == "gltf" || ext == "glb" {
                         Log::warn(format!(
                             "Resource {kind} cannot be scanned for \
-                        references, because FBX cannot be exported."
+                        references, because FBX/GLTF cannot be exported."
                         ));
                         return false;
                     }
