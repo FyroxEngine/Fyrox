@@ -28,12 +28,14 @@ use fyrox::{
     gui::{
         button::ButtonMessage,
         dropdown_list::{DropdownListBuilder, DropdownListMessage},
+        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
         path::{PathEditorBuilder, PathEditorMessage},
         stack_panel::StackPanelBuilder,
+        style::{self, resource::StyleResourceExt},
         text::{TextBuilder, TextMessage},
-        text_box::TextBoxBuilder,
+        text_box::{TextBoxBuilder, TextCommitMode},
         utils::make_dropdown_list_option,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -108,6 +110,7 @@ pub struct ProjectWizard {
     style: Style,
     vcs: Vcs,
     path: PathBuf,
+    validation_text: Handle<UiNode>,
 }
 
 fn make_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<UiNode> {
@@ -144,6 +147,7 @@ impl ProjectWizard {
                 .on_row(1)
                 .on_column(1),
         )
+        .with_text_commit_mode(TextCommitMode::Immediate)
         .with_text("MyProject")
         .build(ctx);
 
@@ -182,8 +186,9 @@ impl ProjectWizard {
         let cancel = make_button("Cancel", 100.0, 22.0, 0, 0, 0, None, ctx);
         let buttons = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .on_row(1)
+                .on_row(2)
                 .with_horizontal_alignment(HorizontalAlignment::Right)
+                .with_vertical_alignment(VerticalAlignment::Bottom)
                 .with_child(create)
                 .with_child(cancel),
         )
@@ -211,14 +216,28 @@ impl ProjectWizard {
         .add_column(Column::stretch())
         .build(ctx);
 
-        let outer_grid =
-            GridBuilder::new(WidgetBuilder::new().with_child(grid).with_child(buttons))
-                .add_row(Row::stretch())
-                .add_row(Row::auto())
-                .add_column(Column::stretch())
-                .build(ctx);
+        let validation_text = TextBuilder::new(
+            WidgetBuilder::new()
+                .on_row(1)
+                .with_foreground(ctx.style.property(style::Style::BRUSH_ERROR)),
+        )
+        .with_font_size(12.0.into())
+        .with_wrap(WrapMode::Word)
+        .build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(160.0))
+        let outer_grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(grid)
+                .with_child(validation_text)
+                .with_child(buttons),
+        )
+        .add_row(Row::auto())
+        .add_row(Row::auto())
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
+        .build(ctx);
+
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(180.0))
             .with_content(outer_grid)
             .open(false)
             .with_title(WindowTitle::text("Project Wizard"))
@@ -243,6 +262,7 @@ impl ProjectWizard {
             style_field,
             vcs_field,
             path: Default::default(),
+            validation_text,
         }
     }
 
@@ -254,6 +274,32 @@ impl ProjectWizard {
         ui.send_message(WidgetMessage::remove(
             self.window,
             MessageDirection::ToWidget,
+        ));
+    }
+
+    fn validate(&self, ui: &UserInterface) {
+        let is_valid = match fyrox_template_core::check_name(&self.name) {
+            Ok(_) => true,
+            Err(err) => {
+                ui.send_message(TextMessage::text(
+                    self.validation_text,
+                    MessageDirection::ToWidget,
+                    err.to_string(),
+                ));
+                false
+            }
+        };
+
+        ui.send_message(WidgetMessage::visibility(
+            self.validation_text,
+            MessageDirection::ToWidget,
+            !is_valid,
+        ));
+
+        ui.send_message(WidgetMessage::enabled(
+            self.create,
+            MessageDirection::ToWidget,
+            is_valid,
         ));
     }
 
@@ -287,6 +333,7 @@ impl ProjectWizard {
                 && message.destination() == self.name_field
             {
                 self.name.clone_from(text);
+                self.validate(ui);
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
