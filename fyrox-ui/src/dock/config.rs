@@ -193,6 +193,12 @@ pub struct FloatingWindowDescriptor {
     pub name: ImmutableString,
     pub position: Vector2<f32>,
     pub size: Vector2<f32>,
+    #[serde(default = "default_is_open")]
+    pub is_open: bool,
+}
+
+fn default_is_open() -> bool {
+    true
 }
 
 #[derive(Debug, PartialEq, Clone, Visit, Default, Serialize, Deserialize)]
