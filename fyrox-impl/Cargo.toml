@@ -52,14 +52,14 @@ bytemuck = { version = "1.16.1", features = ["derive"] }
 # Sometimes there could be a situation when the editor and the engine use the same crate but with
 # different features. This will force cargo to rebuild the engine when building the editor. This is
 # an undesirable effect for builds that support hot reloading because the game and the editor will
-# use different DLLs, which will result in a hard crash due which is hard to debug.
+# use different DLLs, which will result in a hard crash which is hard to debug.
 #
 # Such sutiation can be spotted when building the game DLL and the editor consecutively. At first,
 # the game crate will compile the engine, and it will result in a DLL of the engine. The editor is
 # compiled next, but some features of some crate could be different, which will force engine
 # recompilation and new DLL will be produced. Usually it can be seen as `fyrox-impl` compiled twice.
 #
-# To find which feature causing the issue, you need to look at which crates recompile when you're building
+# To find which feature causing the issue, you need to find out which crates recompile when you're building
 # the editor. Make a list of such crates, then use `cargo tree` command two times:
 #
 # RUSTFLAGS="-C prefer-dynamic=yes" cargo tree --package game_dylib --no-default-features --features dylib-engine -e features > game.txt
