@@ -1231,14 +1231,11 @@ pub(crate) fn initialize_resource_manager_loaders(
 
     let mut state = resource_manager.state();
 
-    #[cfg(feature = "gltf")]
-    {
-        let gltf_loader = super::resource::gltf::GltfLoader {
-            resource_manager: resource_manager.clone(),
-            default_import_options: Default::default(),
-        };
-        state.loaders.set(gltf_loader);
-    }
+    let gltf_loader = super::resource::gltf::GltfLoader {
+        resource_manager: resource_manager.clone(),
+        default_import_options: Default::default(),
+    };
+    state.loaders.set(gltf_loader);
 
     for shader in ShaderResource::standard_shaders() {
         state.built_in_resources.add((*shader).clone());

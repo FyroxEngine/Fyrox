@@ -44,16 +44,37 @@ base64 = "0.22.1"
 uvgen = "0.2.0"
 lightmap = "0.2"
 libloading = "0.8.1"
-gltf = { version = "1.4.0", optional = true, default-features = false, features = ["names", "utils"] }
+gltf = { version = "1.4.0", default-features = false, features = ["names", "utils", "extras"] }
 bytemuck = { version = "1.16.1", features = ["derive"] }
-# These dependencies isn't actually used by the engine, but it is needed to prevent cargo from rebuilding
-# the engine lib on different packages.
+
+# These dependencies aren't used by the engine, but it is necessary to prevent cargo from rebuilding
+# the engine lib on different packages. This is especially important for hot reloading feature.
+# Sometimes there could be a situation when the editor and the engine use the same crate but with
+# different features. This will force cargo to rebuild the engine when building the editor. This is
+# an undesirable effect for builds that support hot reloading because the game and the editor will
+# use different DLLs, which will result in a hard crash which is hard to debug.
+#
+# Such sutiation can be spotted when building the game DLL and the editor consecutively. At first,
+# the game crate will compile the engine, and it will result in a DLL of the engine. The editor is
+# compiled next, but some features of some crate could be different, which will force engine
+# recompilation and new DLL will be produced. Usually it can be seen as `fyrox-impl` compiled twice.
+#
+# To find which feature causing the issue, you need to find out which crates recompile when you're building
+# the editor. Make a list of such crates, then use `cargo tree` command two times:
+#
+# RUSTFLAGS="-C prefer-dynamic=yes" cargo tree --package game_dylib --no-default-features --features dylib-engine -e features > game.txt
+# RUSTFLAGS="-C prefer-dynamic=yes" cargo tree --package editor --no-default-features --features dylib -e features > editor.txt
+#
+# These commands will create two files: game.txt and editor.txt. Open both and search for the crates from the list,
+# make a list of features used by these crates and compare them for both game.txt and editor.txt. If features
+# don't match, add a new dependency of the corresponding crate below with such features and the issue should
+# be fixed.
 hashbrown = { version = "0.14.3", features = ["raw"] }
 imageproc = "0.25.0"
+serde_json = { version = "1", features = ["raw_value", "default", "std", "unbounded_depth"] }
 
 [features]
 enable_profiler = ["fyrox-core/enable_profiler"]
-gltf_blend_shapes = ["gltf", "gltf/extras"]
 mesh_analysis = []
 
 [target.'cfg(target_os = "android")'.dependencies]

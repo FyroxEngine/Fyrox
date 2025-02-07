@@ -67,7 +67,11 @@ fn guess_uuid(region: &mut RegionGuard) -> Uuid {
     let mut path = PathBuf::new();
     if path.visit("Path", &mut region).is_ok() {
         let ext = path.extension().unwrap_or_default().to_ascii_lowercase();
-        if ext == OsStr::new("rgs") || ext == OsStr::new("fbx") {
+        if ext == OsStr::new("rgs")
+            || ext == OsStr::new("fbx")
+            || ext == OsStr::new("gltf")
+            || ext == OsStr::new("glb")
+        {
             return MODEL_RESOURCE_UUID;
         } else if ext == OsStr::new("shader")
             || path == OsStr::new("Standard")

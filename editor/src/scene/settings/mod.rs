@@ -35,7 +35,7 @@ use crate::{
             scroll_viewer::ScrollViewerBuilder,
             widget::WidgetBuilder,
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, UiNode, UserInterface,
+            BuildContext, UiNode,
         },
         resource::texture::TextureResource,
         scene::{
@@ -64,19 +64,24 @@ pub struct SceneSettingsWindow {
 impl SceneSettingsWindow {
     pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let inspector;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(500.0))
-            .with_content(
-                ScrollViewerBuilder::new(WidgetBuilder::new())
-                    .with_content({
-                        inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
-                        inspector
-                    })
-                    .build(ctx),
-            )
-            .open(false)
-            .can_minimize(false)
-            .with_title(WindowTitle::text("Scene Settings"))
-            .build(ctx);
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_width(400.0)
+                .with_height(500.0)
+                .with_name("SceneSettingsWindow"),
+        )
+        .with_content(
+            ScrollViewerBuilder::new(WidgetBuilder::new())
+                .with_content({
+                    inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
+                    inspector
+                })
+                .build(ctx),
+        )
+        .open(false)
+        .can_minimize(false)
+        .with_title(WindowTitle::text("Scene Settings"))
+        .build(ctx);
 
         let container = make_property_editors_container(sender);
 
@@ -94,21 +99,24 @@ impl SceneSettingsWindow {
         }
     }
 
-    pub fn open(&self, ui: &UserInterface) {
+    pub fn open(&self, game_scene: &GameScene, engine: &mut Engine) {
+        let ui = engine.user_interfaces.first();
         ui.send_message(WindowMessage::open(
             self.window,
             MessageDirection::ToWidget,
             true,
             true,
         ));
+        self.sync_to_model(true, game_scene, engine);
     }
 
-    pub fn sync_to_model(&self, game_scene: &GameScene, engine: &mut Engine) {
+    pub fn sync_to_model(&self, force: bool, game_scene: &GameScene, engine: &mut Engine) {
         let ui = engine.user_interfaces.first_mut();
-        if !ui
-            .try_get_of_type::<Window>(self.window)
-            .unwrap()
-            .is_globally_visible()
+        if !force
+            && !ui
+                .try_get_of_type::<Window>(self.window)
+                .unwrap()
+                .is_globally_visible()
         {
             return;
         }

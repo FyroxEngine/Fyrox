@@ -142,8 +142,6 @@
 //!             // Vertex shader code.
 //!             vertex_shader:
 //!                 r#"
-//!                 #version 330 core
-//!
 //!                 layout(location = 0) in vec3 vertexPosition;
 //!                 layout(location = 1) in vec2 vertexTexCoord;
 //!
@@ -159,8 +157,6 @@
 //!             // Pixel shader code.
 //!             pixel_shader:
 //!                 r#"
-//!                 #version 330 core
-//!
 //!                 out vec4 FragColor;
 //!
 //!                 in vec2 texCoord;
@@ -197,8 +193,7 @@
 //! rendered object (depth, normal, albedo, etc.). These textures then are used for physically-based
 //! lighting. Use this pass when you want the standard lighting to work with your objects.
 //!
-//! - `Forward` - A pass that draws an object directly in render target. This pass is very
-//! limiting, it does not support lighting, shadows, etc. It should be only used to render
+//! - `Forward` - A pass that draws an object directly in a render target. It could be used to render
 //! translucent objects.
 //!
 //! - `SpotShadow` - A pass that emits depth values for an object, later this depth map will be

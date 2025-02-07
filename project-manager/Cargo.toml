@@ -2,6 +2,15 @@
 name = "fyrox-project-manager"
 version = "0.36.0"
 edition = "2021"
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
+license = "MIT"
+description = "Project manager for Fyrox engine"
+keywords = ["fyrox", "project", "manager"]
+categories = ["game-development"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/resources/**/*"]
+homepage = "https://fyrox.rs"
+repository = "https://github.com/FyroxEngine/Fyrox"
+rust-version = "1.80"
 
 [dependencies]
 fyrox = { version = "0.36.0", path = "../fyrox" }

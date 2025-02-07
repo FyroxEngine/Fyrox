@@ -20,12 +20,11 @@
 
 use crate::asset::core::math::TriangleDefinition;
 use crate::core::algebra::{Vector2, Vector3, Vector4};
-use crate::core::math::Vector3Ext;
+
 use crate::fxhash::FxHashMap;
 use crate::scene::mesh;
 use crate::scene::mesh::buffer::{
-    self, TriangleBuffer, ValidationError, VertexAttributeUsage, VertexBuffer, VertexReadTrait,
-    VertexTrait,
+    self, TriangleBuffer, ValidationError, VertexBuffer, VertexTrait,
 };
 use crate::scene::mesh::surface::{InputBlendShapeData, SurfaceData};
 use crate::scene::mesh::vertex::{AnimatedVertex, SimpleVertex, StaticVertex};
@@ -35,6 +34,12 @@ use gltf::mesh::Mode;
 use gltf::mesh::Semantic;
 use gltf::Primitive;
 use half::f16;
+
+#[cfg(feature = "mesh_analysis")]
+use crate::{
+    core::math::Vector3Ext,
+    scene::mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
+};
 
 use std::num::TryFromIntError;
 
@@ -138,6 +143,7 @@ pub struct GeometryStatistics {
 }
 
 impl GeometryStatistics {
+    #[cfg(feature = "mesh_analysis")]
     pub fn update_length(&mut self, len: f32) {
         if len < self.min_edge_length_squared {
             self.min_edge_length_squared = len;
@@ -191,7 +197,7 @@ pub fn build_surface_data(
     primitive: &Primitive,
     morph_info: &BlendShapeInfoContainer,
     buffers: &[Vec<u8>],
-    stats: &mut GeometryStatistics,
+    #[allow(unused_variables)] stats: &mut GeometryStatistics,
 ) -> Result<Option<SurfaceData>> {
     match primitive.mode() {
         Mode::Points => {
@@ -252,6 +258,7 @@ fn update_statistics(
     Ok(())
 }
 
+#[cfg(feature = "mesh_analysis")]
 fn edge_length_squared(a: u32, b: u32, vs: &VertexBuffer) -> Result<f32> {
     let a = usize::try_from(a)?;
     let b = usize::try_from(b)?;
@@ -267,12 +274,9 @@ fn build_morph_data(
     morph_info: &BlendShapeInfoContainer,
     buffers: &[Vec<u8>],
 ) -> Result<Vec<InputBlendShapeData>> {
-    #[cfg(feature = "gltf_blend_shapes")]
-    return inner_build_morph_data(primitive, morph_info, buffers);
-    #[cfg(not(feature = "gltf_blend_shapes"))]
-    return Ok(Vec::new());
+    inner_build_morph_data(primitive, morph_info, buffers)
 }
-#[cfg(feature = "gltf_blend_shapes")]
+
 fn inner_build_morph_data(
     primitive: &Primitive,
     morph_info: &BlendShapeInfoContainer,

@@ -49,7 +49,7 @@ use crate::{
             Mesh,
         },
         node::{Node, NodeTrait},
-        rigidbody::{self, ApplyAction},
+        rigidbody::{self, ApplyAction, RigidBodyMassPropertiesType},
         terrain::{Chunk, Terrain},
     },
     utils::raw_mesh::{RawMeshBuilder, RawVertex},
@@ -66,7 +66,7 @@ use rapier3d::{
     },
     parry::{query::ShapeCastOptions, shape::HeightField},
     pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline, QueryPipeline},
-    prelude::{HeightFieldCellStatus, JointAxis},
+    prelude::{HeightFieldCellStatus, JointAxis, MassProperties},
 };
 use std::{
     cell::{Cell, RefCell},
@@ -1495,9 +1495,46 @@ impl PhysicsWorld {
                     rigid_body_node
                         .ang_vel
                         .try_sync_model(|v| native.set_angvel(v, false));
-                    rigid_body_node
-                        .mass
-                        .try_sync_model(|v| native.set_additional_mass(v, true));
+                    rigid_body_node.mass.try_sync_model(|v| {
+                        match *rigid_body_node.mass_properties_type {
+                            RigidBodyMassPropertiesType::Default => {
+                                native.set_additional_mass(v, false);
+                            }
+                            RigidBodyMassPropertiesType::Additional {
+                                center_of_mass,
+                                principal_inertia,
+                            } => {
+                                native.set_additional_mass_properties(
+                                    MassProperties::new(
+                                        Point3::from(center_of_mass),
+                                        v,
+                                        principal_inertia,
+                                    ),
+                                    false,
+                                );
+                            }
+                        };
+                    });
+                    rigid_body_node.mass_properties_type.try_sync_model(|v| {
+                        match v {
+                            RigidBodyMassPropertiesType::Default => {
+                                native.set_additional_mass(*rigid_body_node.mass, false);
+                            }
+                            RigidBodyMassPropertiesType::Additional {
+                                center_of_mass,
+                                principal_inertia,
+                            } => {
+                                native.set_additional_mass_properties(
+                                    MassProperties::new(
+                                        Point3::from(center_of_mass),
+                                        *rigid_body_node.mass,
+                                        principal_inertia,
+                                    ),
+                                    false,
+                                );
+                            }
+                        };
+                    });
                     rigid_body_node
                         .lin_damping
                         .try_sync_model(|v| native.set_linear_damping(v));
@@ -1608,6 +1645,21 @@ impl PhysicsWorld {
                     !rigid_body_node.is_z_rotation_locked(),
                 );
 
+            match *rigid_body_node.mass_properties_type {
+                RigidBodyMassPropertiesType::Default => {
+                    builder = builder.additional_mass(*rigid_body_node.mass);
+                }
+                RigidBodyMassPropertiesType::Additional {
+                    center_of_mass,
+                    principal_inertia,
+                } => {
+                    builder = builder.additional_mass_properties(MassProperties::new(
+                        Point3::from(center_of_mass),
+                        *rigid_body_node.mass,
+                        principal_inertia,
+                    ));
+                }
+            };
             if rigid_body_node.is_translation_locked() {
                 builder = builder.lock_translations();
             }

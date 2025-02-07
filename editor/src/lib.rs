@@ -1649,7 +1649,7 @@ impl Editor {
             );
 
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
-                self.scene_settings.sync_to_model(game_scene, engine);
+                self.scene_settings.sync_to_model(false, game_scene, engine);
                 let sender = &self.message_sender;
                 self.world_viewer.sync_to_model(
                     &EditorSceneWrapper {

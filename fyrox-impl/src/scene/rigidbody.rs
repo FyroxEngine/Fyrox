@@ -146,6 +146,21 @@ pub(crate) enum ApplyAction {
     WakeUp,
 }
 
+#[derive(Copy, Clone, Debug, Reflect, Visit, PartialEq, AsRefStr, EnumString, VariantNames)]
+/// Possible types of rigidbody mass properties
+pub enum RigidBodyMassPropertiesType {
+    /// Use default mass properties
+    Default,
+    /// Use additional mass properties
+    Additional {
+        /// Local to rigidbody center of mass
+        center_of_mass: Vector3<f32>,
+        /// Resistance of the rigid-body wrt. the angular movements
+        principal_inertia: Vector3<f32>,
+    },
+}
+uuid_provider!(RigidBodyMassPropertiesType = "663b6a92-9c0f-4f47-b66a-6b4293312a5d");
+
 /// Rigid body is a physics entity that responsible for the dynamics and kinematics of the solid.
 /// Use this node when you need to simulate real-world physics in your game.
 ///
@@ -200,6 +215,10 @@ pub struct RigidBody {
     #[reflect(setter = "set_gravity_scale")]
     pub(crate) gravity_scale: InheritableVariable<f32>,
 
+    #[visit(optional)]
+    #[reflect(setter = "set_mass_properties_type")]
+    pub(crate) mass_properties_type: InheritableVariable<RigidBodyMassPropertiesType>,
+
     #[visit(skip)]
     #[reflect(hidden)]
     pub(crate) sleeping: bool,
@@ -242,6 +261,9 @@ impl Default for RigidBody {
             native: Cell::new(RigidBodyHandle::invalid()),
             actions: Default::default(),
             reset_forces: Default::default(),
+            mass_properties_type: InheritableVariable::new_modified(
+                RigidBodyMassPropertiesType::Default,
+            ),
         }
     }
 }
@@ -283,6 +305,7 @@ impl Clone for RigidBody {
             native: Cell::new(RigidBodyHandle::invalid()),
             actions: Default::default(),
             reset_forces: self.reset_forces.clone(),
+            mass_properties_type: self.mass_properties_type.clone(),
         }
     }
 }
@@ -364,7 +387,7 @@ impl RigidBody {
         self.y_rotation_locked.set_value_and_mark_modified(state)
     }
 
-    /// Returns true if rotation around Y axis is locked, false - otherwise.    
+    /// Returns true if rotation around Y axis is locked, false - otherwise.
     pub fn is_y_rotation_locked(&self) -> bool {
         *self.y_rotation_locked
     }
@@ -374,7 +397,7 @@ impl RigidBody {
         self.z_rotation_locked.set_value_and_mark_modified(state)
     }
 
-    /// Returns true if rotation around Z axis is locked, false - otherwise.    
+    /// Returns true if rotation around Z axis is locked, false - otherwise.
     pub fn is_z_rotation_locked(&self) -> bool {
         *self.z_rotation_locked
     }
@@ -391,7 +414,7 @@ impl RigidBody {
         self.translation_locked.set_value_and_mark_modified(state)
     }
 
-    /// Returns true if translation is locked, false - otherwise.    
+    /// Returns true if translation is locked, false - otherwise.
     pub fn is_translation_locked(&self) -> bool {
         *self.translation_locked
     }
@@ -426,6 +449,20 @@ impl RigidBody {
     /// Sets a gravity scale coefficient. Zero can be used to disable gravity.
     pub fn set_gravity_scale(&mut self, scale: f32) -> f32 {
         self.gravity_scale.set_value_and_mark_modified(scale)
+    }
+
+    /// Sets mass properties type.
+    pub fn set_mass_properties_type(
+        &mut self,
+        mass_properties_type: RigidBodyMassPropertiesType,
+    ) -> RigidBodyMassPropertiesType {
+        self.mass_properties_type
+            .set_value_and_mark_modified(mass_properties_type)
+    }
+
+    /// Returns current mass properties type.
+    pub fn mass_properties_type(&self) -> RigidBodyMassPropertiesType {
+        *self.mass_properties_type
     }
 
     /// Returns current gravity scale coefficient.
@@ -622,6 +659,7 @@ pub struct RigidBodyBuilder {
     can_sleep: bool,
     dominance: i8,
     gravity_scale: f32,
+    mass_properties_type: RigidBodyMassPropertiesType,
 }
 
 impl RigidBodyBuilder {
@@ -644,6 +682,7 @@ impl RigidBodyBuilder {
             can_sleep: true,
             dominance: 0,
             gravity_scale: 1.0,
+            mass_properties_type: RigidBodyMassPropertiesType::Default,
         }
     }
 
@@ -745,6 +784,15 @@ impl RigidBodyBuilder {
         self
     }
 
+    /// Sets mass properties type.
+    pub fn with_mass_properties_type(
+        mut self,
+        mass_properties_type: RigidBodyMassPropertiesType,
+    ) -> Self {
+        self.mass_properties_type = mass_properties_type;
+        self
+    }
+
     /// Creates RigidBody node but does not add it to the graph.
     pub fn build_rigid_body(self) -> RigidBody {
         RigidBody {
@@ -767,6 +815,7 @@ impl RigidBodyBuilder {
             native: Cell::new(RigidBodyHandle::invalid()),
             actions: Default::default(),
             reset_forces: Default::default(),
+            mass_properties_type: self.mass_properties_type.into(),
         }
     }
 

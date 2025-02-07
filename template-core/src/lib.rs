@@ -76,26 +76,35 @@ fn write_file_binary<P: AsRef<Path>>(path: P, content: &[u8]) -> Result<(), Stri
 }
 
 #[derive(Debug)]
-enum NameErrors {
+pub enum NameError {
+    Empty,
     CargoReserved(String),
-    Hyphen,
     StartsWithNumber,
+    InvalidCharacter(char),
 }
 
-impl Display for NameErrors {
+impl Display for NameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CargoReserved(name) => write!(
                 f,
                 "The project name cannot be `{name}` due to cargo's reserved keywords"
             ),
-            Self::Hyphen => write!(f, "The project name cannot contain `-`"),
             Self::StartsWithNumber => write!(f, "The project name cannot start with a number"),
+            Self::InvalidCharacter(ch) => write!(
+                f,
+                "The project name cannot contain {ch} \
+            characters! It can start from most letters or '_' symbol and the rest of the name \
+            must be letters, '-', '_', numbers."
+            ),
+            NameError::Empty => {
+                write!(f, "The project name cannot be empty!")
+            }
         }
     }
 }
 
-fn check_name(name: &str) -> Result<&str, NameErrors> {
+pub fn check_name(name: &str) -> Result<&str, NameError> {
     const RESERVED_NAMES: [&str; 53] = [
         "abstract", "alignof", "as", "become", "box", "break", "const", "continue", "crate", "do",
         "else", "enum", "extern", "false", "final", "fn", "for", "if", "impl", "in", "let", "loop",
@@ -104,15 +113,31 @@ fn check_name(name: &str) -> Result<&str, NameErrors> {
         "true", "type", "typeof", "try", "unsafe", "unsized", "use", "virtual", "where", "while",
         "yield",
     ];
+
+    if name.is_empty() {
+        return Err(NameError::Empty);
+    }
+
     if RESERVED_NAMES.contains(&name) {
-        return Err(NameErrors::CargoReserved(name.to_string()));
+        return Err(NameError::CargoReserved(name.to_string()));
     }
-    if name.contains('-') {
-        return Err(NameErrors::Hyphen);
+
+    let mut chars = name.chars();
+    if let Some(ch) = chars.next() {
+        if ch.is_ascii_digit() {
+            return Err(NameError::StartsWithNumber);
+        }
+        if !(unicode_xid::UnicodeXID::is_xid_start(ch) || ch == '_') {
+            return Err(NameError::InvalidCharacter(ch));
+        }
     }
-    if name.chars().next().unwrap_or(' ').is_ascii_digit() {
-        return Err(NameErrors::StartsWithNumber);
+
+    for ch in chars {
+        if !(unicode_xid::UnicodeXID::is_xid_continue(ch) || ch == '-') {
+            return Err(NameError::InvalidCharacter(ch));
+        }
     }
+
     Ok(name)
 }
 
