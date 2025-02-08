@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use std::ops::{Deref, Range};
+use std::rc::Rc;
 use crate::{
     core::sstorage::ImmutableString,
     renderer::framework::{
@@ -46,5 +48,98 @@ impl LuminanceShader {
             frame_sampler: program.uniform_location(&ImmutableString::new("frameSampler"))?,
             program,
         })
+    }
+}
+
+pub struct HistogramDeviationWidth {
+    value: usize
+}
+
+impl HistogramDeviationWidth {
+    pub(crate) fn new(value: usize, histogram: &LuminanceHistogram) -> Result<Self, FrameworkError> {
+
+        let maximum_allowed_deviation = histogram.bins.len() / 2;
+
+        if value > maximum_allowed_deviation {
+            return Err(FrameworkError::Custom("Invalid Histogram Deviation Width - Deviation Must Not Exceed Histogram Width Devided by Two".to_string()))
+        }
+
+        Ok(Self { value })
+    }
+    fn value(&self) -> usize {
+        self.value
+    }
+
+    fn default() -> Self {
+        Self{value:1}
+    }
+}
+
+pub struct LuminanceHistogram{
+    bins: Vec<Vec<f32>>,
+    bin_width: f64,
+}
+
+impl LuminanceHistogram {
+    pub(crate) fn new(bin_count: usize, value_range: Range<f32>) -> Self {
+
+        let bin_width = (value_range.end as f64 - value_range.start as f64) / bin_count as f64;
+
+        let mut bins = Vec::with_capacity(bin_count);
+        for i in 0..bin_count {
+            bins.push(Vec::<f32>::new());
+        }
+
+        LuminanceHistogram {
+            bins,
+            bin_width,
+        }
+    }
+
+    pub(crate) fn push_value(&mut self, value: f32) {
+
+        let bin_index: usize = (value / self.bin_width as f32).floor() as usize;
+
+        self.bins[bin_index].push(value);
+
+    }
+
+    pub(crate) fn get_average_value(self, deviation_width: HistogramDeviationWidth) -> f32 {
+
+        let biggest_bins = self.get_biggest_bins(deviation_width.value());
+
+        let mut element_count = 0;
+        let mut sum = 0.0;
+
+        for b in biggest_bins {
+            for v in b {
+                sum = sum + v;
+                element_count = element_count + 1;
+            }
+        }
+
+        sum / element_count as f32
+    }
+
+    fn get_biggest_bins(mut self, amount: usize) -> Vec<Vec<f32>>{
+
+        let mut biggest_bins = Vec::<Vec<f32>>::with_capacity(amount);
+
+        for _ in 0..amount {
+
+            let mut index = 0;
+
+            for j in 0..self.bins.len() {
+                if self.bins[j].len() > self.bins[index].len() {
+                    index = j;
+                }
+            }
+
+            let biggest_bin = self.bins.swap_remove(index);
+            biggest_bins.push(biggest_bin);
+
+        }
+
+        biggest_bins
     }
 }

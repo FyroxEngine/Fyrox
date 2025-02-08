@@ -51,7 +51,9 @@ use crate::{
 };
 use fyrox_graphics::framebuffer::DrawCallStatistics;
 use std::{cell::RefCell, rc::Rc};
-use std::ops::Deref;
+use std::ops::{Deref, Range};
+use fyrox_core::{info, warn};
+use crate::renderer::hdr::luminance::{HistogramDeviationWidth, LuminanceHistogram};
 
 mod adaptation;
 mod downscale;
@@ -140,7 +142,7 @@ impl HighDynamicRangeRenderer {
                 data: Some(&[0, 0, 0]),
                 ..Default::default()
             })?,
-            lum_calculation_method: LuminanceCalculationMethod::DownSampling,
+            lum_calculation_method: LuminanceCalculationMethod::Histogram,
         })
     }
 
@@ -201,9 +203,13 @@ impl HighDynamicRangeRenderer {
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
+
         match self.lum_calculation_method {
+
+
             LuminanceCalculationMethod::Histogram => {
                 let luminance_range = 0.00778f32..8.0f32;
+                // info!("histogram_sampling");
 
                 // TODO: Cloning memory from GPU to CPU is slow, but since the engine is limited
                 // by macOS's OpenGL 4.1 support and lack of compute shaders we'll build histogram
@@ -213,34 +219,21 @@ impl HighDynamicRangeRenderer {
                 let pixels = transmute_slice::<u8, f32>(&data);
 
                 let avg_luminance_pixel_value = {
-                    const BIN_COUNT: f32 = 64;
+                    const BIN_COUNT: usize = 32;
 
-                    let mut bins = [Vec::<&f32>::new(); BIN_COUNT]; // Subject to benchmarking; Vec::with_capacity() - with the maximum of the frame pixels will be significantly faster but also use significantly more memory
-                    let bin_width = luminance_range.end - luminance_range.start / BIN_COUNT;
+                    let mut histogram = LuminanceHistogram::new(BIN_COUNT, luminance_range);
 
                     for p in pixels {
                         // pixel value to bin index
-                        let bin_index = p / bin_width;
-                        let bin_index = bin_index.floor() as usize;
-
-                        bins[bin_index].push(p);
+                        histogram.push_value(*p);
                     }
 
-                    let mut biggest_bin = &bins[0];
-                    for bin in bins {
-                        if bin.len() > biggest_bin.len() {
-                            biggest_bin = &bin;
-                        }
-                    }
+                    let deviation = HistogramDeviationWidth::new(10, &histogram)?;
+                    histogram.get_average_value(deviation)
 
-                    let mut bin_value_sum: f32 = 0;
-                    for v in *biggest_bin {
-                        bin_value_sum = bin_value_sum + v;
-                    }
-
-                    bin_value_sum / *biggest_bin.len() as f32
                 };
 
+                // info!("avg_frame_luminance_pixel_value = {}", avg_luminance_pixel_value);
 
                 self.downscale_chain
                     .last()
