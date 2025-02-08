@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use std::ops::{Deref, Range};
-use std::rc::Rc;
+use std::ops::Range;
 use crate::{
     core::sstorage::ImmutableString,
     renderer::framework::{
@@ -86,7 +85,7 @@ impl LuminanceHistogram {
         let bin_width = (value_range.end as f64 - value_range.start as f64) / bin_count as f64;
 
         let mut bins = Vec::with_capacity(bin_count);
-        for i in 0..bin_count {
+        for _ in 0..bin_count {
             bins.push(Vec::<f32>::new());
         }
 

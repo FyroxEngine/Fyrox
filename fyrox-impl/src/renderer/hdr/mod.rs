@@ -51,8 +51,6 @@ use crate::{
 };
 use fyrox_graphics::framebuffer::DrawCallStatistics;
 use std::{cell::RefCell, rc::Rc};
-use std::ops::{Deref, Range};
-use fyrox_core::{info, warn};
 use crate::renderer::hdr::luminance::{HistogramDeviationWidth, LuminanceHistogram};
 
 mod adaptation;
