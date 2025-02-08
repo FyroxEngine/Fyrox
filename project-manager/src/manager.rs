@@ -138,6 +138,7 @@ pub struct ProjectManager {
     upgrade: Handle<UiNode>,
     locate: Handle<UiNode>,
     open_settings: Handle<UiNode>,
+    open_help: Handle<UiNode>,
     open_ide: Handle<UiNode>,
     upgrade_tool: Option<UpgradeTool>,
     settings_window: Option<SettingsWindow>,
@@ -380,6 +381,16 @@ impl ProjectManager {
         );
         ctx[open_settings].set_column(3);
 
+        let open_help = make_image_button_with_tooltip(
+            ctx,
+            18.0,
+            18.0,
+            load_image(include_bytes!("../resources/question.png")),
+            "Help\nHotkey: F1",
+            Some(8),
+        );
+        ctx[open_help].set_column(4);
+
         let message_count;
         let open_log = ButtonBuilder::new(WidgetBuilder::new().on_column(4).with_visibility(false))
             .with_content(
@@ -427,11 +438,13 @@ impl ProjectManager {
                 .with_child(import)
                 .with_child(search_bar)
                 .with_child(open_settings)
+                .with_child(open_help)
                 .with_child(open_log),
         )
         .add_column(Column::auto())
         .add_column(Column::auto())
         .add_column(Column::stretch())
+        .add_column(Column::auto())
         .add_column(Column::auto())
         .add_column(Column::auto())
         .add_row(Row::auto())
@@ -682,6 +695,7 @@ impl ProjectManager {
             upgrade,
             locate,
             open_settings,
+            open_help,
             open_ide,
             upgrade_tool: None,
             settings_window: None,
@@ -892,6 +906,12 @@ impl ProjectManager {
         ));
     }
 
+    fn on_open_help_clicked(&mut self) {
+        Log::verify(open::that_detached(
+            "https://fyrox-book.github.io/beginning/project_manager.html",
+        ));
+    }
+
     fn on_upgrade_clicked(&mut self, ui: &mut UserInterface) {
         let project = some_or_return!(self.selection.and_then(|i| self.settings.projects.get(i)));
         let ctx = &mut ui.build_ctx();
@@ -972,6 +992,8 @@ impl ProjectManager {
             self.on_exclude_project_clicked(ui);
         } else if button == self.clean_project {
             self.on_clean_clicked(ui);
+        } else if button == self.open_help {
+            self.on_open_help_clicked();
         }
     }
 
@@ -1075,6 +1097,7 @@ impl ProjectManager {
             KeyCode::KeyS if modifiers.control => self.on_open_settings_click(ui),
             KeyCode::KeyE if modifiers.control => self.on_exclude_project_clicked(ui),
             KeyCode::KeyN if modifiers.control => self.on_clean_clicked(ui),
+            KeyCode::F1 => self.on_open_help_clicked(),
             _ => (),
         }
     }
