@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use std::fmt::Debug;
 use std::ops::Range;
 use crate::{
     core::sstorage::ImmutableString,
@@ -68,7 +69,8 @@ impl HistogramDeviationWidth {
     fn value(&self) -> usize {
         self.value
     }
-
+}
+impl Default for HistogramDeviationWidth {
     fn default() -> Self {
         Self{value:1}
     }
@@ -97,9 +99,9 @@ impl LuminanceHistogram {
 
     pub(crate) fn push_value(&mut self, value: f32) {
 
-        let bin_index: usize = (value / self.bin_width as f32).floor() as usize;
-
-        self.bins[bin_index].push(value);
+        let bin_index: usize = (value.abs() / self.bin_width as f32).floor() as usize;
+        // info!("value: {}; index: {}", value, bin_index);
+        self.bins[bin_index].push(value as f32);
 
     }
 
@@ -140,5 +142,18 @@ impl LuminanceHistogram {
         }
 
         biggest_bins
+    }
+}
+
+impl Debug for LuminanceHistogram {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
+        let mut lengths = Vec::with_capacity(self.bins.len());
+
+        for b in &self.bins{
+            lengths.push(b.len());
+        }
+
+        write!(f, "LuminanceHistogram {:?}", lengths)
     }
 }

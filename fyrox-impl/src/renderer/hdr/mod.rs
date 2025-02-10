@@ -51,6 +51,7 @@ use crate::{
 };
 use fyrox_graphics::framebuffer::DrawCallStatistics;
 use std::{cell::RefCell, rc::Rc};
+use fyrox_core::info;
 use crate::renderer::hdr::luminance::{HistogramDeviationWidth, LuminanceHistogram};
 
 mod adaptation;
@@ -206,7 +207,7 @@ impl HighDynamicRangeRenderer {
 
 
             LuminanceCalculationMethod::Histogram => {
-                let luminance_range = 0.00778f32..8.0f32;
+                let luminance_range = 0.0f32..1.0f32;
                 // info!("histogram_sampling");
 
                 // TODO: Cloning memory from GPU to CPU is slow, but since the engine is limited
@@ -216,17 +217,20 @@ impl HighDynamicRangeRenderer {
 
                 let pixels = transmute_slice::<u8, f32>(&data);
 
+                let mut pixels = Vec::from(pixels);
+
                 let avg_luminance_pixel_value = {
-                    const BIN_COUNT: usize = 32;
+                    const BIN_COUNT: usize = 128;
 
                     let mut histogram = LuminanceHistogram::new(BIN_COUNT, luminance_range);
 
                     for p in pixels {
                         // pixel value to bin index
-                        histogram.push_value(*p);
+                        histogram.push_value(p);
                     }
+                    info!("{:?}", histogram);
 
-                    let deviation = HistogramDeviationWidth::new(10, &histogram)?;
+                    let deviation = HistogramDeviationWidth::new(5, &histogram)?;
                     histogram.get_average_value(deviation)
 
                 };
