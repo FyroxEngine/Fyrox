@@ -70,6 +70,10 @@ impl Query for GlQuery {
         }
     }
 
+    fn is_started(&self) -> bool {
+        self.active_query.get().is_some()
+    }
+
     fn try_get_result(&self) -> Option<QueryResult> {
         let pipeline_state = self.pipeline_state.upgrade()?;
         let active_query = self.active_query.get()?;
