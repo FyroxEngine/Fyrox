@@ -31,7 +31,7 @@ use crate::{
         server::GraphicsServer,
     },
 };
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 /// Generic, texture-based, storage for matrices with somewhat unlimited capacity.
 ///
@@ -40,7 +40,7 @@ use std::{cell::RefCell, rc::Rc};
 /// Why it uses textures instead of SSBO? This could be done with SSBO, but it is not available on macOS because
 /// SSBO was added only in OpenGL 4.3, but macOS support up to OpenGL 4.1.
 pub struct MatrixStorage {
-    texture: Rc<RefCell<dyn GpuTexture>>,
+    texture: Rc<dyn GpuTexture>,
     matrices: Vec<Matrix4<f32>>,
 }
 
@@ -68,7 +68,7 @@ impl MatrixStorage {
     }
 
     /// Returns matrix storage texture.
-    pub fn texture(&self) -> &Rc<RefCell<dyn GpuTexture>> {
+    pub fn texture(&self) -> &Rc<dyn GpuTexture> {
         &self.texture
     }
 
@@ -94,7 +94,7 @@ impl MatrixStorage {
 
         // Upload to GPU.
         if matrices_w != 0 && matrices_h != 0 {
-            self.texture.borrow_mut().set_data(
+            self.texture.set_data(
                 GpuTextureKind::Rectangle {
                     width: matrices_w,
                     height: matrices_h,

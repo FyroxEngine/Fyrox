@@ -82,7 +82,6 @@ use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use fyrox_core::math::Matrix4Ext;
 use fyrox_graph::{SceneGraph, SceneGraphNode};
 use std::{
-    cell::RefCell,
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
     rc::Rc,
@@ -155,7 +154,7 @@ pub struct BundleRenderContext<'a> {
     pub ambient_light: Color,
     // TODO: Add depth pre-pass to remove Option here. Current architecture allows only forward
     // renderer to have access to depth buffer that is available from G-Buffer.
-    pub scene_depth: Option<&'a Rc<RefCell<dyn GpuTexture>>>,
+    pub scene_depth: Option<&'a Rc<dyn GpuTexture>>,
     pub fallback_resources: &'a FallbackResources,
 }
 

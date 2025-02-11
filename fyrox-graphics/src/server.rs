@@ -39,10 +39,7 @@ use crate::{
     stats::PipelineStatistics,
     PolygonFace, PolygonFillMode,
 };
-use std::{
-    cell::RefCell,
-    rc::{Rc, Weak},
-};
+use std::rc::{Rc, Weak};
 
 /// Graphics server capabilities.
 #[derive(Debug)]
@@ -79,7 +76,7 @@ pub trait GraphicsServer: Downcast {
     fn create_texture(
         &self,
         desc: GpuTextureDescriptor,
-    ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError>;
+    ) -> Result<Rc<dyn GpuTexture>, FrameworkError>;
 
     /// Creates a new frame buffer using the given depth and color attachments. Depth attachment
     /// not exist, but there must be at least one color attachment of a format that supports rendering.
@@ -173,7 +170,7 @@ pub trait GraphicsServer: Downcast {
         pixel_kind: PixelKind,
         width: usize,
         height: usize,
-    ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError> {
+    ) -> Result<Rc<dyn GpuTexture>, FrameworkError> {
         self.create_texture(GpuTextureDescriptor {
             kind: GpuTextureKind::Rectangle { width, height },
             pixel_kind,

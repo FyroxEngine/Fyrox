@@ -30,7 +30,7 @@ use crate::{
         hdr::LumBuffer,
     },
 };
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 pub struct AdaptationShader {
     pub program: Box<dyn GpuProgram>,
@@ -62,7 +62,7 @@ pub struct AdaptationChain {
 }
 
 pub struct AdaptationContext<'a> {
-    pub prev_lum: Rc<RefCell<dyn GpuTexture>>,
+    pub prev_lum: Rc<dyn GpuTexture>,
     pub lum_buffer: &'a mut LumBuffer,
 }
 
@@ -96,7 +96,7 @@ impl AdaptationChain {
         out
     }
 
-    pub fn avg_lum_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn avg_lum_texture(&self) -> Rc<dyn GpuTexture> {
         if self.swap {
             self.lum_framebuffers[0].framebuffer.color_attachments()[0]
                 .texture

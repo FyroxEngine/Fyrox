@@ -41,7 +41,7 @@ use crate::{
     scene::mesh::surface::SurfaceData,
 };
 use fyrox_graphics::framebuffer::DrawCallStatistics;
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 struct Shader {
     program: Box<dyn GpuProgram>,
@@ -99,13 +99,13 @@ impl Blur {
         })
     }
 
-    pub fn result(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn result(&self) -> Rc<dyn GpuTexture> {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
     pub(crate) fn render(
         &mut self,
-        input: Rc<RefCell<dyn GpuTexture>>,
+        input: Rc<dyn GpuTexture>,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);

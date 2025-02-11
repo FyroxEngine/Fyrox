@@ -39,7 +39,7 @@ use crate::{
         make_viewport_matrix,
     },
 };
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 struct VisibilityOptimizerShader {
     program: Box<dyn GpuProgram>,
@@ -105,7 +105,7 @@ impl VisibilityBufferOptimizer {
 
     pub fn optimize(
         &mut self,
-        visibility_buffer: &Rc<RefCell<dyn GpuTexture>>,
+        visibility_buffer: &Rc<dyn GpuTexture>,
         unit_quad: &dyn GeometryBuffer,
         tile_size: i32,
         uniform_buffer_cache: &mut UniformBufferCache,

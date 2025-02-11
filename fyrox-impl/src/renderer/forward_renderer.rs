@@ -33,7 +33,7 @@ use crate::{
     },
     scene::mesh::RenderPath,
 };
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 pub(crate) struct ForwardRenderer {
     render_pass_name: ImmutableString,
@@ -49,7 +49,7 @@ pub(crate) struct ForwardRenderContext<'a> {
     pub viewport: Rect<i32>,
     pub quality_settings: &'a QualitySettings,
     pub fallback_resources: &'a FallbackResources,
-    pub scene_depth: Rc<RefCell<dyn GpuTexture>>,
+    pub scene_depth: Rc<dyn GpuTexture>,
     pub ambient_light: Color,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 }

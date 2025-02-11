@@ -39,7 +39,7 @@ use crate::{
         make_viewport_matrix, RenderPassStatistics,
     },
 };
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 mod blur;
 
@@ -95,18 +95,18 @@ impl BloomRenderer {
         })
     }
 
-    fn glow_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    fn glow_texture(&self) -> Rc<dyn GpuTexture> {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn result(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn result(&self) -> Rc<dyn GpuTexture> {
         self.blur.result()
     }
 
     pub(crate) fn render(
         &mut self,
         quad: &dyn GeometryBuffer,
-        hdr_scene_frame: Rc<RefCell<dyn GpuTexture>>,
+        hdr_scene_frame: Rc<dyn GpuTexture>,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();

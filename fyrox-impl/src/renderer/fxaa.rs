@@ -38,7 +38,7 @@ use crate::{
     },
     scene::mesh::surface::SurfaceData,
 };
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 struct FxaaShader {
     pub program: Box<dyn GpuProgram>,
@@ -81,7 +81,7 @@ impl FxaaRenderer {
     pub(crate) fn render(
         &self,
         viewport: Rect<i32>,
-        frame_texture: Rc<RefCell<dyn GpuTexture>>,
+        frame_texture: Rc<dyn GpuTexture>,
         frame_buffer: &mut dyn FrameBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {

@@ -50,7 +50,7 @@ use crate::{
     scene::camera::{ColorGradingLut, Exposure},
 };
 use fyrox_graphics::framebuffer::DrawCallStatistics;
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 mod adaptation;
 mod downscale;
@@ -96,7 +96,7 @@ impl LumBuffer {
         make_viewport_matrix(Rect::new(0, 0, self.size as i32, self.size as i32))
     }
 
-    fn texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    fn texture(&self) -> Rc<dyn GpuTexture> {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 }
@@ -109,7 +109,7 @@ pub struct HighDynamicRangeRenderer {
     luminance_shader: LuminanceShader,
     downscale_shader: DownscaleShader,
     map_shader: MapShader,
-    stub_lut: Rc<RefCell<dyn GpuTexture>>,
+    stub_lut: Rc<dyn GpuTexture>,
     lum_calculation_method: LuminanceCalculationMethod,
 }
 
@@ -146,7 +146,7 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_frame_luminance(
         &mut self,
-        scene_frame: Rc<RefCell<dyn GpuTexture>>,
+        scene_frame: Rc<dyn GpuTexture>,
         quad: &dyn GeometryBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
@@ -210,7 +210,7 @@ impl HighDynamicRangeRenderer {
                 // TODO: Cloning memory from GPU to CPU is slow, but since the engine is limited
                 // by macOS's OpenGL 4.1 support and lack of compute shaders we'll build histogram
                 // manually on CPU anyway. Replace this with compute shaders whenever possible.
-                let data = self.frame_luminance.texture().borrow_mut().read_pixels();
+                let data = self.frame_luminance.texture().read_pixels();
 
                 let pixels = transmute_slice::<u8, f32>(&data);
 
@@ -237,20 +237,15 @@ impl HighDynamicRangeRenderer {
                 let avg_lum = luminance_range.start
                     + weighted_lum * (luminance_range.end - luminance_range.start);
 
-                self.downscale_chain
-                    .last()
-                    .unwrap()
-                    .texture()
-                    .borrow_mut()
-                    .set_data(
-                        GpuTextureKind::Rectangle {
-                            width: 1,
-                            height: 1,
-                        },
-                        PixelKind::R32F,
-                        1,
-                        Some(value_as_u8_slice(&avg_lum)),
-                    )?;
+                self.downscale_chain.last().unwrap().texture().set_data(
+                    GpuTextureKind::Rectangle {
+                        width: 1,
+                        height: 1,
+                    },
+                    PixelKind::R32F,
+                    1,
+                    Some(value_as_u8_slice(&avg_lum)),
+                )?;
             }
             LuminanceCalculationMethod::DownSampling => {
                 let shader = &self.downscale_shader;
@@ -351,8 +346,8 @@ impl HighDynamicRangeRenderer {
     fn map_hdr_to_ldr(
         &mut self,
         server: &dyn GraphicsServer,
-        hdr_scene_frame: Rc<RefCell<dyn GpuTexture>>,
-        bloom_texture: Rc<RefCell<dyn GpuTexture>>,
+        hdr_scene_frame: Rc<dyn GpuTexture>,
+        bloom_texture: Rc<dyn GpuTexture>,
         ldr_framebuffer: &mut dyn FrameBuffer,
         viewport: Rect<i32>,
         quad: &dyn GeometryBuffer,
@@ -428,8 +423,8 @@ impl HighDynamicRangeRenderer {
     pub fn render(
         &mut self,
         server: &dyn GraphicsServer,
-        hdr_scene_frame: Rc<RefCell<dyn GpuTexture>>,
-        bloom_texture: Rc<RefCell<dyn GpuTexture>>,
+        hdr_scene_frame: Rc<dyn GpuTexture>,
+        bloom_texture: Rc<dyn GpuTexture>,
         ldr_framebuffer: &mut dyn FrameBuffer,
         viewport: Rect<i32>,
         quad: &dyn GeometryBuffer,

@@ -344,7 +344,6 @@ fn render_scene_to_texture(
                 .map(|a| a.texture.clone())
         })
     {
-        let ldr_texture = ldr_texture.borrow_mut();
         let (width, height) = match ldr_texture.kind() {
             GpuTextureKind::Rectangle { width, height } => (width, height),
             _ => unreachable!(),

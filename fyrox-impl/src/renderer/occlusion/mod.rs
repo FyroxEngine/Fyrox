@@ -60,7 +60,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fyrox_graphics::framebuffer::BufferLocation;
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 struct Shader {
     program: Box<dyn GpuProgram>,
@@ -86,8 +86,8 @@ impl Shader {
 
 pub struct OcclusionTester {
     framebuffer: Box<dyn FrameBuffer>,
-    visibility_mask: Rc<RefCell<dyn GpuTexture>>,
-    tile_buffer: Rc<RefCell<dyn GpuTexture>>,
+    visibility_mask: Rc<dyn GpuTexture>,
+    tile_buffer: Rc<dyn GpuTexture>,
     frame_size: Vector2<usize>,
     shader: Shader,
     tile_size: usize,
@@ -297,7 +297,7 @@ impl OcclusionTester {
             debug_renderer.set_lines(&lines);
         }
 
-        self.tile_buffer.borrow_mut().set_data(
+        self.tile_buffer.set_data(
             GpuTextureKind::Rectangle {
                 width: self.w_tiles * (MAX_BITS + 1),
                 height: self.h_tiles,

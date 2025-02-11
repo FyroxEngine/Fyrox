@@ -42,7 +42,7 @@ use crate::{
     },
     scene::graph::Graph,
 };
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 pub struct SpotShadowMapRenderer {
     precision: ShadowMapPrecision,
@@ -102,7 +102,7 @@ impl SpotShadowMapRenderer {
         self.precision
     }
 
-    pub fn cascade_texture(&self, cascade: usize) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn cascade_texture(&self, cascade: usize) -> Rc<dyn GpuTexture> {
         self.cascades[cascade]
             .depth_attachment()
             .unwrap()

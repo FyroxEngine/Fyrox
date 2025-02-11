@@ -95,7 +95,6 @@ impl AsyncReadBuffer for GlAsyncReadBuffer {
             })?
             .texture;
 
-        let color_attachment = color_attachment.borrow();
         let attachment_pixel_descriptor = color_attachment.pixel_kind().pixel_descriptor();
 
         let color_attachment_size =

@@ -1005,8 +1005,8 @@ impl GraphicsServer for GlGraphicsServer {
     fn create_texture(
         &self,
         desc: GpuTextureDescriptor,
-    ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError> {
-        Ok(Rc::new(RefCell::new(GlTexture::new(self, desc)?)))
+    ) -> Result<Rc<dyn GpuTexture>, FrameworkError> {
+        Ok(Rc::new(GlTexture::new(self, desc)?))
     }
 
     fn create_frame_buffer(

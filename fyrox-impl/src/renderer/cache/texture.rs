@@ -37,10 +37,10 @@ use fyrox_texture::{
     TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
     TextureWrapMode,
 };
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 pub(crate) struct TextureRenderData {
-    pub gpu_texture: Rc<RefCell<dyn GpuTexture>>,
+    pub gpu_texture: Rc<dyn GpuTexture>,
     pub modifications_counter: u64,
 }
 
@@ -187,7 +187,7 @@ impl TextureCache {
         &mut self,
         server: &dyn GraphicsServer,
         texture_resource: &TextureResource,
-    ) -> Option<&Rc<RefCell<dyn GpuTexture>>> {
+    ) -> Option<&Rc<dyn GpuTexture>> {
         let mut texture_data_guard = texture_resource.state();
 
         if let Some(texture) = texture_data_guard.data() {
@@ -202,8 +202,7 @@ impl TextureCache {
                     // Data might change from last frame, so we have to check it and upload new if so.
                     let modifications_count = texture.modifications_count();
                     if entry.modifications_counter != modifications_count {
-                        let mut gpu_texture = entry.gpu_texture.borrow_mut();
-                        if let Err(e) = gpu_texture.set_data(
+                        if let Err(e) = entry.gpu_texture.set_data(
                             convert_texture_kind(texture.kind()),
                             convert_pixel_kind(texture.pixel_kind()),
                             texture.mip_count() as usize,
@@ -218,7 +217,7 @@ impl TextureCache {
                         }
                     }
 
-                    let mut gpu_texture = entry.gpu_texture.borrow_mut();
+                    let gpu_texture = &entry.gpu_texture;
 
                     let new_mag_filter =
                         convert_magnification_filter(texture.magnification_filter());
@@ -289,11 +288,7 @@ impl TextureCache {
     /// Tries to bind existing GPU texture with a texture resource. If there's no such binding, then
     /// a new binding is created, otherwise - only the TTL is updated to keep the GPU texture alive
     /// for a certain time period (see [`TimeToLive`]).
-    pub fn try_register(
-        &mut self,
-        texture: &TextureResource,
-        gpu_texture: Rc<RefCell<dyn GpuTexture>>,
-    ) {
+    pub fn try_register(&mut self, texture: &TextureResource, gpu_texture: Rc<dyn GpuTexture>) {
         let data = texture.data_ref();
         let index = data.cache_index.clone();
         let entry = self.cache.get_mut(&index);

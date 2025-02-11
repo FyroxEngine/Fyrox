@@ -585,7 +585,7 @@ impl Default for GpuTextureDescriptor<'_> {
 ///
 /// fn create_texture(
 ///     server: &dyn GraphicsServer,
-/// ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError> {
+/// ) -> Result<Rc<dyn GpuTexture>, FrameworkError> {
 ///     server.create_texture(GpuTextureDescriptor {
 ///         kind: GpuTextureKind::Rectangle {
 ///             width: 1,
@@ -610,27 +610,27 @@ pub trait GpuTexture: Downcast {
     /// Max samples for anisotropic filtering. Default value is 16.0 (max). However, real value passed
     /// to GPU will be clamped to maximum supported by current GPU. To disable anisotropic filtering
     /// set this to 1.0. Typical values are 2.0, 4.0, 8.0, 16.0.
-    fn set_anisotropy(&mut self, anisotropy: f32);
+    fn set_anisotropy(&self, anisotropy: f32);
 
     /// Returns current anisotropy level.
     fn anisotropy(&self) -> f32;
 
     /// Sets new minification filter. It is used when texture becomes smaller. See [`MinificationFilter`]
     /// docs for more info.
-    fn set_minification_filter(&mut self, min_filter: MinificationFilter);
+    fn set_minification_filter(&self, min_filter: MinificationFilter);
 
     /// Returns current minification filter.
     fn minification_filter(&self) -> MinificationFilter;
 
     /// Sets new magnification filter. It is used when texture is "stretching". See [`MagnificationFilter`]
     /// docs for more info.
-    fn set_magnification_filter(&mut self, mag_filter: MagnificationFilter);
+    fn set_magnification_filter(&self, mag_filter: MagnificationFilter);
 
     /// Returns current magnification filter.
     fn magnification_filter(&self) -> MagnificationFilter;
 
     /// Sets new wrap mode for the given coordinate. See [`WrapMode`] for more info.
-    fn set_wrap(&mut self, coordinate: Coordinate, wrap: WrapMode);
+    fn set_wrap(&self, coordinate: Coordinate, wrap: WrapMode);
 
     /// Returns current wrap mode for the given coordinate.
     fn wrap_mode(&self, coordinate: Coordinate) -> WrapMode;
@@ -638,12 +638,12 @@ pub trait GpuTexture: Downcast {
     /// Sets border color of the texture. Works together with [`WrapMode::ClampToBorder`] and
     /// essentially forces the GPU to use the given color when it tries to read outside the texture
     /// bounds.
-    fn set_border_color(&mut self, color: Color);
+    fn set_border_color(&self, color: Color);
 
     /// Sets the new data of the texture. This method is also able to change the kind of the texture
     /// and its pixel kind.
     fn set_data(
-        &mut self,
+        &self,
         kind: GpuTextureKind,
         pixel_kind: PixelKind,
         mip_count: usize,
@@ -666,7 +666,7 @@ pub trait GpuTexture: Downcast {
     /// Specifies the index of the lowest defined mipmap level. Keep in mind, that the texture data
     /// should provide the actual mip map level defined by the provided value, otherwise the
     /// rendering will be incorrect (probably just black on majority of implementations) and glitchy.
-    fn set_base_level(&mut self, level: usize);
+    fn set_base_level(&self, level: usize);
 
     /// Returns the index of the lowest defined mipmap level.
     fn base_level(&self) -> usize;
@@ -674,21 +674,21 @@ pub trait GpuTexture: Downcast {
     /// Sets the index of the highest defined mipmap level. Keep in mind, that the texture data
     /// should provide the actual mip map level defined by the provided value, otherwise the
     /// rendering will be incorrect (probably just black on majority of implementations) and glitchy.
-    fn set_max_level(&mut self, level: usize);
+    fn set_max_level(&self, level: usize);
 
     /// Returns the index of the highest defined mipmap level.
     fn max_level(&self) -> usize;
 
     /// Sets the minimum level-of-detail parameter. This floating-point value limits the selection
     /// of highest resolution mipmap (lowest mipmap level). The initial value is -1000.0.
-    fn set_min_lod(&mut self, min_lod: f32);
+    fn set_min_lod(&self, min_lod: f32);
 
     /// Returns the minimum level-of-detail parameter. See [`Self::set_min_lod`] for more info.
     fn min_lod(&self) -> f32;
 
     /// Sets the maximum level-of-detail parameter. This floating-point value limits the selection
     /// of the lowest resolution mipmap (highest mipmap level). The initial value is 1000.
-    fn set_max_lod(&mut self, max_lod: f32);
+    fn set_max_lod(&self, max_lod: f32);
 
     /// Returns the maximum level-of-detail parameter. See [`Self::set_max_lod`] for more info.
     fn max_lod(&self) -> f32;
@@ -698,7 +698,7 @@ pub trait GpuTexture: Downcast {
     /// value (if any) and subsequently clamped into the implementation-defined range
     /// `−bias_max..bias_max`, where `bias_max` is the value that can be fetched from the current
     /// graphics server. The initial value is 0.0.
-    fn set_lod_bias(&mut self, bias: f32);
+    fn set_lod_bias(&self, bias: f32);
 
     /// Returns a fixed bias value that is to be added to the level-of-detail parameter for the
     /// texture before texture sampling. See [`Self::set_lod_bias`] for more info.

@@ -45,7 +45,7 @@ use crate::{
     },
     scene::graph::Graph,
 };
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 pub struct PointShadowMapRenderer {
     precision: ShadowMapPrecision,
@@ -171,7 +171,7 @@ impl PointShadowMapRenderer {
         self.precision
     }
 
-    pub fn cascade_texture(&self, cascade: usize) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn cascade_texture(&self, cascade: usize) -> Rc<dyn GpuTexture> {
         self.cascades[cascade].color_attachments()[0]
             .texture
             .clone()

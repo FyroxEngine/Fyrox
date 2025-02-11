@@ -47,7 +47,7 @@ use crate::{
         light::directional::{FrustumSplitOptions, CSM_NUM_CASCADES},
     },
 };
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 pub struct Cascade {
     pub frame_buffer: Box<dyn FrameBuffer>,
@@ -83,7 +83,7 @@ impl Cascade {
         })
     }
 
-    pub fn texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn texture(&self) -> Rc<dyn GpuTexture> {
         self.frame_buffer
             .depth_attachment()
             .unwrap()

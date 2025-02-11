@@ -106,8 +106,11 @@ impl GlFrameBuffer {
                     AttachmentKind::DepthStencil => glow::DEPTH_STENCIL_ATTACHMENT,
                     AttachmentKind::Depth => glow::DEPTH_ATTACHMENT,
                 };
-                let guard = depth_attachment.texture.borrow();
-                let texture = guard.as_any().downcast_ref::<GlTexture>().unwrap();
+                let texture = depth_attachment
+                    .texture
+                    .as_any()
+                    .downcast_ref::<GlTexture>()
+                    .unwrap();
                 set_attachment(server, depth_attachment_kind, texture);
             }
 
@@ -115,8 +118,11 @@ impl GlFrameBuffer {
             for (i, color_attachment) in color_attachments.iter().enumerate() {
                 assert_eq!(color_attachment.kind, AttachmentKind::Color);
                 let color_attachment_kind = glow::COLOR_ATTACHMENT0 + i as u32;
-                let guard = color_attachment.texture.borrow();
-                let texture = guard.as_any().downcast_ref::<GlTexture>().unwrap();
+                let texture = color_attachment
+                    .texture
+                    .as_any()
+                    .downcast_ref::<GlTexture>()
+                    .unwrap();
                 set_attachment(server, color_attachment_kind, texture);
                 color_buffers.push(color_attachment_kind);
             }
@@ -173,8 +179,11 @@ impl FrameBuffer for GlFrameBuffer {
             server.set_framebuffer(self.fbo);
 
             let attachment = self.color_attachments.get(attachment_index).unwrap();
-            let guard = attachment.texture.borrow();
-            let texture = guard.as_any().downcast_ref::<GlTexture>().unwrap();
+            let texture = attachment
+                .texture
+                .as_any()
+                .downcast_ref::<GlTexture>()
+                .unwrap();
             server.gl.framebuffer_texture_2d(
                 glow::FRAMEBUFFER,
                 glow::COLOR_ATTACHMENT0 + attachment_index as u32,
@@ -316,7 +325,7 @@ impl FrameBuffer for GlFrameBuffer {
                 server.set_color_write(ColorMask::default());
 
                 for (i, attachment) in self.color_attachments.iter().enumerate() {
-                    match attachment.texture.borrow().pixel_kind().element_kind() {
+                    match attachment.texture.pixel_kind().element_kind() {
                         PixelElementKind::Float | PixelElementKind::NormalizedUnsignedInteger => {
                             let fvalues = color.as_frgba();
                             server.gl.clear_buffer_f32_slice(
@@ -467,7 +476,6 @@ fn pre_draw(
                     texture,
                     shader_location,
                 } => {
-                    let texture = texture.borrow();
                     let texture = texture.as_any().downcast_ref::<GlTexture>().unwrap();
                     match shader_location {
                         TextureShaderLocation::Uniform(uniform) => {

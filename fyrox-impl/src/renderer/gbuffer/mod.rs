@@ -69,7 +69,7 @@ use crate::{
     },
 };
 use fxhash::FxHashSet;
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 mod decal;
 
@@ -172,27 +172,27 @@ impl GBuffer {
         &*self.framebuffer
     }
 
-    pub fn depth(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn depth(&self) -> Rc<dyn GpuTexture> {
         self.framebuffer.depth_attachment().unwrap().texture.clone()
     }
 
-    pub fn diffuse_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn diffuse_texture(&self) -> Rc<dyn GpuTexture> {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn normal_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn normal_texture(&self) -> Rc<dyn GpuTexture> {
         self.framebuffer.color_attachments()[1].texture.clone()
     }
 
-    pub fn ambient_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn ambient_texture(&self) -> Rc<dyn GpuTexture> {
         self.framebuffer.color_attachments()[2].texture.clone()
     }
 
-    pub fn material_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn material_texture(&self) -> Rc<dyn GpuTexture> {
         self.framebuffer.color_attachments()[3].texture.clone()
     }
 
-    pub fn decal_mask_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn decal_mask_texture(&self) -> Rc<dyn GpuTexture> {
         self.framebuffer.color_attachments()[4].texture.clone()
     }
 

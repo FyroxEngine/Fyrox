@@ -590,21 +590,21 @@ impl AssociatedSceneData {
     }
 
     /// Returns high-dynamic range frame buffer texture.
-    pub fn hdr_scene_frame_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn hdr_scene_frame_texture(&self) -> Rc<dyn GpuTexture> {
         self.hdr_scene_framebuffer.color_attachments()[0]
             .texture
             .clone()
     }
 
     /// Returns low-dynamic range frame buffer texture (final frame).
-    pub fn ldr_scene_frame_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn ldr_scene_frame_texture(&self) -> Rc<dyn GpuTexture> {
         self.ldr_scene_framebuffer.color_attachments()[0]
             .texture
             .clone()
     }
 
     /// Returns low-dynamic range frame buffer texture (accumulation frame).
-    pub fn ldr_temp_frame_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn ldr_temp_frame_texture(&self) -> Rc<dyn GpuTexture> {
         self.ldr_temp_framebuffer.color_attachments()[0]
             .texture
             .clone()
@@ -632,29 +632,26 @@ pub fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
 pub struct FallbackResources {
     /// White, one pixel, texture which will be used as stub when rendering something without
     /// a texture specified.
-    pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub white_dummy: Rc<dyn GpuTexture>,
     /// Black, one pixel, texture.
-    pub black_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub black_dummy: Rc<dyn GpuTexture>,
     /// A cube map with 6 textures of 1x1 black pixel in size.
-    pub environment_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub environment_dummy: Rc<dyn GpuTexture>,
     /// One pixel texture with (0, 1, 0) vector is used as stub when rendering something without a
     /// normal map.
-    pub normal_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub normal_dummy: Rc<dyn GpuTexture>,
     /// One pixel texture used as stub when rendering something without a  metallic texture. Default
     /// metalness is 0.0
-    pub metallic_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub metallic_dummy: Rc<dyn GpuTexture>,
     /// One pixel volume texture.
-    pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub volume_dummy: Rc<dyn GpuTexture>,
     /// A stub uniform buffer for situation when there's no actual bone matrices.
     pub bone_matrices_stub_uniform_buffer: Box<dyn Buffer>,
 }
 
 impl FallbackResources {
     /// Picks a texture that corresponds to the actual value of the given sampler fallback.
-    pub fn sampler_fallback(
-        &self,
-        sampler_fallback: SamplerFallback,
-    ) -> &Rc<RefCell<dyn GpuTexture>> {
+    pub fn sampler_fallback(&self, sampler_fallback: SamplerFallback) -> &Rc<dyn GpuTexture> {
         match sampler_fallback {
             SamplerFallback::White => &self.white_dummy,
             SamplerFallback::Normal => &self.normal_dummy,
@@ -794,7 +791,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
     /// have an ability to write to this texture. However, you can still write to depth of
     /// the frame buffer as you'd normally do.
-    pub depth_texture: Rc<RefCell<dyn GpuTexture>>,
+    pub depth_texture: Rc<dyn GpuTexture>,
 
     /// A texture with world-space normals from G-Buffer.
     ///
@@ -802,7 +799,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     ///
     /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
     /// have an ability to write to this texture.
-    pub normal_texture: Rc<RefCell<dyn GpuTexture>>,
+    pub normal_texture: Rc<dyn GpuTexture>,
 
     /// A texture with ambient lighting values from G-Buffer.
     ///
@@ -810,7 +807,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     ///
     /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
     /// have an ability to write to this texture.
-    pub ambient_texture: Rc<RefCell<dyn GpuTexture>>,
+    pub ambient_texture: Rc<dyn GpuTexture>,
 
     /// User interface renderer.
     pub ui_renderer: &'a mut UiRenderer,
@@ -852,7 +849,7 @@ pub trait SceneRenderPass {
 fn blit_pixels(
     uniform_buffer_cache: &mut UniformBufferCache,
     framebuffer: &mut dyn FrameBuffer,
-    texture: Rc<RefCell<dyn GpuTexture>>,
+    texture: Rc<dyn GpuTexture>,
     shader: &FlatShader,
     viewport: Rect<i32>,
     quad: &dyn GeometryBuffer,
@@ -1178,11 +1175,11 @@ impl Renderer {
             Entry::Occupied(entry) => {
                 let frame_buffer = entry.into_mut();
                 let frame = frame_buffer.color_attachments().first().unwrap();
-                let color_texture_kind = frame.texture.borrow().kind();
+                let color_texture_kind = frame.texture.kind();
                 if let GpuTextureKind::Rectangle { width, height } = color_texture_kind {
                     if width != new_width
                         || height != new_height
-                        || frame.texture.borrow().pixel_kind() != pixel_kind
+                        || frame.texture.pixel_kind() != pixel_kind
                     {
                         *frame_buffer =
                             make_ui_frame_buffer(screen_size, &*self.server, pixel_kind)?;

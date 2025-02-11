@@ -33,7 +33,7 @@ use crate::{
     gpu_texture::{CubeMapFace, GpuTexture},
     DrawParameters, ElementRange,
 };
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 /// Frame buffer attachment kind.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Eq)]
@@ -52,7 +52,7 @@ pub struct Attachment {
     /// Current kind of attachment. Tells the renderer how the texture should be used.
     pub kind: AttachmentKind,
     /// A texture that is used to write the rendered image to.
-    pub texture: Rc<RefCell<dyn GpuTexture>>,
+    pub texture: Rc<dyn GpuTexture>,
 }
 
 /// Defines a range of data in a particular buffer.
@@ -110,7 +110,7 @@ pub enum ResourceBinding<'a> {
     /// Texture binding.
     Texture {
         /// A shared reference to a texture.
-        texture: Rc<RefCell<dyn GpuTexture>>,
+        texture: Rc<dyn GpuTexture>,
         /// Binding mode for the texture.
         shader_location: TextureShaderLocation,
     },
@@ -128,10 +128,7 @@ pub enum ResourceBinding<'a> {
 impl ResourceBinding<'_> {
     /// Creates a new texture binding using uniform location. See [`TextureShaderLocation::Uniform`]
     /// docs for more info.
-    pub fn texture(
-        texture: &Rc<RefCell<dyn GpuTexture>>,
-        shader_location: &UniformLocation,
-    ) -> Self {
+    pub fn texture(texture: &Rc<dyn GpuTexture>, shader_location: &UniformLocation) -> Self {
         Self::Texture {
             texture: texture.clone(),
             shader_location: TextureShaderLocation::Uniform(shader_location.clone()),
@@ -140,7 +137,7 @@ impl ResourceBinding<'_> {
 
     /// Creates a new explicit texture binding. See [`TextureShaderLocation::ExplicitBinding`] for
     /// more info.
-    pub fn texture_with_binding(texture: &Rc<RefCell<dyn GpuTexture>>, binding: usize) -> Self {
+    pub fn texture_with_binding(texture: &Rc<dyn GpuTexture>, binding: usize) -> Self {
         Self::Texture {
             texture: texture.clone(),
             shader_location: TextureShaderLocation::ExplicitBinding(binding),

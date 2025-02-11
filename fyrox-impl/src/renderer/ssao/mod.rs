@@ -52,7 +52,7 @@ use crate::{
 };
 use fyrox_graphics::framebuffer::BufferLocation;
 use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 mod blur;
 
@@ -92,7 +92,7 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
     quad: Box<dyn GeometryBuffer>,
     width: i32,
     height: i32,
-    noise: Rc<RefCell<dyn GpuTexture>>,
+    noise: Rc<dyn GpuTexture>,
     kernel: [Vector3<f32>; KERNEL_SIZE],
     radius: f32,
 }
@@ -175,11 +175,11 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         self.radius = radius.abs();
     }
 
-    fn raw_ao_map(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    fn raw_ao_map(&self) -> Rc<dyn GpuTexture> {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn ao_map(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn ao_map(&self) -> Rc<dyn GpuTexture> {
         self.blur.result()
     }
 

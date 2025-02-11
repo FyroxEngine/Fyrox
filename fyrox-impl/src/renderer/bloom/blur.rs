@@ -38,7 +38,7 @@ use crate::{
         make_viewport_matrix, RenderPassStatistics,
     },
 };
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 struct Shader {
     program: Box<dyn GpuProgram>,
@@ -103,18 +103,18 @@ impl GaussianBlur {
         })
     }
 
-    fn h_blurred(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    fn h_blurred(&self) -> Rc<dyn GpuTexture> {
         self.h_framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn result(&self) -> Rc<RefCell<dyn GpuTexture>> {
+    pub fn result(&self) -> Rc<dyn GpuTexture> {
         self.v_framebuffer.color_attachments()[0].texture.clone()
     }
 
     pub(crate) fn render(
         &mut self,
         quad: &dyn GeometryBuffer,
-        input: Rc<RefCell<dyn GpuTexture>>,
+        input: Rc<dyn GpuTexture>,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
