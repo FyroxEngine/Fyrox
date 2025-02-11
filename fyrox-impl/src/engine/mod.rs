@@ -2287,13 +2287,6 @@ impl Engine {
         }
 
         if let GraphicsContext::Initialized(ref mut ctx) = self.graphics_context {
-            // Process queued messages from scene nodes before rendering, this is mandatory to prevent
-            // "teleportation" bug (when an object is drawn at (0,0,0) for one frame and on the one
-            // draws where it should be).
-            for scene in self.scenes.iter_mut() {
-                scene.graph.process_node_messages(None);
-            }
-
             ctx.renderer.render_and_swap_buffers(
                 &self.scenes,
                 self.elapsed_time,
