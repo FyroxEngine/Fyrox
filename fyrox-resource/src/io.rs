@@ -32,9 +32,9 @@ use std::{
 };
 
 /// Trait for files readers ensuring they implement the required traits
-pub trait FileReader: Debug + Send + Read + Seek + 'static {}
+pub trait FileReader: Debug + Send + Sync + Read + Seek + 'static {}
 
-impl<F> FileReader for F where F: Debug + Send + Read + Seek + 'static {}
+impl<F> FileReader for F where F: Debug + Send + Sync + Read + Seek + 'static {}
 
 /// Interface wrapping IO operations for doing this like loading files
 /// for resources

@@ -47,6 +47,7 @@ use std::{
     path::{Path, PathBuf},
     time::Duration,
 };
+use symphonia::core::io::MediaSource;
 
 pub mod generic;
 pub mod loader;
@@ -178,6 +179,16 @@ impl Seek for DataSource {
                 unreachable!("Raw data source does not supports Seek trait!")
             }
         }
+    }
+}
+
+impl MediaSource for DataSource {
+    fn is_seekable(&self) -> bool {
+        true
+    }
+
+    fn byte_len(&self) -> Option<u64> {
+        None
     }
 }
 

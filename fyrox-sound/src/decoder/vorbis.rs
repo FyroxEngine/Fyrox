@@ -19,20 +19,25 @@
 // SOFTWARE.
 
 use crate::{buffer::DataSource, error::SoundError};
-use lewton::{inside_ogg::read_headers, inside_ogg::OggStreamReader, samples::InterleavedSamples};
-use ogg::PacketReader;
+
+use symphonia::core::audio::{AudioBuffer, Signal};
+use symphonia::core::codecs::{CodecParameters, Decoder, DecoderOptions};
+use symphonia::core::formats::{FormatOptions, FormatReader, SeekMode, SeekTo};
+use symphonia::core::io::{MediaSourceStream, MediaSourceStreamOptions};
+use symphonia::core::units::Time;
+use symphonia::default::codecs::VorbisDecoder;
+use symphonia::default::formats::OggReader;
+
 use std::{
     fmt::{Debug, Formatter},
-    io::{Read, Seek, SeekFrom},
+    io::Seek,
     time::Duration,
     vec,
 };
 
 pub struct OggDecoder {
-    // Option here is because we need to bypass a bug in lewton by replacing
-    // the whole OggStreamReader on rewind by extracting data source and
-    // create new OggStreamReader from it. Its ugly.
-    reader: Option<Box<OggStreamReader<DataSource>>>,
+    reader: OggReader,
+    decoder: VorbisDecoder,
     samples: vec::IntoIter<f32>,
     pub channel_count: usize,
     pub sample_rate: usize,
@@ -53,11 +58,13 @@ impl Iterator for OggDecoder {
         if let Some(sample) = self.samples.next() {
             Some(sample)
         } else {
-            if let Some(reader) = self.reader.as_mut() {
-                if let Ok(Some(samples)) =
-                    reader.read_dec_packet_generic::<InterleavedSamples<f32>>()
-                {
-                    self.samples = samples.samples.into_iter();
+            if let Ok(packet) = self.reader.next_packet() {
+                if let Ok(decoded) = self.decoder.decode(&packet) {
+                    let buffer: AudioBuffer<Self::Item> = decoded.make_equivalent();
+                    let samples = buffer.chan(0);
+
+                    let vec: Vec<f32> = samples.into_iter().cloned().collect();
+                    self.samples = vec.into_iter();
                 }
             }
             self.samples.next()
@@ -65,36 +72,59 @@ impl Iterator for OggDecoder {
     }
 }
 
-fn is_vorbis_ogg(source: &mut DataSource) -> bool {
+fn is_vorbis_ogg(mut source: DataSource) -> bool {
     let pos = source.stream_position().unwrap();
 
-    let is_vorbis = OggStreamReader::new(source.by_ref()).is_ok();
+    let media_source =
+        MediaSourceStream::new(Box::new(source), MediaSourceStreamOptions::default());
 
-    source.seek(SeekFrom::Start(pos)).unwrap();
+    let res = OggReader::try_new(media_source, &FormatOptions::default());
 
-    is_vorbis
+    if let Ok(mut reader) = res {
+        reader
+            .seek(
+                SeekMode::Accurate,
+                SeekTo::Time {
+                    time: Time::new(pos, 0.0),
+                    track_id: None,
+                },
+            )
+            .unwrap();
+
+        true
+    } else {
+        false
+    }
 }
 
 // God bless `stb_vorbis` - https://github.com/nothings/stb/blob/master/stb_vorbis.c#L4946
 // lewton::audio::get_decoded_sample_count is bugged and does not work correctly. So instead of using it,
 // we use `stb_vorbis` approach - find last packet, take its position and return it. This function is still
 // unideal, because we read all packets one-by-one, instead of just jumping to the last one.
-fn total_duration_in_samples(source: &mut DataSource) -> usize {
+fn total_duration_in_samples(mut source: DataSource) -> usize {
     let initial_stream_position = source.stream_position().unwrap();
 
-    let mut reader = PacketReader::new(source.by_ref());
-    if read_headers(&mut reader).is_ok() {
+    let media_source =
+        MediaSourceStream::new(Box::new(source), MediaSourceStreamOptions::default());
+
+    if let Ok(mut reader) = OggReader::try_new(media_source, &FormatOptions::default()) {
         let mut last_packet = None;
-        while let Ok(Some(packet)) = reader.read_packet() {
+        while let Ok(packet) = reader.next_packet() {
             last_packet = Some(packet);
         }
 
-        source
-            .seek(SeekFrom::Start(initial_stream_position))
+        reader
+            .seek(
+                SeekMode::Accurate,
+                SeekTo::Time {
+                    time: Time::new(initial_stream_position, 0.0),
+                    track_id: None,
+                },
+            )
             .unwrap();
 
         last_packet
-            .map(|p| p.absgp_page() as usize)
+            .map(|p| p.ts.try_into().unwrap())
             .unwrap_or_default()
     } else {
         0
@@ -102,59 +132,73 @@ fn total_duration_in_samples(source: &mut DataSource) -> usize {
 }
 
 impl OggDecoder {
-    pub fn new(mut source: DataSource) -> Result<Self, DataSource> {
-        if is_vorbis_ogg(&mut source) {
-            let channel_duration_in_samples = total_duration_in_samples(&mut source);
+    // TODO: fix return type
+    pub fn new(source: DataSource) -> Result<Self, ()> {
+        if is_vorbis_ogg(source) {
+            let channel_duration_in_samples = total_duration_in_samples(source);
 
-            let mut reader = OggStreamReader::new(source).unwrap();
+            let media_source =
+                MediaSourceStream::new(Box::new(source), MediaSourceStreamOptions::default());
 
-            let samples = if let Ok(Some(samples)) =
-                reader.read_dec_packet_generic::<InterleavedSamples<f32>>()
-            {
-                samples.samples.into_iter()
-            } else {
-                Vec::new().into_iter()
-            };
+            let mut reader = OggReader::try_new(media_source, &FormatOptions::default()).unwrap();
+            let mut decoder =
+                VorbisDecoder::try_new(&CodecParameters::default(), &DecoderOptions::default())
+                    .unwrap();
+
+            let mut vec: Vec<f32> = Vec::new();
+            if let Ok(packet) = reader.next_packet() {
+                if let Ok(decoded) = decoder.decode(&packet) {
+                    let buffer: AudioBuffer<f32> = decoded.make_equivalent();
+                    let samples = buffer.chan(0);
+
+                    vec = samples.into_iter().cloned().collect();
+                }
+            }
+
+            let samples = vec.into_iter();
+
+            let params = &reader.tracks().first().unwrap().codec_params;
 
             Ok(Self {
                 samples,
-                channel_count: reader.ident_hdr.audio_channels as usize,
-                sample_rate: reader.ident_hdr.audio_sample_rate as usize,
-                reader: Some(Box::new(reader)),
+                channel_count: params.channels.unwrap_or_default().count(),
+                sample_rate: params.sample_rate.unwrap() as usize,
+                reader,
+                decoder,
                 channel_duration_in_samples,
             })
         } else {
-            Err(source)
+            Err(())
         }
     }
 
     pub fn rewind(&mut self) -> Result<(), SoundError> {
-        // We have to create completely new instance of decoder because of bug in seek_absgp_pg
-        // For more info see - https://github.com/RustAudio/lewton/issues/73
-        let mut source = self.reader.take().unwrap().into_inner().into_inner();
-        source.rewind()?;
-        *self = match Self::new(source) {
-            Ok(ogg_decoder) => ogg_decoder,
-            // Drop source here, this will invalidate decoder and it can't produce any
-            // samples anymore. This is unrecoverable error, but *should* never happen
-            // in reality.
-            Err(_) => return Err(SoundError::UnsupportedFormat),
-        };
-        Ok(())
+        if let Ok(_) = self.reader.seek(
+            SeekMode::Accurate,
+            SeekTo::Time {
+                time: Time::default(),
+                track_id: None,
+            },
+        ) {
+            Ok(())
+        } else {
+            Err(SoundError::UnsupportedFormat)
+        }
     }
 
     pub fn time_seek(&mut self, location: Duration) {
-        // seek_absgp_pg seems to be bugged - it fails at seeking when all packets were read already.
-        // For more info see - https://github.com/RustAudio/lewton/issues/73
-        let sample_index = location.as_secs_f64() * self.sample_rate as f64;
         if self
             .reader
-            .as_mut()
-            .unwrap()
-            .seek_absgp_pg(sample_index as u64)
+            .seek(
+                SeekMode::Accurate,
+                SeekTo::Time {
+                    time: location.into(),
+                    track_id: None,
+                },
+            )
             .is_err()
         {
-            println!("Failed to seek vorbis/ogg, see https://github.com/RustAudio/lewton/issues/73")
+            println!("Failed to seek vorbis/ogg?")
         }
     }
 
