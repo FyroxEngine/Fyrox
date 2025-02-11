@@ -72,42 +72,21 @@ impl Iterator for OggDecoder {
     }
 }
 
-fn is_vorbis_ogg(mut source: DataSource) -> bool {
-    let pos = source.stream_position().unwrap();
+impl OggDecoder {
+    // TODO: fix return type
+    pub fn new(mut source: DataSource) -> Result<Self, ()> {
+        let channel_duration_in_samples;
 
-    let media_source =
-        MediaSourceStream::new(Box::new(source), MediaSourceStreamOptions::default());
+        let initial_stream_position = source.stream_position().unwrap();
 
-    let res = OggReader::try_new(media_source, &FormatOptions::default());
+        let media_source =
+            MediaSourceStream::new(Box::new(source), MediaSourceStreamOptions::default());
+        let mut reader = OggReader::try_new(media_source, &FormatOptions::default()).unwrap();
+        let mut decoder =
+            VorbisDecoder::try_new(&CodecParameters::default(), &DecoderOptions::default())
+                .unwrap();
 
-    if let Ok(mut reader) = res {
-        reader
-            .seek(
-                SeekMode::Accurate,
-                SeekTo::Time {
-                    time: Time::new(pos, 0.0),
-                    track_id: None,
-                },
-            )
-            .unwrap();
-
-        true
-    } else {
-        false
-    }
-}
-
-// God bless `stb_vorbis` - https://github.com/nothings/stb/blob/master/stb_vorbis.c#L4946
-// lewton::audio::get_decoded_sample_count is bugged and does not work correctly. So instead of using it,
-// we use `stb_vorbis` approach - find last packet, take its position and return it. This function is still
-// unideal, because we read all packets one-by-one, instead of just jumping to the last one.
-fn total_duration_in_samples(mut source: DataSource) -> usize {
-    let initial_stream_position = source.stream_position().unwrap();
-
-    let media_source =
-        MediaSourceStream::new(Box::new(source), MediaSourceStreamOptions::default());
-
-    if let Ok(mut reader) = OggReader::try_new(media_source, &FormatOptions::default()) {
+        // Get duration
         let mut last_packet = None;
         while let Ok(packet) = reader.next_packet() {
             last_packet = Some(packet);
@@ -123,53 +102,32 @@ fn total_duration_in_samples(mut source: DataSource) -> usize {
             )
             .unwrap();
 
-        last_packet
+        channel_duration_in_samples = last_packet
             .map(|p| p.ts.try_into().unwrap())
-            .unwrap_or_default()
-    } else {
-        0
-    }
-}
+            .unwrap_or_default();
 
-impl OggDecoder {
-    // TODO: fix return type
-    pub fn new(source: DataSource) -> Result<Self, ()> {
-        if is_vorbis_ogg(source) {
-            let channel_duration_in_samples = total_duration_in_samples(source);
+        // Get samples
+        let mut vec: Vec<f32> = Vec::new();
+        if let Ok(packet) = reader.next_packet() {
+            if let Ok(decoded) = decoder.decode(&packet) {
+                let buffer: AudioBuffer<f32> = decoded.make_equivalent();
+                let samples = buffer.chan(0);
 
-            let media_source =
-                MediaSourceStream::new(Box::new(source), MediaSourceStreamOptions::default());
-
-            let mut reader = OggReader::try_new(media_source, &FormatOptions::default()).unwrap();
-            let mut decoder =
-                VorbisDecoder::try_new(&CodecParameters::default(), &DecoderOptions::default())
-                    .unwrap();
-
-            let mut vec: Vec<f32> = Vec::new();
-            if let Ok(packet) = reader.next_packet() {
-                if let Ok(decoded) = decoder.decode(&packet) {
-                    let buffer: AudioBuffer<f32> = decoded.make_equivalent();
-                    let samples = buffer.chan(0);
-
-                    vec = samples.into_iter().cloned().collect();
-                }
+                vec = samples.into_iter().cloned().collect();
             }
-
-            let samples = vec.into_iter();
-
-            let params = &reader.tracks().first().unwrap().codec_params;
-
-            Ok(Self {
-                samples,
-                channel_count: params.channels.unwrap_or_default().count(),
-                sample_rate: params.sample_rate.unwrap() as usize,
-                reader,
-                decoder,
-                channel_duration_in_samples,
-            })
-        } else {
-            Err(())
         }
+        let samples = vec.into_iter();
+
+        let params = &reader.tracks().first().unwrap().codec_params;
+
+        Ok(Self {
+            samples,
+            channel_count: params.channels.unwrap_or_default().count(),
+            sample_rate: params.sample_rate.unwrap() as usize,
+            reader,
+            decoder,
+            channel_duration_in_samples,
+        })
     }
 
     pub fn rewind(&mut self) -> Result<(), SoundError> {
