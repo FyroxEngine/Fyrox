@@ -131,7 +131,7 @@ impl NodeRemovalDialog {
                 .add_row(Row::auto())
                 .add_row(Row::stretch())
                 .add_row(Row::auto())
-                .add_column(Column::auto())
+                .add_column(Column::stretch())
                 .build(ctx),
             )
             .build(ctx);
