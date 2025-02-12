@@ -21,14 +21,13 @@
 use crate::{
     core::sstorage::ImmutableString,
     renderer::framework::{
-        error::FrameworkError,
-        gpu_program::{GpuProgram, UniformLocation},
-        server::GraphicsServer,
+        error::FrameworkError, gpu_program::UniformLocation, server::GraphicsServer,
     },
 };
+use fyrox_graphics::gpu_program::GpuProgram;
 
 pub struct LuminanceShader {
-    pub program: Box<dyn GpuProgram>,
+    pub program: GpuProgram,
     pub frame_sampler: UniformLocation,
     pub uniform_buffer_binding: usize,
 }

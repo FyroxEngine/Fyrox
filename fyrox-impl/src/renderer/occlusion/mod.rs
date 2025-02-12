@@ -40,11 +40,11 @@ use crate::{
             buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+                Attachment, AttachmentKind, GpuFrameBufferTrait, ResourceBindGroup, ResourceBinding,
             },
-            geometry_buffer::GeometryBuffer,
-            gpu_program::{GpuProgram, UniformLocation},
-            gpu_texture::{GpuTexture, GpuTextureKind, PixelKind},
+            geometry_buffer::GpuGeometryBufferTrait,
+            gpu_program::UniformLocation,
+            gpu_texture::{GpuTextureKind, PixelKind},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             BlendEquation, BlendFactor, BlendFunc, BlendMode, BlendParameters, ColorMask,
@@ -59,11 +59,13 @@ use crate::{
     scene::{graph::Graph, mesh::surface::SurfaceData, node::Node},
 };
 use bytemuck::{Pod, Zeroable};
-use fyrox_graphics::framebuffer::BufferLocation;
-use std::rc::Rc;
+use fyrox_graphics::framebuffer::{BufferLocation, GpuFrameBuffer};
+use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
+use fyrox_graphics::gpu_program::GpuProgram;
+use fyrox_graphics::gpu_texture::GpuTexture;
 
 struct Shader {
-    program: Box<dyn GpuProgram>,
+    program: GpuProgram,
     tile_buffer: UniformLocation,
     matrices: UniformLocation,
     uniform_buffer_binding: usize,
@@ -85,15 +87,15 @@ impl Shader {
 }
 
 pub struct OcclusionTester {
-    framebuffer: Box<dyn FrameBuffer>,
-    visibility_mask: Rc<dyn GpuTexture>,
-    tile_buffer: Rc<dyn GpuTexture>,
+    framebuffer: GpuFrameBuffer,
+    visibility_mask: GpuTexture,
+    tile_buffer: GpuTexture,
     frame_size: Vector2<usize>,
     shader: Shader,
     tile_size: usize,
     w_tiles: usize,
     h_tiles: usize,
-    cube: Box<dyn GeometryBuffer>,
+    cube: GpuGeometryBuffer,
     visibility_buffer_optimizer: VisibilityBufferOptimizer,
     matrix_storage: MatrixStorage,
     objects_to_test: Vec<Handle<Node>>,
@@ -181,7 +183,7 @@ impl OcclusionTester {
             w_tiles,
             tile_buffer,
             h_tiles,
-            cube: <dyn GeometryBuffer>::from_surface_data(
+            cube: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_cube(Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,
@@ -314,7 +316,7 @@ impl OcclusionTester {
         &mut self,
         graph: &Graph,
         objects_to_test: impl Iterator<Item = &'a Handle<Node>>,
-        prev_framebuffer: &dyn FrameBuffer,
+        prev_framebuffer: &dyn GpuFrameBufferTrait,
         observer_position: Vector3<f32>,
         view_projection: Matrix4<f32>,
     ) {
@@ -355,9 +357,9 @@ impl OcclusionTester {
         &mut self,
         graph: &Graph,
         debug_renderer: Option<&mut DebugRenderer>,
-        unit_quad: &dyn GeometryBuffer,
+        unit_quad: &dyn GpuGeometryBufferTrait,
         objects_to_test: impl Iterator<Item = &'a Handle<Node>>,
-        prev_framebuffer: &dyn FrameBuffer,
+        prev_framebuffer: &dyn GpuFrameBufferTrait,
         observer_position: Vector3<f32>,
         view_projection: Matrix4<f32>,
         uniform_buffer_cache: &mut UniformBufferCache,

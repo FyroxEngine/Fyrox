@@ -32,14 +32,9 @@ use crate::{
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{
-                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
-            },
-            geometry_buffer::GeometryBuffer,
-            gpu_program::{GpuProgram, UniformLocation},
-            gpu_texture::{
-                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
-            },
+            framebuffer::{Attachment, AttachmentKind, ResourceBindGroup, ResourceBinding},
+            gpu_program::UniformLocation,
+            gpu_texture::{GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             DrawParameters, ElementRange, GeometryBufferExt,
@@ -50,9 +45,10 @@ use crate::{
     },
     scene::mesh::surface::SurfaceData,
 };
-use fyrox_graphics::framebuffer::BufferLocation;
-use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
-use std::rc::Rc;
+use fyrox_graphics::framebuffer::{BufferLocation, GpuFrameBuffer};
+use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
+use fyrox_graphics::gpu_program::GpuProgram;
+use fyrox_graphics::gpu_texture::{GpuTexture, GpuTextureDescriptor};
 
 mod blur;
 
@@ -63,7 +59,7 @@ const KERNEL_SIZE: usize = 32;
 const NOISE_SIZE: usize = 4;
 
 struct Shader {
-    program: Box<dyn GpuProgram>,
+    program: GpuProgram,
     depth_sampler: UniformLocation,
     normal_sampler: UniformLocation,
     noise_sampler: UniformLocation,
@@ -88,11 +84,11 @@ impl Shader {
 pub struct ScreenSpaceAmbientOcclusionRenderer {
     blur: Blur,
     shader: Shader,
-    framebuffer: Box<dyn FrameBuffer>,
-    quad: Box<dyn GeometryBuffer>,
+    framebuffer: GpuFrameBuffer,
+    quad: GpuGeometryBuffer,
     width: i32,
     height: i32,
-    noise: Rc<dyn GpuTexture>,
+    noise: GpuTexture,
     kernel: [Vector3<f32>; KERNEL_SIZE],
     radius: f32,
 }
@@ -122,7 +118,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     texture: occlusion,
                 }],
             )?,
-            quad: <dyn GeometryBuffer>::from_surface_data(
+            quad: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
                 server,
@@ -175,11 +171,11 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         self.radius = radius.abs();
     }
 
-    fn raw_ao_map(&self) -> Rc<dyn GpuTexture> {
+    fn raw_ao_map(&self) -> GpuTexture {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn ao_map(&self) -> Rc<dyn GpuTexture> {
+    pub fn ao_map(&self) -> GpuTexture {
         self.blur.result()
     }
 

@@ -32,9 +32,9 @@ use crate::{
         cache::{shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator},
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
+            framebuffer::{Attachment, AttachmentKind},
             gpu_texture::{
-                CubeMapFace, GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
+                CubeMapFace, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
                 MinificationFilter, PixelKind, WrapMode,
             },
             server::GraphicsServer,
@@ -45,11 +45,12 @@ use crate::{
     },
     scene::graph::Graph,
 };
-use std::rc::Rc;
+use fyrox_graphics::framebuffer::GpuFrameBuffer;
+use fyrox_graphics::gpu_texture::GpuTexture;
 
 pub struct PointShadowMapRenderer {
     precision: ShadowMapPrecision,
-    cascades: [Box<dyn FrameBuffer>; 3],
+    cascades: [GpuFrameBuffer; 3],
     size: usize,
     faces: [PointShadowCubeMapFace; 6],
 }
@@ -84,7 +85,7 @@ impl PointShadowMapRenderer {
             server: &dyn GraphicsServer,
             size: usize,
             precision: ShadowMapPrecision,
-        ) -> Result<Box<dyn FrameBuffer>, FrameworkError> {
+        ) -> Result<GpuFrameBuffer, FrameworkError> {
             let depth = server.create_2d_render_target(
                 match precision {
                     ShadowMapPrecision::Full => PixelKind::D32F,
@@ -171,7 +172,7 @@ impl PointShadowMapRenderer {
         self.precision
     }
 
-    pub fn cascade_texture(&self, cascade: usize) -> Rc<dyn GpuTexture> {
+    pub fn cascade_texture(&self, cascade: usize) -> GpuTexture {
         self.cascades[cascade].color_attachments()[0]
             .texture
             .clone()
@@ -197,7 +198,7 @@ impl PointShadowMapRenderer {
             uniform_memory_allocator,
         } = args;
 
-        let framebuffer = &mut *self.cascades[cascade];
+        let framebuffer = &self.cascades[cascade];
         let cascade_size = cascade_size(self.size, cascade);
 
         let viewport = Rect::new(0, 0, cascade_size as i32, cascade_size as i32);

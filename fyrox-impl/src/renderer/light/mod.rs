@@ -34,8 +34,7 @@ use crate::{
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
-            geometry_buffer::GeometryBuffer,
+            framebuffer::{ResourceBindGroup, ResourceBinding},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, CullFace,
@@ -68,7 +67,8 @@ use crate::{
         Scene,
     },
 };
-use fyrox_graphics::framebuffer::BufferLocation;
+use fyrox_graphics::framebuffer::{BufferLocation, GpuFrameBuffer};
+use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
 
 pub mod ambient;
 pub mod directional;
@@ -81,10 +81,10 @@ pub struct DeferredLightRenderer {
     point_light_shader: PointLightShader,
     directional_light_shader: DirectionalLightShader,
     ambient_light_shader: AmbientLightShader,
-    quad: Box<dyn GeometryBuffer>,
-    sphere: Box<dyn GeometryBuffer>,
-    cone: Box<dyn GeometryBuffer>,
-    skybox: Box<dyn GeometryBuffer>,
+    quad: GpuGeometryBuffer,
+    sphere: GpuGeometryBuffer,
+    cone: GpuGeometryBuffer,
+    skybox: GpuGeometryBuffer,
     flat_shader: FlatShader,
     skybox_shader: SkyboxShader,
     spot_shadow_map_renderer: SpotShadowMapRenderer,
@@ -104,7 +104,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub settings: &'a QualitySettings,
     pub textures: &'a mut TextureCache,
     pub geometry_cache: &'a mut GeometryCache,
-    pub frame_buffer: &'a mut dyn FrameBuffer,
+    pub frame_buffer: &'a GpuFrameBuffer,
     pub shader_cache: &'a mut ShaderCache,
     pub fallback_resources: &'a FallbackResources,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
@@ -163,12 +163,12 @@ impl DeferredLightRenderer {
             point_light_shader: PointLightShader::new(server)?,
             directional_light_shader: DirectionalLightShader::new(server)?,
             ambient_light_shader: AmbientLightShader::new(server)?,
-            quad: <dyn GeometryBuffer>::from_surface_data(
+            quad: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
                 server,
             )?,
-            skybox: <dyn GeometryBuffer>::from_surface_data(
+            skybox: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::new(
                     VertexBuffer::new(vertices.len(), vertices).unwrap(),
                     TriangleBuffer::new(vec![
@@ -189,12 +189,12 @@ impl DeferredLightRenderer {
                 BufferUsage::StaticDraw,
                 server,
             )?,
-            sphere: <dyn GeometryBuffer>::from_surface_data(
+            sphere: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_sphere(10, 10, 1.0, &Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,
             )?,
-            cone: <dyn GeometryBuffer>::from_surface_data(
+            cone: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_cone(
                     16,
                     0.5,

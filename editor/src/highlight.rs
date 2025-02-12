@@ -29,11 +29,9 @@ use crate::{
                 buffer::BufferUsage,
                 error::FrameworkError,
                 framebuffer::{
-                    Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
-                    ResourceBinding,
+                    Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
                 },
-                geometry_buffer::GeometryBuffer,
-                gpu_program::{GpuProgram, UniformLocation},
+                gpu_program::UniformLocation,
                 gpu_texture::PixelKind,
                 server::GraphicsServer,
                 uniform::StaticUniformBuffer,
@@ -47,10 +45,13 @@ use crate::{
     Editor,
 };
 use fyrox::graph::SceneGraph;
+use fyrox::renderer::framework::framebuffer::GpuFrameBuffer;
+use fyrox::renderer::framework::geometry_buffer::GpuGeometryBuffer;
+use fyrox::renderer::framework::gpu_program::GpuProgram;
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct EdgeDetectShader {
-    program: Box<dyn GpuProgram>,
+    program: GpuProgram,
     uniform_buffer_binding: usize,
     frame_texture: UniformLocation,
 }
@@ -121,8 +122,8 @@ void main()
 }
 
 pub struct HighlightRenderPass {
-    framebuffer: Box<dyn FrameBuffer>,
-    quad: Box<dyn GeometryBuffer>,
+    framebuffer: GpuFrameBuffer,
+    quad: GpuGeometryBuffer,
     edge_detect_shader: EdgeDetectShader,
     pub scene_handle: Handle<Scene>,
     pub nodes_to_highlight: FxHashSet<Handle<Node>>,
@@ -133,7 +134,7 @@ impl HighlightRenderPass {
         server: &dyn GraphicsServer,
         mut width: usize,
         mut height: usize,
-    ) -> Box<dyn FrameBuffer> {
+    ) -> GpuFrameBuffer {
         width = width.max(1);
         height = height.max(1);
 
@@ -162,7 +163,7 @@ impl HighlightRenderPass {
     pub fn new_raw(server: &dyn GraphicsServer, width: usize, height: usize) -> Self {
         Self {
             framebuffer: Self::create_frame_buffer(server, width, height),
-            quad: <dyn GeometryBuffer>::from_surface_data(
+            quad: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
                 server,
@@ -241,7 +242,7 @@ impl SceneRenderPass for HighlightRenderPass {
                 BundleRenderContext {
                     texture_cache: ctx.texture_cache,
                     render_pass_name: &render_pass_name,
-                    frame_buffer: &mut *self.framebuffer,
+                    frame_buffer: &self.framebuffer,
                     use_pom: false,
                     light_position: &Default::default(),
                     fallback_resources: ctx.fallback_resources,

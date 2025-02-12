@@ -24,23 +24,23 @@ use crate::{
         cache::{TemporaryCache, TimeToLive},
         framework::{
             error::FrameworkError,
-            gpu_texture::{Coordinate, GpuTexture, PixelKind},
+            gpu_texture::{Coordinate, PixelKind},
             server::GraphicsServer,
         },
     },
     resource::texture::{Texture, TextureResource},
 };
 use fyrox_graphics::gpu_texture::{
-    GpuTextureDescriptor, GpuTextureKind, MagnificationFilter, MinificationFilter, WrapMode,
+    GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter, MinificationFilter,
+    WrapMode,
 };
 use fyrox_texture::{
     TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
     TextureWrapMode,
 };
-use std::rc::Rc;
 
 pub(crate) struct TextureRenderData {
-    pub gpu_texture: Rc<dyn GpuTexture>,
+    pub gpu_texture: GpuTexture,
     pub modifications_counter: u64,
 }
 
@@ -187,7 +187,7 @@ impl TextureCache {
         &mut self,
         server: &dyn GraphicsServer,
         texture_resource: &TextureResource,
-    ) -> Option<&Rc<dyn GpuTexture>> {
+    ) -> Option<&GpuTexture> {
         let mut texture_data_guard = texture_resource.state();
 
         if let Some(texture) = texture_data_guard.data() {
@@ -288,7 +288,7 @@ impl TextureCache {
     /// Tries to bind existing GPU texture with a texture resource. If there's no such binding, then
     /// a new binding is created, otherwise - only the TTL is updated to keep the GPU texture alive
     /// for a certain time period (see [`TimeToLive`]).
-    pub fn try_register(&mut self, texture: &TextureResource, gpu_texture: Rc<dyn GpuTexture>) {
+    pub fn try_register(&mut self, texture: &TextureResource, gpu_texture: GpuTexture) {
         let data = texture.data_ref();
         let index = data.cache_index.clone();
         let entry = self.cache.get_mut(&index);

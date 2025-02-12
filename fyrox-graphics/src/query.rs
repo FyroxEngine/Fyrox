@@ -1,9 +1,10 @@
 //! A query object is used to fetch some data from rendering operations asynchronously. See
-//! [`Query`] docs for more info.
+//! [`GpuQueryTrait`] docs for more info.
 
 #![warn(missing_docs)]
 
 use crate::core::Downcast;
+use crate::define_shared_wrapper;
 use std::fmt::Debug;
 
 /// Kind of a GPU query.
@@ -65,7 +66,7 @@ pub enum QueryResult {
 /// Keep in mind that you should always re-use the queries instead of creating them on the fly!
 /// This is much more efficient, because it removes all redundant memory allocations and calls
 /// to the GPU driver.
-pub trait Query: Downcast + Debug {
+pub trait GpuQueryTrait: Downcast + Debug {
     /// Begins a query of the given kind. All drawing commands must be enclosed withing a pair of
     /// this method and [`Self::end`] calls. See [`QueryKind`] for more info.
     fn begin(&self, kind: QueryKind);
@@ -81,3 +82,5 @@ pub trait Query: Downcast + Debug {
     /// method are allowed.
     fn try_get_result(&self) -> Option<QueryResult>;
 }
+
+define_shared_wrapper!(GpuQuery<dyn GpuQueryTrait>);

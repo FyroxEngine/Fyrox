@@ -23,19 +23,21 @@
 //! Graphics server is an abstraction layer over various graphics APIs used on different platforms
 //! supported by the engine.
 
+use crate::geometry_buffer::GpuGeometryBuffer;
+use crate::gpu_program::GpuProgram;
+use crate::query::GpuQuery;
+use crate::read_buffer::GpuAsyncReadBuffer;
 use crate::{
-    buffer::{Buffer, BufferKind, BufferUsage},
+    buffer::{BufferKind, BufferUsage, GpuBuffer},
     core::Downcast,
     error::FrameworkError,
-    framebuffer::{Attachment, FrameBuffer},
-    geometry_buffer::{GeometryBuffer, GeometryBufferDescriptor},
-    gpu_program::{GpuProgram, ShaderResourceDefinition},
+    framebuffer::{Attachment, GpuFrameBuffer},
+    geometry_buffer::GeometryBufferDescriptor,
+    gpu_program::ShaderResourceDefinition,
     gpu_texture::{
         GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter, MinificationFilter,
         PixelKind, WrapMode,
     },
-    query::Query,
-    read_buffer::AsyncReadBuffer,
     stats::PipelineStatistics,
     PolygonFace, PolygonFillMode,
 };
@@ -70,13 +72,10 @@ pub trait GraphicsServer: Downcast {
         size: usize,
         buffer_kind: BufferKind,
         buffer_usage: BufferUsage,
-    ) -> Result<Box<dyn Buffer>, FrameworkError>;
+    ) -> Result<GpuBuffer, FrameworkError>;
 
     /// Creates a new GPU texture using the given descriptor.
-    fn create_texture(
-        &self,
-        desc: GpuTextureDescriptor,
-    ) -> Result<Rc<dyn GpuTexture>, FrameworkError>;
+    fn create_texture(&self, desc: GpuTextureDescriptor) -> Result<GpuTexture, FrameworkError>;
 
     /// Creates a new frame buffer using the given depth and color attachments. Depth attachment
     /// not exist, but there must be at least one color attachment of a format that supports rendering.
@@ -84,15 +83,15 @@ pub trait GraphicsServer: Downcast {
         &self,
         depth_attachment: Option<Attachment>,
         color_attachments: Vec<Attachment>,
-    ) -> Result<Box<dyn FrameBuffer>, FrameworkError>;
+    ) -> Result<GpuFrameBuffer, FrameworkError>;
 
     /// Creates a frame buffer that "connected" to the final image that will be displayed to the
     /// screen.
-    fn back_buffer(&self) -> Box<dyn FrameBuffer>;
+    fn back_buffer(&self) -> GpuFrameBuffer;
 
     /// Creates a new GPU query, that can perform asynchronous data fetching from GPU. Usually it
     /// is used to create occlusion queries.
-    fn create_query(&self) -> Result<Box<dyn Query>, FrameworkError>;
+    fn create_query(&self) -> Result<GpuQuery, FrameworkError>;
 
     /// Creates a new named GPU program using a pair of vertex and fragment shaders. The name could
     /// be used for debugging purposes.
@@ -101,7 +100,7 @@ pub trait GraphicsServer: Downcast {
         name: &str,
         vertex_source: &str,
         fragment_source: &str,
-    ) -> Result<Box<dyn GpuProgram>, FrameworkError>;
+    ) -> Result<GpuProgram, FrameworkError>;
 
     /// Almost the same as [`Self::create_program`], but accepts additional array of resource
     /// definitions. The implementation of graphics server will generate proper resource bindings
@@ -112,7 +111,7 @@ pub trait GraphicsServer: Downcast {
         vertex_source: &str,
         fragment_source: &str,
         properties: &[ShaderResourceDefinition],
-    ) -> Result<Box<dyn GpuProgram>, FrameworkError>;
+    ) -> Result<GpuProgram, FrameworkError>;
 
     /// Creates a new read-back buffer, that can be used to obtain texture data from GPU. It can be
     /// used to read rendering result from GPU to CPU memory and save the result to disk.
@@ -120,7 +119,7 @@ pub trait GraphicsServer: Downcast {
         &self,
         pixel_size: usize,
         pixel_count: usize,
-    ) -> Result<Box<dyn AsyncReadBuffer>, FrameworkError>;
+    ) -> Result<GpuAsyncReadBuffer, FrameworkError>;
 
     /// Creates a new geometry buffer, which consists of one or more vertex buffers and only one
     /// element buffer. Geometry buffer could be considered as a complex mesh storage allocated on
@@ -128,7 +127,7 @@ pub trait GraphicsServer: Downcast {
     fn create_geometry_buffer(
         &self,
         desc: GeometryBufferDescriptor,
-    ) -> Result<Box<dyn GeometryBuffer>, FrameworkError>;
+    ) -> Result<GpuGeometryBuffer, FrameworkError>;
 
     /// Creates a weak reference to the shared graphics server.
     fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer>;
@@ -170,7 +169,7 @@ pub trait GraphicsServer: Downcast {
         pixel_kind: PixelKind,
         width: usize,
         height: usize,
-    ) -> Result<Rc<dyn GpuTexture>, FrameworkError> {
+    ) -> Result<GpuTexture, FrameworkError> {
         self.create_texture(GpuTextureDescriptor {
             kind: GpuTextureKind::Rectangle { width, height },
             pixel_kind,

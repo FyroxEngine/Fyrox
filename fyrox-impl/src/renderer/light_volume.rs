@@ -32,9 +32,9 @@ use crate::{
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
-            geometry_buffer::GeometryBuffer,
-            gpu_program::{GpuProgram, UniformLocation},
+            framebuffer::{ResourceBindGroup, ResourceBinding},
+            geometry_buffer::GpuGeometryBufferTrait,
+            gpu_program::UniformLocation,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
@@ -45,10 +45,12 @@ use crate::{
     },
     scene::{graph::Graph, mesh::surface::SurfaceData},
 };
-use fyrox_graphics::framebuffer::BufferLocation;
+use fyrox_graphics::framebuffer::{BufferLocation, GpuFrameBuffer};
+use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
+use fyrox_graphics::gpu_program::GpuProgram;
 
 struct SpotLightShader {
-    program: Box<dyn GpuProgram>,
+    program: GpuProgram,
     depth_sampler: UniformLocation,
     uniform_block_binding: usize,
 }
@@ -69,7 +71,7 @@ impl SpotLightShader {
 }
 
 struct PointLightShader {
-    program: Box<dyn GpuProgram>,
+    program: GpuProgram,
     depth_sampler: UniformLocation,
     uniform_block_binding: usize,
 }
@@ -93,8 +95,8 @@ pub struct LightVolumeRenderer {
     spot_light_shader: SpotLightShader,
     point_light_shader: PointLightShader,
     flat_shader: FlatShader,
-    cone: Box<dyn GeometryBuffer>,
-    sphere: Box<dyn GeometryBuffer>,
+    cone: GpuGeometryBuffer,
+    sphere: GpuGeometryBuffer,
 }
 
 impl LightVolumeRenderer {
@@ -103,7 +105,7 @@ impl LightVolumeRenderer {
             spot_light_shader: SpotLightShader::new(server)?,
             point_light_shader: PointLightShader::new(server)?,
             flat_shader: FlatShader::new(server)?,
-            cone: <dyn GeometryBuffer>::from_surface_data(
+            cone: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_cone(
                     16,
                     1.0,
@@ -113,7 +115,7 @@ impl LightVolumeRenderer {
                 BufferUsage::StaticDraw,
                 server,
             )?,
-            sphere: <dyn GeometryBuffer>::from_surface_data(
+            sphere: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_sphere(8, 8, 1.0, &Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,
@@ -126,13 +128,13 @@ impl LightVolumeRenderer {
         &mut self,
         light: &LightSource,
         gbuffer: &mut GBuffer,
-        quad: &dyn GeometryBuffer,
+        quad: &dyn GpuGeometryBufferTrait,
         view: Matrix4<f32>,
         inv_proj: Matrix4<f32>,
         view_proj: Matrix4<f32>,
         viewport: Rect<i32>,
         graph: &Graph,
-        frame_buffer: &mut dyn FrameBuffer,
+        frame_buffer: &GpuFrameBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();

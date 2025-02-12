@@ -27,13 +27,14 @@ use crate::{
         visitor::prelude::*,
         Downcast,
     },
+    define_shared_wrapper,
     error::FrameworkError,
 };
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
-pub trait GpuProgram: Downcast {
+pub trait GpuProgramTrait: Downcast {
     fn uniform_location(&self, name: &ImmutableString) -> Result<UniformLocation, FrameworkError>;
     fn uniform_block_index(&self, name: &ImmutableString) -> Result<usize, FrameworkError>;
 }
@@ -288,3 +289,5 @@ impl ShaderResourceDefinition {
         self.name.starts_with("fyrox_")
     }
 }
+
+define_shared_wrapper!(GpuProgram<dyn GpuProgramTrait>);

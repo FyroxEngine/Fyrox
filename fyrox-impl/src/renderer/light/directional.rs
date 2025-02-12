@@ -21,14 +21,13 @@
 use crate::{
     core::sstorage::ImmutableString,
     renderer::framework::{
-        error::FrameworkError,
-        gpu_program::{GpuProgram, UniformLocation},
-        server::GraphicsServer,
+        error::FrameworkError, gpu_program::UniformLocation, server::GraphicsServer,
     },
 };
+use fyrox_graphics::gpu_program::GpuProgram;
 
 pub struct DirectionalLightShader {
-    pub program: Box<dyn GpuProgram>,
+    pub program: GpuProgram,
     pub depth_sampler: UniformLocation,
     pub color_sampler: UniformLocation,
     pub normal_sampler: UniformLocation,

@@ -19,17 +19,19 @@
 // SOFTWARE.
 
 use crate::{
-    buffer::{Buffer, BufferKind, BufferUsage},
+    buffer::{BufferKind, BufferUsage, GpuBufferTrait},
     core::{algebra::Vector2, math::Rect},
     error::FrameworkError,
-    framebuffer::FrameBuffer,
+    framebuffer::GpuFrameBufferTrait,
     gl::{buffer::GlBuffer, framebuffer::GlFrameBuffer, server::GlGraphicsServer, ToGlConstant},
     gpu_texture::{image_2d_size_bytes, GpuTextureKind},
-    read_buffer::AsyncReadBuffer,
+    read_buffer::GpuAsyncReadBufferTrait,
 };
 use glow::{HasContext, PixelPackData};
+use std::cell::Cell;
 use std::rc::Weak;
 
+#[derive(Copy, Clone)]
 struct ReadRequest {
     fence: glow::Fence,
 }
@@ -37,7 +39,7 @@ struct ReadRequest {
 pub struct GlAsyncReadBuffer {
     server: Weak<GlGraphicsServer>,
     buffer: GlBuffer,
-    request: Option<ReadRequest>,
+    request: Cell<Option<ReadRequest>>,
     pixel_count: usize,
     pixel_size: usize,
 }
@@ -58,21 +60,21 @@ impl GlAsyncReadBuffer {
         Ok(Self {
             server: server.weak(),
             buffer,
-            request: None,
+            request: Default::default(),
             pixel_count,
             pixel_size,
         })
     }
 }
 
-impl AsyncReadBuffer for GlAsyncReadBuffer {
+impl GpuAsyncReadBufferTrait for GlAsyncReadBuffer {
     fn schedule_pixels_transfer(
-        &mut self,
-        framebuffer: &dyn FrameBuffer,
+        &self,
+        framebuffer: &dyn GpuFrameBufferTrait,
         color_buffer_index: u32,
         rect: Option<Rect<i32>>,
     ) -> Result<(), FrameworkError> {
-        if self.request.is_some() {
+        if self.request.get().is_some() {
             return Ok(());
         }
 
@@ -158,25 +160,25 @@ impl AsyncReadBuffer for GlAsyncReadBuffer {
 
             server.gl.bind_buffer(buffer_gl_usage, None);
 
-            self.request = Some(ReadRequest {
+            self.request.set(Some(ReadRequest {
                 fence: server
                     .gl
                     .fence_sync(glow::SYNC_GPU_COMMANDS_COMPLETE, 0)
                     .unwrap(),
-            });
+            }));
 
             Ok(())
         }
     }
 
     fn is_request_running(&self) -> bool {
-        self.request.is_some()
+        self.request.get().is_some()
     }
 
-    fn try_read(&mut self) -> Option<Vec<u8>> {
+    fn try_read(&self) -> Option<Vec<u8>> {
         let server = self.server.upgrade()?;
 
-        let request = self.request.as_ref()?;
+        let request = self.request.get()?;
 
         let mut buffer = vec![0; self.pixel_count * self.pixel_size];
 
@@ -188,7 +190,8 @@ impl AsyncReadBuffer for GlAsyncReadBuffer {
                 self.buffer.read_data(&mut buffer).unwrap();
 
                 server.gl.delete_sync(request.fence);
-                self.request = None;
+
+                self.request.set(None);
 
                 Some(buffer)
             } else {

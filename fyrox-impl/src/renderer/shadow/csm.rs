@@ -35,8 +35,8 @@ use crate::{
         },
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
-            gpu_texture::{GpuTexture, PixelKind},
+            framebuffer::{Attachment, AttachmentKind},
+            gpu_texture::PixelKind,
             server::GraphicsServer,
         },
         FallbackResources, RenderPassStatistics, ShadowMapPrecision, DIRECTIONAL_SHADOW_PASS_NAME,
@@ -47,10 +47,11 @@ use crate::{
         light::directional::{FrustumSplitOptions, CSM_NUM_CASCADES},
     },
 };
-use std::rc::Rc;
+use fyrox_graphics::framebuffer::GpuFrameBuffer;
+use fyrox_graphics::gpu_texture::GpuTexture;
 
 pub struct Cascade {
-    pub frame_buffer: Box<dyn FrameBuffer>,
+    pub frame_buffer: GpuFrameBuffer,
     pub view_proj_matrix: Matrix4<f32>,
     pub z_far: f32,
 }
@@ -83,7 +84,7 @@ impl Cascade {
         })
     }
 
-    pub fn texture(&self) -> Rc<dyn GpuTexture> {
+    pub fn texture(&self) -> GpuTexture {
         self.frame_buffer
             .depth_attachment()
             .unwrap()
@@ -247,7 +248,7 @@ impl CsmRenderer {
             self.cascades[i].z_far = z_far;
 
             let viewport = Rect::new(0, 0, self.size as i32, self.size as i32);
-            let framebuffer = &mut *self.cascades[i].frame_buffer;
+            let framebuffer = &self.cascades[i].frame_buffer;
             framebuffer.clear(viewport, None, Some(1.0), None);
 
             let bundle_storage = RenderDataBundleStorage::from_graph(

@@ -19,11 +19,11 @@
 // SOFTWARE.
 
 use crate::{
-    buffer::{Buffer, BufferKind},
+    buffer::{BufferKind, GpuBufferTrait},
     core::{array_as_u8_slice, math::TriangleDefinition},
     error::FrameworkError,
     geometry_buffer::{
-        AttributeKind, ElementsDescriptor, GeometryBuffer, GeometryBufferDescriptor,
+        AttributeKind, ElementsDescriptor, GeometryBufferDescriptor, GpuGeometryBufferTrait,
     },
     gl::{buffer::GlBuffer, server::GlGraphicsServer, ToGlConstant},
     ElementKind,
@@ -145,7 +145,7 @@ impl GlGeometryBuffer {
     }
 }
 
-impl GeometryBuffer for GlGeometryBuffer {
+impl GpuGeometryBufferTrait for GlGeometryBuffer {
     fn set_buffer_data(&self, buffer: usize, data: &[u8]) {
         self.state
             .upgrade()

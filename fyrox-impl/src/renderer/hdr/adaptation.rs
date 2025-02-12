@@ -21,19 +21,15 @@
 use crate::{
     core::sstorage::ImmutableString,
     renderer::{
-        framework::{
-            error::FrameworkError,
-            gpu_program::{GpuProgram, UniformLocation},
-            gpu_texture::GpuTexture,
-            server::GraphicsServer,
-        },
+        framework::{error::FrameworkError, gpu_program::UniformLocation, server::GraphicsServer},
         hdr::LumBuffer,
     },
 };
-use std::rc::Rc;
+use fyrox_graphics::gpu_program::GpuProgram;
+use fyrox_graphics::gpu_texture::GpuTexture;
 
 pub struct AdaptationShader {
-    pub program: Box<dyn GpuProgram>,
+    pub program: GpuProgram,
     pub old_lum_sampler: UniformLocation,
     pub new_lum_sampler: UniformLocation,
     pub uniform_buffer_binding: usize,
@@ -62,7 +58,7 @@ pub struct AdaptationChain {
 }
 
 pub struct AdaptationContext<'a> {
-    pub prev_lum: Rc<dyn GpuTexture>,
+    pub prev_lum: GpuTexture,
     pub lum_buffer: &'a mut LumBuffer,
 }
 
@@ -96,7 +92,7 @@ impl AdaptationChain {
         out
     }
 
-    pub fn avg_lum_texture(&self) -> Rc<dyn GpuTexture> {
+    pub fn avg_lum_texture(&self) -> GpuTexture {
         if self.swap {
             self.lum_framebuffers[0].framebuffer.color_attachments()[0]
                 .texture

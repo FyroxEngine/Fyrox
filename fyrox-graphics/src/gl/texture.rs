@@ -24,8 +24,8 @@ use crate::{
     gl::{server::GlGraphicsServer, ToGlConstant},
     gpu_texture::{
         image_1d_size_bytes, image_2d_size_bytes, image_3d_size_bytes, Coordinate, CubeMapFace,
-        GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter, MinificationFilter,
-        PixelKind, WrapMode,
+        GpuTextureDescriptor, GpuTextureKind, GpuTextureTrait, MagnificationFilter,
+        MinificationFilter, PixelKind, WrapMode,
     },
 };
 use glow::{HasContext, PixelPackData, PixelUnpackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
@@ -456,7 +456,7 @@ impl Drop for GlTexture {
     }
 }
 
-impl GpuTexture for GlTexture {
+impl GpuTextureTrait for GlTexture {
     fn set_anisotropy(&self, anisotropy: f32) {
         self.make_temp_binding().set_anisotropy(anisotropy);
         self.anisotropy.set(anisotropy);

@@ -23,15 +23,14 @@ use crate::{
     material::shader::{Shader, ShaderResource},
     renderer::{
         cache::TemporaryCache,
-        framework::{
-            error::FrameworkError, gpu_program::GpuProgram, server::GraphicsServer, DrawParameters,
-        },
+        framework::{error::FrameworkError, server::GraphicsServer, DrawParameters},
     },
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::gpu_program::GpuProgram;
 
 pub struct RenderPassData {
-    pub program: Box<dyn GpuProgram>,
+    pub program: GpuProgram,
     pub draw_params: DrawParameters,
 }
 

@@ -35,12 +35,11 @@ use crate::{
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
+            framebuffer::{ResourceBindGroup, ResourceBinding},
             geometry_buffer::{
-                AttributeDefinition, AttributeKind, GeometryBuffer, GeometryBufferDescriptor,
-                VertexBufferData, VertexBufferDescriptor,
+                AttributeDefinition, AttributeKind, GeometryBufferDescriptor, VertexBufferData,
+                VertexBufferDescriptor,
             },
-            gpu_program::GpuProgram,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             CompareFunc, DrawParameters, ElementRange,
@@ -50,6 +49,9 @@ use crate::{
     scene::debug::Line,
 };
 use bytemuck::{Pod, Zeroable};
+use fyrox_graphics::framebuffer::GpuFrameBuffer;
+use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
+use fyrox_graphics::gpu_program::GpuProgram;
 use fyrox_graphics::{framebuffer::BufferLocation, geometry_buffer::ElementsDescriptor};
 
 #[repr(C)]
@@ -61,14 +63,14 @@ struct Vertex {
 
 /// See module docs.
 pub struct DebugRenderer {
-    geometry: Box<dyn GeometryBuffer>,
+    geometry: GpuGeometryBuffer,
     vertices: Vec<Vertex>,
     line_indices: Vec<[u32; 2]>,
     shader: DebugShader,
 }
 
 pub(crate) struct DebugShader {
-    program: Box<dyn GpuProgram>,
+    program: GpuProgram,
     pub uniform_buffer_binding: usize,
 }
 
@@ -163,7 +165,7 @@ impl DebugRenderer {
         &mut self,
         uniform_buffer_cache: &mut UniformBufferCache,
         viewport: Rect<i32>,
-        framebuffer: &mut dyn FrameBuffer,
+        framebuffer: &GpuFrameBuffer,
         view_projection: Matrix4<f32>,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();

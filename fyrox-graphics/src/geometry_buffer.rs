@@ -26,7 +26,7 @@
 use crate::{
     buffer::BufferUsage,
     core::{array_as_u8_slice, math::TriangleDefinition, Downcast},
-    ElementKind,
+    define_shared_wrapper, ElementKind,
 };
 use bytemuck::Pod;
 use std::mem::size_of;
@@ -148,7 +148,7 @@ pub struct GeometryBufferDescriptor<'a> {
 ///     core::{algebra::Vector3, math::TriangleDefinition},
 ///     error::FrameworkError,
 ///     geometry_buffer::{
-///         AttributeDefinition, AttributeKind, ElementsDescriptor, GeometryBuffer,
+///         AttributeDefinition, AttributeKind, ElementsDescriptor, GpuGeometryBuffer,
 ///         GeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
 ///     },
 ///     server::GraphicsServer,
@@ -165,7 +165,7 @@ pub struct GeometryBufferDescriptor<'a> {
 ///
 /// fn create_geometry_buffer(
 ///     server: &dyn GraphicsServer,
-/// ) -> Result<Box<dyn GeometryBuffer>, FrameworkError> {
+/// ) -> Result<GpuGeometryBuffer, FrameworkError> {
 ///     let vertices = [
 ///         Vertex {
 ///             position: Vector3::new(0.0, 0.0, 0.0),
@@ -197,7 +197,7 @@ pub struct GeometryBufferDescriptor<'a> {
 ///     })
 /// }
 /// ```
-pub trait GeometryBuffer: Downcast {
+pub trait GpuGeometryBufferTrait: Downcast {
     /// Write untyped data to a vertex buffer with the given index.
     fn set_buffer_data(&self, buffer: usize, data: &[u8]);
 
@@ -215,10 +215,12 @@ pub trait GeometryBuffer: Downcast {
     fn set_points(&self, points: &[u32]);
 }
 
-impl dyn GeometryBuffer {
+impl dyn GpuGeometryBufferTrait {
     /// Writes a typed data to a vertex buffer with the given index. Underlying type must implement
     /// [`Pod`] trait!
-    pub fn set_buffer_data_of_type<T: Pod>(&mut self, buffer: usize, data: &[T]) {
+    pub fn set_buffer_data_of_type<T: Pod>(&self, buffer: usize, data: &[T]) {
         self.set_buffer_data(buffer, array_as_u8_slice(data))
     }
 }
+
+define_shared_wrapper!(GpuGeometryBuffer<dyn GpuGeometryBufferTrait>);

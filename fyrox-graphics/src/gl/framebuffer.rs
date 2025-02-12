@@ -20,20 +20,20 @@
 
 use crate::framebuffer::DrawCallStatistics;
 use crate::{
-    buffer::{Buffer, BufferKind},
+    buffer::{BufferKind, GpuBufferTrait},
     core::{color::Color, math::Rect},
     error::FrameworkError,
     framebuffer::{
-        Attachment, AttachmentKind, BufferDataUsage, BufferLocation, FrameBuffer,
+        Attachment, AttachmentKind, BufferDataUsage, BufferLocation, GpuFrameBufferTrait,
         ResourceBindGroup, ResourceBinding, TextureShaderLocation,
     },
-    geometry_buffer::GeometryBuffer,
+    geometry_buffer::GpuGeometryBufferTrait,
     gl::{
         buffer::GlBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram,
         server::GlGraphicsServer, texture::GlTexture, ToGlConstant,
     },
-    gpu_program::GpuProgram,
-    gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
+    gpu_program::GpuProgramTrait,
+    gpu_texture::{CubeMapFace, GpuTextureKind, GpuTextureTrait, PixelElementKind},
     ColorMask, DrawParameters, ElementRange,
 };
 use glow::HasContext;
@@ -163,7 +163,7 @@ impl GlFrameBuffer {
     }
 }
 
-impl FrameBuffer for GlFrameBuffer {
+impl GpuFrameBufferTrait for GlFrameBuffer {
     fn color_attachments(&self) -> &[Attachment] {
         &self.color_attachments
     }
@@ -172,7 +172,7 @@ impl FrameBuffer for GlFrameBuffer {
         self.depth_attachment.as_ref()
     }
 
-    fn set_cubemap_face(&mut self, attachment_index: usize, face: CubeMapFace) {
+    fn set_cubemap_face(&self, attachment_index: usize, face: CubeMapFace) {
         let server = self.state.upgrade().unwrap();
 
         unsafe {
@@ -196,7 +196,7 @@ impl FrameBuffer for GlFrameBuffer {
 
     fn blit_to(
         &self,
-        dest: &dyn FrameBuffer,
+        dest: &dyn GpuFrameBufferTrait,
         src_x0: i32,
         src_y0: i32,
         src_x1: i32,
@@ -248,7 +248,7 @@ impl FrameBuffer for GlFrameBuffer {
     }
 
     fn clear(
-        &mut self,
+        &self,
         viewport: Rect<i32>,
         color: Option<Color>,
         depth: Option<f32>,
@@ -363,10 +363,10 @@ impl FrameBuffer for GlFrameBuffer {
     }
 
     fn draw(
-        &mut self,
-        geometry: &dyn GeometryBuffer,
+        &self,
+        geometry: &dyn GpuGeometryBufferTrait,
         viewport: Rect<i32>,
-        program: &dyn GpuProgram,
+        program: &dyn GpuProgramTrait,
         params: &DrawParameters,
         resources: &[ResourceBindGroup],
         element_range: ElementRange,
@@ -416,11 +416,11 @@ impl FrameBuffer for GlFrameBuffer {
     }
 
     fn draw_instances(
-        &mut self,
+        &self,
         count: usize,
-        geometry: &dyn GeometryBuffer,
+        geometry: &dyn GpuGeometryBufferTrait,
         viewport: Rect<i32>,
-        program: &dyn GpuProgram,
+        program: &dyn GpuProgramTrait,
         params: &DrawParameters,
         resources: &[ResourceBindGroup],
     ) -> DrawCallStatistics {
@@ -457,7 +457,7 @@ fn pre_draw(
     fbo: Option<glow::Framebuffer>,
     server: &GlGraphicsServer,
     viewport: Rect<i32>,
-    program: &dyn GpuProgram,
+    program: &dyn GpuProgramTrait,
     params: &DrawParameters,
     resources: &[ResourceBindGroup],
 ) {

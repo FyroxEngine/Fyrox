@@ -25,18 +25,25 @@ use crate::{
     graph::BaseSceneGraph,
     renderer::framework::{
         error::FrameworkError,
-        query::{Query, QueryKind, QueryResult},
+        query::{QueryKind, QueryResult},
         server::GraphicsServer,
     },
     scene::{graph::Graph, node::Node},
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::query::GpuQuery;
+use std::fmt::{Debug, Formatter};
 
-#[derive(Debug)]
 struct PendingQuery {
-    query: Box<dyn Query>,
+    query: GpuQuery,
     observer_position: Vector3<f32>,
     node: Handle<Node>,
+}
+
+impl Debug for PendingQuery {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "pos: {}, node: {}", self.observer_position, self.node)
+    }
 }
 
 #[derive(Debug)]

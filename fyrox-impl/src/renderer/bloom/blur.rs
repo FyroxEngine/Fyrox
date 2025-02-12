@@ -25,12 +25,11 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
-                ResourceBinding,
+                Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
             },
-            geometry_buffer::GeometryBuffer,
-            gpu_program::{GpuProgram, UniformLocation},
-            gpu_texture::{GpuTexture, PixelKind},
+            geometry_buffer::GpuGeometryBufferTrait,
+            gpu_program::UniformLocation,
+            gpu_texture::PixelKind,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             DrawParameters, ElementRange,
@@ -38,10 +37,12 @@ use crate::{
         make_viewport_matrix, RenderPassStatistics,
     },
 };
-use std::rc::Rc;
+use fyrox_graphics::framebuffer::GpuFrameBuffer;
+use fyrox_graphics::gpu_program::GpuProgram;
+use fyrox_graphics::gpu_texture::GpuTexture;
 
 struct Shader {
-    program: Box<dyn GpuProgram>,
+    program: GpuProgram,
     image: UniformLocation,
     uniform_block_binding: usize,
 }
@@ -64,8 +65,8 @@ impl Shader {
 
 pub struct GaussianBlur {
     shader: Shader,
-    h_framebuffer: Box<dyn FrameBuffer>,
-    v_framebuffer: Box<dyn FrameBuffer>,
+    h_framebuffer: GpuFrameBuffer,
+    v_framebuffer: GpuFrameBuffer,
     width: usize,
     height: usize,
 }
@@ -75,7 +76,7 @@ fn create_framebuffer(
     width: usize,
     height: usize,
     pixel_kind: PixelKind,
-) -> Result<Box<dyn FrameBuffer>, FrameworkError> {
+) -> Result<GpuFrameBuffer, FrameworkError> {
     let frame = server.create_2d_render_target(pixel_kind, width, height)?;
 
     server.create_frame_buffer(
@@ -103,18 +104,18 @@ impl GaussianBlur {
         })
     }
 
-    fn h_blurred(&self) -> Rc<dyn GpuTexture> {
+    fn h_blurred(&self) -> GpuTexture {
         self.h_framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn result(&self) -> Rc<dyn GpuTexture> {
+    pub fn result(&self) -> GpuTexture {
         self.v_framebuffer.color_attachments()[0].texture.clone()
     }
 
     pub(crate) fn render(
         &mut self,
-        quad: &dyn GeometryBuffer,
-        input: Rc<dyn GpuTexture>,
+        quad: &dyn GpuGeometryBufferTrait,
+        input: GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();

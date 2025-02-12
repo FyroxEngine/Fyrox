@@ -38,12 +38,12 @@ use crate::{
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
+            framebuffer::{ResourceBindGroup, ResourceBinding},
             geometry_buffer::{
-                AttributeDefinition, AttributeKind, GeometryBuffer, GeometryBufferDescriptor,
-                VertexBufferData, VertexBufferDescriptor,
+                AttributeDefinition, AttributeKind, GeometryBufferDescriptor, VertexBufferData,
+                VertexBufferDescriptor,
             },
-            gpu_program::{GpuProgram, UniformLocation},
+            gpu_program::UniformLocation,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
@@ -53,10 +53,13 @@ use crate::{
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
+use fyrox_graphics::framebuffer::GpuFrameBuffer;
+use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
+use fyrox_graphics::gpu_program::GpuProgram;
 use fyrox_graphics::{framebuffer::BufferLocation, geometry_buffer::ElementsDescriptor};
 
 struct UiShader {
-    program: Box<dyn GpuProgram>,
+    program: GpuProgram,
     diffuse_texture: UniformLocation,
     uniform_block_index: usize,
 }
@@ -77,8 +80,8 @@ impl UiShader {
 /// User interface renderer allows you to render drawing context in specified render target.
 pub struct UiRenderer {
     shader: UiShader,
-    geometry_buffer: Box<dyn GeometryBuffer>,
-    clipping_geometry_buffer: Box<dyn GeometryBuffer>,
+    geometry_buffer: GpuGeometryBuffer,
+    clipping_geometry_buffer: GpuGeometryBuffer,
 }
 
 /// A set of parameters to render a specified user interface drawing context.
@@ -88,7 +91,7 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     /// Viewport to where render the user interface.
     pub viewport: Rect<i32>,
     /// Frame buffer to where render the user interface.
-    pub frame_buffer: &'b mut dyn FrameBuffer,
+    pub frame_buffer: &'b GpuFrameBuffer,
     /// Width of the frame buffer to where render the user interface.
     pub frame_width: f32,
     /// Height of the frame buffer to where render the user interface.

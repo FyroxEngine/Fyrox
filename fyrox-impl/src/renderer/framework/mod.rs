@@ -25,32 +25,32 @@ use crate::{
         buffer::BufferUsage,
         error::FrameworkError,
         geometry_buffer::{
-            AttributeDefinition, AttributeKind, GeometryBuffer, GeometryBufferDescriptor,
-            VertexBufferData, VertexBufferDescriptor,
+            AttributeDefinition, AttributeKind, GeometryBufferDescriptor, VertexBufferData,
+            VertexBufferDescriptor,
         },
         server::GraphicsServer,
     },
     scene::mesh::{buffer::VertexAttributeDataType, surface::SurfaceData},
 };
-use fyrox_graphics::geometry_buffer::ElementsDescriptor;
+use fyrox_graphics::geometry_buffer::{ElementsDescriptor, GpuGeometryBuffer};
 pub use fyrox_graphics::*;
 
-/// Extension trait for [`GeometryBuffer`].
+/// Extension trait for [`GpuGeometryBufferTrait`].
 pub trait GeometryBufferExt {
-    /// Creates [`GeometryBuffer`] from [`SurfaceData`].
+    /// Creates [`GpuGeometryBufferTrait`] from [`SurfaceData`].
     fn from_surface_data(
         data: &SurfaceData,
         usage: BufferUsage,
         server: &dyn GraphicsServer,
-    ) -> Result<Box<dyn GeometryBuffer>, FrameworkError>;
+    ) -> Result<GpuGeometryBuffer, FrameworkError>;
 }
 
-impl GeometryBufferExt for dyn GeometryBuffer {
+impl GeometryBufferExt for GpuGeometryBuffer {
     fn from_surface_data(
         data: &SurfaceData,
         usage: BufferUsage,
         server: &dyn GraphicsServer,
-    ) -> Result<Box<dyn GeometryBuffer>, FrameworkError> {
+    ) -> Result<GpuGeometryBuffer, FrameworkError> {
         let attributes = data
             .vertex_buffer
             .layout()

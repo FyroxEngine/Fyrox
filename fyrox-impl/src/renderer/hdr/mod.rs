@@ -30,11 +30,10 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
-                ResourceBinding,
+                Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
             },
-            geometry_buffer::GeometryBuffer,
-            gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+            geometry_buffer::GpuGeometryBufferTrait,
+            gpu_texture::{GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             DrawParameters, ElementRange,
@@ -49,8 +48,8 @@ use crate::{
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
-use fyrox_graphics::framebuffer::DrawCallStatistics;
-use std::rc::Rc;
+use fyrox_graphics::framebuffer::{DrawCallStatistics, GpuFrameBuffer};
+use fyrox_graphics::gpu_texture::GpuTexture;
 
 mod adaptation;
 mod downscale;
@@ -64,7 +63,7 @@ pub enum LuminanceCalculationMethod {
 }
 
 pub struct LumBuffer {
-    framebuffer: Box<dyn FrameBuffer>,
+    framebuffer: GpuFrameBuffer,
     size: usize,
 }
 
@@ -96,7 +95,7 @@ impl LumBuffer {
         make_viewport_matrix(Rect::new(0, 0, self.size as i32, self.size as i32))
     }
 
-    fn texture(&self) -> Rc<dyn GpuTexture> {
+    fn texture(&self) -> GpuTexture {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 }
@@ -109,7 +108,7 @@ pub struct HighDynamicRangeRenderer {
     luminance_shader: LuminanceShader,
     downscale_shader: DownscaleShader,
     map_shader: MapShader,
-    stub_lut: Rc<dyn GpuTexture>,
+    stub_lut: GpuTexture,
     lum_calculation_method: LuminanceCalculationMethod,
 }
 
@@ -146,8 +145,8 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_frame_luminance(
         &mut self,
-        scene_frame: Rc<dyn GpuTexture>,
-        quad: &dyn GeometryBuffer,
+        scene_frame: GpuTexture,
+        quad: &dyn GpuGeometryBufferTrait,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         self.frame_luminance.clear();
@@ -196,7 +195,7 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_avg_frame_luminance(
         &mut self,
-        quad: &dyn GeometryBuffer,
+        quad: &dyn GpuGeometryBufferTrait,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
@@ -296,7 +295,7 @@ impl HighDynamicRangeRenderer {
 
     fn adaptation(
         &mut self,
-        quad: &dyn GeometryBuffer,
+        quad: &dyn GpuGeometryBufferTrait,
         dt: f32,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
@@ -346,11 +345,11 @@ impl HighDynamicRangeRenderer {
     fn map_hdr_to_ldr(
         &mut self,
         server: &dyn GraphicsServer,
-        hdr_scene_frame: Rc<dyn GpuTexture>,
-        bloom_texture: Rc<dyn GpuTexture>,
-        ldr_framebuffer: &mut dyn FrameBuffer,
+        hdr_scene_frame: GpuTexture,
+        bloom_texture: GpuTexture,
+        ldr_framebuffer: &GpuFrameBuffer,
         viewport: Rect<i32>,
-        quad: &dyn GeometryBuffer,
+        quad: &dyn GpuGeometryBufferTrait,
         exposure: Exposure,
         color_grading_lut: Option<&ColorGradingLut>,
         use_color_grading: bool,
@@ -423,11 +422,11 @@ impl HighDynamicRangeRenderer {
     pub fn render(
         &mut self,
         server: &dyn GraphicsServer,
-        hdr_scene_frame: Rc<dyn GpuTexture>,
-        bloom_texture: Rc<dyn GpuTexture>,
-        ldr_framebuffer: &mut dyn FrameBuffer,
+        hdr_scene_frame: GpuTexture,
+        bloom_texture: GpuTexture,
+        ldr_framebuffer: &GpuFrameBuffer,
         viewport: Rect<i32>,
-        quad: &dyn GeometryBuffer,
+        quad: &dyn GpuGeometryBufferTrait,
         dt: f32,
         exposure: Exposure,
         color_grading_lut: Option<&ColorGradingLut>,

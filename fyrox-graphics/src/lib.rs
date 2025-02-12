@@ -40,6 +40,23 @@ pub mod server;
 pub mod stats;
 pub mod uniform;
 
+#[macro_export]
+macro_rules! define_shared_wrapper {
+    ($name:ident<$ty:ty>) => {
+        #[derive(Clone)]
+        #[doc(hidden)]
+        pub struct $name(pub std::rc::Rc<$ty>);
+
+        impl std::ops::Deref for $name {
+            type Target = $ty;
+
+            fn deref(&self) -> &Self::Target {
+                self.0.deref()
+            }
+        }
+    };
+}
+
 /// A set of possible polygon filling modes.
 #[derive(
     Copy,

@@ -26,8 +26,8 @@ use crate::{
     error::FrameworkError,
     gl::server::{GlGraphicsServer, GlKind},
     gpu_program::{
-        GpuProgram, SamplerKind, ShaderPropertyKind, ShaderResourceDefinition, ShaderResourceKind,
-        UniformLocation,
+        GpuProgramTrait, SamplerKind, ShaderPropertyKind, ShaderResourceDefinition,
+        ShaderResourceKind, UniformLocation,
     },
 };
 use fxhash::FxHashMap;
@@ -417,7 +417,7 @@ struct TempBinding {
     server: Rc<GlGraphicsServer>,
 }
 
-impl GpuProgram for GlProgram {
+impl GpuProgramTrait for GlProgram {
     fn uniform_location(&self, name: &ImmutableString) -> Result<UniformLocation, FrameworkError> {
         self.uniform_location_internal(name)
             .ok_or_else(|| FrameworkError::UnableToFindShaderUniform(name.deref().to_owned()))

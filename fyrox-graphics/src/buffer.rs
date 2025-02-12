@@ -21,6 +21,7 @@
 //! Buffer is a type-agnostic data storage located directly in GPU memory. It could be considered
 //! as a data block which content is a pile of bytes, whose meaning is defined externally.
 
+use crate::define_shared_wrapper;
 use crate::error::FrameworkError;
 use bytemuck::Pod;
 use fyrox_core::{array_as_u8_slice, array_as_u8_slice_mut, Downcast};
@@ -97,14 +98,14 @@ pub enum BufferUsage {
 ///
 /// ```rust
 /// use fyrox_graphics::{
-///     buffer::{Buffer, BufferKind, BufferUsage},
+///     buffer::{GpuBuffer, BufferKind, BufferUsage},
 ///     core::{algebra::Vector3, color::Color},
 ///     error::FrameworkError,
 ///     server::GraphicsServer,
 ///     uniform::DynamicUniformBuffer,
 /// };
 ///
-/// fn create_buffer(server: &dyn GraphicsServer) -> Result<Box<dyn Buffer>, FrameworkError> {
+/// fn create_buffer(server: &dyn GraphicsServer) -> Result<GpuBuffer, FrameworkError> {
 ///     let uniforms = DynamicUniformBuffer::new()
 ///         .with(&Vector3::new(1.0, 2.0, 3.0))
 ///         .with(&Color::WHITE)
@@ -119,7 +120,7 @@ pub enum BufferUsage {
 ///     Ok(buffer)
 /// }
 /// ```
-pub trait Buffer: Downcast {
+pub trait GpuBufferTrait: Downcast {
     /// Returns usage kind of the buffer.
     fn usage(&self) -> BufferUsage;
     /// Returns buffer kind.
@@ -134,12 +135,12 @@ pub trait Buffer: Downcast {
     fn read_data(&self, data: &mut [u8]) -> Result<(), FrameworkError>;
 }
 
-impl dyn Buffer {
+impl dyn GpuBufferTrait {
     /// Tries to write typed data to the buffer. The data type must implement [`Pod`] trait for
     /// safe usage.
     pub fn write_data_of_type<T: Pod>(&self, data: &[T]) -> Result<(), FrameworkError> {
         let data = array_as_u8_slice(data);
-        Buffer::write_data(self, data)
+        GpuBufferTrait::write_data(self, data)
     }
 
     /// Tries to read data from the buffer and convert them to the given type. The data type must
@@ -147,6 +148,8 @@ impl dyn Buffer {
     /// read is defined by the length of the given slice.
     pub fn read_data_of_type<T: Pod>(&self, data: &mut [T]) -> Result<(), FrameworkError> {
         let data = array_as_u8_slice_mut(data);
-        Buffer::read_data(self, data)
+        GpuBufferTrait::read_data(self, data)
     }
 }
+
+define_shared_wrapper!(GpuBuffer<dyn GpuBufferTrait>);

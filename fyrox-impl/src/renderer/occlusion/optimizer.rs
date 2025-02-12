@@ -25,13 +25,11 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
-                ResourceBinding,
+                Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
             },
-            geometry_buffer::GeometryBuffer,
-            gpu_program::{GpuProgram, UniformLocation},
-            gpu_texture::{GpuTexture, PixelKind},
-            read_buffer::AsyncReadBuffer,
+            geometry_buffer::GpuGeometryBufferTrait,
+            gpu_program::UniformLocation,
+            gpu_texture::PixelKind,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             ColorMask, DrawParameters, ElementRange,
@@ -39,10 +37,13 @@ use crate::{
         make_viewport_matrix,
     },
 };
-use std::rc::Rc;
+use fyrox_graphics::framebuffer::GpuFrameBuffer;
+use fyrox_graphics::gpu_program::GpuProgram;
+use fyrox_graphics::gpu_texture::GpuTexture;
+use fyrox_graphics::read_buffer::GpuAsyncReadBuffer;
 
 struct VisibilityOptimizerShader {
-    program: Box<dyn GpuProgram>,
+    program: GpuProgram,
     uniform_buffer_binding: usize,
     visibility_buffer: UniformLocation,
 }
@@ -64,8 +65,8 @@ impl VisibilityOptimizerShader {
 }
 
 pub struct VisibilityBufferOptimizer {
-    framebuffer: Box<dyn FrameBuffer>,
-    pixel_buffer: Box<dyn AsyncReadBuffer>,
+    framebuffer: GpuFrameBuffer,
+    pixel_buffer: GpuAsyncReadBuffer,
     shader: VisibilityOptimizerShader,
     w_tiles: usize,
     h_tiles: usize,
@@ -105,8 +106,8 @@ impl VisibilityBufferOptimizer {
 
     pub fn optimize(
         &mut self,
-        visibility_buffer: &Rc<dyn GpuTexture>,
-        unit_quad: &dyn GeometryBuffer,
+        visibility_buffer: &GpuTexture,
+        unit_quad: &dyn GpuGeometryBufferTrait,
         tile_size: i32,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<(), FrameworkError> {

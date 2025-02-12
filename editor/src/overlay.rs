@@ -26,8 +26,7 @@ use crate::{
                 buffer::BufferUsage,
                 error::FrameworkError,
                 framebuffer::{ResourceBindGroup, ResourceBinding},
-                geometry_buffer::GeometryBuffer,
-                gpu_program::{GpuProgram, UniformLocation},
+                gpu_program::UniformLocation,
                 server::GraphicsServer,
                 uniform::StaticUniformBuffer,
                 BlendFactor, BlendFunc, BlendParameters, CompareFunc, DrawParameters, ElementRange,
@@ -44,10 +43,12 @@ use crate::{
     Editor,
 };
 use fyrox::renderer::framework::framebuffer::BufferLocation;
+use fyrox::renderer::framework::geometry_buffer::GpuGeometryBuffer;
+use fyrox::renderer::framework::gpu_program::GpuProgram;
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct OverlayShader {
-    program: Box<dyn GpuProgram>,
+    program: GpuProgram,
     diffuse_texture: UniformLocation,
     uniform_buffer_binding: usize,
 }
@@ -67,7 +68,7 @@ impl OverlayShader {
 }
 
 pub struct OverlayRenderPass {
-    quad: Box<dyn GeometryBuffer>,
+    quad: GpuGeometryBuffer,
     shader: OverlayShader,
     sound_icon: TextureResource,
     light_icon: TextureResource,
@@ -77,7 +78,7 @@ pub struct OverlayRenderPass {
 impl OverlayRenderPass {
     pub fn new(server: &dyn GraphicsServer) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
-            quad: <dyn GeometryBuffer>::from_surface_data(
+            quad: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_collapsed_xy_quad(),
                 BufferUsage::StaticDraw,
                 server,

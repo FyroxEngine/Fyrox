@@ -26,10 +26,8 @@ use crate::{
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{BufferLocation, FrameBuffer, ResourceBindGroup, ResourceBinding},
-            geometry_buffer::GeometryBuffer,
-            gpu_program::{GpuProgram, UniformLocation},
-            gpu_texture::GpuTexture,
+            framebuffer::{BufferLocation, ResourceBindGroup, ResourceBinding},
+            gpu_program::UniformLocation,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             DrawParameters, ElementRange, GeometryBufferExt,
@@ -38,10 +36,13 @@ use crate::{
     },
     scene::mesh::surface::SurfaceData,
 };
-use std::rc::Rc;
+use fyrox_graphics::framebuffer::GpuFrameBuffer;
+use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
+use fyrox_graphics::gpu_program::GpuProgram;
+use fyrox_graphics::gpu_texture::GpuTexture;
 
 struct FxaaShader {
-    pub program: Box<dyn GpuProgram>,
+    pub program: GpuProgram,
     pub uniform_buffer_binding: usize,
     pub screen_texture: UniformLocation,
 }
@@ -63,14 +64,14 @@ impl FxaaShader {
 
 pub struct FxaaRenderer {
     shader: FxaaShader,
-    quad: Box<dyn GeometryBuffer>,
+    quad: GpuGeometryBuffer,
 }
 
 impl FxaaRenderer {
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
             shader: FxaaShader::new(server)?,
-            quad: <dyn GeometryBuffer>::from_surface_data(
+            quad: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
                 server,
@@ -81,8 +82,8 @@ impl FxaaRenderer {
     pub(crate) fn render(
         &self,
         viewport: Rect<i32>,
-        frame_texture: Rc<dyn GpuTexture>,
-        frame_buffer: &mut dyn FrameBuffer,
+        frame_texture: GpuTexture,
+        frame_buffer: &GpuFrameBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();

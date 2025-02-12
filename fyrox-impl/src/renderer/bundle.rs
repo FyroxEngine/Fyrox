@@ -48,9 +48,8 @@ use crate::{
         },
         framework::{
             error::FrameworkError,
-            framebuffer::{BufferLocation, FrameBuffer, ResourceBindGroup, ResourceBinding},
+            framebuffer::{BufferLocation, ResourceBindGroup, ResourceBinding},
             gpu_program::{ShaderProperty, ShaderPropertyKind, ShaderResourceKind},
-            gpu_texture::GpuTexture,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             uniform::{ByteStorage, UniformBuffer},
@@ -81,10 +80,11 @@ use crate::{
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use fyrox_core::math::Matrix4Ext;
 use fyrox_graph::{SceneGraph, SceneGraphNode};
+use fyrox_graphics::framebuffer::GpuFrameBuffer;
+use fyrox_graphics::gpu_texture::GpuTexture;
 use std::{
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
-    rc::Rc,
 };
 
 /// Observer info contains all the data, that describes an observer. It could be a real camera, light source's
@@ -144,7 +144,7 @@ impl RenderContext<'_> {
 pub struct BundleRenderContext<'a> {
     pub texture_cache: &'a mut TextureCache,
     pub render_pass_name: &'a ImmutableString,
-    pub frame_buffer: &'a mut dyn FrameBuffer,
+    pub frame_buffer: &'a GpuFrameBuffer,
     pub viewport: Rect<i32>,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 
@@ -154,7 +154,7 @@ pub struct BundleRenderContext<'a> {
     pub ambient_light: Color,
     // TODO: Add depth pre-pass to remove Option here. Current architecture allows only forward
     // renderer to have access to depth buffer that is available from G-Buffer.
-    pub scene_depth: Option<&'a Rc<dyn GpuTexture>>,
+    pub scene_depth: Option<&'a GpuTexture>,
     pub fallback_resources: &'a FallbackResources,
 }
 

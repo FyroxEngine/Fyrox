@@ -21,7 +21,7 @@
 use crate::gl::server::GlGraphicsServer;
 use crate::gl::ToGlConstant;
 use crate::{
-    buffer::{Buffer, BufferKind, BufferUsage},
+    buffer::{BufferKind, BufferUsage, GpuBufferTrait},
     error::FrameworkError,
 };
 use glow::HasContext;
@@ -102,7 +102,7 @@ impl Drop for GlBuffer {
     }
 }
 
-impl Buffer for GlBuffer {
+impl GpuBufferTrait for GlBuffer {
     fn usage(&self) -> BufferUsage {
         self.usage
     }

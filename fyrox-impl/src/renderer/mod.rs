@@ -80,15 +80,14 @@ use crate::{
         flat_shader::FlatShader,
         forward_renderer::{ForwardRenderContext, ForwardRenderer},
         framework::{
-            buffer::{Buffer, BufferKind, BufferUsage},
+            buffer::{BufferKind, BufferUsage},
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
-                ResourceBinding,
+                Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
             },
-            geometry_buffer::GeometryBuffer,
+            geometry_buffer::GpuGeometryBufferTrait,
             gpu_program::SamplerFallback,
-            gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+            gpu_texture::{GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::{GraphicsServer, SharedGraphicsServer},
             uniform::StaticUniformBuffer,
             DrawParameters, ElementRange, GeometryBufferExt, PolygonFace, PolygonFillMode,
@@ -104,7 +103,10 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::framebuffer::DrawCallStatistics;
+use fyrox_graphics::buffer::GpuBuffer;
+use fyrox_graphics::framebuffer::{DrawCallStatistics, GpuFrameBuffer};
+use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
+use fyrox_graphics::gpu_texture::GpuTexture;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 pub use stats::*;
@@ -482,13 +484,13 @@ pub struct AssociatedSceneData {
     pub gbuffer: GBuffer,
 
     /// Intermediate high dynamic range frame buffer.
-    pub hdr_scene_framebuffer: Box<dyn FrameBuffer>,
+    pub hdr_scene_framebuffer: GpuFrameBuffer,
 
     /// Final frame of the scene. Tone mapped + gamma corrected.
-    pub ldr_scene_framebuffer: Box<dyn FrameBuffer>,
+    pub ldr_scene_framebuffer: GpuFrameBuffer,
 
     /// Additional frame buffer for post processing.
-    pub ldr_temp_framebuffer: Box<dyn FrameBuffer>,
+    pub ldr_temp_framebuffer: GpuFrameBuffer,
 
     /// HDR renderer has be created per scene, because it contains
     /// scene luminance.
@@ -590,21 +592,21 @@ impl AssociatedSceneData {
     }
 
     /// Returns high-dynamic range frame buffer texture.
-    pub fn hdr_scene_frame_texture(&self) -> Rc<dyn GpuTexture> {
+    pub fn hdr_scene_frame_texture(&self) -> GpuTexture {
         self.hdr_scene_framebuffer.color_attachments()[0]
             .texture
             .clone()
     }
 
     /// Returns low-dynamic range frame buffer texture (final frame).
-    pub fn ldr_scene_frame_texture(&self) -> Rc<dyn GpuTexture> {
+    pub fn ldr_scene_frame_texture(&self) -> GpuTexture {
         self.ldr_scene_framebuffer.color_attachments()[0]
             .texture
             .clone()
     }
 
     /// Returns low-dynamic range frame buffer texture (accumulation frame).
-    pub fn ldr_temp_frame_texture(&self) -> Rc<dyn GpuTexture> {
+    pub fn ldr_temp_frame_texture(&self) -> GpuTexture {
         self.ldr_temp_framebuffer.color_attachments()[0]
             .texture
             .clone()
@@ -632,26 +634,26 @@ pub fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
 pub struct FallbackResources {
     /// White, one pixel, texture which will be used as stub when rendering something without
     /// a texture specified.
-    pub white_dummy: Rc<dyn GpuTexture>,
+    pub white_dummy: GpuTexture,
     /// Black, one pixel, texture.
-    pub black_dummy: Rc<dyn GpuTexture>,
+    pub black_dummy: GpuTexture,
     /// A cube map with 6 textures of 1x1 black pixel in size.
-    pub environment_dummy: Rc<dyn GpuTexture>,
+    pub environment_dummy: GpuTexture,
     /// One pixel texture with (0, 1, 0) vector is used as stub when rendering something without a
     /// normal map.
-    pub normal_dummy: Rc<dyn GpuTexture>,
+    pub normal_dummy: GpuTexture,
     /// One pixel texture used as stub when rendering something without a  metallic texture. Default
     /// metalness is 0.0
-    pub metallic_dummy: Rc<dyn GpuTexture>,
+    pub metallic_dummy: GpuTexture,
     /// One pixel volume texture.
-    pub volume_dummy: Rc<dyn GpuTexture>,
+    pub volume_dummy: GpuTexture,
     /// A stub uniform buffer for situation when there's no actual bone matrices.
-    pub bone_matrices_stub_uniform_buffer: Box<dyn Buffer>,
+    pub bone_matrices_stub_uniform_buffer: GpuBuffer,
 }
 
 impl FallbackResources {
     /// Picks a texture that corresponds to the actual value of the given sampler fallback.
-    pub fn sampler_fallback(&self, sampler_fallback: SamplerFallback) -> &Rc<dyn GpuTexture> {
+    pub fn sampler_fallback(&self, sampler_fallback: SamplerFallback) -> &GpuTexture {
         match sampler_fallback {
             SamplerFallback::White => &self.white_dummy,
             SamplerFallback::Normal => &self.normal_dummy,
@@ -663,7 +665,7 @@ impl FallbackResources {
 
 /// See module docs.
 pub struct Renderer {
-    backbuffer: Box<dyn FrameBuffer>,
+    backbuffer: GpuFrameBuffer,
     scene_render_passes: Vec<Rc<RefCell<dyn SceneRenderPass>>>,
     deferred_light_renderer: DeferredLightRenderer,
     flat_shader: FlatShader,
@@ -673,7 +675,7 @@ pub struct Renderer {
     /// User interface renderer.
     pub ui_renderer: UiRenderer,
     statistics: Statistics,
-    quad: Box<dyn GeometryBuffer>,
+    quad: GpuGeometryBuffer,
     frame_size: (u32, u32),
     quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
@@ -696,7 +698,7 @@ pub struct Renderer {
     shader_event_receiver: Receiver<ResourceEvent>,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
-    ui_frame_buffers: FxHashMap<u64, Box<dyn FrameBuffer>>,
+    ui_frame_buffers: FxHashMap<u64, GpuFrameBuffer>,
     uniform_memory_allocator: UniformMemoryAllocator,
     /// Visibility cache based on occlusion query.
     pub visibility_cache: VisibilityCache,
@@ -708,7 +710,7 @@ fn make_ui_frame_buffer(
     frame_size: Vector2<f32>,
     server: &dyn GraphicsServer,
     pixel_kind: PixelKind,
-) -> Result<Box<dyn FrameBuffer>, FrameworkError> {
+) -> Result<GpuFrameBuffer, FrameworkError> {
     let color_texture = server.create_texture(GpuTextureDescriptor {
         kind: GpuTextureKind::Rectangle {
             width: frame_size.x as usize,
@@ -766,7 +768,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     pub quality_settings: &'a QualitySettings,
 
     /// Current framebuffer to which scene is being rendered to.
-    pub framebuffer: &'a mut dyn FrameBuffer,
+    pub framebuffer: &'a GpuFrameBuffer,
 
     /// A scene being rendered.
     pub scene: &'b Scene,
@@ -791,7 +793,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
     /// have an ability to write to this texture. However, you can still write to depth of
     /// the frame buffer as you'd normally do.
-    pub depth_texture: Rc<dyn GpuTexture>,
+    pub depth_texture: GpuTexture,
 
     /// A texture with world-space normals from G-Buffer.
     ///
@@ -799,7 +801,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     ///
     /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
     /// have an ability to write to this texture.
-    pub normal_texture: Rc<dyn GpuTexture>,
+    pub normal_texture: GpuTexture,
 
     /// A texture with ambient lighting values from G-Buffer.
     ///
@@ -807,7 +809,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     ///
     /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
     /// have an ability to write to this texture.
-    pub ambient_texture: Rc<dyn GpuTexture>,
+    pub ambient_texture: GpuTexture,
 
     /// User interface renderer.
     pub ui_renderer: &'a mut UiRenderer,
@@ -848,11 +850,11 @@ pub trait SceneRenderPass {
 
 fn blit_pixels(
     uniform_buffer_cache: &mut UniformBufferCache,
-    framebuffer: &mut dyn FrameBuffer,
-    texture: Rc<dyn GpuTexture>,
+    framebuffer: &GpuFrameBuffer,
+    texture: GpuTexture,
     shader: &FlatShader,
     viewport: Rect<i32>,
-    quad: &dyn GeometryBuffer,
+    quad: &dyn GpuGeometryBufferTrait,
 ) -> Result<DrawCallStatistics, FrameworkError> {
     let matrix = make_viewport_matrix(viewport);
     let uniform_buffer =
@@ -1027,7 +1029,7 @@ impl Renderer {
             deferred_light_renderer: DeferredLightRenderer::new(&*server, frame_size, &settings)?,
             flat_shader: FlatShader::new(&*server)?,
             fallback_resources,
-            quad: <dyn GeometryBuffer>::from_surface_data(
+            quad: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
                 &*server,
@@ -1195,7 +1197,6 @@ impl Renderer {
                 pixel_kind,
             )?),
         };
-        let frame_buffer = &mut **frame_buffer;
 
         let viewport = Rect::new(0, 0, new_width as i32, new_height as i32);
 
@@ -1443,7 +1444,7 @@ impl Renderer {
                         settings: &self.quality_settings,
                         textures: &mut self.texture_cache,
                         geometry_cache: &mut self.geometry_cache,
-                        frame_buffer: &mut *scene_associated_data.hdr_scene_framebuffer,
+                        frame_buffer: &scene_associated_data.hdr_scene_framebuffer,
                         shader_cache: &mut self.shader_cache,
                         fallback_resources: &self.fallback_resources,
                         uniform_buffer_cache: &mut self.uniform_buffer_cache,
@@ -1463,7 +1464,7 @@ impl Renderer {
                     texture_cache: &mut self.texture_cache,
                     shader_cache: &mut self.shader_cache,
                     bundle_storage: &bundle_storage,
-                    framebuffer: &mut *scene_associated_data.hdr_scene_framebuffer,
+                    framebuffer: &scene_associated_data.hdr_scene_framebuffer,
                     viewport,
                     quality_settings: &self.quality_settings,
                     fallback_resources: &self.fallback_resources,
@@ -1492,7 +1493,7 @@ impl Renderer {
                             depth_texture: scene_associated_data.gbuffer.depth(),
                             normal_texture: scene_associated_data.gbuffer.normal_texture(),
                             ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
-                            framebuffer: &mut *scene_associated_data.hdr_scene_framebuffer,
+                            framebuffer: &scene_associated_data.hdr_scene_framebuffer,
                             ui_renderer: &mut self.ui_renderer,
                             uniform_buffer_cache: &mut self.uniform_buffer_cache,
                             uniform_memory_allocator: &mut self.uniform_memory_allocator,
@@ -1513,7 +1514,7 @@ impl Renderer {
                 server,
                 scene_associated_data.hdr_scene_frame_texture(),
                 scene_associated_data.bloom_renderer.result(),
-                &mut *scene_associated_data.ldr_scene_framebuffer,
+                &scene_associated_data.ldr_scene_framebuffer,
                 viewport,
                 &**quad,
                 dt,
@@ -1529,7 +1530,7 @@ impl Renderer {
                 scene_associated_data.statistics += self.fxaa_renderer.render(
                     viewport,
                     scene_associated_data.ldr_scene_frame_texture(),
-                    &mut *scene_associated_data.ldr_temp_framebuffer,
+                    &scene_associated_data.ldr_temp_framebuffer,
                     &mut self.uniform_buffer_cache,
                 )?;
 
@@ -1537,7 +1538,7 @@ impl Renderer {
                 let temp_frame_texture = scene_associated_data.ldr_temp_frame_texture();
                 scene_associated_data.statistics += blit_pixels(
                     &mut self.uniform_buffer_cache,
-                    &mut *scene_associated_data.ldr_scene_framebuffer,
+                    &scene_associated_data.ldr_scene_framebuffer,
                     temp_frame_texture,
                     &self.flat_shader,
                     viewport,
@@ -1550,7 +1551,7 @@ impl Renderer {
             scene_associated_data.statistics += self.debug_renderer.render(
                 &mut self.uniform_buffer_cache,
                 viewport,
-                &mut *scene_associated_data.ldr_scene_framebuffer,
+                &scene_associated_data.ldr_scene_framebuffer,
                 camera.view_projection_matrix(),
             )?;
 
@@ -1574,7 +1575,7 @@ impl Renderer {
                             depth_texture: scene_associated_data.gbuffer.depth(),
                             normal_texture: scene_associated_data.gbuffer.normal_texture(),
                             ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
-                            framebuffer: &mut *scene_associated_data.ldr_scene_framebuffer,
+                            framebuffer: &scene_associated_data.ldr_scene_framebuffer,
                             ui_renderer: &mut self.ui_renderer,
                             uniform_buffer_cache: &mut self.uniform_buffer_cache,
                             uniform_memory_allocator: &mut self.uniform_memory_allocator,
@@ -1589,7 +1590,7 @@ impl Renderer {
             let quad = &self.quad;
             scene_associated_data.statistics += blit_pixels(
                 &mut self.uniform_buffer_cache,
-                &mut *self.backbuffer,
+                &self.backbuffer,
                 scene_associated_data.ldr_scene_frame_texture(),
                 &self.flat_shader,
                 window_viewport,
@@ -1651,7 +1652,7 @@ impl Renderer {
             self.statistics += self.ui_renderer.render(UiRenderContext {
                 server: &*self.server,
                 viewport: window_viewport,
-                frame_buffer: &mut *self.backbuffer,
+                frame_buffer: &self.backbuffer,
                 frame_width: backbuffer_width,
                 frame_height: backbuffer_height,
                 drawing_context,
@@ -1667,7 +1668,7 @@ impl Renderer {
         self.screen_space_debug_renderer.render(
             &mut self.uniform_buffer_cache,
             window_viewport,
-            &mut *self.backbuffer,
+            &self.backbuffer,
             screen_matrix,
         )?;
 

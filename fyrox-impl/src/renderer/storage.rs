@@ -25,13 +25,13 @@ use crate::{
     renderer::framework::{
         error::FrameworkError,
         gpu_texture::{
-            GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
-            MinificationFilter, PixelKind, WrapMode,
+            GpuTextureDescriptor, GpuTextureKind, MagnificationFilter, MinificationFilter,
+            PixelKind, WrapMode,
         },
         server::GraphicsServer,
     },
 };
-use std::rc::Rc;
+use fyrox_graphics::gpu_texture::GpuTexture;
 
 /// Generic, texture-based, storage for matrices with somewhat unlimited capacity.
 ///
@@ -40,7 +40,7 @@ use std::rc::Rc;
 /// Why it uses textures instead of SSBO? This could be done with SSBO, but it is not available on macOS because
 /// SSBO was added only in OpenGL 4.3, but macOS support up to OpenGL 4.1.
 pub struct MatrixStorage {
-    texture: Rc<dyn GpuTexture>,
+    texture: GpuTexture,
     matrices: Vec<Matrix4<f32>>,
 }
 
@@ -68,7 +68,7 @@ impl MatrixStorage {
     }
 
     /// Returns matrix storage texture.
-    pub fn texture(&self) -> &Rc<dyn GpuTexture> {
+    pub fn texture(&self) -> &GpuTexture {
         &self.texture
     }
 

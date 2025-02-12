@@ -25,6 +25,7 @@
 
 use crate::{
     core::{color::Color, Downcast},
+    define_shared_wrapper,
     error::FrameworkError,
 };
 use bytemuck::Pod;
@@ -585,7 +586,7 @@ impl Default for GpuTextureDescriptor<'_> {
 ///
 /// fn create_texture(
 ///     server: &dyn GraphicsServer,
-/// ) -> Result<Rc<dyn GpuTexture>, FrameworkError> {
+/// ) -> Result<GpuTexture, FrameworkError> {
 ///     server.create_texture(GpuTextureDescriptor {
 ///         kind: GpuTextureKind::Rectangle {
 ///             width: 1,
@@ -606,7 +607,7 @@ impl Default for GpuTextureDescriptor<'_> {
 ///     })
 /// }
 /// ```
-pub trait GpuTexture: Downcast {
+pub trait GpuTextureTrait: Downcast {
     /// Max samples for anisotropic filtering. Default value is 16.0 (max). However, real value passed
     /// to GPU will be clamped to maximum supported by current GPU. To disable anisotropic filtering
     /// set this to 1.0. Typical values are 2.0, 4.0, 8.0, 16.0.
@@ -705,7 +706,7 @@ pub trait GpuTexture: Downcast {
     fn lod_bias(&self) -> f32;
 }
 
-impl dyn GpuTexture {
+impl dyn GpuTextureTrait {
     /// Reads the pixels at the given mip level and reinterprets them using the given type.
     pub fn get_image_of_type<T: Pod>(&self, level: usize) -> Vec<T> {
         let mut bytes = self.get_image(level);
@@ -740,3 +741,5 @@ impl dyn GpuTexture {
         typed
     }
 }
+
+define_shared_wrapper!(GpuTexture<dyn GpuTextureTrait>);

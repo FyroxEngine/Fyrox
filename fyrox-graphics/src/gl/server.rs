@@ -18,21 +18,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::gpu_texture::GpuTextureDescriptor;
+use crate::geometry_buffer::GpuGeometryBuffer;
+use crate::gpu_program::GpuProgram;
+use crate::query::GpuQuery;
+use crate::read_buffer::GpuAsyncReadBuffer;
 use crate::{
-    buffer::{Buffer, BufferKind, BufferUsage},
+    buffer::GpuBuffer,
+    buffer::{BufferKind, BufferUsage},
     core::{color::Color, log::Log, math::Rect},
     error::FrameworkError,
-    framebuffer::{Attachment, FrameBuffer},
-    geometry_buffer::{GeometryBuffer, GeometryBufferDescriptor},
+    framebuffer::Attachment,
+    framebuffer::GpuFrameBuffer,
+    geometry_buffer::GeometryBufferDescriptor,
     gl::{
         self, framebuffer::GlFrameBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram,
         query::GlQuery, read_buffer::GlAsyncReadBuffer, texture::GlTexture, ToGlConstant,
     },
-    gpu_program::{GpuProgram, ShaderResourceDefinition},
-    gpu_texture::GpuTexture,
-    query::Query,
-    read_buffer::AsyncReadBuffer,
+    gpu_program::ShaderResourceDefinition,
+    gpu_texture::{GpuTexture, GpuTextureDescriptor},
     server::{GraphicsServer, ServerCapabilities, SharedGraphicsServer},
     stats::PipelineStatistics,
     BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, CompareFunc, CullFace,
@@ -993,40 +996,37 @@ impl GraphicsServer for GlGraphicsServer {
         size: usize,
         buffer_kind: BufferKind,
         buffer_usage: BufferUsage,
-    ) -> Result<Box<dyn Buffer>, FrameworkError> {
-        Ok(Box::new(gl::buffer::GlBuffer::new(
+    ) -> Result<GpuBuffer, FrameworkError> {
+        Ok(GpuBuffer(Rc::new(gl::buffer::GlBuffer::new(
             self,
             size,
             buffer_kind,
             buffer_usage,
-        )?))
+        )?)))
     }
 
-    fn create_texture(
-        &self,
-        desc: GpuTextureDescriptor,
-    ) -> Result<Rc<dyn GpuTexture>, FrameworkError> {
-        Ok(Rc::new(GlTexture::new(self, desc)?))
+    fn create_texture(&self, desc: GpuTextureDescriptor) -> Result<GpuTexture, FrameworkError> {
+        Ok(GpuTexture(Rc::new(GlTexture::new(self, desc)?)))
     }
 
     fn create_frame_buffer(
         &self,
         depth_attachment: Option<Attachment>,
         color_attachments: Vec<Attachment>,
-    ) -> Result<Box<dyn FrameBuffer>, FrameworkError> {
-        Ok(Box::new(GlFrameBuffer::new(
+    ) -> Result<GpuFrameBuffer, FrameworkError> {
+        Ok(GpuFrameBuffer(Rc::new(GlFrameBuffer::new(
             self,
             depth_attachment,
             color_attachments,
-        )?))
+        )?)))
     }
 
-    fn back_buffer(&self) -> Box<dyn FrameBuffer> {
-        Box::new(GlFrameBuffer::backbuffer(self))
+    fn back_buffer(&self) -> GpuFrameBuffer {
+        GpuFrameBuffer(Rc::new(GlFrameBuffer::backbuffer(self)))
     }
 
-    fn create_query(&self) -> Result<Box<dyn Query>, FrameworkError> {
-        Ok(Box::new(GlQuery::new(self)?))
+    fn create_query(&self) -> Result<GpuQuery, FrameworkError> {
+        Ok(GpuQuery(Rc::new(GlQuery::new(self)?)))
     }
 
     fn create_program(
@@ -1034,13 +1034,13 @@ impl GraphicsServer for GlGraphicsServer {
         name: &str,
         vertex_source: &str,
         fragment_source: &str,
-    ) -> Result<Box<dyn GpuProgram>, FrameworkError> {
-        Ok(Box::new(GlProgram::from_source(
+    ) -> Result<GpuProgram, FrameworkError> {
+        Ok(GpuProgram(Rc::new(GlProgram::from_source(
             self,
             name,
             vertex_source,
             fragment_source,
-        )?))
+        )?)))
     }
 
     fn create_program_with_properties(
@@ -1049,33 +1049,35 @@ impl GraphicsServer for GlGraphicsServer {
         vertex_source: &str,
         fragment_source: &str,
         properties: &[ShaderResourceDefinition],
-    ) -> Result<Box<dyn GpuProgram>, FrameworkError> {
-        Ok(Box::new(GlProgram::from_source_and_properties(
+    ) -> Result<GpuProgram, FrameworkError> {
+        Ok(GpuProgram(Rc::new(GlProgram::from_source_and_properties(
             self,
             name,
             vertex_source,
             fragment_source,
             properties,
-        )?))
+        )?)))
     }
 
     fn create_async_read_buffer(
         &self,
         pixel_size: usize,
         pixel_count: usize,
-    ) -> Result<Box<dyn AsyncReadBuffer>, FrameworkError> {
-        Ok(Box::new(GlAsyncReadBuffer::new(
+    ) -> Result<GpuAsyncReadBuffer, FrameworkError> {
+        Ok(GpuAsyncReadBuffer(Rc::new(GlAsyncReadBuffer::new(
             self,
             pixel_size,
             pixel_count,
-        )?))
+        )?)))
     }
 
     fn create_geometry_buffer(
         &self,
         desc: GeometryBufferDescriptor,
-    ) -> Result<Box<dyn GeometryBuffer>, FrameworkError> {
-        Ok(Box::new(GlGeometryBuffer::new(self, desc)?))
+    ) -> Result<GpuGeometryBuffer, FrameworkError> {
+        Ok(GpuGeometryBuffer(Rc::new(GlGeometryBuffer::new(
+            self, desc,
+        )?)))
     }
 
     fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer> {

@@ -47,11 +47,11 @@ use crate::{
             buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
+                Attachment, AttachmentKind, BufferLocation, GpuFrameBufferTrait, ResourceBindGroup,
                 ResourceBinding,
             },
-            geometry_buffer::GeometryBuffer,
-            gpu_texture::{GpuTexture, PixelKind},
+            geometry_buffer::GpuGeometryBufferTrait,
+            gpu_texture::PixelKind,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, DrawParameters, ElementRange,
@@ -69,16 +69,18 @@ use crate::{
     },
 };
 use fxhash::FxHashSet;
-use std::rc::Rc;
+use fyrox_graphics::framebuffer::GpuFrameBuffer;
+use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
+use fyrox_graphics::gpu_texture::GpuTexture;
 
 mod decal;
 
 pub struct GBuffer {
-    framebuffer: Box<dyn FrameBuffer>,
-    decal_framebuffer: Box<dyn FrameBuffer>,
+    framebuffer: GpuFrameBuffer,
+    decal_framebuffer: GpuFrameBuffer,
     pub width: i32,
     pub height: i32,
-    cube: Box<dyn GeometryBuffer>,
+    cube: GpuGeometryBuffer,
     decal_shader: DecalShader,
     render_pass_name: ImmutableString,
     occlusion_tester: OcclusionTester,
@@ -98,7 +100,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     #[allow(dead_code)]
     pub screen_space_debug_renderer: &'a mut DebugRenderer,
-    pub unit_quad: &'a dyn GeometryBuffer,
+    pub unit_quad: &'a dyn GpuGeometryBufferTrait,
 }
 
 impl GBuffer {
@@ -157,7 +159,7 @@ impl GBuffer {
             width: width as i32,
             height: height as i32,
             decal_shader: DecalShader::new(server)?,
-            cube: <dyn GeometryBuffer>::from_surface_data(
+            cube: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_cube(Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,
@@ -168,31 +170,31 @@ impl GBuffer {
         })
     }
 
-    pub fn framebuffer(&self) -> &dyn FrameBuffer {
+    pub fn framebuffer(&self) -> &dyn GpuFrameBufferTrait {
         &*self.framebuffer
     }
 
-    pub fn depth(&self) -> Rc<dyn GpuTexture> {
+    pub fn depth(&self) -> GpuTexture {
         self.framebuffer.depth_attachment().unwrap().texture.clone()
     }
 
-    pub fn diffuse_texture(&self) -> Rc<dyn GpuTexture> {
+    pub fn diffuse_texture(&self) -> GpuTexture {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn normal_texture(&self) -> Rc<dyn GpuTexture> {
+    pub fn normal_texture(&self) -> GpuTexture {
         self.framebuffer.color_attachments()[1].texture.clone()
     }
 
-    pub fn ambient_texture(&self) -> Rc<dyn GpuTexture> {
+    pub fn ambient_texture(&self) -> GpuTexture {
         self.framebuffer.color_attachments()[2].texture.clone()
     }
 
-    pub fn material_texture(&self) -> Rc<dyn GpuTexture> {
+    pub fn material_texture(&self) -> GpuTexture {
         self.framebuffer.color_attachments()[3].texture.clone()
     }
 
-    pub fn decal_mask_texture(&self) -> Rc<dyn GpuTexture> {
+    pub fn decal_mask_texture(&self) -> GpuTexture {
         self.framebuffer.color_attachments()[4].texture.clone()
     }
 
@@ -251,7 +253,7 @@ impl GBuffer {
             BundleRenderContext {
                 texture_cache,
                 render_pass_name: &self.render_pass_name,
-                frame_buffer: &mut *self.framebuffer,
+                frame_buffer: &self.framebuffer,
                 viewport,
                 uniform_memory_allocator,
                 use_pom: quality_settings.use_parallax_mapping,

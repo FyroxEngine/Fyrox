@@ -21,7 +21,7 @@
 use crate::{
     error::FrameworkError,
     gl::server::GlGraphicsServer,
-    query::{Query, QueryKind, QueryResult},
+    query::{GpuQueryTrait, QueryKind, QueryResult},
 };
 use glow::HasContext;
 use std::{cell::Cell, rc::Weak};
@@ -49,7 +49,7 @@ impl GlQuery {
     }
 }
 
-impl Query for GlQuery {
+impl GpuQueryTrait for GlQuery {
     fn begin(&self, kind: QueryKind) {
         if let Some(pipeline_state) = self.pipeline_state.upgrade() {
             unsafe {
