@@ -20,7 +20,6 @@
 
 use std::fmt::Debug;
 use std::ops::Range;
-use fyrox_core::info;
 use crate::renderer::hdr::luminance::luminance_evaluator::LuminanceEvaluator;
 
 pub struct HistogramLuminanceEvaluator {
@@ -36,7 +35,6 @@ impl LuminanceEvaluator for HistogramLuminanceEvaluator {
     for value in data {
       histogram.push_value(*value);
     }
-    info!("{:?}", histogram);
 
     histogram
       .reduce_to_biggest_samples(self.sample_count)
@@ -79,9 +77,6 @@ impl LuminanceHistogram {
   }
 
   pub(crate) fn push_value(&mut self, value: f32) {
-
-    // info!("Pushing value {} in bins with width {}", value, self.bin_width);
-
     let bin_index: usize = (value / self.bin_width as f32).floor() as usize;
     self.bins[bin_index].push(value as f32);
 

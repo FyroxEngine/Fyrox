@@ -51,7 +51,6 @@ use crate::{
 };
 use fyrox_graphics::framebuffer::DrawCallStatistics;
 use std::{cell::RefCell, rc::Rc};
-use fyrox_core::info;
 use crate::renderer::hdr::luminance::luminance_evaluator::LuminanceEvaluator;
 
 mod adaptation;
@@ -215,8 +214,6 @@ impl HighDynamicRangeRenderer {
 
                 let evaluator = luminance::histogram_luminance_evaluator::HistogramLuminanceEvaluator::default();
                 let avg_value = evaluator.average_luminance(pixels);
-
-                info!("{}", avg_value);
 
                 self.downscale_chain
                     .last()
