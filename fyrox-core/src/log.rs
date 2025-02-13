@@ -21,19 +21,19 @@
 //! Simple logger. By default, it writes in the console only. To enable logging into a file, call
 //! [`Log::set_file_name`] somewhere in your `main` function.
 
-use crate::parking_lot::Mutex;
-use std::fmt::{Debug, Display};
-
 use crate::instant::Instant;
+use crate::parking_lot::Mutex;
+#[cfg(target_arch = "wasm32")]
+use crate::wasm_bindgen::{self, prelude::*};
+use fxhash::FxHashMap;
+use std::collections::hash_map::Entry;
+use std::fmt::{Debug, Display};
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::{self, Write};
 use std::path::Path;
 use std::sync::mpsc::Sender;
 use std::sync::LazyLock;
 use std::time::Duration;
-
-#[cfg(target_arch = "wasm32")]
-use crate::wasm_bindgen::{self, prelude::*};
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
@@ -62,6 +62,7 @@ static LOG: LazyLock<Mutex<Log>> = LazyLock::new(|| {
         verbosity: MessageKind::Information,
         listeners: Default::default(),
         time_origin: Instant::now(),
+        one_shot_sources: Default::default(),
     })
 });
 
@@ -94,6 +95,7 @@ pub struct Log {
     verbosity: MessageKind,
     listeners: Vec<Sender<LogMessage>>,
     time_origin: Instant,
+    one_shot_sources: FxHashMap<usize, String>,
 }
 
 impl Log {
@@ -115,12 +117,32 @@ impl Log {
         }
     }
 
-    fn write_internal<S>(&mut self, kind: MessageKind, message: S)
+    fn write_internal<S>(&mut self, id: Option<usize>, kind: MessageKind, message: S) -> bool
     where
         S: AsRef<str>,
     {
         let mut msg = message.as_ref().to_owned();
         if kind as u32 >= self.verbosity as u32 {
+            if let Some(id) = id {
+                let mut need_write = false;
+                match self.one_shot_sources.entry(id) {
+                    Entry::Occupied(mut message) => {
+                        if message.get() != &msg {
+                            message.insert(msg.clone());
+                            need_write = true;
+                        }
+                    }
+                    Entry::Vacant(entry) => {
+                        entry.insert(msg.clone());
+                        need_write = true;
+                    }
+                }
+
+                if !need_write {
+                    return false;
+                }
+            }
+
             // Notify listeners about the message and remove all disconnected listeners.
             self.listeners.retain(|listener| {
                 listener
@@ -154,34 +176,57 @@ impl Log {
                 let _ = io::stdout().write_all(msg.as_bytes());
             }
         }
+
+        true
     }
 
-    fn writeln_internal<S>(&mut self, kind: MessageKind, message: S)
+    fn writeln_internal<S>(&mut self, id: Option<usize>, kind: MessageKind, message: S) -> bool
     where
         S: AsRef<str>,
     {
         let mut msg = message.as_ref().to_owned();
         msg.push('\n');
-        self.write_internal(kind, msg)
+        self.write_internal(id, kind, msg)
     }
 
-    /// Writes string into console and into file.
+    /// Writes a string to the console and optionally into the file (if set).
     pub fn write<S>(kind: MessageKind, msg: S)
     where
         S: AsRef<str>,
     {
-        LOG.lock().write_internal(kind, msg);
+        LOG.lock().write_internal(None, kind, msg);
     }
 
-    /// Writes line into console and into file.
+    /// Writes a string to the console and optionally into the file (if set). Unlike [`Self::write`]
+    /// this method writes the message only once per given id if the message remains the same. If
+    /// the message changes, then the new version will be printed to the log. This method is useful
+    /// if you need to print error messages, but prevent them from flooding the log.
+    pub fn write_once<S>(id: usize, kind: MessageKind, msg: S) -> bool
+    where
+        S: AsRef<str>,
+    {
+        LOG.lock().write_internal(Some(id), kind, msg)
+    }
+
+    /// Writes a string to the console and optionally into the file (if set), adds a new line to the
+    /// end of the message.
     pub fn writeln<S>(kind: MessageKind, msg: S)
     where
         S: AsRef<str>,
     {
-        LOG.lock().writeln_internal(kind, msg);
+        LOG.lock().writeln_internal(None, kind, msg);
     }
 
-    /// Writes information message.
+    /// Writes a string to the console and optionally into the file (if set), adds a new line to the
+    /// end of the message. Prints the message only once. See [`Self::write_once`] for more info.
+    pub fn writeln_once<S>(id: usize, kind: MessageKind, msg: S) -> bool
+    where
+        S: AsRef<str>,
+    {
+        LOG.lock().writeln_internal(Some(id), kind, msg)
+    }
+
+    /// Writes an information message.
     pub fn info<S>(msg: S)
     where
         S: AsRef<str>,
@@ -189,7 +234,7 @@ impl Log {
         Self::writeln(MessageKind::Information, msg)
     }
 
-    /// Writes warning message.
+    /// Writes a warning message.
     pub fn warn<S>(msg: S)
     where
         S: AsRef<str>,
@@ -205,6 +250,30 @@ impl Log {
         Self::writeln(MessageKind::Error, msg)
     }
 
+    /// Writes an information message once. See [`Self::write_once`] for more info.
+    pub fn info_once<S>(id: usize, msg: S) -> bool
+    where
+        S: AsRef<str>,
+    {
+        Self::writeln_once(id, MessageKind::Information, msg)
+    }
+
+    /// Writes a warning message. See [`Self::write_once`] for more info.
+    pub fn warn_once<S>(id: usize, msg: S) -> bool
+    where
+        S: AsRef<str>,
+    {
+        Self::writeln_once(id, MessageKind::Warning, msg)
+    }
+
+    /// Writes an error message once. See [`Self::write_once`] for more info.
+    pub fn err_once<S>(id: usize, msg: S) -> bool
+    where
+        S: AsRef<str>,
+    {
+        Self::writeln_once(id, MessageKind::Error, msg)
+    }
+
     /// Sets verbosity level.
     pub fn set_verbosity(kind: MessageKind) {
         LOG.lock().verbosity = kind;
@@ -215,7 +284,7 @@ impl Log {
         LOG.lock().listeners.push(listener)
     }
 
-    /// Allows you to verify that the result of operation is Ok, or print the error in the log.
+    /// Allows you to verify that the result of the operation is Ok, or print the error in the log.
     ///
     /// # Use cases
     ///
@@ -233,7 +302,7 @@ impl Log {
         }
     }
 
-    /// Allows you to verify that the result of operation is Ok, or print the error in the log.
+    /// Allows you to verify that the result of the operation is Ok, or print the error in the log.
     ///
     /// # Use cases
     ///
@@ -268,5 +337,26 @@ macro_rules! warn {
 macro_rules! err {
     ($($arg:tt)*) => {
         $crate::log::Log::err(format!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! info_once {
+    ($id:expr, $($arg:tt)*) => {
+        $crate::log::Log::info_once($id, format!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! warn_once {
+    ($id:expr, $($arg:tt)*) => {
+        $crate::log::Log::warn_once($id, format!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! err_once {
+    ($id:expr, $($arg:tt)*) => {
+        $crate::log::Log::err_once($id, format!($($arg)*))
     };
 }
