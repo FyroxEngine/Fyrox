@@ -28,7 +28,6 @@ use crate::{
     },
     scene::mesh::surface::{SurfaceData, SurfaceResource},
 };
-use fyrox_core::log::Log;
 use fyrox_graphics::buffer::BufferUsage;
 use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
 
@@ -65,7 +64,7 @@ impl GeometryCache {
         server: &dyn GraphicsServer,
         data: &SurfaceResource,
         time_to_live: TimeToLive,
-    ) -> Option<&'a dyn GpuGeometryBufferTrait> {
+    ) -> Result<&'a dyn GpuGeometryBufferTrait, FrameworkError> {
         let data = data.data_ref();
 
         match self
@@ -99,12 +98,9 @@ impl GeometryCache {
                             data.geometry_buffer.modifications_count();
                     }
                 }
-                Some(&*entry.buffer)
+                Ok(&*entry.buffer)
             }
-            Err(err) => {
-                Log::err(err.to_string());
-                None
-            }
+            Err(err) => Err(err),
         }
     }
 

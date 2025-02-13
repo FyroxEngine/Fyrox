@@ -78,6 +78,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+use fyrox_core::err;
 use fyrox_core::math::Matrix4Ext;
 use fyrox_graph::{SceneGraph, SceneGraphNode};
 use fyrox_graphics::framebuffer::GpuFrameBuffer;
@@ -459,22 +460,40 @@ impl RenderDataBundle {
         let mut material_state = self.material.state();
 
         let Some(material) = material_state.data() else {
+            err!(
+                "Unable to use material {}, because it is in invalid state \
+                (failed to load or still loading)!",
+                material_state.kind()
+            );
             return Ok(stats);
         };
 
-        let Some(geometry) = geometry_cache.get(server, &self.data, self.time_to_live) else {
+        let geometry = match geometry_cache.get(server, &self.data, self.time_to_live) {
+            Ok(geometry) => geometry,
+            Err(err) => {
+                err!("Unable to get geometry for rendering! Reason: {err:?}");
+                return Ok(stats);
+            }
+        };
+
+        let Some(shader_set) = shader_cache.get(server, material.shader()) else {
+            err!(
+                "Unable to get a compiled shader set for material {}!",
+                material.shader().kind()
+            );
             return Ok(stats);
         };
 
-        let Some(render_pass) =
-            shader_cache
-                .get(server, material.shader())
-                .and_then(|shader_set| {
-                    shader_set
-                        .render_passes
-                        .get(render_context.render_pass_name)
-                })
+        let Some(render_pass) = shader_set
+            .render_passes
+            .get(render_context.render_pass_name)
         else {
+            err!(
+                "There's no render pass {} in {} shader! \
+                Render path might be incorrect as well!",
+                render_context.render_pass_name,
+                material.shader().kind()
+            );
             return Ok(stats);
         };
 
