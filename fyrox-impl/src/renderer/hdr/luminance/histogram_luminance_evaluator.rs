@@ -71,7 +71,7 @@ impl LuminanceHistogram {
 
     pub(crate) fn push_value(&mut self, value: f32) {
         let bin_index: usize = (value / self.bin_width as f32).floor() as usize;
-        self.bins[bin_index].push(value as f32);
+        self.bins[bin_index].push(value);
     }
 
     fn reduce_to_biggest_samples(self, sample_count: usize) -> Self {
