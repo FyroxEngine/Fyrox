@@ -35,9 +35,9 @@ use crate::{
 use fyrox_graphics::geometry_buffer::{ElementsDescriptor, GpuGeometryBuffer};
 pub use fyrox_graphics::*;
 
-/// Extension trait for [`GpuGeometryBufferTrait`].
+/// Extension trait for [`GpuGeometryBuffer`].
 pub trait GeometryBufferExt {
-    /// Creates [`GpuGeometryBufferTrait`] from [`SurfaceData`].
+    /// Creates [`GpuGeometryBuffer`] from [`SurfaceData`].
     fn from_surface_data(
         data: &SurfaceData,
         usage: BufferUsage,
