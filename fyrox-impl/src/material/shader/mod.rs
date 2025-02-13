@@ -27,7 +27,7 @@
 //!
 //! ```ron
 //! (
-//! 	name: "MyShader",
+//!     name: "MyShader",
 //!
 //!     // A set of resources, the maximum amount of resources is limited by your GPU. The engine
 //!     // guarantees, that there could at least 16 textures and 16 resource groups per shader.
@@ -41,7 +41,7 @@
 //!
 //!             binding: 0
 //!         ),
-//! 		(
+//!         (
 //!             name: "properties",
 //!             kind: PropertyGroup([
 //!                 (
@@ -142,8 +142,8 @@
 //!                 ),
 //!
 //!                 // Scissor box. Could be something like this:
-//! 				//
-//! 				// scissor_box: Some(ScissorBox(
+//!                 //
+//!                 // scissor_box: Some(ScissorBox(
 //!                 //    x: 10,
 //!                 //    y: 20,
 //!                 //    width: 100,
