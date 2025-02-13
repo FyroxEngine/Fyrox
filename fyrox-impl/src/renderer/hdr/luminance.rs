@@ -28,7 +28,6 @@ use crate::{
     },
 };
 use fyrox_graphics::gpu_program::GpuProgram;
-use std::fmt::Debug;
 
 pub struct LuminanceShader {
     pub program: GpuProgram,
