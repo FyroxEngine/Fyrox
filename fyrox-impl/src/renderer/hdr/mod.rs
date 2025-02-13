@@ -50,6 +50,7 @@ use crate::{
 };
 use fyrox_graphics::framebuffer::{DrawCallStatistics, GpuFrameBuffer};
 use fyrox_graphics::gpu_texture::GpuTexture;
+use crate::renderer::hdr::luminance::luminance_evaluator::LuminanceEvaluator;
 
 mod adaptation;
 mod downscale;
