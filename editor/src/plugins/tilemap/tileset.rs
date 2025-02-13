@@ -54,7 +54,6 @@ use crate::{
 };
 use palette::{PaletteWidgetBuilder, DEFAULT_MATERIAL_COLOR};
 use std::sync::Arc;
-
 use super::*;
 use commands::*;
 
@@ -166,11 +165,9 @@ impl TileSetEditor {
     ) -> Self {
         let tile_set_field =
             ResourceFieldBuilder::<TileSet>::new(WidgetBuilder::new().on_column(1), sender.clone())
-                .with_resource(if tile_book.is_brush() {
+                .with_resource(
                     tile_book.get_tile_set()
-                } else {
-                    None
-                })
+                )
                 .build(ctx, resource_manager.clone());
         let tile_set_selector = GridBuilder::new(
             WidgetBuilder::new()

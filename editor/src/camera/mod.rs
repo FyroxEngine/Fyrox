@@ -137,7 +137,6 @@ impl CameraController {
         scene_content_root: Handle<Node>,
     ) -> Self {
         let settings = settings.cloned().unwrap_or_default();
-
         let camera;
         let camera_hinge;
         let pivot = PivotBuilder::new(
@@ -152,7 +151,7 @@ impl CameraController {
                                 .with_name("EditorCamera"),
                         )
                         .with_projection(settings.projection)
-                        .with_exposure(Exposure::Manual(std::f32::consts::E))
+                        .with_exposure(Exposure::default())
                         .with_z_far(512.0)
                         .build(graph);
                         camera
