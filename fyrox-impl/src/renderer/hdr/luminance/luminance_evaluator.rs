@@ -19,5 +19,5 @@
 // SOFTWARE.
 
 pub trait LuminanceEvaluator {
-  fn average_luminance(self, data: &[f32]) -> f32;
+    fn average_luminance(self, data: &[f32]) -> f32;
 }

@@ -18,10 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-pub mod luminance_evaluator;
 pub mod histogram_luminance_evaluator;
+pub mod luminance_evaluator;
 
-use std::fmt::Debug;
 use crate::{
     core::sstorage::ImmutableString,
     renderer::framework::{
@@ -29,6 +28,7 @@ use crate::{
     },
 };
 use fyrox_graphics::gpu_program::GpuProgram;
+use std::fmt::Debug;
 
 pub struct LuminanceShader {
     pub program: GpuProgram,

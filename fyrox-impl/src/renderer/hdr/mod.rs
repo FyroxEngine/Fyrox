@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::hdr::luminance::luminance_evaluator::LuminanceEvaluator;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -50,7 +51,6 @@ use crate::{
 };
 use fyrox_graphics::framebuffer::{DrawCallStatistics, GpuFrameBuffer};
 use fyrox_graphics::gpu_texture::GpuTexture;
-use crate::renderer::hdr::luminance::luminance_evaluator::LuminanceEvaluator;
 
 mod adaptation;
 mod downscale;
@@ -201,10 +201,7 @@ impl HighDynamicRangeRenderer {
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
-
         match self.lum_calculation_method {
-
-
             LuminanceCalculationMethod::Histogram => {
                 // TODO: Cloning memory from GPU to CPU is slow, but since the engine is limited
                 // by macOS's OpenGL 4.1 support and lack of compute shaders we'll build histogram
@@ -213,7 +210,9 @@ impl HighDynamicRangeRenderer {
 
                 let pixels = transmute_slice::<u8, f32>(&data);
 
-                let evaluator = luminance::histogram_luminance_evaluator::HistogramLuminanceEvaluator::default();
+                let evaluator =
+                    luminance::histogram_luminance_evaluator::HistogramLuminanceEvaluator::default(
+                    );
                 let avg_value = evaluator.average_luminance(pixels);
 
                 self.downscale_chain.last().unwrap().texture().set_data(
