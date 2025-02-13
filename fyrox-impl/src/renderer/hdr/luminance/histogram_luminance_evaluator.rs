@@ -117,7 +117,11 @@ impl LuminanceHistogram {
   }
 
   fn average_histogram_value(&self) -> f32 {
-    self.bins.iter().map(|bin| bin.iter().sum::<f32>()).sum::<f32>()
+    let value_count = self.bins.iter().map(|b| b.len()).sum::<usize>();
+
+    let sum = self.bins.iter().map(|bin| bin.iter().sum::<f32>()).sum::<f32>();
+
+    sum / value_count as f32
   }
 
 }
