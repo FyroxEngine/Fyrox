@@ -24,9 +24,9 @@
 //! It consists of one or more color buffers and an optional depth/stencil buffer. See [`GpuFrameBufferTrait`]
 //! docs for more info.
 
+use crate::buffer::GpuBuffer;
 use crate::gpu_texture::GpuTexture;
 use crate::{
-    buffer::GpuBufferTrait,
     core::{color::Color, math::Rect, Downcast},
     define_shared_wrapper,
     error::FrameworkError,
@@ -107,7 +107,7 @@ pub enum BufferLocation {
 }
 
 /// A resource binding defines where to bind specific GPU resources.
-pub enum ResourceBinding<'a> {
+pub enum ResourceBinding {
     /// Texture binding.
     Texture {
         /// A shared reference to a texture.
@@ -117,8 +117,8 @@ pub enum ResourceBinding<'a> {
     },
     /// Generic data buffer binding.
     Buffer {
-        /// A reference to a buffer.
-        buffer: &'a dyn GpuBufferTrait,
+        /// A shared reference to a buffer.
+        buffer: GpuBuffer,
         /// Binding mode for the buffer.
         binding: BufferLocation,
         /// Data portion to use.
@@ -126,7 +126,7 @@ pub enum ResourceBinding<'a> {
     },
 }
 
-impl ResourceBinding<'_> {
+impl ResourceBinding {
     /// Creates a new texture binding using uniform location. See [`TextureShaderLocation::Uniform`]
     /// docs for more info.
     pub fn texture(texture: &GpuTexture, shader_location: &UniformLocation) -> Self {
@@ -149,7 +149,7 @@ impl ResourceBinding<'_> {
 /// Resource binding group defines a set of bindings.
 pub struct ResourceBindGroup<'a> {
     /// A reference to resource bindings array.
-    pub bindings: &'a [ResourceBinding<'a>],
+    pub bindings: &'a [ResourceBinding],
 }
 
 /// Statistics for a single GPU draw call.

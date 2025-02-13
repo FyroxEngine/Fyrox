@@ -634,9 +634,10 @@ impl RenderDataBundle {
                                 // Bind stub buffer, instead of creating and uploading 16kb with zeros per draw
                                 // call.
                                 instance_bindings.push(ResourceBinding::Buffer {
-                                    buffer: &*render_context
+                                    buffer: render_context
                                         .fallback_resources
-                                        .bone_matrices_stub_uniform_buffer,
+                                        .bone_matrices_stub_uniform_buffer
+                                        .clone(),
                                     binding: BufferLocation::Explicit {
                                         binding: resource_definition.binding,
                                     },

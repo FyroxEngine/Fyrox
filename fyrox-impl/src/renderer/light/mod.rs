@@ -564,7 +564,7 @@ impl DeferredLightRenderer {
                     },
                     &[ResourceBindGroup {
                         bindings: &[ResourceBinding::Buffer {
-                            buffer: uniform_buffer,
+                            buffer: uniform_buffer.clone(),
                             binding: BufferLocation::Auto {
                                 shader_location: self.flat_shader.uniform_buffer_binding,
                             },

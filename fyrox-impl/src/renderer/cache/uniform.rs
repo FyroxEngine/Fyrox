@@ -22,7 +22,7 @@
 //! [`UniformBufferCache`] for more info.
 
 use crate::renderer::framework::{
-    buffer::{BufferKind, BufferUsage, GpuBufferTrait},
+    buffer::{BufferKind, BufferUsage},
     error::FrameworkError,
     framebuffer::{BufferDataUsage, ResourceBinding},
     server::GraphicsServer,
@@ -49,17 +49,17 @@ impl UniformBufferSet {
         &mut self,
         size: usize,
         server: &dyn GraphicsServer,
-    ) -> Result<&dyn GpuBufferTrait, FrameworkError> {
+    ) -> Result<GpuBuffer, FrameworkError> {
         if self.free < self.buffers.len() {
             let buffer = &self.buffers[self.free];
             self.free += 1;
-            Ok(&**buffer)
+            Ok(buffer.clone())
         } else {
             let buffer =
                 server.create_buffer(size, BufferKind::Uniform, BufferUsage::StreamCopy)?;
             self.buffers.push(buffer);
             self.free = self.buffers.len();
-            Ok(&**self.buffers.last().unwrap())
+            Ok(self.buffers.last().unwrap().clone())
         }
     }
 }
@@ -84,29 +84,15 @@ impl UniformBufferCache {
 
     /// Reserves one of the existing uniform buffers of the given size. If there's no such free buffer,
     /// this method creates a new one and reserves it for further use.
-    pub fn get_or_create<'a>(
-        &'a self,
-        size: usize,
-    ) -> Result<&'a dyn GpuBufferTrait, FrameworkError> {
+    pub fn get_or_create(&self, size: usize) -> Result<GpuBuffer, FrameworkError> {
         let mut cache = self.cache.borrow_mut();
         let set = cache.entry(size).or_default();
-        let buffer = set.get_or_create(size, &*self.server)?;
-        // SAFETY: GPU buffer "lives" in memory heap, so any potential memory reallocation of the
-        // hash map won't affect the returned reference. Also, buffers cannot be deleted so the
-        // reference is also valid. These reasons allows to extend lifetime to the lifetime of self.
-        Ok(
-            unsafe {
-                std::mem::transmute::<&'_ dyn GpuBufferTrait, &'a dyn GpuBufferTrait>(buffer)
-            },
-        )
+        set.get_or_create(size, &*self.server)
     }
 
     /// Fetches a suitable (or creates new one) GPU uniform buffer for the given CPU uniform buffer
     /// and writes the data to it, returns a reference to the buffer.
-    pub fn write<T>(
-        &self,
-        uniform_buffer: UniformBuffer<T>,
-    ) -> Result<&dyn GpuBufferTrait, FrameworkError>
+    pub fn write<T>(&self, uniform_buffer: UniformBuffer<T>) -> Result<GpuBuffer, FrameworkError>
     where
         T: ByteStorage,
     {
@@ -245,7 +231,7 @@ impl UniformMemoryAllocator {
         binding_point: usize,
     ) -> ResourceBinding {
         ResourceBinding::Buffer {
-            buffer: &*self.gpu_buffers[block.page],
+            buffer: self.gpu_buffers[block.page].clone(),
             binding: BufferLocation::Explicit {
                 binding: binding_point,
             },
