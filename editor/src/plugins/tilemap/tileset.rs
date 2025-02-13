@@ -22,6 +22,7 @@
 //! It serves to edit both tile sets and brushes, since they are conceptually similiar,
 //! with only minor modifications needed when switching between the two modes.
 
+use super::*;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -52,11 +53,9 @@ use crate::{
     message::MessageSender,
     plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
 };
+use commands::*;
 use palette::{PaletteWidgetBuilder, DEFAULT_MATERIAL_COLOR};
 use std::sync::Arc;
-
-use super::*;
-use commands::*;
 
 const TAB_MARGIN: Thickness = Thickness {
     left: 10.0,
@@ -166,11 +165,7 @@ impl TileSetEditor {
     ) -> Self {
         let tile_set_field =
             ResourceFieldBuilder::<TileSet>::new(WidgetBuilder::new().on_column(1), sender.clone())
-                .with_resource(if tile_book.is_brush() {
-                    tile_book.get_tile_set()
-                } else {
-                    None
-                })
+                .with_resource(tile_book.get_tile_set())
                 .build(ctx, resource_manager.clone());
         let tile_set_selector = GridBuilder::new(
             WidgetBuilder::new()

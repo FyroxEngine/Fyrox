@@ -18,8 +18,8 @@ members = [
     "fyrox-impl",
     "project-manager",
     "fyrox-graphics",
-    "fyrox-build-tools"
-    , "fyrox-texture"]
+    "fyrox-build-tools",
+    "fyrox-texture"]
 resolver = "2"
 
 [profile.dev]
