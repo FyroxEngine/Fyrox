@@ -52,7 +52,7 @@ use crate::{
 use fyrox_graphics::framebuffer::DrawCallStatistics;
 use std::{cell::RefCell, rc::Rc};
 use fyrox_core::info;
-use crate::renderer::hdr::luminance::{HistogramDeviationWidth, LuminanceHistogram};
+use crate::renderer::hdr::luminance::luminance_evaluator::LuminanceEvaluator;
 
 mod adaptation;
 mod downscale;
@@ -207,35 +207,16 @@ impl HighDynamicRangeRenderer {
 
 
             LuminanceCalculationMethod::Histogram => {
-                let luminance_range = 0.0f32..1.0f32;
-                // info!("histogram_sampling");
-
                 // TODO: Cloning memory from GPU to CPU is slow, but since the engine is limited
                 // by macOS's OpenGL 4.1 support and lack of compute shaders we'll build histogram
                 // manually on CPU anyway. Replace this with compute shaders whenever possible.
                 let data = self.frame_luminance.texture().borrow_mut().read_pixels();
-
                 let pixels = transmute_slice::<u8, f32>(&data);
 
-                let mut pixels = Vec::from(pixels);
+                let evaluator = luminance::histogram_luminance_evaluator::HistogramLuminanceEvaluator::default();
+                let avg_value = evaluator.average_luminance(pixels);
 
-                let avg_luminance_pixel_value = {
-                    const BIN_COUNT: usize = 128;
-
-                    let mut histogram = LuminanceHistogram::new(BIN_COUNT, luminance_range);
-
-                    for p in pixels {
-                        // pixel value to bin index
-                        histogram.push_value(p);
-                    }
-                    info!("{:?}", histogram);
-
-                    let deviation = HistogramDeviationWidth::new(5, &histogram)?;
-                    histogram.get_average_value(deviation)
-
-                };
-
-                // info!("avg_frame_luminance_pixel_value = {}", avg_luminance_pixel_value);
+                info!("{}", avg_value);
 
                 self.downscale_chain
                     .last()
@@ -249,7 +230,7 @@ impl HighDynamicRangeRenderer {
                         },
                         PixelKind::R32F,
                         1,
-                        Some(value_as_u8_slice(&avg_luminance_pixel_value)),
+                        Some(value_as_u8_slice(&avg_value)),
                     )?;
             }
             LuminanceCalculationMethod::DownSampling => {

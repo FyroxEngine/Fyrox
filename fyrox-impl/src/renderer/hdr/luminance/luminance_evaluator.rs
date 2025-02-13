@@ -18,37 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-pub mod luminance_evaluator;
-pub mod histogram_luminance_evaluator;
-
-use std::fmt::Debug;
-use crate::{
-    core::sstorage::ImmutableString,
-    renderer::framework::{
-        error::FrameworkError,
-        gpu_program::{GpuProgram, UniformLocation},
-        server::GraphicsServer,
-    },
-};
-
-pub struct LuminanceShader {
-    pub program: Box<dyn GpuProgram>,
-    pub frame_sampler: UniformLocation,
-    pub uniform_buffer_binding: usize,
-}
-
-impl LuminanceShader {
-    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("../shaders/hdr_luminance_fs.glsl");
-        let vertex_source = include_str!("../shaders/hdr_luminance_vs.glsl");
-
-        let program = server.create_program("LuminanceShader", vertex_source, fragment_source)?;
-
-        Ok(Self {
-            uniform_buffer_binding: program
-                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
-            frame_sampler: program.uniform_location(&ImmutableString::new("frameSampler"))?,
-            program,
-        })
-    }
+pub trait LuminanceEvaluator {
+  fn average_luminance(self, data: &[f32]) -> f32;
 }
