@@ -493,13 +493,27 @@ impl RenderDataBundle {
             .render_passes
             .get(render_context.render_pass_name)
         else {
-            err_once!(
-                self.data.key() as usize,
-                "There's no render pass {} in {} shader! \
-                Render path might be incorrect as well!",
-                render_context.render_pass_name,
-                material.shader().kind()
-            );
+            let shader = material.shader();
+            let shader_state = shader.state();
+            if let Some(shader_data) = shader_state.data_ref() {
+                if shader_data
+                    .definition
+                    .disabled_passes
+                    .iter()
+                    .find(|pass_name| {
+                        pass_name.as_str() == render_context.render_pass_name.as_str()
+                    })
+                    .is_none()
+                {
+                    err_once!(
+                        self.data.key() as usize,
+                        "There's no render pass {} in {} shader! \
+                        If it is not needed, add it to disabled passes.",
+                        render_context.render_pass_name,
+                        shader.kind()
+                    );
+                }
+            }
             return Ok(stats);
         };
 

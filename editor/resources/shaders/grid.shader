@@ -29,6 +29,8 @@
         ),
     ],
 
+    disabled_passes: ["GBuffer", "DirectionalShadow", "PointShadow", "SpotShadow"],
+
     passes: [
         (
             name: "Forward",

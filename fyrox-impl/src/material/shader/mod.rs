@@ -581,6 +581,10 @@ pub struct ShaderDefinition {
     pub passes: Vec<RenderPassDefinition>,
     /// A set of resource definitions.
     pub resources: Vec<ShaderResourceDefinition>,
+    /// A list of names of disabled render passes. It is used to strictly indicate that certain
+    /// passes are intentionally disabled in the rendering process.
+    #[serde(default)]
+    pub disabled_passes: Vec<String>,
 }
 
 impl ShaderDefinition {
