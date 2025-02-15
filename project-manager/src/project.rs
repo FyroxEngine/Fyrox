@@ -177,7 +177,7 @@ impl ProjectWizard {
         .build(ctx);
         let vcs_field = DropdownListBuilder::new(
             WidgetBuilder::new()
-                .with_margin(Thickness::uniform(1.0))
+                .with_margin(Thickness::uniform(2.0))
                 .with_height(22.0)
                 .on_row(3)
                 .on_column(1),
@@ -220,7 +220,7 @@ impl ProjectWizard {
         .add_row(Row::auto())
         .add_row(Row::auto())
         .add_row(Row::stretch())
-        .add_column(Column::strict(120.0))
+        .add_column(Column::strict(128.0))
         .add_column(Column::stretch())
         .build(ctx);
         let validation_text = TextBuilder::new(
