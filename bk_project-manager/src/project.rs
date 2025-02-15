@@ -138,21 +138,9 @@ impl ProjectWizard {
                 .on_row(0)
                 .on_column(1),
         )
-        .with_path({
-            #[cfg(target_os = "windows")]
-            {
-                std::env::var("USERPROFILE")
-                    .map(|p| format!("{}\\Documents", p))
-                    .unwrap_or_else(|_| "C:\\Users\\Default\\Documents".to_string())
-            }
-            #[cfg(not(target_os = "windows"))]
-            {
-                std::env::var("HOME")
-                    .map(|p| format!("{}/Documents", p))
-                    .unwrap_or_else(|_| "/home/default/Documents".to_string())
-            }
-        })
+        .with_path("./")
         .build(ctx);
+
         let name_field = TextBoxBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
@@ -160,8 +148,9 @@ impl ProjectWizard {
                 .on_column(1),
         )
         .with_text_commit_mode(TextCommitMode::Immediate)
-        .with_text("New project")
+        .with_text("MyProject")
         .build(ctx);
+
         let style_field = DropdownListBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
@@ -175,6 +164,7 @@ impl ProjectWizard {
         ])
         .with_selected(1)
         .build(ctx);
+
         let vcs_field = DropdownListBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
@@ -191,6 +181,7 @@ impl ProjectWizard {
         ])
         .with_selected(1)
         .build(ctx);
+
         let create = make_button("Create", 100.0, 22.0, 0, 0, 0, None, ctx);
         let cancel = make_button("Cancel", 100.0, 22.0, 0, 0, 0, None, ctx);
         let buttons = StackPanelBuilder::new(
@@ -203,6 +194,7 @@ impl ProjectWizard {
         )
         .with_orientation(Orientation::Horizontal)
         .build(ctx);
+
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
@@ -223,14 +215,16 @@ impl ProjectWizard {
         .add_column(Column::strict(120.0))
         .add_column(Column::stretch())
         .build(ctx);
+
         let validation_text = TextBuilder::new(
             WidgetBuilder::new()
                 .on_row(1)
                 .with_foreground(ctx.style.property(style::Style::BRUSH_ERROR)),
         )
-        .with_font_size(14.0.into())
+        .with_font_size(12.0.into())
         .with_wrap(WrapMode::Word)
         .build(ctx);
+
         let outer_grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(grid)
@@ -242,20 +236,23 @@ impl ProjectWizard {
         .add_row(Row::stretch())
         .add_column(Column::stretch())
         .build(ctx);
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(480.0).with_height(280.0))
+
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(180.0))
             .with_content(outer_grid)
             .open(false)
             .with_title(WindowTitle::text("Project Wizard"))
             .build(ctx);
+
         ctx.send_message(WindowMessage::open_modal(
             window,
             MessageDirection::ToWidget,
             true,
             true,
         ));
+
         Self {
             window,
-            name: "New Project".to_string(),
+            name: "MyProject".to_string(),
             style: Style::ThreeD,
             vcs: Vcs::Git,
             create,
@@ -264,20 +261,7 @@ impl ProjectWizard {
             name_field,
             style_field,
             vcs_field,
-            path: {
-                #[cfg(target_os = "windows")]
-                {
-                    std::env::var("USERPROFILE")
-                        .map(|p| PathBuf::from(p).join("Documents"))
-                        .unwrap_or_else(|_| PathBuf::from("C:\\Users\\Default\\Documents"))
-                }
-                #[cfg(not(target_os = "windows"))]
-                {
-                    std::env::var("HOME")
-                        .map(|p| PathBuf::from(p).join("Documents"))
-                        .unwrap_or_else(|_| PathBuf::from("/home/default/Documents"))
-                }
-            },
+            path: Default::default(),
             validation_text,
         }
     }

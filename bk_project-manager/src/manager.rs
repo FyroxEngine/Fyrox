@@ -212,7 +212,7 @@ fn make_project_item(
                         .with_margin(Thickness::uniform(2.0))
                         .with_vertical_alignment(VerticalAlignment::Center),
                 )
-                .with_font_size(20.0.into())
+                .with_font_size(18.0.into())
                 .with_text(name)
                 .build(ctx),
             )
@@ -224,7 +224,7 @@ fn make_project_item(
                         .with_margin(Thickness::uniform(2.0))
                         .with_vertical_alignment(VerticalAlignment::Center),
                 )
-                .with_font_size(16.0.into())
+                .with_font_size(13.0.into())
                 .with_text(path.to_string_lossy())
                 .build(ctx),
             ),
@@ -320,7 +320,7 @@ impl ProjectManager {
                         "Rust is not installed, please click the button at the right \
                         and follow build instructions for your platform.",
                     )
-                    .with_font_size(20.0.into())
+                    .with_font_size(18.0.into())
                     .with_wrap(WrapMode::Word)
                     .build(ctx),
                 )
@@ -618,7 +618,7 @@ impl ProjectManager {
                         Click \"+Create\" button to create a new project or \"Import\" an \
                         existing one.",
                 )
-                .with_font_size(18.0f32.into())
+                .with_font_size(16.0f32.into())
                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .build(ctx);
