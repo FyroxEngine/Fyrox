@@ -27,8 +27,7 @@ use crate::{
             buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, DrawCallStatistics, GpuFrameBuffer, ResourceBindGroup,
-                ResourceBinding,
+                Attachment, DrawCallStatistics, GpuFrameBuffer, ResourceBindGroup, ResourceBinding,
             },
             geometry_buffer::GpuGeometryBuffer,
             gpu_program::GpuProgram,
@@ -42,30 +41,9 @@ use crate::{
     scene::mesh::surface::SurfaceData,
 };
 
-struct BlurShader {
+pub struct Blur {
     shader: Shader,
     program: GpuProgram,
-}
-
-impl BlurShader {
-    fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let shader = Shader::from_string(include_str!("../shaders/blur.shader"))
-            .map_err(|e| FrameworkError::Custom(e.to_string()))?;
-        let pass = &shader.definition.passes[0];
-
-        let program = server.create_program_with_properties(
-            "BlurShader",
-            &pass.vertex_shader,
-            &pass.fragment_shader,
-            &shader.definition.resources,
-        )?;
-
-        Ok(Self { shader, program })
-    }
-}
-
-pub struct Blur {
-    shader: BlurShader,
     framebuffer: GpuFrameBuffer,
     quad: GpuGeometryBuffer,
     width: usize,
@@ -80,15 +58,21 @@ impl Blur {
     ) -> Result<Self, FrameworkError> {
         let frame = server.create_2d_render_target(PixelKind::R32F, width, height)?;
 
+        let shader = Shader::from_string(include_str!("../shaders/blur.shader"))
+            .map_err(|e| FrameworkError::Custom(e.to_string()))?;
+        let pass = &shader.definition.passes[0];
+
+        let program = server.create_program_with_properties(
+            "BlurShader",
+            &pass.vertex_shader,
+            &pass.fragment_shader,
+            &shader.definition.resources,
+        )?;
+
         Ok(Self {
-            shader: BlurShader::new(server)?,
-            framebuffer: server.create_frame_buffer(
-                None,
-                vec![Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: frame,
-                }],
-            )?,
+            shader,
+            program,
+            framebuffer: server.create_frame_buffer(None, vec![Attachment::color(frame)])?,
             quad: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
@@ -116,8 +100,8 @@ impl Blur {
         self.framebuffer.draw(
             &*self.quad,
             viewport,
-            &*self.shader.program,
-            &self.shader.shader.definition.passes[0].draw_parameters,
+            &*self.program,
+            &self.shader.definition.passes[0].draw_parameters,
             &[ResourceBindGroup {
                 bindings: &[
                     ResourceBinding::texture_with_binding(&input, 0),
