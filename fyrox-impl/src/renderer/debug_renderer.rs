@@ -174,9 +174,9 @@ impl DebugRenderer {
             uniform_buffer_cache.write(StaticUniformBuffer::<256>::new().with(&view_projection))?;
 
         statistics += framebuffer.draw(
-            &*self.geometry,
+            &self.geometry,
             viewport,
-            &*self.shader.program,
+            &self.shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),

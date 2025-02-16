@@ -98,9 +98,9 @@ impl Blur {
             .write(StaticUniformBuffer::<256>::new().with(&make_viewport_matrix(viewport)))?;
 
         self.framebuffer.draw(
-            &*self.quad,
+            &self.quad,
             viewport,
-            &*self.program,
+            &self.program,
             &self.shader.definition.passes[0].draw_parameters,
             &[ResourceBindGroup {
                 bindings: &[

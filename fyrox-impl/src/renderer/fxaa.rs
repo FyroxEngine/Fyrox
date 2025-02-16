@@ -91,9 +91,9 @@ impl FxaaRenderer {
         let frame_matrix = make_viewport_matrix(viewport);
 
         statistics += frame_buffer.draw(
-            &*self.quad,
+            &self.quad,
             viewport,
-            &*self.shader.program,
+            &self.shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),

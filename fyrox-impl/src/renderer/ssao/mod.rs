@@ -216,9 +216,9 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         )?;
 
         stats += self.framebuffer.draw(
-            &*self.quad,
+            &self.quad,
             viewport,
-            &*self.shader.program,
+            &self.shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),

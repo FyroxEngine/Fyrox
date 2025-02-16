@@ -27,7 +27,6 @@ use crate::{
             framebuffer::{
                 Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
             },
-            geometry_buffer::GpuGeometryBufferTrait,
             gpu_program::UniformLocation,
             gpu_texture::PixelKind,
             server::GraphicsServer,
@@ -38,6 +37,7 @@ use crate::{
     },
 };
 use fyrox_graphics::framebuffer::GpuFrameBuffer;
+use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
 use fyrox_graphics::gpu_program::GpuProgram;
 use fyrox_graphics::gpu_texture::GpuTexture;
 use fyrox_graphics::read_buffer::GpuAsyncReadBuffer;
@@ -107,7 +107,7 @@ impl VisibilityBufferOptimizer {
     pub fn optimize(
         &mut self,
         visibility_buffer: &GpuTexture,
-        unit_quad: &dyn GpuGeometryBufferTrait,
+        unit_quad: &GpuGeometryBuffer,
         tile_size: i32,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<(), FrameworkError> {
@@ -121,7 +121,7 @@ impl VisibilityBufferOptimizer {
         self.framebuffer.draw(
             unit_quad,
             viewport,
-            &*self.shader.program,
+            &self.shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: ColorMask::all(true),

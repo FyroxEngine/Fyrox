@@ -334,9 +334,9 @@ impl DeferredLightRenderer {
             {
                 let shader = &self.skybox_shader;
                 pass_stats += frame_buffer.draw(
-                    &*self.skybox,
+                    &self.skybox,
                     viewport,
-                    &*shader.program,
+                    &shader.program,
                     &DrawParameters {
                         cull_face: None,
                         color_write: Default::default(),
@@ -379,9 +379,9 @@ impl DeferredLightRenderer {
         let ao_map = self.ssao_renderer.ao_map();
 
         pass_stats += frame_buffer.draw(
-            &*self.quad,
+            &self.quad,
             viewport,
-            &*self.ambient_light_shader.program,
+            &self.ambient_light_shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -543,9 +543,9 @@ impl DeferredLightRenderer {
                 (CullFace::Back, StencilAction::Decr),
             ] {
                 pass_stats += frame_buffer.draw(
-                    &**bounding_shape,
+                    bounding_shape,
                     viewport,
-                    &*self.flat_shader.program,
+                    &self.flat_shader.program,
                     &DrawParameters {
                         cull_face: Some(cull_face),
                         color_write: ColorMask::all(false),
@@ -591,9 +591,9 @@ impl DeferredLightRenderer {
 
                     visibility_cache.begin_query(server, camera_global_position, light.handle)?;
                     frame_buffer.draw(
-                        &*self.quad,
+                        &self.quad,
                         viewport,
-                        &*self.flat_shader.program,
+                        &self.flat_shader.program,
                         &DrawParameters {
                             cull_face: None,
                             color_write: ColorMask::all(false),
@@ -780,9 +780,9 @@ impl DeferredLightRenderer {
                         )?;
 
                         frame_buffer.draw(
-                            &**quad,
+                            quad,
                             viewport,
-                            &*shader.program,
+                            &shader.program,
                             &draw_params,
                             &[ResourceBindGroup {
                                 bindings: &[
@@ -845,9 +845,9 @@ impl DeferredLightRenderer {
                         )?;
 
                         frame_buffer.draw(
-                            &**quad,
+                            quad,
                             viewport,
-                            &*shader.program,
+                            &shader.program,
                             &draw_params,
                             &[ResourceBindGroup {
                                 bindings: &[
@@ -919,9 +919,9 @@ impl DeferredLightRenderer {
                         )?;
 
                         frame_buffer.draw(
-                            &**quad,
+                            quad,
                             viewport,
-                            &*shader.program,
+                            &shader.program,
                             &DrawParameters {
                                 cull_face: None,
                                 color_write: Default::default(),
@@ -987,7 +987,7 @@ impl DeferredLightRenderer {
                 pass_stats += self.light_volume.render_volume(
                     light,
                     gbuffer,
-                    &*self.quad,
+                    &self.quad,
                     camera.view_matrix(),
                     inv_projection,
                     view_projection,

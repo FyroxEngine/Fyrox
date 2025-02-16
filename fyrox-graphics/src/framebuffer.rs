@@ -29,8 +29,9 @@ use crate::{
     core::{color::Color, math::Rect, Downcast},
     define_shared_wrapper,
     error::FrameworkError,
-    geometry_buffer::GpuGeometryBufferTrait,
-    gpu_program::{GpuProgramTrait, UniformLocation},
+    geometry_buffer::GpuGeometryBuffer,
+    gpu_program::GpuProgram,
+    gpu_program::UniformLocation,
     gpu_texture::{CubeMapFace, GpuTexture},
     DrawParameters, ElementRange,
 };
@@ -228,7 +229,7 @@ pub trait GpuFrameBufferTrait: Downcast {
     /// the data from
     fn blit_to(
         &self,
-        dest: &dyn GpuFrameBufferTrait,
+        dest: &GpuFrameBuffer,
         src_x0: i32,
         src_y0: i32,
         src_x1: i32,
@@ -270,9 +271,9 @@ pub trait GpuFrameBufferTrait: Downcast {
     /// `element_range` - defines which range of elements to draw.
     fn draw(
         &self,
-        geometry: &dyn GpuGeometryBufferTrait,
+        geometry: &GpuGeometryBuffer,
         viewport: Rect<i32>,
-        program: &dyn GpuProgramTrait,
+        program: &GpuProgram,
         params: &DrawParameters,
         resources: &[ResourceBindGroup],
         element_range: ElementRange,
@@ -284,9 +285,9 @@ pub trait GpuFrameBufferTrait: Downcast {
     fn draw_instances(
         &self,
         count: usize,
-        geometry: &dyn GpuGeometryBufferTrait,
+        geometry: &GpuGeometryBuffer,
         viewport: Rect<i32>,
-        program: &dyn GpuProgramTrait,
+        program: &GpuProgram,
         params: &DrawParameters,
         resources: &[ResourceBindGroup],
     ) -> DrawCallStatistics;

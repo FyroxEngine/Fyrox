@@ -18,21 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::framebuffer::DrawCallStatistics;
 use crate::{
     buffer::{BufferKind, GpuBufferTrait},
     core::{color::Color, math::Rect},
     error::FrameworkError,
     framebuffer::{
-        Attachment, AttachmentKind, BufferDataUsage, BufferLocation, GpuFrameBufferTrait,
-        ResourceBindGroup, ResourceBinding, TextureShaderLocation,
+        Attachment, AttachmentKind, BufferDataUsage, BufferLocation, DrawCallStatistics,
+        GpuFrameBuffer, GpuFrameBufferTrait, ResourceBindGroup, ResourceBinding,
+        TextureShaderLocation,
     },
-    geometry_buffer::GpuGeometryBufferTrait,
+    geometry_buffer::GpuGeometryBuffer,
     gl::{
         buffer::GlBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram,
         server::GlGraphicsServer, texture::GlTexture, ToGlConstant,
     },
-    gpu_program::GpuProgramTrait,
+    gpu_program::GpuProgram,
     gpu_texture::{CubeMapFace, GpuTextureKind, GpuTextureTrait, PixelElementKind},
     ColorMask, DrawParameters, ElementRange,
 };
@@ -196,7 +196,7 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
 
     fn blit_to(
         &self,
-        dest: &dyn GpuFrameBufferTrait,
+        dest: &GpuFrameBuffer,
         src_x0: i32,
         src_y0: i32,
         src_x1: i32,
@@ -364,9 +364,9 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
 
     fn draw(
         &self,
-        geometry: &dyn GpuGeometryBufferTrait,
+        geometry: &GpuGeometryBuffer,
         viewport: Rect<i32>,
-        program: &dyn GpuProgramTrait,
+        program: &GpuProgram,
         params: &DrawParameters,
         resources: &[ResourceBindGroup],
         element_range: ElementRange,
@@ -418,9 +418,9 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
     fn draw_instances(
         &self,
         count: usize,
-        geometry: &dyn GpuGeometryBufferTrait,
+        geometry: &GpuGeometryBuffer,
         viewport: Rect<i32>,
-        program: &dyn GpuProgramTrait,
+        program: &GpuProgram,
         params: &DrawParameters,
         resources: &[ResourceBindGroup],
     ) -> DrawCallStatistics {
@@ -457,7 +457,7 @@ fn pre_draw(
     fbo: Option<glow::Framebuffer>,
     server: &GlGraphicsServer,
     viewport: Rect<i32>,
-    program: &dyn GpuProgramTrait,
+    program: &GpuProgram,
     params: &DrawParameters,
     resources: &[ResourceBindGroup],
 ) {

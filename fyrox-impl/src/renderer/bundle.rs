@@ -664,7 +664,7 @@ impl RenderDataBundle {
             stats += render_context.frame_buffer.draw(
                 geometry,
                 render_context.viewport,
-                &*render_pass.program,
+                &render_pass.program,
                 &render_pass.draw_params,
                 &[
                     ResourceBindGroup {

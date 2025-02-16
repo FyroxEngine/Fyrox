@@ -33,7 +33,6 @@ use crate::{
             buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{ResourceBindGroup, ResourceBinding},
-            geometry_buffer::GpuGeometryBufferTrait,
             gpu_program::UniformLocation,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -128,7 +127,7 @@ impl LightVolumeRenderer {
         &mut self,
         light: &LightSource,
         gbuffer: &mut GBuffer,
-        quad: &dyn GpuGeometryBufferTrait,
+        quad: &GpuGeometryBuffer,
         view: Matrix4<f32>,
         inv_proj: Matrix4<f32>,
         view_proj: Matrix4<f32>,
@@ -174,9 +173,9 @@ impl LightVolumeRenderer {
                 frame_buffer.clear(viewport, None, None, Some(0));
 
                 stats += frame_buffer.draw(
-                    &*self.cone,
+                    &self.cone,
                     viewport,
-                    &*self.flat_shader.program,
+                    &self.flat_shader.program,
                     &DrawParameters {
                         cull_face: None,
                         color_write: ColorMask::all(false),
@@ -216,7 +215,7 @@ impl LightVolumeRenderer {
                 stats += frame_buffer.draw(
                     quad,
                     viewport,
-                    &*shader.program,
+                    &shader.program,
                     &DrawParameters {
                         cull_face: None,
                         color_write: Default::default(),
@@ -278,9 +277,9 @@ impl LightVolumeRenderer {
                     uniform_buffer_cache.write(StaticUniformBuffer::<256>::new().with(&mvp))?;
 
                 stats += frame_buffer.draw(
-                    &*self.sphere,
+                    &self.sphere,
                     viewport,
-                    &*self.flat_shader.program,
+                    &self.flat_shader.program,
                     &DrawParameters {
                         cull_face: None,
                         color_write: ColorMask::all(false),
@@ -319,7 +318,7 @@ impl LightVolumeRenderer {
                 stats += frame_buffer.draw(
                     quad,
                     viewport,
-                    &*shader.program,
+                    &shader.program,
                     &DrawParameters {
                         cull_face: None,
                         color_write: Default::default(),

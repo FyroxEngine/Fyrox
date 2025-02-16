@@ -27,7 +27,6 @@ use crate::{
             framebuffer::{
                 Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
             },
-            geometry_buffer::GpuGeometryBufferTrait,
             gpu_program::UniformLocation,
             gpu_texture::PixelKind,
             server::GraphicsServer,
@@ -38,6 +37,7 @@ use crate::{
     },
 };
 use fyrox_graphics::framebuffer::GpuFrameBuffer;
+use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
 use fyrox_graphics::gpu_program::GpuProgram;
 use fyrox_graphics::gpu_texture::GpuTexture;
 
@@ -114,7 +114,7 @@ impl GaussianBlur {
 
     pub(crate) fn render(
         &mut self,
-        quad: &dyn GpuGeometryBufferTrait,
+        quad: &GpuGeometryBuffer,
         input: GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
@@ -129,7 +129,7 @@ impl GaussianBlur {
         stats += self.h_framebuffer.draw(
             quad,
             viewport,
-            &*shader.program,
+            &shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -165,7 +165,7 @@ impl GaussianBlur {
         stats += self.v_framebuffer.draw(
             quad,
             viewport,
-            &*shader.program,
+            &shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),

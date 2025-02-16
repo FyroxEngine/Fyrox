@@ -260,9 +260,9 @@ impl SceneRenderPass for HighlightRenderPass {
             let shader = &self.edge_detect_shader;
             let frame_texture = self.framebuffer.color_attachments()[0].texture.clone();
             ctx.framebuffer.draw(
-                &*self.quad,
+                &self.quad,
                 ctx.viewport,
-                &*shader.program,
+                &shader.program,
                 &DrawParameters {
                     cull_face: None,
                     color_write: Default::default(),

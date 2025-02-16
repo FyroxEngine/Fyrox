@@ -22,9 +22,7 @@ use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     renderer::{
         cache::{TemporaryCache, TimeToLive},
-        framework::{
-            error::FrameworkError, geometry_buffer::GpuGeometryBufferTrait, server::GraphicsServer,
-        },
+        framework::{error::FrameworkError, server::GraphicsServer},
     },
     scene::mesh::surface::{SurfaceData, SurfaceResource},
 };
@@ -64,7 +62,7 @@ impl GeometryCache {
         server: &dyn GraphicsServer,
         data: &SurfaceResource,
         time_to_live: TimeToLive,
-    ) -> Result<&'a dyn GpuGeometryBufferTrait, FrameworkError> {
+    ) -> Result<&'a GpuGeometryBuffer, FrameworkError> {
         let data = data.data_ref();
 
         match self
@@ -98,7 +96,7 @@ impl GeometryCache {
                             data.geometry_buffer.modifications_count();
                     }
                 }
-                Ok(&*entry.buffer)
+                Ok(&entry.buffer)
             }
             Err(err) => Err(err),
         }

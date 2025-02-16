@@ -85,7 +85,6 @@ use crate::{
             framebuffer::{
                 Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
             },
-            geometry_buffer::GpuGeometryBufferTrait,
             gpu_program::SamplerFallback,
             gpu_texture::{GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::{GraphicsServer, SharedGraphicsServer},
@@ -576,7 +575,7 @@ impl AssociatedSceneData {
 
     fn copy_depth_stencil_to_scene_framebuffer(&mut self) {
         self.gbuffer.framebuffer().blit_to(
-            &*self.hdr_scene_framebuffer,
+            &self.hdr_scene_framebuffer,
             0,
             0,
             self.gbuffer.width,
@@ -854,7 +853,7 @@ fn blit_pixels(
     texture: GpuTexture,
     shader: &FlatShader,
     viewport: Rect<i32>,
-    quad: &dyn GpuGeometryBufferTrait,
+    quad: &GpuGeometryBuffer,
 ) -> Result<DrawCallStatistics, FrameworkError> {
     let matrix = make_viewport_matrix(viewport);
     let uniform_buffer =
@@ -862,7 +861,7 @@ fn blit_pixels(
     framebuffer.draw(
         quad,
         viewport,
-        &*shader.program,
+        &shader.program,
         &DrawParameters {
             cull_face: None,
             color_write: Default::default(),
@@ -1412,7 +1411,7 @@ impl Renderer {
                     uniform_buffer_cache: &mut self.uniform_buffer_cache,
                     uniform_memory_allocator: &mut self.uniform_memory_allocator,
                     screen_space_debug_renderer: &mut self.screen_space_debug_renderer,
-                    unit_quad: &*self.quad,
+                    unit_quad: &self.quad,
                 })?;
 
             server.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
@@ -1504,7 +1503,7 @@ impl Renderer {
 
             // Prepare glow map.
             scene_associated_data.statistics += scene_associated_data.bloom_renderer.render(
-                &**quad,
+                quad,
                 scene_associated_data.hdr_scene_frame_texture(),
                 &mut self.uniform_buffer_cache,
             )?;
@@ -1516,7 +1515,7 @@ impl Renderer {
                 scene_associated_data.bloom_renderer.result(),
                 &scene_associated_data.ldr_scene_framebuffer,
                 viewport,
-                &**quad,
+                quad,
                 dt,
                 camera.exposure(),
                 camera.color_grading_lut_ref(),
@@ -1542,7 +1541,7 @@ impl Renderer {
                     temp_frame_texture,
                     &self.flat_shader,
                     viewport,
-                    &**quad,
+                    quad,
                 )?;
             }
 
@@ -1587,14 +1586,13 @@ impl Renderer {
 
         // Optionally render everything into back buffer.
         if scene.rendering_options.render_target.is_none() {
-            let quad = &self.quad;
             scene_associated_data.statistics += blit_pixels(
                 &mut self.uniform_buffer_cache,
                 &self.backbuffer,
                 scene_associated_data.ldr_scene_frame_texture(),
                 &self.flat_shader,
                 window_viewport,
-                &**quad,
+                &self.quad,
             )?;
         }
 

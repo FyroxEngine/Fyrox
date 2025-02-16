@@ -47,10 +47,9 @@ use crate::{
             buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, BufferLocation, GpuFrameBufferTrait, ResourceBindGroup,
+                Attachment, AttachmentKind, BufferLocation, ResourceBindGroup,
                 ResourceBinding,
             },
-            geometry_buffer::GpuGeometryBufferTrait,
             gpu_texture::PixelKind,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -100,7 +99,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     #[allow(dead_code)]
     pub screen_space_debug_renderer: &'a mut DebugRenderer,
-    pub unit_quad: &'a dyn GpuGeometryBufferTrait,
+    pub unit_quad: &'a GpuGeometryBuffer,
 }
 
 impl GBuffer {
@@ -170,8 +169,8 @@ impl GBuffer {
         })
     }
 
-    pub fn framebuffer(&self) -> &dyn GpuFrameBufferTrait {
-        &*self.framebuffer
+    pub fn framebuffer(&self) -> &GpuFrameBuffer {
+        &self.framebuffer
     }
 
     pub fn depth(&self) -> GpuTexture {
@@ -277,7 +276,7 @@ impl GBuffer {
                 None,
                 unit_quad,
                 objects.iter(),
-                &*self.framebuffer,
+                &self.framebuffer,
                 camera.global_position(),
                 view_projection,
                 uniform_buffer_cache,
@@ -295,7 +294,7 @@ impl GBuffer {
         let unit_cube = &self.cube;
         for decal in graph.linear_iter().filter_map(|n| n.cast::<Decal>()) {
             let shader = &self.decal_shader;
-            let program = &*self.decal_shader.program;
+            let program = &self.decal_shader.program;
 
             let world_view_proj = view_projection * decal.global_transform();
 
@@ -312,7 +311,7 @@ impl GBuffer {
                 .clone();
 
             statistics += self.decal_framebuffer.draw(
-                &**unit_cube,
+                unit_cube,
                 viewport,
                 program,
                 &DrawParameters {

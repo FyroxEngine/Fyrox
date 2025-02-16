@@ -137,9 +137,9 @@ impl SceneRenderPass for OverlayRenderPass {
             let world_matrix = Matrix4::new_translation(&position);
 
             ctx.framebuffer.draw(
-                &*self.quad,
+                &self.quad,
                 ctx.viewport,
-                &*shader.program,
+                &shader.program,
                 &DrawParameters {
                     cull_face: None,
                     color_write: Default::default(),

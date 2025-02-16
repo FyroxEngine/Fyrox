@@ -232,9 +232,9 @@ impl UiRenderer {
 
                 // Draw
                 statistics += frame_buffer.draw(
-                    &*self.clipping_geometry_buffer,
+                    &self.clipping_geometry_buffer,
                     viewport,
-                    &*flat_shader.program,
+                    &flat_shader.program,
                     &DrawParameters {
                         cull_face: None,
                         color_write: ColorMask::all(false),
@@ -398,9 +398,9 @@ impl UiRenderer {
 
             let shader = &self.shader;
             statistics += frame_buffer.draw(
-                &*self.geometry_buffer,
+                &self.geometry_buffer,
                 viewport,
-                &*self.shader.program,
+                &self.shader.program,
                 &params,
                 &[ResourceBindGroup {
                     bindings: &[

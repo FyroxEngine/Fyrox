@@ -33,7 +33,6 @@ use crate::{
             framebuffer::{
                 Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
             },
-            geometry_buffer::GpuGeometryBufferTrait,
             gpu_texture::{GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -50,6 +49,7 @@ use crate::{
     scene::camera::{ColorGradingLut, Exposure},
 };
 use fyrox_graphics::framebuffer::{DrawCallStatistics, GpuFrameBuffer};
+use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
 use fyrox_graphics::gpu_texture::GpuTexture;
 
 mod adaptation;
@@ -147,7 +147,7 @@ impl HighDynamicRangeRenderer {
     fn calculate_frame_luminance(
         &mut self,
         scene_frame: GpuTexture,
-        quad: &dyn GpuGeometryBufferTrait,
+        quad: &GpuGeometryBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         self.frame_luminance.clear();
@@ -163,7 +163,7 @@ impl HighDynamicRangeRenderer {
                 self.frame_luminance.size as i32,
                 self.frame_luminance.size as i32,
             ),
-            &*shader.program,
+            &shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -196,7 +196,7 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_avg_frame_luminance(
         &mut self,
-        quad: &dyn GpuGeometryBufferTrait,
+        quad: &GpuGeometryBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
@@ -234,7 +234,7 @@ impl HighDynamicRangeRenderer {
                     stats += lum_buffer.framebuffer.draw(
                         quad,
                         Rect::new(0, 0, lum_buffer.size as i32, lum_buffer.size as i32),
-                        &*shader.program,
+                        &shader.program,
                         &DrawParameters {
                             cull_face: None,
                             color_write: Default::default(),
@@ -274,7 +274,7 @@ impl HighDynamicRangeRenderer {
 
     fn adaptation(
         &mut self,
-        quad: &dyn GpuGeometryBufferTrait,
+        quad: &GpuGeometryBuffer,
         dt: f32,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
@@ -285,7 +285,7 @@ impl HighDynamicRangeRenderer {
         ctx.lum_buffer.framebuffer.draw(
             quad,
             viewport,
-            &*shader.program,
+            &shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -328,7 +328,7 @@ impl HighDynamicRangeRenderer {
         bloom_texture: GpuTexture,
         ldr_framebuffer: &GpuFrameBuffer,
         viewport: Rect<i32>,
-        quad: &dyn GpuGeometryBufferTrait,
+        quad: &GpuGeometryBuffer,
         exposure: Exposure,
         color_grading_lut: Option<&ColorGradingLut>,
         use_color_grading: bool,
@@ -365,7 +365,7 @@ impl HighDynamicRangeRenderer {
         ldr_framebuffer.draw(
             quad,
             viewport,
-            &*shader.program,
+            &shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -405,7 +405,7 @@ impl HighDynamicRangeRenderer {
         bloom_texture: GpuTexture,
         ldr_framebuffer: &GpuFrameBuffer,
         viewport: Rect<i32>,
-        quad: &dyn GpuGeometryBufferTrait,
+        quad: &GpuGeometryBuffer,
         dt: f32,
         exposure: Exposure,
         color_grading_lut: Option<&ColorGradingLut>,

@@ -39,10 +39,7 @@ use crate::{
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{
-                Attachment, AttachmentKind, GpuFrameBufferTrait, ResourceBindGroup, ResourceBinding,
-            },
-            geometry_buffer::GpuGeometryBufferTrait,
+            framebuffer::{Attachment, AttachmentKind, ResourceBindGroup, ResourceBinding},
             gpu_program::UniformLocation,
             gpu_texture::{GpuTextureKind, PixelKind},
             server::GraphicsServer,
@@ -316,7 +313,7 @@ impl OcclusionTester {
         &mut self,
         graph: &Graph,
         objects_to_test: impl Iterator<Item = &'a Handle<Node>>,
-        prev_framebuffer: &dyn GpuFrameBufferTrait,
+        prev_framebuffer: &GpuFrameBuffer,
         observer_position: Vector3<f32>,
         view_projection: Matrix4<f32>,
     ) {
@@ -325,7 +322,7 @@ impl OcclusionTester {
         let w = self.frame_size.x as i32;
         let h = self.frame_size.y as i32;
         prev_framebuffer.blit_to(
-            &*self.framebuffer,
+            &self.framebuffer,
             0,
             0,
             w,
@@ -357,9 +354,9 @@ impl OcclusionTester {
         &mut self,
         graph: &Graph,
         debug_renderer: Option<&mut DebugRenderer>,
-        unit_quad: &dyn GpuGeometryBufferTrait,
+        unit_quad: &GpuGeometryBuffer,
         objects_to_test: impl Iterator<Item = &'a Handle<Node>>,
-        prev_framebuffer: &dyn GpuFrameBufferTrait,
+        prev_framebuffer: &GpuFrameBuffer,
         observer_position: Vector3<f32>,
         view_projection: Matrix4<f32>,
         uniform_buffer_cache: &mut UniformBufferCache,
@@ -395,9 +392,9 @@ impl OcclusionTester {
         let shader = &self.shader;
         self.framebuffer.draw_instances(
             self.objects_to_test.len(),
-            &*self.cube,
+            &self.cube,
             viewport,
-            &*self.shader.program,
+            &self.shader.program,
             &DrawParameters {
                 cull_face: Some(CullFace::Back),
                 color_write: ColorMask::all(true),
