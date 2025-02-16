@@ -24,15 +24,14 @@
 //! It consists of one or more color buffers and an optional depth/stencil buffer. See [`GpuFrameBufferTrait`]
 //! docs for more info.
 
-use crate::buffer::GpuBuffer;
-use crate::gpu_texture::GpuTexture;
 use crate::{
+    buffer::GpuBuffer,
     core::{color::Color, math::Rect, Downcast},
     define_shared_wrapper,
     error::FrameworkError,
     geometry_buffer::GpuGeometryBufferTrait,
     gpu_program::{GpuProgramTrait, UniformLocation},
-    gpu_texture::CubeMapFace,
+    gpu_texture::{CubeMapFace, GpuTexture},
     DrawParameters, ElementRange,
 };
 
@@ -54,6 +53,32 @@ pub struct Attachment {
     pub kind: AttachmentKind,
     /// A texture that is used to write the rendered image to.
     pub texture: GpuTexture,
+}
+
+impl Attachment {
+    /// Creates a new [`AttachmentKind::Color`] attachment with the given texture.
+    pub fn color(texture: GpuTexture) -> Self {
+        Self {
+            kind: AttachmentKind::Color,
+            texture,
+        }
+    }
+
+    /// Creates a new [`AttachmentKind::Depth`] attachment with the given texture.
+    pub fn depth(texture: GpuTexture) -> Self {
+        Self {
+            kind: AttachmentKind::Depth,
+            texture,
+        }
+    }
+
+    /// Creates a new [`AttachmentKind::DepthStencil`] attachment with the given texture.
+    pub fn depth_stencil(texture: GpuTexture) -> Self {
+        Self {
+            kind: AttachmentKind::DepthStencil,
+            texture,
+        }
+    }
 }
 
 /// Defines a range of data in a particular buffer.
