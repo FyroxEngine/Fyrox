@@ -106,6 +106,13 @@ pub enum BufferLocation {
     },
 }
 
+impl BufferLocation {
+    /// Creates a new explicit binding point.
+    pub fn new(binding: usize) -> Self {
+        Self::Explicit { binding }
+    }
+}
+
 /// A resource binding defines where to bind specific GPU resources.
 pub enum ResourceBinding {
     /// Texture binding.
@@ -142,6 +149,19 @@ impl ResourceBinding {
         Self::Texture {
             texture: texture.clone(),
             shader_location: TextureShaderLocation::ExplicitBinding(binding),
+        }
+    }
+
+    /// Creates a new explicit buffer binding. See [`BufferLocation::Explicit`] for more info.
+    pub fn buffer_with_binding(
+        buffer: &GpuBuffer,
+        binding: usize,
+        data_usage: BufferDataUsage,
+    ) -> Self {
+        Self::Buffer {
+            buffer: buffer.clone(),
+            binding: BufferLocation::new(binding),
+            data_usage,
         }
     }
 }
