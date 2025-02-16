@@ -19,53 +19,53 @@
 // SOFTWARE.
 
 use crate::{
-    core::{math::Rect, sstorage::ImmutableString},
+    core::math::Rect,
+    material::shader::Shader,
     renderer::{
         cache::uniform::UniformBufferCache,
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
+                Attachment, AttachmentKind, DrawCallStatistics, GpuFrameBuffer, ResourceBindGroup,
+                ResourceBinding,
             },
-            gpu_program::UniformLocation,
-            gpu_texture::PixelKind,
+            geometry_buffer::GpuGeometryBuffer,
+            gpu_program::GpuProgram,
+            gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
-            DrawParameters, ElementRange, GeometryBufferExt,
+            ElementRange, GeometryBufferExt,
         },
         make_viewport_matrix,
     },
     scene::mesh::surface::SurfaceData,
 };
-use fyrox_graphics::framebuffer::{DrawCallStatistics, GpuFrameBuffer};
-use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
-use fyrox_graphics::gpu_program::GpuProgram;
-use fyrox_graphics::gpu_texture::GpuTexture;
 
-struct Shader {
+struct BlurShader {
+    shader: Shader,
     program: GpuProgram,
-    input_texture: UniformLocation,
-    uniform_buffer_binding: usize,
 }
 
-impl Shader {
+impl BlurShader {
     fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("../shaders/blur_fs.glsl");
-        let vertex_source = include_str!("../shaders/blur_vs.glsl");
+        let shader = Shader::from_string(include_str!("../shaders/blur.shader"))
+            .map_err(|e| FrameworkError::Custom(e.to_string()))?;
+        let pass = &shader.definition.passes[0];
 
-        let program = server.create_program("BlurShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            uniform_buffer_binding: program
-                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
-            input_texture: program.uniform_location(&ImmutableString::new("inputTexture"))?,
-            program,
-        })
+        let program = server.create_program_with_properties(
+            "BlurShader",
+            &pass.vertex_shader,
+            &pass.fragment_shader,
+            &shader.definition.resources,
+        )?;
+
+        Ok(Self { shader, program })
     }
 }
 
 pub struct Blur {
-    shader: Shader,
+    shader: BlurShader,
     framebuffer: GpuFrameBuffer,
     quad: GpuGeometryBuffer,
     width: usize,
@@ -81,7 +81,7 @@ impl Blur {
         let frame = server.create_2d_render_target(PixelKind::R32F, width, height)?;
 
         Ok(Self {
-            shader: Shader::new(server)?,
+            shader: BlurShader::new(server)?,
             framebuffer: server.create_frame_buffer(
                 None,
                 vec![Attachment {
@@ -110,33 +110,18 @@ impl Blur {
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
 
-        let shader = &self.shader;
+        let uniforms = uniform_buffer_cache
+            .write(StaticUniformBuffer::<256>::new().with(&make_viewport_matrix(viewport)))?;
+
         self.framebuffer.draw(
             &*self.quad,
             viewport,
-            &*shader.program,
-            &DrawParameters {
-                cull_face: None,
-                color_write: Default::default(),
-                depth_write: false,
-                stencil_test: None,
-                depth_test: None,
-                blend: None,
-                stencil_op: Default::default(),
-                scissor_box: None,
-            },
+            &*self.shader.program,
+            &self.shader.shader.definition.passes[0].draw_parameters,
             &[ResourceBindGroup {
                 bindings: &[
-                    ResourceBinding::texture(&input, &shader.input_texture),
-                    ResourceBinding::Buffer {
-                        buffer: uniform_buffer_cache.write(
-                            StaticUniformBuffer::<256>::new().with(&make_viewport_matrix(viewport)),
-                        )?,
-                        binding: BufferLocation::Auto {
-                            shader_location: shader.uniform_buffer_binding,
-                        },
-                        data_usage: Default::default(),
-                    },
+                    ResourceBinding::texture_with_binding(&input, 0),
+                    ResourceBinding::buffer_with_binding(&uniforms, 0, Default::default()),
                 ],
             }],
             ElementRange::Full,
