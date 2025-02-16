@@ -496,14 +496,11 @@ impl RenderDataBundle {
             let shader = material.shader();
             let shader_state = shader.state();
             if let Some(shader_data) = shader_state.data_ref() {
-                if shader_data
+                if !shader_data
                     .definition
                     .disabled_passes
                     .iter()
-                    .find(|pass_name| {
-                        pass_name.as_str() == render_context.render_pass_name.as_str()
-                    })
-                    .is_none()
+                    .any(|pass_name| pass_name.as_str() == render_context.render_pass_name.as_str())
                 {
                     err_once!(
                         self.data.key() as usize,
