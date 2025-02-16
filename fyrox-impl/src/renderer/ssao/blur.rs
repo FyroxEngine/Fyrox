@@ -19,10 +19,9 @@
 // SOFTWARE.
 
 use crate::{
-    core::math::Rect,
-    material::shader::Shader,
+    core::{math::Rect, ImmutableString},
     renderer::{
-        cache::uniform::UniformBufferCache,
+        cache::{shader::RenderPassContainer, uniform::UniformBufferCache},
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
@@ -30,7 +29,6 @@ use crate::{
                 Attachment, DrawCallStatistics, GpuFrameBuffer, ResourceBindGroup, ResourceBinding,
             },
             geometry_buffer::GpuGeometryBuffer,
-            gpu_program::GpuProgram,
             gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -42,8 +40,7 @@ use crate::{
 };
 
 pub struct Blur {
-    shader: Shader,
-    program: GpuProgram,
+    program: RenderPassContainer,
     framebuffer: GpuFrameBuffer,
     quad: GpuGeometryBuffer,
     width: usize,
@@ -57,20 +54,9 @@ impl Blur {
         height: usize,
     ) -> Result<Self, FrameworkError> {
         let frame = server.create_2d_render_target(PixelKind::R32F, width, height)?;
-
-        let shader = Shader::from_string(include_str!("../shaders/blur.shader"))
-            .map_err(|e| FrameworkError::Custom(e.to_string()))?;
-        let pass = &shader.definition.passes[0];
-
-        let program = server.create_program_with_properties(
-            "BlurShader",
-            &pass.vertex_shader,
-            &pass.fragment_shader,
-            &shader.definition.resources,
-        )?;
-
+        let program =
+            RenderPassContainer::from_str(server, include_str!("../shaders/blur.shader"))?;
         Ok(Self {
-            shader,
             program,
             framebuffer: server.create_frame_buffer(None, vec![Attachment::color(frame)])?,
             quad: GpuGeometryBuffer::from_surface_data(
@@ -97,11 +83,12 @@ impl Blur {
         let uniforms = uniform_buffer_cache
             .write(StaticUniformBuffer::<256>::new().with(&make_viewport_matrix(viewport)))?;
 
+        let render_pass = self.program.get(&ImmutableString::new("Primary"))?;
         self.framebuffer.draw(
             &self.quad,
             viewport,
-            &self.program,
-            &self.shader.definition.passes[0].draw_parameters,
+            &render_pass.program,
+            &render_pass.draw_params,
             &[ResourceBindGroup {
                 bindings: &[
                     ResourceBinding::texture_with_binding(&input, 0),

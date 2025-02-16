@@ -47,8 +47,7 @@ use crate::{
             buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, BufferLocation, ResourceBindGroup,
-                ResourceBinding,
+                Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
             },
             gpu_texture::PixelKind,
             server::GraphicsServer,

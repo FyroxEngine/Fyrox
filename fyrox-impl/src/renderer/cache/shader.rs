@@ -34,11 +34,16 @@ pub struct RenderPassData {
     pub draw_params: DrawParameters,
 }
 
-pub struct ShaderSet {
+pub struct RenderPassContainer {
     pub render_passes: FxHashMap<ImmutableString, RenderPassData>,
 }
 
-impl ShaderSet {
+impl RenderPassContainer {
+    pub fn from_str(server: &dyn GraphicsServer, str: &str) -> Result<Self, FrameworkError> {
+        let shader = Shader::from_string(str).map_err(|e| FrameworkError::Custom(e.to_string()))?;
+        Self::new(server, &shader)
+    }
+
     pub fn new(server: &dyn GraphicsServer, shader: &Shader) -> Result<Self, FrameworkError> {
         let mut map = FxHashMap::default();
         for render_pass in shader.definition.passes.iter() {
@@ -68,11 +73,20 @@ impl ShaderSet {
 
         Ok(Self { render_passes: map })
     }
+
+    pub fn get(
+        &self,
+        render_pass_name: &ImmutableString,
+    ) -> Result<&RenderPassData, FrameworkError> {
+        self.render_passes.get(render_pass_name).ok_or_else(|| {
+            FrameworkError::Custom(format!("No render pass with name {render_pass_name}!"))
+        })
+    }
 }
 
 #[derive(Default)]
 pub struct ShaderCache {
-    pub(super) cache: TemporaryCache<ShaderSet>,
+    pub(super) cache: TemporaryCache<RenderPassContainer>,
 }
 
 impl ShaderCache {
@@ -87,14 +101,14 @@ impl ShaderCache {
         &mut self,
         server: &dyn GraphicsServer,
         shader: &ShaderResource,
-    ) -> Option<&ShaderSet> {
+    ) -> Option<&RenderPassContainer> {
         let mut shader_state = shader.state();
 
         if let Some(shader_state) = shader_state.data() {
             match self.cache.get_or_insert_with(
                 &shader_state.cache_index,
                 Default::default(),
-                || ShaderSet::new(server, shader_state),
+                || RenderPassContainer::new(server, shader_state),
             ) {
                 Ok(shader_set) => Some(shader_set),
                 Err(error) => {
