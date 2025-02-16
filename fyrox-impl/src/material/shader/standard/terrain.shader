@@ -62,19 +62,19 @@
             kind: PropertyGroup([
                 (
                     name: "nodeUvOffsets",
-                    kind: Vector4((0.0, 0.0, 0.0, 0.0)),
+                    kind: Vector4(value: (0.0, 0.0, 0.0, 0.0)),
                 ),
                 (
                     name: "texCoordScale",
-                    kind: Vector2((1.0, 1.0)),
+                    kind: Vector2(value: (1.0, 1.0)),
                 ),
                 (
                     name: "layerIndex",
-                    kind: UInt(0),
+                    kind: UInt(value: 0),
                 ),
                 (
                     name: "emissionStrength",
-                    kind: Vector3((2.0, 2.0, 2.0)),
+                    kind: Vector3(value: (2.0, 2.0, 2.0)),
                 ),
                 (
                     name: "diffuseColor",
@@ -82,11 +82,11 @@
                 ),
                 (
                     name: "parallaxCenter",
-                    kind: Float(0.0),
+                    kind: Float(value: 0.0),
                 ),
                 (
                     name: "parallaxScale",
-                    kind: Float(0.08),
+                    kind: Float(value: 0.08),
                 ),
             ]),
             binding: 0

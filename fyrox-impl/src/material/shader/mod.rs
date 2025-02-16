@@ -356,7 +356,7 @@
 //!             kind: PropertyGroup([
 //!                 (
 //!                     name: "texCoordScale",
-//!                     kind: Vector2((1.0, 1.0)),
+//!                     kind: Vector2(value: (1.0, 1.0)),
 //!                 ),
 //!                 (
 //!                     name: "diffuseColor",
@@ -623,31 +623,58 @@ impl ShaderDefinition {
                     properties.extend([
                         ShaderProperty::new(
                             "viewProjectionMatrix",
-                            Matrix4(algebra::Matrix4::identity()),
+                            Matrix4 {
+                                value: algebra::Matrix4::identity(),
+                            },
                         ),
-                        ShaderProperty::new("position", Vector3(Default::default())),
-                        ShaderProperty::new("upVector", Vector3(Default::default())),
-                        ShaderProperty::new("sideVector", Vector3(Default::default())),
-                        ShaderProperty::new("zNear", Float(0.0)),
-                        ShaderProperty::new("zFar", Float(0.0)),
-                        ShaderProperty::new("zRange", Float(0.0)),
+                        ShaderProperty::new(
+                            "position",
+                            Vector3 {
+                                value: Default::default(),
+                            },
+                        ),
+                        ShaderProperty::new(
+                            "upVector",
+                            Vector3 {
+                                value: Default::default(),
+                            },
+                        ),
+                        ShaderProperty::new(
+                            "sideVector",
+                            Vector3 {
+                                value: Default::default(),
+                            },
+                        ),
+                        ShaderProperty::new("zNear", Float { value: 0.0 }),
+                        ShaderProperty::new("zFar", Float { value: 0.0 }),
+                        ShaderProperty::new("zRange", Float { value: 0.0 }),
                     ]);
                 }
                 "fyrox_lightData" => {
                     properties.clear();
                     properties.extend([
-                        ShaderProperty::new("lightPosition", Vector3(Default::default())),
-                        ShaderProperty::new("ambientLightColor", Vector4(Default::default())),
+                        ShaderProperty::new(
+                            "lightPosition",
+                            Vector3 {
+                                value: Default::default(),
+                            },
+                        ),
+                        ShaderProperty::new(
+                            "ambientLightColor",
+                            Vector4 {
+                                value: Default::default(),
+                            },
+                        ),
                     ]);
                 }
                 "fyrox_graphicsSettings" => {
                     properties.clear();
-                    properties.extend([ShaderProperty::new("usePOM", Bool(false))]);
+                    properties.extend([ShaderProperty::new("usePOM", Bool { value: false })]);
                 }
                 "fyrox_lightsBlock" => {
                     properties.clear();
                     properties.extend([
-                        ShaderProperty::new("lightCount", Int(0)),
+                        ShaderProperty::new("lightCount", Int { value: 0 }),
                         ShaderProperty::new(
                             "lightsColorRadius",
                             Vector4Array {
@@ -681,13 +708,20 @@ impl ShaderDefinition {
                 "fyrox_instanceData" => {
                     properties.clear();
                     properties.extend([
-                        ShaderProperty::new("worldMatrix", Matrix4(algebra::Matrix4::identity())),
+                        ShaderProperty::new(
+                            "worldMatrix",
+                            Matrix4 {
+                                value: algebra::Matrix4::identity(),
+                            },
+                        ),
                         ShaderProperty::new(
                             "worldViewProjection",
-                            Matrix4(algebra::Matrix4::identity()),
+                            Matrix4 {
+                                value: algebra::Matrix4::identity(),
+                            },
                         ),
-                        ShaderProperty::new("blendShapesCount", Int(0)),
-                        ShaderProperty::new("useSkeletalAnimation", Bool(false)),
+                        ShaderProperty::new("blendShapesCount", Int { value: 0 }),
+                        ShaderProperty::new("useSkeletalAnimation", Bool { value: false }),
                         ShaderProperty::new(
                             "blendShapesWeights",
                             Vector4Array {
@@ -1008,6 +1042,7 @@ mod test {
                 vertex_shader: "<CODE>".to_string(),
                 fragment_shader: "<CODE>".to_string(),
             }],
+            disabled_passes: vec![],
         };
 
         assert_eq!(data.definition, reference_definition);

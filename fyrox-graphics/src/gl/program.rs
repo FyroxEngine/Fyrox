@@ -221,58 +221,58 @@ impl GlProgram {
                         for field in fields {
                             let field_name = &field.name;
                             match field.kind {
-                                ShaderPropertyKind::Float(_) => {
+                                ShaderPropertyKind::Float { .. } => {
                                     block += &format!("\tfloat {field_name};\n");
                                 }
                                 ShaderPropertyKind::FloatArray { max_len, .. } => {
                                     block += &format!("\tfloat {field_name}[{max_len}];\n");
                                 }
-                                ShaderPropertyKind::Int(_) => {
+                                ShaderPropertyKind::Int { .. } => {
                                     block += &format!("\tint {field_name};\n");
                                 }
                                 ShaderPropertyKind::IntArray { max_len, .. } => {
                                     block += &format!("\tint {field_name}[{max_len}];\n");
                                 }
-                                ShaderPropertyKind::UInt(_) => {
+                                ShaderPropertyKind::UInt { .. } => {
                                     block += &format!("\tuint {field_name};\n");
                                 }
                                 ShaderPropertyKind::UIntArray { max_len, .. } => {
                                     block += &format!("\tuint {field_name}[{max_len}];\n");
                                 }
-                                ShaderPropertyKind::Bool(_) => {
+                                ShaderPropertyKind::Bool { .. } => {
                                     block += &format!("\tbool {field_name};\n");
                                 }
-                                ShaderPropertyKind::Vector2(_) => {
+                                ShaderPropertyKind::Vector2 { .. } => {
                                     block += &format!("\tvec2 {field_name};\n");
                                 }
                                 ShaderPropertyKind::Vector2Array { max_len, .. } => {
                                     block += &format!("\tvec2 {field_name}[{max_len}];\n");
                                 }
-                                ShaderPropertyKind::Vector3(_) => {
+                                ShaderPropertyKind::Vector3 { .. } => {
                                     block += &format!("\tvec3 {field_name};\n");
                                 }
                                 ShaderPropertyKind::Vector3Array { max_len, .. } => {
                                     block += &format!("\tvec3 {field_name}[{max_len}];\n");
                                 }
-                                ShaderPropertyKind::Vector4(_) => {
+                                ShaderPropertyKind::Vector4 { .. } => {
                                     block += &format!("\tvec4 {field_name};\n");
                                 }
                                 ShaderPropertyKind::Vector4Array { max_len, .. } => {
                                     block += &format!("\tvec4 {field_name}[{max_len}];\n");
                                 }
-                                ShaderPropertyKind::Matrix2(_) => {
+                                ShaderPropertyKind::Matrix2 { .. } => {
                                     block += &format!("\tmat2 {field_name};\n");
                                 }
                                 ShaderPropertyKind::Matrix2Array { max_len, .. } => {
                                     block += &format!("\tmat2 {field_name}[{max_len}];\n");
                                 }
-                                ShaderPropertyKind::Matrix3(_) => {
+                                ShaderPropertyKind::Matrix3 { .. } => {
                                     block += &format!("\tmat3 {field_name};\n");
                                 }
                                 ShaderPropertyKind::Matrix3Array { max_len, .. } => {
                                     block += &format!("\tmat3 {field_name}[{max_len}];\n");
                                 }
-                                ShaderPropertyKind::Matrix4(_) => {
+                                ShaderPropertyKind::Matrix4 { .. } => {
                                     block += &format!("\tmat4 {field_name};\n");
                                 }
                                 ShaderPropertyKind::Matrix4Array { max_len, .. } => {

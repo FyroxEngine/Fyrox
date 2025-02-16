@@ -17,11 +17,11 @@
             kind: PropertyGroup([
                 (
                     name: "softBoundarySharpnessFactor",
-                    kind: Float(100.0),
+                    kind: Float(value: 100.0),
                 ),
                 (
                     name: "useLighting",
-                    kind: Bool(false),
+                    kind: Bool(value: false),
                 ),
             ]),
             binding: 0

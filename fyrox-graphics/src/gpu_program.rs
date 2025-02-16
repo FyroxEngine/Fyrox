@@ -132,7 +132,10 @@ pub enum ShaderResourceKind {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
 pub enum ShaderPropertyKind {
     /// Real number.
-    Float(f32),
+    Float {
+        #[serde(default)]
+        value: f32,
+    },
 
     /// Real number array.
     FloatArray {
@@ -142,7 +145,10 @@ pub enum ShaderPropertyKind {
     },
 
     /// Integer number.
-    Int(i32),
+    Int {
+        #[serde(default)]
+        value: i32,
+    },
 
     /// Integer number array.
     IntArray {
@@ -152,7 +158,10 @@ pub enum ShaderPropertyKind {
     },
 
     /// Natural number.
-    UInt(u32),
+    UInt {
+        #[serde(default)]
+        value: u32,
+    },
 
     /// Natural number array.
     UIntArray {
@@ -162,10 +171,16 @@ pub enum ShaderPropertyKind {
     },
 
     /// Boolean value.
-    Bool(bool),
+    Bool {
+        #[serde(default)]
+        value: bool,
+    },
 
     /// Two-dimensional vector.
-    Vector2(Vector2<f32>),
+    Vector2 {
+        #[serde(default)]
+        value: Vector2<f32>,
+    },
 
     /// Two-dimensional vector array.
     Vector2Array {
@@ -175,7 +190,10 @@ pub enum ShaderPropertyKind {
     },
 
     /// Three-dimensional vector.
-    Vector3(Vector3<f32>),
+    Vector3 {
+        #[serde(default)]
+        value: Vector3<f32>,
+    },
 
     /// Three-dimensional vector array.
     Vector3Array {
@@ -185,7 +203,10 @@ pub enum ShaderPropertyKind {
     },
 
     /// Four-dimensional vector.
-    Vector4(Vector4<f32>),
+    Vector4 {
+        #[serde(default)]
+        value: Vector4<f32>,
+    },
 
     /// Four-dimensional vector array.
     Vector4Array {
@@ -195,7 +216,10 @@ pub enum ShaderPropertyKind {
     },
 
     /// 2x2 Matrix.
-    Matrix2(Matrix2<f32>),
+    Matrix2 {
+        #[serde(default)]
+        value: Matrix2<f32>,
+    },
 
     /// 2x2 Matrix array.
     Matrix2Array {
@@ -205,7 +229,10 @@ pub enum ShaderPropertyKind {
     },
 
     /// 3x3 Matrix.
-    Matrix3(Matrix3<f32>),
+    Matrix3 {
+        #[serde(default)]
+        value: Matrix3<f32>,
+    },
 
     /// 3x3 Matrix array.
     Matrix3Array {
@@ -215,7 +242,10 @@ pub enum ShaderPropertyKind {
     },
 
     /// 4x4 Matrix.
-    Matrix4(Matrix4<f32>),
+    Matrix4 {
+        #[serde(default)]
+        value: Matrix4<f32>,
+    },
 
     /// 4x4 Matrix array.
     Matrix4Array {
@@ -234,17 +264,25 @@ pub enum ShaderPropertyKind {
     /// before it passed to shader.
     Color {
         /// Default Red.
+        #[serde(default = "default_color_component")]
         r: u8,
 
         /// Default Green.
+        #[serde(default = "default_color_component")]
         g: u8,
 
         /// Default Blue.
+        #[serde(default = "default_color_component")]
         b: u8,
 
         /// Default Alpha.
+        #[serde(default = "default_color_component")]
         a: u8,
     },
+}
+
+fn default_color_component() -> u8 {
+    255
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit, Default)]
@@ -264,7 +302,7 @@ impl ShaderProperty {
 
 impl Default for ShaderPropertyKind {
     fn default() -> Self {
-        Self::Float(0.0)
+        Self::Float { value: 0.0 }
     }
 }
 
