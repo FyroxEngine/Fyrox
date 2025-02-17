@@ -906,7 +906,7 @@ impl DeferredLightRenderer {
                                 .with(&frame_matrix)
                                 .with(&camera.view_matrix())
                                 .with(&inv_view_projection)
-                                .with_slice(&matrices)
+                                .with(&matrices)
                                 .with(&light.color.srgb_to_linear_f32())
                                 .with(&emit_direction)
                                 .with(&camera_global_position)
@@ -915,7 +915,7 @@ impl DeferredLightRenderer {
                                 .with(&csm_options.shadow_bias())
                                 .with(&settings.csm_settings.pcf)
                                 .with(&(1.0 / (self.csm_renderer.size() as f32)))
-                                .with_slice(&distances),
+                                .with(&distances),
                         )?;
 
                         frame_buffer.draw(

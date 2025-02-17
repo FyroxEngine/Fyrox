@@ -427,7 +427,7 @@ impl RenderDataBundle {
 
                 let bone_matrices_block = render_context
                     .uniform_memory_allocator
-                    .allocate(StaticUniformBuffer::<SIZE>::new().with_slice(&matrices));
+                    .allocate(StaticUniformBuffer::<SIZE>::new().with(&matrices));
                 instance_uniform_data.bone_matrices_block = Some(bone_matrices_block);
             }
 
@@ -971,10 +971,10 @@ impl RenderDataBundleStorage {
 
         let lights_data = StaticUniformBuffer::<2048>::new()
             .with(&(light_data.count as i32))
-            .with_slice(&light_data.color_radius)
-            .with_slice(&light_data.parameters)
-            .with_slice(&light_data.position)
-            .with_slice(&light_data.direction);
+            .with(&light_data.color_radius)
+            .with(&light_data.parameters)
+            .with(&light_data.position)
+            .with(&light_data.direction);
         let lights_block = render_context
             .uniform_memory_allocator
             .allocate(lights_data);

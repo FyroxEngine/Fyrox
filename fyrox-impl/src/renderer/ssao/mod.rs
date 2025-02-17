@@ -209,7 +209,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 .with(&frame_matrix)
                 .with(&projection_matrix.try_inverse().unwrap_or_default())
                 .with(&projection_matrix)
-                .with_slice(&self.kernel)
+                .with(&self.kernel)
                 .with(&noise_scale)
                 .with(&view_matrix)
                 .with(&self.radius),

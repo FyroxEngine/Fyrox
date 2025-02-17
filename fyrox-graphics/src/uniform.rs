@@ -32,7 +32,7 @@ use crate::core::{
 };
 
 /// A trait for any storage suitable to store bytes for uniforms.
-pub trait ByteStorage: Default {
+pub trait ByteStorage {
     /// Clears the storage.
     fn reset(&mut self);
     /// Returns a reference to the internal bytes array.
@@ -43,6 +43,17 @@ pub trait ByteStorage: Default {
     fn write_bytes(&mut self, bytes: &[u8]);
     /// Writes the given number of zero bytes to the storage.
     fn write_zeros(&mut self, count: usize);
+    /// Writes zeros to ensure that the last byte in the storage has a position that is multiple with
+    /// the given alignment. The alignment must be power of two.
+    fn push_padding(&mut self, alignment: usize) {
+        debug_assert!(alignment.is_power_of_two());
+        let bytes_count = self.bytes_count();
+        let remainder = (alignment - 1) & bytes_count;
+        if remainder > 0 {
+            let padding = alignment - remainder;
+            self.write_zeros(padding);
+        }
+    }
 }
 
 impl<const N: usize> ByteStorage for ArrayVec<u8, N> {
@@ -136,74 +147,50 @@ pub type DynamicUniformBuffer = UniformBuffer<Vec<u8>>;
 
 /// A trait for entities that supports `std140` data layout.
 pub trait Std140 {
-    /// Alignment in bytes.
-    const ALIGNMENT: usize;
-
     /// Writes self to the given bytes storage.
-    fn write<T: ByteStorage>(&self, dest: &mut T);
+    fn write(&self, dest: &mut dyn ByteStorage);
 }
 
 macro_rules! default_write_impl {
-    () => {
-        fn write<T: ByteStorage>(&self, dest: &mut T) {
+    ($alignment:expr) => {
+        fn write(&self, dest: &mut dyn ByteStorage) {
+            dest.push_padding($alignment);
             dest.write_bytes(value_as_u8_slice(self))
         }
     };
 }
 
 impl Std140 for f32 {
-    const ALIGNMENT: usize = 4;
-    default_write_impl!();
+    default_write_impl!(4);
 }
 
 impl Std140 for u32 {
-    const ALIGNMENT: usize = 4;
-    default_write_impl!();
+    default_write_impl!(4);
 }
 
 impl Std140 for i32 {
-    const ALIGNMENT: usize = 4;
-    default_write_impl!();
+    default_write_impl!(4);
 }
 
 impl Std140 for Vector2<f32> {
-    const ALIGNMENT: usize = 8;
-    default_write_impl!();
+    default_write_impl!(8);
 }
 
 impl Std140 for Vector3<f32> {
-    const ALIGNMENT: usize = 16;
-    default_write_impl!();
+    default_write_impl!(16);
 }
 
 impl Std140 for Vector4<f32> {
-    const ALIGNMENT: usize = 16;
-    default_write_impl!();
-}
-
-impl Std140 for [f32; 2] {
-    const ALIGNMENT: usize = 8;
-    default_write_impl!();
-}
-
-impl Std140 for [f32; 3] {
-    const ALIGNMENT: usize = 16;
-
-    fn write<T: ByteStorage>(&self, dest: &mut T) {
-        dest.write_bytes(value_as_u8_slice(self));
-        dest.write_bytes(&[0; size_of::<f32>()]);
-    }
+    default_write_impl!(16);
 }
 
 impl Std140 for Matrix4<f32> {
-    const ALIGNMENT: usize = 16;
-    default_write_impl!();
+    default_write_impl!(16);
 }
 
 impl Std140 for Matrix3<f32> {
-    const ALIGNMENT: usize = 16;
-
-    fn write<T: ByteStorage>(&self, dest: &mut T) {
+    fn write(&self, dest: &mut dyn ByteStorage) {
+        dest.push_padding(16);
         for row in (self as &dyn AsRef<[[f32; 3]; 3]>).as_ref() {
             dest.write_bytes(array_as_u8_slice(row));
             dest.write_bytes(&[0; size_of::<f32>()]);
@@ -212,9 +199,8 @@ impl Std140 for Matrix3<f32> {
 }
 
 impl Std140 for Matrix2<f32> {
-    const ALIGNMENT: usize = 16;
-
-    fn write<T: ByteStorage>(&self, dest: &mut T) {
+    fn write(&self, dest: &mut dyn ByteStorage) {
+        dest.push_padding(16);
         for row in (self as &dyn AsRef<[[f32; 2]; 2]>).as_ref() {
             dest.write_bytes(array_as_u8_slice(row));
             dest.write_bytes(&[0; 2 * size_of::<f32>()]);
@@ -222,35 +208,51 @@ impl Std140 for Matrix2<f32> {
     }
 }
 
-impl Std140 for [f32; 4] {
-    const ALIGNMENT: usize = 16;
-    default_write_impl!();
-}
-
 impl Std140 for Color {
-    const ALIGNMENT: usize = 16;
-
-    fn write<T: ByteStorage>(&self, dest: &mut T) {
+    fn write(&self, dest: &mut dyn ByteStorage) {
+        dest.push_padding(16);
         let frgba = self.as_frgba();
         dest.write_bytes(value_as_u8_slice(&frgba));
     }
 }
 
 impl Std140 for bool {
-    const ALIGNMENT: usize = 4;
-
-    fn write<T: ByteStorage>(&self, dest: &mut T) {
+    fn write(&self, dest: &mut dyn ByteStorage) {
+        dest.push_padding(4);
         let integer = if *self { 1 } else { 0 };
         dest.write_bytes(value_as_u8_slice(&integer));
     }
 }
 
+fn write_array(arr: &[impl Std140], dest: &mut dyn ByteStorage) {
+    for item in arr {
+        dest.push_padding(16);
+        item.write(dest);
+        dest.push_padding(16);
+    }
+}
+
+impl<T: Std140, const N: usize> Std140 for [T; N] {
+    fn write(&self, dest: &mut dyn ByteStorage) {
+        write_array(self, dest)
+    }
+}
+
+impl<T: Std140> Std140 for [T] {
+    fn write(&self, dest: &mut dyn ByteStorage) {
+        write_array(self, dest)
+    }
+}
+
 impl<S> UniformBuffer<S>
 where
-    S: ByteStorage + Default,
+    S: ByteStorage,
 {
     /// Creates a new uniform buffer with an empty storage.
-    pub fn new() -> Self {
+    pub fn new() -> Self
+    where
+        S: Default,
+    {
         Self {
             storage: S::default(),
         }
@@ -280,22 +282,15 @@ where
 
     /// Pushes the given amount of padding bytes to the storage.
     pub fn push_padding(&mut self, alignment: usize) {
-        debug_assert!(alignment.is_power_of_two());
-        let bytes_count = self.storage.bytes_count();
-        let remainder = (alignment - 1) & bytes_count;
-        if remainder > 0 {
-            let padding = alignment - remainder;
-            self.storage.write_zeros(padding);
-        }
+        self.storage.push_padding(alignment);
     }
 
     /// Pushes a value to the storage. This method ensures that the correct alignment for the pushed
     /// value is preserved.
     pub fn push<T>(&mut self, value: &T) -> &mut Self
     where
-        T: Std140,
+        T: Std140 + ?Sized,
     {
-        self.push_padding(T::ALIGNMENT);
         value.write(&mut self.storage);
         self
     }
@@ -303,7 +298,7 @@ where
     /// The same as [`Self::push`], but allows chained calls in a builder manner.
     pub fn with<T>(mut self, value: &T) -> Self
     where
-        T: Std140,
+        T: Std140 + ?Sized,
     {
         self.push(value);
         self
@@ -313,19 +308,6 @@ where
         self.push_padding(16);
         item.write(&mut self.storage);
         self.push_padding(16);
-    }
-
-    /// Pushes a slice of given values. Keep in mind, that this method is not the same as pushing
-    /// individual slice elements one by one. Instead, this method preserves alignment requirements
-    /// for arrays as `std140` rule set requires.
-    pub fn push_slice<T>(&mut self, slice: &[T]) -> &mut Self
-    where
-        T: Std140,
-    {
-        for item in slice {
-            self.push_array_element(item);
-        }
-        self
     }
 
     /// Pushes the given slice into the uniform buffer and pads the rest of the space
@@ -338,7 +320,7 @@ where
         let len = slice.len();
         if !slice.is_empty() {
             let end = max_len.min(len);
-            self.push_slice(&slice[0..end]);
+            self.push(&slice[0..end]);
         }
         let remainder = max_len.saturating_sub(len);
         let item = T::default();
@@ -355,15 +337,6 @@ where
         max_len: usize,
     ) -> Self {
         self.push_slice_with_max_size(slice, max_len);
-        self
-    }
-
-    /// The same as [`Self::push_slice`], but allows chained calls in a builder manner.
-    pub fn with_slice<T>(mut self, slice: &[T]) -> Self
-    where
-        T: Std140,
-    {
-        self.push_slice(slice);
         self
     }
 
@@ -424,10 +397,14 @@ mod test {
         assert_eq!(buffer.len(), 96);
         buffer.push(&123.0);
         assert_eq!(buffer.len(), 100);
-        buffer.push_slice(&[1.0, 2.0, 3.0, 4.0]);
+        buffer.push(&[1.0, 2.0, 3.0, 4.0]);
         assert_eq!(buffer.len(), 176);
+        buffer.push(&[1.0, 2.0, 3.0]);
+        assert_eq!(buffer.len(), 224);
+        buffer.push(&[1.0, 2.0]);
+        assert_eq!(buffer.len(), 256);
         let bytes = buffer.finish();
-        assert_eq!(bytes.len(), 176);
+        assert_eq!(bytes.len(), 256);
     }
 
     #[test]
