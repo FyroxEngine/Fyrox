@@ -59,7 +59,7 @@ impl Iterator for Decoder {
                     let buffer: AudioBuffer<Self::Item> = decoded.make_equivalent();
                     let samples = buffer.chan(0);
 
-                    let vec: Vec<f32> = samples.into_iter().cloned().collect();
+                    let vec: Vec<f32> = samples.to_vec();
                     self.samples = vec.into_iter();
                 }
             }
@@ -94,7 +94,7 @@ impl Decoder {
         let first_track = tracks.first().unwrap();
         let codec_params = &first_track.codec_params;
         let mut decoder = codec_registry
-            .make(&codec_params, &DecoderOptions::default())
+            .make(codec_params, &DecoderOptions::default())
             .unwrap();
 
         // Get duration
@@ -123,7 +123,7 @@ impl Decoder {
                 let buffer: AudioBuffer<f32> = decoded.make_equivalent();
                 let samples = buffer.chan(0);
 
-                vec = samples.into_iter().cloned().collect();
+                vec = samples.to_vec();
             }
         }
         let samples = vec.into_iter();
@@ -141,13 +141,17 @@ impl Decoder {
     }
 
     pub fn rewind(&mut self) -> Result<(), SoundError> {
-        if let Ok(_) = self.reader.seek(
-            SeekMode::Accurate,
-            SeekTo::Time {
-                time: Time::default(),
-                track_id: None,
-            },
-        ) {
+        if self
+            .reader
+            .seek(
+                SeekMode::Accurate,
+                SeekTo::Time {
+                    time: Time::default(),
+                    track_id: None,
+                },
+            )
+            .is_ok()
+        {
             Ok(())
         } else {
             Err(SoundError::UnsupportedFormat)
