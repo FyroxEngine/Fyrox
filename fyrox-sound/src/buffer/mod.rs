@@ -29,7 +29,10 @@
 //! just 1 second will take ~172 Kb of memory (with 44100 Hz sampling rate and float sample representation).
 
 use crate::{
-    buffer::{generic::GenericBuffer, streaming::StreamingBuffer},
+    buffer::{
+        generic::{BufferError, GenericBuffer},
+        streaming::StreamingBuffer,
+    },
     error::SoundError,
 };
 use fyrox_core::{
@@ -199,6 +202,8 @@ pub enum SoundBufferResourceLoadError {
     UnsupportedFormat,
     /// File load error.
     Io(FileLoadError),
+    /// Error in underlying buffer
+    BufferError(BufferError),
 }
 
 /// Sound buffer is a data source for sound sources. See module documentation for more info.
@@ -215,20 +220,38 @@ pub enum SoundBuffer {
     Streaming(StreamingBuffer),
 }
 
+impl From<BufferError> for SoundBufferResourceLoadError {
+    fn from(err: BufferError) -> Self {
+        Self::BufferError(err)
+    }
+}
+
+impl From<SoundError> for SoundBufferResourceLoadError {
+    fn from(err: SoundError) -> Self {
+        Self::BufferError(err.into())
+    }
+}
+
 /// Type alias for sound buffer resource.
 pub type SoundBufferResource = Resource<SoundBuffer>;
 
 /// Extension trait for sound buffer resource.
 pub trait SoundBufferResourceExtension {
     /// Tries to create new streaming sound buffer from a given data source.
-    fn new_streaming(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource>;
+    fn new_streaming(
+        data_source: DataSource,
+    ) -> Result<Resource<SoundBuffer>, SoundBufferResourceLoadError>;
 
     /// Tries to create new generic sound buffer from a given data source.
-    fn new_generic(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource>;
+    fn new_generic(
+        data_source: DataSource,
+    ) -> Result<Resource<SoundBuffer>, SoundBufferResourceLoadError>;
 }
 
 impl SoundBufferResourceExtension for SoundBufferResource {
-    fn new_streaming(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource> {
+    fn new_streaming(
+        data_source: DataSource,
+    ) -> Result<Resource<SoundBuffer>, SoundBufferResourceLoadError> {
         let path = data_source.path_owned();
         Ok(Resource::new_ok(
             path.into(),
@@ -236,7 +259,9 @@ impl SoundBufferResourceExtension for SoundBufferResource {
         ))
     }
 
-    fn new_generic(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource> {
+    fn new_generic(
+        data_source: DataSource,
+    ) -> Result<Resource<SoundBuffer>, SoundBufferResourceLoadError> {
         let path = data_source.path_owned();
         Ok(Resource::new_ok(
             path.into(),
@@ -254,13 +279,13 @@ impl TypeUuidProvider for SoundBuffer {
 impl SoundBuffer {
     /// Tries to create new streaming sound buffer from a given data source. It returns raw sound
     /// buffer that has to be wrapped into Arc<Mutex<>> for use with sound sources.
-    pub fn raw_streaming(data_source: DataSource) -> Result<Self, DataSource> {
+    pub fn raw_streaming(data_source: DataSource) -> Result<Self, SoundBufferResourceLoadError> {
         Ok(Self::Streaming(StreamingBuffer::new(data_source)?))
     }
 
     /// Tries to create new generic sound buffer from a given data source. It returns raw sound
     /// buffer that has to be wrapped into Arc<Mutex<>> for use with sound sources.
-    pub fn raw_generic(data_source: DataSource) -> Result<Self, DataSource> {
+    pub fn raw_generic(data_source: DataSource) -> Result<Self, SoundBufferResourceLoadError> {
         Ok(Self::Generic(GenericBuffer::new(data_source)?))
     }
 }

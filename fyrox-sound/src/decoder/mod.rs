@@ -76,10 +76,8 @@ impl Iterator for Decoder {
 }
 
 impl Decoder {
-    pub fn new(mut source: DataSource) -> Result<Self, DataSource> {
-        // TODO: add custom error type and replace unwraps with `?`
-
-        let initial_stream_position = source.stream_position().unwrap();
+    pub fn new(mut source: DataSource) -> Result<Self, SoundError> {
+        let initial_stream_position = source.stream_position()?;
 
         let codec_registry = default::get_codecs();
         let probe = default::get_probe();
@@ -87,41 +85,33 @@ impl Decoder {
             MediaSourceStream::new(Box::new(source), MediaSourceStreamOptions::default());
 
         // TODO: add better hint if, e.g., we know the file extension
-        let res = probe
-            .format(
-                &Hint::new(),
-                media_source_stream,
-                &FormatOptions::default(),
-                &MetadataOptions::default(),
-            )
-            .unwrap();
+        let res = probe.format(
+            &Hint::new(),
+            media_source_stream,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )?;
 
         let mut reader = res.format;
         let tracks = reader.tracks();
         let first_track = tracks.first().unwrap();
         let codec_params = &first_track.codec_params;
-        let mut decoder = codec_registry
-            .make(codec_params, &DecoderOptions::default())
-            .unwrap();
+        let mut decoder = codec_registry.make(codec_params, &DecoderOptions::default())?;
 
         // Get duration
         let mut last_packet = None;
         while let Ok(packet) = reader.next_packet() {
             last_packet = Some(packet);
         }
-        reader
-            .seek(
-                SeekMode::Accurate,
-                SeekTo::Time {
-                    time: Time::new(initial_stream_position, 0.0),
-                    track_id: None,
-                },
-            )
-            .unwrap();
+        reader.seek(
+            SeekMode::Accurate,
+            SeekTo::Time {
+                time: Time::new(initial_stream_position, 0.0),
+                track_id: None,
+            },
+        )?;
 
-        let channel_duration_in_samples = last_packet
-            .map(|p| p.ts.try_into().unwrap())
-            .unwrap_or_default();
+        let channel_duration_in_samples = last_packet.map(|p| p.ts as usize).unwrap_or_default();
 
         // Get samples
         let mut vec: Vec<f32> = Vec::new();
