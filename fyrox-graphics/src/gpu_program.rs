@@ -104,7 +104,7 @@ pub enum SamplerKind {
 }
 
 /// Shader property with default value.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit, Clone)]
 pub enum ShaderResourceKind {
     /// A texture.
     Texture {
@@ -129,7 +129,7 @@ pub enum ShaderResourceKind {
     PropertyGroup(Vec<ShaderProperty>),
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Reflect, Visit)]
 pub enum ShaderPropertyKind {
     /// Real number.
     Float {
@@ -285,7 +285,7 @@ fn default_color_component() -> u8 {
     255
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit, Default)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit, Clone, Default)]
 pub struct ShaderProperty {
     pub name: ImmutableString,
     pub kind: ShaderPropertyKind,
@@ -313,7 +313,7 @@ impl Default for ShaderResourceKind {
 }
 
 /// Shader resource definition.
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq, Reflect, Visit)]
 pub struct ShaderResourceDefinition {
     /// A name of the resource.
     pub name: ImmutableString,

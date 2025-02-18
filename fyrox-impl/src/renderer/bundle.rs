@@ -22,6 +22,7 @@
 
 #![allow(missing_docs)] // TODO
 
+use crate::material::MaterialPropertyRef;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -35,9 +36,7 @@ use crate::{
         sstorage::ImmutableString,
     },
     graph::BaseSceneGraph,
-    material::{
-        self, shader::ShaderDefinition, MaterialProperty, MaterialPropertyGroup, MaterialResource,
-    },
+    material::{self, shader::ShaderDefinition, MaterialResource},
     renderer::{
         cache::{
             geometry::GeometryCache,
@@ -230,20 +229,24 @@ pub struct GlobalUniformData {
     pub graphics_settings_block: UniformBlockLocation,
 }
 
-fn write_with_material<T: ByteStorage>(
+pub fn write_with_material<T, C, G>(
     shader_property_group: &[ShaderProperty],
-    material_property_group: &MaterialPropertyGroup,
+    material_property_group: &C,
+    getter: G,
     buf: &mut UniformBuffer<T>,
-) {
+) where
+    T: ByteStorage,
+    G: for<'a> Fn(&'a C, &ImmutableString) -> Option<MaterialPropertyRef<'a>>,
+{
     // The order of fields is strictly defined in shader, so we must iterate over shader definition
     // of a structure and look for respective values in the material.
     for shader_property in shader_property_group {
-        let material_property = material_property_group.property_ref(shader_property.name.clone());
+        let material_property = getter(material_property_group, &shader_property.name);
 
         macro_rules! push_value {
             ($variant:ident, $shader_value:ident) => {
                 if let Some(property) = material_property {
-                    if let MaterialProperty::$variant(material_value) = property {
+                    if let MaterialPropertyRef::$variant(material_value) = property {
                         buf.push(material_value);
                     } else {
                         buf.push($shader_value);
@@ -262,7 +265,7 @@ fn write_with_material<T: ByteStorage>(
         macro_rules! push_slice {
             ($variant:ident, $shader_value:ident, $max_size:ident) => {
                 if let Some(property) = material_property {
-                    if let MaterialProperty::$variant(material_value) = property {
+                    if let MaterialPropertyRef::$variant(material_value) = property {
                         buf.push_slice_with_max_size(material_value, *$max_size);
                     } else {
                         buf.push_slice_with_max_size($shader_value, *$max_size);
@@ -307,7 +310,7 @@ fn write_with_material<T: ByteStorage>(
     }
 }
 
-fn write_shader_values<T: ByteStorage>(
+pub fn write_shader_values<T: ByteStorage>(
     shader_property_group: &[ShaderProperty],
     buf: &mut UniformBuffer<T>,
 ) {
@@ -369,7 +372,12 @@ impl RenderDataBundle {
             if let Some(material_property_group) =
                 material.property_group_ref(resource_definition.name.clone())
             {
-                write_with_material(shader_property_group, material_property_group, &mut buf);
+                write_with_material(
+                    shader_property_group,
+                    material_property_group,
+                    |c, n| c.property_ref(n.clone()).map(|p| p.as_ref()),
+                    &mut buf,
+                );
             } else {
                 // No respective resource bound in the material, use shader defaults. This is very
                 // important, because some drivers will crash if uniform buffer has insufficient

@@ -19,15 +19,152 @@
 // SOFTWARE.
 
 use crate::{
-    core::{log::Log, sstorage::ImmutableString},
+    core::{arrayvec::ArrayVec, log::Log, math::Rect, sstorage::ImmutableString},
     material::shader::{Shader, ShaderResource},
+    material::MaterialPropertyRef,
+    renderer::bundle,
     renderer::{
-        cache::TemporaryCache,
-        framework::{error::FrameworkError, server::GraphicsServer, DrawParameters},
+        cache::{uniform::UniformBufferCache, TemporaryCache},
+        framework::{
+            error::FrameworkError,
+            framebuffer::{DrawCallStatistics, GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
+            geometry_buffer::GpuGeometryBuffer,
+            gpu_program::{GpuProgram, ShaderResourceDefinition, ShaderResourceKind},
+            gpu_texture::GpuTexture,
+            server::GraphicsServer,
+            DrawParameters, ElementRange,
+        },
     },
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::gpu_program::GpuProgram;
+use fyrox_graphics::uniform::StaticUniformBuffer;
+use std::ops::Deref;
+
+pub struct NamedValue<T> {
+    pub name: ImmutableString,
+    pub value: T,
+}
+
+impl<T> NamedValue<T> {
+    pub fn new(name: impl Into<ImmutableString>, value: T) -> Self {
+        Self {
+            name: name.into(),
+            value,
+        }
+    }
+}
+
+pub struct NamedValuesContainer<T, const N: usize> {
+    properties: [NamedValue<T>; N],
+}
+
+fn search<'a, T>(slice: &'a [NamedValue<T>], name: &ImmutableString) -> Option<&'a NamedValue<T>> {
+    slice
+        .binary_search_by(|prop| prop.name.id().cmp(&name.id()))
+        .ok()
+        .and_then(|idx| slice.get(idx))
+}
+
+impl<T, const N: usize> NamedValuesContainer<T, N> {
+    pub fn property_ref(&self, name: &ImmutableString) -> Option<&NamedValue<T>> {
+        search(&self.properties, name)
+    }
+
+    pub fn data_ref(&self) -> NamedValuesContainerRef<'_, T> {
+        NamedValuesContainerRef {
+            properties: &self.properties,
+        }
+    }
+}
+
+impl<T, const N: usize> From<[NamedValue<T>; N]> for NamedValuesContainer<T, N> {
+    fn from(mut value: [NamedValue<T>; N]) -> Self {
+        value.sort_unstable_by_key(|prop| prop.name.id());
+        Self { properties: value }
+    }
+}
+
+impl<T, const N: usize> Deref for NamedValuesContainer<T, N> {
+    type Target = [NamedValue<T>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.properties
+    }
+}
+
+pub struct NamedValuesContainerRef<'a, T> {
+    properties: &'a [NamedValue<T>],
+}
+
+impl<T> NamedValuesContainerRef<'_, T> {
+    pub fn property_ref(&self, name: &ImmutableString) -> Option<&NamedValue<T>> {
+        search(self.properties, name)
+    }
+}
+
+pub struct PropertyGroup<'a, const N: usize> {
+    pub properties: NamedValuesContainer<MaterialPropertyRef<'a>, N>,
+}
+
+pub type NamedPropertyRef<'a> = NamedValue<MaterialPropertyRef<'a>>;
+
+impl<'a> NamedPropertyRef<'a> {
+    pub fn bind(
+        name: impl Into<ImmutableString>,
+        value: impl Into<MaterialPropertyRef<'a>>,
+    ) -> Self {
+        NamedValue::new(name, value.into())
+    }
+}
+
+impl<'a, const N: usize> From<[NamedPropertyRef<'a>; N]> for PropertyGroup<'a, N> {
+    fn from(value: [NamedPropertyRef<'a>; N]) -> Self {
+        Self {
+            properties: value.into(),
+        }
+    }
+}
+
+impl<'a, const N: usize> Deref for PropertyGroup<'a, N> {
+    type Target = [NamedValue<MaterialPropertyRef<'a>>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.properties
+    }
+}
+
+pub enum GpuResourceBinding<'a, 'b> {
+    Texture(&'a GpuTexture),
+    PropertyGroup {
+        properties: NamedValuesContainerRef<'a, MaterialPropertyRef<'b>>,
+    },
+}
+
+impl<'a, 'b> GpuResourceBinding<'a, 'b> {
+    pub fn texture(texture: &'a GpuTexture) -> Self {
+        Self::Texture(texture)
+    }
+
+    pub fn property_group<const N: usize>(properties: &'a PropertyGroup<'b, N>) -> Self {
+        Self::PropertyGroup {
+            properties: properties.properties.data_ref(),
+        }
+    }
+}
+
+pub struct RenderMaterial<'a, 'b, const N: usize> {
+    pub bindings: NamedValuesContainer<GpuResourceBinding<'a, 'b>, N>,
+}
+
+impl<'a, 'b, const N: usize> From<[NamedValue<GpuResourceBinding<'a, 'b>>; N]>
+    for RenderMaterial<'a, 'b, N>
+{
+    fn from(value: [NamedValue<GpuResourceBinding<'a, 'b>>; N]) -> Self {
+        Self {
+            bindings: value.into(),
+        }
+    }
+}
 
 pub struct RenderPassData {
     pub program: GpuProgram,
@@ -35,6 +172,7 @@ pub struct RenderPassData {
 }
 
 pub struct RenderPassContainer {
+    pub resources: Vec<ShaderResourceDefinition>,
     pub render_passes: FxHashMap<ImmutableString, RenderPassData>,
 }
 
@@ -45,7 +183,8 @@ impl RenderPassContainer {
     }
 
     pub fn new(server: &dyn GraphicsServer, shader: &Shader) -> Result<Self, FrameworkError> {
-        let mut map = FxHashMap::default();
+        let mut render_passes = FxHashMap::default();
+
         for render_pass in shader.definition.passes.iter() {
             let program_name = format!("{}_{}", shader.definition.name, render_pass.name);
             match server.create_program_with_properties(
@@ -55,7 +194,7 @@ impl RenderPassContainer {
                 &shader.definition.resources,
             ) {
                 Ok(gpu_program) => {
-                    map.insert(
+                    render_passes.insert(
                         ImmutableString::new(&render_pass.name),
                         RenderPassData {
                             program: gpu_program,
@@ -71,7 +210,10 @@ impl RenderPassContainer {
             };
         }
 
-        Ok(Self { render_passes: map })
+        Ok(Self {
+            render_passes,
+            resources: shader.definition.resources.clone(),
+        })
     }
 
     pub fn get(
@@ -81,6 +223,99 @@ impl RenderPassContainer {
         self.render_passes.get(render_pass_name).ok_or_else(|| {
             FrameworkError::Custom(format!("No render pass with name {render_pass_name}!"))
         })
+    }
+
+    pub fn run_pass<const N: usize>(
+        &self,
+        render_pass_name: &ImmutableString,
+        framebuffer: &GpuFrameBuffer,
+        geometry: &GpuGeometryBuffer,
+        viewport: Rect<i32>,
+        material: &RenderMaterial<'_, '_, N>,
+        uniform_buffer_cache: &mut UniformBufferCache,
+        element_range: ElementRange,
+    ) -> Result<DrawCallStatistics, FrameworkError> {
+        let render_pass = self.get(render_pass_name)?;
+
+        let mut resource_bindings = ArrayVec::<ResourceBinding, 32>::new();
+
+        for resource in self.resources.iter() {
+            // Ignore built-in groups.
+            if resource.is_built_in() {
+                continue;
+            }
+
+            match resource.kind {
+                ShaderResourceKind::Texture { .. } => {
+                    if let Some(tex) =
+                        material
+                            .bindings
+                            .property_ref(&resource.name)
+                            .and_then(|p| {
+                                if let GpuResourceBinding::Texture(texture) = p.value {
+                                    Some(texture)
+                                } else {
+                                    None
+                                }
+                            })
+                    {
+                        resource_bindings
+                            .push(ResourceBinding::texture_with_binding(tex, resource.binding));
+                    } else {
+                        return Err(FrameworkError::Custom(format!(
+                            "No texture bound to {} resource binding!",
+                            resource.name
+                        )));
+                    }
+                }
+                ShaderResourceKind::PropertyGroup(ref shader_property_group) => {
+                    let mut buf = StaticUniformBuffer::<16384>::new();
+
+                    if let Some(material_property_group) = material
+                        .bindings
+                        .property_ref(&resource.name)
+                        .and_then(|p| {
+                            if let GpuResourceBinding::PropertyGroup { ref properties } = p.value {
+                                Some(properties)
+                            } else {
+                                None
+                            }
+                        })
+                    {
+                        bundle::write_with_material(
+                            shader_property_group,
+                            material_property_group,
+                            |c: &NamedValuesContainerRef<MaterialPropertyRef>, n| {
+                                c.property_ref(n).map(|v| v.value)
+                            },
+                            &mut buf,
+                        );
+                    } else {
+                        // No respective resource bound in the material, use shader defaults. This is very
+                        // important, because some drivers will crash if uniform buffer has insufficient
+                        // data.
+                        bundle::write_shader_values(shader_property_group, &mut buf)
+                    }
+
+                    resource_bindings.push(ResourceBinding::buffer_with_binding(
+                        &uniform_buffer_cache.write(buf)?,
+                        resource.binding,
+                        Default::default(),
+                    ));
+                }
+            }
+        }
+
+        framebuffer.draw(
+            geometry,
+            viewport,
+            &render_pass.program,
+            &render_pass.draw_params,
+            &[ResourceBindGroup {
+                bindings: &resource_bindings,
+            }],
+            element_range,
+        )
     }
 }
 
