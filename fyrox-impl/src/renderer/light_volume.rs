@@ -239,7 +239,7 @@ impl LightVolumeRenderer {
                     },
                     &[ResourceBindGroup {
                         bindings: &[
-                            ResourceBinding::texture(&gbuffer.depth(), &shader.depth_sampler),
+                            ResourceBinding::texture(gbuffer.depth(), &shader.depth_sampler),
                             ResourceBinding::Buffer {
                                 buffer: uniform_buffer_cache.write(
                                     StaticUniformBuffer::<256>::new()
@@ -342,7 +342,7 @@ impl LightVolumeRenderer {
                     },
                     &[ResourceBindGroup {
                         bindings: &[
-                            ResourceBinding::texture(&gbuffer.depth(), &shader.depth_sampler),
+                            ResourceBinding::texture(gbuffer.depth(), &shader.depth_sampler),
                             ResourceBinding::Buffer {
                                 buffer: uniform_buffer_cache.write(
                                     StaticUniformBuffer::<256>::new()

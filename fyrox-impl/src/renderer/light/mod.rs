@@ -398,7 +398,7 @@ impl DeferredLightRenderer {
             &[ResourceBindGroup {
                 bindings: &[
                     ResourceBinding::texture(
-                        &gbuffer_diffuse_map,
+                        gbuffer_diffuse_map,
                         &self.ambient_light_shader.diffuse_texture,
                     ),
                     ResourceBinding::texture(
@@ -410,7 +410,7 @@ impl DeferredLightRenderer {
                         &self.ambient_light_shader.ao_sampler,
                     ),
                     ResourceBinding::texture(
-                        &gbuffer_ambient_map,
+                        gbuffer_ambient_map,
                         &self.ambient_light_shader.ambient_texture,
                     ),
                     ResourceBinding::Buffer {
@@ -787,19 +787,19 @@ impl DeferredLightRenderer {
                             &[ResourceBindGroup {
                                 bindings: &[
                                     ResourceBinding::texture(
-                                        &gbuffer_depth_map,
+                                        gbuffer_depth_map,
                                         &shader.depth_sampler,
                                     ),
                                     ResourceBinding::texture(
-                                        &gbuffer_diffuse_map,
+                                        gbuffer_diffuse_map,
                                         &shader.color_sampler,
                                     ),
                                     ResourceBinding::texture(
-                                        &gbuffer_normal_map,
+                                        gbuffer_normal_map,
                                         &shader.normal_sampler,
                                     ),
                                     ResourceBinding::texture(
-                                        &gbuffer_material_map,
+                                        gbuffer_material_map,
                                         &shader.material_sampler,
                                     ),
                                     ResourceBinding::texture(
@@ -852,19 +852,19 @@ impl DeferredLightRenderer {
                             &[ResourceBindGroup {
                                 bindings: &[
                                     ResourceBinding::texture(
-                                        &gbuffer_depth_map,
+                                        gbuffer_depth_map,
                                         &shader.depth_sampler,
                                     ),
                                     ResourceBinding::texture(
-                                        &gbuffer_diffuse_map,
+                                        gbuffer_diffuse_map,
                                         &shader.color_sampler,
                                     ),
                                     ResourceBinding::texture(
-                                        &gbuffer_normal_map,
+                                        gbuffer_normal_map,
                                         &shader.normal_sampler,
                                     ),
                                     ResourceBinding::texture(
-                                        &gbuffer_material_map,
+                                        gbuffer_material_map,
                                         &shader.material_sampler,
                                     ),
                                     ResourceBinding::texture(
@@ -938,19 +938,19 @@ impl DeferredLightRenderer {
                             &[ResourceBindGroup {
                                 bindings: &[
                                     ResourceBinding::texture(
-                                        &gbuffer_depth_map,
+                                        gbuffer_depth_map,
                                         &shader.depth_sampler,
                                     ),
                                     ResourceBinding::texture(
-                                        &gbuffer_diffuse_map,
+                                        gbuffer_diffuse_map,
                                         &shader.color_sampler,
                                     ),
                                     ResourceBinding::texture(
-                                        &gbuffer_normal_map,
+                                        gbuffer_normal_map,
                                         &shader.normal_sampler,
                                     ),
                                     ResourceBinding::texture(
-                                        &gbuffer_material_map,
+                                        gbuffer_material_map,
                                         &shader.material_sampler,
                                     ),
                                     ResourceBinding::texture(

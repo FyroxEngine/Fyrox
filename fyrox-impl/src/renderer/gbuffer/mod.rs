@@ -328,10 +328,10 @@ impl GBuffer {
                 },
                 &[ResourceBindGroup {
                     bindings: &[
-                        ResourceBinding::texture(&depth, &shader.scene_depth),
+                        ResourceBinding::texture(depth, &shader.scene_depth),
                         ResourceBinding::texture(&diffuse_texture, &shader.diffuse_texture),
                         ResourceBinding::texture(&normal_texture, &shader.normal_texture),
-                        ResourceBinding::texture(&decal_mask, &shader.decal_mask),
+                        ResourceBinding::texture(decal_mask, &shader.decal_mask),
                         ResourceBinding::Buffer {
                             buffer: uniform_buffer_cache.write(
                                 StaticUniformBuffer::<256>::new()

@@ -96,7 +96,7 @@ impl ForwardRenderer {
                 light_position: &Default::default(),
                 fallback_resources,
                 ambient_light,
-                scene_depth: Some(&scene_depth),
+                scene_depth: Some(scene_depth),
             },
         )?;
 
