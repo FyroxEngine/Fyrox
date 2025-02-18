@@ -25,11 +25,8 @@ use std::fmt::{Display, Error, Formatter};
 /// Decoder specific error.
 #[derive(Debug)]
 pub enum DecoderError {
-    /// WAV specific decoder error.
-    Wav,
-
-    /// Ogg/vorbis (lewton) specific error.
-    Ogg(symphonia::core::errors::Error),
+    /// Error coming from Symphonia
+    SymphoniaError(symphonia::core::errors::Error),
 }
 
 /// Generic error enumeration for each error in this engine.
@@ -88,7 +85,7 @@ impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for Sound
 
 impl From<symphonia::core::errors::Error> for SoundError {
     fn from(e: symphonia::core::errors::Error) -> Self {
-        SoundError::DecoderError(DecoderError::Ogg(e))
+        SoundError::DecoderError(DecoderError::SymphoniaError(e))
     }
 }
 
