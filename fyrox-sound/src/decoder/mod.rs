@@ -137,21 +137,14 @@ impl Decoder {
     }
 
     pub fn rewind(&mut self) -> Result<(), SoundError> {
-        if self
-            .reader
-            .seek(
-                SeekMode::Accurate,
-                SeekTo::Time {
-                    time: Time::default(),
-                    track_id: None,
-                },
-            )
-            .is_ok()
-        {
-            Ok(())
-        } else {
-            Err(SoundError::UnsupportedFormat)
-        }
+        self.reader.seek(
+            SeekMode::Accurate,
+            SeekTo::Time {
+                time: Time::default(),
+                track_id: None,
+            },
+        )?;
+        Ok(())
     }
 
     pub fn time_seek(&mut self, location: Duration) {
