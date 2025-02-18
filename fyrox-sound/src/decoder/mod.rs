@@ -21,6 +21,7 @@
 use std::io::Seek;
 use std::{time::Duration, vec};
 
+use fyrox_core::err;
 use symphonia::core::audio::{AudioBuffer, Signal};
 use symphonia::core::codecs::{Decoder as SymphoniaDecoder, DecoderOptions};
 use symphonia::core::formats::{FormatOptions, FormatReader, SeekMode, SeekTo};
@@ -94,7 +95,7 @@ impl Decoder {
 
         let mut reader = res.format;
         let tracks = reader.tracks();
-        let first_track = tracks.first().unwrap();
+        let first_track = tracks.first().ok_or(SoundError::InvalidHeader)?;
         let codec_params = &first_track.codec_params;
         let mut decoder = codec_registry.make(codec_params, &DecoderOptions::default())?;
 
@@ -125,12 +126,16 @@ impl Decoder {
         }
         let samples = vec.into_iter();
 
-        let params = &reader.tracks().first().unwrap().codec_params;
+        let params = &reader
+            .tracks()
+            .first()
+            .ok_or(SoundError::InvalidHeader)?
+            .codec_params;
 
         Ok(Self {
             samples,
             channel_count: params.channels.unwrap_or_default().count(),
-            sample_rate: params.sample_rate.unwrap() as usize,
+            sample_rate: params.sample_rate.ok_or(SoundError::InvalidHeader)? as usize,
             reader,
             decoder,
             channel_duration_in_samples,
@@ -167,7 +172,7 @@ impl Decoder {
             )
             .is_err()
         {
-            println!("Failed to seek vorbis/ogg?")
+            err!("Failed to seek in track")
         }
     }
 
