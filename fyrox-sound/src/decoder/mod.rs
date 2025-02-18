@@ -131,9 +131,9 @@ impl Decoder {
         let packet = reader.next_packet()?;
         let decoded = decoder.decode(&packet)?;
         let buffer: AudioBuffer<f32> = decoded.make_equivalent();
-        let samples = buffer.chan(0);
+        let samples = buffer.chan(0).to_vec();
 
-        Ok(samples.to_vec().into_iter())
+        Ok(samples.into_iter())
     }
 
     pub fn rewind(&mut self) -> Result<(), SoundError> {
