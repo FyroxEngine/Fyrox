@@ -43,7 +43,14 @@ pub(crate) struct Decoder {
 
 impl std::fmt::Debug for Decoder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        f.debug_struct("Decoder")
+            .field("channel_count", &self.channel_count)
+            .field("sample_rate", &self.sample_rate)
+            .field(
+                "channel_duration_in_samples",
+                &self.channel_duration_in_samples,
+            )
+            .finish()
     }
 }
 
