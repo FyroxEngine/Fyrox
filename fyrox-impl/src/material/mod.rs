@@ -293,6 +293,137 @@ impl_from!(Matrix4Array => Vec<Matrix4<f32>>);
 impl_from!(Bool => bool);
 impl_from!(Color => Color);
 
+/// A set of possible material property types.
+#[derive(Debug, Copy, Clone)]
+pub enum MaterialPropertyRef<'a> {
+    /// Real number.
+    Float(&'a f32),
+
+    /// Real number array.
+    FloatArray(&'a [f32]),
+
+    /// Integer number.
+    Int(&'a i32),
+
+    /// Integer number array.
+    IntArray(&'a [i32]),
+
+    /// Natural number.
+    UInt(&'a u32),
+
+    /// Natural number array.
+    UIntArray(&'a [u32]),
+
+    /// Two-dimensional vector.
+    Vector2(&'a Vector2<f32>),
+
+    /// Two-dimensional vector array.
+    Vector2Array(&'a [Vector2<f32>]),
+
+    /// Three-dimensional vector.
+    Vector3(&'a Vector3<f32>),
+
+    /// Three-dimensional vector array.
+    Vector3Array(&'a [Vector3<f32>]),
+
+    /// Four-dimensional vector.
+    Vector4(&'a Vector4<f32>),
+
+    /// Four-dimensional vector array.
+    Vector4Array(&'a [Vector4<f32>]),
+
+    /// 2x2 Matrix.
+    Matrix2(&'a Matrix2<f32>),
+
+    /// 2x2 Matrix array.
+    Matrix2Array(&'a [Matrix2<f32>]),
+
+    /// 3x3 Matrix.
+    Matrix3(&'a Matrix3<f32>),
+
+    /// 3x3 Matrix array.
+    Matrix3Array(&'a [Matrix3<f32>]),
+
+    /// 4x4 Matrix.
+    Matrix4(&'a Matrix4<f32>),
+
+    /// 4x4 Matrix array.
+    Matrix4Array(&'a [Matrix4<f32>]),
+
+    /// Boolean value.
+    Bool(&'a bool),
+
+    /// An sRGB color.
+    ///
+    /// # Conversion
+    ///
+    /// The colors you see on your monitor are in sRGB color space, this is fine for simple cases
+    /// of rendering, but not for complex things like lighting. Such things require color to be
+    /// linear. Value of this variant will be automatically **converted to linear color space**
+    /// before it passed to shader. If you want to pass sRGB color ("as is"), then use
+    /// [`MaterialProperty::Vector4`].
+    Color(&'a Color),
+}
+
+impl MaterialProperty {
+    /// Maps the inner value of the property to its respective reference.
+    pub fn as_ref(&self) -> MaterialPropertyRef<'_> {
+        match self {
+            MaterialProperty::Float(v) => MaterialPropertyRef::Float(v),
+            MaterialProperty::FloatArray(v) => MaterialPropertyRef::FloatArray(v),
+            MaterialProperty::Int(v) => MaterialPropertyRef::Int(v),
+            MaterialProperty::IntArray(v) => MaterialPropertyRef::IntArray(v),
+            MaterialProperty::UInt(v) => MaterialPropertyRef::UInt(v),
+            MaterialProperty::UIntArray(v) => MaterialPropertyRef::UIntArray(v),
+            MaterialProperty::Vector2(v) => MaterialPropertyRef::Vector2(v),
+            MaterialProperty::Vector2Array(v) => MaterialPropertyRef::Vector2Array(v),
+            MaterialProperty::Vector3(v) => MaterialPropertyRef::Vector3(v),
+            MaterialProperty::Vector3Array(v) => MaterialPropertyRef::Vector3Array(v),
+            MaterialProperty::Vector4(v) => MaterialPropertyRef::Vector4(v),
+            MaterialProperty::Vector4Array(v) => MaterialPropertyRef::Vector4Array(v),
+            MaterialProperty::Matrix2(v) => MaterialPropertyRef::Matrix2(v),
+            MaterialProperty::Matrix2Array(v) => MaterialPropertyRef::Matrix2Array(v),
+            MaterialProperty::Matrix3(v) => MaterialPropertyRef::Matrix3(v),
+            MaterialProperty::Matrix3Array(v) => MaterialPropertyRef::Matrix3Array(v),
+            MaterialProperty::Matrix4(v) => MaterialPropertyRef::Matrix4(v),
+            MaterialProperty::Matrix4Array(v) => MaterialPropertyRef::Matrix4Array(v),
+            MaterialProperty::Bool(v) => MaterialPropertyRef::Bool(v),
+            MaterialProperty::Color(v) => MaterialPropertyRef::Color(v),
+        }
+    }
+}
+
+macro_rules! impl_from_ref {
+    ($variant:ident => $value_type:ty) => {
+        impl<'a> From<&'a $value_type> for MaterialPropertyRef<'a> {
+            fn from(value: &'a $value_type) -> Self {
+                Self::$variant(value)
+            }
+        }
+    };
+}
+
+impl_from_ref!(Float => f32);
+impl_from_ref!(FloatArray => [f32]);
+impl_from_ref!(Int => i32);
+impl_from_ref!(IntArray => [i32]);
+impl_from_ref!(UInt => u32);
+impl_from_ref!(UIntArray => [u32]);
+impl_from_ref!(Vector2 => Vector2<f32>);
+impl_from_ref!(Vector2Array => [Vector2<f32>]);
+impl_from_ref!(Vector3 => Vector3<f32>);
+impl_from_ref!(Vector3Array => [Vector3<f32>]);
+impl_from_ref!(Vector4 => Vector4<f32>);
+impl_from_ref!(Vector4Array => [Vector4<f32>]);
+impl_from_ref!(Matrix2 => Matrix2<f32>);
+impl_from_ref!(Matrix2Array => [Matrix2<f32>]);
+impl_from_ref!(Matrix3 => Matrix3<f32>);
+impl_from_ref!(Matrix3Array => [Matrix3<f32>]);
+impl_from_ref!(Matrix4 => Matrix4<f32>);
+impl_from_ref!(Matrix4Array => [Matrix4<f32>]);
+impl_from_ref!(Bool => bool);
+impl_from_ref!(Color => Color);
+
 impl From<Option<TextureResource>> for MaterialResourceBinding {
     fn from(value: Option<TextureResource>) -> Self {
         Self::Texture(MaterialTextureBinding { value })
