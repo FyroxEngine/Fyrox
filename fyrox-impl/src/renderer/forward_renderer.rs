@@ -47,7 +47,7 @@ pub(crate) struct ForwardRenderContext<'a> {
     pub viewport: Rect<i32>,
     pub quality_settings: &'a QualitySettings,
     pub fallback_resources: &'a FallbackResources,
-    pub scene_depth: GpuTexture,
+    pub scene_depth: &'a GpuTexture,
     pub ambient_light: Color,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 }

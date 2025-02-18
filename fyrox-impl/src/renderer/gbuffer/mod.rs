@@ -172,28 +172,28 @@ impl GBuffer {
         &self.framebuffer
     }
 
-    pub fn depth(&self) -> GpuTexture {
-        self.framebuffer.depth_attachment().unwrap().texture.clone()
+    pub fn depth(&self) -> &GpuTexture {
+        &self.framebuffer.depth_attachment().unwrap().texture
     }
 
-    pub fn diffuse_texture(&self) -> GpuTexture {
-        self.framebuffer.color_attachments()[0].texture.clone()
+    pub fn diffuse_texture(&self) -> &GpuTexture {
+        &self.framebuffer.color_attachments()[0].texture
     }
 
-    pub fn normal_texture(&self) -> GpuTexture {
-        self.framebuffer.color_attachments()[1].texture.clone()
+    pub fn normal_texture(&self) -> &GpuTexture {
+        &self.framebuffer.color_attachments()[1].texture
     }
 
-    pub fn ambient_texture(&self) -> GpuTexture {
-        self.framebuffer.color_attachments()[2].texture.clone()
+    pub fn ambient_texture(&self) -> &GpuTexture {
+        &self.framebuffer.color_attachments()[2].texture
     }
 
-    pub fn material_texture(&self) -> GpuTexture {
-        self.framebuffer.color_attachments()[3].texture.clone()
+    pub fn material_texture(&self) -> &GpuTexture {
+        &self.framebuffer.color_attachments()[3].texture
     }
 
-    pub fn decal_mask_texture(&self) -> GpuTexture {
-        self.framebuffer.color_attachments()[4].texture.clone()
+    pub fn decal_mask_texture(&self) -> &GpuTexture {
+        &self.framebuffer.color_attachments()[4].texture
     }
 
     pub(crate) fn fill(

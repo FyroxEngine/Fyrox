@@ -792,7 +792,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
     /// have an ability to write to this texture. However, you can still write to depth of
     /// the frame buffer as you'd normally do.
-    pub depth_texture: GpuTexture,
+    pub depth_texture: &'a GpuTexture,
 
     /// A texture with world-space normals from G-Buffer.
     ///
@@ -800,7 +800,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     ///
     /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
     /// have an ability to write to this texture.
-    pub normal_texture: GpuTexture,
+    pub normal_texture: &'a GpuTexture,
 
     /// A texture with ambient lighting values from G-Buffer.
     ///
@@ -808,7 +808,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     ///
     /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
     /// have an ability to write to this texture.
-    pub ambient_texture: GpuTexture,
+    pub ambient_texture: &'a GpuTexture,
 
     /// User interface renderer.
     pub ui_renderer: &'a mut UiRenderer,

@@ -126,7 +126,7 @@ impl LightVolumeRenderer {
     pub(crate) fn render_volume(
         &mut self,
         light: &LightSource,
-        gbuffer: &mut GBuffer,
+        gbuffer: &GBuffer,
         quad: &GpuGeometryBuffer,
         view: Matrix4<f32>,
         inv_proj: Matrix4<f32>,
