@@ -62,15 +62,7 @@ impl Iterator for Decoder {
         if let Some(sample) = self.samples.next() {
             Some(sample)
         } else {
-            if let Ok(packet) = self.reader.next_packet() {
-                if let Ok(decoded) = self.decoder.decode(&packet) {
-                    let buffer: AudioBuffer<Self::Item> = decoded.make_equivalent();
-                    let samples = buffer.chan(0);
-
-                    let vec: Vec<f32> = samples.to_vec();
-                    self.samples = vec.into_iter();
-                }
-            }
+            self.samples = Self::samples(&mut self.reader, &mut self.decoder).ok()?;
             self.samples.next()
         }
     }
@@ -114,17 +106,7 @@ impl Decoder {
 
         let channel_duration_in_samples = last_packet.map(|p| p.ts as usize).unwrap_or_default();
 
-        // Get samples
-        let mut vec: Vec<f32> = Vec::new();
-        if let Ok(packet) = reader.next_packet() {
-            if let Ok(decoded) = decoder.decode(&packet) {
-                let buffer: AudioBuffer<f32> = decoded.make_equivalent();
-                let samples = buffer.chan(0);
-
-                vec = samples.to_vec();
-            }
-        }
-        let samples = vec.into_iter();
+        let samples = Self::samples(&mut reader, &mut decoder)?;
 
         let params = &reader
             .tracks()
@@ -140,6 +122,18 @@ impl Decoder {
             decoder,
             channel_duration_in_samples,
         })
+    }
+
+    fn samples(
+        reader: &mut Box<dyn FormatReader>,
+        decoder: &mut Box<dyn SymphoniaDecoder>,
+    ) -> Result<std::vec::IntoIter<f32>, SoundError> {
+        let packet = reader.next_packet()?;
+        let decoded = decoder.decode(&packet)?;
+        let buffer: AudioBuffer<f32> = decoded.make_equivalent();
+        let samples = buffer.chan(0);
+
+        Ok(samples.to_vec().into_iter())
     }
 
     pub fn rewind(&mut self) -> Result<(), SoundError> {
