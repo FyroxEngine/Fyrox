@@ -18,7 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::make_viewport_matrix;
+use crate::renderer::cache::shader::{
+    GpuResourceBinding, NamedValue, PropertyGroup, RenderMaterial,
+};
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
@@ -28,27 +30,27 @@ use crate::{
     },
     rand::Rng,
     renderer::{
+        cache::shader::RenderPassContainer,
         cache::uniform::UniformBufferCache,
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, ResourceBindGroup, ResourceBinding},
-            gpu_program::UniformLocation,
-            gpu_texture::{GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind},
+            framebuffer::{Attachment, AttachmentKind, GpuFrameBuffer},
+            geometry_buffer::GpuGeometryBuffer,
+            gpu_texture::{
+                GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
+                MinificationFilter, PixelKind,
+            },
             server::GraphicsServer,
-            uniform::StaticUniformBuffer,
-            DrawParameters, ElementRange, GeometryBufferExt,
+            GeometryBufferExt,
         },
         gbuffer::GBuffer,
+        make_viewport_matrix,
         ssao::blur::Blur,
         RenderPassStatistics,
     },
     scene::mesh::surface::SurfaceData,
 };
-use fyrox_graphics::framebuffer::{BufferLocation, GpuFrameBuffer};
-use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
-use fyrox_graphics::gpu_program::GpuProgram;
-use fyrox_graphics::gpu_texture::{GpuTexture, GpuTextureDescriptor};
 
 mod blur;
 
@@ -58,32 +60,9 @@ const KERNEL_SIZE: usize = 32;
 // Size of noise texture.
 const NOISE_SIZE: usize = 4;
 
-struct Shader {
-    program: GpuProgram,
-    depth_sampler: UniformLocation,
-    normal_sampler: UniformLocation,
-    noise_sampler: UniformLocation,
-    uniform_block_index: usize,
-}
-
-impl Shader {
-    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("../shaders/ssao_fs.glsl");
-        let vertex_source = include_str!("../shaders/ssao_vs.glsl");
-        let program = server.create_program("SsaoShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            depth_sampler: program.uniform_location(&ImmutableString::new("depthSampler"))?,
-            normal_sampler: program.uniform_location(&ImmutableString::new("normalSampler"))?,
-            noise_sampler: program.uniform_location(&ImmutableString::new("noiseSampler"))?,
-            uniform_block_index: program.uniform_block_index(&ImmutableString::new("Uniforms"))?,
-            program,
-        })
-    }
-}
-
 pub struct ScreenSpaceAmbientOcclusionRenderer {
     blur: Blur,
-    shader: Shader,
+    program: RenderPassContainer,
     framebuffer: GpuFrameBuffer,
     quad: GpuGeometryBuffer,
     width: i32,
@@ -110,7 +89,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
         Ok(Self {
             blur: Blur::new(server, width, height)?,
-            shader: Shader::new(server)?,
+            program: RenderPassContainer::from_str(server, include_str!("../shaders/ssao.shader"))?,
             framebuffer: server.create_frame_buffer(
                 None,
                 vec![Attachment {
@@ -204,52 +183,41 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             self.height as f32 / NOISE_SIZE as f32,
         );
 
-        let uniform_buffer = uniform_buffer_cache.write(
-            StaticUniformBuffer::<1024>::new()
-                .with(&frame_matrix)
-                .with(&projection_matrix.try_inverse().unwrap_or_default())
-                .with(&projection_matrix)
-                .with(&self.kernel)
-                .with(&noise_scale)
-                .with(&view_matrix)
-                .with(&self.radius),
-        )?;
+        let inv_projection = projection_matrix.try_inverse().unwrap_or_default();
+        let properties = PropertyGroup::from([
+            NamedValue::bind("worldViewProjection", &frame_matrix),
+            NamedValue::bind("inverseProjectionMatrix", &inv_projection),
+            NamedValue::bind("projectionMatrix", &projection_matrix),
+            NamedValue::bind("kernel", self.kernel.as_slice()),
+            NamedValue::bind("noiseScale", &noise_scale),
+            NamedValue::bind("viewMatrix", &view_matrix),
+            NamedValue::bind("radius", &self.radius),
+        ]);
 
-        stats += self.framebuffer.draw(
+        let bindings = RenderMaterial::from([
+            NamedValue::new("depthSampler", GpuResourceBinding::texture(gbuffer.depth())),
+            NamedValue::new(
+                "normalSampler",
+                GpuResourceBinding::texture(gbuffer.normal_texture()),
+            ),
+            NamedValue::new("noiseSampler", GpuResourceBinding::texture(&self.noise)),
+            NamedValue::new(
+                "properties",
+                GpuResourceBinding::property_group(&properties),
+            ),
+        ]);
+
+        stats += self.program.run_pass(
+            &ImmutableString::new("Primary"),
+            &self.framebuffer,
             &self.quad,
             viewport,
-            &self.shader.program,
-            &DrawParameters {
-                cull_face: None,
-                color_write: Default::default(),
-                depth_write: false,
-                stencil_test: None,
-                depth_test: None,
-                blend: None,
-                stencil_op: Default::default(),
-                scissor_box: None,
-            },
-            &[ResourceBindGroup {
-                bindings: &[
-                    ResourceBinding::texture(&gbuffer.depth(), &self.shader.depth_sampler),
-                    ResourceBinding::texture(
-                        &gbuffer.normal_texture(),
-                        &self.shader.normal_sampler,
-                    ),
-                    ResourceBinding::texture(&self.noise, &self.shader.noise_sampler),
-                    ResourceBinding::Buffer {
-                        buffer: uniform_buffer,
-                        binding: BufferLocation::Auto {
-                            shader_location: self.shader.uniform_block_index,
-                        },
-                        data_usage: Default::default(),
-                    },
-                ],
-            }],
-            ElementRange::Full,
+            &bindings,
+            uniform_buffer_cache,
+            Default::default(),
         )?;
 
-        self.blur.render(self.raw_ao_map(), uniform_buffer_cache)?;
+        stats += self.blur.render(self.raw_ao_map(), uniform_buffer_cache)?;
 
         Ok(stats)
     }
