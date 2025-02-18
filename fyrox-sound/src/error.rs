@@ -87,8 +87,8 @@ impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for Sound
 }
 
 impl From<symphonia::core::errors::Error> for SoundError {
-    fn from(ve: symphonia::core::errors::Error) -> Self {
-        SoundError::DecoderError(DecoderError::Ogg(ve))
+    fn from(e: symphonia::core::errors::Error) -> Self {
+        SoundError::DecoderError(DecoderError::Ogg(e))
     }
 }
 
