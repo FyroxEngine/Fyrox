@@ -565,6 +565,7 @@ pub struct RenderPassDefinition {
     /// A name of render pass.
     pub name: String,
     /// A set of parameters that will be used in a render pass.
+    #[serde(default)]
     pub draw_parameters: DrawParameters,
     /// A source code of vertex shader.
     pub vertex_shader: String,
