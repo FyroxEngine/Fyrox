@@ -83,7 +83,7 @@ impl LumBuffer {
         })
     }
 
-    fn clear(&mut self) {
+    fn clear(&self) {
         self.framebuffer.clear(
             Rect::new(0, 0, self.size as i32, self.size as i32),
             Some(Color::BLACK),
@@ -145,7 +145,7 @@ impl HighDynamicRangeRenderer {
     }
 
     fn calculate_frame_luminance(
-        &mut self,
+        &self,
         scene_frame: GpuTexture,
         quad: &GpuGeometryBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
@@ -195,7 +195,7 @@ impl HighDynamicRangeRenderer {
     }
 
     fn calculate_avg_frame_luminance(
-        &mut self,
+        &self,
         quad: &GpuGeometryBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
@@ -228,7 +228,7 @@ impl HighDynamicRangeRenderer {
             LuminanceCalculationMethod::DownSampling => {
                 let shader = &self.downscale_shader;
                 let mut prev_luminance = self.frame_luminance.texture();
-                for lum_buffer in self.downscale_chain.iter_mut() {
+                for lum_buffer in self.downscale_chain.iter() {
                     let inv_size = 1.0 / lum_buffer.size as f32;
                     let matrix = lum_buffer.matrix();
                     stats += lum_buffer.framebuffer.draw(
@@ -273,7 +273,7 @@ impl HighDynamicRangeRenderer {
     }
 
     fn adaptation(
-        &mut self,
+        &self,
         quad: &GpuGeometryBuffer,
         dt: f32,
         uniform_buffer_cache: &mut UniformBufferCache,
@@ -322,10 +322,10 @@ impl HighDynamicRangeRenderer {
     }
 
     fn map_hdr_to_ldr(
-        &mut self,
+        &self,
         server: &dyn GraphicsServer,
-        hdr_scene_frame: GpuTexture,
-        bloom_texture: GpuTexture,
+        hdr_scene_frame: &GpuTexture,
+        bloom_texture: &GpuTexture,
         ldr_framebuffer: &GpuFrameBuffer,
         viewport: Rect<i32>,
         quad: &GpuGeometryBuffer,
@@ -382,8 +382,8 @@ impl HighDynamicRangeRenderer {
                         &self.adaptation_chain.avg_lum_texture(),
                         &shader.lum_sampler,
                     ),
-                    ResourceBinding::texture(&bloom_texture, &shader.bloom_sampler),
-                    ResourceBinding::texture(&hdr_scene_frame, &shader.hdr_sampler),
+                    ResourceBinding::texture(bloom_texture, &shader.bloom_sampler),
+                    ResourceBinding::texture(hdr_scene_frame, &shader.hdr_sampler),
                     ResourceBinding::texture(color_grading_lut_tex, &shader.color_map_sampler),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer,
@@ -399,10 +399,10 @@ impl HighDynamicRangeRenderer {
     }
 
     pub fn render(
-        &mut self,
+        &self,
         server: &dyn GraphicsServer,
-        hdr_scene_frame: GpuTexture,
-        bloom_texture: GpuTexture,
+        hdr_scene_frame: &GpuTexture,
+        bloom_texture: &GpuTexture,
         ldr_framebuffer: &GpuFrameBuffer,
         viewport: Rect<i32>,
         quad: &GpuGeometryBuffer,

@@ -82,7 +82,7 @@ impl FxaaRenderer {
     pub(crate) fn render(
         &self,
         viewport: Rect<i32>,
-        frame_texture: GpuTexture,
+        frame_texture: &GpuTexture,
         frame_buffer: &GpuFrameBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
@@ -106,7 +106,7 @@ impl FxaaRenderer {
             },
             &[ResourceBindGroup {
                 bindings: &[
-                    ResourceBinding::texture(&frame_texture, &self.shader.screen_texture),
+                    ResourceBinding::texture(frame_texture, &self.shader.screen_texture),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer_cache.write(
                             StaticUniformBuffer::<256>::new().with(&frame_matrix).with(

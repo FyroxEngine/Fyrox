@@ -590,24 +590,18 @@ impl AssociatedSceneData {
     }
 
     /// Returns high-dynamic range frame buffer texture.
-    pub fn hdr_scene_frame_texture(&self) -> GpuTexture {
-        self.hdr_scene_framebuffer.color_attachments()[0]
-            .texture
-            .clone()
+    pub fn hdr_scene_frame_texture(&self) -> &GpuTexture {
+        &self.hdr_scene_framebuffer.color_attachments()[0].texture
     }
 
     /// Returns low-dynamic range frame buffer texture (final frame).
-    pub fn ldr_scene_frame_texture(&self) -> GpuTexture {
-        self.ldr_scene_framebuffer.color_attachments()[0]
-            .texture
-            .clone()
+    pub fn ldr_scene_frame_texture(&self) -> &GpuTexture {
+        &self.ldr_scene_framebuffer.color_attachments()[0].texture
     }
 
     /// Returns low-dynamic range frame buffer texture (accumulation frame).
-    pub fn ldr_temp_frame_texture(&self) -> GpuTexture {
-        self.ldr_temp_framebuffer.color_attachments()[0]
-            .texture
-            .clone()
+    pub fn ldr_temp_frame_texture(&self) -> &GpuTexture {
+        &self.ldr_temp_framebuffer.color_attachments()[0].texture
     }
 }
 
@@ -849,7 +843,7 @@ pub trait SceneRenderPass {
 fn blit_pixels(
     uniform_buffer_cache: &mut UniformBufferCache,
     framebuffer: &GpuFrameBuffer,
-    texture: GpuTexture,
+    texture: &GpuTexture,
     shader: &FlatShader,
     viewport: Rect<i32>,
     quad: &GpuGeometryBuffer,
@@ -873,7 +867,7 @@ fn blit_pixels(
         },
         &[ResourceBindGroup {
             bindings: &[
-                ResourceBinding::texture(&texture, &shader.diffuse_texture),
+                ResourceBinding::texture(texture, &shader.diffuse_texture),
                 ResourceBinding::Buffer {
                     buffer: uniform_buffer,
                     binding: BufferLocation::Auto {
@@ -1358,7 +1352,7 @@ impl Renderer {
         // to draw something on offscreen and then draw it on some mesh.
         if let Some(rt) = scene.rendering_options.render_target.clone() {
             self.texture_cache
-                .try_register(&rt, scene_associated_data.ldr_scene_frame_texture());
+                .try_register(&rt, scene_associated_data.ldr_scene_frame_texture().clone());
         }
 
         for (camera_handle, camera) in graph.pair_iter().filter_map(|(handle, node)| {

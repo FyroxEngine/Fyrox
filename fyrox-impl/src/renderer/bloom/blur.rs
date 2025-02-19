@@ -104,18 +104,18 @@ impl GaussianBlur {
         })
     }
 
-    fn h_blurred(&self) -> GpuTexture {
-        self.h_framebuffer.color_attachments()[0].texture.clone()
+    fn h_blurred(&self) -> &GpuTexture {
+        &self.h_framebuffer.color_attachments()[0].texture
     }
 
-    pub fn result(&self) -> GpuTexture {
-        self.v_framebuffer.color_attachments()[0].texture.clone()
+    pub fn result(&self) -> &GpuTexture {
+        &self.v_framebuffer.color_attachments()[0].texture
     }
 
     pub(crate) fn render(
-        &mut self,
+        &self,
         quad: &GpuGeometryBuffer,
-        input: GpuTexture,
+        input: &GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
@@ -142,7 +142,7 @@ impl GaussianBlur {
             },
             &[ResourceBindGroup {
                 bindings: &[
-                    ResourceBinding::texture(&input, &shader.image),
+                    ResourceBinding::texture(input, &shader.image),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer_cache.write(
                             StaticUniformBuffer::<256>::new()
@@ -178,7 +178,7 @@ impl GaussianBlur {
             },
             &[ResourceBindGroup {
                 bindings: &[
-                    ResourceBinding::texture(&h_blurred_texture, &shader.image),
+                    ResourceBinding::texture(h_blurred_texture, &shader.image),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer_cache.write(
                             StaticUniformBuffer::<256>::new()

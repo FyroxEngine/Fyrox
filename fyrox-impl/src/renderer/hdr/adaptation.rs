@@ -27,6 +27,7 @@ use crate::{
 };
 use fyrox_graphics::gpu_program::GpuProgram;
 use fyrox_graphics::gpu_texture::GpuTexture;
+use std::cell::Cell;
 
 pub struct AdaptationShader {
     pub program: GpuProgram,
@@ -54,46 +55,46 @@ impl AdaptationShader {
 
 pub struct AdaptationChain {
     lum_framebuffers: [LumBuffer; 2],
-    swap: bool,
+    swap: Cell<bool>,
 }
 
 pub struct AdaptationContext<'a> {
     pub prev_lum: GpuTexture,
-    pub lum_buffer: &'a mut LumBuffer,
+    pub lum_buffer: &'a LumBuffer,
 }
 
 impl AdaptationChain {
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
             lum_framebuffers: [LumBuffer::new(server, 1)?, LumBuffer::new(server, 1)?],
-            swap: false,
+            swap: Cell::new(false),
         })
     }
 
-    pub fn begin(&mut self) -> AdaptationContext<'_> {
-        let out = if self.swap {
+    pub fn begin(&self) -> AdaptationContext<'_> {
+        let out = if self.swap.get() {
             AdaptationContext {
                 prev_lum: self.lum_framebuffers[0].framebuffer.color_attachments()[0]
                     .texture
                     .clone(),
-                lum_buffer: &mut self.lum_framebuffers[1],
+                lum_buffer: &self.lum_framebuffers[1],
             }
         } else {
             AdaptationContext {
                 prev_lum: self.lum_framebuffers[1].framebuffer.color_attachments()[0]
                     .texture
                     .clone(),
-                lum_buffer: &mut self.lum_framebuffers[0],
+                lum_buffer: &self.lum_framebuffers[0],
             }
         };
 
-        self.swap = !self.swap;
+        self.swap.set(!self.swap.get());
 
         out
     }
 
     pub fn avg_lum_texture(&self) -> GpuTexture {
-        if self.swap {
+        if self.swap.get() {
             self.lum_framebuffers[0].framebuffer.color_attachments()[0]
                 .texture
                 .clone()
