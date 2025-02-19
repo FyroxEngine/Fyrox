@@ -172,10 +172,8 @@ impl PointShadowMapRenderer {
         self.precision
     }
 
-    pub fn cascade_texture(&self, cascade: usize) -> GpuTexture {
-        self.cascades[cascade].color_attachments()[0]
-            .texture
-            .clone()
+    pub fn cascade_texture(&self, cascade: usize) -> &GpuTexture {
+        &self.cascades[cascade].color_attachments()[0].texture
     }
 
     pub(crate) fn render(
