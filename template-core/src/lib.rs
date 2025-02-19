@@ -193,7 +193,7 @@ impl Plugin for Game {
     fn register(&self, _context: PluginRegistrationContext) {
         // Register your scripts here.
     }
-    
+
     fn init(&mut self, scene_path: Option<&str>, context: PluginContext) {
         context
             .async_scene_loader
@@ -284,7 +284,7 @@ fn main() {{
     Log::set_file_name("{name}.log");
 
     let mut executor = Executor::new();
-   
+
     // Dynamic linking with hot reloading.
     #[cfg(feature = "dylib")]
     {{
@@ -302,8 +302,8 @@ fn main() {{
     {{
         use {name}::Game;
         executor.add_plugin(Game::default());
-    }}  
-   
+    }}
+
     executor.run()
 }}"#,
         ),
@@ -459,7 +459,7 @@ fn main() {{
             scenes: vec!["data/scene.rgs".into()],
         }}),
     );
-    
+
      // Dynamic linking with hot reloading.
     #[cfg(feature = "dylib")]
     {{
@@ -478,7 +478,7 @@ fn main() {{
         use {name}::Game;
         editor.add_game_plugin(Game::default());
     }}
-    
+
     editor.run(event_loop)
 }}
 "#,
