@@ -97,6 +97,7 @@ impl Blur {
             &material,
             uniform_buffer_cache,
             Default::default(),
+            None,
         )
     }
 }

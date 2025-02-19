@@ -255,6 +255,7 @@ impl RenderPassContainer {
         material: &RenderMaterial<'_, '_, N>,
         uniform_buffer_cache: &mut UniformBufferCache,
         element_range: ElementRange,
+        override_params: Option<&DrawParameters>,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let render_pass = self.get(render_pass_name)?;
 
@@ -331,7 +332,7 @@ impl RenderPassContainer {
             geometry,
             viewport,
             &render_pass.program,
-            &render_pass.draw_params,
+            override_params.unwrap_or(&render_pass.draw_params),
             &[ResourceBindGroup {
                 bindings: &resource_bindings,
             }],

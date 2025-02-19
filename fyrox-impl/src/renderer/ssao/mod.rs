@@ -209,6 +209,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             &material,
             uniform_buffer_cache,
             Default::default(),
+            None,
         )?;
 
         stats += self.blur.render(self.raw_ao_map(), uniform_buffer_cache)?;
