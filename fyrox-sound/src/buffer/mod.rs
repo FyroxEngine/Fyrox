@@ -111,12 +111,16 @@ pub trait RawStreamingDataSource: Iterator<Item = f32> + Send + Sync + Debug {
     fn channel_count(&self) -> usize;
 
     /// Tells whether the provider should restart.
+    ///
+    /// Default implementation calls [`time_seek`] with a zero duration
     fn rewind(&mut self) -> Result<(), SoundError> {
-        Ok(())
+        self.time_seek(Duration::from_secs(0))
     }
 
     /// Allows you to start playback from given duration.
-    fn time_seek(&mut self, _duration: Duration) {}
+    fn time_seek(&mut self, _duration: Duration) -> Result<(), SoundError> {
+        Ok(())
+    }
 
     /// Returns total duration of the data.
     fn channel_duration_in_samples(&self) -> usize {

@@ -21,7 +21,6 @@
 use std::io::Seek;
 use std::{time::Duration, vec};
 
-use fyrox_core::err;
 use symphonia::core::audio::{AudioBuffer, Signal};
 use symphonia::core::codecs::{Decoder as SymphoniaDecoder, DecoderOptions};
 use symphonia::core::formats::{FormatOptions, FormatReader, SeekMode, SeekTo};
@@ -138,30 +137,19 @@ impl Decoder {
     }
 
     pub fn rewind(&mut self) -> Result<(), SoundError> {
+        self.time_seek(Duration::from_secs(0))
+    }
+
+    pub fn time_seek(&mut self, location: Duration) -> Result<(), SoundError> {
         self.reader.seek(
             SeekMode::Accurate,
             SeekTo::Time {
-                time: Time::default(),
+                time: location.into(),
                 track_id: None,
             },
         )?;
-        Ok(())
-    }
 
-    pub fn time_seek(&mut self, location: Duration) {
-        if self
-            .reader
-            .seek(
-                SeekMode::Accurate,
-                SeekTo::Time {
-                    time: location.into(),
-                    track_id: None,
-                },
-            )
-            .is_err()
-        {
-            err!("Failed to seek in track")
-        }
+        Ok(())
     }
 
     pub fn get_channel_count(&self) -> usize {

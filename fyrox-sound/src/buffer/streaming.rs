@@ -133,9 +133,9 @@ impl StreamingSource {
         }
     }
 
-    fn time_seek(&mut self, location: Duration) {
+    fn time_seek(&mut self, location: Duration) -> Result<(), SoundError> {
         match self {
-            StreamingSource::Null => {}
+            StreamingSource::Null => Ok(()),
             StreamingSource::Decoder(decoder) => decoder.time_seek(location),
             StreamingSource::Raw(raw) => raw.time_seek(location),
         }
@@ -215,8 +215,8 @@ impl StreamingBuffer {
     }
 
     #[inline]
-    pub(crate) fn time_seek(&mut self, location: Duration) {
-        self.streaming_source.time_seek(location);
+    pub(crate) fn time_seek(&mut self, location: Duration) -> Result<(), SoundError> {
+        self.streaming_source.time_seek(location)
     }
 }
 
