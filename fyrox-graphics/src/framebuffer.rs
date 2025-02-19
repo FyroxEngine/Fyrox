@@ -122,7 +122,7 @@ pub enum BufferLocation {
     /// compatibility with the old code.
     Auto {
         /// An automatically generated index fetched from the video driver using
-        /// [`GpuProgramTrait::uniform_block_index`].
+        /// [`super::gpu_program::GpuProgramTrait::uniform_block_index`].
         shader_location: usize,
     },
     /// Explicit binding mode where you strictly define expected binding point for the buffer.
@@ -258,10 +258,10 @@ pub trait GpuFrameBufferTrait: Downcast {
     /// Draws the specified geometry buffer using the given GPU program and a set of resources. This
     /// method the main method to draw anything.
     ///
-    /// `geometry` - defines a [`GpuGeometryBufferTrait`], that contains vertices and index buffers and
+    /// `geometry` - defines a [`GpuGeometryBuffer`], that contains vertices and index buffers and
     /// essentially defines a mesh to render.
     /// `viewport` - defines an area on screen that will be used to draw.
-    /// `program` - a [`GpuProgramTrait`] defines a set of shaders (usually a pair of vertex + fragment)
+    /// `program` - a [`GpuProgram`] defines a set of shaders (usually a pair of vertex + fragment)
     /// that will define how the mesh will be rendered.
     /// `params` - [`DrawParameters`] defines the state of graphics pipeline and essentially sets
     /// a bunch of various parameters (such as backface culling, blending mode, various tests, etc.)
