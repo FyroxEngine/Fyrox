@@ -41,11 +41,10 @@ use crate::{
             geometry_buffer::GpuGeometryBuffer,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
-            BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, CullFace,
-            DrawParameters, ElementRange, GeometryBufferExt, StencilAction, StencilFunc, StencilOp,
+            ColorMask, CompareFunc, CullFace, DrawParameters, ElementRange, GeometryBufferExt,
+            StencilAction, StencilFunc, StencilOp,
         },
         gbuffer::GBuffer,
-        light::directional::DirectionalLightShader,
         light_volume::LightVolumeRenderer,
         make_viewport_matrix,
         shadow::{
@@ -69,13 +68,11 @@ use crate::{
     },
 };
 
-pub mod directional;
-
 pub struct DeferredLightRenderer {
     pub ssao_renderer: ScreenSpaceAmbientOcclusionRenderer,
     spot_light_shader: RenderPassContainer,
     point_light_shader: RenderPassContainer,
-    directional_light_shader: DirectionalLightShader,
+    directional_light_shader: RenderPassContainer,
     ambient_light_shader: RenderPassContainer,
     quad: GpuGeometryBuffer,
     sphere: GpuGeometryBuffer,
@@ -163,7 +160,10 @@ impl DeferredLightRenderer {
                 server,
                 include_str!("../shaders/deferred_point_light.shader"),
             )?,
-            directional_light_shader: DirectionalLightShader::new(server)?,
+            directional_light_shader: RenderPassContainer::from_str(
+                server,
+                include_str!("../shaders/deferred_directional_light.shader"),
+            )?,
             ambient_light_shader: RenderPassContainer::from_str(
                 server,
                 include_str!("../shaders/ambient_light.shader"),
@@ -793,8 +793,6 @@ impl DeferredLightRenderer {
                         )?
                     }
                     LightSourceKind::Directional { ref csm_options } => {
-                        let shader = &self.directional_light_shader;
-
                         light_stats.directional_lights_rendered += 1;
 
                         let distances = [
@@ -807,81 +805,45 @@ impl DeferredLightRenderer {
                             self.csm_renderer.cascades()[1].view_proj_matrix,
                             self.csm_renderer.cascades()[2].view_proj_matrix,
                         ];
+                        let shadow_map_inv_size = 1.0 / (self.csm_renderer.size() as f32);
+                        let shadow_bias = csm_options.shadow_bias();
+                        let view_matrix = camera.view_matrix();
+                        let properties = PropertyGroup::from([
+                            property("worldViewProjection", &frame_matrix),
+                            property("viewMatrix", &view_matrix),
+                            property("invViewProj", &inv_view_projection),
+                            property("lightViewProjMatrices", matrices.as_slice()),
+                            property("lightColor", &light.color),
+                            property("lightDirection", &emit_direction),
+                            property("cameraPosition", &camera_global_position),
+                            property("lightIntensity", &light.intensity),
+                            property("shadowsEnabled", &shadows_enabled),
+                            property("shadowBias", &shadow_bias),
+                            property("softShadows", &settings.csm_settings.pcf),
+                            property("shadowMapInvSize", &shadow_map_inv_size),
+                            property("cascadeDistances", distances.as_slice()),
+                        ]);
+                        let cascades = self.csm_renderer.cascades();
+                        let material = RenderMaterial::from([
+                            binding("depthTexture", gbuffer_depth_map),
+                            binding("colorTexture", gbuffer_diffuse_map),
+                            binding("normalTexture", gbuffer_normal_map),
+                            binding("materialTexture", gbuffer_material_map),
+                            binding("shadowCascade0", cascades[0].texture()),
+                            binding("shadowCascade1", cascades[1].texture()),
+                            binding("shadowCascade2", cascades[2].texture()),
+                            binding("properties", &properties),
+                        ]);
 
-                        let uniform_buffer = uniform_buffer_cache.write(
-                            StaticUniformBuffer::<1024>::new()
-                                .with(&frame_matrix)
-                                .with(&camera.view_matrix())
-                                .with(&inv_view_projection)
-                                .with(&matrices)
-                                .with(&light.color.srgb_to_linear_f32())
-                                .with(&emit_direction)
-                                .with(&camera_global_position)
-                                .with(&light.intensity)
-                                .with(&shadows_enabled)
-                                .with(&csm_options.shadow_bias())
-                                .with(&settings.csm_settings.pcf)
-                                .with(&(1.0 / (self.csm_renderer.size() as f32)))
-                                .with(&distances),
-                        )?;
-
-                        frame_buffer.draw(
+                        self.directional_light_shader.run_pass(
+                            &ImmutableString::new("Primary"),
+                            frame_buffer,
                             quad,
                             viewport,
-                            &shader.program,
-                            &DrawParameters {
-                                cull_face: None,
-                                color_write: Default::default(),
-                                depth_write: false,
-                                stencil_test: None,
-                                depth_test: None,
-                                blend: Some(BlendParameters {
-                                    func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
-                                    ..Default::default()
-                                }),
-                                stencil_op: Default::default(),
-                                scissor_box: None,
-                            },
-                            &[ResourceBindGroup {
-                                bindings: &[
-                                    ResourceBinding::texture(
-                                        gbuffer_depth_map,
-                                        &shader.depth_sampler,
-                                    ),
-                                    ResourceBinding::texture(
-                                        gbuffer_diffuse_map,
-                                        &shader.color_sampler,
-                                    ),
-                                    ResourceBinding::texture(
-                                        gbuffer_normal_map,
-                                        &shader.normal_sampler,
-                                    ),
-                                    ResourceBinding::texture(
-                                        gbuffer_material_map,
-                                        &shader.material_sampler,
-                                    ),
-                                    ResourceBinding::texture(
-                                        &self.csm_renderer.cascades()[0].texture(),
-                                        &shader.shadow_cascade0,
-                                    ),
-                                    ResourceBinding::texture(
-                                        &self.csm_renderer.cascades()[1].texture(),
-                                        &shader.shadow_cascade1,
-                                    ),
-                                    ResourceBinding::texture(
-                                        &self.csm_renderer.cascades()[2].texture(),
-                                        &shader.shadow_cascade2,
-                                    ),
-                                    ResourceBinding::Buffer {
-                                        buffer: uniform_buffer,
-                                        binding: BufferLocation::Auto {
-                                            shader_location: shader.uniform_buffer_binding,
-                                        },
-                                        data_usage: Default::default(),
-                                    },
-                                ],
-                            }],
-                            ElementRange::Full,
+                            &material,
+                            uniform_buffer_cache,
+                            Default::default(),
+                            None,
                         )?
                     }
                     LightSourceKind::Unknown => Default::default(),

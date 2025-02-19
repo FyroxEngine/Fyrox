@@ -1,5 +1,5 @@
 (
-    name: "DeferredPointLight",
+    name: "DeferredDirectionalLight",
     resources: [
         (
             name: "depthTexture",
@@ -22,24 +22,36 @@
             binding: 3
         ),
         (
-            name: "pointShadowTexture",
-            kind: Texture(kind: SamplerCube, fallback: White),
+            name: "shadowCascade0",
+            kind: Texture(kind: Sampler2D, fallback: White),
             binding: 4
+        ),
+        (
+            name: "shadowCascade1",
+            kind: Texture(kind: Sampler2D, fallback: White),
+            binding: 5
+        ),
+        (
+            name: "shadowCascade2",
+            kind: Texture(kind: Sampler2D, fallback: White),
+            binding: 6
         ),
         (
             name: "properties",
             kind: PropertyGroup([
                 (name: "worldViewProjection", kind: Matrix4()),
+                (name: "viewMatrix", kind: Matrix4()),
                 (name: "invViewProj", kind: Matrix4()),
+                (name: "lightViewProjMatrices", kind: Matrix4Array(max_len: 3, value: [])),
                 (name: "lightColor", kind: Color()),
-                (name: "lightPos", kind: Vector3()),
+                (name: "lightDirection", kind: Vector3()),
                 (name: "cameraPosition", kind: Vector3()),
-                (name: "lightRadius", kind: Float()),
-                (name: "shadowBias", kind: Float()),
                 (name: "lightIntensity", kind: Float()),
-                (name: "shadowAlpha", kind: Float()),
-                (name: "softShadows", kind: Bool()),
                 (name: "shadowsEnabled", kind: Bool()),
+                (name: "shadowBias", kind: Float()),
+                (name: "softShadows", kind: Bool()),
+                (name: "shadowMapInvSize", kind: Float()),
+                (name: "cascadeDistances", kind: FloatArray(max_len: 3, value: [])),
             ]),
             binding: 0
         ),
@@ -57,11 +69,7 @@
                     alpha: true,
                 ),
                 depth_write: false,
-                stencil_test: Some(StencilFunc(
-                    func: NotEqual,
-                    ref_value: 0,
-                    mask: 0xFFFF_FFFF
-                )),
+                stencil_test: None,
                 depth_test: None,
                 blend: Some(BlendParameters(
                     func: BlendFunc(
@@ -78,7 +86,7 @@
                 stencil_op: StencilOp(
                     fail: Keep,
                     zfail: Keep,
-                    zpass: Zero,
+                    zpass: Keep,
                     write_mask: 0xFFFF_FFFF,
                 ),
                 scissor_box: None
@@ -103,19 +111,22 @@
                     in vec2 texCoord;
                     out vec4 FragColor;
 
+                    // Returns **inverted** shadow factor where 1 - fully bright, 0 - fully in shadow.
+                    float CsmGetShadow(in sampler2D sampler, in vec3 fragmentPosition, in mat4 lightViewProjMatrix)
+                    {
+                        return S_SpotShadowFactor(properties.shadowsEnabled, properties.softShadows, properties.shadowBias, fragmentPosition, lightViewProjMatrix, properties.shadowMapInvSize, sampler);
+                    }
+
                     void main()
                     {
                         vec3 material = texture(materialTexture, texCoord).rgb;
 
                         vec3 fragmentPosition = S_UnProject(vec3(texCoord, texture(depthTexture, texCoord).r), properties.invViewProj);
-                        vec3 fragmentToLight = properties.lightPos - fragmentPosition;
-                        float distance = length(fragmentToLight);
-
                         vec4 diffuseColor = texture(colorTexture, texCoord);
 
                         TPBRContext ctx;
                         ctx.albedo = S_SRGBToLinear(diffuseColor).rgb;
-                        ctx.fragmentToLight = fragmentToLight / distance;
+                        ctx.fragmentToLight = properties.lightDirection;
                         ctx.fragmentNormal = normalize(texture(normalTexture, texCoord).xyz * 2.0 - 1.0);
                         ctx.lightColor = properties.lightColor.rgb;
                         ctx.metallic = material.x;
@@ -124,13 +135,18 @@
 
                         vec3 lighting = S_PBR_CalculateLight(ctx);
 
-                        float distanceAttenuation = S_LightDistanceAttenuation(distance, properties.lightRadius);
+                        float fragmentZViewSpace = abs((properties.viewMatrix * vec4(fragmentPosition, 1.0)).z);
 
-                        float shadow = S_PointShadow(
-                            properties.shadowsEnabled, properties.softShadows, distance, properties.shadowBias, ctx.fragmentToLight, pointShadowTexture);
-                        float finalShadow = mix(1.0, shadow, properties.shadowAlpha);
+                        float shadow = 1.0;
+                        if (fragmentZViewSpace <= properties.cascadeDistances[0]) {
+                            shadow = CsmGetShadow(shadowCascade0, fragmentPosition, properties.lightViewProjMatrices[0]);
+                        } else if (fragmentZViewSpace <= properties.cascadeDistances[1]) {
+                            shadow = CsmGetShadow(shadowCascade1, fragmentPosition, properties.lightViewProjMatrices[1]);
+                        } else if (fragmentZViewSpace <= properties.cascadeDistances[2]) {
+                            shadow = CsmGetShadow(shadowCascade2, fragmentPosition, properties.lightViewProjMatrices[2]);
+                        }
 
-                        FragColor = vec4(properties.lightIntensity * distanceAttenuation * finalShadow * lighting, diffuseColor.a);
+                        FragColor = shadow * vec4(properties.lightIntensity * lighting, diffuseColor.a);
                     }
                 "#,
         )

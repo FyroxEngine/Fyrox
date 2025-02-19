@@ -84,12 +84,8 @@ impl Cascade {
         })
     }
 
-    pub fn texture(&self) -> GpuTexture {
-        self.frame_buffer
-            .depth_attachment()
-            .unwrap()
-            .texture
-            .clone()
+    pub fn texture(&self) -> &GpuTexture {
+        &self.frame_buffer.depth_attachment().unwrap().texture
     }
 }
 
