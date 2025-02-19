@@ -109,7 +109,7 @@ pub trait RawStreamingDataSource: Iterator<Item = f32> + Send + Sync + Debug {
 
     /// Tells whether the provider should restart.
     ///
-    /// Default implementation calls [`time_seek`] with a zero duration
+    /// Default implementation calls [`Self::time_seek`] with a zero duration
     fn rewind(&mut self) -> Result<(), SoundError> {
         self.time_seek(Duration::from_secs(0))
     }
