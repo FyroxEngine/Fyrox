@@ -42,7 +42,6 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::base::NodeMessageKind;
 use crate::{
     asset::untyped::UntypedResource,
     core::{
@@ -58,7 +57,7 @@ use crate::{
     material::{MaterialResourceBinding, MaterialTextureBinding},
     resource::model::{Model, ModelResource, ModelResourceExtension},
     scene::{
-        base::{NodeMessage, NodeScriptMessage, SceneNodeId},
+        base::{NodeMessage, NodeMessageKind, NodeScriptMessage, SceneNodeId},
         camera::Camera,
         dim2::{self},
         graph::{
@@ -367,6 +366,71 @@ impl Graph {
             );
         }
         references
+    }
+
+    /// Sets global position of a scene node. Internally, this method converts the given position
+    /// to the local space of the parent node of the given scene node and sets it as local position
+    /// of the node. In other words, this method does not modify global position itself, but calculates
+    /// new local position of the given node so that its global position will be as requested.
+    ///
+    /// ## Important
+    ///
+    /// This method relies on pre-calculated global transformation of the hierarchy. This may give
+    /// unexpected results if you've modified transforms of ancestors in the hierarchy of the node
+    /// and then called this method. This happens because global transform calculation is deferred
+    /// to the end of the frame. If you want to ensure that everything works as expected, call
+    /// [`Self::update_hierarchical_data`] before calling this method. It is not called automatically,
+    /// because it is quite heavy, and in most cases this method works ok without it.
+    pub fn set_global_position(&mut self, node_handle: Handle<Node>, position: Vector3<f32>) {
+        let (node, parent) = self
+            .pool
+            .try_borrow_dependant_mut(node_handle, |node| node.parent());
+        if let Some(node) = node {
+            if let Some(parent) = parent {
+                let relative_position = parent
+                    .global_transform()
+                    .try_inverse()
+                    .unwrap_or_default()
+                    .transform_point(&position.into())
+                    .coords;
+                node.local_transform_mut().set_position(relative_position);
+            } else {
+                node.local_transform_mut().set_position(position);
+            }
+            self.update_hierarchical_data_for_descendants(node_handle);
+        }
+    }
+
+    /// Sets global rotation of a scene node. Internally, this method converts the given rotation
+    /// to the local space of the parent node of the given scene node and sets it as local rotation
+    /// of the node. In other words, this method does not modify global rotation itself, but calculates
+    /// new local rotation of the given node so that its global rotation will be as requested.
+    ///
+    /// ## Important
+    ///
+    /// This method relies on pre-calculated global transformation of the hierarchy. This may give
+    /// unexpected results if you've modified transforms of ancestors in the hierarchy of the node
+    /// and then called this method. This happens because global transform calculation is deferred
+    /// to the end of the frame. If you want to ensure that everything works as expected, call
+    /// [`Self::update_hierarchical_data`] before calling this method. It is not called automatically,
+    /// because it is quite heavy, and in most cases this method works ok without it.
+    pub fn set_global_rotation(&mut self, node: Handle<Node>, rotation: UnitQuaternion<f32>) {
+        let (node, parent) = self
+            .pool
+            .try_borrow_dependant_mut(node, |node| node.parent());
+        if let Some(node) = node {
+            if let Some(parent) = parent {
+                let basis = parent
+                    .global_transform()
+                    .try_inverse()
+                    .unwrap_or_default()
+                    .basis();
+                let relative_rotation = UnitQuaternion::from_matrix(&basis) * rotation;
+                node.local_transform_mut().set_rotation(relative_rotation);
+            } else {
+                node.local_transform_mut().set_rotation(rotation);
+            }
+        }
     }
 
     /// Tries to borrow mutable references to two nodes at the same time by given handles. Will
