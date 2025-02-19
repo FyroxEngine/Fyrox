@@ -18,6 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::cache::shader::{
+    binding, property, PropertyGroup, RenderMaterial, RenderPassContainer,
+};
 use crate::renderer::make_viewport_matrix;
 use crate::{
     core::{
@@ -42,8 +45,7 @@ use crate::{
         },
         gbuffer::GBuffer,
         light::{
-            ambient::AmbientLightShader, directional::DirectionalLightShader,
-            point::PointLightShader, spot::SpotLightShader,
+            directional::DirectionalLightShader, point::PointLightShader, spot::SpotLightShader,
         },
         light_volume::LightVolumeRenderer,
         shadow::{
@@ -67,10 +69,10 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::ImmutableString;
 use fyrox_graphics::framebuffer::{BufferLocation, GpuFrameBuffer};
 use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
 
-pub mod ambient;
 pub mod directional;
 pub mod point;
 pub mod spot;
@@ -80,7 +82,7 @@ pub struct DeferredLightRenderer {
     spot_light_shader: SpotLightShader,
     point_light_shader: PointLightShader,
     directional_light_shader: DirectionalLightShader,
-    ambient_light_shader: AmbientLightShader,
+    ambient_light_shader: RenderPassContainer,
     quad: GpuGeometryBuffer,
     sphere: GpuGeometryBuffer,
     cone: GpuGeometryBuffer,
@@ -162,7 +164,10 @@ impl DeferredLightRenderer {
             spot_light_shader: SpotLightShader::new(server)?,
             point_light_shader: PointLightShader::new(server)?,
             directional_light_shader: DirectionalLightShader::new(server)?,
-            ambient_light_shader: AmbientLightShader::new(server)?,
+            ambient_light_shader: RenderPassContainer::from_str(
+                server,
+                include_str!("../shaders/ambient_light.shader"),
+            )?,
             quad: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
@@ -378,55 +383,33 @@ impl DeferredLightRenderer {
         let gbuffer_ambient_map = gbuffer.ambient_texture();
         let ao_map = self.ssao_renderer.ao_map();
 
-        pass_stats += frame_buffer.draw(
+        let properties = PropertyGroup::from([
+            property("worldViewProjection", &frame_matrix),
+            property("ambientColor", &ambient_color),
+        ]);
+        let material = RenderMaterial::from([
+            binding("diffuseTexture", gbuffer_diffuse_map),
+            binding(
+                "aoSampler",
+                if settings.use_ssao {
+                    &ao_map
+                } else {
+                    &fallback_resources.white_dummy
+                },
+            ),
+            binding("ambientTexture", gbuffer_ambient_map),
+            binding("properties", &properties),
+        ]);
+
+        pass_stats += self.ambient_light_shader.run_pass(
+            &ImmutableString::new("Primary"),
+            frame_buffer,
             &self.quad,
             viewport,
-            &self.ambient_light_shader.program,
-            &DrawParameters {
-                cull_face: None,
-                color_write: Default::default(),
-                depth_write: false,
-                stencil_test: None,
-                depth_test: None,
-                blend: Some(BlendParameters {
-                    func: BlendFunc::new(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha),
-                    ..Default::default()
-                }),
-                stencil_op: Default::default(),
-                scissor_box: None,
-            },
-            &[ResourceBindGroup {
-                bindings: &[
-                    ResourceBinding::texture(
-                        gbuffer_diffuse_map,
-                        &self.ambient_light_shader.diffuse_texture,
-                    ),
-                    ResourceBinding::texture(
-                        if settings.use_ssao {
-                            &ao_map
-                        } else {
-                            &fallback_resources.white_dummy
-                        },
-                        &self.ambient_light_shader.ao_sampler,
-                    ),
-                    ResourceBinding::texture(
-                        gbuffer_ambient_map,
-                        &self.ambient_light_shader.ambient_texture,
-                    ),
-                    ResourceBinding::Buffer {
-                        buffer: uniform_buffer_cache.write(
-                            StaticUniformBuffer::<256>::new()
-                                .with(&frame_matrix)
-                                .with(&ambient_color.srgb_to_linear_f32()),
-                        )?,
-                        binding: BufferLocation::Auto {
-                            shader_location: self.ambient_light_shader.uniform_buffer_binding,
-                        },
-                        data_usage: Default::default(),
-                    },
-                ],
-            }],
-            ElementRange::Full,
+            &material,
+            uniform_buffer_cache,
+            Default::default(),
+            None,
         )?;
 
         for light in render_data_bundle.light_sources.iter() {
@@ -590,7 +573,7 @@ impl DeferredLightRenderer {
                         .write(StaticUniformBuffer::<256>::new().with(&frame_matrix))?;
 
                     visibility_cache.begin_query(server, camera_global_position, light.handle)?;
-                    frame_buffer.draw(
+                    pass_stats += frame_buffer.draw(
                         &self.quad,
                         viewport,
                         &self.flat_shader.program,

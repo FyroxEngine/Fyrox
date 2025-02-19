@@ -382,7 +382,7 @@ impl UiRenderer {
                 binding("properties", &properties),
             ]);
 
-            self.render_passes.run_pass(
+            statistics += self.render_passes.run_pass(
                 &ImmutableString::new("Primary"),
                 frame_buffer,
                 &self.geometry_buffer,

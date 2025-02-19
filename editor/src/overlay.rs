@@ -111,6 +111,7 @@ impl SceneRenderPass for OverlayRenderPass {
         &mut self,
         ctx: SceneRenderPassContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let mut stats = RenderPassStatistics::default();
         let view_projection = ctx.camera.view_projection_matrix();
         let shader = &self.shader;
         let inv_view = ctx.camera.inv_view_matrix().unwrap();
@@ -136,7 +137,7 @@ impl SceneRenderPass for OverlayRenderPass {
             let position = node.global_position();
             let world_matrix = Matrix4::new_translation(&position);
 
-            ctx.framebuffer.draw(
+            stats += ctx.framebuffer.draw(
                 &self.quad,
                 ctx.viewport,
                 &shader.program,
@@ -176,7 +177,7 @@ impl SceneRenderPass for OverlayRenderPass {
             )?;
         }
 
-        Ok(Default::default())
+        Ok(stats)
     }
 
     fn source_type_id(&self) -> TypeId {

@@ -200,6 +200,7 @@ pub struct ResourceBindGroup<'a> {
 
 /// Statistics for a single GPU draw call.
 #[derive(Debug, Copy, Clone, Default)]
+#[must_use]
 pub struct DrawCallStatistics {
     /// Total number of rendered triangles.
     pub triangles: usize,

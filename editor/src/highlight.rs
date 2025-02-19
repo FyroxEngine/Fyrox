@@ -259,7 +259,7 @@ impl SceneRenderPass for HighlightRenderPass {
             let frame_matrix = make_viewport_matrix(ctx.viewport);
             let shader = &self.edge_detect_shader;
             let frame_texture = self.framebuffer.color_attachments()[0].texture.clone();
-            ctx.framebuffer.draw(
+            stats += ctx.framebuffer.draw(
                 &self.quad,
                 ctx.viewport,
                 &shader.program,

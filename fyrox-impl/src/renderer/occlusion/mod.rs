@@ -60,6 +60,7 @@ use fyrox_graphics::framebuffer::{BufferLocation, GpuFrameBuffer};
 use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
 use fyrox_graphics::gpu_program::GpuProgram;
 use fyrox_graphics::gpu_texture::GpuTexture;
+use fyrox_graphics::stats::RenderPassStatistics;
 
 struct Shader {
     program: GpuProgram,
@@ -360,9 +361,11 @@ impl OcclusionTester {
         observer_position: Vector3<f32>,
         view_projection: Matrix4<f32>,
         uniform_buffer_cache: &mut UniformBufferCache,
-    ) -> Result<(), FrameworkError> {
+    ) -> Result<RenderPassStatistics, FrameworkError> {
+        let mut stats = RenderPassStatistics::default();
+
         if self.visibility_buffer_optimizer.is_reading_from_gpu() {
-            return Ok(());
+            return Ok(stats);
         }
 
         self.upload_data(
@@ -390,7 +393,7 @@ impl OcclusionTester {
             }))?;
 
         let shader = &self.shader;
-        self.framebuffer.draw_instances(
+        stats += self.framebuffer.draw_instances(
             self.objects_to_test.len(),
             &self.cube,
             viewport,
@@ -438,6 +441,6 @@ impl OcclusionTester {
             uniform_buffer_cache,
         )?;
 
-        Ok(())
+        Ok(stats)
     }
 }

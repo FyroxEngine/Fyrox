@@ -41,6 +41,7 @@ use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
 use fyrox_graphics::gpu_program::GpuProgram;
 use fyrox_graphics::gpu_texture::GpuTexture;
 use fyrox_graphics::read_buffer::GpuAsyncReadBuffer;
+use fyrox_graphics::stats::RenderPassStatistics;
 
 struct VisibilityOptimizerShader {
     program: GpuProgram,
@@ -110,7 +111,9 @@ impl VisibilityBufferOptimizer {
         unit_quad: &GpuGeometryBuffer,
         tile_size: i32,
         uniform_buffer_cache: &mut UniformBufferCache,
-    ) -> Result<(), FrameworkError> {
+    ) -> Result<RenderPassStatistics, FrameworkError> {
+        let mut stats = RenderPassStatistics::default();
+
         let viewport = Rect::new(0, 0, self.w_tiles as i32, self.h_tiles as i32);
 
         self.framebuffer
@@ -118,7 +121,7 @@ impl VisibilityBufferOptimizer {
 
         let matrix = make_viewport_matrix(viewport);
 
-        self.framebuffer.draw(
+        stats += self.framebuffer.draw(
             unit_quad,
             viewport,
             &self.shader.program,
@@ -157,6 +160,6 @@ impl VisibilityBufferOptimizer {
         self.pixel_buffer
             .schedule_pixels_transfer(&*self.framebuffer, 0, None)?;
 
-        Ok(())
+        Ok(stats)
     }
 }
