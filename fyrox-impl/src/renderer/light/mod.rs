@@ -53,7 +53,6 @@ use crate::{
             point::{PointShadowMapRenderContext, PointShadowMapRenderer},
             spot::SpotShadowMapRenderer,
         },
-        skybox_shader::SkyboxShader,
         ssao::ScreenSpaceAmbientOcclusionRenderer,
         visibility::ObserverVisibilityCache,
         FallbackResources, GeometryCache, LightingStatistics, QualitySettings,
@@ -88,7 +87,7 @@ pub struct DeferredLightRenderer {
     cone: GpuGeometryBuffer,
     skybox: GpuGeometryBuffer,
     flat_shader: FlatShader,
-    skybox_shader: SkyboxShader,
+    skybox_shader: RenderPassContainer,
     spot_shadow_map_renderer: SpotShadowMapRenderer,
     point_shadow_map_renderer: PointShadowMapRenderer,
     csm_renderer: CsmRenderer,
@@ -210,7 +209,10 @@ impl DeferredLightRenderer {
                 server,
             )?,
             flat_shader: FlatShader::new(server)?,
-            skybox_shader: SkyboxShader::new(server)?,
+            skybox_shader: RenderPassContainer::from_str(
+                server,
+                include_str!("../shaders/skybox.shader"),
+            )?,
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(
                 server,
                 settings.spot_shadow_map_size,
@@ -329,48 +331,32 @@ impl DeferredLightRenderer {
 
         // Render skybox (if any).
         if let Some(skybox) = camera.skybox_ref() {
-            let size = camera.projection().z_far() / 2.0f32.sqrt();
-            let scale = Matrix4::new_scaling(size);
-            let wvp = Matrix4::new_translation(&camera.global_position()) * scale;
-
             if let Some(gpu_texture) = skybox
                 .cubemap_ref()
                 .and_then(|cube_map| textures.get(server, cube_map))
             {
-                let shader = &self.skybox_shader;
-                pass_stats += frame_buffer.draw(
+                let size = camera.projection().z_far() / 2.0f32.sqrt();
+                let scale = Matrix4::new_scaling(size);
+                let wvp = Matrix4::new_translation(&camera.global_position()) * scale;
+                let wvp = view_projection * wvp;
+                let properties = PropertyGroup::from([property("worldViewProjection", &wvp)]);
+                let material = RenderMaterial::from([
+                    binding("cubemapTexture", gpu_texture),
+                    binding("properties", &properties),
+                ]);
+
+                pass_stats += self.skybox_shader.run_pass(
+                    &ImmutableString::new("Primary"),
+                    frame_buffer,
                     &self.skybox,
                     viewport,
-                    &shader.program,
-                    &DrawParameters {
-                        cull_face: None,
-                        color_write: Default::default(),
-                        depth_write: false,
-                        stencil_test: None,
-                        depth_test: None,
-                        blend: None,
-                        stencil_op: Default::default(),
-                        scissor_box: None,
-                    },
-                    &[ResourceBindGroup {
-                        bindings: &[
-                            ResourceBinding::texture(gpu_texture, &shader.cubemap_texture),
-                            ResourceBinding::Buffer {
-                                buffer: uniform_buffer_cache.write(
-                                    StaticUniformBuffer::<256>::new()
-                                        .with(&(view_projection * wvp)),
-                                )?,
-                                binding: BufferLocation::Auto {
-                                    shader_location: shader.uniform_buffer_binding,
-                                },
-                                data_usage: Default::default(),
-                            },
-                        ],
-                    }],
+                    &material,
+                    uniform_buffer_cache,
                     ElementRange::Specific {
                         offset: 0,
                         count: 12,
                     },
+                    None,
                 )?;
             }
         }

@@ -47,7 +47,6 @@ mod light;
 mod light_volume;
 mod occlusion;
 mod shadow;
-mod skybox_shader;
 mod ssao;
 mod stats;
 
