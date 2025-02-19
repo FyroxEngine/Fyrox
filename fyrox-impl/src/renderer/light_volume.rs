@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::bundle::{LightSource, LightSourceKind};
-use crate::renderer::make_viewport_matrix;
+use crate::renderer::cache::shader::{binding, property, PropertyGroup, RenderMaterial};
 use crate::{
     core::{
         algebra::{Isometry3, Matrix4, Point3, Translation, Vector3},
@@ -27,26 +26,25 @@ use crate::{
         sstorage::ImmutableString,
     },
     renderer::{
-        cache::uniform::UniformBufferCache,
+        bundle::{LightSource, LightSourceKind},
+        cache::{shader::RenderPassContainer, uniform::UniformBufferCache},
         flat_shader::FlatShader,
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{ResourceBindGroup, ResourceBinding},
-            gpu_program::UniformLocation,
+            framebuffer::{BufferLocation, GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
+            geometry_buffer::GpuGeometryBuffer,
+            gpu_program::{GpuProgram, UniformLocation},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
             ElementRange, GeometryBufferExt, StencilAction, StencilFunc, StencilOp,
         },
         gbuffer::GBuffer,
-        RenderPassStatistics,
+        make_viewport_matrix, RenderPassStatistics,
     },
     scene::{graph::Graph, mesh::surface::SurfaceData},
 };
-use fyrox_graphics::framebuffer::{BufferLocation, GpuFrameBuffer};
-use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
-use fyrox_graphics::gpu_program::GpuProgram;
 
 struct SpotLightShader {
     program: GpuProgram,
@@ -69,30 +67,9 @@ impl SpotLightShader {
     }
 }
 
-struct PointLightShader {
-    program: GpuProgram,
-    depth_sampler: UniformLocation,
-    uniform_block_binding: usize,
-}
-
-impl PointLightShader {
-    fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("shaders/point_volumetric_fs.glsl");
-        let vertex_source = include_str!("shaders/point_volumetric_vs.glsl");
-        let program =
-            server.create_program("PointVolumetricLight", vertex_source, fragment_source)?;
-        Ok(Self {
-            depth_sampler: program.uniform_location(&ImmutableString::new("depthSampler"))?,
-            uniform_block_binding: program
-                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
-            program,
-        })
-    }
-}
-
 pub struct LightVolumeRenderer {
     spot_light_shader: SpotLightShader,
-    point_light_shader: PointLightShader,
+    point_light_shader: RenderPassContainer,
     flat_shader: FlatShader,
     cone: GpuGeometryBuffer,
     sphere: GpuGeometryBuffer,
@@ -102,7 +79,10 @@ impl LightVolumeRenderer {
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
             spot_light_shader: SpotLightShader::new(server)?,
-            point_light_shader: PointLightShader::new(server)?,
+            point_light_shader: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/point_volumetric.shader"),
+            )?,
             flat_shader: FlatShader::new(server)?,
             cone: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_cone(
@@ -314,55 +294,39 @@ impl LightVolumeRenderer {
                 // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
                 // marked in stencil buffer. For distant lights it will be very low amount of pixels and
                 // so distant lights won't impact performance.
-                let shader = &self.point_light_shader;
-                stats += frame_buffer.draw(
+                StaticUniformBuffer::<256>::new()
+                    .with(&frame_matrix)
+                    .with(&inv_proj)
+                    .with(&position)
+                    .with(&light.color.srgb_to_linear_f32().xyz())
+                    .with(&light.scatter)
+                    .with(&light.intensity)
+                    .with(&radius);
+
+                let properties = PropertyGroup::from([
+                    property("worldViewProjection", &frame_matrix),
+                    property("invProj", &inv_proj),
+                    property("lightPosition", &position),
+                    property("lightColor", &light.color),
+                    property("scatterFactor", &light.scatter),
+                    property("intensity", &light.intensity),
+                    property("lightRadius", &radius),
+                ]);
+                let material = RenderMaterial::from([
+                    binding("depthSampler", gbuffer.depth()),
+                    binding("properties", &properties),
+                ]);
+
+                stats += self.point_light_shader.run_pass(
+                    &ImmutableString::new("Primary"),
+                    frame_buffer,
                     quad,
                     viewport,
-                    &shader.program,
-                    &DrawParameters {
-                        cull_face: None,
-                        color_write: Default::default(),
-                        depth_write: false,
-                        stencil_test: Some(StencilFunc {
-                            func: CompareFunc::Equal,
-                            ref_value: 0xFF,
-                            mask: 0xFFFF_FFFF,
-                        }),
-                        depth_test: None,
-                        blend: Some(BlendParameters {
-                            func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
-                            ..Default::default()
-                        }),
-                        // Make sure to clean stencil buffer after drawing full screen quad.
-                        stencil_op: StencilOp {
-                            zpass: StencilAction::Zero,
-                            ..Default::default()
-                        },
-                        scissor_box: None,
-                    },
-                    &[ResourceBindGroup {
-                        bindings: &[
-                            ResourceBinding::texture(gbuffer.depth(), &shader.depth_sampler),
-                            ResourceBinding::Buffer {
-                                buffer: uniform_buffer_cache.write(
-                                    StaticUniformBuffer::<256>::new()
-                                        .with(&frame_matrix)
-                                        .with(&inv_proj)
-                                        .with(&position)
-                                        .with(&light.color.srgb_to_linear_f32().xyz())
-                                        .with(&light.scatter)
-                                        .with(&light.intensity)
-                                        .with(&radius),
-                                )?,
-                                binding: BufferLocation::Auto {
-                                    shader_location: shader.uniform_block_binding,
-                                },
-                                data_usage: Default::default(),
-                            },
-                        ],
-                    }],
-                    ElementRange::Full,
-                )?
+                    &material,
+                    uniform_buffer_cache,
+                    Default::default(),
+                    None,
+                )?;
             }
             _ => (),
         }
