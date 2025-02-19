@@ -605,14 +605,16 @@ impl Base {
         Log::verify(sender.send(NodeMessage::new(node, kind)));
     }
 
-    /// Returns mutable reference to local transform of a node, can be used to set
-    /// some local spatial properties, such as position, rotation, scale, etc.
+    /// Returns mutable reference to local transform of a node, can be used to set some local spatial
+    /// properties, such as position, rotation, scale, etc. To set global position and rotation, use
+    /// [`super::Graph::set_global_position`] and [`super::Graph::set_global_rotation`] methods respectively.
     #[inline]
     pub fn local_transform_mut(&mut self) -> &mut Transform {
         &mut self.local_transform
     }
 
-    /// Sets new local transform of a node.
+    /// Sets new local transform of a node. If you need to modify existing local transformation,
+    /// use [`Self::local_transform_mut`].
     #[inline]
     pub fn set_local_transform(&mut self, transform: Transform) {
         self.local_transform.property = transform;
