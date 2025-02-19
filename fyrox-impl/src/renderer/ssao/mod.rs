@@ -18,9 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::shader::{
-    GpuResourceBinding, NamedValue, PropertyGroup, RenderMaterial,
-};
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
@@ -30,8 +27,10 @@ use crate::{
     },
     rand::Rng,
     renderer::{
-        cache::shader::RenderPassContainer,
-        cache::uniform::UniformBufferCache,
+        cache::{
+            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            uniform::UniformBufferCache,
+        },
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
@@ -184,27 +183,22 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         );
 
         let inv_projection = projection_matrix.try_inverse().unwrap_or_default();
+
         let properties = PropertyGroup::from([
-            NamedValue::bind("worldViewProjection", &frame_matrix),
-            NamedValue::bind("inverseProjectionMatrix", &inv_projection),
-            NamedValue::bind("projectionMatrix", &projection_matrix),
-            NamedValue::bind("kernel", self.kernel.as_slice()),
-            NamedValue::bind("noiseScale", &noise_scale),
-            NamedValue::bind("viewMatrix", &view_matrix),
-            NamedValue::bind("radius", &self.radius),
+            property("worldViewProjection", &frame_matrix),
+            property("inverseProjectionMatrix", &inv_projection),
+            property("projectionMatrix", &projection_matrix),
+            property("kernel", self.kernel.as_slice()),
+            property("noiseScale", &noise_scale),
+            property("viewMatrix", &view_matrix),
+            property("radius", &self.radius),
         ]);
 
-        let bindings = RenderMaterial::from([
-            NamedValue::new("depthSampler", GpuResourceBinding::texture(gbuffer.depth())),
-            NamedValue::new(
-                "normalSampler",
-                GpuResourceBinding::texture(gbuffer.normal_texture()),
-            ),
-            NamedValue::new("noiseSampler", GpuResourceBinding::texture(&self.noise)),
-            NamedValue::new(
-                "properties",
-                GpuResourceBinding::property_group(&properties),
-            ),
+        let material = RenderMaterial::from([
+            binding("depthSampler", gbuffer.depth()),
+            binding("normalSampler", gbuffer.normal_texture()),
+            binding("noiseSampler", &self.noise),
+            binding("properties", &properties),
         ]);
 
         stats += self.program.run_pass(
@@ -212,7 +206,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             &self.framebuffer,
             &self.quad,
             viewport,
-            &bindings,
+            &material,
             uniform_buffer_cache,
             Default::default(),
         )?;

@@ -22,7 +22,6 @@
 
 #![allow(missing_docs)] // TODO
 
-use crate::material::MaterialPropertyRef;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -30,12 +29,14 @@ use crate::{
         arrayvec::ArrayVec,
         color,
         color::Color,
+        err_once,
         log::Log,
-        math::{frustum::Frustum, Rect},
+        math::{frustum::Frustum, Matrix4Ext, Rect},
         pool::Handle,
         sstorage::ImmutableString,
     },
     graph::BaseSceneGraph,
+    material::MaterialPropertyRef,
     material::{self, shader::ShaderDefinition, MaterialResource},
     renderer::{
         cache::{
@@ -47,8 +48,10 @@ use crate::{
         },
         framework::{
             error::FrameworkError,
+            framebuffer::GpuFrameBuffer,
             framebuffer::{BufferLocation, ResourceBindGroup, ResourceBinding},
             gpu_program::{ShaderProperty, ShaderPropertyKind, ShaderResourceKind},
+            gpu_texture::GpuTexture,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             uniform::{ByteStorage, UniformBuffer},
@@ -77,11 +80,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-use fyrox_core::err_once;
-use fyrox_core::math::Matrix4Ext;
 use fyrox_graph::{SceneGraph, SceneGraphNode};
-use fyrox_graphics::framebuffer::GpuFrameBuffer;
-use fyrox_graphics::gpu_texture::GpuTexture;
 use std::{
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},

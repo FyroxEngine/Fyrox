@@ -20,10 +20,12 @@
 
 use crate::{
     core::{arrayvec::ArrayVec, log::Log, math::Rect, sstorage::ImmutableString},
-    material::shader::{Shader, ShaderResource},
-    material::MaterialPropertyRef,
-    renderer::bundle,
+    material::{
+        shader::{Shader, ShaderResource},
+        MaterialPropertyRef,
+    },
     renderer::{
+        bundle,
         cache::{uniform::UniformBufferCache, TemporaryCache},
         framework::{
             error::FrameworkError,
@@ -108,12 +110,31 @@ pub struct PropertyGroup<'a, const N: usize> {
 
 pub type NamedPropertyRef<'a> = NamedValue<MaterialPropertyRef<'a>>;
 
-impl<'a> NamedPropertyRef<'a> {
-    pub fn bind(
-        name: impl Into<ImmutableString>,
-        value: impl Into<MaterialPropertyRef<'a>>,
-    ) -> Self {
-        NamedValue::new(name, value.into())
+pub fn property<'a>(
+    name: impl Into<ImmutableString>,
+    value: impl Into<MaterialPropertyRef<'a>>,
+) -> NamedPropertyRef<'a> {
+    NamedValue::new(name, value.into())
+}
+
+pub fn binding<'a, 'b>(
+    name: impl Into<ImmutableString>,
+    value: impl Into<GpuResourceBinding<'a, 'b>>,
+) -> NamedValue<GpuResourceBinding<'a, 'b>> {
+    NamedValue::new(name, value.into())
+}
+
+impl<'a> From<&'a GpuTexture> for GpuResourceBinding<'a, '_> {
+    fn from(value: &'a GpuTexture) -> Self {
+        GpuResourceBinding::Texture(value)
+    }
+}
+
+impl<'a, 'b, const N: usize> From<&'a PropertyGroup<'b, N>> for GpuResourceBinding<'a, 'b> {
+    fn from(value: &'a PropertyGroup<'b, N>) -> Self {
+        GpuResourceBinding::PropertyGroup {
+            properties: value.properties.data_ref(),
+        }
     }
 }
 

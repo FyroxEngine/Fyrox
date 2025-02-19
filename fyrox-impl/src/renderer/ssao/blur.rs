@@ -18,21 +18,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::cache::shader::{binding, property};
 use crate::{
     core::{math::Rect, ImmutableString},
     renderer::{
-        cache::{shader::RenderPassContainer, uniform::UniformBufferCache},
+        cache::{
+            shader::{PropertyGroup, RenderMaterial, RenderPassContainer},
+            uniform::UniformBufferCache,
+        },
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{
-                Attachment, DrawCallStatistics, GpuFrameBuffer, ResourceBindGroup, ResourceBinding,
-            },
+            framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
             geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
-            uniform::StaticUniformBuffer,
-            ElementRange, GeometryBufferExt,
+            GeometryBufferExt,
         },
         make_viewport_matrix,
     },
@@ -73,6 +74,7 @@ impl Blur {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
+    #[inline(never)]
     pub(crate) fn render(
         &mut self,
         input: GpuTexture,
@@ -80,22 +82,21 @@ impl Blur {
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
 
-        let uniforms = uniform_buffer_cache
-            .write(StaticUniformBuffer::<256>::new().with(&make_viewport_matrix(viewport)))?;
+        let wvp = make_viewport_matrix(viewport);
+        let properties = PropertyGroup::from([property("worldViewProjection", &wvp)]);
+        let material = RenderMaterial::from([
+            binding("inputTexture", &input),
+            binding("properties", &properties),
+        ]);
 
-        let render_pass = self.program.get(&ImmutableString::new("Primary"))?;
-        self.framebuffer.draw(
+        self.program.run_pass(
+            &ImmutableString::new("Primary"),
+            &self.framebuffer,
             &self.quad,
             viewport,
-            &render_pass.program,
-            &render_pass.draw_params,
-            &[ResourceBindGroup {
-                bindings: &[
-                    ResourceBinding::texture_with_binding(&input, 0),
-                    ResourceBinding::buffer_with_binding(&uniforms, 0, Default::default()),
-                ],
-            }],
-            ElementRange::Full,
+            &material,
+            uniform_buffer_cache,
+            Default::default(),
         )
     }
 }
