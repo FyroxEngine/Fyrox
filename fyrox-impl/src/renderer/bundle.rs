@@ -515,7 +515,7 @@ impl RenderDataBundle {
                         "There's no render pass {} in {} shader! \
                         If it is not needed, add it to disabled passes.",
                         render_context.render_pass_name,
-                        shader.kind()
+                        shader_state.kind()
                     );
                 }
             }
