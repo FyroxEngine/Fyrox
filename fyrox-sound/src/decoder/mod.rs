@@ -130,7 +130,8 @@ impl Decoder {
     ) -> Result<std::vec::IntoIter<f32>, SoundError> {
         let packet = reader.next_packet()?;
         let decoded = decoder.decode(&packet)?;
-        let buffer: AudioBuffer<f32> = decoded.make_equivalent();
+        let mut buffer: AudioBuffer<f32> = decoded.make_equivalent();
+        decoded.convert(&mut buffer);
         let samples = buffer.chan(0).to_vec();
 
         Ok(samples.into_iter())
