@@ -18,12 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::shader::{binding, property};
 use crate::{
     core::{math::Rect, ImmutableString},
     renderer::{
         cache::{
-            shader::{PropertyGroup, RenderMaterial, RenderPassContainer},
+            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
             uniform::UniformBufferCache,
         },
         framework::{
@@ -74,7 +73,6 @@ impl Blur {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    #[inline(never)]
     pub(crate) fn render(
         &mut self,
         input: GpuTexture,
