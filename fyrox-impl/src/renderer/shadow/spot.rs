@@ -103,12 +103,8 @@ impl SpotShadowMapRenderer {
         self.precision
     }
 
-    pub fn cascade_texture(&self, cascade: usize) -> GpuTexture {
-        self.cascades[cascade]
-            .depth_attachment()
-            .unwrap()
-            .texture
-            .clone()
+    pub fn cascade_texture(&self, cascade: usize) -> &GpuTexture {
+        &self.cascades[cascade].depth_attachment().unwrap().texture
     }
 
     pub fn cascade_size(&self, cascade: usize) -> usize {

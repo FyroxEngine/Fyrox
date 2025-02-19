@@ -18,36 +18,36 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::shader::{
-    binding, property, PropertyGroup, RenderMaterial, RenderPassContainer,
-};
-use crate::renderer::make_viewport_matrix;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
         color::Color,
         math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
+        ImmutableString,
     },
     renderer::{
         bundle::{LightSourceKind, RenderDataBundleStorage},
         cache::{
-            shader::ShaderCache, uniform::UniformBufferCache, uniform::UniformMemoryAllocator,
+            shader::{
+                binding, property, PropertyGroup, RenderMaterial, RenderPassContainer, ShaderCache,
+            },
+            uniform::{UniformBufferCache, UniformMemoryAllocator},
         },
         flat_shader::FlatShader,
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{ResourceBindGroup, ResourceBinding},
+            framebuffer::{BufferLocation, GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
+            geometry_buffer::GpuGeometryBuffer,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, CullFace,
             DrawParameters, ElementRange, GeometryBufferExt, StencilAction, StencilFunc, StencilOp,
         },
         gbuffer::GBuffer,
-        light::{
-            directional::DirectionalLightShader, point::PointLightShader, spot::SpotLightShader,
-        },
+        light::{directional::DirectionalLightShader, point::PointLightShader},
         light_volume::LightVolumeRenderer,
+        make_viewport_matrix,
         shadow::{
             csm::{CsmRenderContext, CsmRenderer},
             point::{PointShadowMapRenderContext, PointShadowMapRenderer},
@@ -68,17 +68,13 @@ use crate::{
         Scene,
     },
 };
-use fyrox_core::ImmutableString;
-use fyrox_graphics::framebuffer::{BufferLocation, GpuFrameBuffer};
-use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
 
 pub mod directional;
 pub mod point;
-pub mod spot;
 
 pub struct DeferredLightRenderer {
     pub ssao_renderer: ScreenSpaceAmbientOcclusionRenderer,
-    spot_light_shader: SpotLightShader,
+    spot_light_shader: RenderPassContainer,
     point_light_shader: PointLightShader,
     directional_light_shader: DirectionalLightShader,
     ambient_light_shader: RenderPassContainer,
@@ -160,7 +156,10 @@ impl DeferredLightRenderer {
                 frame_size.0 as usize,
                 frame_size.1 as usize,
             )?,
-            spot_light_shader: SpotLightShader::new(server)?,
+            spot_light_shader: RenderPassContainer::from_str(
+                server,
+                include_str!("../shaders/deferred_spot_light.shader"),
+            )?,
             point_light_shader: PointLightShader::new(server)?,
             directional_light_shader: DirectionalLightShader::new(server)?,
             ambient_light_shader: RenderPassContainer::from_str(
@@ -710,8 +709,6 @@ impl DeferredLightRenderer {
                         ref cookie_texture,
                         ..
                     } => {
-                        let shader = &self.spot_light_shader;
-
                         let (cookie_enabled, cookie_texture) =
                             if let Some(texture) = cookie_texture.as_ref() {
                                 if let Some(cookie) = textures.get(server, texture) {
@@ -727,70 +724,50 @@ impl DeferredLightRenderer {
 
                         let inv_size = 1.0
                             / (self.spot_shadow_map_renderer.cascade_size(cascade_index) as f32);
-                        let uniform_buffer = uniform_buffer_cache.write(
-                            StaticUniformBuffer::<1024>::new()
-                                .with(&frame_matrix)
-                                .with(&light_view_projection)
-                                .with(&inv_view_projection)
-                                .with(&light.position)
-                                .with(&light.color.srgb_to_linear_f32())
-                                .with(&camera_global_position)
-                                .with(&emit_direction)
-                                .with(&light_radius)
-                                .with(&(hotspot_cone_angle * 0.5).cos())
-                                .with(&(full_cone_angle * 0.5).cos())
-                                .with(&inv_size)
-                                .with(&shadow_bias)
-                                .with(&light.intensity)
-                                .with(&shadows_alpha)
-                                .with(&cookie_enabled)
-                                .with(&shadows_enabled)
-                                .with(&settings.spot_soft_shadows),
-                        )?;
 
-                        frame_buffer.draw(
+                        let half_hotspot_cone_angle_cos = (hotspot_cone_angle * 0.5).cos();
+                        let half_cone_angle_cos = (full_cone_angle * 0.5).cos();
+                        let properties = PropertyGroup::from([
+                            property("worldViewProjection", &frame_matrix),
+                            property("lightViewProjMatrix", &light_view_projection),
+                            property("invViewProj", &inv_view_projection),
+                            property("lightPos", &light.position),
+                            property("lightColor", &light.color),
+                            property("cameraPosition", &camera_global_position),
+                            property("lightDirection", &emit_direction),
+                            property("lightRadius", &light_radius),
+                            property("halfHotspotConeAngleCos", &half_hotspot_cone_angle_cos),
+                            property("halfConeAngleCos", &half_cone_angle_cos),
+                            property("shadowMapInvSize", &inv_size),
+                            property("shadowBias", &shadow_bias),
+                            property("lightIntensity", &light.intensity),
+                            property("shadowAlpha", &shadows_alpha),
+                            property("cookieEnabled", &cookie_enabled),
+                            property("shadowsEnabled", &shadows_enabled),
+                            property("softShadows", &settings.spot_soft_shadows),
+                        ]);
+                        let material = RenderMaterial::from([
+                            binding("depthTexture", gbuffer_depth_map),
+                            binding("colorTexture", gbuffer_diffuse_map),
+                            binding("normalTexture", gbuffer_normal_map),
+                            binding("materialTexture", gbuffer_material_map),
+                            binding(
+                                "spotShadowTexture",
+                                self.spot_shadow_map_renderer.cascade_texture(cascade_index),
+                            ),
+                            binding("cookieTexture", cookie_texture),
+                            binding("properties", &properties),
+                        ]);
+
+                        self.spot_light_shader.run_pass(
+                            &ImmutableString::new("Primary"),
+                            frame_buffer,
                             quad,
                             viewport,
-                            &shader.program,
-                            &draw_params,
-                            &[ResourceBindGroup {
-                                bindings: &[
-                                    ResourceBinding::texture(
-                                        gbuffer_depth_map,
-                                        &shader.depth_sampler,
-                                    ),
-                                    ResourceBinding::texture(
-                                        gbuffer_diffuse_map,
-                                        &shader.color_sampler,
-                                    ),
-                                    ResourceBinding::texture(
-                                        gbuffer_normal_map,
-                                        &shader.normal_sampler,
-                                    ),
-                                    ResourceBinding::texture(
-                                        gbuffer_material_map,
-                                        &shader.material_sampler,
-                                    ),
-                                    ResourceBinding::texture(
-                                        &self
-                                            .spot_shadow_map_renderer
-                                            .cascade_texture(cascade_index),
-                                        &shader.spot_shadow_texture,
-                                    ),
-                                    ResourceBinding::texture(
-                                        cookie_texture,
-                                        &shader.cookie_texture,
-                                    ),
-                                    ResourceBinding::Buffer {
-                                        buffer: uniform_buffer,
-                                        binding: BufferLocation::Auto {
-                                            shader_location: shader.uniform_buffer_binding,
-                                        },
-                                        data_usage: Default::default(),
-                                    },
-                                ],
-                            }],
-                            ElementRange::Full,
+                            &material,
+                            uniform_buffer_cache,
+                            Default::default(),
+                            None,
                         )?
                     }
                     LightSourceKind::Point { shadow_bias, .. } => {
