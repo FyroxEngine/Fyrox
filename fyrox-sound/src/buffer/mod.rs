@@ -29,10 +29,7 @@
 //! just 1 second will take ~172 Kb of memory (with 44100 Hz sampling rate and float sample representation).
 
 use crate::{
-    buffer::{
-        generic::{BufferError, GenericBuffer},
-        streaming::StreamingBuffer,
-    },
+    buffer::{generic::GenericBuffer, streaming::StreamingBuffer},
     error::SoundError,
 };
 use fyrox_core::{
@@ -206,9 +203,31 @@ pub enum SoundBufferResourceLoadError {
     UnsupportedFormat,
     /// File load error.
     Io(FileLoadError),
-    /// Error in underlying buffer
-    BufferError(BufferError),
+    /// Errors involving the data source
+    ///
+    /// This could be, e.g., wrong number of channels, or attempting to use a
+    /// [`DataSource::RawStreaming`] where it doesn't make sense
+    DataSourceError,
+    /// Underlying sound error
+    SoundError(SoundError),
 }
+
+impl std::fmt::Display for SoundBufferResourceLoadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SoundBufferResourceLoadError::UnsupportedFormat => {
+                write!(f, "unsupported file format")
+            }
+            SoundBufferResourceLoadError::Io(e) => write!(f, "{e:?}"),
+            SoundBufferResourceLoadError::DataSourceError => {
+                write!(f, "error in underlying data source")
+            }
+            SoundBufferResourceLoadError::SoundError(e) => write!(f, "{e:?}"),
+        }
+    }
+}
+
+impl std::error::Error for SoundBufferResourceLoadError {}
 
 /// Sound buffer is a data source for sound sources. See module documentation for more info.
 #[derive(Debug, Visit, Reflect)]
@@ -224,15 +243,9 @@ pub enum SoundBuffer {
     Streaming(StreamingBuffer),
 }
 
-impl From<BufferError> for SoundBufferResourceLoadError {
-    fn from(err: BufferError) -> Self {
-        Self::BufferError(err)
-    }
-}
-
 impl From<SoundError> for SoundBufferResourceLoadError {
     fn from(err: SoundError) -> Self {
-        Self::BufferError(err.into())
+        Self::SoundError(err)
     }
 }
 

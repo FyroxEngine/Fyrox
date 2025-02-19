@@ -43,11 +43,12 @@
 
 #![allow(clippy::manual_range_contains)]
 
-use crate::error::SoundError;
 use crate::{buffer::DataSource, decoder::Decoder};
 use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
 use std::ops::{Deref, DerefMut};
 use std::time::Duration;
+
+use super::SoundBufferResourceLoadError;
 
 /// Samples container.
 #[derive(Debug, Default, Visit, Reflect)]
@@ -83,35 +84,6 @@ pub struct GenericBuffer {
     pub(crate) channel_duration_in_samples: usize,
 }
 
-#[derive(Debug)]
-/// Error types for operations on GenericBuffer
-pub enum BufferError {
-    /// Errors involving the data source
-    ///
-    /// This could be, e.g., wrong number of channels, or attempting to use a
-    /// [`DataSource::RawStreaming`] where it doesn't make sense
-    DataSourceError,
-    /// Underlying sound error
-    SoundError(SoundError),
-}
-
-impl std::fmt::Display for BufferError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BufferError::DataSourceError => write!(f, "error in underlying data source"),
-            BufferError::SoundError(e) => write!(f, "{e:?}"),
-        }
-    }
-}
-
-impl std::error::Error for BufferError {}
-
-impl From<SoundError> for BufferError {
-    fn from(err: SoundError) -> Self {
-        Self::SoundError(err)
-    }
-}
-
 impl GenericBuffer {
     /// Creates new generic buffer from specified data source. May fail if data source has unsupported
     /// format, corrupted, etc.
@@ -123,7 +95,7 @@ impl GenericBuffer {
     ///
     /// Data source with raw samples must have sample count multiple of channel count, otherwise this
     /// function will return `Err`.
-    pub fn new(source: DataSource) -> Result<Self, BufferError> {
+    pub fn new(source: DataSource) -> Result<Self, SoundBufferResourceLoadError> {
         match source {
             DataSource::Raw {
                 sample_rate,
@@ -131,7 +103,7 @@ impl GenericBuffer {
                 samples,
             } => {
                 if channel_count < 1 || channel_count > 2 || samples.len() % channel_count != 0 {
-                    Err(BufferError::DataSourceError)
+                    Err(SoundBufferResourceLoadError::DataSourceError)
                 } else {
                     Ok(Self {
                         channel_duration_in_samples: samples.len() / channel_count,
@@ -141,11 +113,11 @@ impl GenericBuffer {
                     })
                 }
             }
-            DataSource::RawStreaming(_) => Err(BufferError::DataSourceError),
+            DataSource::RawStreaming(_) => Err(SoundBufferResourceLoadError::DataSourceError),
             _ => {
                 let decoder = Decoder::new(source)?;
                 if decoder.get_channel_count() < 1 || decoder.get_channel_count() > 2 {
-                    return Err(BufferError::DataSourceError);
+                    return Err(SoundBufferResourceLoadError::DataSourceError);
                 }
 
                 Ok(Self {
