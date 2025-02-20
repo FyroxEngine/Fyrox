@@ -20,57 +20,30 @@
 
 use crate::{
     core::{algebra::Vector2, math::Rect, sstorage::ImmutableString},
-    renderer::make_viewport_matrix,
     renderer::{
-        cache::uniform::UniformBufferCache,
-        framework::{
-            buffer::BufferUsage,
-            error::FrameworkError,
-            framebuffer::{BufferLocation, ResourceBindGroup, ResourceBinding},
-            gpu_program::UniformLocation,
-            server::GraphicsServer,
-            uniform::StaticUniformBuffer,
-            DrawParameters, ElementRange, GeometryBufferExt,
+        cache::{
+            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            uniform::UniformBufferCache,
         },
-        RenderPassStatistics,
+        framework::{
+            buffer::BufferUsage, error::FrameworkError, framebuffer::GpuFrameBuffer,
+            geometry_buffer::GpuGeometryBuffer, gpu_texture::GpuTexture, server::GraphicsServer,
+            GeometryBufferExt,
+        },
+        make_viewport_matrix, RenderPassStatistics,
     },
     scene::mesh::surface::SurfaceData,
 };
-use fyrox_graphics::framebuffer::GpuFrameBuffer;
-use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
-use fyrox_graphics::gpu_program::GpuProgram;
-use fyrox_graphics::gpu_texture::GpuTexture;
-
-struct FxaaShader {
-    pub program: GpuProgram,
-    pub uniform_buffer_binding: usize,
-    pub screen_texture: UniformLocation,
-}
-
-impl FxaaShader {
-    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("shaders/fxaa_fs.glsl");
-        let vertex_source = include_str!("shaders/fxaa_vs.glsl");
-
-        let program = server.create_program("FXAAShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            uniform_buffer_binding: program
-                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
-            screen_texture: program.uniform_location(&ImmutableString::new("screenTexture"))?,
-            program,
-        })
-    }
-}
 
 pub struct FxaaRenderer {
-    shader: FxaaShader,
+    shader: RenderPassContainer,
     quad: GpuGeometryBuffer,
 }
 
 impl FxaaRenderer {
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
-            shader: FxaaShader::new(server)?,
+            shader: RenderPassContainer::from_str(server, include_str!("shaders/fxaa.shader"))?,
             quad: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
@@ -90,37 +63,25 @@ impl FxaaRenderer {
 
         let frame_matrix = make_viewport_matrix(viewport);
 
-        statistics += frame_buffer.draw(
+        let inv_screen_size = Vector2::new(1.0 / viewport.w() as f32, 1.0 / viewport.h() as f32);
+        let properties = PropertyGroup::from([
+            property("worldViewProjection", &frame_matrix),
+            property("inverseScreenSize", &inv_screen_size),
+        ]);
+        let material = RenderMaterial::from([
+            binding("screenTexture", frame_texture),
+            binding("properties", &properties),
+        ]);
+
+        statistics += self.shader.run_pass(
+            &ImmutableString::new("Primary"),
+            frame_buffer,
             &self.quad,
             viewport,
-            &self.shader.program,
-            &DrawParameters {
-                cull_face: None,
-                color_write: Default::default(),
-                depth_write: false,
-                stencil_test: None,
-                depth_test: None,
-                blend: None,
-                stencil_op: Default::default(),
-                scissor_box: None,
-            },
-            &[ResourceBindGroup {
-                bindings: &[
-                    ResourceBinding::texture(frame_texture, &self.shader.screen_texture),
-                    ResourceBinding::Buffer {
-                        buffer: uniform_buffer_cache.write(
-                            StaticUniformBuffer::<256>::new().with(&frame_matrix).with(
-                                &Vector2::new(1.0 / viewport.w() as f32, 1.0 / viewport.h() as f32),
-                            ),
-                        )?,
-                        binding: BufferLocation::Auto {
-                            shader_location: self.shader.uniform_buffer_binding,
-                        },
-                        data_usage: Default::default(),
-                    },
-                ],
-            }],
-            ElementRange::Full,
+            &material,
+            uniform_buffer_cache,
+            Default::default(),
+            None,
         )?;
 
         Ok(statistics)
