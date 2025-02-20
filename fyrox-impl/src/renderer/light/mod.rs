@@ -370,6 +370,7 @@ impl DeferredLightRenderer {
         let gbuffer_ambient_map = gbuffer.ambient_texture();
         let ao_map = self.ssao_renderer.ao_map();
 
+        let ambient_color = ambient_color.srgb_to_linear_f32();
         let properties = PropertyGroup::from([
             property("worldViewProjection", &frame_matrix),
             property("ambientColor", &ambient_color),
@@ -682,6 +683,7 @@ impl DeferredLightRenderer {
 
             if needs_lighting {
                 let quad = &self.quad;
+                let color = light.color.srgb_to_linear_f32();
 
                 pass_stats += match light.kind {
                     LightSourceKind::Spot {
@@ -714,7 +716,7 @@ impl DeferredLightRenderer {
                             property("lightViewProjMatrix", &light_view_projection),
                             property("invViewProj", &inv_view_projection),
                             property("lightPos", &light.position),
-                            property("lightColor", &light.color),
+                            property("lightColor", &color),
                             property("cameraPosition", &camera_global_position),
                             property("lightDirection", &emit_direction),
                             property("lightRadius", &light_radius),
@@ -759,7 +761,7 @@ impl DeferredLightRenderer {
                             property("worldViewProjection", &frame_matrix),
                             property("invViewProj", &inv_view_projection),
                             property("lightPos", &light.position),
-                            property("lightColor", &light.color),
+                            property("lightColor", &color),
                             property("cameraPosition", &camera_global_position),
                             property("lightRadius", &light_radius),
                             property("shadowBias", &shadow_bias),
@@ -813,7 +815,7 @@ impl DeferredLightRenderer {
                             property("viewMatrix", &view_matrix),
                             property("invViewProj", &inv_view_projection),
                             property("lightViewProjMatrices", matrices.as_slice()),
-                            property("lightColor", &light.color),
+                            property("lightColor", &color),
                             property("lightDirection", &emit_direction),
                             property("cameraPosition", &camera_global_position),
                             property("lightIntensity", &light.intensity),

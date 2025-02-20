@@ -20,7 +20,7 @@
             name: "properties",
             kind: PropertyGroup([
                 (name: "worldViewProjection", kind: Matrix4()),
-                (name: "ambientColor", kind: Color()),
+                (name: "ambientColor", kind: Vector4()),
             ]),
             binding: 0
         ),

@@ -43,7 +43,7 @@
                 (name: "viewMatrix", kind: Matrix4()),
                 (name: "invViewProj", kind: Matrix4()),
                 (name: "lightViewProjMatrices", kind: Matrix4Array(max_len: 3, value: [])),
-                (name: "lightColor", kind: Color()),
+                (name: "lightColor", kind: Vector4()),
                 (name: "lightDirection", kind: Vector3()),
                 (name: "cameraPosition", kind: Vector3()),
                 (name: "lightIntensity", kind: Float()),

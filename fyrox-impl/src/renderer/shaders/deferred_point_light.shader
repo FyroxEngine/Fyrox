@@ -31,7 +31,7 @@
             kind: PropertyGroup([
                 (name: "worldViewProjection", kind: Matrix4()),
                 (name: "invViewProj", kind: Matrix4()),
-                (name: "lightColor", kind: Color()),
+                (name: "lightColor", kind: Vector4()),
                 (name: "lightPos", kind: Vector3()),
                 (name: "cameraPosition", kind: Vector3()),
                 (name: "lightRadius", kind: Float()),
