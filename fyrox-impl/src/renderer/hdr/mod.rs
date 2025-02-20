@@ -18,16 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::shader::{binding, property, PropertyGroup, RenderMaterial};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
         color::Color,
         math::Rect,
-        transmute_slice, value_as_u8_slice,
+        transmute_slice, value_as_u8_slice, ImmutableString,
     },
     renderer::{
-        cache::{shader::RenderPassContainer, texture::TextureCache, uniform::UniformBufferCache},
+        cache::{
+            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            texture::TextureCache,
+            uniform::UniformBufferCache,
+        },
         framework::{
             error::FrameworkError,
             framebuffer::{
@@ -44,18 +47,15 @@ use crate::{
             adaptation::AdaptationChain,
             downscale::DownscaleShader,
             luminance::{luminance_evaluator::LuminanceEvaluator, LuminanceShader},
-            map::MapShader,
         },
         make_viewport_matrix, RenderPassStatistics,
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
-use fyrox_core::ImmutableString;
 
 mod adaptation;
 mod downscale;
 mod luminance;
-mod map;
 
 #[allow(dead_code)] // TODO
 pub enum LuminanceCalculationMethod {
@@ -108,7 +108,7 @@ pub struct HighDynamicRangeRenderer {
     adaptation_shader: RenderPassContainer,
     luminance_shader: LuminanceShader,
     downscale_shader: DownscaleShader,
-    map_shader: MapShader,
+    map_shader: RenderPassContainer,
     stub_lut: GpuTexture,
     lum_calculation_method: LuminanceCalculationMethod,
 }
@@ -132,7 +132,10 @@ impl HighDynamicRangeRenderer {
             )?,
             luminance_shader: LuminanceShader::new(server)?,
             downscale_shader: DownscaleShader::new(server)?,
-            map_shader: MapShader::new(server)?,
+            map_shader: RenderPassContainer::from_str(
+                server,
+                include_str!("../shaders/hdr_map.shader"),
+            )?,
             stub_lut: server.create_texture(GpuTextureDescriptor {
                 kind: GpuTextureKind::Volume {
                     width: 1,
@@ -250,7 +253,7 @@ impl HighDynamicRangeRenderer {
                         },
                         &[ResourceBindGroup {
                             bindings: &[
-                                ResourceBinding::texture(&prev_luminance, &shader.lum_sampler),
+                                ResourceBinding::texture(prev_luminance, &shader.lum_sampler),
                                 ResourceBinding::Buffer {
                                     buffer: uniform_buffer_cache.write(
                                         StaticUniformBuffer::<256>::new()
@@ -326,7 +329,6 @@ impl HighDynamicRangeRenderer {
         texture_cache: &mut TextureCache,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
-        let shader = &self.map_shader;
         let frame_matrix = make_viewport_matrix(viewport);
 
         let color_grading_lut_tex = color_grading_lut
@@ -342,50 +344,34 @@ impl HighDynamicRangeRenderer {
             Exposure::Manual(fixed_exposure) => (false, 0.0, 0.0, 0.0, fixed_exposure),
         };
 
-        let uniform_buffer = uniform_buffer_cache.write(
-            StaticUniformBuffer::<256>::new()
-                .with(&frame_matrix)
-                .with(&(use_color_grading && color_grading_lut.is_some()))
-                .with(&key_value)
-                .with(&min_luminance)
-                .with(&max_luminance)
-                .with(&is_auto)
-                .with(&fixed_exposure),
-        )?;
+        let color_grading_enabled = use_color_grading && color_grading_lut.is_some();
+        let properties = PropertyGroup::from([
+            property("worldViewProjection", &frame_matrix),
+            property("useColorGrading", &color_grading_enabled),
+            property("keyValue", &key_value),
+            property("minLuminance", &min_luminance),
+            property("maxLuminance", &max_luminance),
+            property("autoExposure", &is_auto),
+            property("fixedExposure", &fixed_exposure),
+        ]);
+        let material = RenderMaterial::from([
+            binding("hdrSampler", hdr_scene_frame),
+            binding("lumSampler", self.adaptation_chain.avg_lum_texture()),
+            binding("bloomSampler", bloom_texture),
+            binding("colorMapSampler", color_grading_lut_tex),
+            binding("properties", &properties),
+        ]);
 
-        ldr_framebuffer.draw(
+        self.map_shader.run_pass(
+            1,
+            &ImmutableString::new("Primary"),
+            ldr_framebuffer,
             quad,
             viewport,
-            &shader.program,
-            &DrawParameters {
-                cull_face: None,
-                color_write: Default::default(),
-                depth_write: false,
-                stencil_test: None,
-                depth_test: None,
-                blend: None,
-                stencil_op: Default::default(),
-                scissor_box: None,
-            },
-            &[ResourceBindGroup {
-                bindings: &[
-                    ResourceBinding::texture(
-                        &self.adaptation_chain.avg_lum_texture(),
-                        &shader.lum_sampler,
-                    ),
-                    ResourceBinding::texture(bloom_texture, &shader.bloom_sampler),
-                    ResourceBinding::texture(hdr_scene_frame, &shader.hdr_sampler),
-                    ResourceBinding::texture(color_grading_lut_tex, &shader.color_map_sampler),
-                    ResourceBinding::Buffer {
-                        buffer: uniform_buffer,
-                        binding: BufferLocation::Auto {
-                            shader_location: shader.uniform_buffer_binding,
-                        },
-                        data_usage: Default::default(),
-                    },
-                ],
-            }],
-            ElementRange::Full,
+            &material,
+            uniform_buffer_cache,
+            Default::default(),
+            None,
         )
     }
 

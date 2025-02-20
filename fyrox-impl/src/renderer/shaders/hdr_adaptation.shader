@@ -1,5 +1,5 @@
 (
-    name: "Visibility",
+    name: "HdrAdaptation",
     resources: [
         (
             name: "oldLumSampler",

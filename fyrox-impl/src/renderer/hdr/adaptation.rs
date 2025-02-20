@@ -64,15 +64,11 @@ impl AdaptationChain {
         out
     }
 
-    pub fn avg_lum_texture(&self) -> GpuTexture {
+    pub fn avg_lum_texture(&self) -> &GpuTexture {
         if self.swap.get() {
-            self.lum_framebuffers[0].framebuffer.color_attachments()[0]
-                .texture
-                .clone()
+            &self.lum_framebuffers[0].framebuffer.color_attachments()[0].texture
         } else {
-            self.lum_framebuffers[1].framebuffer.color_attachments()[0]
-                .texture
-                .clone()
+            &self.lum_framebuffers[1].framebuffer.color_attachments()[0].texture
         }
     }
 }
