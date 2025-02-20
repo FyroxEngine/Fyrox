@@ -204,8 +204,7 @@ impl MediaSource for DataSource {
                     None
                 }
             }
-            // TODO: can we use the length of the underlying vector here?
-            DataSource::Memory(_) => None,
+            DataSource::Memory(cursor) => cursor.byte_len(),
             DataSource::Raw { .. } | DataSource::RawStreaming(_) => None,
         }
     }
