@@ -18,40 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{
-    core::sstorage::ImmutableString,
-    renderer::{
-        framework::{error::FrameworkError, gpu_program::UniformLocation, server::GraphicsServer},
-        hdr::LumBuffer,
-    },
+use crate::renderer::{
+    framework::{error::FrameworkError, gpu_texture::GpuTexture, server::GraphicsServer},
+    hdr::LumBuffer,
 };
-use fyrox_graphics::gpu_program::GpuProgram;
-use fyrox_graphics::gpu_texture::GpuTexture;
 use std::cell::Cell;
-
-pub struct AdaptationShader {
-    pub program: GpuProgram,
-    pub old_lum_sampler: UniformLocation,
-    pub new_lum_sampler: UniformLocation,
-    pub uniform_buffer_binding: usize,
-}
-
-impl AdaptationShader {
-    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("../shaders/hdr_adaptation_fs.glsl");
-        let vertex_source = include_str!("../shaders/hdr_adaptation_vs.glsl");
-
-        let program = server.create_program("AdaptationShader", vertex_source, fragment_source)?;
-
-        Ok(Self {
-            uniform_buffer_binding: program
-                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
-            old_lum_sampler: program.uniform_location(&ImmutableString::new("oldLumSampler"))?,
-            new_lum_sampler: program.uniform_location(&ImmutableString::new("newLumSampler"))?,
-            program,
-        })
-    }
-}
 
 pub struct AdaptationChain {
     lum_framebuffers: [LumBuffer; 2],

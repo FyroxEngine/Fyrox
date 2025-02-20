@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::hdr::luminance::luminance_evaluator::LuminanceEvaluator;
+use crate::renderer::cache::shader::{binding, property, PropertyGroup, RenderMaterial};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -27,30 +27,30 @@ use crate::{
         transmute_slice, value_as_u8_slice,
     },
     renderer::{
-        cache::{texture::TextureCache, uniform::UniformBufferCache},
+        cache::{shader::RenderPassContainer, texture::TextureCache, uniform::UniformBufferCache},
         framework::{
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
+                Attachment, AttachmentKind, BufferLocation, DrawCallStatistics, GpuFrameBuffer,
+                ResourceBindGroup, ResourceBinding,
             },
-            gpu_texture::{GpuTextureDescriptor, GpuTextureKind, PixelKind},
+            geometry_buffer::GpuGeometryBuffer,
+            gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             DrawParameters, ElementRange,
         },
         hdr::{
-            adaptation::{AdaptationChain, AdaptationShader},
+            adaptation::AdaptationChain,
             downscale::DownscaleShader,
-            luminance::LuminanceShader,
+            luminance::{luminance_evaluator::LuminanceEvaluator, LuminanceShader},
             map::MapShader,
         },
         make_viewport_matrix, RenderPassStatistics,
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
-use fyrox_graphics::framebuffer::{DrawCallStatistics, GpuFrameBuffer};
-use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
-use fyrox_graphics::gpu_texture::GpuTexture;
+use fyrox_core::ImmutableString;
 
 mod adaptation;
 mod downscale;
@@ -96,8 +96,8 @@ impl LumBuffer {
         make_viewport_matrix(Rect::new(0, 0, self.size as i32, self.size as i32))
     }
 
-    fn texture(&self) -> GpuTexture {
-        self.framebuffer.color_attachments()[0].texture.clone()
+    fn texture(&self) -> &GpuTexture {
+        &self.framebuffer.color_attachments()[0].texture
     }
 }
 
@@ -105,7 +105,7 @@ pub struct HighDynamicRangeRenderer {
     adaptation_chain: AdaptationChain,
     downscale_chain: [LumBuffer; 6],
     frame_luminance: LumBuffer,
-    adaptation_shader: AdaptationShader,
+    adaptation_shader: RenderPassContainer,
     luminance_shader: LuminanceShader,
     downscale_shader: DownscaleShader,
     map_shader: MapShader,
@@ -126,7 +126,10 @@ impl HighDynamicRangeRenderer {
                 LumBuffer::new(server, 1)?,
             ],
             adaptation_chain: AdaptationChain::new(server)?,
-            adaptation_shader: AdaptationShader::new(server)?,
+            adaptation_shader: RenderPassContainer::from_str(
+                server,
+                include_str!("../shaders/hdr_adaptation.shader"),
+            )?,
             luminance_shader: LuminanceShader::new(server)?,
             downscale_shader: DownscaleShader::new(server)?,
             map_shader: MapShader::new(server)?,
@@ -280,44 +283,32 @@ impl HighDynamicRangeRenderer {
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let ctx = self.adaptation_chain.begin();
         let viewport = Rect::new(0, 0, ctx.lum_buffer.size as i32, ctx.lum_buffer.size as i32);
-        let shader = &self.adaptation_shader;
         let matrix = ctx.lum_buffer.matrix();
-        ctx.lum_buffer.framebuffer.draw(
+
+        let speed = 0.3 * dt;
+        let properties = PropertyGroup::from([
+            property("worldViewProjection", &matrix),
+            property("speed", &speed),
+        ]);
+        let material = RenderMaterial::from([
+            binding("oldLumSampler", &ctx.prev_lum),
+            binding(
+                "newLumSampler",
+                self.downscale_chain.last().unwrap().texture(),
+            ),
+            binding("properties", &properties),
+        ]);
+
+        self.adaptation_shader.run_pass(
+            1,
+            &ImmutableString::new("Primary"),
+            &ctx.lum_buffer.framebuffer,
             quad,
             viewport,
-            &shader.program,
-            &DrawParameters {
-                cull_face: None,
-                color_write: Default::default(),
-                depth_write: false,
-                stencil_test: None,
-                depth_test: None,
-                blend: None,
-                stencil_op: Default::default(),
-                scissor_box: None,
-            },
-            &[ResourceBindGroup {
-                bindings: &[
-                    ResourceBinding::texture(&ctx.prev_lum, &shader.old_lum_sampler),
-                    ResourceBinding::texture(
-                        &self.downscale_chain.last().unwrap().texture(),
-                        &shader.new_lum_sampler,
-                    ),
-                    ResourceBinding::Buffer {
-                        buffer: uniform_buffer_cache.write(
-                            StaticUniformBuffer::<256>::new()
-                                .with(&matrix)
-                                // TODO: Make configurable
-                                .with(&(0.3 * dt)),
-                        )?,
-                        binding: BufferLocation::Auto {
-                            shader_location: shader.uniform_buffer_binding,
-                        },
-                        data_usage: Default::default(),
-                    },
-                ],
-            }],
-            ElementRange::Full,
+            &material,
+            uniform_buffer_cache,
+            Default::default(),
+            None,
         )
     }
 
