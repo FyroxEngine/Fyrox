@@ -48,6 +48,8 @@ use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
 use std::ops::{Deref, DerefMut};
 use std::time::Duration;
 
+use super::SoundBufferResourceLoadError;
+
 /// Samples container.
 #[derive(Debug, Default, Visit, Reflect)]
 pub struct Samples(pub Vec<f32>);
@@ -93,7 +95,7 @@ impl GenericBuffer {
     ///
     /// Data source with raw samples must have sample count multiple of channel count, otherwise this
     /// function will return `Err`.
-    pub fn new(source: DataSource) -> Result<Self, DataSource> {
+    pub fn new(source: DataSource) -> Result<Self, SoundBufferResourceLoadError> {
         match source {
             DataSource::Raw {
                 sample_rate,
@@ -101,11 +103,7 @@ impl GenericBuffer {
                 samples,
             } => {
                 if channel_count < 1 || channel_count > 2 || samples.len() % channel_count != 0 {
-                    Err(DataSource::Raw {
-                        sample_rate,
-                        channel_count,
-                        samples,
-                    })
+                    Err(SoundBufferResourceLoadError::DataSourceError)
                 } else {
                     Ok(Self {
                         channel_duration_in_samples: samples.len() / channel_count,
@@ -115,29 +113,11 @@ impl GenericBuffer {
                     })
                 }
             }
-            DataSource::RawStreaming(_) => Err(source),
+            DataSource::RawStreaming(_) => Err(SoundBufferResourceLoadError::DataSourceError),
             _ => {
-                // Store cursor to handle errors.
-                let (is_memory, external_cursor) = if let DataSource::Memory(cursor) = &source {
-                    (true, cursor.clone())
-                } else {
-                    (false, Default::default())
-                };
-
                 let decoder = Decoder::new(source)?;
                 if decoder.get_channel_count() < 1 || decoder.get_channel_count() > 2 {
-                    if is_memory {
-                        return Err(DataSource::Memory(external_cursor));
-                    } else {
-                        // There is not much we can do here: if the user supplied DataSource::File,
-                        // they probably do not want us to re-read the file again in
-                        // DataSource::from_file.
-                        return Err(DataSource::Raw {
-                            sample_rate: decoder.get_sample_rate(),
-                            channel_count: decoder.get_channel_count(),
-                            samples: vec![],
-                        });
-                    }
+                    return Err(SoundBufferResourceLoadError::DataSourceError);
                 }
 
                 Ok(Self {

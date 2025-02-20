@@ -57,6 +57,7 @@ use crate::{
 };
 use fyrox_core::{
     algebra::Vector3,
+    log::Log,
     reflect::prelude::*,
     uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
@@ -485,7 +486,12 @@ impl SoundSource {
             if let Some(buffer) = buffer.state().data() {
                 if let SoundBuffer::Streaming(ref mut streaming) = *buffer {
                     // Make sure decoder is at right position.
-                    streaming.time_seek(time.clamp(Duration::from_secs(0), streaming.duration()));
+                    if streaming
+                        .time_seek(time.clamp(Duration::from_secs(0), streaming.duration()))
+                        .is_err()
+                    {
+                        Log::warn("error while setting decoder position");
+                    }
                 }
                 // Set absolute position first.
                 self.playback_pos = (time.as_secs_f64() * buffer.sample_rate as f64)

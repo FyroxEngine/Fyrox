@@ -88,14 +88,14 @@ impl Default for StreamingSource {
 
 impl StreamingSource {
     #[inline]
-    fn new(data_source: DataSource) -> Result<Self, DataSource> {
+    fn new(data_source: DataSource) -> Result<Self, SoundError> {
         match data_source {
             DataSource::File { .. } | DataSource::Memory(_) => {
                 Ok(Self::Decoder(Decoder::new(data_source)?))
             }
             DataSource::RawStreaming(raw) => Ok(Self::Raw(raw)),
             // It makes no sense to stream raw data which is already loaded into memory.
-            _ => Err(data_source),
+            _ => Err(SoundError::UnsupportedFormat),
         }
     }
 
@@ -133,9 +133,9 @@ impl StreamingSource {
         }
     }
 
-    fn time_seek(&mut self, location: Duration) {
+    fn time_seek(&mut self, location: Duration) -> Result<(), SoundError> {
         match self {
-            StreamingSource::Null => {}
+            StreamingSource::Null => Ok(()),
             StreamingSource::Decoder(decoder) => decoder.time_seek(location),
             StreamingSource::Raw(raw) => raw.time_seek(location),
         }
@@ -183,7 +183,7 @@ impl StreamingBuffer {
     ///
     /// This function will return Err if data source is `Raw`. It makes no sense to stream raw data which
     /// is already loaded into memory. Use Generic source instead!
-    pub fn new(source: DataSource) -> Result<Self, DataSource> {
+    pub fn new(source: DataSource) -> Result<Self, SoundError> {
         let mut streaming_source = StreamingSource::new(source)?;
 
         let mut samples = Vec::new();
@@ -215,8 +215,8 @@ impl StreamingBuffer {
     }
 
     #[inline]
-    pub(crate) fn time_seek(&mut self, location: Duration) {
-        self.streaming_source.time_seek(location);
+    pub(crate) fn time_seek(&mut self, location: Duration) -> Result<(), SoundError> {
+        self.streaming_source.time_seek(location)
     }
 }
 

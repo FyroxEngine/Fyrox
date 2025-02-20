@@ -20,17 +20,13 @@
 
 //! Contains all possible errors that can occur in the engine.
 
-use lewton::VorbisError;
 use std::fmt::{Display, Error, Formatter};
 
 /// Decoder specific error.
 #[derive(Debug)]
 pub enum DecoderError {
-    /// WAV specific decoder error.
-    Wav,
-
-    /// Ogg/vorbis (lewton) specific error.
-    Ogg(lewton::VorbisError),
+    /// Error coming from Symphonia
+    SymphoniaError(symphonia::core::errors::Error),
 }
 
 /// Generic error enumeration for each error in this engine.
@@ -87,9 +83,9 @@ impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for Sound
     }
 }
 
-impl From<lewton::VorbisError> for SoundError {
-    fn from(ve: VorbisError) -> Self {
-        SoundError::DecoderError(DecoderError::Ogg(ve))
+impl From<symphonia::core::errors::Error> for SoundError {
+    fn from(e: symphonia::core::errors::Error) -> Self {
+        SoundError::DecoderError(DecoderError::SymphoniaError(e))
     }
 }
 
