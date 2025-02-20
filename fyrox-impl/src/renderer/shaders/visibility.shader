@@ -1,5 +1,5 @@
 (
-    name: "Blit",
+    name: "Visibility",
     resources: [
         (
             name: "matrices",
