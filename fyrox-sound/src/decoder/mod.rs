@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use std::io::Seek;
-use std::{time::Duration, vec};
+use std::time::Duration;
 
 use symphonia::core::audio::{AudioBuffer, Signal};
 use symphonia::core::codecs::{Decoder as SymphoniaDecoder, DecoderOptions};
@@ -35,7 +35,7 @@ use crate::{buffer::DataSource, error::SoundError};
 pub(crate) struct Decoder {
     reader: Box<dyn FormatReader>,
     decoder: Box<dyn SymphoniaDecoder>,
-    samples: vec::IntoIter<f32>,
+    samples: std::vec::IntoIter<f32>,
     pub channel_count: usize,
     pub sample_rate: usize,
     pub channel_duration_in_samples: usize,
@@ -131,9 +131,28 @@ impl Decoder {
         let decoded = decoder.decode(&packet)?;
         let mut buffer: AudioBuffer<f32> = decoded.make_equivalent();
         decoded.convert(&mut buffer);
-        let samples = buffer.chan(0).to_vec();
+        let samples = Self::interleaved(&mut buffer);
 
         Ok(samples.into_iter())
+    }
+
+    fn interleaved(buffer: &mut AudioBuffer<f32>) -> Vec<f32> {
+        let channels = buffer.spec().channels.count();
+        let frames = buffer.frames();
+
+        let mut samples = Vec::with_capacity(channels);
+        for i in 0..channels {
+            samples.push(buffer.chan(i));
+        }
+
+        let mut res = Vec::with_capacity(channels * frames);
+        for i in 0..frames {
+            for channel in samples.iter() {
+                res.push(channel[i]);
+            }
+        }
+
+        res
     }
 
     pub fn rewind(&mut self) -> Result<(), SoundError> {
