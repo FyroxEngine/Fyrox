@@ -319,7 +319,7 @@ impl SpriteSheetFramesEditorWindow {
                 .on_row(0)
                 .on_column(0),
         )
-        .with_opt_texture(container.texture().map(Into::into))
+        .with_opt_texture(container.texture())
         .build(ctx);
 
         let buttons_container = StackPanelBuilder::new(
@@ -374,7 +374,7 @@ impl SpriteSheetFramesEditorWindow {
                                             WidgetBuilder::new()
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_opt_texture(container.texture().map(Into::into))
+                                        .with_opt_texture(container.texture())
                                         .build(ctx),
                                     )
                                     .with_child(grid),

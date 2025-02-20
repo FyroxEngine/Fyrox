@@ -554,7 +554,7 @@ impl MaterialEditor {
                     ImageMessage::texture(
                         view.editor,
                         MessageDirection::ToWidget,
-                        binding.value.clone().map(Into::into),
+                        binding.value.clone(),
                     ),
                 ),
                 MaterialResourceBinding::PropertyGroup(ref group) => {
@@ -681,7 +681,7 @@ impl MaterialEditor {
                                     ImageMessage::texture(
                                         message.destination(),
                                         MessageDirection::ToWidget,
-                                        texture.clone().map(Into::into),
+                                        texture.clone(),
                                     ),
                                 );
 

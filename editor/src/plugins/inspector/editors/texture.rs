@@ -116,7 +116,7 @@ impl Control for TextureEditor {
                 ui.send_message(ImageMessage::texture(
                     self.image,
                     MessageDirection::ToWidget,
-                    self.texture.clone().map(Into::into),
+                    self.texture.clone(),
                 ));
 
                 ui.send_message(message.reverse());
@@ -158,7 +158,7 @@ impl TextureEditorBuilder {
                         .with_allow_drop(true),
                 )
                 .with_checkerboard_background(true)
-                .with_opt_texture(self.texture.map(Into::into))
+                .with_opt_texture(self.texture)
                 .build(ctx);
                 image
             })
