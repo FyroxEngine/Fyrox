@@ -33,20 +33,12 @@ use crate::{
         },
         framework::{
             error::FrameworkError,
-            framebuffer::{
-                Attachment, AttachmentKind, BufferLocation, DrawCallStatistics, GpuFrameBuffer,
-                ResourceBindGroup, ResourceBinding,
-            },
+            framebuffer::{Attachment, AttachmentKind, DrawCallStatistics, GpuFrameBuffer},
             geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::GraphicsServer,
-            uniform::StaticUniformBuffer,
-            DrawParameters, ElementRange,
         },
-        hdr::{
-            adaptation::AdaptationChain,
-            luminance::{luminance_evaluator::LuminanceEvaluator, LuminanceShader},
-        },
+        hdr::{adaptation::AdaptationChain, luminance::luminance_evaluator::LuminanceEvaluator},
         make_viewport_matrix, RenderPassStatistics,
     },
     scene::camera::{ColorGradingLut, Exposure},
@@ -104,7 +96,7 @@ pub struct HighDynamicRangeRenderer {
     downscale_chain: [LumBuffer; 6],
     frame_luminance: LumBuffer,
     adaptation_shader: RenderPassContainer,
-    luminance_shader: LuminanceShader,
+    luminance_shader: RenderPassContainer,
     downscale_shader: RenderPassContainer,
     map_shader: RenderPassContainer,
     stub_lut: GpuTexture,
@@ -128,7 +120,10 @@ impl HighDynamicRangeRenderer {
                 server,
                 include_str!("../shaders/hdr_adaptation.shader"),
             )?,
-            luminance_shader: LuminanceShader::new(server)?,
+            luminance_shader: RenderPassContainer::from_str(
+                server,
+                include_str!("../shaders/hdr_luminance.shader"),
+            )?,
             downscale_shader: RenderPassContainer::from_str(
                 server,
                 include_str!("../shaders/hdr_downscale.shader"),
@@ -153,16 +148,28 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_frame_luminance(
         &self,
-        scene_frame: GpuTexture,
+        scene_frame: &GpuTexture,
         quad: &GpuGeometryBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         self.frame_luminance.clear();
-        let frame_matrix = self.frame_luminance.matrix();
 
-        let shader = &self.luminance_shader;
-        let inv_size = 1.0 / self.frame_luminance.size as f32;
-        self.frame_luminance.framebuffer.draw(
+        let frame_matrix = self.frame_luminance.matrix();
+        let inv_size = Vector2::repeat(1.0 / self.frame_luminance.size as f32);
+
+        let properties = PropertyGroup::from([
+            property("worldViewProjection", &frame_matrix),
+            property("invSize", &inv_size),
+        ]);
+        let material = RenderMaterial::from([
+            binding("frameSampler", scene_frame),
+            binding("properties", &properties),
+        ]);
+
+        self.luminance_shader.run_pass(
+            1,
+            &ImmutableString::new("Primary"),
+            &self.frame_luminance.framebuffer,
             quad,
             Rect::new(
                 0,
@@ -170,34 +177,10 @@ impl HighDynamicRangeRenderer {
                 self.frame_luminance.size as i32,
                 self.frame_luminance.size as i32,
             ),
-            &shader.program,
-            &DrawParameters {
-                cull_face: None,
-                color_write: Default::default(),
-                depth_write: false,
-                stencil_test: None,
-                depth_test: None,
-                blend: None,
-                stencil_op: Default::default(),
-                scissor_box: None,
-            },
-            &[ResourceBindGroup {
-                bindings: &[
-                    ResourceBinding::texture(&scene_frame, &shader.frame_sampler),
-                    ResourceBinding::Buffer {
-                        buffer: uniform_buffer_cache.write(
-                            StaticUniformBuffer::<256>::new()
-                                .with(&frame_matrix)
-                                .with(&Vector2::new(inv_size, inv_size)),
-                        )?,
-                        binding: BufferLocation::Auto {
-                            shader_location: shader.uniform_buffer_binding,
-                        },
-                        data_usage: Default::default(),
-                    },
-                ],
-            }],
-            ElementRange::Full,
+            &material,
+            uniform_buffer_cache,
+            Default::default(),
+            None,
         )
     }
 
@@ -381,8 +364,7 @@ impl HighDynamicRangeRenderer {
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
-        stats +=
-            self.calculate_frame_luminance(hdr_scene_frame.clone(), quad, uniform_buffer_cache)?;
+        stats += self.calculate_frame_luminance(hdr_scene_frame, quad, uniform_buffer_cache)?;
         stats += self.calculate_avg_frame_luminance(quad, uniform_buffer_cache)?;
         stats += self.adaptation(quad, dt, uniform_buffer_cache)?;
         stats += self.map_hdr_to_ldr(
