@@ -34,18 +34,20 @@ use crate::{
     },
     graph::BaseSceneGraph,
     renderer::{
+        cache::shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
         cache::uniform::UniformBufferCache,
         debug_renderer::{self, DebugRenderer},
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, ResourceBindGroup, ResourceBinding},
-            gpu_program::UniformLocation,
+            framebuffer::GpuFrameBuffer,
+            framebuffer::{Attachment, AttachmentKind},
+            geometry_buffer::GpuGeometryBuffer,
+            gpu_texture::GpuTexture,
             gpu_texture::{GpuTextureKind, PixelKind},
             server::GraphicsServer,
-            uniform::StaticUniformBuffer,
-            BlendEquation, BlendFactor, BlendFunc, BlendMode, BlendParameters, ColorMask,
-            CompareFunc, CullFace, DrawParameters, GeometryBufferExt,
+            stats::RenderPassStatistics,
+            GeometryBufferExt,
         },
         occlusion::{
             grid::{GridCache, Visibility},
@@ -56,40 +58,13 @@ use crate::{
     scene::{graph::Graph, mesh::surface::SurfaceData, node::Node},
 };
 use bytemuck::{Pod, Zeroable};
-use fyrox_graphics::framebuffer::{BufferLocation, GpuFrameBuffer};
-use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
-use fyrox_graphics::gpu_program::GpuProgram;
-use fyrox_graphics::gpu_texture::GpuTexture;
-use fyrox_graphics::stats::RenderPassStatistics;
-
-struct Shader {
-    program: GpuProgram,
-    tile_buffer: UniformLocation,
-    matrices: UniformLocation,
-    uniform_buffer_binding: usize,
-}
-
-impl Shader {
-    fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("../shaders/visibility_fs.glsl");
-        let vertex_source = include_str!("../shaders/visibility_vs.glsl");
-        let program = server.create_program("VisibilityShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            uniform_buffer_binding: program
-                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
-            tile_buffer: program.uniform_location(&ImmutableString::new("tileBuffer"))?,
-            matrices: program.uniform_location(&ImmutableString::new("matrices"))?,
-            program,
-        })
-    }
-}
 
 pub struct OcclusionTester {
     framebuffer: GpuFrameBuffer,
     visibility_mask: GpuTexture,
     tile_buffer: GpuTexture,
     frame_size: Vector2<usize>,
-    shader: Shader,
+    shader: RenderPassContainer,
     tile_size: usize,
     w_tiles: usize,
     h_tiles: usize,
@@ -176,7 +151,10 @@ impl OcclusionTester {
             )?,
             visibility_mask,
             frame_size: Vector2::new(width, height),
-            shader: Shader::new(server)?,
+            shader: RenderPassContainer::from_str(
+                server,
+                include_str!("../shaders/visibility.shader"),
+            )?,
             tile_size,
             w_tiles,
             tile_buffer,
@@ -392,47 +370,30 @@ impl OcclusionTester {
                 Some(Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s))
             }))?;
 
-        let shader = &self.shader;
-        stats += self.framebuffer.draw_instances(
+        let tile_size = self.tile_size as i32;
+        let frame_buffer_height = self.frame_size.y as f32;
+        let properties = PropertyGroup::from([
+            property("viewProjection", &self.view_projection),
+            property("tileSize", &tile_size),
+            property("frameBufferHeight", &frame_buffer_height),
+        ]);
+        let material = RenderMaterial::from([
+            binding("matrices", self.matrix_storage.texture()),
+            binding("tileBuffer", &self.tile_buffer),
+            binding("properties", &properties),
+        ]);
+
+        stats += self.shader.run_pass(
             self.objects_to_test.len(),
+            &ImmutableString::new("Primary"),
+            &self.framebuffer,
             &self.cube,
             viewport,
-            &self.shader.program,
-            &DrawParameters {
-                cull_face: Some(CullFace::Back),
-                color_write: ColorMask::all(true),
-                depth_write: false,
-                stencil_test: None,
-                depth_test: Some(CompareFunc::LessOrEqual),
-                blend: Some(BlendParameters {
-                    func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
-                    equation: BlendEquation {
-                        rgb: BlendMode::Add,
-                        alpha: BlendMode::Add,
-                    },
-                }),
-                stencil_op: Default::default(),
-                scissor_box: None,
-            },
-            &[ResourceBindGroup {
-                bindings: &[
-                    ResourceBinding::texture(&self.tile_buffer, &shader.tile_buffer),
-                    ResourceBinding::texture(self.matrix_storage.texture(), &shader.matrices),
-                    ResourceBinding::Buffer {
-                        buffer: uniform_buffer_cache.write(
-                            StaticUniformBuffer::<256>::new()
-                                .with(&self.view_projection)
-                                .with(&(self.tile_size as i32))
-                                .with(&(self.frame_size.y as f32)),
-                        )?,
-                        binding: BufferLocation::Auto {
-                            shader_location: self.shader.uniform_buffer_binding,
-                        },
-                        data_usage: Default::default(),
-                    },
-                ],
-            }],
-        );
+            &material,
+            uniform_buffer_cache,
+            Default::default(),
+            None,
+        )?;
 
         self.visibility_buffer_optimizer.optimize(
             &self.visibility_mask,
