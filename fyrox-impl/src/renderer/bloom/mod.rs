@@ -94,6 +94,7 @@ impl BloomRenderer {
         ]);
 
         stats += self.shader.run_pass(
+            1,
             &ImmutableString::new("Primary"),
             &self.framebuffer,
             quad,

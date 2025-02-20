@@ -350,6 +350,7 @@ impl DeferredLightRenderer {
                 ]);
 
                 pass_stats += self.skybox_shader.run_pass(
+                    1,
                     &ImmutableString::new("Primary"),
                     frame_buffer,
                     &self.skybox,
@@ -393,6 +394,7 @@ impl DeferredLightRenderer {
         ]);
 
         pass_stats += self.ambient_light_shader.run_pass(
+            1,
             &ImmutableString::new("Primary"),
             frame_buffer,
             &self.quad,
@@ -533,6 +535,7 @@ impl DeferredLightRenderer {
                     PropertyGroup::from([property("worldViewProjection", &shape_wvp_matrix)]);
                 let material = RenderMaterial::from([binding("properties", &properties)]);
                 pass_stats += self.volume_marker.run_pass(
+                    1,
                     &ImmutableString::new("Primary"),
                     frame_buffer,
                     bounding_shape,
@@ -560,6 +563,7 @@ impl DeferredLightRenderer {
                         PropertyGroup::from([property("worldViewProjection", &frame_matrix)]);
                     let material = RenderMaterial::from([binding("properties", &properties)]);
                     pass_stats += self.pixel_counter.run_pass(
+                        1,
                         &ImmutableString::new("Primary"),
                         frame_buffer,
                         &self.quad,
@@ -724,6 +728,7 @@ impl DeferredLightRenderer {
                         ]);
 
                         self.spot_light_shader.run_pass(
+                            1,
                             &ImmutableString::new("Primary"),
                             frame_buffer,
                             quad,
@@ -764,6 +769,7 @@ impl DeferredLightRenderer {
                         ]);
 
                         self.point_light_shader.run_pass(
+                            1,
                             &ImmutableString::new("Primary"),
                             frame_buffer,
                             quad,
@@ -818,6 +824,7 @@ impl DeferredLightRenderer {
                         ]);
 
                         self.directional_light_shader.run_pass(
+                            1,
                             &ImmutableString::new("Primary"),
                             frame_buffer,
                             quad,

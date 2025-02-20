@@ -248,6 +248,7 @@ impl RenderPassContainer {
 
     pub fn run_pass<const N: usize>(
         &self,
+        instance_count: usize,
         render_pass_name: &ImmutableString,
         framebuffer: &GpuFrameBuffer,
         geometry: &GpuGeometryBuffer,
@@ -257,6 +258,10 @@ impl RenderPassContainer {
         element_range: ElementRange,
         override_params: Option<&DrawParameters>,
     ) -> Result<DrawCallStatistics, FrameworkError> {
+        if instance_count == 0 {
+            return Ok(Default::default());
+        }
+
         let render_pass = self.get(render_pass_name)?;
 
         let mut resource_bindings = ArrayVec::<ResourceBinding, 32>::new();
@@ -328,16 +333,30 @@ impl RenderPassContainer {
             }
         }
 
-        framebuffer.draw(
-            geometry,
-            viewport,
-            &render_pass.program,
-            override_params.unwrap_or(&render_pass.draw_params),
-            &[ResourceBindGroup {
-                bindings: &resource_bindings,
-            }],
-            element_range,
-        )
+        let resources = [ResourceBindGroup {
+            bindings: &resource_bindings,
+        }];
+
+        if instance_count == 1 {
+            framebuffer.draw(
+                geometry,
+                viewport,
+                &render_pass.program,
+                override_params.unwrap_or(&render_pass.draw_params),
+                &resources,
+                element_range,
+            )
+        } else {
+            framebuffer.draw_instances(
+                instance_count,
+                geometry,
+                viewport,
+                &render_pass.program,
+                override_params.unwrap_or(&render_pass.draw_params),
+                &resources,
+                element_range,
+            )
+        }
     }
 }
 

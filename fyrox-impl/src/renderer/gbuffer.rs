@@ -322,6 +322,7 @@ impl GBuffer {
             ]);
 
             statistics += self.decal_shader.run_pass(
+                1,
                 &ImmutableString::new("Primary"),
                 &self.decal_framebuffer,
                 unit_cube,

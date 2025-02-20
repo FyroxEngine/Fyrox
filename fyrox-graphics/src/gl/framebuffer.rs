@@ -379,23 +379,23 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
 
         pre_draw(self.id(), &server, viewport, program, params, resources);
 
-        let (offset, count) = match element_range {
+        let (offset, element_count) = match element_range {
             ElementRange::Full => (0, geometry.element_count.get()),
             ElementRange::Specific { offset, count } => (offset, count),
         };
 
-        let last_triangle_index = offset + count;
+        let last_element_index = offset + element_count;
 
-        if last_triangle_index > geometry.element_count.get() {
+        if last_element_index > geometry.element_count.get() {
             Err(FrameworkError::InvalidElementRange {
                 start: offset,
-                end: last_triangle_index,
+                end: last_element_index,
                 total: geometry.element_count.get(),
             })
         } else {
             let index_per_element = geometry.element_kind.index_per_element();
             let start_index = offset * index_per_element;
-            let index_count = count * index_per_element;
+            let index_count = element_count * index_per_element;
 
             unsafe {
                 if index_count > 0 {
@@ -411,19 +411,22 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
                 }
             }
 
-            Ok(DrawCallStatistics { triangles: count })
+            Ok(DrawCallStatistics {
+                triangles: element_count,
+            })
         }
     }
 
     fn draw_instances(
         &self,
-        count: usize,
+        instance_count: usize,
         geometry: &GpuGeometryBuffer,
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
         resources: &[ResourceBindGroup],
-    ) -> DrawCallStatistics {
+        element_range: ElementRange,
+    ) -> Result<DrawCallStatistics, FrameworkError> {
         let server = self.state.upgrade().unwrap();
         let geometry = geometry
             .as_any()
@@ -432,23 +435,41 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
 
         pre_draw(self.id(), &server, viewport, program, params, resources);
 
-        let index_per_element = geometry.element_kind.index_per_element();
-        let index_count = geometry.element_count.get() * index_per_element;
-        if index_count > 0 {
-            unsafe {
-                server.set_vertex_array_object(Some(geometry.vertex_array_object));
+        let (offset, element_count) = match element_range {
+            ElementRange::Full => (0, geometry.element_count.get()),
+            ElementRange::Specific { offset, count } => (offset, count),
+        };
 
-                server.gl.draw_elements_instanced(
-                    geometry.mode(),
-                    index_count as i32,
-                    glow::UNSIGNED_INT,
-                    0,
-                    count as i32,
-                )
+        let last_element_index = offset + element_count;
+
+        if last_element_index > geometry.element_count.get() {
+            Err(FrameworkError::InvalidElementRange {
+                start: offset,
+                end: last_element_index,
+                total: geometry.element_count.get(),
+            })
+        } else {
+            let index_per_element = geometry.element_kind.index_per_element();
+            let start_index = offset * index_per_element;
+            let index_count = geometry.element_count.get() * index_per_element;
+
+            unsafe {
+                if index_count > 0 {
+                    server.set_vertex_array_object(Some(geometry.vertex_array_object));
+                    let indices = (start_index * size_of::<u32>()) as i32;
+                    server.gl.draw_elements_instanced(
+                        geometry.mode(),
+                        index_count as i32,
+                        glow::UNSIGNED_INT,
+                        indices,
+                        instance_count as i32,
+                    )
+                }
             }
-        }
-        DrawCallStatistics {
-            triangles: geometry.element_count.get() * count,
+
+            Ok(DrawCallStatistics {
+                triangles: geometry.element_count.get() * instance_count,
+            })
         }
     }
 }

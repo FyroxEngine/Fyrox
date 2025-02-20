@@ -134,6 +134,7 @@ impl LightVolumeRenderer {
                 let properties = PropertyGroup::from([property("worldViewProjection", &mvp)]);
                 let material = RenderMaterial::from([binding("properties", &properties)]);
                 stats += self.volume_marker.run_pass(
+                    1,
                     &ImmutableString::new("Primary"),
                     frame_buffer,
                     &self.cone,
@@ -165,6 +166,7 @@ impl LightVolumeRenderer {
                 ]);
 
                 stats += self.spot_light_shader.run_pass(
+                    1,
                     &ImmutableString::new("Primary"),
                     frame_buffer,
                     quad,
@@ -189,6 +191,7 @@ impl LightVolumeRenderer {
                 let properties = PropertyGroup::from([property("worldViewProjection", &mvp)]);
                 let material = RenderMaterial::from([binding("properties", &properties)]);
                 stats += self.volume_marker.run_pass(
+                    1,
                     &ImmutableString::new("Primary"),
                     frame_buffer,
                     &self.sphere,
@@ -217,6 +220,7 @@ impl LightVolumeRenderer {
                 ]);
 
                 stats += self.point_light_shader.run_pass(
+                    1,
                     &ImmutableString::new("Primary"),
                     frame_buffer,
                     quad,

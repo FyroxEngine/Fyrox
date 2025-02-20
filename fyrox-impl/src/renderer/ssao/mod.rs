@@ -202,6 +202,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         ]);
 
         stats += self.program.run_pass(
+            1,
             &ImmutableString::new("Primary"),
             &self.framebuffer,
             &self.quad,

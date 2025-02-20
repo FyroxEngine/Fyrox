@@ -153,6 +153,7 @@ impl DebugRenderer {
         let material = RenderMaterial::from([binding("properties", &properties)]);
 
         statistics += self.shader.run_pass(
+            1,
             &ImmutableString::new("Primary"),
             framebuffer,
             &self.geometry,

@@ -88,6 +88,7 @@ impl Blur {
         ]);
 
         self.program.run_pass(
+            1,
             &ImmutableString::new("Primary"),
             &self.framebuffer,
             &self.quad,

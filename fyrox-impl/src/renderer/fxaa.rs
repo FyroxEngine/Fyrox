@@ -74,6 +74,7 @@ impl FxaaRenderer {
         ]);
 
         statistics += self.shader.run_pass(
+            1,
             &ImmutableString::new("Primary"),
             frame_buffer,
             &self.quad,

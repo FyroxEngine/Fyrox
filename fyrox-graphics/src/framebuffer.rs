@@ -285,13 +285,14 @@ pub trait GpuFrameBufferTrait: Downcast {
     /// could be supplied in vertex attributes, uniform buffers, textures, etc.
     fn draw_instances(
         &self,
-        count: usize,
+        instance_count: usize,
         geometry: &GpuGeometryBuffer,
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
         resources: &[ResourceBindGroup],
-    ) -> DrawCallStatistics;
+        element_range: ElementRange,
+    ) -> Result<DrawCallStatistics, FrameworkError>;
 }
 
 define_shared_wrapper!(GpuFrameBuffer<dyn GpuFrameBufferTrait>);

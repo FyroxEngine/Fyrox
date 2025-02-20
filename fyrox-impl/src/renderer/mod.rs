@@ -851,6 +851,7 @@ fn blit_pixels(
         binding("properties", &properties),
     ]);
     blit_shader.run_pass(
+        1,
         &ImmutableString::new("Primary"),
         framebuffer,
         quad,

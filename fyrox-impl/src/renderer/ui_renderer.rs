@@ -208,6 +208,7 @@ impl UiRenderer {
                 let properties = PropertyGroup::from([property("worldViewProjection", &ortho)]);
                 let material = RenderMaterial::from([binding("properties", &properties)]);
                 statistics += self.render_passes.run_pass(
+                    1,
                     &ImmutableString::new("Clip"),
                     frame_buffer,
                     &self.geometry_buffer,
@@ -359,6 +360,7 @@ impl UiRenderer {
             ]);
 
             statistics += self.render_passes.run_pass(
+                1,
                 &ImmutableString::new("Primary"),
                 frame_buffer,
                 &self.geometry_buffer,

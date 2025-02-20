@@ -113,6 +113,7 @@ impl GaussianBlur {
                 RenderMaterial::from([binding("image", image), binding("properties", &properties)]);
 
             stats += self.shader.run_pass(
+                1,
                 &ImmutableString::new("Primary"),
                 framebuffer,
                 quad,
