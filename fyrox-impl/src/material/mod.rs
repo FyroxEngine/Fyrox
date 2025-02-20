@@ -251,14 +251,6 @@ pub enum MaterialProperty {
     Bool(bool),
 
     /// An sRGB color.
-    ///
-    /// # Conversion
-    ///
-    /// The colors you see on your monitor are in sRGB color space, this is fine for simple cases
-    /// of rendering, but not for complex things like lighting. Such things require color to be
-    /// linear. Value of this variant will be automatically **converted to linear color space**
-    /// before it passed to shader. If you want to pass sRGB color ("as is"), then use
-    /// [`MaterialProperty::Vector4`].
     Color(Color),
 }
 
@@ -354,14 +346,6 @@ pub enum MaterialPropertyRef<'a> {
     Bool(&'a bool),
 
     /// An sRGB color.
-    ///
-    /// # Conversion
-    ///
-    /// The colors you see on your monitor are in sRGB color space, this is fine for simple cases
-    /// of rendering, but not for complex things like lighting. Such things require color to be
-    /// linear. Value of this variant will be automatically **converted to linear color space**
-    /// before it passed to shader. If you want to pass sRGB color ("as is"), then use
-    /// [`MaterialProperty::Vector4`].
     Color(&'a Color),
 }
 
