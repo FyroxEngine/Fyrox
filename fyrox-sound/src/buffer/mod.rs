@@ -39,9 +39,10 @@ use fyrox_resource::{
     io::{FileReader, ResourceIo},
     Resource, ResourceData, SOUND_BUFFER_RESOURCE_UUID,
 };
-use std::{error::Error, fs::File};
 use std::{
+    error::Error,
     fmt::Debug,
+    fs::File,
     io::{Cursor, Read, Seek, SeekFrom},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
