@@ -21,50 +21,23 @@
 use crate::{
     core::{algebra::Vector2, math::Rect, sstorage::ImmutableString},
     renderer::{
-        cache::uniform::UniformBufferCache,
+        cache::{
+            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            uniform::UniformBufferCache,
+        },
         framework::{
             error::FrameworkError,
-            framebuffer::{
-                Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
-            },
-            gpu_program::UniformLocation,
-            gpu_texture::PixelKind,
+            framebuffer::{Attachment, AttachmentKind, GpuFrameBuffer},
+            geometry_buffer::GpuGeometryBuffer,
+            gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
-            uniform::StaticUniformBuffer,
-            DrawParameters, ElementRange,
         },
         make_viewport_matrix, RenderPassStatistics,
     },
 };
-use fyrox_graphics::framebuffer::GpuFrameBuffer;
-use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
-use fyrox_graphics::gpu_program::GpuProgram;
-use fyrox_graphics::gpu_texture::GpuTexture;
-
-struct Shader {
-    program: GpuProgram,
-    image: UniformLocation,
-    uniform_block_binding: usize,
-}
-
-impl Shader {
-    fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("../shaders/gaussian_blur_fs.glsl");
-        let vertex_source = include_str!("../shaders/gaussian_blur_vs.glsl");
-
-        let program =
-            server.create_program("GaussianBlurShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            image: program.uniform_location(&ImmutableString::new("image"))?,
-            uniform_block_binding: program
-                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
-            program,
-        })
-    }
-}
 
 pub struct GaussianBlur {
-    shader: Shader,
+    shader: RenderPassContainer,
     h_framebuffer: GpuFrameBuffer,
     v_framebuffer: GpuFrameBuffer,
     width: usize,
@@ -96,7 +69,10 @@ impl GaussianBlur {
         pixel_kind: PixelKind,
     ) -> Result<Self, FrameworkError> {
         Ok(Self {
-            shader: Shader::new(server)?,
+            shader: RenderPassContainer::from_str(
+                server,
+                include_str!("../shaders/gaussian_blur.shader"),
+            )?,
             h_framebuffer: create_framebuffer(server, width, height, pixel_kind)?,
             v_framebuffer: create_framebuffer(server, width, height, pixel_kind)?,
             width,
@@ -121,80 +97,32 @@ impl GaussianBlur {
         let mut stats = RenderPassStatistics::default();
 
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
-
         let inv_size = Vector2::new(1.0 / self.width as f32, 1.0 / self.height as f32);
-        let shader = &self.shader;
+        let wvp = make_viewport_matrix(viewport);
 
-        // Blur horizontally first.
-        stats += self.h_framebuffer.draw(
-            quad,
-            viewport,
-            &shader.program,
-            &DrawParameters {
-                cull_face: None,
-                color_write: Default::default(),
-                depth_write: false,
-                stencil_test: None,
-                depth_test: None,
-                blend: None,
-                stencil_op: Default::default(),
-                scissor_box: None,
-            },
-            &[ResourceBindGroup {
-                bindings: &[
-                    ResourceBinding::texture(input, &shader.image),
-                    ResourceBinding::Buffer {
-                        buffer: uniform_buffer_cache.write(
-                            StaticUniformBuffer::<256>::new()
-                                .with(&make_viewport_matrix(viewport))
-                                .with(&inv_size)
-                                .with(&true),
-                        )?,
-                        binding: BufferLocation::Auto {
-                            shader_location: shader.uniform_block_binding,
-                        },
-                        data_usage: Default::default(),
-                    },
-                ],
-            }],
-            ElementRange::Full,
-        )?;
+        for (image, framebuffer, horizontal) in [
+            (input, &self.h_framebuffer, true),
+            (self.h_blurred(), &self.v_framebuffer, false),
+        ] {
+            let properties = PropertyGroup::from([
+                property("worldViewProjection", &wvp),
+                property("pixelSize", &inv_size),
+                property("horizontal", &horizontal),
+            ]);
+            let material =
+                RenderMaterial::from([binding("image", image), binding("properties", &properties)]);
 
-        // Then blur vertically.
-        let h_blurred_texture = self.h_blurred();
-        stats += self.v_framebuffer.draw(
-            quad,
-            viewport,
-            &shader.program,
-            &DrawParameters {
-                cull_face: None,
-                color_write: Default::default(),
-                depth_write: false,
-                stencil_test: None,
-                depth_test: None,
-                blend: None,
-                stencil_op: Default::default(),
-                scissor_box: None,
-            },
-            &[ResourceBindGroup {
-                bindings: &[
-                    ResourceBinding::texture(h_blurred_texture, &shader.image),
-                    ResourceBinding::Buffer {
-                        buffer: uniform_buffer_cache.write(
-                            StaticUniformBuffer::<256>::new()
-                                .with(&make_viewport_matrix(viewport))
-                                .with(&inv_size)
-                                .with(&false),
-                        )?,
-                        binding: BufferLocation::Auto {
-                            shader_location: shader.uniform_block_binding,
-                        },
-                        data_usage: Default::default(),
-                    },
-                ],
-            }],
-            ElementRange::Full,
-        )?;
+            stats += self.shader.run_pass(
+                &ImmutableString::new("Primary"),
+                framebuffer,
+                quad,
+                viewport,
+                &material,
+                uniform_buffer_cache,
+                Default::default(),
+                None,
+            )?;
+        }
 
         Ok(stats)
     }
