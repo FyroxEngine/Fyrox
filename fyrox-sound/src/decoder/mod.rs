@@ -148,17 +148,17 @@ impl Decoder {
     }
 
     fn interleaved(buffer: &mut AudioBuffer<f32>) -> Vec<f32> {
-        let channels = buffer.spec().channels.count();
+        let channel_count = buffer.spec().channels.count();
         let frames = buffer.frames();
 
-        let mut samples = Vec::with_capacity(channels);
-        for i in 0..channels {
-            samples.push(buffer.chan(i));
+        let mut channels = Vec::with_capacity(channel_count);
+        for i in 0..channel_count {
+            channels.push(buffer.chan(i));
         }
 
-        let mut res = Vec::with_capacity(channels * frames);
+        let mut res = Vec::with_capacity(channel_count * frames);
         for i in 0..frames {
-            for channel in samples.iter() {
+            for channel in channels.iter() {
                 res.push(channel[i]);
             }
         }
