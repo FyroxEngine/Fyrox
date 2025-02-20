@@ -94,23 +94,14 @@ pub trait GraphicsServer: Downcast {
     fn create_query(&self) -> Result<GpuQuery, FrameworkError>;
 
     /// Creates a new named GPU program using a pair of vertex and fragment shaders. The name could
-    /// be used for debugging purposes.
+    /// be used for debugging purposes. The implementation of graphics server will generate proper
+    /// resource bindings in the shader code for you.
     fn create_program(
         &self,
         name: &str,
         vertex_source: &str,
         fragment_source: &str,
-    ) -> Result<GpuProgram, FrameworkError>;
-
-    /// Almost the same as [`Self::create_program`], but accepts additional array of resource
-    /// definitions. The implementation of graphics server will generate proper resource bindings
-    /// in the shader code for you.
-    fn create_program_with_properties(
-        &self,
-        name: &str,
-        vertex_source: &str,
-        fragment_source: &str,
-        properties: &[ShaderResourceDefinition],
+        resources: &[ShaderResourceDefinition],
     ) -> Result<GpuProgram, FrameworkError>;
 
     /// Creates a new read-back buffer, that can be used to obtain texture data from GPU. It can be

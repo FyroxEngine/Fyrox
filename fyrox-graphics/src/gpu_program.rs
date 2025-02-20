@@ -28,23 +28,11 @@ use crate::{
         Downcast,
     },
     define_shared_wrapper,
-    error::FrameworkError,
 };
 use serde::{Deserialize, Serialize};
-use std::marker::PhantomData;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
-pub trait GpuProgramTrait: Downcast {
-    fn uniform_location(&self, name: &ImmutableString) -> Result<UniformLocation, FrameworkError>;
-    fn uniform_block_index(&self, name: &ImmutableString) -> Result<usize, FrameworkError>;
-}
-
-#[derive(Clone, Debug)]
-pub struct UniformLocation {
-    pub id: glow::UniformLocation,
-    // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
-    pub thread_mark: PhantomData<*const u8>,
-}
+pub trait GpuProgramTrait: Downcast {}
 
 /// A fallback value for the sampler.
 ///

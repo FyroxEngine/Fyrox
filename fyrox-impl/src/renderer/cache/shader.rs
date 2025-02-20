@@ -208,7 +208,7 @@ impl RenderPassContainer {
 
         for render_pass in shader.definition.passes.iter() {
             let program_name = format!("{}_{}", shader.definition.name, render_pass.name);
-            match server.create_program_with_properties(
+            match server.create_program(
                 &program_name,
                 &render_pass.vertex_shader,
                 &render_pass.fragment_shader,
@@ -286,8 +286,7 @@ impl RenderPassContainer {
                                 }
                             })
                     {
-                        resource_bindings
-                            .push(ResourceBinding::texture_with_binding(tex, resource.binding));
+                        resource_bindings.push(ResourceBinding::texture(tex, resource.binding));
                     } else {
                         return Err(FrameworkError::Custom(format!(
                             "No texture bound to {} resource binding!",
@@ -324,7 +323,7 @@ impl RenderPassContainer {
                         bundle::write_shader_values(shader_property_group, &mut buf)
                     }
 
-                    resource_bindings.push(ResourceBinding::buffer_with_binding(
+                    resource_bindings.push(ResourceBinding::buffer(
                         &uniform_buffer_cache.write(buf)?,
                         resource.binding,
                         Default::default(),

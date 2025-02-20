@@ -19,13 +19,12 @@
 // SOFTWARE.
 
 use crate::{
-    buffer::{BufferKind, GpuBufferTrait},
+    buffer::GpuBufferTrait,
     core::{color::Color, math::Rect},
     error::FrameworkError,
     framebuffer::{
-        Attachment, AttachmentKind, BufferDataUsage, BufferLocation, DrawCallStatistics,
-        GpuFrameBuffer, GpuFrameBufferTrait, ResourceBindGroup, ResourceBinding,
-        TextureShaderLocation,
+        Attachment, AttachmentKind, BufferDataUsage, DrawCallStatistics, GpuFrameBuffer,
+        GpuFrameBufferTrait, ResourceBindGroup, ResourceBinding,
     },
     geometry_buffer::GpuGeometryBuffer,
     gl::{
@@ -488,30 +487,19 @@ fn pre_draw(
     let program = program.as_any().downcast_ref::<GlProgram>().unwrap();
     server.set_program(Some(program.id));
 
-    let mut texture_unit = 0;
-    let mut automatic_binding_index = 0;
     for bind_group in resources {
         for binding in bind_group.bindings {
             match binding {
                 ResourceBinding::Texture {
                     texture,
-                    shader_location,
+                    binding: shader_location,
                 } => {
                     let texture = texture.as_any().downcast_ref::<GlTexture>().unwrap();
-                    match shader_location {
-                        TextureShaderLocation::Uniform(uniform) => {
-                            unsafe { server.gl.uniform_1_i32(Some(&uniform.id), texture_unit) };
-                            texture.bind(server, texture_unit as u32);
-                            texture_unit += 1;
-                        }
-                        TextureShaderLocation::ExplicitBinding(binding) => {
-                            texture.bind(server, *binding as u32);
-                        }
-                    }
+                    texture.bind(server, *shader_location as u32);
                 }
                 ResourceBinding::Buffer {
                     buffer,
-                    binding: shader_location,
+                    binding,
                     data_usage: data_location,
                 } => {
                     let gl_buffer = buffer
@@ -520,17 +508,14 @@ fn pre_draw(
                         .expect("Must be OpenGL buffer");
 
                     unsafe {
-                        let actual_binding = match shader_location {
-                            BufferLocation::Auto { .. } => automatic_binding_index,
-                            BufferLocation::Explicit { binding } => *binding,
-                        };
+                        let actual_binding = *binding as u32;
 
                         match data_location {
                             BufferDataUsage::UseSegment { offset, size } => {
                                 assert_ne!(*size, 0);
                                 server.gl.bind_buffer_range(
                                     gl_buffer.kind().into_gl(),
-                                    actual_binding as u32,
+                                    actual_binding,
                                     Some(gl_buffer.id),
                                     *offset as i32,
                                     *size as i32,
@@ -539,26 +524,10 @@ fn pre_draw(
                             BufferDataUsage::UseEverything => {
                                 server.gl.bind_buffer_base(
                                     gl_buffer.kind().into_gl(),
-                                    actual_binding as u32,
+                                    actual_binding,
                                     Some(gl_buffer.id),
                                 );
                             }
-                        }
-
-                        if let BufferLocation::Auto { shader_location } = shader_location {
-                            match gl_buffer.kind() {
-                                BufferKind::Uniform => server.gl.uniform_block_binding(
-                                    program.id,
-                                    *shader_location as u32,
-                                    automatic_binding_index as u32,
-                                ),
-                                BufferKind::Vertex
-                                | BufferKind::Index
-                                | BufferKind::PixelRead
-                                | BufferKind::PixelWrite => {}
-                            }
-
-                            automatic_binding_index += 1;
                         }
                     }
                 }

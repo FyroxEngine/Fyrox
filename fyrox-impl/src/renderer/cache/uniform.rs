@@ -30,7 +30,6 @@ use crate::renderer::framework::{
 };
 use fxhash::FxHashMap;
 use fyrox_graphics::buffer::GpuBuffer;
-use fyrox_graphics::framebuffer::BufferLocation;
 use fyrox_graphics::server::SharedGraphicsServer;
 use std::cell::RefCell;
 
@@ -232,9 +231,7 @@ impl UniformMemoryAllocator {
     ) -> ResourceBinding {
         ResourceBinding::Buffer {
             buffer: self.gpu_buffers[block.page].clone(),
-            binding: BufferLocation::Explicit {
-                binding: binding_point,
-            },
+            binding: binding_point,
             data_usage: BufferDataUsage::UseSegment {
                 offset: block.offset,
                 size: block.size,

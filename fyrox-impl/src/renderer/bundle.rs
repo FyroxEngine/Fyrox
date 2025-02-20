@@ -49,7 +49,7 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::GpuFrameBuffer,
-            framebuffer::{BufferLocation, ResourceBindGroup, ResourceBinding},
+            framebuffer::{ResourceBindGroup, ResourceBinding},
             gpu_program::{ShaderProperty, ShaderPropertyKind, ShaderResourceKind},
             gpu_texture::GpuTexture,
             server::GraphicsServer,
@@ -528,7 +528,7 @@ impl RenderDataBundle {
 
             match name {
                 "fyrox_sceneDepth" => {
-                    material_bindings.push(ResourceBinding::texture_with_binding(
+                    material_bindings.push(ResourceBinding::texture(
                         if let Some(scene_depth) = render_context.scene_depth.as_ref() {
                             scene_depth
                         } else {
@@ -595,7 +595,7 @@ impl RenderDataBundle {
                             fallback
                         };
 
-                        material_bindings.push(ResourceBinding::texture_with_binding(
+                        material_bindings.push(ResourceBinding::texture(
                             texture,
                             resource_definition.binding,
                         ));
@@ -656,9 +656,7 @@ impl RenderDataBundle {
                                         .fallback_resources
                                         .bone_matrices_stub_uniform_buffer
                                         .clone(),
-                                    binding: BufferLocation::Explicit {
-                                        binding: resource_definition.binding,
-                                    },
+                                    binding: resource_definition.binding,
                                     data_usage: Default::default(),
                                 });
                             }

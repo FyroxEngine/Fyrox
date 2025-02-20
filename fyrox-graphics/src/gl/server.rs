@@ -1034,28 +1034,14 @@ impl GraphicsServer for GlGraphicsServer {
         name: &str,
         vertex_source: &str,
         fragment_source: &str,
+        resources: &[ShaderResourceDefinition],
     ) -> Result<GpuProgram, FrameworkError> {
-        Ok(GpuProgram(Rc::new(GlProgram::from_source(
+        Ok(GpuProgram(Rc::new(GlProgram::from_source_and_resources(
             self,
             name,
             vertex_source,
             fragment_source,
-        )?)))
-    }
-
-    fn create_program_with_properties(
-        &self,
-        name: &str,
-        vertex_source: &str,
-        fragment_source: &str,
-        properties: &[ShaderResourceDefinition],
-    ) -> Result<GpuProgram, FrameworkError> {
-        Ok(GpuProgram(Rc::new(GlProgram::from_source_and_properties(
-            self,
-            name,
-            vertex_source,
-            fragment_source,
-            properties,
+            resources,
         )?)))
     }
 

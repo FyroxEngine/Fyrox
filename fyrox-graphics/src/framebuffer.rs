@@ -31,7 +31,6 @@ use crate::{
     error::FrameworkError,
     geometry_buffer::GpuGeometryBuffer,
     gpu_program::GpuProgram,
-    gpu_program::UniformLocation,
     gpu_texture::{CubeMapFace, GpuTexture},
     DrawParameters, ElementRange,
 };
@@ -101,44 +100,6 @@ pub enum BufferDataUsage {
     },
 }
 
-/// Defines a way how a texture will be bound to a pipeline.
-pub enum TextureShaderLocation {
-    /// Obsolete texture binding mode where the video driver decides binding point (index) for a specific
-    /// uniform location automatically. It is not advised to use this mode, and you should always
-    /// prefer using [`TextureShaderLocation::ExplicitBinding`] instead.
-    Uniform(UniformLocation),
-    /// Defines a texture binding point explicitly using a number.
-    ExplicitBinding(usize),
-}
-
-/// Data buffer binding location.
-// TODO: Remove when raw shaders will be replaced with Fyrox-native ones. This struct should turn
-//       into a simple index.
-pub enum BufferLocation {
-    /// Obsolete automatic binding mode. It is a sort of implicit binding mode where the video driver
-    /// automatically assigns binding points for shader resources, and then you need to fetch these
-    /// values by name of a uniform variable and provide them in as `shader_location`. It is strongly
-    /// advised to use [`BufferLocation::Explicit`] mode instead. This mode is left mostly for
-    /// compatibility with the old code.
-    Auto {
-        /// An automatically generated index fetched from the video driver using
-        /// [`super::gpu_program::GpuProgramTrait::uniform_block_index`].
-        shader_location: usize,
-    },
-    /// Explicit binding mode where you strictly define expected binding point for the buffer.
-    Explicit {
-        /// Binding point index.
-        binding: usize,
-    },
-}
-
-impl BufferLocation {
-    /// Creates a new explicit binding point.
-    pub fn new(binding: usize) -> Self {
-        Self::Explicit { binding }
-    }
-}
-
 /// A resource binding defines where to bind specific GPU resources.
 pub enum ResourceBinding {
     /// Texture binding.
@@ -146,47 +107,33 @@ pub enum ResourceBinding {
         /// A shared reference to a texture.
         texture: GpuTexture,
         /// Binding mode for the texture.
-        shader_location: TextureShaderLocation,
+        binding: usize,
     },
     /// Generic data buffer binding.
     Buffer {
         /// A shared reference to a buffer.
         buffer: GpuBuffer,
         /// Binding mode for the buffer.
-        binding: BufferLocation,
+        binding: usize,
         /// Data portion to use.
         data_usage: BufferDataUsage,
     },
 }
 
 impl ResourceBinding {
-    /// Creates a new texture binding using uniform location. See [`TextureShaderLocation::Uniform`]
-    /// docs for more info.
-    pub fn texture(texture: &GpuTexture, shader_location: &UniformLocation) -> Self {
+    /// Creates a new explicit texture binding.
+    pub fn texture(texture: &GpuTexture, binding: usize) -> Self {
         Self::Texture {
             texture: texture.clone(),
-            shader_location: TextureShaderLocation::Uniform(shader_location.clone()),
+            binding,
         }
     }
 
-    /// Creates a new explicit texture binding. See [`TextureShaderLocation::ExplicitBinding`] for
-    /// more info.
-    pub fn texture_with_binding(texture: &GpuTexture, binding: usize) -> Self {
-        Self::Texture {
-            texture: texture.clone(),
-            shader_location: TextureShaderLocation::ExplicitBinding(binding),
-        }
-    }
-
-    /// Creates a new explicit buffer binding. See [`BufferLocation::Explicit`] for more info.
-    pub fn buffer_with_binding(
-        buffer: &GpuBuffer,
-        binding: usize,
-        data_usage: BufferDataUsage,
-    ) -> Self {
+    /// Creates a new explicit buffer binding.
+    pub fn buffer(buffer: &GpuBuffer, binding: usize, data_usage: BufferDataUsage) -> Self {
         Self::Buffer {
             buffer: buffer.clone(),
-            binding: BufferLocation::new(binding),
+            binding,
             data_usage,
         }
     }

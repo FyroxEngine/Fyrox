@@ -19,25 +19,16 @@
 // SOFTWARE.
 
 use crate::{
-    core::{
-        log::{Log, MessageKind},
-        ImmutableString,
-    },
+    core::log::{Log, MessageKind},
     error::FrameworkError,
     gl::server::{GlGraphicsServer, GlKind},
     gpu_program::{
         GpuProgramTrait, SamplerKind, ShaderPropertyKind, ShaderResourceDefinition,
-        ShaderResourceKind, UniformLocation,
+        ShaderResourceKind,
     },
 };
-use fxhash::FxHashMap;
 use glow::HasContext;
-use std::{
-    cell::RefCell,
-    marker::PhantomData,
-    ops::Deref,
-    rc::{Rc, Weak},
-};
+use std::{marker::PhantomData, rc::Weak};
 
 impl SamplerKind {
     pub fn glsl_name(&self) -> &str {
@@ -126,41 +117,10 @@ pub struct GlProgram {
     pub id: glow::Program,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
-    uniform_locations: RefCell<FxHashMap<ImmutableString, Option<UniformLocation>>>,
-}
-
-#[inline]
-fn fetch_uniform_location(
-    server: &GlGraphicsServer,
-    program: glow::Program,
-    id: &str,
-) -> Option<UniformLocation> {
-    unsafe {
-        server
-            .gl
-            .get_uniform_location(program, id)
-            .map(|id| UniformLocation {
-                id,
-                thread_mark: PhantomData,
-            })
-    }
-}
-
-pub fn fetch_uniform_block_index(
-    server: &GlGraphicsServer,
-    program: glow::Program,
-    name: &str,
-) -> Option<usize> {
-    unsafe {
-        server
-            .gl
-            .get_uniform_block_index(program, name)
-            .map(|index| index as usize)
-    }
 }
 
 impl GlProgram {
-    pub fn from_source_and_properties(
+    pub fn from_source_and_resources(
         server: &GlGraphicsServer,
         program_name: &str,
         vertex_source: &str,
@@ -332,7 +292,7 @@ impl GlProgram {
         Ok(program)
     }
 
-    pub fn from_source(
+    fn from_source(
         server: &GlGraphicsServer,
         name: &str,
         vertex_source: &str,
@@ -386,56 +346,13 @@ impl GlProgram {
                     state: server.weak(),
                     id: program,
                     thread_mark: PhantomData,
-                    uniform_locations: Default::default(),
                 })
             }
         }
     }
-
-    pub fn uniform_location_internal(&self, name: &ImmutableString) -> Option<UniformLocation> {
-        let mut locations = self.uniform_locations.borrow_mut();
-        let server = self.state.upgrade().unwrap();
-        if let Some(cached_location) = locations.get(name) {
-            cached_location.clone()
-        } else {
-            let location = fetch_uniform_location(&server, self.id, name.deref());
-
-            locations.insert(name.clone(), location.clone());
-
-            location
-        }
-    }
-
-    fn bind(&self) -> TempBinding {
-        let server = self.state.upgrade().unwrap();
-        server.set_program(Some(self.id));
-        TempBinding { server }
-    }
 }
 
-struct TempBinding {
-    server: Rc<GlGraphicsServer>,
-}
-
-impl GpuProgramTrait for GlProgram {
-    fn uniform_location(&self, name: &ImmutableString) -> Result<UniformLocation, FrameworkError> {
-        self.uniform_location_internal(name)
-            .ok_or_else(|| FrameworkError::UnableToFindShaderUniform(name.deref().to_owned()))
-    }
-
-    fn uniform_block_index(&self, name: &ImmutableString) -> Result<usize, FrameworkError> {
-        unsafe {
-            self.bind()
-                .server
-                .gl
-                .get_uniform_block_index(self.id, name)
-                .map(|index| index as usize)
-                .ok_or_else(|| {
-                    FrameworkError::UnableToFindShaderUniformBlock(name.deref().to_owned())
-                })
-        }
-    }
-}
+impl GpuProgramTrait for GlProgram {}
 
 impl Drop for GlProgram {
     fn drop(&mut self) {
