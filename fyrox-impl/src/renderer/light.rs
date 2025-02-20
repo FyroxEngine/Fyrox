@@ -154,19 +154,19 @@ impl DeferredLightRenderer {
             )?,
             spot_light_shader: RenderPassContainer::from_str(
                 server,
-                include_str!("../shaders/deferred_spot_light.shader"),
+                include_str!("shaders/deferred_spot_light.shader"),
             )?,
             point_light_shader: RenderPassContainer::from_str(
                 server,
-                include_str!("../shaders/deferred_point_light.shader"),
+                include_str!("shaders/deferred_point_light.shader"),
             )?,
             directional_light_shader: RenderPassContainer::from_str(
                 server,
-                include_str!("../shaders/deferred_directional_light.shader"),
+                include_str!("shaders/deferred_directional_light.shader"),
             )?,
             ambient_light_shader: RenderPassContainer::from_str(
                 server,
-                include_str!("../shaders/ambient_light.shader"),
+                include_str!("shaders/ambient_light.shader"),
             )?,
             quad: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
@@ -212,7 +212,7 @@ impl DeferredLightRenderer {
             flat_shader: FlatShader::new(server)?,
             skybox_shader: RenderPassContainer::from_str(
                 server,
-                include_str!("../shaders/skybox.shader"),
+                include_str!("shaders/skybox.shader"),
             )?,
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(
                 server,

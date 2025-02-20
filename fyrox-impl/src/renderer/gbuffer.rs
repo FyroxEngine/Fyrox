@@ -151,7 +151,7 @@ impl GBuffer {
             height: height as i32,
             decal_shader: RenderPassContainer::from_str(
                 server,
-                include_str!("../shaders/decal.shader"),
+                include_str!("shaders/decal.shader"),
             )?,
             cube: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_cube(Matrix4::identity()),
