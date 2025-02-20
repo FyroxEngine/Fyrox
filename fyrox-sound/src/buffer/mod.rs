@@ -42,7 +42,6 @@ use fyrox_resource::{
 use std::{
     error::Error,
     fmt::Debug,
-    fs::File,
     io::{Cursor, Read, Seek, SeekFrom},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -197,14 +196,8 @@ impl MediaSource for DataSource {
 
     fn byte_len(&self) -> Option<u64> {
         match self {
-            DataSource::File { path, data: _ } => {
-                if let Ok(f) = File::open(path) {
-                    MediaSource::byte_len(&f)
-                } else {
-                    None
-                }
-            }
-            DataSource::Memory(cursor) => cursor.byte_len(),
+            DataSource::File { path: _, data } => data.byte_len(),
+            DataSource::Memory(cursor) => MediaSource::byte_len(cursor),
             DataSource::Raw { .. } | DataSource::RawStreaming(_) => None,
         }
     }

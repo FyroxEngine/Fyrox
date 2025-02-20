@@ -22,7 +22,9 @@
 //! things such as loading assets within archive files
 
 use fyrox_core::io::FileLoadError;
+use std::fs::File;
 use std::future::{ready, Future};
+use std::io::BufReader;
 use std::iter::empty;
 use std::pin::Pin;
 use std::{
@@ -32,9 +34,34 @@ use std::{
 };
 
 /// Trait for files readers ensuring they implement the required traits
-pub trait FileReader: Debug + Send + Sync + Read + Seek + 'static {}
+pub trait FileReader: Debug + Send + Sync + Read + Seek + 'static {
+    /// Returns the length in bytes, if available
+    fn byte_len(&self) -> Option<u64>;
+}
 
-impl<F> FileReader for F where F: Debug + Send + Sync + Read + Seek + 'static {}
+impl FileReader for File {
+    fn byte_len(&self) -> Option<u64> {
+        match self.metadata() {
+            Ok(metadata) => Some(metadata.len()),
+            _ => None,
+        }
+    }
+}
+
+impl<T> FileReader for Cursor<T>
+where
+    T: Debug + Send + Sync + std::convert::AsRef<[u8]> + 'static,
+{
+    fn byte_len(&self) -> Option<u64> {
+        let inner = self.get_ref();
+        Some(inner.as_ref().len().try_into().unwrap())
+    }
+}
+impl FileReader for BufReader<File> {
+    fn byte_len(&self) -> Option<u64> {
+        self.get_ref().byte_len()
+    }
+}
 
 /// Interface wrapping IO operations for doing this like loading files
 /// for resources
