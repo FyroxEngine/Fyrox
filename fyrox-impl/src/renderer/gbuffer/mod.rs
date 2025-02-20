@@ -39,23 +39,21 @@ use crate::{
     renderer::{
         bundle::{BundleRenderContext, RenderDataBundleStorage, SurfaceInstanceData},
         cache::{
-            shader::ShaderCache,
+            shader::{
+                binding, property, PropertyGroup, RenderMaterial, RenderPassContainer, ShaderCache,
+            },
             uniform::{UniformBufferCache, UniformMemoryAllocator},
         },
         debug_renderer::DebugRenderer,
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{
-                Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
-            },
-            gpu_texture::PixelKind,
+            framebuffer::{Attachment, AttachmentKind, GpuFrameBuffer},
+            geometry_buffer::GpuGeometryBuffer,
+            gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
-            uniform::StaticUniformBuffer,
-            BlendFactor, BlendFunc, BlendParameters, DrawParameters, ElementRange,
             GeometryBufferExt,
         },
-        gbuffer::decal::DecalShader,
         occlusion::OcclusionTester,
         FallbackResources, GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
@@ -67,11 +65,6 @@ use crate::{
     },
 };
 use fxhash::FxHashSet;
-use fyrox_graphics::framebuffer::GpuFrameBuffer;
-use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
-use fyrox_graphics::gpu_texture::GpuTexture;
-
-mod decal;
 
 pub struct GBuffer {
     framebuffer: GpuFrameBuffer,
@@ -79,7 +72,7 @@ pub struct GBuffer {
     pub width: i32,
     pub height: i32,
     cube: GpuGeometryBuffer,
-    decal_shader: DecalShader,
+    decal_shader: RenderPassContainer,
     render_pass_name: ImmutableString,
     occlusion_tester: OcclusionTester,
 }
@@ -156,7 +149,10 @@ impl GBuffer {
             framebuffer,
             width: width as i32,
             height: height as i32,
-            decal_shader: DecalShader::new(server)?,
+            decal_shader: RenderPassContainer::from_str(
+                server,
+                include_str!("../shaders/decal.shader"),
+            )?,
             cube: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_cube(Matrix4::identity()),
                 BufferUsage::StaticDraw,
@@ -292,9 +288,6 @@ impl GBuffer {
         // decals do not modify depth (only diffuse and normal maps).
         let unit_cube = &self.cube;
         for decal in graph.linear_iter().filter_map(|n| n.cast::<Decal>()) {
-            let shader = &self.decal_shader;
-            let program = &self.decal_shader.program;
-
             let world_view_proj = view_projection * decal.global_transform();
 
             let diffuse_texture = decal
@@ -309,49 +302,34 @@ impl GBuffer {
                 .unwrap_or(&fallback_resources.normal_dummy)
                 .clone();
 
-            statistics += self.decal_framebuffer.draw(
+            let inv_world_decal = decal.global_transform().try_inverse().unwrap_or_default();
+            let color = decal.color().srgb_to_linear_f32();
+            let layer_index = decal.layer() as u32;
+            let properties = PropertyGroup::from([
+                property("worldViewProjection", &world_view_proj),
+                property("invViewProj", &inv_view_proj),
+                property("invWorldDecal", &inv_world_decal),
+                property("resolution", &resolution),
+                property("color", &color),
+                property("layerIndex", &layer_index),
+            ]);
+            let material = RenderMaterial::from([
+                binding("sceneDepth", depth),
+                binding("diffuseTexture", &diffuse_texture),
+                binding("normalTexture", &normal_texture),
+                binding("decalMask", decal_mask),
+                binding("properties", &properties),
+            ]);
+
+            statistics += self.decal_shader.run_pass(
+                &ImmutableString::new("Primary"),
+                &self.decal_framebuffer,
                 unit_cube,
                 viewport,
-                program,
-                &DrawParameters {
-                    cull_face: None,
-                    color_write: Default::default(),
-                    depth_write: false,
-                    stencil_test: None,
-                    depth_test: None,
-                    blend: Some(BlendParameters {
-                        func: BlendFunc::new(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha),
-                        ..Default::default()
-                    }),
-                    stencil_op: Default::default(),
-                    scissor_box: None,
-                },
-                &[ResourceBindGroup {
-                    bindings: &[
-                        ResourceBinding::texture(depth, &shader.scene_depth),
-                        ResourceBinding::texture(&diffuse_texture, &shader.diffuse_texture),
-                        ResourceBinding::texture(&normal_texture, &shader.normal_texture),
-                        ResourceBinding::texture(decal_mask, &shader.decal_mask),
-                        ResourceBinding::Buffer {
-                            buffer: uniform_buffer_cache.write(
-                                StaticUniformBuffer::<256>::new()
-                                    .with(&world_view_proj)
-                                    .with(&inv_view_proj)
-                                    .with(
-                                        &decal.global_transform().try_inverse().unwrap_or_default(),
-                                    )
-                                    .with(&resolution)
-                                    .with(&decal.color().srgb_to_linear_f32())
-                                    .with(&(decal.layer() as u32)),
-                            )?,
-                            binding: BufferLocation::Auto {
-                                shader_location: shader.uniform_buffer_binding,
-                            },
-                            data_usage: Default::default(),
-                        },
-                    ],
-                }],
-                ElementRange::Full,
+                &material,
+                uniform_buffer_cache,
+                Default::default(),
+                None,
             )?;
         }
 

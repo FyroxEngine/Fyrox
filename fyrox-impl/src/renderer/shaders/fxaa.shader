@@ -1,5 +1,5 @@
 (
-    name: "Debug",
+    name: "FXAA",
     resources: [
         (
             name: "screenTexture",
