@@ -37,19 +37,17 @@ use crate::{
             shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
             uniform::UniformBufferCache,
         },
-        flat_shader::FlatShader,
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{BufferLocation, GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
+            framebuffer::GpuFrameBuffer,
             geometry_buffer::{
                 AttributeDefinition, AttributeKind, ElementsDescriptor, GeometryBufferDescriptor,
                 GpuGeometryBuffer, VertexBufferData, VertexBufferDescriptor,
             },
             server::GraphicsServer,
-            uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
-            ElementRange, ScissorBox, StencilAction, StencilFunc, StencilOp,
+            ElementRange, ScissorBox, StencilFunc,
         },
         FallbackResources, RenderPassStatistics, TextureCache,
     },
@@ -83,8 +81,6 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     pub texture_cache: &'a mut TextureCache,
     /// A reference to the cache of uniform buffers.
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
-    /// A reference to the shader that will be used to draw clipping geometry.
-    pub flat_shader: &'a FlatShader,
 }
 
 impl UiRenderer {
@@ -166,7 +162,6 @@ impl UiRenderer {
             fallback_resources,
             texture_cache,
             uniform_buffer_cache,
-            flat_shader,
         } = args;
 
         let mut statistics = RenderPassStatistics::default();
@@ -209,37 +204,18 @@ impl UiRenderer {
                 self.clipping_geometry_buffer
                     .set_triangles(&clipping_geometry.triangle_buffer);
 
-                let uniform_buffer =
-                    uniform_buffer_cache.write(StaticUniformBuffer::<256>::new().with(&ortho))?;
-
                 // Draw
-                statistics += frame_buffer.draw(
-                    &self.clipping_geometry_buffer,
+                let properties = PropertyGroup::from([property("worldViewProjection", &ortho)]);
+                let material = RenderMaterial::from([binding("properties", &properties)]);
+                statistics += self.render_passes.run_pass(
+                    &ImmutableString::new("Clip"),
+                    frame_buffer,
+                    &self.geometry_buffer,
                     viewport,
-                    &flat_shader.program,
-                    &DrawParameters {
-                        cull_face: None,
-                        color_write: ColorMask::all(false),
-                        depth_write: false,
-                        stencil_test: None,
-                        depth_test: None,
-                        blend: None,
-                        stencil_op: StencilOp {
-                            zpass: StencilAction::Incr,
-                            ..Default::default()
-                        },
-                        scissor_box,
-                    },
-                    &[ResourceBindGroup {
-                        bindings: &[ResourceBinding::Buffer {
-                            buffer: uniform_buffer,
-                            binding: BufferLocation::Auto {
-                                shader_location: flat_shader.uniform_buffer_binding,
-                            },
-                            data_usage: Default::default(),
-                        }],
-                    }],
-                    ElementRange::Full,
+                    &material,
+                    uniform_buffer_cache,
+                    Default::default(),
+                    None,
                 )?;
 
                 // Make sure main geometry will be drawn only on marked pixels.

@@ -33,16 +33,11 @@ use crate::{
             },
             uniform::{UniformBufferCache, UniformMemoryAllocator},
         },
-        flat_shader::FlatShader,
         framework::{
-            buffer::BufferUsage,
-            error::FrameworkError,
-            framebuffer::{BufferLocation, GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
-            geometry_buffer::GpuGeometryBuffer,
-            server::GraphicsServer,
-            uniform::StaticUniformBuffer,
-            ColorMask, CompareFunc, CullFace, DrawParameters, ElementRange, GeometryBufferExt,
-            StencilAction, StencilFunc, StencilOp,
+            buffer::BufferUsage, error::FrameworkError, framebuffer::GpuFrameBuffer,
+            geometry_buffer::GpuGeometryBuffer, server::GraphicsServer, ColorMask, CompareFunc,
+            CullFace, DrawParameters, ElementRange, GeometryBufferExt, StencilAction, StencilFunc,
+            StencilOp,
         },
         gbuffer::GBuffer,
         light_volume::LightVolumeRenderer,
@@ -78,12 +73,13 @@ pub struct DeferredLightRenderer {
     sphere: GpuGeometryBuffer,
     cone: GpuGeometryBuffer,
     skybox: GpuGeometryBuffer,
-    flat_shader: FlatShader,
     skybox_shader: RenderPassContainer,
     spot_shadow_map_renderer: SpotShadowMapRenderer,
     point_shadow_map_renderer: PointShadowMapRenderer,
     csm_renderer: CsmRenderer,
     light_volume: LightVolumeRenderer,
+    volume_marker: RenderPassContainer,
+    pixel_counter: RenderPassContainer,
 }
 
 pub(crate) struct DeferredRendererContext<'a> {
@@ -209,7 +205,6 @@ impl DeferredLightRenderer {
                 BufferUsage::StaticDraw,
                 server,
             )?,
-            flat_shader: FlatShader::new(server)?,
             skybox_shader: RenderPassContainer::from_str(
                 server,
                 include_str!("shaders/skybox.shader"),
@@ -229,6 +224,14 @@ impl DeferredLightRenderer {
                 server,
                 quality_defaults.csm_settings.size,
                 quality_defaults.csm_settings.precision,
+            )?,
+            volume_marker: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/volume_marker_lit.shader"),
+            )?,
+            pixel_counter: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/pixel_counter.shader"),
             )?,
         })
     }
@@ -505,44 +508,39 @@ impl DeferredLightRenderer {
             let mut light_view_projection = Matrix4::identity();
 
             // Mark lit areas in stencil buffer to do light calculations only on them.
-            let uniform_buffer = uniform_buffer_cache.write(
-                StaticUniformBuffer::<256>::new().with(&(view_projection * bounding_shape_matrix)),
-            )?;
-
+            let shape_wvp_matrix = view_projection * bounding_shape_matrix;
             for (cull_face, stencil_action) in [
                 (CullFace::Front, StencilAction::Incr),
                 (CullFace::Back, StencilAction::Decr),
             ] {
-                pass_stats += frame_buffer.draw(
+                let draw_params = DrawParameters {
+                    cull_face: Some(cull_face),
+                    color_write: ColorMask::all(false),
+                    depth_write: false,
+                    stencil_test: Some(StencilFunc {
+                        func: CompareFunc::Always,
+                        ..Default::default()
+                    }),
+                    stencil_op: StencilOp {
+                        zfail: stencil_action,
+                        ..Default::default()
+                    },
+                    depth_test: Some(CompareFunc::Less),
+                    blend: None,
+                    scissor_box: None,
+                };
+                let properties =
+                    PropertyGroup::from([property("worldViewProjection", &shape_wvp_matrix)]);
+                let material = RenderMaterial::from([binding("properties", &properties)]);
+                pass_stats += self.volume_marker.run_pass(
+                    &ImmutableString::new("Primary"),
+                    frame_buffer,
                     bounding_shape,
                     viewport,
-                    &self.flat_shader.program,
-                    &DrawParameters {
-                        cull_face: Some(cull_face),
-                        color_write: ColorMask::all(false),
-                        depth_write: false,
-                        stencil_test: Some(StencilFunc {
-                            func: CompareFunc::Always,
-                            ..Default::default()
-                        }),
-                        stencil_op: StencilOp {
-                            zfail: stencil_action,
-                            ..Default::default()
-                        },
-                        depth_test: Some(CompareFunc::Less),
-                        blend: None,
-                        scissor_box: None,
-                    },
-                    &[ResourceBindGroup {
-                        bindings: &[ResourceBinding::Buffer {
-                            buffer: uniform_buffer.clone(),
-                            binding: BufferLocation::Auto {
-                                shader_location: self.flat_shader.uniform_buffer_binding,
-                            },
-                            data_usage: Default::default(),
-                        }],
-                    }],
-                    ElementRange::Full,
+                    &material,
+                    uniform_buffer_cache,
+                    Default::default(),
+                    Some(&draw_params),
                 )?;
             }
 
@@ -557,37 +555,19 @@ impl DeferredLightRenderer {
                 if visibility_cache.needs_occlusion_query(camera_global_position, light.handle) {
                     // Draw full screen quad, that will be used to count pixels that passed the stencil test
                     // on the stencil buffer's content generated by two previous drawing commands.
-                    let uniform_buffer = uniform_buffer_cache
-                        .write(StaticUniformBuffer::<256>::new().with(&frame_matrix))?;
-
                     visibility_cache.begin_query(server, camera_global_position, light.handle)?;
-                    pass_stats += frame_buffer.draw(
+                    let properties =
+                        PropertyGroup::from([property("worldViewProjection", &frame_matrix)]);
+                    let material = RenderMaterial::from([binding("properties", &properties)]);
+                    pass_stats += self.pixel_counter.run_pass(
+                        &ImmutableString::new("Primary"),
+                        frame_buffer,
                         &self.quad,
                         viewport,
-                        &self.flat_shader.program,
-                        &DrawParameters {
-                            cull_face: None,
-                            color_write: ColorMask::all(false),
-                            depth_write: false,
-                            stencil_test: Some(StencilFunc {
-                                func: CompareFunc::NotEqual,
-                                ..Default::default()
-                            }),
-                            depth_test: None,
-                            blend: None,
-                            stencil_op: Default::default(),
-                            scissor_box: None,
-                        },
-                        &[ResourceBindGroup {
-                            bindings: &[ResourceBinding::Buffer {
-                                buffer: uniform_buffer,
-                                binding: BufferLocation::Auto {
-                                    shader_location: self.flat_shader.uniform_buffer_binding,
-                                },
-                                data_usage: Default::default(),
-                            }],
-                        }],
-                        ElementRange::Full,
+                        &material,
+                        uniform_buffer_cache,
+                        Default::default(),
+                        None,
                     )?;
                     visibility_cache.end_query();
                 }

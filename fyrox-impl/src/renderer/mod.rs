@@ -38,7 +38,6 @@ pub mod ui_renderer;
 pub mod visibility;
 
 mod bloom;
-mod flat_shader;
 mod forward_renderer;
 mod fxaa;
 mod gbuffer;
@@ -72,23 +71,24 @@ use crate::{
         bloom::BloomRenderer,
         bundle::{ObserverInfo, RenderDataBundleStorage, RenderDataBundleStorageOptions},
         cache::{
-            geometry::GeometryCache, shader::ShaderCache, texture::TextureCache,
-            uniform::UniformBufferCache, uniform::UniformMemoryAllocator,
+            geometry::GeometryCache,
+            shader::{
+                binding, property, PropertyGroup, RenderMaterial, RenderPassContainer, ShaderCache,
+            },
+            texture::TextureCache,
+            uniform::{UniformBufferCache, UniformMemoryAllocator},
         },
         debug_renderer::DebugRenderer,
-        flat_shader::FlatShader,
         forward_renderer::{ForwardRenderContext, ForwardRenderer},
         framework::{
-            buffer::{BufferKind, BufferUsage},
+            buffer::{BufferKind, BufferUsage, GpuBuffer},
             error::FrameworkError,
-            framebuffer::{
-                Attachment, AttachmentKind, BufferLocation, ResourceBindGroup, ResourceBinding,
-            },
+            framebuffer::{Attachment, AttachmentKind, DrawCallStatistics, GpuFrameBuffer},
+            geometry_buffer::GpuGeometryBuffer,
             gpu_program::SamplerFallback,
-            gpu_texture::{GpuTextureDescriptor, GpuTextureKind, PixelKind},
+            gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::{GraphicsServer, SharedGraphicsServer},
-            uniform::StaticUniformBuffer,
-            DrawParameters, ElementRange, GeometryBufferExt, PolygonFace, PolygonFillMode,
+            GeometryBufferExt, PolygonFace, PolygonFillMode,
         },
         fxaa::FxaaRenderer,
         gbuffer::{GBuffer, GBufferRenderContext},
@@ -101,10 +101,6 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::buffer::GpuBuffer;
-use fyrox_graphics::framebuffer::{DrawCallStatistics, GpuFrameBuffer};
-use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
-use fyrox_graphics::gpu_texture::GpuTexture;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 pub use stats::*;
@@ -660,7 +656,7 @@ pub struct Renderer {
     backbuffer: GpuFrameBuffer,
     scene_render_passes: Vec<Rc<RefCell<dyn SceneRenderPass>>>,
     deferred_light_renderer: DeferredLightRenderer,
-    flat_shader: FlatShader,
+    blit_shader: RenderPassContainer,
     /// A set of textures of certain kinds that could be used as a stub in cases when you don't have
     /// your own texture of this kind.
     pub fallback_resources: FallbackResources,
@@ -844,40 +840,25 @@ fn blit_pixels(
     uniform_buffer_cache: &mut UniformBufferCache,
     framebuffer: &GpuFrameBuffer,
     texture: &GpuTexture,
-    shader: &FlatShader,
+    blit_shader: &RenderPassContainer,
     viewport: Rect<i32>,
     quad: &GpuGeometryBuffer,
 ) -> Result<DrawCallStatistics, FrameworkError> {
-    let matrix = make_viewport_matrix(viewport);
-    let uniform_buffer =
-        uniform_buffer_cache.write(StaticUniformBuffer::<256>::new().with(&matrix))?;
-    framebuffer.draw(
+    let wvp = make_viewport_matrix(viewport);
+    let properties = PropertyGroup::from([property("worldViewProjection", &wvp)]);
+    let material = RenderMaterial::from([
+        binding("diffuseTexture", texture),
+        binding("properties", &properties),
+    ]);
+    blit_shader.run_pass(
+        &ImmutableString::new("Primary"),
+        framebuffer,
         quad,
         viewport,
-        &shader.program,
-        &DrawParameters {
-            cull_face: None,
-            color_write: Default::default(),
-            depth_write: true,
-            stencil_test: None,
-            depth_test: None,
-            blend: None,
-            stencil_op: Default::default(),
-            scissor_box: None,
-        },
-        &[ResourceBindGroup {
-            bindings: &[
-                ResourceBinding::texture(texture, &shader.diffuse_texture),
-                ResourceBinding::Buffer {
-                    buffer: uniform_buffer,
-                    binding: BufferLocation::Auto {
-                        shader_location: shader.uniform_buffer_binding,
-                    },
-                    data_usage: Default::default(),
-                },
-            ],
-        }],
-        ElementRange::Full,
+        &material,
+        uniform_buffer_cache,
+        Default::default(),
+        None,
     )
 }
 
@@ -1019,14 +1000,16 @@ impl Renderer {
             backbuffer: server.back_buffer(),
             frame_size,
             deferred_light_renderer: DeferredLightRenderer::new(&*server, frame_size, &settings)?,
-            flat_shader: FlatShader::new(&*server)?,
+            blit_shader: RenderPassContainer::from_str(
+                &*server,
+                include_str!("shaders/blit.shader"),
+            )?,
             fallback_resources,
             quad: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
                 &*server,
             )?,
-
             ui_renderer: UiRenderer::new(&*server)?,
             quality_settings: settings,
             debug_renderer: DebugRenderer::new(&*server)?,
@@ -1204,7 +1187,6 @@ impl Renderer {
             fallback_resources: &self.fallback_resources,
             texture_cache: &mut self.texture_cache,
             uniform_buffer_cache: &mut self.uniform_buffer_cache,
-            flat_shader: &self.flat_shader,
         })?;
 
         // Finally register texture in the cache so it will become available as texture in deferred/forward
@@ -1532,7 +1514,7 @@ impl Renderer {
                     &mut self.uniform_buffer_cache,
                     &scene_associated_data.ldr_scene_framebuffer,
                     temp_frame_texture,
-                    &self.flat_shader,
+                    &self.blit_shader,
                     viewport,
                     quad,
                 )?;
@@ -1583,7 +1565,7 @@ impl Renderer {
                 &mut self.uniform_buffer_cache,
                 &self.backbuffer,
                 scene_associated_data.ldr_scene_frame_texture(),
-                &self.flat_shader,
+                &self.blit_shader,
                 window_viewport,
                 &self.quad,
             )?;
@@ -1650,7 +1632,6 @@ impl Renderer {
                 fallback_resources: &self.fallback_resources,
                 texture_cache: &mut self.texture_cache,
                 uniform_buffer_cache: &mut self.uniform_buffer_cache,
-                flat_shader: &self.flat_shader,
             })?;
         }
 

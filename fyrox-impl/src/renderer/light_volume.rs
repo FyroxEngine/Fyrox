@@ -30,16 +30,9 @@ use crate::{
             shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
             uniform::UniformBufferCache,
         },
-        flat_shader::FlatShader,
         framework::{
-            buffer::BufferUsage,
-            error::FrameworkError,
-            framebuffer::{BufferLocation, GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
-            geometry_buffer::GpuGeometryBuffer,
-            server::GraphicsServer,
-            uniform::StaticUniformBuffer,
-            ColorMask, CompareFunc, DrawParameters, ElementRange, GeometryBufferExt, StencilAction,
-            StencilFunc, StencilOp,
+            buffer::BufferUsage, error::FrameworkError, framebuffer::GpuFrameBuffer,
+            geometry_buffer::GpuGeometryBuffer, server::GraphicsServer, GeometryBufferExt,
         },
         gbuffer::GBuffer,
         make_viewport_matrix, RenderPassStatistics,
@@ -50,9 +43,9 @@ use crate::{
 pub struct LightVolumeRenderer {
     spot_light_shader: RenderPassContainer,
     point_light_shader: RenderPassContainer,
-    flat_shader: FlatShader,
     cone: GpuGeometryBuffer,
     sphere: GpuGeometryBuffer,
+    volume_marker: RenderPassContainer,
 }
 
 impl LightVolumeRenderer {
@@ -66,7 +59,6 @@ impl LightVolumeRenderer {
                 server,
                 include_str!("shaders/point_volumetric.shader"),
             )?,
-            flat_shader: FlatShader::new(server)?,
             cone: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_cone(
                     16,
@@ -81,6 +73,10 @@ impl LightVolumeRenderer {
                 &SurfaceData::make_sphere(8, 8, 1.0, &Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,
+            )?,
+            volume_marker: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/volume_marker_vol.shader"),
             )?,
         })
     }
@@ -121,7 +117,6 @@ impl LightVolumeRenderer {
                 // Draw cone into stencil buffer - it will mark pixels for further volumetric light
                 // calculations, it will significantly reduce amount of pixels for far lights thus
                 // significantly improve performance.
-
                 let k = (full_cone_angle * 0.5 + 1.0f32.to_radians()).tan() * distance;
                 let light_shape_matrix = Isometry3 {
                     rotation: graph.global_rotation(light.handle),
@@ -136,40 +131,17 @@ impl LightVolumeRenderer {
                 // Clear stencil only.
                 frame_buffer.clear(viewport, None, None, Some(0));
 
-                stats += frame_buffer.draw(
+                let properties = PropertyGroup::from([property("worldViewProjection", &mvp)]);
+                let material = RenderMaterial::from([binding("properties", &properties)]);
+                stats += self.volume_marker.run_pass(
+                    &ImmutableString::new("Primary"),
+                    frame_buffer,
                     &self.cone,
                     viewport,
-                    &self.flat_shader.program,
-                    &DrawParameters {
-                        cull_face: None,
-                        color_write: ColorMask::all(false),
-                        depth_write: false,
-                        stencil_test: Some(StencilFunc {
-                            func: CompareFunc::Equal,
-                            ref_value: 0xFF,
-                            mask: 0xFFFF_FFFF,
-                        }),
-                        depth_test: Some(CompareFunc::Less),
-                        blend: None,
-                        stencil_op: StencilOp {
-                            fail: StencilAction::Replace,
-                            zfail: StencilAction::Keep,
-                            zpass: StencilAction::Replace,
-                            write_mask: 0xFFFF_FFFF,
-                        },
-                        scissor_box: None,
-                    },
-                    &[ResourceBindGroup {
-                        bindings: &[ResourceBinding::Buffer {
-                            buffer: uniform_buffer_cache
-                                .write(StaticUniformBuffer::<256>::new().with(&mvp))?,
-                            binding: BufferLocation::Auto {
-                                shader_location: self.flat_shader.uniform_buffer_binding,
-                            },
-                            data_usage: Default::default(),
-                        }],
-                    }],
-                    ElementRange::Full,
+                    &material,
+                    uniform_buffer_cache,
+                    Default::default(),
+                    None,
                 )?;
 
                 // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
@@ -214,42 +186,17 @@ impl LightVolumeRenderer {
                     * Matrix4::new_nonuniform_scaling(&Vector3::new(k, k, k));
                 let mvp = view_proj * light_shape_matrix;
 
-                let uniform_buffer =
-                    uniform_buffer_cache.write(StaticUniformBuffer::<256>::new().with(&mvp))?;
-
-                stats += frame_buffer.draw(
+                let properties = PropertyGroup::from([property("worldViewProjection", &mvp)]);
+                let material = RenderMaterial::from([binding("properties", &properties)]);
+                stats += self.volume_marker.run_pass(
+                    &ImmutableString::new("Primary"),
+                    frame_buffer,
                     &self.sphere,
                     viewport,
-                    &self.flat_shader.program,
-                    &DrawParameters {
-                        cull_face: None,
-                        color_write: ColorMask::all(false),
-                        depth_write: false,
-                        stencil_test: Some(StencilFunc {
-                            func: CompareFunc::Equal,
-                            ref_value: 0xFF,
-                            mask: 0xFFFF_FFFF,
-                        }),
-                        depth_test: Some(CompareFunc::Less),
-                        blend: None,
-                        stencil_op: StencilOp {
-                            fail: StencilAction::Replace,
-                            zfail: StencilAction::Keep,
-                            zpass: StencilAction::Replace,
-                            write_mask: 0xFFFF_FFFF,
-                        },
-                        scissor_box: None,
-                    },
-                    &[ResourceBindGroup {
-                        bindings: &[ResourceBinding::Buffer {
-                            buffer: uniform_buffer,
-                            binding: BufferLocation::Auto {
-                                shader_location: self.flat_shader.uniform_buffer_binding,
-                            },
-                            data_usage: Default::default(),
-                        }],
-                    }],
-                    ElementRange::Full,
+                    &material,
+                    uniform_buffer_cache,
+                    Default::default(),
+                    None,
                 )?;
 
                 // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were

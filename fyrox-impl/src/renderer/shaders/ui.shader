@@ -34,7 +34,7 @@
 
             vertex_shader:
                 r#"
-                    layout (location = 0) in vec3 vertexPosition;
+                    layout (location = 0) in vec2 vertexPosition;
                     layout (location = 1) in vec2 vertexTexCoord;
                     layout (location = 2) in vec4 vertexColor;
 
@@ -45,7 +45,7 @@
                     {
                         texCoord = vertexTexCoord;
                         color = vertexColor;
-                        gl_Position = properties.worldViewProjection * vec4(vertexPosition, 1.0);
+                        gl_Position = properties.worldViewProjection * vec4(vertexPosition, 0.0, 1.0);
                     }
                 "#,
 
@@ -115,6 +115,50 @@
                         fragColor.a *= properties.opacity;
 
                         fragColor *= color;
+                    }
+                "#,
+        ),
+        (
+            name: "Clip",
+
+            draw_parameters: DrawParameters(
+                cull_face: None,
+                color_write: ColorMask(
+                    red: false,
+                    green: false,
+                    blue: false,
+                    alpha: false,
+                ),
+                depth_write: false,
+                stencil_test: None,
+                depth_test: None,
+                blend: None,
+                stencil_op: StencilOp(
+                    fail: Keep,
+                    zfail: Keep,
+                    zpass: Incr,
+                    write_mask: 0xFFFF_FFFF,
+                ),
+                scissor_box: None
+            ),
+
+            vertex_shader:
+                r#"
+                    layout (location = 0) in vec2 vertexPosition;
+
+                    void main()
+                    {
+                        gl_Position = properties.worldViewProjection * vec4(vertexPosition, 0.0, 1.0);
+                    }
+                "#,
+
+            fragment_shader:
+                r#"
+                    out vec4 FragColor;
+
+                    void main()
+                    {
+                       FragColor = vec4(1.0);
                     }
                 "#,
         )
