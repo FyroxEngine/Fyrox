@@ -45,7 +45,6 @@ use crate::{
         },
         hdr::{
             adaptation::AdaptationChain,
-            downscale::DownscaleShader,
             luminance::{luminance_evaluator::LuminanceEvaluator, LuminanceShader},
         },
         make_viewport_matrix, RenderPassStatistics,
@@ -54,7 +53,6 @@ use crate::{
 };
 
 mod adaptation;
-mod downscale;
 mod luminance;
 
 #[allow(dead_code)] // TODO
@@ -107,7 +105,7 @@ pub struct HighDynamicRangeRenderer {
     frame_luminance: LumBuffer,
     adaptation_shader: RenderPassContainer,
     luminance_shader: LuminanceShader,
-    downscale_shader: DownscaleShader,
+    downscale_shader: RenderPassContainer,
     map_shader: RenderPassContainer,
     stub_lut: GpuTexture,
     lum_calculation_method: LuminanceCalculationMethod,
@@ -131,7 +129,10 @@ impl HighDynamicRangeRenderer {
                 include_str!("../shaders/hdr_adaptation.shader"),
             )?,
             luminance_shader: LuminanceShader::new(server)?,
-            downscale_shader: DownscaleShader::new(server)?,
+            downscale_shader: RenderPassContainer::from_str(
+                server,
+                include_str!("../shaders/hdr_downscale.shader"),
+            )?,
             map_shader: RenderPassContainer::from_str(
                 server,
                 include_str!("../shaders/hdr_map.shader"),
@@ -232,42 +233,31 @@ impl HighDynamicRangeRenderer {
                 )?;
             }
             LuminanceCalculationMethod::DownSampling => {
-                let shader = &self.downscale_shader;
                 let mut prev_luminance = self.frame_luminance.texture();
+
                 for lum_buffer in self.downscale_chain.iter() {
-                    let inv_size = 1.0 / lum_buffer.size as f32;
+                    let inv_size = Vector2::repeat(1.0 / lum_buffer.size as f32);
                     let matrix = lum_buffer.matrix();
-                    stats += lum_buffer.framebuffer.draw(
+
+                    let properties = PropertyGroup::from([
+                        property("worldViewProjection", &matrix),
+                        property("invSize", &inv_size),
+                    ]);
+                    let material = RenderMaterial::from([
+                        binding("lumSampler", prev_luminance),
+                        binding("properties", &properties),
+                    ]);
+
+                    stats += self.downscale_shader.run_pass(
+                        1,
+                        &ImmutableString::new("Primary"),
+                        &lum_buffer.framebuffer,
                         quad,
                         Rect::new(0, 0, lum_buffer.size as i32, lum_buffer.size as i32),
-                        &shader.program,
-                        &DrawParameters {
-                            cull_face: None,
-                            color_write: Default::default(),
-                            depth_write: false,
-                            stencil_test: None,
-                            depth_test: None,
-                            blend: None,
-                            stencil_op: Default::default(),
-                            scissor_box: None,
-                        },
-                        &[ResourceBindGroup {
-                            bindings: &[
-                                ResourceBinding::texture(prev_luminance, &shader.lum_sampler),
-                                ResourceBinding::Buffer {
-                                    buffer: uniform_buffer_cache.write(
-                                        StaticUniformBuffer::<256>::new()
-                                            .with(&matrix)
-                                            .with(&Vector2::new(inv_size, inv_size)),
-                                    )?,
-                                    binding: BufferLocation::Auto {
-                                        shader_location: shader.uniform_buffer_binding,
-                                    },
-                                    data_usage: Default::default(),
-                                },
-                            ],
-                        }],
-                        ElementRange::Full,
+                        &material,
+                        uniform_buffer_cache,
+                        Default::default(),
+                        None,
                     )?;
 
                     prev_luminance = lum_buffer.texture();
