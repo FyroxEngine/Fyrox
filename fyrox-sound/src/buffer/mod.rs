@@ -39,7 +39,7 @@ use fyrox_resource::{
     io::{FileReader, ResourceIo},
     Resource, ResourceData, SOUND_BUFFER_RESOURCE_UUID,
 };
-use std::error::Error;
+use std::{error::Error, fs::File};
 use std::{
     fmt::Debug,
     io::{Cursor, Read, Seek, SeekFrom},
@@ -188,11 +188,25 @@ impl Seek for DataSource {
 
 impl MediaSource for DataSource {
     fn is_seekable(&self) -> bool {
-        true
+        match self {
+            DataSource::File { .. } | DataSource::Memory(_) => true,
+            DataSource::Raw { .. } | DataSource::RawStreaming(_) => false,
+        }
     }
 
     fn byte_len(&self) -> Option<u64> {
-        None
+        match self {
+            DataSource::File { path, data: _ } => {
+                if let Ok(f) = File::open(path) {
+                    MediaSource::byte_len(&f)
+                } else {
+                    None
+                }
+            }
+            // TODO: can we use the length of the underlying vector here?
+            DataSource::Memory(_) => None,
+            DataSource::Raw { .. } | DataSource::RawStreaming(_) => None,
+        }
     }
 }
 
