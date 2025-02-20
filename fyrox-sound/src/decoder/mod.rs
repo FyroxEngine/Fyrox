@@ -73,12 +73,23 @@ impl Decoder {
 
         let codec_registry = default::get_codecs();
         let probe = default::get_probe();
+
+        let mut hint = Hint::new();
+
+        // If pulling audio from a file, give the probe the extension
+        if let DataSource::File { ref path, data: _ } = source {
+            if let Some(osstr) = path.extension() {
+                if let Some(ext) = osstr.to_str() {
+                    hint.with_extension(ext);
+                }
+            }
+        };
+
         let media_source_stream =
             MediaSourceStream::new(Box::new(source), MediaSourceStreamOptions::default());
 
-        // TODO: add better hint if, e.g., we know the file extension
         let res = probe.format(
-            &Hint::new(),
+            &hint,
             media_source_stream,
             &FormatOptions::default(),
             &MetadataOptions::default(),
