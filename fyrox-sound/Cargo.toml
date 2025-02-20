@@ -23,4 +23,4 @@ strum = "0.26.1"
 strum_macros = "0.26.1"
 tinyaudio = "1"
 serde = { version = "1", features = ["derive"] }
-symphonia = "0.5.4"
+symphonia = { version = "0.5.4", features = ["all-codecs"] }
