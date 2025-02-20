@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::shader::{binding, property, PropertyGroup, RenderMaterial};
 use crate::{
     core::{
         algebra::{Isometry3, Matrix4, Point3, Translation, Vector3},
@@ -27,18 +26,20 @@ use crate::{
     },
     renderer::{
         bundle::{LightSource, LightSourceKind},
-        cache::{shader::RenderPassContainer, uniform::UniformBufferCache},
+        cache::{
+            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            uniform::UniformBufferCache,
+        },
         flat_shader::FlatShader,
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{BufferLocation, GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
             geometry_buffer::GpuGeometryBuffer,
-            gpu_program::{GpuProgram, UniformLocation},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
-            BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
-            ElementRange, GeometryBufferExt, StencilAction, StencilFunc, StencilOp,
+            ColorMask, CompareFunc, DrawParameters, ElementRange, GeometryBufferExt, StencilAction,
+            StencilFunc, StencilOp,
         },
         gbuffer::GBuffer,
         make_viewport_matrix, RenderPassStatistics,
@@ -46,29 +47,8 @@ use crate::{
     scene::{graph::Graph, mesh::surface::SurfaceData},
 };
 
-struct SpotLightShader {
-    program: GpuProgram,
-    depth_sampler: UniformLocation,
-    uniform_block_binding: usize,
-}
-
-impl SpotLightShader {
-    fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("shaders/spot_volumetric_fs.glsl");
-        let vertex_source = include_str!("shaders/spot_volumetric_vs.glsl");
-        let program =
-            server.create_program("SpotVolumetricLight", vertex_source, fragment_source)?;
-        Ok(Self {
-            depth_sampler: program.uniform_location(&ImmutableString::new("depthSampler"))?,
-            uniform_block_binding: program
-                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
-            program,
-        })
-    }
-}
-
 pub struct LightVolumeRenderer {
-    spot_light_shader: SpotLightShader,
+    spot_light_shader: RenderPassContainer,
     point_light_shader: RenderPassContainer,
     flat_shader: FlatShader,
     cone: GpuGeometryBuffer,
@@ -78,7 +58,10 @@ pub struct LightVolumeRenderer {
 impl LightVolumeRenderer {
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
-            spot_light_shader: SpotLightShader::new(server)?,
+            spot_light_shader: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/spot_volumetric.shader"),
+            )?,
             point_light_shader: RenderPassContainer::from_str(
                 server,
                 include_str!("shaders/point_volumetric.shader"),
@@ -120,6 +103,7 @@ impl LightVolumeRenderer {
 
         let frame_matrix = make_viewport_matrix(viewport);
         let position = view.transform_point(&Point3::from(light.position)).coords;
+        let color = light.color.srgb_to_linear_f32().xyz();
 
         match light.kind {
             LightSourceKind::Spot {
@@ -191,56 +175,33 @@ impl LightVolumeRenderer {
                 // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
                 // marked in stencil buffer. For distant lights it will be very low amount of pixels and
                 // so distant lights won't impact performance.
-                let shader = &self.spot_light_shader;
-                stats += frame_buffer.draw(
+                let cone_angle_cos = (full_cone_angle * 0.5).cos();
+
+                let properties = PropertyGroup::from([
+                    property("worldViewProjection", &frame_matrix),
+                    property("invProj", &inv_proj),
+                    property("lightPosition", &position),
+                    property("lightDirection", &direction),
+                    property("lightColor", &color),
+                    property("scatterFactor", &light.scatter),
+                    property("intensity", &light.intensity),
+                    property("coneAngleCos", &cone_angle_cos),
+                ]);
+                let material = RenderMaterial::from([
+                    binding("depthSampler", gbuffer.depth()),
+                    binding("properties", &properties),
+                ]);
+
+                stats += self.spot_light_shader.run_pass(
+                    &ImmutableString::new("Primary"),
+                    frame_buffer,
                     quad,
                     viewport,
-                    &shader.program,
-                    &DrawParameters {
-                        cull_face: None,
-                        color_write: Default::default(),
-                        depth_write: false,
-                        stencil_test: Some(StencilFunc {
-                            func: CompareFunc::Equal,
-                            ref_value: 0xFF,
-                            mask: 0xFFFF_FFFF,
-                        }),
-                        depth_test: None,
-                        blend: Some(BlendParameters {
-                            func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
-                            ..Default::default()
-                        }),
-                        // Make sure to clean stencil buffer after drawing full screen quad.
-                        stencil_op: StencilOp {
-                            zpass: StencilAction::Zero,
-                            ..Default::default()
-                        },
-                        scissor_box: None,
-                    },
-                    &[ResourceBindGroup {
-                        bindings: &[
-                            ResourceBinding::texture(gbuffer.depth(), &shader.depth_sampler),
-                            ResourceBinding::Buffer {
-                                buffer: uniform_buffer_cache.write(
-                                    StaticUniformBuffer::<256>::new()
-                                        .with(&frame_matrix)
-                                        .with(&inv_proj)
-                                        .with(&position)
-                                        .with(&direction)
-                                        .with(&light.color.srgb_to_linear_f32().xyz())
-                                        .with(&light.scatter)
-                                        .with(&light.intensity)
-                                        .with(&((full_cone_angle * 0.5).cos())),
-                                )?,
-                                binding: BufferLocation::Auto {
-                                    shader_location: shader.uniform_block_binding,
-                                },
-                                data_usage: Default::default(),
-                            },
-                        ],
-                    }],
-                    ElementRange::Full,
-                )?
+                    &material,
+                    uniform_buffer_cache,
+                    Default::default(),
+                    None,
+                )?;
             }
             LightSourceKind::Point { radius, .. } => {
                 frame_buffer.clear(viewport, None, None, Some(0));
@@ -294,20 +255,11 @@ impl LightVolumeRenderer {
                 // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
                 // marked in stencil buffer. For distant lights it will be very low amount of pixels and
                 // so distant lights won't impact performance.
-                StaticUniformBuffer::<256>::new()
-                    .with(&frame_matrix)
-                    .with(&inv_proj)
-                    .with(&position)
-                    .with(&light.color.srgb_to_linear_f32().xyz())
-                    .with(&light.scatter)
-                    .with(&light.intensity)
-                    .with(&radius);
-
                 let properties = PropertyGroup::from([
                     property("worldViewProjection", &frame_matrix),
                     property("invProj", &inv_proj),
                     property("lightPosition", &position),
-                    property("lightColor", &light.color),
+                    property("lightColor", &color),
                     property("scatterFactor", &light.scatter),
                     property("intensity", &light.intensity),
                     property("lightRadius", &radius),
