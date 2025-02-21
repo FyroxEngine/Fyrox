@@ -19,7 +19,8 @@ members = [
     "project-manager",
     "fyrox-graphics",
     "fyrox-build-tools",
-    "fyrox-texture"]
+    "fyrox-texture",
+    "fyrox-autotile"]
 resolver = "2"
 
 [profile.dev]

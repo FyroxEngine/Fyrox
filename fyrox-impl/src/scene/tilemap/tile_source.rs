@@ -266,12 +266,14 @@ impl TileRegion {
 /// A trait for types that can produce a TileDefinitionHandle upon demand,
 /// for use with drawing on tilemaps.
 pub trait TileSource {
+    /// The brush where these tiles were originally taken from.
+    fn brush(&self) -> Option<&TileMapBrushResource>;
     /// The transformation that should be applied to the tiles before they are written.
     fn transformation(&self) -> OrthoTransformation;
     /// Produce a tile definition handle for the given position. If an area of multiple
     /// tiles is being filled, then the given position represents where the tile
     /// will go within the area.
-    fn get_at(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle>;
+    fn get_at(&self, position: Vector2<i32>) -> Option<StampElement>;
 }
 
 /// A trait for types that can produce a TileDefinitionHandle upon demand,
@@ -283,14 +285,17 @@ pub trait BoundedTileSource: TileSource {
 
 /// A tile source that always produces the same tile.
 #[derive(Clone, Debug)]
-pub struct SingleTileSource(pub OrthoTransformation, pub TileDefinitionHandle);
+pub struct SingleTileSource(pub OrthoTransformation, pub StampElement);
 
 impl TileSource for SingleTileSource {
+    fn brush(&self) -> Option<&TileMapBrushResource> {
+        None
+    }
     fn transformation(&self) -> OrthoTransformation {
         self.0
     }
-    fn get_at(&self, _position: Vector2<i32>) -> Option<TileDefinitionHandle> {
-        Some(self.1)
+    fn get_at(&self, _position: Vector2<i32>) -> Option<StampElement> {
+        Some(self.1.clone())
     }
 }
 
@@ -298,11 +303,14 @@ impl TileSource for SingleTileSource {
 pub struct RandomTileSource<'a>(pub &'a Stamp);
 
 impl TileSource for RandomTileSource<'_> {
+    fn brush(&self) -> Option<&TileMapBrushResource> {
+        self.0.brush()
+    }
     fn transformation(&self) -> OrthoTransformation {
         self.0.transformation()
     }
-    fn get_at(&self, _position: Vector2<i32>) -> Option<TileDefinitionHandle> {
-        self.0.values().choose(&mut thread_rng()).copied()
+    fn get_at(&self, _position: Vector2<i32>) -> Option<StampElement> {
+        self.0.values().choose(&mut thread_rng()).cloned()
     }
 }
 
@@ -310,10 +318,13 @@ impl TileSource for RandomTileSource<'_> {
 pub struct PartialRandomTileSource<'a>(pub &'a Stamp, pub OptionTileRect);
 
 impl TileSource for PartialRandomTileSource<'_> {
+    fn brush(&self) -> Option<&TileMapBrushResource> {
+        self.0.brush()
+    }
     fn transformation(&self) -> OrthoTransformation {
         self.0.transformation()
     }
-    fn get_at(&self, _position: Vector2<i32>) -> Option<TileDefinitionHandle> {
+    fn get_at(&self, _position: Vector2<i32>) -> Option<StampElement> {
         let pos = self.1.iter().choose(&mut thread_rng())?;
         self.0.get_at(pos)
     }
@@ -329,10 +340,13 @@ pub struct RepeatTileSource<'a, S> {
 }
 
 impl<S: TileSource> TileSource for RepeatTileSource<'_, S> {
+    fn brush(&self) -> Option<&TileMapBrushResource> {
+        self.source.brush()
+    }
     fn transformation(&self) -> OrthoTransformation {
         self.source.transformation()
     }
-    fn get_at(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
+    fn get_at(&self, position: Vector2<i32>) -> Option<StampElement> {
         let rect = (*self.region.bounds)?;
         let rect_pos = rect.position;
         let size = rect.size;
@@ -350,14 +364,42 @@ pub struct Tiles(TileGridMap<TileDefinitionHandle>);
 /// A set of tiles and a transformation, which represents the tiles that the user has selected
 /// to draw with.
 #[derive(Clone, Debug, Default, Visit)]
-pub struct Stamp(OrthoTransformation, OrthoTransformMap<TileDefinitionHandle>);
+pub struct Stamp {
+    transform: OrthoTransformation,
+    #[visit(skip)]
+    elements: OrthoTransformMap<StampElement>,
+    #[visit(skip)]
+    brush: Option<TileMapBrushResource>,
+}
+
+/// Each cell of a stamp must have a tile handle and it may optionally have
+/// the handle of a brush cell where the tile was taken from.
+#[derive(Clone, Debug)]
+pub struct StampElement {
+    /// The stamp cell's tile handle
+    pub handle: TileDefinitionHandle,
+    /// The brush cell that this stamp element came from.
+    pub brush_cell: Option<TileDefinitionHandle>,
+}
+
+impl From<TileDefinitionHandle> for StampElement {
+    fn from(handle: TileDefinitionHandle) -> Self {
+        Self {
+            handle,
+            brush_cell: None,
+        }
+    }
+}
 
 impl TileSource for Tiles {
+    fn brush(&self) -> Option<&TileMapBrushResource> {
+        None
+    }
     fn transformation(&self) -> OrthoTransformation {
         OrthoTransformation::default()
     }
-    fn get_at(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
-        self.get(&position).copied()
+    fn get_at(&self, position: Vector2<i32>) -> Option<StampElement> {
+        self.get(&position).copied().map(|h| h.into())
     }
 }
 
@@ -382,18 +424,21 @@ impl DerefMut for Tiles {
 }
 
 impl TileSource for Stamp {
-    fn transformation(&self) -> OrthoTransformation {
-        self.0
+    fn brush(&self) -> Option<&TileMapBrushResource> {
+        self.brush.as_ref()
     }
-    fn get_at(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
-        self.1.get(position).copied()
+    fn transformation(&self) -> OrthoTransformation {
+        self.transform
+    }
+    fn get_at(&self, position: Vector2<i32>) -> Option<StampElement> {
+        self.elements.get(position).cloned()
     }
 }
 
 impl Stamp {
     /// Iterate over the tile handles of the stamp.
     pub fn tile_iter(&self) -> impl Iterator<Item = TileDefinitionHandle> + '_ {
-        self.1.values().copied()
+        self.elements.values().map(|s| s.handle)
     }
     /// Create a repeating tile source from this stamp to repeat from `start` to `end.`
     pub fn repeat(&self, start: Vector2<i32>, end: Vector2<i32>) -> RepeatTileSource<Stamp> {
@@ -415,20 +460,22 @@ impl Stamp {
 
     /// True if this stamp contains no tiles.
     pub fn is_empty(&self) -> bool {
-        self.1.is_empty()
+        self.elements.is_empty()
     }
     /// Turn this stamp into an empty stamp.
     pub fn clear(&mut self) {
-        self.1.clear();
-        self.0 = OrthoTransformation::identity();
+        self.transform = OrthoTransformation::identity();
+        self.elements.clear();
     }
     /// Clear this stamp and fill it with the given tiles.
     /// The tiles are moved so that their center is (0,0).
     /// The transform is set to identity.
-    pub fn build<I: Iterator<Item = (Vector2<i32>, TileDefinitionHandle)> + Clone>(
+    pub fn build<I: Iterator<Item = (Vector2<i32>, StampElement)> + Clone>(
         &mut self,
+        brush: Option<TileMapBrushResource>,
         source: I,
     ) {
+        self.brush = brush;
         self.clear();
         let mut rect = OptionTileRect::default();
         for (p, _) in source.clone() {
@@ -438,42 +485,42 @@ impl Stamp {
             return;
         };
         let center = rect.center();
-        for (p, h) in source {
-            self.insert(p - center, h);
+        for (p, e) in source {
+            _ = self.insert(p - center, e);
         }
     }
     /// Rotate the stamp by the given number of 90-degree turns.
     pub fn rotate(&mut self, amount: i8) {
-        self.0 = self.0.rotated(amount);
-        self.1 = std::mem::take(&mut self.1).rotated(amount);
+        self.transform = self.transform.rotated(amount);
+        self.elements = std::mem::take(&mut self.elements).rotated(amount);
     }
     /// Flip along the x axis.
     pub fn x_flip(&mut self) {
-        self.0 = self.0.x_flipped();
-        self.1 = std::mem::take(&mut self.1).x_flipped();
+        self.transform = self.transform.x_flipped();
+        self.elements = std::mem::take(&mut self.elements).x_flipped();
     }
     /// Flip along the y axis.
     pub fn y_flip(&mut self) {
-        self.0 = self.0.y_flipped();
-        self.1 = std::mem::take(&mut self.1).y_flipped();
+        self.transform = self.transform.y_flipped();
+        self.elements = std::mem::take(&mut self.elements).y_flipped();
     }
     /// Rotate the stamp by the given number of 90-degree turns.
     pub fn transform(&mut self, amount: OrthoTransformation) {
-        self.0 = self.0.transformed(amount);
-        self.1 = std::mem::take(&mut self.1).transformed(amount);
+        self.transform = self.transform.transformed(amount);
+        self.elements = std::mem::take(&mut self.elements).transformed(amount);
     }
 }
 
 impl Deref for Stamp {
-    type Target = OrthoTransformMap<TileDefinitionHandle>;
+    type Target = OrthoTransformMap<StampElement>;
     fn deref(&self) -> &Self::Target {
-        &self.1
+        &self.elements
     }
 }
 
 impl DerefMut for Stamp {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.1
+        &mut self.elements
     }
 }
 

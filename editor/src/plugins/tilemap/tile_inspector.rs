@@ -32,7 +32,7 @@ use crate::{
     send_sync_message, MSG_SYNC_FLAG,
 };
 use fyrox::{
-    asset::{manager::ResourceManager, ResourceDataRef},
+    asset::ResourceDataRef,
     core::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
@@ -358,6 +358,16 @@ impl<'a> TileEditorState<'a> {
             .iter()
             .copied()
             .filter_map(move |p| TileDefinitionHandle::try_new(page?, p))
+    }
+    /// If exactly one brush cell is selected, return the position of that cell within the brush.
+    pub fn selected_brush_cell(&self) -> Option<TileDefinitionHandle> {
+        if self.is_brush() {
+            let mut iter = self.tile_handles();
+            let result = iter.next()?;
+            iter.next().is_none().then_some(result)
+        } else {
+            None
+        }
     }
     /// Iterate the selected positions in the form of `TileDefinitionHandle` using the current page for page coordinates.
     /// and skip any position that already contains a tile.
@@ -716,6 +726,8 @@ pub struct TileInspector {
     #[visit(skip)]
     #[reflect(hidden)]
     state: TileDrawStateRef,
+    /// Widget for editing macro cell data.
+    macro_inspector: MacroInspector,
     /// The tile set editor palette widget that allows the user to select a page.
     /// This is *not* a widget within the TileInspector, but the TileInspector needs to have
     /// the handle in order to determine where the user is selecting.
@@ -773,10 +785,11 @@ impl Debug for TileInspector {
 impl TileInspector {
     pub fn new(
         state: TileDrawStateRef,
+        macro_list: BrushMacroListRef,
+        cell_sets: MacroCellSetListRef,
         pages_palette: Handle<UiNode>,
         tiles_palette: Handle<UiNode>,
         tile_book: TileBook,
-        _resource_manager: ResourceManager,
         sender: MessageSender,
         ctx: &mut BuildContext,
     ) -> Self {
@@ -853,6 +866,13 @@ impl TileInspector {
         let page_icon_field = TileHandleFieldBuilder::new(WidgetBuilder::new())
             .with_label("Page Icon")
             .build(ctx);
+        let macro_inspector = MacroInspector::new(
+            macro_list,
+            cell_sets,
+            tile_book.brush_ref().cloned(),
+            None,
+            ctx,
+        );
         let tile_editor_state = TileEditorStateRef {
             page: None,
             state: state.clone(),
@@ -874,12 +894,14 @@ impl TileInspector {
                 .with_child(create_tile)
                 .with_children(tile_editors.iter().map(|e| e.lock().handle()))
                 .with_child(property_editors.handle)
-                .with_child(collider_editors.handle),
+                .with_child(collider_editors.handle)
+                .with_child(macro_inspector.handle()),
         )
         .build(ctx);
         Self {
             handle,
             state,
+            macro_inspector,
             pages_palette,
             tiles_palette,
             tile_book,
@@ -943,6 +965,15 @@ impl TileInspector {
         let tile_data_selected = state.tile_data().next().is_some();
         let mat_page_selected = state.material_page().is_some();
         let anim_page_selected = state.animation_page().is_some();
+        let brush_tile = state.selected_brush_cell();
+        drop(state);
+        self.macro_inspector.sync_to_cell(
+            tile_editor_state.tile_book.brush_ref().cloned(),
+            brush_tile,
+            ui,
+        );
+        let state = tile_editor_state.lock();
+        send_visibility(ui, self.macro_inspector.handle(), brush_tile.is_some());
         send_visibility(ui, self.tile_set_page_creator, tile_set_empty_pages);
         send_visibility(ui, self.brush_page_creator, brush_empty_pages);
         send_visibility(ui, self.create_tile, empty_tiles);
@@ -977,7 +1008,7 @@ impl TileInspector {
             .chain(self.property_editors.iter())
             .chain(self.collider_editors.iter());
         for editor_ref in iter {
-            let mut editor = editor_ref.lock();
+            let mut editor = editor_ref.try_lock().expect("Failed to lock editor_ref");
             editor.sync_to_state(&state, ui);
             let draw_button = editor.draw_button();
             drop(editor);
@@ -1038,20 +1069,25 @@ impl TileInspector {
             );
         }
     }
-    pub fn handle_ui_message(
-        &self,
-        message: &UiMessage,
-        ui: &mut UserInterface,
-        sender: &MessageSender,
-    ) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
         if message.flags == MSG_SYNC_FLAG || message.direction() == MessageDirection::ToWidget {
             return;
         }
         if !ui.is_node_child_of(message.destination(), self.handle()) {
             return;
         }
+        if let Some(brush) = self.tile_book.brush_ref() {
+            let tile_editor_state = self.tile_editor_state(ui);
+            let cell = tile_editor_state.lock().selected_brush_cell();
+            drop(tile_editor_state);
+            self.macro_inspector
+                .handle_ui_message(brush.clone(), cell, message, editor);
+        }
+        let ui = editor.engine.user_interfaces.first_mut();
         let tile_editor_state = self.tile_editor_state(ui);
         let mut tile_editor_state = tile_editor_state.lock();
+        let sender = &editor.message_sender;
         let iter = self
             .tile_editors
             .iter()

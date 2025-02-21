@@ -22,12 +22,16 @@
 
 #![allow(clippy::collapsible_match)] // STFU
 
+mod autotile;
+mod brush_macro;
 mod collider_editor;
 mod colliders_tab;
 mod commands;
 mod handle_editor;
 mod handle_field;
 mod interaction_mode;
+mod macro_inspector;
+mod macro_tab;
 mod misc;
 pub mod palette;
 pub mod panel;
@@ -39,16 +43,28 @@ mod tile_editor;
 mod tile_inspector;
 mod tile_prop_editor;
 pub mod tileset;
+mod wfc;
 
+use autotile::*;
+pub use brush_macro::*;
 use collider_editor::*;
 use colliders_tab::*;
+use fyrox::core::futures::executor::block_on;
+use fyrox::core::log::Log;
+use fyrox::fxhash::FxHashMap;
+use fyrox::gui::grid::{Column, GridBuilder, Row};
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::text::TextBuilder;
 use fyrox::gui::{message::KeyCode, texture::TextureResource};
-use fyrox::scene::tilemap::TileMapEffectRef;
+use fyrox::gui::{HorizontalAlignment, VerticalAlignment};
+use fyrox::scene::tilemap::brush::TileMapBrushResource;
+use fyrox::scene::tilemap::tileset::{TileSetPropertyLayer, ELEMENT_MATCH_HIGHLIGHT_COLOR};
+use fyrox::scene::tilemap::{StampElement, TileMapEffectRef};
 pub use handle_editor::*;
 use handle_field::*;
 use interaction_mode::*;
+use macro_inspector::*;
 use palette::PaletteWidget;
 use panel::TileMapPanel;
 use panel_preview::*;
@@ -57,6 +73,7 @@ use tile_bounds_editor::*;
 use tile_editor::*;
 use tile_inspector::*;
 use tile_prop_editor::*;
+use wfc::*;
 
 use crate::fyrox::{
     core::{
@@ -133,6 +150,57 @@ lazy_static! {
     static ref RANDOM_IMAGE: Option<TextureResource> = load_image!("../../../resources/die.png");
     static ref PALETTE_IMAGE: Option<TextureResource> =
         load_image!("../../../resources/palette.png");
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct MacroCellSetList {
+    content: Vec<FxHashSet<TileDefinitionHandle>>,
+    cells_by_page: FxHashMap<Vector2<i32>, FxHashSet<Vector2<i32>>>,
+}
+
+impl Deref for MacroCellSetList {
+    type Target = Vec<FxHashSet<TileDefinitionHandle>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.content
+    }
+}
+
+impl DerefMut for MacroCellSetList {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.content
+    }
+}
+
+impl MacroCellSetList {
+    pub fn clear(&mut self) {
+        self.content.clear();
+        self.cells_by_page.clear();
+    }
+    pub fn cell_has_any_macro(&self, handle: TileDefinitionHandle) -> bool {
+        self.content.iter().any(|s| s.contains(&handle))
+    }
+    pub fn cell_has_macro(&self, handle: TileDefinitionHandle, index: usize) -> bool {
+        self.content
+            .get(index)
+            .map(|s| s.contains(&handle))
+            .unwrap_or_default()
+    }
+    pub fn cells_on_page(&self, page: Vector2<i32>) -> Option<&FxHashSet<Vector2<i32>>> {
+        self.cells_by_page.get(&page)
+    }
+    pub fn finalize(&mut self) {
+        self.cells_by_page.clear();
+        for set in self.content.iter() {
+            for handle in set.iter() {
+                _ = self
+                    .cells_by_page
+                    .entry(handle.page())
+                    .or_default()
+                    .insert(handle.tile());
+            }
+        }
+    }
 }
 
 fn make_drawing_mode_button(
@@ -239,6 +307,8 @@ pub struct TileMapEditorPlugin {
     /// The state that is shared to allow this plugin to coordinate with the tile map
     /// interaction mode, the tile map control panel, and the tile set editor.
     state: TileDrawStateRef,
+    /// List if tools that can be added to a tile map brush to assist with tile map editing.
+    brush_macro_list: BrushMacroListRef,
     /// The tile set editor, if it is open.
     tile_set_editor: Option<TileSetEditor>,
     /// The tile map control panel, if it is open. The control panel allows the user
@@ -462,12 +532,17 @@ impl TileDrawState {
     /// and tile set. The given `tile_handle` function is used to determine the handles
     /// for each selection position.
     #[inline]
-    pub fn update_stamp<F>(&mut self, tile_set: Option<TileSetResource>, tile_handle: F)
-    where
-        F: Fn(Vector2<i32>) -> Option<TileDefinitionHandle>,
+    pub fn update_stamp<F>(
+        &mut self,
+        brush: Option<TileMapBrushResource>,
+        tile_set: Option<TileSetResource>,
+        tile_handle: F,
+    ) where
+        F: Fn(Vector2<i32>) -> Option<StampElement>,
     {
         self.tile_set = tile_set;
         self.stamp.build(
+            brush,
             self.selection
                 .positions
                 .iter()
@@ -587,7 +662,12 @@ impl TileMapEditorPlugin {
         let Some(tile_map) = self.get_tile_map_mut(editor) else {
             return;
         };
-        let mut interaction_mode = TileMapInteractionMode::new(handle, self.state.clone(), sender);
+        let mut interaction_mode = TileMapInteractionMode::new(
+            handle,
+            self.state.clone(),
+            self.brush_macro_list.clone(),
+            sender,
+        );
         interaction_mode.on_tile_map_selected(tile_map);
         // Prepare the tile map interaction mode.
         let Some(entry) = editor.scenes.current_scene_entry_mut() else {
@@ -608,6 +688,9 @@ impl EditorPlugin for TileMapEditorPlugin {
             .asset_browser
             .preview_generators
             .add(TileSet::type_uuid(), TileSetPreview);
+        let state = editor.engine.resource_manager.state();
+        state.constructors_container.add::<AutoTileInstance>();
+        state.constructors_container.add::<WfcInstance>();
     }
 
     fn on_exit(&mut self, _editor: &mut Editor) {
@@ -649,17 +732,11 @@ impl EditorPlugin for TileMapEditorPlugin {
             return;
         }
 
-        let ui = editor.engine.user_interfaces.first_mut();
-
         if let Some(tile_set_editor) = self.tile_set_editor.take() {
-            self.tile_set_editor = tile_set_editor.handle_ui_message(
-                message,
-                ui,
-                &editor.engine.resource_manager,
-                &editor.message_sender,
-                editor.engine.serialization_context.clone(),
-            );
+            self.tile_set_editor = tile_set_editor.handle_ui_message(message, editor);
         }
+
+        let ui = editor.engine.user_interfaces.first_mut();
 
         if let Some(OpenTilePanelMessage { resource, center }) = message.data() {
             self.open_panel_for_tile_set(resource.clone(), *center, ui, &editor.message_sender);
@@ -718,9 +795,19 @@ impl EditorPlugin for TileMapEditorPlugin {
         let ui = editor.engine.user_interfaces.first_mut();
 
         let tile_book: Option<TileBook> = if let Message::OpenTileSetEditor(tile_set) = message {
-            Some(TileBook::TileSet(tile_set.clone()))
+            Log::verify(block_on(tile_set.clone()));
+            tile_set
+                .is_ok()
+                .then(|| TileBook::TileSet(tile_set.clone()))
         } else if let Message::OpenTileMapBrushEditor(brush) = message {
-            Some(TileBook::Brush(brush.clone()))
+            let brush = brush.clone();
+            Log::verify(block_on(brush.clone()));
+            if brush.is_ok() {
+                let is_loaded = brush.data_ref().block_until_tile_set_is_loaded();
+                is_loaded.then_some(TileBook::Brush(brush))
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -730,6 +817,7 @@ impl EditorPlugin for TileMapEditorPlugin {
                 let mut tile_set_editor = TileSetEditor::new(
                     tile_book.clone(),
                     self.state.clone(),
+                    self.brush_macro_list.clone(),
                     editor.message_sender.clone(),
                     editor.engine.resource_manager.clone(),
                     &mut ui.build_ctx(),
@@ -796,4 +884,51 @@ impl EditorPlugin for TileMapEditorPlugin {
             }
         }
     }
+}
+
+/// Create one item for the dropdown list.
+pub fn make_named_value_list_option(
+    ctx: &mut BuildContext,
+    color: Color,
+    name: &str,
+) -> Handle<UiNode> {
+    let icon = BorderBuilder::new(
+        WidgetBuilder::new()
+            .on_column(0)
+            .with_background(Brush::Solid(color).into()),
+    )
+    .build(ctx);
+    let text = TextBuilder::new(WidgetBuilder::new().on_column(1))
+        .with_vertical_text_alignment(VerticalAlignment::Center)
+        .with_horizontal_text_alignment(HorizontalAlignment::Left)
+        .with_text(name)
+        .build(ctx);
+    let grid = GridBuilder::new(WidgetBuilder::new().with_child(icon).with_child(text))
+        .add_column(Column::strict(20.0))
+        .add_column(Column::stretch())
+        .add_row(Row::auto())
+        .build(ctx);
+    DecoratorBuilder::new(
+        BorderBuilder::new(WidgetBuilder::new().with_child(grid))
+            .with_corner_radius((4.0).into())
+            .with_pad_by_corner_radius(false),
+    )
+    .build(ctx)
+}
+
+/// Create the items for the dropdown list list that lets the user select a named value.
+pub fn make_named_value_list_items(
+    layer: &TileSetPropertyLayer,
+    ctx: &mut BuildContext,
+) -> Vec<Handle<UiNode>> {
+    let custom =
+        make_named_value_list_option(ctx, ELEMENT_MATCH_HIGHLIGHT_COLOR.to_opaque(), "Custom");
+    std::iter::once(custom)
+        .chain(
+            layer
+                .named_values
+                .iter()
+                .map(|v| make_named_value_list_option(ctx, v.color.to_opaque(), &v.name)),
+        )
+        .collect()
 }

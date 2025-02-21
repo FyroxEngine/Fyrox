@@ -22,13 +22,12 @@
 //! It serves to edit both tile sets and brushes, since they are conceptually similiar,
 //! with only minor modifications needed when switching between the two modes.
 
-use super::*;
+use super::{commands::*, *};
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
         asset::manager::ResourceManager,
         core::{algebra::Vector2, color::Color, log::Log, pool::Handle},
-        engine::SerializationContext,
         gui::{
             border::BorderBuilder,
             brush::Brush,
@@ -53,9 +52,9 @@ use crate::{
     message::MessageSender,
     plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
 };
-use commands::*;
+use fyrox::scene::tilemap::brush::TileMapBrushResource;
+use macro_tab::MacroTab;
 use palette::{PaletteWidgetBuilder, DEFAULT_MATERIAL_COLOR};
-use std::sync::Arc;
 
 const TAB_MARGIN: Thickness = Thickness {
     left: 10.0,
@@ -73,6 +72,7 @@ pub struct TileSetEditor {
     /// the tile map control panel that allows the user to switch
     /// tools and select stamps, and others.
     state: TileDrawStateRef,
+    macro_list: BrushMacroListRef,
     /// The resource to be edited. It can either be a tile set or a brush.
     tile_book: TileBook,
     /// The field that controls the tint of the background material on tile atlas pages.
@@ -109,6 +109,13 @@ pub struct TileSetEditor {
     properties_tab: PropertiesTab,
     /// The tab that allows users to add, remove, and edit collider layers.
     colliders_tab: CollidersTab,
+    /// The tab that allows users to add, remove, and edit brush macros.
+    macros_tab: MacroTab,
+    /// The set of cells associated with each macro instance in order.
+    /// The length of this Vec matches the length of the brush's [`TileMapBrush::macros`]
+    /// list, and each element of this Vec is the set of cells for the macro
+    /// at the same index in the brush's macro list.
+    brush_macro_cell_sets: MacroCellSetListRef,
 }
 
 fn make_tab(name: &str, content: Handle<UiNode>, ctx: &mut BuildContext) -> TabDefinition {
@@ -155,14 +162,48 @@ fn tile_set_to_title(tile_book: &TileBook) -> String {
     }
 }
 
+fn build_brush_macro_cell_sets(
+    macro_list: &BrushMacroList,
+    brush: TileMapBrushResource,
+    brush_macro_cell_sets: &mut MacroCellSetList,
+) {
+    let brush_guard = brush.data_ref();
+    let instances = &brush_guard.macros;
+    brush_macro_cell_sets.resize_with(instances.len(), FxHashSet::default);
+    for (instance, set) in instances.iter().zip(brush_macro_cell_sets.iter_mut()) {
+        set.clear();
+        let Some(m) = macro_list.get_by_uuid(&instance.macro_id) else {
+            continue;
+        };
+        m.fill_cell_set(
+            &BrushMacroInstance {
+                brush: brush.clone(),
+                settings: instance.settings.clone(),
+            },
+            set,
+        );
+    }
+    brush_macro_cell_sets.finalize();
+}
+
 impl TileSetEditor {
     pub fn new(
         tile_book: TileBook,
         state: TileDrawStateRef,
+        macro_list: BrushMacroListRef,
         sender: MessageSender,
         resource_manager: ResourceManager,
         ctx: &mut BuildContext,
     ) -> Self {
+        let mut brush_macro_cell_sets = MacroCellSetList::default();
+        if let Some(brush) = tile_book.brush_ref() {
+            build_brush_macro_cell_sets(
+                &macro_list.lock(),
+                brush.clone(),
+                &mut brush_macro_cell_sets,
+            );
+        }
+        let brush_macro_cell_sets = MacroCellSetListRef::new(brush_macro_cell_sets);
         let tile_set_field =
             ResourceFieldBuilder::<TileSet>::new(WidgetBuilder::new().on_column(1), sender.clone())
                 .with_resource(tile_book.get_tile_set())
@@ -259,14 +300,16 @@ impl TileSetEditor {
         .with_resource(tile_book.clone())
         .with_kind(TilePaletteStage::Tiles)
         .with_editable(true)
+        .with_macro_cells(brush_macro_cell_sets.clone())
         .build(ctx);
 
         let tile_inspector = TileInspector::new(
             state.clone(),
+            macro_list.clone(),
+            brush_macro_cell_sets.clone(),
             pages_palette,
             tiles_palette,
             tile_book.clone(),
-            resource_manager,
             sender,
             ctx,
         );
@@ -351,10 +394,12 @@ impl TileSetEditor {
 
         let properties_tab = PropertiesTab::new(tile_book.clone(), ctx);
         let colliders_tab = CollidersTab::new(tile_book.clone(), ctx);
+        let macros_tab = MacroTab::new(macro_list.clone(), tile_book.clone(), ctx);
         let tab_control = TabControlBuilder::new(WidgetBuilder::new())
             .with_tab(make_tab("Tiles", tile_tab, ctx))
             .with_tab(make_tab("Properties", properties_tab.handle(), ctx))
             .with_tab(make_tab("Collision", colliders_tab.handle(), ctx))
+            .with_tab(make_tab("Macros", macros_tab.handle(), ctx))
             .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(800.0).with_height(600.0))
@@ -376,7 +421,9 @@ impl TileSetEditor {
             window,
             properties_tab,
             colliders_tab,
+            macros_tab,
             state,
+            macro_list,
             tab_control,
             color_field,
             cell_position,
@@ -391,6 +438,7 @@ impl TileSetEditor {
             tile_inspector,
             tile_set_selector,
             tile_set_field,
+            brush_macro_cell_sets,
         };
 
         editor.sync_to_model(ctx.inner_mut());
@@ -401,6 +449,15 @@ impl TileSetEditor {
     pub fn set_tile_resource(&mut self, tile_book: TileBook, ui: &mut UserInterface) {
         self.try_save();
         self.tile_book = tile_book.clone();
+        if let Some(brush) = tile_book.brush_ref() {
+            build_brush_macro_cell_sets(
+                &self.macro_list.lock(),
+                brush.clone(),
+                &mut self.brush_macro_cell_sets.lock(),
+            );
+        } else {
+            self.brush_macro_cell_sets.lock().clear();
+        }
         self.tile_inspector.set_tile_resource(tile_book.clone(), ui);
         ui.send_message(WindowMessage::title(
             self.window,
@@ -418,7 +475,7 @@ impl TileSetEditor {
             ui.send_message(ResourceFieldMessage::value(
                 self.tile_set_field,
                 MessageDirection::ToWidget,
-                brush.data_ref().tile_set.clone(),
+                brush.data_ref().tile_set(),
             ));
         }
         self.send_tabs_visible(tile_book.is_tile_set(), ui);
@@ -440,15 +497,24 @@ impl TileSetEditor {
                 Some(Vector2::new(0, 0)),
             ));
         }
+        self.sync_to_model(ui);
     }
 
-    fn send_tabs_visible(&self, visibility: bool, ui: &mut UserInterface) {
+    fn send_tabs_visible(&self, is_tile_set: bool, ui: &mut UserInterface) {
         let tab_control = ui.node(self.tab_control).cast::<TabControl>().unwrap();
         let tabs = tab_control.headers_container;
+        let children = ui.node(tabs).children();
+        for &tab in &children[1..3] {
+            ui.send_message(WidgetMessage::visibility(
+                tab,
+                MessageDirection::ToWidget,
+                is_tile_set,
+            ));
+        }
         ui.send_message(WidgetMessage::visibility(
-            tabs,
+            children[3],
             MessageDirection::ToWidget,
-            visibility,
+            !is_tile_set,
         ));
     }
 
@@ -532,11 +598,19 @@ impl TileSetEditor {
             let tile_set = tile_set.as_loaded();
             self.properties_tab.sync_to_model(&tile_set, ui);
             self.colliders_tab.sync_to_model(&tile_set, ui);
+            self.brush_macro_cell_sets.lock().clear();
+        } else if let Some(brush) = self.tile_book.brush_ref() {
+            build_brush_macro_cell_sets(
+                &self.macro_list.lock(),
+                brush.clone(),
+                &mut self.brush_macro_cell_sets.lock(),
+            );
+            self.macros_tab.sync_to_model(brush.clone(), ui);
         }
         self.tile_inspector.sync_to_model(ui);
         if let TileBook::Brush(brush) = &self.tile_book {
             let brush = brush.data_ref();
-            let tile_set = brush.tile_set.clone();
+            let tile_set = brush.tile_set();
             ui.send_message(ResourceFieldMessage::value(
                 self.tile_set_field,
                 MessageDirection::ToWidget,
@@ -549,21 +623,20 @@ impl TileSetEditor {
         Log::verify(self.tile_book.save());
     }
 
-    pub fn handle_ui_message(
-        mut self,
-        message: &UiMessage,
-        ui: &mut UserInterface,
-        _resource_manager: &ResourceManager,
-        sender: &MessageSender,
-        _serialization_context: Arc<SerializationContext>,
-    ) -> Option<Self> {
-        self.tile_inspector.handle_ui_message(message, ui, sender);
+    pub fn handle_ui_message(mut self, message: &UiMessage, editor: &mut Editor) -> Option<Self> {
+        self.tile_inspector.handle_ui_message(message, editor);
         if let Some(r) = self.tile_book.tile_set_ref() {
+            let ui = editor.engine.user_interfaces.first_mut();
+            let sender = &editor.message_sender;
             self.properties_tab
                 .handle_ui_message(r.clone(), message, ui, sender);
             self.colliders_tab
                 .handle_ui_message(r.clone(), message, ui, sender);
+        } else if let Some(r) = self.tile_book.brush_ref() {
+            self.macros_tab.handle_ui_message(r, message, editor);
         }
+        let ui = editor.engine.user_interfaces.first_mut();
+        let sender = &editor.message_sender;
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
                 self.try_save();

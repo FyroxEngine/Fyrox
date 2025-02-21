@@ -43,6 +43,71 @@ use std::fmt::{Debug, Display, Formatter};
 use super::*;
 use tileset::*;
 
+/// Trait for objects that identify a tile set property of a particular type.
+pub trait TileSetPropertyId {
+    /// The type of the values of the property.
+    type Property: TryFrom<TileSetPropertyValue, Error = TilePropertyError> + Default;
+    /// The UUID of the property.
+    fn property_uuid(&self) -> &Uuid;
+    /// The value of the property at the given cell of the given tile map.
+    fn get_from_tile_map(
+        &self,
+        tile_map: &TileMap,
+        position: Vector2<i32>,
+    ) -> Result<Self::Property, TilePropertyError> {
+        tile_map.tile_property_value(position, *self.property_uuid())
+    }
+    /// The value of the property at the given handle in the given tile set.
+    fn get_from_tile_set(
+        &self,
+        tile_set: &TileSet,
+        handle: TileDefinitionHandle,
+    ) -> Result<Self::Property, TilePropertyError> {
+        tile_set.tile_property_value(handle, *self.property_uuid())
+    }
+}
+
+/// UUID for a property with values of type i32.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Visit, Reflect)]
+pub struct TileSetPropertyI32(pub Uuid);
+/// UUID for a property with values of type f32.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Visit, Reflect)]
+pub struct TileSetPropertyF32(pub Uuid);
+/// UUID for a property with values of type ImmutableString.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Visit, Reflect)]
+pub struct TileSetPropertyString(pub Uuid);
+/// UUID for a property with values of type [`NineI8`].
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Visit, Reflect)]
+pub struct TileSetPropertyNine(pub Uuid);
+
+impl TileSetPropertyId for TileSetPropertyI32 {
+    type Property = i32;
+    fn property_uuid(&self) -> &Uuid {
+        &self.0
+    }
+}
+
+impl TileSetPropertyId for TileSetPropertyF32 {
+    type Property = f32;
+    fn property_uuid(&self) -> &Uuid {
+        &self.0
+    }
+}
+
+impl TileSetPropertyId for TileSetPropertyString {
+    type Property = ImmutableString;
+    fn property_uuid(&self) -> &Uuid {
+        &self.0
+    }
+}
+
+impl TileSetPropertyId for TileSetPropertyNine {
+    type Property = NineI8;
+    fn property_uuid(&self) -> &Uuid {
+        &self.0
+    }
+}
+
 /// Since a tile map may require multiple colliders to represent the diverse ways that physics objects may interact with the tiles,
 /// tile set data must allow each tile to include multiple values for its collider information.
 /// These multiple collider values are associated with their collider objects by a UUID and a name.
@@ -109,6 +174,29 @@ impl Display for NamableValue {
 impl Default for NamableValue {
     fn default() -> Self {
         Self::I32(0)
+    }
+}
+
+impl From<NamableValue> for TileSetPropertyValueElement {
+    fn from(value: NamableValue) -> Self {
+        match value {
+            NamableValue::I8(v) => Self::I8(v),
+            NamableValue::I32(v) => Self::I32(v),
+            NamableValue::F32(v) => Self::F32(v),
+        }
+    }
+}
+
+impl TryFrom<TileSetPropertyValueElement> for NamableValue {
+    type Error = ();
+
+    fn try_from(value: TileSetPropertyValueElement) -> Result<Self, ()> {
+        match value {
+            TileSetPropertyValueElement::I32(v) => Ok(Self::I32(v)),
+            TileSetPropertyValueElement::F32(v) => Ok(Self::F32(v)),
+            TileSetPropertyValueElement::I8(v) => Ok(Self::I8(v)),
+            TileSetPropertyValueElement::String(_) => Err(()),
+        }
     }
 }
 
@@ -337,7 +425,7 @@ impl NineI8 {
 /// An element of data stored within a tile's property.
 /// For most value types, the element is the whole of the value,
 /// but a nine-slice value contains nine elements.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit, Reflect)]
 pub enum TileSetPropertyValueElement {
     /// Integer property data.
     I32(i32),
@@ -358,6 +446,18 @@ impl Default for TileSetPropertyValue {
 impl Default for TileSetPropertyValueElement {
     fn default() -> Self {
         Self::I32(0)
+    }
+}
+
+impl TileSetPropertyValueElement {
+    /// The type of the data in this element.
+    pub fn prop_type(&self) -> TileSetPropertyType {
+        match self {
+            TileSetPropertyValueElement::I32(_) => TileSetPropertyType::I32,
+            TileSetPropertyValueElement::F32(_) => TileSetPropertyType::F32,
+            TileSetPropertyValueElement::String(_) => TileSetPropertyType::String,
+            TileSetPropertyValueElement::I8(_) => TileSetPropertyType::NineSlice,
+        }
     }
 }
 
@@ -425,6 +525,15 @@ impl TileSetPropertyValue {
             TileSetPropertyValue::NineSlice(_) => {
                 TileSetPropertyValue::NineSlice(Default::default())
             }
+        }
+    }
+    /// The type of the data in this value.
+    pub fn prop_type(&self) -> TileSetPropertyType {
+        match self {
+            TileSetPropertyValue::I32(_) => TileSetPropertyType::I32,
+            TileSetPropertyValue::F32(_) => TileSetPropertyType::F32,
+            TileSetPropertyValue::String(_) => TileSetPropertyType::String,
+            TileSetPropertyValue::NineSlice(_) => TileSetPropertyType::NineSlice,
         }
     }
     /// Converts an x,y position into index in 0..9. Both x and y must be within 0..3.

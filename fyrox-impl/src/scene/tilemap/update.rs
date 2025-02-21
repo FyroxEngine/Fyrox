@@ -44,6 +44,7 @@ use fyrox_core::swap_hash_map_entry;
 use std::{
     borrow::Cow,
     collections::hash_map::Entry,
+    fmt::Debug,
     ops::{Deref, DerefMut},
 };
 
@@ -396,7 +397,11 @@ impl TileSetUpdate {
             let Some(handle) = TileDefinitionHandle::try_new(page, *pos) else {
                 continue;
             };
-            if let Some(def) = value.and_then(|(t, h)| tile_set.get_transformed_definition(t, h)) {
+            if let Some(def) = value
+                .as_ref()
+                .map(|v| v.pair())
+                .and_then(|(t, h)| tile_set.get_transformed_definition(t, h))
+            {
                 self.insert(handle, TileDataUpdate::FreeformTile(def));
             } else {
                 self.insert(handle, TileDataUpdate::Erase);
@@ -413,10 +418,10 @@ impl TileSetUpdate {
             let Some(target_handle) = TileDefinitionHandle::try_new(page, *pos) else {
                 continue;
             };
-            if let Some((trans, handle)) = value {
+            if let Some((trans, handle)) = value.as_ref().map(|v| v.pair()) {
                 let handle = tile_set
-                    .get_transformed_version(*trans, *handle)
-                    .unwrap_or(*handle);
+                    .get_transformed_version(trans, handle)
+                    .unwrap_or(handle);
                 self.insert(target_handle, TileDataUpdate::TransformSet(Some(handle)));
             } else {
                 self.insert(target_handle, TileDataUpdate::TransformSet(None));
@@ -577,13 +582,54 @@ impl TileSetUpdate {
     }
 }
 
-type RotTileHandle = (OrthoTransformation, TileDefinitionHandle);
+/// A stamp element plus the transformation of the [`Stamp`] where the element is taken from,
+/// allowing the stamp element itself to be later transformed before it is applied to a tile map,
+/// tile set, or brush.
+#[derive(Debug, Clone)]
+pub struct RotTileHandle {
+    /// The transformation of the element.
+    pub transform: OrthoTransformation,
+    /// The element of the stamp.
+    pub element: StampElement,
+}
+
+impl RotTileHandle {
+    /// The transformation and the tile handle.
+    pub fn pair(&self) -> (OrthoTransformation, TileDefinitionHandle) {
+        (self.transform, self.element.handle)
+    }
+}
 
 /// This is a step in the process of performing an edit to a tile map, brush, or tile set.
 /// It provides handles for the tiles to be written and the transformation to apply to those
 /// tiles. A None indicates that the tile is to be erased.
 #[derive(Clone, Debug, Default)]
 pub struct TransTilesUpdate(TileGridMap<Option<RotTileHandle>>);
+
+/// This is a step in the process of performing an edit to a tile map when macros are involved.
+/// It contains the tiles to be written and the positions within the brush that the tiles were
+/// taken from. It is constructed from a [`TransTilesUpdate`] by applying the transformation
+/// to the tiles. A None indicates that the tile is to be erased.
+#[derive(Clone, Default)]
+pub struct MacroTilesUpdate(TileGridMap<Option<StampElement>>);
+
+impl Debug for MacroTilesUpdate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("MacroTilesUpdate")?;
+        for (p, v) in self.0.iter() {
+            write!(f, " ({:2},{:2})->", p.x, p.y)?;
+            if let Some(StampElement { handle, brush_cell }) = v {
+                write!(f, "{handle}")?;
+                if let Some(cell) = brush_cell {
+                    write!(f, "[{cell}]")?;
+                }
+            } else {
+                f.write_str("Delete")?;
+            }
+        }
+        Ok(())
+    }
+}
 
 /// A set of changes to a set of tiles. A value of None indicates that a tile
 /// is being removed from the set. A None indicates that the tile is to be erased.
@@ -604,6 +650,20 @@ impl DerefMut for TilesUpdate {
     }
 }
 
+impl Deref for MacroTilesUpdate {
+    type Target = TileGridMap<Option<StampElement>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for MacroTilesUpdate {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl Deref for TransTilesUpdate {
     type Target = TileGridMap<Option<RotTileHandle>>;
 
@@ -618,22 +678,72 @@ impl DerefMut for TransTilesUpdate {
     }
 }
 
+impl MacroTilesUpdate {
+    /// Construct a TilesUpdate by stripping out the brush cell information.
+    pub fn build_tiles_update(&self) -> TilesUpdate {
+        let mut result = TilesUpdate::default();
+        for (pos, value) in self.iter() {
+            let handle = value.as_ref().map(|e| e.handle);
+            result.insert(*pos, handle);
+        }
+        result
+    }
+    /// Replace the values of a TransTilesUpdate using the identity transformation. This allows an update to be
+    /// converted back to a `TransTilesUpdates` after macro processing.
+    pub fn fill_trans_tiles_update(&self, tiles_update: &mut TransTilesUpdate) {
+        tiles_update.clear();
+        for (pos, tile) in self.iter() {
+            let value = tile.as_ref().cloned().map(|element| RotTileHandle {
+                transform: OrthoTransformation::identity(),
+                element,
+            });
+            tiles_update.insert(*pos, value);
+        }
+    }
+}
+
 impl TransTilesUpdate {
     /// Construct a TilesUpdate by finding the transformed version of each tile
     /// in the given tile set.
     pub fn build_tiles_update(&self, tile_set: &OptionTileSet) -> TilesUpdate {
         let mut result = TilesUpdate::default();
         for (pos, value) in self.iter() {
-            if let Some((trans, handle)) = value {
+            if let Some((trans, handle)) = value.as_ref().map(|v| v.pair()) {
                 let handle = tile_set
-                    .get_transformed_version(*trans, *handle)
-                    .unwrap_or(*handle);
+                    .get_transformed_version(trans, handle)
+                    .unwrap_or(handle);
                 result.insert(*pos, Some(handle));
             } else {
                 result.insert(*pos, None);
             }
         }
         result
+    }
+    /// Construct a TilesUpdate by finding the transformed version of each tile
+    /// in the given tile set.
+    pub fn fill_macro_tiles_update(
+        &self,
+        tile_set: &OptionTileSet,
+        macro_update: &mut MacroTilesUpdate,
+    ) {
+        macro_update.clear();
+        for (pos, value) in self.iter() {
+            if let Some(RotTileHandle { transform, element }) = value.as_ref() {
+                let handle = element.handle;
+                let handle = tile_set
+                    .get_transformed_version(*transform, handle)
+                    .unwrap_or(handle);
+                macro_update.insert(
+                    *pos,
+                    Some(StampElement {
+                        handle,
+                        brush_cell: element.brush_cell,
+                    }),
+                );
+            } else {
+                macro_update.insert(*pos, None);
+            }
+        }
     }
     /// Fills the given tiles at the given point using tiles from the given source. This method
     /// extends tile map when trying to fill at a point that lies outside the bounding rectangle.
@@ -649,12 +759,15 @@ impl TransTilesUpdate {
         let mut bounds = tiles.bounding_rect();
         bounds.push(start_point);
 
-        let allowed_definition = tiles.get_at(start_point);
+        let allowed_definition = tiles.get_at(start_point).map(|t| t.handle);
         let mut stack = vec![start_point];
         while let Some(position) = stack.pop() {
-            let definition = tiles.get_at(position);
+            let definition = tiles.get_at(position).map(|t| t.handle);
             if definition == allowed_definition && !self.contains_key(&position) {
-                let value = brush.get_at(position).map(|h| (brush.transformation(), h));
+                let value = brush.get_at(position).map(|element| RotTileHandle {
+                    transform: brush.transformation(),
+                    element,
+                });
                 self.insert(position, value);
 
                 // Continue on neighbours.
@@ -674,9 +787,13 @@ impl TransTilesUpdate {
     /// Draws the given tiles on the tile map
     #[inline]
     pub fn draw_tiles(&mut self, origin: Vector2<i32>, brush: &Stamp) {
-        let trans = brush.transformation();
-        for (local_position, handle) in brush.iter() {
-            self.insert(origin + local_position, Some((trans, *handle)));
+        let transform = brush.transformation();
+        for (local_position, element) in brush.iter() {
+            let element = element.clone();
+            self.insert(
+                origin + local_position,
+                Some(RotTileHandle { transform, element }),
+            );
         }
     }
     /// Erases the tiles under the given brush.
@@ -703,19 +820,19 @@ impl TransTilesUpdate {
     }
     /// Fills the given rectangle using the given tiles.
     fn rect_fill_inner<S: TileSource>(&mut self, region: TileRegion, brush: &S) {
-        let trans = brush.transformation();
+        let transform = brush.transformation();
         for (target, source) in region.iter() {
-            if let Some(definition_handle) = brush.get_at(source) {
-                self.insert(target, Some((trans, definition_handle)));
+            if let Some(element) = brush.get_at(source) {
+                self.insert(target, Some(RotTileHandle { transform, element }));
             }
         }
     }
     /// Draw a line from a point to point.
     pub fn draw_line<S: TileSource>(&mut self, from: Vector2<i32>, to: Vector2<i32>, brush: &S) {
-        let trans = brush.transformation();
+        let transform = brush.transformation();
         for position in BresenhamLineIter::new(from, to) {
-            if let Some(random_tile) = brush.get_at(position - from) {
-                self.insert(position, Some((trans, random_tile)));
+            if let Some(element) = brush.get_at(position - from) {
+                self.insert(position, Some(RotTileHandle { transform, element }));
             }
         }
     }
@@ -783,15 +900,18 @@ impl TransTilesUpdate {
         let inner_stamp_region = stamp_region.clone().deflate(1, 1);
 
         // Place corners first.
-        let trans = stamp.transformation();
+        let transform = stamp.transformation();
         for (corner_position, actual_corner_position) in [
             (stamp_rect.left_top_corner(), rect.left_top_corner()),
             (stamp_rect.right_top_corner(), rect.right_top_corner()),
             (stamp_rect.right_bottom_corner(), rect.right_bottom_corner()),
             (stamp_rect.left_bottom_corner(), rect.left_bottom_corner()),
         ] {
-            if let Some(tile) = stamp.get(corner_position) {
-                self.insert(actual_corner_position, Some((trans, *tile)));
+            if let Some(element) = stamp.get(corner_position).cloned() {
+                self.insert(
+                    actual_corner_position,
+                    Some(RotTileHandle { transform, element }),
+                );
             }
         }
 

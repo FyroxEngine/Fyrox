@@ -512,7 +512,7 @@ impl TileMapPanel {
             return;
         };
         let brush = brush.data_ref();
-        let Some(tile_set) = brush.tile_set.clone() else {
+        let Some(tile_set) = brush.tile_set() else {
             return;
         };
         self.tile_book = TileBook::TileSet(tile_set);
