@@ -62,7 +62,7 @@ pub struct NamedValuesContainer<T, const N: usize> {
 
 fn search<'a, T>(slice: &'a [NamedValue<T>], name: &ImmutableString) -> Option<&'a NamedValue<T>> {
     slice
-        .binary_search_by(|prop| prop.name.id().cmp(&name.id()))
+        .binary_search_by(|prop| prop.name.cached_hash().cmp(&name.cached_hash()))
         .ok()
         .and_then(|idx| slice.get(idx))
 }
@@ -81,7 +81,7 @@ impl<T, const N: usize> NamedValuesContainer<T, N> {
 
 impl<T, const N: usize> From<[NamedValue<T>; N]> for NamedValuesContainer<T, N> {
     fn from(mut value: [NamedValue<T>; N]) -> Self {
-        value.sort_unstable_by_key(|prop| prop.name.id());
+        value.sort_unstable_by_key(|prop| prop.name.cached_hash());
         Self { properties: value }
     }
 }

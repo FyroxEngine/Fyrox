@@ -159,7 +159,7 @@ impl ImmutableString {
     /// Returns unique identifier of the string. Keep in mind that uniqueness is guaranteed only
     /// for a single session, uniqueness is not preserved between application runs.
     #[inline]
-    pub fn id(&self) -> u64 {
+    pub fn cached_hash(&self) -> u64 {
         self.0.hash
     }
 
@@ -205,14 +205,14 @@ impl Deref for ImmutableString {
 impl Hash for ImmutableString {
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(self.id())
+        state.write_u64(self.cached_hash())
     }
 }
 
 impl PartialEq for ImmutableString {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.id() == other.id()
+        self.cached_hash() == other.cached_hash()
     }
 }
 
@@ -281,7 +281,7 @@ mod test {
         let a = ImmutableString::new("Foobar");
         let b = ImmutableString::new("rabooF");
 
-        assert_ne!(a.id(), b.id())
+        assert_ne!(a.cached_hash(), b.cached_hash())
     }
 
     #[test]
@@ -293,7 +293,7 @@ mod test {
         // to know what this value should be. It depends on the order the test
         // are run.
         // assert_eq!(ImmutableStringStorage::entry_count(), 2);
-        assert_eq!(a.id(), b.id())
+        assert_eq!(a.cached_hash(), b.cached_hash())
     }
 
     #[test]
@@ -301,7 +301,7 @@ mod test {
         let a = ImmutableString::new("Foobar");
         let b = ImmutableString::from("Foobar".to_owned());
 
-        assert_eq!(a.id(), b.id())
+        assert_eq!(a.cached_hash(), b.cached_hash())
     }
 
     #[test]
