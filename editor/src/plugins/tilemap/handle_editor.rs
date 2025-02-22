@@ -55,15 +55,22 @@ use crate::{send_sync_message, MSG_SYNC_FLAG};
 
 use super::*;
 
+/// A message for events related to [`TileDefinitionHandleEdito`].
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TileDefinitionHandleEditorMessage {
+    /// The value of the handle has changed.
     Value(Option<TileDefinitionHandle>),
+    /// The user has clicked the go-to button beside the handle.
     Goto(TileDefinitionHandle),
 }
 
 impl TileDefinitionHandleEditorMessage {
-    define_constructor!(TileDefinitionHandleEditorMessage:Value => fn value(Option<TileDefinitionHandle>), layout: false);
-    define_constructor!(TileDefinitionHandleEditorMessage:Goto => fn goto(TileDefinitionHandle), layout: false);
+    define_constructor!(
+        /// The value of the handle has changed.
+        TileDefinitionHandleEditorMessage:Value => fn value(Option<TileDefinitionHandle>), layout: false);
+    define_constructor!(
+        /// The user has clicked the go-to button beside the handle.
+        TileDefinitionHandleEditorMessage:Goto => fn goto(TileDefinitionHandle), layout: false);
 }
 
 /// The widget for editing a [`TileDefinitionHandle`].
@@ -155,6 +162,7 @@ impl Control for TileDefinitionHandleEditor {
     }
 }
 
+/// A builder for creating instances of [`TileDefinitionHandleEditor`].
 pub struct TileDefinitionHandleEditorBuilder {
     widget_builder: WidgetBuilder,
     value: Option<TileDefinitionHandle>,
@@ -162,6 +170,7 @@ pub struct TileDefinitionHandleEditorBuilder {
 }
 
 impl TileDefinitionHandleEditorBuilder {
+    /// Begin building a new [`TileDefinitionHandleEditor`] with a widget from the given builder.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -169,14 +178,17 @@ impl TileDefinitionHandleEditorBuilder {
             allow_none: true,
         }
     }
+    /// Control whether None is an acceptable value for the handle. This defaults to `true`.
     pub fn with_allow_none(mut self, allow_none: bool) -> Self {
         self.allow_none = allow_none;
         self
     }
+    /// Set the initial value of the handle.
     pub fn with_value(mut self, value: Option<TileDefinitionHandle>) -> Self {
         self.value = value;
         self
     }
+    /// Build the widgets for the [`TileDefinitionHandleEditor`].
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let text = value_to_string(self.value);
         let field = TextBoxBuilder::new(WidgetBuilder::new())
@@ -211,6 +223,7 @@ impl TileDefinitionHandleEditorBuilder {
     }
 }
 
+/// [`PropertyEditorDefinition`] for [`TileDefinitionHandleEditor`].
 #[derive(Debug)]
 pub struct TileDefinitionHandlePropertyEditorDefinition;
 
@@ -263,6 +276,7 @@ impl PropertyEditorDefinition for TileDefinitionHandlePropertyEditorDefinition {
     }
 }
 
+/// [`PropertyEditorDefinition`] for optional [`TileDefinitionHandleEditor`].
 #[derive(Debug)]
 pub struct OptionTileDefinitionHandlePropertyEditorDefinition;
 

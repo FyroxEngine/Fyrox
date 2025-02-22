@@ -21,6 +21,7 @@
 //! The editor plugin for editing tile maps, tile sets, and tile map brushes.
 
 #![allow(clippy::collapsible_match)] // STFU
+#![warn(missing_docs)]
 
 mod autotile;
 mod brush_macro;
@@ -152,9 +153,16 @@ lazy_static! {
         load_image!("../../../resources/palette.png");
 }
 
+/// A structure to keep track of which cells of a tile map brush are involved in macros.
+/// Each macro is expected to keep track of which cells it is using, but this information
+/// is also duplicated here for easier access.
 #[derive(Default, Debug, Clone)]
 pub struct MacroCellSetList {
+    /// This list has one entry for each macro instance in the current brush.
+    /// Each entry is the set of cells in the brush that are used by the instance.
     content: Vec<FxHashSet<TileDefinitionHandle>>,
+    /// A map from brush pages to sets of cells within the page that are used by
+    /// some macro.
     cells_by_page: FxHashMap<Vector2<i32>, FxHashSet<Vector2<i32>>>,
 }
 
@@ -173,22 +181,27 @@ impl DerefMut for MacroCellSetList {
 }
 
 impl MacroCellSetList {
+    /// Remove all cells from the list.
     pub fn clear(&mut self) {
         self.content.clear();
         self.cells_by_page.clear();
     }
+    /// True if the given cell is being used by a macro.
     pub fn cell_has_any_macro(&self, handle: TileDefinitionHandle) -> bool {
         self.content.iter().any(|s| s.contains(&handle))
     }
+    /// True if the given cell is being used by the macro at the given index.
     pub fn cell_has_macro(&self, handle: TileDefinitionHandle, index: usize) -> bool {
         self.content
             .get(index)
             .map(|s| s.contains(&handle))
             .unwrap_or_default()
     }
+    /// The set of cells that are being used by any macro on the given page.
     pub fn cells_on_page(&self, page: Vector2<i32>) -> Option<&FxHashSet<Vector2<i32>>> {
         self.cells_by_page.get(&page)
     }
+    /// Perform some final calculations after all cells have been added to the list.
     pub fn finalize(&mut self) {
         self.cells_by_page.clear();
         for set in self.content.iter() {
@@ -747,25 +760,7 @@ impl EditorPlugin for TileMapEditorPlugin {
         }
 
         if let Some(panel) = self.panel.take() {
-            let editor_scene_entry = editor.scenes.current_scene_entry_mut();
-
-            let tile_map = editor_scene_entry
-                .as_ref()
-                .and_then(|entry| entry.controller.downcast_ref::<GameScene>())
-                .and_then(|scene| {
-                    editor.engine.scenes[scene.scene]
-                        .graph
-                        .try_get_of_type::<TileMap>(self.tile_map)
-                });
-
-            self.panel = panel.handle_ui_message(
-                message,
-                ui,
-                self.tile_map,
-                tile_map,
-                &editor.message_sender,
-                editor_scene_entry,
-            );
+            self.panel = panel.handle_ui_message(message, ui);
         }
     }
 

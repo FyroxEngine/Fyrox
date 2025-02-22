@@ -65,7 +65,9 @@ const TAB_MARGIN: Thickness = Thickness {
 
 const DEFAULT_PAGE: Vector2<i32> = Vector2::new(0, 0);
 
+/// A window for editing tile sets and tile map brushes.
 pub struct TileSetEditor {
+    /// The window that contains the tile set editor.
     pub window: Handle<UiNode>,
     /// The state that is shared by many tile editing objects,
     /// such as palette widgets that display the tiles,
@@ -187,6 +189,9 @@ fn build_brush_macro_cell_sets(
 }
 
 impl TileSetEditor {
+    /// Create a new tile set editor window.
+    /// The `state` a reference to a shared [`TileDrawState`] which allows the `TileSetEditor` to know
+    /// what is happening in the [`TileMapPanel`] and react appropriately to the current tool and stamp.
     pub fn new(
         tile_book: TileBook,
         state: TileDrawStateRef,
@@ -446,6 +451,7 @@ impl TileSetEditor {
         editor
     }
 
+    /// Change the resource being edited by this window.
     pub fn set_tile_resource(&mut self, tile_book: TileBook, ui: &mut UserInterface) {
         self.try_save();
         self.tile_book = tile_book.clone();
@@ -518,6 +524,7 @@ impl TileSetEditor {
         ));
     }
 
+    /// Focus the editor on a particular tile and select that tile.
     pub fn set_position(&self, handle: TileDefinitionHandle, ui: &mut UserInterface) {
         for palette in [self.pages_palette, self.tiles_palette] {
             ui.send_message(PaletteMessage::set_page(
@@ -567,6 +574,7 @@ impl TileSetEditor {
         }
     }
 
+    /// Update the widgets of this editor after the shared [`TileDrawState`] may have changed.
     pub fn sync_to_state(&mut self, ui: &mut UserInterface) {
         self.tile_inspector.sync_to_state(ui);
         let decorator = *ui
@@ -592,6 +600,7 @@ impl TileSetEditor {
         }
     }
 
+    /// Update the widgets of this editor after the edited resource may have changed.
     pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
         if let Some(r) = self.tile_book.tile_set_ref() {
             let mut tile_set = TileSetRef::new(r);
@@ -619,10 +628,13 @@ impl TileSetEditor {
         }
     }
 
+    /// Attempt to save the resource being edited, if there is a resource and it
+    /// has been changed, otherwise do nothing.
     pub fn try_save(&self) {
         Log::verify(self.tile_book.save());
     }
 
+    /// React appropriately to any UI message that may involve the widgets of this editor.
     pub fn handle_ui_message(mut self, message: &UiMessage, editor: &mut Editor) -> Option<Self> {
         self.tile_inspector.handle_ui_message(message, editor);
         if let Some(r) = self.tile_book.tile_set_ref() {
