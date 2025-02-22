@@ -913,8 +913,16 @@ impl AssetBrowser {
         // Clean content panel first.
         self.clear_assets(ui);
 
+        let selected_folder = if self.selected_path.file_name().is_some() {
+            let mut folder = self.selected_path.to_path_buf();
+            folder.pop();
+            folder
+        } else {
+            self.selected_path.clone()
+        };
+
         // Add "return" item.
-        if let Some(mut parent_path) = make_relative_path(&self.selected_path)
+        if let Some(mut parent_path) = make_relative_path(&selected_folder)
             .ok()
             .and_then(|path| path.parent().map(|path| path.to_owned()))
         {
@@ -946,7 +954,7 @@ impl AssetBrowser {
         let mut resources = Vec::new();
 
         // Get all supported assets from folder and generate previews for them.
-        if let Ok(dir_iter) = std::fs::read_dir(&self.selected_path) {
+        if let Ok(dir_iter) = std::fs::read_dir(&selected_folder) {
             for entry in dir_iter.flatten() {
                 if let Ok(entry_path) = make_relative_path(entry.path()) {
                     if entry_path.is_dir() {
@@ -962,7 +970,7 @@ impl AssetBrowser {
         }
 
         // Collect built-in resource (only if the root folder is selected).
-        if let Ok(path) = self.selected_path.canonicalize() {
+        if let Ok(path) = selected_folder.canonicalize() {
             if let Ok(working_dir) = std::env::current_dir().and_then(|dir| dir.canonicalize()) {
                 if path == working_dir {
                     let built_in_resources = resource_manager
@@ -1057,6 +1065,9 @@ impl AssetBrowser {
                 .expect("Must be AssetItem")
                 .path
                 .clone();
+
+            self.selected_path = asset_path.clone();
+            self.item_to_select = Some(asset_path.clone());
 
             self.inspector.inspect_resource_import_options(
                 &asset_path,
