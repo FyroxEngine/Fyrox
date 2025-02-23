@@ -22,15 +22,21 @@
 
 use commands::{MoveMapTileCommand, SetMapTilesCommand};
 use fyrox::{
+    asset::untyped::UntypedResource,
     fxhash::FxHashMap,
     scene::tilemap::{
-        tileset::TileSetRef, OptionTileRect, TileCursorEffect, TileEraseEffect, TileMapData,
+        brush::TileMapBrushResource,
+        tileset::{OptionTileSet, TileSetRef},
+        MacroTilesUpdate, OptionTileRect, TileCursorEffect, TileEraseEffect, TileMapData,
         TileOverlayEffect, TileSelectionEffect, TileSource, TileUpdateEffect, TilesUpdate,
         TransTilesUpdate,
     },
 };
 
-use crate::make_color_material;
+use crate::{
+    command::{Command, CommandGroup},
+    make_color_material,
+};
 
 use super::*;
 
@@ -60,6 +66,13 @@ pub struct TileMapInteractionMode {
     /// tile map control panel, allowing this object to be aware of the chosen tool
     /// and the selected stamp.
     state: TileDrawStateRef,
+    /// List if tools that can be added to a tile map brush to assist with tile map editing.
+    brush_macro_list: BrushMacroListRef,
+    /// Temporary space to store tiles that are in the process of being amended by macros.
+    macro_update: MacroTilesUpdate,
+    /// A copy of the list of macro instance resources taken from the current brush.
+    /// This is temporary storage that is used to avoid repeated allocation.
+    macro_instance_list: Vec<(Uuid, Option<UntypedResource>)>,
     /// A copy of the current drawing mode that is made whenever the user
     /// presses the mouse button. While the actual drawing mode may change
     /// during a mouse stroke, this value never will, so nothing breaks by changing
@@ -92,13 +105,21 @@ pub struct TileMapInteractionMode {
 }
 
 impl TileMapInteractionMode {
-    pub fn new(tile_map: Handle<Node>, state: TileDrawStateRef, sender: MessageSender) -> Self {
+    pub fn new(
+        tile_map: Handle<Node>,
+        state: TileDrawStateRef,
+        brush_macro_list: BrushMacroListRef,
+        sender: MessageSender,
+    ) -> Self {
         let cursor_material = make_color_material(CURSOR_COLOR);
         let select_material = make_color_material(SELECT_COLOR);
         let erase_material = make_color_material(ERASE_COLOR);
         Self {
             tile_map,
             state,
+            brush_macro_list,
+            macro_update: MacroTilesUpdate::default(),
+            macro_instance_list: Vec::default(),
             current_tool: DrawingMode::Pick,
             click_grid_position: None,
             current_grid_position: None,
@@ -185,7 +206,7 @@ impl TileMapInteractionMode {
                 let tile_set = state.tile_set.as_ref().map(TileSetRef::new);
                 if let Some(mut tile_set) = tile_set {
                     let tile_set = tile_set.as_loaded();
-                    for (pos, handle) in stamp.iter() {
+                    for (pos, StampElement { handle, .. }) in stamp.iter() {
                         let handle = tile_set
                             .get_transformed_version(stamp.transformation(), *handle)
                             .unwrap_or(*handle);
@@ -257,7 +278,138 @@ fn update_select(
     let Some(tiles) = tiles.as_loaded_ref() else {
         return;
     };
-    state.update_stamp(tile_map.tile_set().cloned(), |p| tiles.get(p));
+    state.update_stamp(None, tile_map.tile_set().cloned(), |p| {
+        tiles.get(p).map(|t| t.into())
+    });
+}
+
+fn macro_begin(
+    tile_map_context: &TileMapContext,
+    update: &mut TransTilesUpdate,
+    macro_update: &mut MacroTilesUpdate,
+    brush: &TileMapBrushResource,
+    macros: &mut BrushMacroList,
+    macro_instances: &mut Vec<(Uuid, Option<UntypedResource>)>,
+) {
+    let tile_map_handle = tile_map_context.node;
+    let Some(tile_map) = tile_map_context.engine.scenes[tile_map_context.scene].graph
+        [tile_map_handle]
+        .cast::<TileMap>()
+    else {
+        return;
+    };
+    let brush_guard = brush.data_ref();
+    macro_instances.clear();
+    macro_instances.extend(
+        brush_guard
+            .macros
+            .iter()
+            .map(|m| (m.macro_id, m.settings.clone())),
+    );
+    if macro_instances.is_empty() {
+        return;
+    }
+    let tile_set = brush_guard.tile_set();
+    let mut tile_set_guard = tile_set.as_ref().map(|ts| ts.data_ref());
+    let tile_set = OptionTileSet(tile_set_guard.as_deref_mut());
+    update.fill_macro_tiles_update(&tile_set, macro_update);
+    drop(tile_set_guard);
+    drop(brush_guard);
+    let mut context = BrushMacroInstance {
+        brush: brush.clone(),
+        settings: None,
+    };
+    for (id, settings) in macro_instances.drain(..) {
+        let Some(brush_macro) = macros.get_by_uuid_mut(&id) else {
+            continue;
+        };
+        context.settings = settings;
+        brush_macro.begin_update(&context, tile_map_context);
+        brush_macro.amend_update(&context, macro_update, tile_map);
+    }
+    macro_update.fill_trans_tiles_update(update);
+}
+
+fn macro_amend_update(
+    tile_map: &TileMap,
+    update: &mut TransTilesUpdate,
+    macro_update: &mut MacroTilesUpdate,
+    brush: &TileMapBrushResource,
+    macros: &mut BrushMacroList,
+    macro_instances: &mut Vec<(Uuid, Option<UntypedResource>)>,
+) {
+    let brush_guard = brush.data_ref();
+    macro_instances.clear();
+    macro_instances.extend(
+        brush_guard
+            .macros
+            .iter()
+            .map(|m| (m.macro_id, m.settings.clone())),
+    );
+    if macro_instances.is_empty() {
+        return;
+    }
+    let tile_set = brush_guard.tile_set();
+    let mut tile_set_guard = tile_set.as_ref().map(|ts| ts.data_ref());
+    let tile_set = OptionTileSet(tile_set_guard.as_deref_mut());
+    update.fill_macro_tiles_update(&tile_set, macro_update);
+    drop(tile_set_guard);
+    drop(brush_guard);
+    let mut context = BrushMacroInstance {
+        brush: brush.clone(),
+        settings: None,
+    };
+    for (id, settings) in macro_instances.drain(..) {
+        let Some(brush_macro) = macros.get_by_uuid_mut(&id) else {
+            continue;
+        };
+        context.settings = settings;
+        brush_macro.amend_update(&context, macro_update, tile_map);
+    }
+    macro_update.fill_trans_tiles_update(update);
+}
+
+fn macro_command_list(
+    tile_map: &TileMapContext,
+    update: &mut TransTilesUpdate,
+    macro_update: &mut MacroTilesUpdate,
+    brush: &TileMapBrushResource,
+    macros: &mut BrushMacroList,
+    macro_instances: &mut Vec<(Uuid, Option<UntypedResource>)>,
+) -> Vec<Command> {
+    let brush_guard = brush.data_ref();
+    macro_instances.clear();
+    macro_instances.extend(
+        brush_guard
+            .macros
+            .iter()
+            .map(|m| (m.macro_id, m.settings.clone())),
+    );
+    if macro_instances.is_empty() {
+        return Vec::default();
+    }
+    let tile_set = brush_guard.tile_set();
+    let mut tile_set_guard = tile_set.as_ref().map(|ts| ts.data_ref());
+    let tile_set = OptionTileSet(tile_set_guard.as_deref_mut());
+    update.fill_macro_tiles_update(&tile_set, macro_update);
+    drop(tile_set_guard);
+    drop(brush_guard);
+    let mut context = BrushMacroInstance {
+        brush: brush.clone(),
+        settings: None,
+    };
+    let mut commands = Vec::default();
+    for (id, settings) in macro_instances.drain(..) {
+        let Some(brush_macro) = macros.get_by_uuid_mut(&id) else {
+            continue;
+        };
+        context.settings = settings;
+        if let Some(command) = brush_macro.create_command(&context, macro_update, tile_map) {
+            commands.push(command);
+        }
+    }
+    macro_update.fill_trans_tiles_update(update);
+    commands
 }
 
 fn draw(
@@ -327,7 +479,8 @@ impl InteractionMode for TileMapInteractionMode {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
-        let scene = &mut engine.scenes[game_scene.scene];
+        let scene_handle = game_scene.scene;
+        let scene = &mut engine.scenes[scene_handle];
         let mods = engine.user_interfaces.first().keyboard_modifiers();
         let state = self.state.lock();
         self.current_tool = state.drawing_mode;
@@ -389,14 +542,24 @@ impl InteractionMode for TileMapInteractionMode {
                 }
                 mode => {
                     self.mouse_mode = MouseMode::Drawing;
-                    draw(
-                        &mut self.update_effect.lock().update,
-                        tiles,
-                        mode,
-                        &state,
-                        grid_coord,
-                        grid_coord,
-                    );
+                    let update = &mut self.update_effect.lock().update;
+                    draw(update, tiles, mode, &state, grid_coord, grid_coord);
+                    drop(tiles_guard);
+                    if let Some(brush) = state.stamp.brush() {
+                        let tile_map = TileMapContext {
+                            node: self.tile_map,
+                            scene: scene_handle,
+                            engine,
+                        };
+                        macro_begin(
+                            &tile_map,
+                            update,
+                            &mut self.macro_update,
+                            brush,
+                            &mut self.brush_macro_list.lock(),
+                            &mut self.macro_instance_list,
+                        );
+                    }
                 }
             }
         }
@@ -414,7 +577,8 @@ impl InteractionMode for TileMapInteractionMode {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
-        let scene = &mut engine.scenes[game_scene.scene];
+        let scene_handle = game_scene.scene;
+        let scene = &mut engine.scenes[scene_handle];
         let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
             return;
         };
@@ -454,14 +618,41 @@ impl InteractionMode for TileMapInteractionMode {
                 if let DrawingMode::Pick = self.current_tool {
                     self.selecting
                         .clone_from(&self.select_effect.lock().positions);
-                } else if let Some(tile_set) = state.tile_set.as_ref().or(tile_map.tile_set()) {
+                } else if let Some(tile_set) =
+                    state.tile_set.as_ref().or(tile_map.tile_set()).cloned()
+                {
                     let update_source = &mut self.update_effect.lock().update;
+                    let tile_map_context = TileMapContext {
+                        node: tile_map_handle,
+                        scene: scene_handle,
+                        engine,
+                    };
+                    let mut commands = if let Some(brush) = state.stamp.brush() {
+                        macro_command_list(
+                            &tile_map_context,
+                            update_source,
+                            &mut self.macro_update,
+                            brush,
+                            &mut self.brush_macro_list.lock(),
+                            &mut self.macro_instance_list,
+                        )
+                    } else {
+                        Vec::default()
+                    };
                     let update =
-                        update_source.build_tiles_update(&TileSetRef::new(tile_set).as_loaded());
-                    self.sender.do_command(SetMapTilesCommand {
+                        update_source.build_tiles_update(&TileSetRef::new(&tile_set).as_loaded());
+                    let command = SetMapTilesCommand {
                         tile_map: tile_map_handle,
                         tiles: update,
-                    });
+                    };
+                    if !commands.is_empty() {
+                        commands.push(Command::new(command));
+                        self.sender.do_command(
+                            CommandGroup::from(commands).with_custom_name("Draw Tiles"),
+                        );
+                    } else {
+                        self.sender.do_command(command);
+                    }
                     update_source.clear();
                 }
             }
@@ -544,14 +735,19 @@ impl InteractionMode for TileMapInteractionMode {
                         end,
                     );
                 } else {
-                    draw(
-                        &mut self.update_effect.lock().update,
-                        tiles,
-                        self.current_tool,
-                        &state,
-                        start,
-                        end,
-                    );
+                    let update = &mut self.update_effect.lock().update;
+                    draw(update, tiles, self.current_tool, &state, start, end);
+                    drop(tiles_guard);
+                    if let Some(brush) = state.stamp.brush() {
+                        macro_amend_update(
+                            tile_map,
+                            update,
+                            &mut self.macro_update,
+                            brush,
+                            &mut self.brush_macro_list.lock(),
+                            &mut self.macro_instance_list,
+                        );
+                    }
                 }
             }
         }

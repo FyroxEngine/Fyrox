@@ -21,6 +21,7 @@
 //! Tile map is a 2D "image", made out of a small blocks called tiles. Tile maps used in 2D games to
 //! build game worlds quickly and easily. See [`TileMap`] docs for more info and usage examples.
 
+mod autotile;
 pub mod brush;
 mod data;
 mod effect;
@@ -32,6 +33,7 @@ pub mod tileset;
 mod transform;
 mod update;
 
+pub use autotile::*;
 use brush::*;
 pub use data::*;
 pub use effect::*;
@@ -549,23 +551,23 @@ impl TileBook {
         match self {
             TileBook::Empty => false,
             TileBook::TileSet(r) => {
-                r.header().kind.is_external() && r.data_ref().change_count.needs_save()
+                r.header().kind.is_external() && r.data_ref().change_flag.needs_save()
             }
             TileBook::Brush(r) => {
-                r.header().kind.is_external() && r.data_ref().change_count.needs_save()
+                r.header().kind.is_external() && r.data_ref().change_flag.needs_save()
             }
         }
     }
-    /// Attempt to save the resource to its file, if it has one and if `change_count` not zero.
+    /// Attempt to save the resource to its file, if it has one and if `change_flag` is set.
     /// Otherwise do nothing and return Ok to indicate success.
     pub fn save(&self) -> Result<(), Box<dyn Error>> {
         match self {
             TileBook::Empty => Ok(()),
             TileBook::TileSet(r) => {
-                if r.header().kind.is_external() && r.data_ref().change_count.needs_save() {
+                if r.header().kind.is_external() && r.data_ref().change_flag.needs_save() {
                     let result = r.save_back();
                     if result.is_ok() {
-                        r.data_ref().change_count.reset();
+                        r.data_ref().change_flag.reset();
                     }
                     result
                 } else {
@@ -573,10 +575,10 @@ impl TileBook {
                 }
             }
             TileBook::Brush(r) => {
-                if r.header().kind.is_external() && r.data_ref().change_count.needs_save() {
+                if r.header().kind.is_external() && r.data_ref().change_flag.needs_save() {
                     let result = r.save_back();
                     if result.is_ok() {
-                        r.data_ref().change_count.reset();
+                        r.data_ref().change_flag.reset();
                     }
                     result
                 } else {
@@ -592,6 +594,13 @@ impl TileBook {
             _ => None,
         }
     }
+    /// A reference to the TileMapBrushResource, if this is a TileMapBrushResource.
+    pub fn brush_ref(&self) -> Option<&TileMapBrushResource> {
+        match self {
+            TileBook::Brush(r) => Some(r),
+            _ => None,
+        }
+    }
     /// Returns the tile set associated with this resource.
     /// If the resource is a tile set, the return that tile set.
     /// If the resource is a brush, then return the tile set used by that brush.
@@ -599,7 +608,7 @@ impl TileBook {
         match self {
             TileBook::Empty => None,
             TileBook::TileSet(r) => Some(r.clone()),
-            TileBook::Brush(r) => r.state().data()?.tile_set.clone(),
+            TileBook::Brush(r) => r.state().data()?.tile_set(),
         }
     }
     /// Build a list of the positions of all tiles on the given page.
@@ -708,6 +717,22 @@ impl TileBook {
             TileBook::Empty => None,
             TileBook::TileSet(r) => r.state().data()?.redirect_handle(position),
             TileBook::Brush(r) => r.state().data()?.redirect_handle(position),
+        }
+    }
+    /// The StampElement for the given position in this resource. For tile sets the element's
+    /// [`StampElement::brush_cell`] is None.
+    /// For brushes, the [`StampElement::handle`] refers to the location of the tile within the
+    /// tile set, while the [`StampElement::brush_cell`] refers to the location of the tile within
+    /// the brush.
+    pub fn get_stamp_element(&self, position: ResourceTilePosition) -> Option<StampElement> {
+        match self {
+            TileBook::Empty => None,
+            TileBook::TileSet(r) => r
+                .state()
+                .data()?
+                .redirect_handle(position)
+                .map(|h| h.into()),
+            TileBook::Brush(r) => r.state().data()?.stamp_element(position),
         }
     }
     /// Returns an iterator over `(Vector2<i32>, TileDefinitionHandle)` where the first
@@ -958,7 +983,7 @@ impl Deref for TileMapDataRef<'_> {
 /// An error in finding a property for a tile.
 #[derive(Debug)]
 pub enum TilePropertyError {
-    /// The tile map has no tile set, so not tile data is available.
+    /// The tile map has no tile set, so no tile data is available.
     MissingTileSet,
     /// The tile map has a tile set, but it is not yet loaded.
     TileSetNotLoaded,
@@ -1031,10 +1056,7 @@ impl TileMap {
         let tile_set = tile_set
             .as_loaded_ref()
             .ok_or(TilePropertyError::TileSetNotLoaded)?;
-        tile_set
-            .property_value(handle, property_id)
-            .map(T::try_from)
-            .unwrap_or_else(|| Ok(T::default()))
+        tile_set.tile_property_value(handle, property_id)
     }
     /// The property value for the property of the given name for the tile at the given position in this tile map.
     /// This requires that the tile map has a loaded tile set and the tile set contains a property with the given name.

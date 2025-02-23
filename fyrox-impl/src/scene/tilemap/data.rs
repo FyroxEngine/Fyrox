@@ -210,12 +210,15 @@ impl ResourceData for TileMapData {
 }
 
 impl TileSource for TileMapData {
+    fn brush(&self) -> Option<&TileMapBrushResource> {
+        None
+    }
     fn transformation(&self) -> OrthoTransformation {
         OrthoTransformation::default()
     }
 
-    fn get_at(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
-        self.get(position)
+    fn get_at(&self, position: Vector2<i32>) -> Option<StampElement> {
+        self.get(position).map(|h| h.into())
     }
 }
 

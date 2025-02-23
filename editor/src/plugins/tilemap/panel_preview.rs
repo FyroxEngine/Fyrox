@@ -196,7 +196,7 @@ impl Control for PanelPreview {
 
         let time = ctx.elapsed_time;
 
-        for (pos, &handle) in stamp.iter() {
+        for (pos, &StampElement { handle, .. }) in stamp.iter() {
             let handle = tile_set
                 .get_animated_version(time, handle)
                 .unwrap_or(handle);

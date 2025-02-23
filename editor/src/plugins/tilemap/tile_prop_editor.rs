@@ -46,7 +46,7 @@ use fyrox::{
         text_box::TextBoxBuilder,
         utils::make_simple_tooltip,
         widget::WidgetBuilder,
-        BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
+        BuildContext, Thickness, UiNode, UserInterface,
     },
     scene::tilemap::{tileset::*, TileDataUpdate, TileSetUpdate},
 };
@@ -143,7 +143,7 @@ impl TilePropertyEditor {
                 .on_column(1)
                 .with_visibility(!prop_layer.named_values.is_empty()),
         )
-        .with_items(build_list(prop_layer, ctx))
+        .with_items(make_named_value_list_items(prop_layer, ctx))
         .with_selected(index)
         .build(ctx);
         let grid = GridBuilder::new(
@@ -208,7 +208,7 @@ impl TilePropertyEditor {
             MessageDirection::ToWidget,
             layer.name.to_string(),
         ));
-        let list = build_list(layer, &mut ui.build_ctx());
+        let list = make_named_value_list_items(layer, &mut ui.build_ctx());
         ui.send_message(DropdownListMessage::items(
             self.list,
             MessageDirection::ToWidget,
@@ -644,50 +644,6 @@ impl TileEditor for TilePropertyEditor {
             }
         }
     }
-}
-
-/// Create one item for the dropdown list.
-pub fn make_named_value_list_option(
-    ctx: &mut BuildContext,
-    color: Color,
-    name: &str,
-) -> Handle<UiNode> {
-    let icon = BorderBuilder::new(
-        WidgetBuilder::new()
-            .on_column(0)
-            .with_background(Brush::Solid(color).into()),
-    )
-    .build(ctx);
-    let text = TextBuilder::new(WidgetBuilder::new().on_column(1))
-        .with_vertical_text_alignment(VerticalAlignment::Center)
-        .with_horizontal_text_alignment(HorizontalAlignment::Left)
-        .with_text(name)
-        .build(ctx);
-    let grid = GridBuilder::new(WidgetBuilder::new().with_child(icon).with_child(text))
-        .add_column(Column::strict(20.0))
-        .add_column(Column::stretch())
-        .add_row(Row::auto())
-        .build(ctx);
-    DecoratorBuilder::new(
-        BorderBuilder::new(WidgetBuilder::new().with_child(grid))
-            .with_corner_radius((4.0).into())
-            .with_pad_by_corner_radius(false),
-    )
-    .build(ctx)
-}
-
-/// Create the list items for the dropdown list.
-fn build_list(layer: &TileSetPropertyLayer, ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
-    let custom =
-        make_named_value_list_option(ctx, ELEMENT_MATCH_HIGHLIGHT_COLOR.to_opaque(), "Custom");
-    std::iter::once(custom)
-        .chain(
-            layer
-                .named_values
-                .iter()
-                .map(|v| make_named_value_list_option(ctx, v.color.to_opaque(), &v.name)),
-        )
-        .collect()
 }
 
 /// Each of the nine buttons has a label and a color to indicate

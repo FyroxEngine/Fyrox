@@ -49,21 +49,14 @@ use crate::{
             text::{TextBuilder, TextMessage},
             window::Window,
         },
+        scene::tilemap::brush::{TileMapBrush, TileMapBrushResource},
         scene::tilemap::{tileset::TileSet, TileBook, *},
-        scene::{
-            node::Node,
-            tilemap::{
-                brush::{TileMapBrush, TileMapBrushResource},
-                TileMap,
-            },
-        },
     },
     message::MessageSender,
     plugins::tilemap::{
         palette::{PaletteMessage, PaletteWidgetBuilder},
         DrawingMode,
     },
-    scene::container::EditorSceneEntry,
 };
 
 use super::*;
@@ -112,9 +105,15 @@ fn make_resource_chooser(
     .build(ctx)
 }
 
+/// A editor window that serves as a control panel with editing a tile map by allowing the
+/// user to select tiles from any tile set or brush, showing a preview of the current stamp,
+/// and providing buttons to change the currently active tool.
 pub struct TileMapPanel {
     /// A reference to the shared state that allows the tile map interaction mode to
     /// know what tool is currently selected.
+    /// The state is how other objects know that the selection has changed or the stamp has changed
+    /// or the current active tool has changed, so the main purpose of the tile map panel is to manipulate
+    /// this state.
     pub state: TileDrawStateRef,
     /// The resource that is the source for the tiles that the user may select.
     pub tile_book: TileBook,
@@ -162,6 +161,10 @@ pub struct TileMapPanel {
 }
 
 impl TileMapPanel {
+    /// Create a new tile map panel with the given state and sender.
+    /// The `state` is how other objects know that the selection has changed or the stamp has changed
+    /// or the current active tool has changed, so the main purpose of the tile map panel is to manipulate
+    /// this state.
     pub fn new(ctx: &mut BuildContext, state: TileDrawStateRef, sender: MessageSender) -> Self {
         let tile_set_name = TextBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
         let preview = PanelPreviewBuilder::new(
@@ -512,7 +515,7 @@ impl TileMapPanel {
             return;
         };
         let brush = brush.data_ref();
-        let Some(tile_set) = brush.tile_set.clone() else {
+        let Some(tile_set) = brush.tile_set() else {
             return;
         };
         self.tile_book = TileBook::TileSet(tile_set);
@@ -620,14 +623,11 @@ impl TileMapPanel {
         }
     }
 
+    /// React as appropriate to any message involving the widgets of this panel.
     pub fn handle_ui_message(
         mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
-        _tile_map_handle: Handle<Node>,
-        _tile_map: Option<&TileMap>,
-        _sender: &MessageSender,
-        _editor_scene: Option<&mut EditorSceneEntry>,
     ) -> Option<Self> {
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
@@ -667,6 +667,8 @@ impl TileMapPanel {
         Some(self)
     }
 
+    /// Use the given UI to update the panel after the data the resource may
+    /// have changed.
     pub fn sync_to_model(&self, ui: &mut UserInterface) {
         let name = self.tile_book.name();
         ui.send_message(TextMessage::text(
@@ -693,6 +695,7 @@ impl TileMapPanel {
         ));
         self.sync_to_state(ui);
     }
+    /// Use the given UI to update the panel after the data the [`TileDrawState`] may have changed.
     pub fn sync_to_state(&self, ui: &mut UserInterface) {
         fn highlight_all_except(
             button: Handle<UiNode>,

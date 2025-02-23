@@ -61,7 +61,7 @@ impl SetColliderLayerNameCommand {
             return;
         };
         std::mem::swap(&mut collider.name, &mut self.name);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -93,7 +93,7 @@ impl SetPropertyLayerNameCommand {
             return;
         };
         std::mem::swap(&mut property.name, &mut self.name);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -125,7 +125,7 @@ impl SetColliderLayerColorCommand {
             return;
         };
         std::mem::swap(&mut collider.color, &mut self.color);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -161,7 +161,7 @@ impl SetPropertyValueColorCommand {
             return;
         };
         std::mem::swap(&mut named_value.color, &mut self.color);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -197,7 +197,7 @@ impl SetPropertyValueNameCommand {
             return;
         };
         std::mem::swap(&mut named_value.name, &mut self.name);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -233,7 +233,7 @@ impl SetPropertyValueCommand {
             return;
         };
         std::mem::swap(&mut named_value.value, &mut self.value);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -282,7 +282,7 @@ impl CommandTrait for AddPropertyValueCommand {
                 ..NamedValue::default()
             },
         );
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 
     fn revert(&mut self, _context: &mut dyn CommandContext) {
@@ -291,7 +291,7 @@ impl CommandTrait for AddPropertyValueCommand {
             return;
         };
         property.named_values.remove(self.index);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -314,7 +314,7 @@ impl CommandTrait for RemovePropertyValueCommand {
             return;
         };
         self.value = Some(property.named_values.remove(self.index));
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 
     fn revert(&mut self, _context: &mut dyn CommandContext) {
@@ -325,7 +325,7 @@ impl CommandTrait for RemovePropertyValueCommand {
         property
             .named_values
             .insert(self.index, self.value.take().unwrap());
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -350,13 +350,13 @@ impl CommandTrait for AddColliderLayerCommand {
                 ..TileSetColliderLayer::default()
             },
         );
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 
     fn revert(&mut self, _context: &mut dyn CommandContext) {
         let mut tile_set = self.tile_set.data_ref();
         tile_set.colliders.remove(self.index);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -383,13 +383,13 @@ impl CommandTrait for AddPropertyLayerCommand {
                 ..TileSetPropertyLayer::default()
             },
         );
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 
     fn revert(&mut self, _context: &mut dyn CommandContext) {
         let mut tile_set = self.tile_set.data_ref();
         tile_set.properties.remove(self.index);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -408,13 +408,13 @@ impl CommandTrait for MovePropertyLayerCommand {
     fn execute(&mut self, _context: &mut dyn CommandContext) {
         let mut tile_set = self.tile_set.data_ref();
         tile_set.properties.swap(self.start, self.end);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 
     fn revert(&mut self, _context: &mut dyn CommandContext) {
         let mut tile_set = self.tile_set.data_ref();
         tile_set.properties.swap(self.start, self.end);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -433,7 +433,7 @@ impl MovePropertyValueCommand {
             return;
         };
         property.named_values.swap(self.start, self.end);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -466,13 +466,13 @@ impl CommandTrait for MoveColliderLayerCommand {
     fn execute(&mut self, _context: &mut dyn CommandContext) {
         let mut tile_set = self.tile_set.data_ref();
         tile_set.colliders.swap(self.start, self.end);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 
     fn revert(&mut self, _context: &mut dyn CommandContext) {
         let mut tile_set = self.tile_set.data_ref();
         tile_set.colliders.swap(self.start, self.end);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -495,7 +495,7 @@ impl CommandTrait for RemoveColliderLayerCommand {
         let uuid = layer.uuid;
         self.layer = Some(layer);
         tile_set.swap_all_values_for_collider(uuid, &mut self.values);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 
     fn revert(&mut self, _context: &mut dyn CommandContext) {
@@ -504,7 +504,7 @@ impl CommandTrait for RemoveColliderLayerCommand {
         let uuid = layer.uuid;
         tile_set.colliders.insert(self.index, layer);
         tile_set.swap_all_values_for_collider(uuid, &mut self.values);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -527,7 +527,7 @@ impl CommandTrait for RemovePropertyLayerCommand {
         let uuid = layer.uuid;
         self.layer = Some(layer);
         tile_set.swap_all_values_for_property(uuid, &mut self.values);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 
     fn revert(&mut self, _context: &mut dyn CommandContext) {
@@ -536,7 +536,7 @@ impl CommandTrait for RemovePropertyLayerCommand {
         let uuid = layer.uuid;
         tile_set.properties.insert(self.index, layer);
         tile_set.swap_all_values_for_property(uuid, &mut self.values);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -551,7 +551,7 @@ impl SetBrushPageCommand {
     fn swap(&mut self) {
         let mut brush = self.brush.data_ref();
         swap_hash_map_entry(brush.pages.entry(self.position), &mut self.page);
-        brush.change_count.set();
+        brush.change_flag.set();
     }
 }
 
@@ -582,7 +582,7 @@ impl SetTileSetPageCommand {
         swap_hash_map_entry(tile_set.pages.entry(self.position), &mut self.page);
         tile_set.rebuild_transform_sets();
         tile_set.rebuild_animations();
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -636,7 +636,7 @@ impl MoveTileSetPageCommand {
         std::mem::swap(&mut self.start_offset, &mut self.end_offset);
         tile_set.rebuild_transform_sets();
         tile_set.rebuild_animations();
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -686,7 +686,7 @@ impl MoveBrushPageCommand {
             swap_hash_map_entry(brush.pages.entry(*p + self.end_offset), &mut self.data[i]);
         }
         std::mem::swap(&mut self.start_offset, &mut self.end_offset);
-        brush.change_count.set();
+        brush.change_flag.set();
     }
 }
 
@@ -743,7 +743,7 @@ impl MoveTileSetTileCommand {
         std::mem::swap(&mut self.start_offset, &mut self.end_offset);
         tile_set.rebuild_transform_sets();
         tile_set.rebuild_animations();
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -800,7 +800,7 @@ impl MoveBrushTileCommand {
             swap_hash_map_entry(page.tiles.entry(*p + self.end_offset), &mut self.data[i]);
         }
         std::mem::swap(&mut self.start_offset, &mut self.end_offset);
-        brush.change_count.set();
+        brush.change_flag.set();
     }
 }
 
@@ -904,7 +904,7 @@ impl TransformTilesCommand {
                 .transformed(self.transformation);
         }
         self.transformation = self.transformation.inverted();
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -935,7 +935,7 @@ impl SetBrushTilesCommand {
         if let Some(page) = brush.pages.get_mut(&self.page) {
             page.tiles.swap_tiles(&mut self.tiles);
         }
-        brush.change_count.set();
+        brush.change_flag.set();
     }
 }
 
@@ -963,7 +963,7 @@ impl SetTileSetTilesCommand {
     fn swap(&mut self) {
         let mut tile_set = self.tile_set.data_ref();
         tile_set.swap(&mut self.tiles);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -1034,7 +1034,7 @@ impl ModifyAnimationSpeedCommand {
             return;
         };
         std::mem::swap(&mut self.frame_rate, &mut anim.frame_rate);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -1069,7 +1069,7 @@ impl ModifyPageTileSizeCommand {
             return;
         };
         std::mem::swap(&mut self.size, &mut mat.tile_size);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -1104,7 +1104,7 @@ impl ModifyPageMaterialCommand {
             return;
         };
         std::mem::swap(&mut self.material, &mut mat.material);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -1137,7 +1137,7 @@ impl ModifyPageIconCommand {
             return;
         };
         std::mem::swap(&mut self.icon, &mut page.icon);
-        tile_set.change_count.set();
+        tile_set.change_flag.set();
     }
 }
 
@@ -1170,7 +1170,7 @@ impl ModifyBrushPageIconCommand {
             return;
         };
         std::mem::swap(&mut self.icon, &mut page.icon);
-        brush.change_count.set();
+        brush.change_flag.set();
     }
 }
 
@@ -1198,7 +1198,7 @@ impl ModifyBrushTileSetCommand {
     fn swap(&mut self) {
         let mut brush = self.brush.data_ref();
         std::mem::swap(&mut self.tile_set, &mut brush.tile_set);
-        brush.change_count.set();
+        brush.change_flag.set();
     }
 }
 
