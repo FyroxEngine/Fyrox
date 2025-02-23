@@ -574,6 +574,7 @@ pub struct Editor {
     pub surface_data_viewer: Option<SurfaceDataViewer>,
     pub processed_ui_messages: usize,
     pub styles: FxHashMap<EditorStyle, StyleResource>,
+    pub running_game_process: Option<(std::process::Child, Arc<AtomicBool>)>,
 }
 
 impl Editor {
@@ -984,6 +985,7 @@ impl Editor {
             surface_data_viewer: None,
             processed_ui_messages: 0,
             styles,
+            running_game_process: None,
         };
 
         if let Some(data) = startup_data {
@@ -1318,6 +1320,11 @@ impl Editor {
             self.build_window = build_window.handle_ui_message(message, ui, || {
                 self.message_sender.send(Message::SwitchToEditMode)
             });
+            if self.build_window.is_none() {
+                if let Some((process, active)) = self.running_game_process.take() {
+                    self.mode = Mode::Play { process, active };
+                }
+            }
         }
         if let Some(export_window) = self.export_window.as_mut() {
             export_window.handle_ui_message(message, ui, &self.message_sender);
@@ -1553,6 +1560,11 @@ impl Editor {
     }
 
     fn set_build_mode(&mut self, play_after_build: bool) {
+        if matches!(self.mode, Mode::Build { .. }) {
+            Log::err("Cannot enter build mode when another build mode is active!");
+            return;
+        }
+
         let Some(entry) = self.scenes.current_scene_entry_ref() else {
             Log::err("Cannot enter build mode when there is no scene!");
             return;
@@ -1579,11 +1591,24 @@ impl Editor {
             .cloned()
             .collect::<VecDeque<_>>();
 
-        self.mode = Mode::Build {
-            queue,
-            process: None,
-            play_after_build,
-        };
+        let old_mode = std::mem::replace(
+            &mut self.mode,
+            Mode::Build {
+                queue,
+                process: None,
+                play_after_build,
+            },
+        );
+
+        match old_mode {
+            Mode::Edit => {}
+            Mode::Build { .. } => {
+                unreachable!();
+            }
+            Mode::Play { process, active } => {
+                self.running_game_process = Some((process, active));
+            }
+        }
 
         let ui = self.engine.user_interfaces.first_mut();
         self.build_window = Some(BuildWindow::new("your game", &mut ui.build_ctx()));
@@ -2204,6 +2229,11 @@ impl Editor {
                                     if queue.is_empty() {
                                         if let Some(build_window) = self.build_window.take() {
                                             build_window.destroy(ui);
+                                        }
+                                        if let Some((process, active)) =
+                                            self.running_game_process.take()
+                                        {
+                                            self.mode = Mode::Play { process, active };
                                         }
                                     } else {
                                         if let Some(build_window) = self.build_window.as_mut() {
