@@ -39,11 +39,16 @@ use crate::{
             message::{MessageDirection, MouseButton, UiMessage},
             numeric::{NumericUpDownBuilder, NumericUpDownMessage},
             stack_panel::StackPanelBuilder,
+            style::{resource::StyleResourceExt, Style},
             tab_control::{
                 Tab, TabControl, TabControlBuilder, TabControlMessage, TabDefinition, TabUserData,
             },
             text::{TextBuilder, TextMessage},
-            utils::make_simple_tooltip,
+            utils::{
+                make_dropdown_list_option, make_dropdown_list_option_universal,
+                make_dropdown_list_option_with_height, make_image_button_with_tooltip,
+                make_simple_tooltip,
+            },
             vec::{Vec3EditorBuilder, Vec3EditorMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -63,12 +68,6 @@ use crate::{
     utils::enable_widget,
     DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Settings,
-};
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
-use fyrox::gui::utils::{
-    make_dropdown_list_option, make_dropdown_list_option_universal,
-    make_dropdown_list_option_with_height, make_image_button_with_tooltip,
 };
 use std::{
     ops::Deref,
@@ -281,6 +280,7 @@ pub struct SceneViewer {
     interaction_modes: FxHashMap<Uuid, Handle<UiNode>>,
     camera_projection: Handle<UiNode>,
     play: Handle<UiNode>,
+    build: Handle<UiNode>,
     stop: Handle<UiNode>,
     build_profile: Handle<UiNode>,
     sender: MessageSender,
@@ -305,6 +305,7 @@ impl SceneViewer {
         let selection_frame;
         let camera_projection;
         let play;
+        let build;
         let stop;
         let build_profile;
 
@@ -376,6 +377,10 @@ impl SceneViewer {
         .with_orientation(Orientation::Horizontal)
         .build(ctx);
 
+        let build_tooltip = "Build Project.\nBuilds the game, but does not run it. Could be \
+        useful for hot reloading - change the source code and then press this button. The new version \
+        of the game DLL will be built and automagically loaded by the editor and the running game.";
+
         let top_ribbon = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(interaction_mode_panel)
@@ -411,7 +416,8 @@ impl SceneViewer {
                                 play = ButtonBuilder::new(
                                     WidgetBuilder::new()
                                         .with_margin(Thickness::uniform(1.0))
-                                        .with_width(26.0),
+                                        .with_width(26.0)
+                                        .with_tooltip(make_simple_tooltip(ctx, "Play")),
                                 )
                                 .with_content(
                                     ImageBuilder::new(
@@ -428,6 +434,29 @@ impl SceneViewer {
                                 )
                                 .build(ctx);
                                 play
+                            })
+                            .with_child({
+                                build = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_width(26.0)
+                                        .with_tooltip(make_simple_tooltip(ctx, build_tooltip)),
+                                )
+                                .with_content(
+                                    ImageBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_width(16.0)
+                                            .with_height(16.0)
+                                            .with_margin(Thickness::uniform(4.0))
+                                            .with_background(
+                                                Brush::Solid(Color::opaque(0, 200, 0)).into(),
+                                            ),
+                                    )
+                                    .with_opt_texture(load_image!("../../resources/hammer.png"))
+                                    .build(ctx),
+                                )
+                                .build(ctx);
+                                build
                             })
                             .with_child({
                                 stop = ButtonBuilder::new(
@@ -571,6 +600,7 @@ impl SceneViewer {
             scene_gizmo_image,
             debug_switches,
             grid_snap_menu,
+            build,
         }
     }
 }
@@ -717,7 +747,13 @@ impl SceneViewer {
             }
 
             if message.destination() == self.play {
-                self.sender.send(Message::SwitchToBuildMode);
+                self.sender.send(Message::SwitchToBuildMode {
+                    play_after_build: true,
+                });
+            } else if message.destination() == self.build {
+                self.sender.send(Message::SwitchToBuildMode {
+                    play_after_build: false,
+                });
             } else if message.destination() == self.stop {
                 self.sender.send(Message::SwitchToEditMode);
             }

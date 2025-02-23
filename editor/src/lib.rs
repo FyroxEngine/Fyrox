@@ -316,6 +316,7 @@ pub enum Mode {
     Build {
         queue: VecDeque<CommandDescriptor>,
         process: Option<std::process::Child>,
+        play_after_build: bool,
     },
     Play {
         process: std::process::Child,
@@ -1139,7 +1140,9 @@ impl Editor {
                 } else if hot_key == key_bindings.load_scene {
                     sender.send(Message::OpenLoadSceneDialog);
                 } else if hot_key == key_bindings.run_game {
-                    sender.send(Message::SwitchToBuildMode);
+                    sender.send(Message::SwitchToBuildMode {
+                        play_after_build: true,
+                    });
                 } else if hot_key == key_bindings.save_scene {
                     if let Some(entry) = self.scenes.current_scene_entry_ref() {
                         if let Some(path) = entry.path.as_ref() {
@@ -1549,12 +1552,7 @@ impl Editor {
         }
     }
 
-    fn set_build_mode(&mut self) {
-        if !matches!(self.mode, Mode::Edit) {
-            Log::err("Cannot enter build mode when from non-Edit mode!");
-            return;
-        }
-
+    fn set_build_mode(&mut self, play_after_build: bool) {
         let Some(entry) = self.scenes.current_scene_entry_ref() else {
             Log::err("Cannot enter build mode when there is no scene!");
             return;
@@ -1584,6 +1582,7 @@ impl Editor {
         self.mode = Mode::Build {
             queue,
             process: None,
+            play_after_build,
         };
 
         let ui = self.engine.user_interfaces.first_mut();
@@ -2156,6 +2155,7 @@ impl Editor {
             Mode::Build {
                 ref mut process,
                 ref mut queue,
+                play_after_build,
             } => {
                 if process.is_none() {
                     if let Some(build_command) = queue.pop_front() {
@@ -2197,14 +2197,21 @@ impl Editor {
                                     Log::err("Failed to build the game!");
                                     self.mode = Mode::Edit;
                                     self.on_mode_changed();
-                                } else if queue.is_empty() {
+                                } else if queue.is_empty() && play_after_build {
                                     self.set_play_mode();
                                 } else {
-                                    if let Some(build_window) = self.build_window.as_mut() {
-                                        build_window.reset(self.engine.user_interfaces.first());
+                                    let ui = self.engine.user_interfaces.first();
+                                    if queue.is_empty() {
+                                        if let Some(build_window) = self.build_window.take() {
+                                            build_window.destroy(ui);
+                                        }
+                                    } else {
+                                        if let Some(build_window) = self.build_window.as_mut() {
+                                            build_window.reset(ui);
+                                        }
+                                        // Continue on next command.
+                                        *process = None;
                                     }
-                                    // Continue on next command.
-                                    *process = None;
                                 }
                             }
                         }
@@ -2384,10 +2391,12 @@ impl Editor {
                         .world_viewer
                         .try_locate_object(handle, self.engine.user_interfaces.first()),
                     Message::SwitchMode => match self.mode {
-                        Mode::Edit => self.set_build_mode(),
+                        Mode::Edit => self.set_build_mode(true),
                         _ => self.set_editor_mode(),
                     },
-                    Message::SwitchToBuildMode => self.set_build_mode(),
+                    Message::SwitchToBuildMode { play_after_build } => {
+                        self.set_build_mode(play_after_build)
+                    }
                     Message::SwitchToEditMode => self.set_editor_mode(),
                     Message::OpenLoadSceneDialog => {
                         self.menu

@@ -78,7 +78,9 @@ pub enum Message {
     SetCurrentScene(Uuid),
     FocusObject(Handle<Node>),
     SetEditorCameraProjection(Projection),
-    SwitchToBuildMode,
+    SwitchToBuildMode {
+        play_after_build: bool,
+    },
     SwitchToEditMode,
     SwitchMode,
     OpenLoadSceneDialog,
