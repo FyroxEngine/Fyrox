@@ -53,9 +53,12 @@ use crate::{
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
+            style::{resource::StyleResourceExt, Style},
             text::TextMessage,
             text_box::TextBoxBuilder,
-            utils::make_simple_tooltip,
+            utils::{
+                make_dropdown_list_option, make_image_button_with_tooltip, make_simple_tooltip,
+            },
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
@@ -72,18 +75,15 @@ use crate::{
     utils::window_content,
     Message, Mode,
 };
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
-use fyrox::gui::utils::{make_dropdown_list_option, make_image_button_with_tooltip};
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use std::fs::File;
-use std::io::Write;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     ffi::OsStr,
+    fs::File,
+    io::Write,
     path::{Path, PathBuf},
     process::Command,
     sync::{
+        atomic::{AtomicBool, Ordering},
         mpsc::{self, Sender},
         Arc,
     },
@@ -547,7 +547,8 @@ pub struct AssetBrowser {
     item_to_select: Option<PathBuf>,
     inspector: AssetInspector,
     context_menu: ContextMenu,
-    selected_path: PathBuf,
+    current_path: PathBuf,
+    selected_item_path: PathBuf,
     watcher: Option<RecommendedWatcher>,
     dependency_viewer: DependencyViewer,
     resource_creator: Option<ResourceCreator>,
@@ -757,7 +758,7 @@ impl AssetBrowser {
             item_to_select: None,
             inspector,
             context_menu,
-            selected_path: Default::default(),
+            current_path: Default::default(),
             add_resource,
             resource_creator: None,
             preview_cache: AssetPreviewCache::new(preview_receiver, 4),
@@ -766,6 +767,7 @@ impl AssetBrowser {
             preview_generators: AssetPreviewGeneratorsCollection::new(),
             refresh,
             watcher,
+            selected_item_path: Default::default(),
         }
     }
 
@@ -887,8 +889,8 @@ impl AssetBrowser {
     ) {
         if let Some(watcher) = self.watcher.as_mut() {
             // notify 6.1.1 crashes otherwise
-            if self.selected_path.exists() {
-                Log::verify(watcher.unwatch(&self.selected_path));
+            if self.current_path.exists() {
+                Log::verify(watcher.unwatch(&self.current_path));
             }
             if path.exists() {
                 Log::verify(watcher.watch(path, RecursiveMode::NonRecursive));
@@ -897,7 +899,7 @@ impl AssetBrowser {
             }
         }
 
-        self.selected_path = path.to_path_buf();
+        self.current_path = path.to_path_buf();
         self.refresh(ui, resource_manager, message_sender);
     }
 
@@ -913,16 +915,8 @@ impl AssetBrowser {
         // Clean content panel first.
         self.clear_assets(ui);
 
-        let selected_folder = if self.selected_path.file_name().is_some() {
-            let mut folder = self.selected_path.to_path_buf();
-            folder.pop();
-            folder
-        } else {
-            self.selected_path.clone()
-        };
-
         // Add "return" item.
-        if let Some(mut parent_path) = make_relative_path(&selected_folder)
+        if let Some(mut parent_path) = make_relative_path(&self.current_path)
             .ok()
             .and_then(|path| path.parent().map(|path| path.to_owned()))
         {
@@ -954,7 +948,7 @@ impl AssetBrowser {
         let mut resources = Vec::new();
 
         // Get all supported assets from folder and generate previews for them.
-        if let Ok(dir_iter) = std::fs::read_dir(&selected_folder) {
+        if let Ok(dir_iter) = std::fs::read_dir(&self.current_path) {
             for entry in dir_iter.flatten() {
                 if let Ok(entry_path) = make_relative_path(entry.path()) {
                     if entry_path.is_dir() {
@@ -970,7 +964,7 @@ impl AssetBrowser {
         }
 
         // Collect built-in resource (only if the root folder is selected).
-        if let Ok(path) = selected_folder.canonicalize() {
+        if let Ok(path) = self.current_path.canonicalize() {
             if let Ok(working_dir) = std::env::current_dir().and_then(|dir| dir.canonicalize()) {
                 if path == working_dir {
                     let built_in_resources = resource_manager
@@ -1036,7 +1030,7 @@ impl AssetBrowser {
                 message,
                 engine,
                 sender.clone(),
-                &self.selected_path,
+                &self.current_path,
             );
             if asset_added {
                 self.refresh(
@@ -1066,8 +1060,7 @@ impl AssetBrowser {
                 .path
                 .clone();
 
-            self.selected_path = asset_path.clone();
-            self.item_to_select = Some(asset_path.clone());
+            self.selected_item_path = asset_path.clone();
 
             self.inspector.inspect_resource_import_options(
                 &asset_path,
@@ -1125,7 +1118,8 @@ impl AssetBrowser {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if search_text.is_empty() {
-                    let path = self.selected_path.clone();
+                    let path = self.selected_item_path.parent().unwrap().to_path_buf();
+                    self.item_to_select = Some(self.selected_item_path.clone());
                     self.set_path(&path, ui, &engine.resource_manager, &sender);
                 } else {
                     self.clear_assets(ui);
