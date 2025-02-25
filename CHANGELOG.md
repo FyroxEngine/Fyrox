@@ -1,3 +1,19 @@
+# 0.36.1
+
+Minor release with fixes for some annoying bugs.
+
+## Fixed
+
+- Fixed frustum culling issues for meshes.
+- Correctly mark inheritable properties as modified when animating them.
+- Show selected item in the asset browser when clearing selection text.
+- Fixed incorrect width of the node removal dialog.
+- Fixed physics desynchronization issue.
+- Fixed docking manager layout saving and loading.
+- Improved project name validation (in both `fyrox-template` and the project manager).
+- Fixed example shader in the documentation.
+- Added names for floating panels in the editor—fixes incorrect layout after loading.
+
 # 0.36
 
 This version unifies versions of sub-crates - now all sub-crates have the same version. This makes it easier to migrate
