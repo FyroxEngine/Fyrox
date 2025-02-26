@@ -41,7 +41,7 @@
 //! friendliness.
 
 use crate::{reflect::prelude::*, visitor::prelude::*, ComponentProvider};
-use std::cell::Cell;
+use std::cell::UnsafeCell;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -184,19 +184,22 @@ where
 // Zero - non-borrowed.
 // Negative values - amount of mutable borrows, positive - amount of immutable borrows.
 #[derive(Default, Debug)]
-struct RefCounter(pub Cell<isize>);
+struct RefCounter(pub UnsafeCell<isize>);
+
+unsafe impl Sync for RefCounter {}
+unsafe impl Send for RefCounter {}
 
 impl RefCounter {
-    fn get(&self) -> isize {
-        self.0.get()
+    unsafe fn get(&self) -> isize {
+        *self.0.get()
     }
 
-    fn increment(&self) {
-        self.0.set(self.0.get() + 1)
+    unsafe fn increment(&self) {
+        *self.0.get() += 1;
     }
 
-    fn decrement(&self) {
-        self.0.set(self.0.get() - 1)
+    unsafe fn decrement(&self) {
+        *self.0.get() -= 1;
     }
 }
 

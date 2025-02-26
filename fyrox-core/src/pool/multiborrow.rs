@@ -63,7 +63,11 @@ where
     T: ?Sized,
 {
     fn drop(&mut self) {
-        self.ref_counter.decrement();
+        // SAFETY: This is safe, because this ref lifetime is managed by the borrow checker,
+        // so it cannot outlive the pool record.
+        unsafe {
+            self.ref_counter.decrement();
+        }
     }
 }
 
@@ -110,7 +114,11 @@ where
     T: ?Sized,
 {
     fn drop(&mut self) {
-        self.ref_counter.increment();
+        // SAFETY: This is safe, because this ref lifetime is managed by the borrow checker,
+        // so it cannot outlive the pool record.
+        unsafe {
+            self.ref_counter.increment();
+        }
     }
 }
 
@@ -228,7 +236,7 @@ where
             return Err(MultiBorrowError::InvalidHandleGeneration(handle));
         }
 
-        let current_ref_count = record.ref_counter.get();
+        let current_ref_count = unsafe { record.ref_counter.get() };
         if current_ref_count < 0 {
             return Err(MultiBorrowError::MutablyBorrowed(handle));
         }
@@ -240,7 +248,9 @@ where
             return Err(MultiBorrowError::Empty(handle));
         };
 
-        record.ref_counter.increment();
+        unsafe {
+            record.ref_counter.increment();
+        }
 
         Ok(Ref {
             data: func(payload)?,
@@ -288,7 +298,9 @@ where
             return Err(MultiBorrowError::InvalidHandleGeneration(handle));
         }
 
-        let current_ref_count = record.ref_counter.get();
+        // SAFETY: It is safe to access the counter because of borrow checker guarantees that
+        // the record is alive.
+        let current_ref_count = unsafe { record.ref_counter.get() };
         match current_ref_count.cmp(&0) {
             Ordering::Less => {
                 return Err(MultiBorrowError::MutablyBorrowed(handle));
@@ -306,7 +318,11 @@ where
             return Err(MultiBorrowError::Empty(handle));
         };
 
-        record.ref_counter.decrement();
+        // SAFETY: It is safe to access the counter because of borrow checker guarantees that
+        // the record is alive.
+        unsafe {
+            record.ref_counter.decrement();
+        }
 
         Ok(RefMut {
             data: func(payload)?,
@@ -339,7 +355,9 @@ where
         }
 
         // The record must be non-borrowed to be freed.
-        let current_ref_count = record.ref_counter.get();
+        // SAFETY: It is safe to access the counter because of borrow checker guarantees that
+        // the record is alive.
+        let current_ref_count = unsafe { record.ref_counter.get() };
         match current_ref_count.cmp(&0) {
             Ordering::Less => {
                 return Err(MultiBorrowError::MutablyBorrowed(handle));
@@ -450,9 +468,9 @@ mod test {
         // Test immutable borrowing of the same element with the following mutable borrowing.
         {
             let ref_a_1 = ctx.try_get(a);
-            assert_eq!(ref_a_1.as_ref().unwrap().ref_counter.get(), 1);
+            assert_eq!(unsafe { ref_a_1.as_ref().unwrap().ref_counter.get() }, 1);
             let ref_a_2 = ctx.try_get(a);
-            assert_eq!(ref_a_2.as_ref().unwrap().ref_counter.get(), 2);
+            assert_eq!(unsafe { ref_a_2.as_ref().unwrap().ref_counter.get() }, 2);
 
             assert_eq!(ref_a_1.as_deref(), Ok(&val_a));
             assert_eq!(ref_a_2.as_deref(), Ok(&val_a));
@@ -467,7 +485,10 @@ mod test {
             let mut mut_ref_a_1 = ctx.try_get_mut(a);
             assert_eq!(mut_ref_a_1.as_deref_mut(), Ok(&mut val_a));
 
-            assert_eq!(mut_ref_a_1.as_ref().unwrap().ref_counter.get(), -1);
+            assert_eq!(
+                unsafe { mut_ref_a_1.as_ref().unwrap().ref_counter.get() },
+                -1
+            );
         }
 
         // Test immutable and mutable borrowing.
