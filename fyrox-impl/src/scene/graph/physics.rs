@@ -1162,6 +1162,8 @@ impl PhysicsWorld {
                 max_ccd_substeps: self.integration_parameters.max_ccd_substeps as usize,
             };
 
+            let mut query = self.query.borrow_mut();
+
             self.pipeline.step(
                 &self.gravity,
                 &integration_parameters,
@@ -1173,9 +1175,7 @@ impl PhysicsWorld {
                 &mut self.joints.set,
                 &mut self.multibody_joints.set,
                 &mut self.ccd_solver,
-                // In Rapier 0.17 passing query pipeline here sometimes causing panic in numeric overflow,
-                // so we keep updating it manually.
-                None,
+                Some(&mut query),
                 &(),
                 &*self.event_handler,
             );
@@ -1252,14 +1252,7 @@ impl PhysicsWorld {
     pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
         let time = instant::Instant::now();
 
-        let mut query = self.query.borrow_mut();
-
-        // TODO: Ideally this must be called once per frame, but it seems to be impossible because
-        // a body can be deleted during the consecutive calls of this method which will most
-        // likely end up in panic because of invalid handle stored in internal acceleration
-        // structure. This could be fixed by delaying deleting of bodies/collider to the end
-        // of the frame.
-        query.update(&self.colliders);
+        let query = self.query.borrow_mut();
 
         query_buffer.clear();
         let ray = Ray::new(
