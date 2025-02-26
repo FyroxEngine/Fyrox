@@ -41,13 +41,13 @@
 //! friendliness.
 
 use crate::{reflect::prelude::*, visitor::prelude::*, ComponentProvider};
+use std::cell::Cell;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
     future::Future,
     marker::PhantomData,
     ops::{Index, IndexMut},
-    sync::atomic::{self, AtomicIsize},
 };
 
 pub mod handle;
@@ -184,15 +184,19 @@ where
 // Zero - non-borrowed.
 // Negative values - amount of mutable borrows, positive - amount of immutable borrows.
 #[derive(Default, Debug)]
-struct RefCounter(pub AtomicIsize);
+struct RefCounter(pub Cell<isize>);
 
 impl RefCounter {
+    fn get(&self) -> isize {
+        self.0.get()
+    }
+
     fn increment(&self) {
-        self.0.fetch_add(1, atomic::Ordering::Relaxed);
+        self.0.set(self.0.get() + 1)
     }
 
     fn decrement(&self) {
-        self.0.fetch_sub(1, atomic::Ordering::Relaxed);
+        self.0.set(self.0.get() - 1)
     }
 }
 

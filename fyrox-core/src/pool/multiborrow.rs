@@ -20,14 +20,13 @@
 
 use super::{Handle, PayloadContainer, Pool, RefCounter};
 use crate::ComponentProvider;
-use std::cell::RefCell;
-use std::cmp::Ordering;
 use std::{
     any::TypeId,
+    cell::RefCell,
+    cmp::Ordering,
     fmt::{Debug, Display, Formatter},
     marker::PhantomData,
     ops::{Deref, DerefMut},
-    sync::atomic,
 };
 
 pub struct Ref<'a, 'b, T>
@@ -229,7 +228,7 @@ where
             return Err(MultiBorrowError::InvalidHandleGeneration(handle));
         }
 
-        let current_ref_count = record.ref_counter.0.load(atomic::Ordering::Relaxed);
+        let current_ref_count = record.ref_counter.get();
         if current_ref_count < 0 {
             return Err(MultiBorrowError::MutablyBorrowed(handle));
         }
@@ -241,17 +240,7 @@ where
             return Err(MultiBorrowError::Empty(handle));
         };
 
-        if let Err(ref_count) = record.ref_counter.0.compare_exchange(
-            current_ref_count,
-            current_ref_count + 1,
-            atomic::Ordering::Acquire,
-            atomic::Ordering::Relaxed,
-        ) {
-            // This might happen if other thread have already acquired the mutable reference.
-            if ref_count < 0 {
-                return Err(MultiBorrowError::MutablyBorrowed(handle));
-            }
-        }
+        record.ref_counter.increment();
 
         Ok(Ref {
             data: func(payload)?,
@@ -299,7 +288,7 @@ where
             return Err(MultiBorrowError::InvalidHandleGeneration(handle));
         }
 
-        let current_ref_count = record.ref_counter.0.load(atomic::Ordering::Relaxed);
+        let current_ref_count = record.ref_counter.get();
         match current_ref_count.cmp(&0) {
             Ordering::Less => {
                 return Err(MultiBorrowError::MutablyBorrowed(handle));
@@ -317,22 +306,7 @@ where
             return Err(MultiBorrowError::Empty(handle));
         };
 
-        if let Err(ref_count) = record.ref_counter.0.compare_exchange(
-            0,
-            -1,
-            atomic::Ordering::Acquire,
-            atomic::Ordering::Relaxed,
-        ) {
-            match ref_count.cmp(&0) {
-                Ordering::Less => {
-                    return Err(MultiBorrowError::MutablyBorrowed(handle));
-                }
-                Ordering::Greater => {
-                    return Err(MultiBorrowError::ImmutablyBorrowed(handle));
-                }
-                _ => (),
-            }
-        }
+        record.ref_counter.decrement();
 
         Ok(RefMut {
             data: func(payload)?,
@@ -364,22 +338,16 @@ where
             return Err(MultiBorrowError::InvalidHandleGeneration(handle));
         }
 
-        // Acquire temporary lock.
-        if let Err(ref_count) = record.ref_counter.0.compare_exchange(
-            0,
-            -1,
-            atomic::Ordering::Acquire,
-            atomic::Ordering::Relaxed,
-        ) {
-            match ref_count.cmp(&0) {
-                Ordering::Less => {
-                    return Err(MultiBorrowError::MutablyBorrowed(handle));
-                }
-                Ordering::Greater => {
-                    return Err(MultiBorrowError::ImmutablyBorrowed(handle));
-                }
-                _ => (),
+        // The record must be non-borrowed to be freed.
+        let current_ref_count = record.ref_counter.get();
+        match current_ref_count.cmp(&0) {
+            Ordering::Less => {
+                return Err(MultiBorrowError::MutablyBorrowed(handle));
             }
+            Ordering::Greater => {
+                return Err(MultiBorrowError::ImmutablyBorrowed(handle));
+            }
+            _ => (),
         }
 
         // SAFETY: We've enforced borrowing rules by the previous check.
@@ -390,8 +358,6 @@ where
         };
 
         self.free_indices.borrow_mut().push(handle.index);
-
-        record.ref_counter.increment();
 
         Ok(payload)
     }
@@ -439,7 +405,6 @@ where
 mod test {
     use super::MultiBorrowError;
     use crate::pool::Pool;
-    use std::sync::atomic;
 
     #[derive(PartialEq, Clone, Copy, Debug)]
     struct MyPayload(u32);
@@ -485,25 +450,9 @@ mod test {
         // Test immutable borrowing of the same element with the following mutable borrowing.
         {
             let ref_a_1 = ctx.try_get(a);
-            assert_eq!(
-                ref_a_1
-                    .as_ref()
-                    .unwrap()
-                    .ref_counter
-                    .0
-                    .load(atomic::Ordering::Relaxed),
-                1
-            );
+            assert_eq!(ref_a_1.as_ref().unwrap().ref_counter.get(), 1);
             let ref_a_2 = ctx.try_get(a);
-            assert_eq!(
-                ref_a_2
-                    .as_ref()
-                    .unwrap()
-                    .ref_counter
-                    .0
-                    .load(atomic::Ordering::Relaxed),
-                2
-            );
+            assert_eq!(ref_a_2.as_ref().unwrap().ref_counter.get(), 2);
 
             assert_eq!(ref_a_1.as_deref(), Ok(&val_a));
             assert_eq!(ref_a_2.as_deref(), Ok(&val_a));
@@ -518,15 +467,7 @@ mod test {
             let mut mut_ref_a_1 = ctx.try_get_mut(a);
             assert_eq!(mut_ref_a_1.as_deref_mut(), Ok(&mut val_a));
 
-            assert_eq!(
-                mut_ref_a_1
-                    .as_ref()
-                    .unwrap()
-                    .ref_counter
-                    .0
-                    .load(atomic::Ordering::Relaxed),
-                -1
-            );
+            assert_eq!(mut_ref_a_1.as_ref().unwrap().ref_counter.get(), -1);
         }
 
         // Test immutable and mutable borrowing.
