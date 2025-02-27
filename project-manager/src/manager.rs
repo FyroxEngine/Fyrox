@@ -191,10 +191,32 @@ fn make_project_item(
     .with_text(engine_version)
     .build(ctx);
 
+    let project_size = if let Some(project_dir) = Path::new(path).parent() {
+        let size = utils::calculate_directory_size(project_dir);
+        utils::format_size(size)
+    } else {
+        String::from("N/A")
+    };
+
+    let size_text = TextBuilder::new(
+        WidgetBuilder::new()
+            .with_foreground(ctx.style.property(Style::BRUSH_BRIGHTEST))
+            .with_margin(Thickness {
+                left: 0.0,
+                top: 6.0,
+                right: 8.0,
+                bottom: 0.0,
+            }),
+    )
+    .with_font_size(13.0.into())
+    .with_text(format!("Size: {}", project_size))
+    .build(ctx);
+
     let info = StackPanelBuilder::new(
         WidgetBuilder::new()
             .with_horizontal_alignment(HorizontalAlignment::Right)
             .with_vertical_alignment(VerticalAlignment::Center)
+            .with_child(size_text)
             .with_child(engine_version)
             .with_child(hot_reload),
     )

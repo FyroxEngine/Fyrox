@@ -28,6 +28,7 @@ use fyrox::{
     },
 };
 use std::{
+    fs,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
@@ -156,4 +157,39 @@ pub fn fyrox_dependency_from_path(manifest_path: &Path) -> Option<Dependency> {
 
 pub fn has_fyrox_in_deps(metadata: &Metadata) -> bool {
     fyrox_dependency(metadata).is_some()
+}
+
+pub fn calculate_directory_size(path: &Path) -> u64 {
+    let mut total_size = 0;
+
+    if let Ok(entries) = fs::read_dir(path) {
+        for entry in entries.flatten() {
+            let entry_path = entry.path();
+            if entry_path.is_file() {
+                if let Ok(metadata) = entry.metadata() {
+                    total_size += metadata.len();
+                }
+            } else if entry_path.is_dir() {
+                total_size += calculate_directory_size(&entry_path);
+            }
+        }
+    }
+
+    total_size
+}
+
+pub fn format_size(size: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = KB * 1024;
+    const GB: u64 = MB * 1024;
+
+    if size >= GB {
+        format!("{:.2} GB", size as f64 / GB as f64)
+    } else if size >= MB {
+        format!("{:.2} MB", size as f64 / MB as f64)
+    } else if size >= KB {
+        format!("{:.2} KB", size as f64 / KB as f64)
+    } else {
+        format!("{} B", size)
+    }
 }
