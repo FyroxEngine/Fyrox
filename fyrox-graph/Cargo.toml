@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-graph"
-version = "0.36.0"
+version = "0.36.2"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
@@ -14,6 +14,6 @@ repository = "https://github.com/FyroxEngine/Fyrox"
 rust-version = "1.80"
 
 [dependencies]
-fyrox-core = { path = "../fyrox-core", version = "0.36.0" }
-fyrox-resource = { path = "../fyrox-resource", version = "0.36.0" }
+fyrox-core = { path = "../fyrox-core", version = "0.36.2" }
+fyrox-resource = { path = "../fyrox-resource", version = "0.36.2" }
 fxhash = "0.2.1"

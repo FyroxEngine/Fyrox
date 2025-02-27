@@ -643,13 +643,11 @@ impl NodeTrait for Mesh {
 
     fn on_global_transform_changed(
         &self,
-        _new_global_transform: &Matrix4<f32>,
+        new_global_transform: &Matrix4<f32>,
         context: &mut SyncContext,
     ) {
         if self.surfaces.iter().any(|s| !s.bones.is_empty()) {
-            let mut world_aabb = self
-                .local_bounding_box()
-                .transform(&self.global_transform());
+            let mut world_aabb = self.local_bounding_box().transform(new_global_transform);
 
             // Special case for skinned meshes.
             for surface in self.surfaces.iter() {
@@ -662,10 +660,8 @@ impl NodeTrait for Mesh {
 
             self.world_bounding_box.set(world_aabb)
         } else {
-            self.world_bounding_box.set(
-                self.local_bounding_box()
-                    .transform(&self.global_transform()),
-            );
+            self.world_bounding_box
+                .set(self.local_bounding_box().transform(new_global_transform));
         }
     }
 

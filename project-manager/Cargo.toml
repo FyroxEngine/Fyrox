@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-project-manager"
-version = "0.36.0"
+version = "0.36.2"
 edition = "2021"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 license = "MIT"
@@ -13,9 +13,9 @@ repository = "https://github.com/FyroxEngine/Fyrox"
 rust-version = "1.80"
 
 [dependencies]
-fyrox = { version = "0.36.0", path = "../fyrox" }
-fyrox-template-core = { version = "0.36.0", path = "../template-core" }
-fyrox-build-tools = { version = "0.36.0", path = "../fyrox-build-tools" }
+fyrox = { version = "0.36.2", path = "../fyrox" }
+fyrox-template-core = { version = "0.36.2", path = "../template-core" }
+fyrox-build-tools = { version = "0.36.2", path = "../fyrox-build-tools" }
 serde = { version = "1", features = ["derive"] }
 ron = "0.8.1"
 open = "5.0.1"

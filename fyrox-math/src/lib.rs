@@ -621,6 +621,15 @@ pub struct SmoothAngle {
 
 impl SmoothAngle {
     #[inline]
+    pub fn new(angle: f32, speed: f32) -> Self {
+        Self {
+            angle,
+            target: angle,
+            speed,
+        }
+    }
+
+    #[inline]
     pub fn set_target(&mut self, angle: f32) -> &mut Self {
         self.target = angle;
         self

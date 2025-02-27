@@ -235,7 +235,7 @@ impl TrackValue {
 
     /// Tries to perform a numeric type casting of the current value to some other and returns a boxed value, that can
     /// be used to set the value using reflection.
-    pub fn apply_to_any(&self, any: &mut dyn Any, value_type: ValueType) {
+    pub fn apply_to_any(&self, any: &mut dyn Any, value_type: ValueType) -> bool {
         fn convert_vec2<T>(vec2: &Vector2<f32>) -> Vector2<T>
         where
             f32: AsPrimitive<T>,
@@ -260,17 +260,19 @@ impl TrackValue {
             Vector4::new(vec4.x.as_(), vec4.y.as_(), vec4.z.as_(), vec4.w.as_())
         }
 
-        fn set<T>(any: &mut dyn Any, value: T)
+        fn set<T>(any: &mut dyn Any, value: T) -> bool
         where
             T: Any + Copy,
         {
-            if let Some(boolean) = any.downcast_mut::<T>() {
-                *boolean = value;
+            if let Some(any_val) = any.downcast_mut::<T>() {
+                *any_val = value;
+                true
             } else {
                 Log::err(format!(
                     "Animation: unable to set value of type {}! Types mismatch!",
                     any::type_name::<T>()
-                ))
+                ));
+                false
             }
         }
 
@@ -287,7 +289,7 @@ impl TrackValue {
                 ValueType::I16 => set(any, *real as i16),
                 ValueType::U8 => set(any, *real as u8),
                 ValueType::I8 => set(any, *real as i8),
-                _ => (),
+                _ => false,
             },
             TrackValue::Vector2(vec2) => match value_type {
                 ValueType::Vector2Bool => set(any, Vector2::new(vec2.x.ne(&0.0), vec2.y.ne(&0.0))),
@@ -301,7 +303,7 @@ impl TrackValue {
                 ValueType::Vector2I16 => set(any, convert_vec2::<i16>(vec2)),
                 ValueType::Vector2U8 => set(any, convert_vec2::<u8>(vec2)),
                 ValueType::Vector2I8 => set(any, convert_vec2::<i8>(vec2)),
-                _ => (),
+                _ => false,
             },
             TrackValue::Vector3(vec3) => match value_type {
                 ValueType::Vector3Bool => set(
@@ -318,7 +320,7 @@ impl TrackValue {
                 ValueType::Vector3I16 => set(any, convert_vec3::<i16>(vec3)),
                 ValueType::Vector3U8 => set(any, convert_vec3::<u8>(vec3)),
                 ValueType::Vector3I8 => set(any, convert_vec3::<i8>(vec3)),
-                _ => (),
+                _ => false,
             },
             TrackValue::Vector4(vec4) => match value_type {
                 ValueType::Vector4Bool => set(
@@ -340,12 +342,12 @@ impl TrackValue {
                 ValueType::Vector4I16 => set(any, convert_vec4::<i16>(vec4)),
                 ValueType::Vector4U8 => set(any, convert_vec4::<u8>(vec4)),
                 ValueType::Vector4I8 => set(any, convert_vec4::<i8>(vec4)),
-                _ => (),
+                _ => false,
             },
             TrackValue::UnitQuaternion(quat) => match value_type {
                 ValueType::UnitQuaternionF32 => set(any, *quat),
                 ValueType::UnitQuaternionF64 => set(any, quat.cast::<f64>()),
-                _ => (),
+                _ => false,
             },
         }
     }
@@ -410,9 +412,19 @@ impl BoundValue {
     ) {
         object.as_reflect_mut(&mut |object_ref| {
             object_ref.resolve_path_mut(property_path, &mut |result| match result {
-                Ok(property) => property.as_any_mut(&mut |any| {
-                    self.value.apply_to_any(any, value_type);
-                }),
+                Ok(property) => {
+                    let mut applied = false;
+                    property.as_any_mut(&mut |any| {
+                        applied = self.value.apply_to_any(any, value_type);
+                    });
+                    if applied {
+                        property.as_inheritable_variable_mut(&mut |var| {
+                            if let Some(var) = var {
+                                var.mark_modified();
+                            }
+                        });
+                    }
+                }
                 Err(err) => {
                     Log::err(format!(
                         "Failed to set property {property_path}! Reason: {err:?}"
@@ -459,11 +471,21 @@ pub fn negate_unit_quaternion(a: &UnitQuaternion<f32>) -> UnitQuaternion<f32> {
 #[cfg(test)]
 mod test {
     use crate::value::{BoundValue, TrackValue, ValueBinding, ValueType};
-    use fyrox_core::reflect::prelude::*;
+    use fyrox_core::{reflect::prelude::*, variable::InheritableVariable};
 
-    #[derive(Default, Reflect, Debug, PartialEq)]
+    #[derive(Reflect, Debug, PartialEq)]
     struct OtherStruct {
         field: u32,
+        inheritable_variable: InheritableVariable<u32>,
+    }
+
+    impl Default for OtherStruct {
+        fn default() -> Self {
+            Self {
+                field: 0,
+                inheritable_variable: InheritableVariable::new_non_modified(0),
+            }
+        }
     }
 
     #[derive(Default, Reflect, Debug, PartialEq)]
@@ -499,6 +521,14 @@ mod test {
             value: TrackValue::Real(123.0),
         };
 
+        let inheritable_variable_value = BoundValue {
+            binding: ValueBinding::Property {
+                name: "inheritable_variable".into(),
+                value_type: ValueType::U32,
+            },
+            value: TrackValue::Real(123.0),
+        };
+
         let mut object = MyStruct::default();
 
         some_bool_value.apply_to_object(&mut object, "some_bool", ValueType::Bool);
@@ -509,5 +539,14 @@ mod test {
 
         field_value.apply_to_object(&mut object, "other_struct.field", ValueType::U32);
         assert_eq!(object.other_struct.field, 123);
+
+        assert!(!object.other_struct.inheritable_variable.is_modified());
+        inheritable_variable_value.apply_to_object(
+            &mut object,
+            "other_struct.inheritable_variable",
+            ValueType::U32,
+        );
+        assert_eq!(object.other_struct.field, 123);
+        assert!(object.other_struct.inheritable_variable.is_modified());
     }
 }
