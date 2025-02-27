@@ -29,20 +29,7 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::SerializationContext,
-    scene::{
-        self,
-        camera::Camera,
-        decal::Decal,
-        dim2::{self, rectangle::Rectangle},
-        light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
-        mesh::Mesh,
-        node::Node,
-        particle_system::ParticleSystem,
-        pivot::Pivot,
-        sound::{listener::Listener, Sound},
-        sprite::Sprite,
-        terrain::Terrain,
-    },
+    scene::node::Node,
 };
 
 /// A wrapper for node pool record that allows to define custom visit method to have full
