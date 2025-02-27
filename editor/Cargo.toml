@@ -13,8 +13,8 @@ readme = "README.md"
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/resources/**/*"]
 
 [dependencies]
-fyrox = { version = "0.36.0", path = "../fyrox", default-features = false }
-fyrox-build-tools = { version = "0.36.0", path = "../fyrox-build-tools" }
+fyrox = { version = "0.36.1", path = "../fyrox", default-features = false }
+fyrox-build-tools = { version = "0.36.1", path = "../fyrox-build-tools" }
 lazy_static = "1.4.0"
 ron = "0.8.0"
 serde = "^1.0.0"

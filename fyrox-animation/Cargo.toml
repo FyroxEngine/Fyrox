@@ -15,8 +15,8 @@ readme = "README.md"
 rust-version = "1.80"
 
 [dependencies]
-fyrox-core = { version = "0.36.0", path = "../fyrox-core" }
-fyrox-resource = { version = "0.36.0", path = "../fyrox-resource" }
+fyrox-core = { version = "0.36.1", path = "../fyrox-core" }
+fyrox-resource = { version = "0.36.1", path = "../fyrox-resource" }
 strum = "0.26.1"
 strum_macros = "0.26.1"
 fxhash = "0.2.1"

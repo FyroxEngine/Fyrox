@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-dylib"
-version = "0.36.0"
+version = "0.36.1"
 edition = "2021"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>", "Fyrox Engine Contributors"]
 license = "MIT"
@@ -21,4 +21,4 @@ crate-type = ["dylib"]
 mesh_analysis = ["fyrox-impl/mesh_analysis"]
 
 [dependencies]
-fyrox-impl = { path = "../fyrox-impl", version = "0.36.0" }
+fyrox-impl = { path = "../fyrox-impl", version = "0.36.1" }
