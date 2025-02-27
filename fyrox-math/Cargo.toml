@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-math"
-version = "0.36.1"
+version = "0.36.2"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
