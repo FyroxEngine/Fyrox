@@ -26,32 +26,16 @@ use std::{
     collections::HashMap,
     fmt::Display,
     fs::{create_dir_all, read_dir, remove_dir_all, File},
-    io::{Cursor, Read, Write},
+    io::{Read, Write},
     path::Path,
     process::Command,
-    sync::LazyLock,
 };
 use toml_edit::{table, value, DocumentMut};
 use uuid::Uuid;
 
-// Template generator version must match the engine version. This is checked by the CI.
-pub static CURRENT_VERSION: LazyLock<String> = LazyLock::new(|| {
-    let manifest = include_bytes!("../Cargo.toml");
-
-    let mut file = Cursor::new(&manifest);
-    let mut toml = String::new();
-    if file.read_to_string(&mut toml).is_ok() {
-        if let Ok(document) = toml.parse::<DocumentMut>() {
-            if let Some(package) = document.get("package").and_then(|i| i.as_table()) {
-                if let Some(version) = package.get("version") {
-                    return version.to_string().replace('\"', "");
-                }
-            }
-        }
-    }
-
-    panic!("Project manager's Cargo.toml is malformed!");
-});
+pub static CURRENT_ENGINE_VERSION: &str = include_str!("../engine.version");
+pub static CURRENT_EDITOR_VERSION: &str = include_str!("../editor.version");
+pub static CURRENT_SCRIPTS_VERSION: &str = include_str!("../scripts.version");
 
 fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) -> Result<(), String> {
     let mut file = File::create(path.as_ref()).map_err(|e| e.to_string())?;
@@ -621,7 +605,6 @@ fn init_workspace(base_path: &Path, vcs: &str) -> Result<(), String> {
     }
 
     // Write Cargo.toml
-    let version = &*CURRENT_VERSION;
     write_file(
         base_path.join("Cargo.toml"),
         format!(
@@ -631,10 +614,10 @@ members = ["editor", "executor", "executor-wasm", "executor-android", "game", "g
 resolver = "2"
 
 [workspace.dependencies.fyrox]
-version = "{version}"
+version = "{CURRENT_ENGINE_VERSION}"
 default-features = false
 [workspace.dependencies.fyroxed_base]
-version = "{version}"
+version = "{CURRENT_EDITOR_VERSION}"
 default-features = false
 
 # Separate build profiles for hot reloading. These profiles ensures that build artifacts for
@@ -800,10 +783,10 @@ pub fn upgrade_project(root_path: &Path, version: &str, local: bool) -> Result<(
     // TODO: This will be obsolete in 1.0 and should be removed.
     let editor_versions = [
         (
-            CURRENT_VERSION.to_string(),
+            CURRENT_ENGINE_VERSION.to_string(),
             (
-                CURRENT_VERSION.to_string(),
-                Some(CURRENT_VERSION.to_string()),
+                CURRENT_EDITOR_VERSION.to_string(),
+                Some(CURRENT_SCRIPTS_VERSION.to_string()),
             ),
         ),
         (
@@ -861,10 +844,11 @@ pub fn upgrade_project(root_path: &Path, version: &str, local: bool) -> Result<(
                                         dependencies["fyrox_scripts"] = scripts_table;
                                     }
                                 } else {
-                                    dependencies["fyrox"] = value(&*CURRENT_VERSION);
-                                    dependencies["fyroxed_base"] = value(&*CURRENT_VERSION);
+                                    dependencies["fyrox"] = value(CURRENT_ENGINE_VERSION);
+                                    dependencies["fyroxed_base"] = value(CURRENT_EDITOR_VERSION);
                                     if dependencies.contains_key("fyrox_scripts") {
-                                        dependencies["fyrox_scripts"] = value(&*CURRENT_VERSION);
+                                        dependencies["fyrox_scripts"] =
+                                            value(CURRENT_SCRIPTS_VERSION);
                                     }
                                 }
                             } else if version == "nightly" {

@@ -7,7 +7,7 @@ license = "MIT"
 description = "Project template generator for Fyrox engine"
 keywords = ["fyrox", "game", "project"]
 categories = ["game-development"]
-include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "engine.version", "editor.version", "scripts.version"]
 homepage = "https://fyrox.rs"
 repository = "https://github.com/FyroxEngine/Fyrox"
 readme = "README.md"
@@ -20,3 +20,6 @@ toml = "0.8.10"
 toml_edit = "0.22.6"
 regex = "1.7.3"
 unicode-xid = "0.2.6"
+
+[build-dependencies]
+toml_edit = "0.22.6"
