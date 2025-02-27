@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-template-core"
-version = "0.36.1"
+version = "0.36.2"
 edition = "2021"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 license = "MIT"
