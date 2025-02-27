@@ -2,7 +2,7 @@
 name = "fyrox-autotile"
 license = "MIT"
 version = "0.36.0"
-authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>", "Brendan Guild <bguildjava@gmail.com>"]
 edition = "2021"
 rust-version = "1.80"
 description = "An autotiler for Fyrox game engine"

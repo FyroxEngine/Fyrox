@@ -55,7 +55,7 @@ use crate::{send_sync_message, MSG_SYNC_FLAG};
 
 use super::*;
 
-/// A message for events related to [`TileDefinitionHandleEdito`].
+/// A message for events related to [`TileDefinitionHandleEditor`].
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TileDefinitionHandleEditorMessage {
     /// The value of the handle has changed.

@@ -752,6 +752,27 @@ impl MacroPropertyValueField {
             );
         }
     }
+    fn on_numeric_message(
+        &self,
+        prop: Option<&TileSetPropertyLayer>,
+        element: TileSetPropertyValueElement,
+        value: NamableValue,
+        ui: &mut UserInterface,
+    ) {
+        ui.send_message(TileSetPropertyValueMessage::value(
+            self.handle,
+            MessageDirection::FromWidget,
+            element,
+        ));
+        send_sync_message(
+            ui,
+            DropdownListMessage::selection(
+                self.list,
+                MessageDirection::ToWidget,
+                Some(find_list_index(prop, value)),
+            ),
+        );
+    }
     /// Handle the given message, which might be relevant to some widget in the field.
     pub fn on_ui_message(
         &mut self,
@@ -773,54 +794,33 @@ impl MacroPropertyValueField {
             if message.destination() == self.textbox
                 && message.direction() == MessageDirection::FromWidget
             {
-                ui.send_message(TileSetPropertyValueMessage::value(
-                    self.handle,
-                    MessageDirection::FromWidget,
+                self.on_numeric_message(
+                    prop,
                     TileSetPropertyValueElement::I8(*v),
-                ));
-                send_sync_message(
+                    NamableValue::I8(*v),
                     ui,
-                    DropdownListMessage::selection(
-                        self.list,
-                        MessageDirection::ToWidget,
-                        Some(find_list_index(prop, NamableValue::I8(*v))),
-                    ),
                 );
             }
         } else if let Some(NumericUpDownMessage::<i32>::Value(v)) = message.data() {
             if message.destination() == self.textbox
                 && message.direction() == MessageDirection::FromWidget
             {
-                ui.send_message(TileSetPropertyValueMessage::value(
-                    self.handle,
-                    MessageDirection::FromWidget,
+                self.on_numeric_message(
+                    prop,
                     TileSetPropertyValueElement::I32(*v),
-                ));
-                send_sync_message(
+                    NamableValue::I32(*v),
                     ui,
-                    DropdownListMessage::selection(
-                        self.list,
-                        MessageDirection::ToWidget,
-                        Some(find_list_index(prop, NamableValue::I32(*v))),
-                    ),
                 );
             }
         } else if let Some(NumericUpDownMessage::<f32>::Value(v)) = message.data() {
             if message.destination() == self.textbox
                 && message.direction() == MessageDirection::FromWidget
             {
-                ui.send_message(TileSetPropertyValueMessage::value(
-                    self.handle,
-                    MessageDirection::FromWidget,
+                self.on_numeric_message(
+                    prop,
                     TileSetPropertyValueElement::F32(*v),
-                ));
-                send_sync_message(
+                    NamableValue::F32(*v),
                     ui,
-                    DropdownListMessage::selection(
-                        self.list,
-                        MessageDirection::ToWidget,
-                        Some(find_list_index(prop, NamableValue::F32(*v))),
-                    ),
                 );
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
