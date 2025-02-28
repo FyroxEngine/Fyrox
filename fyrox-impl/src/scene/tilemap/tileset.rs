@@ -45,7 +45,7 @@ use crate::{
     resource::texture::TextureResource,
 };
 use std::{
-    collections::hash_map::{Entry, Keys},
+    collections::hash_map::{self, Entry, Keys},
     error::Error,
     fmt::{Display, Formatter},
     ops::{Deref, DerefMut},
@@ -748,6 +748,63 @@ impl TileMaterial {
     }
 }
 
+/// Iterates through the valid handles of a tile set.
+#[derive(Default)]
+pub struct TileSetHandleIterator<'a> {
+    pages_iter: Option<hash_map::Iter<'a, Vector2<i32>, TileSetPage>>,
+    page_position: Vector2<i32>,
+    handles_iter: TileSetPageHandleIterator<'a>,
+}
+
+#[derive(Default)]
+enum TileSetPageHandleIterator<'a> {
+    #[default]
+    Empty,
+    Atlas(Keys<'a, Vector2<i32>, TileData>),
+    Freeform(Keys<'a, Vector2<i32>, TileDefinition>),
+}
+
+impl<'a> TileSetHandleIterator<'a> {
+    fn new(pages_iter: Option<hash_map::Iter<'a, Vector2<i32>, TileSetPage>>) -> Self {
+        Self {
+            pages_iter,
+            page_position: Vector2::default(),
+            handles_iter: TileSetPageHandleIterator::Empty,
+        }
+    }
+}
+
+impl Iterator for TileSetPageHandleIterator<'_> {
+    type Item = Vector2<i32>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            TileSetPageHandleIterator::Empty => None,
+            TileSetPageHandleIterator::Atlas(keys) => keys.next().cloned(),
+            TileSetPageHandleIterator::Freeform(keys) => keys.next().cloned(),
+        }
+    }
+}
+
+impl Iterator for TileSetHandleIterator<'_> {
+    type Item = TileDefinitionHandle;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(tile) = self.handles_iter.next() {
+                return TileDefinitionHandle::try_new(self.page_position, tile);
+            }
+            let (&page_position, page) = self.pages_iter.as_mut()?.next()?;
+            self.page_position = page_position;
+            self.handles_iter = match &page.source {
+                TileSetPageSource::Atlas(map) => TileSetPageHandleIterator::Atlas(map.keys()),
+                TileSetPageSource::Freeform(map) => TileSetPageHandleIterator::Freeform(map.keys()),
+                _ => TileSetPageHandleIterator::Empty,
+            };
+        }
+    }
+}
+
 /// Iterates through the positions of the tiles of a single page within a tile set.
 pub struct TileSetPaletteIterator<'a> {
     keys: PaletteIterator<'a>,
@@ -786,7 +843,7 @@ impl Iterator for TileSetPaletteIterator<'_> {
 pub struct TileSetRef<'a>(ResourceDataRef<'a, TileSet>);
 /// Maybe a [`TileSet`], maybe not, depending on whether the resource was successfully loaded.
 /// If it is not a `TileSet`, its methods pretend it is an empty `TileSet`.
-pub struct OptionTileSet<'a>(Option<&'a mut TileSet>);
+pub struct OptionTileSet<'a>(pub Option<&'a mut TileSet>);
 
 impl<'a> From<ResourceDataRef<'a, TileSet>> for TileSetRef<'a> {
     fn from(value: ResourceDataRef<'a, TileSet>) -> Self {
@@ -807,10 +864,59 @@ impl<'a> TileSetRef<'a> {
     }
 }
 
+impl<'a> Deref for OptionTileSet<'a> {
+    type Target = Option<&'a mut TileSet>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl<'a> OptionTileSet<'a> {
     /// A reference to the underlying `TileSet` if it was successfully loaded.
     pub fn as_ref(&'a self) -> Option<&'a TileSet> {
         self.0.as_deref()
+    }
+    /// Iterate all valid tile handles.
+    pub fn all_tiles(&self) -> TileSetHandleIterator {
+        self.as_ref().map(|t| t.all_tiles()).unwrap_or_default()
+    }
+    /// The property value for the property of the given name for the tile at the given position in this tile map.
+    /// If there is no tile data at the given handle or no property at the given UUID,
+    /// then the default value for the property's value type is returned.
+    pub fn tile_property_value<T>(
+        &self,
+        handle: TileDefinitionHandle,
+        property_id: Uuid,
+    ) -> Result<T, TilePropertyError>
+    where
+        T: TryFrom<TileSetPropertyValue, Error = TilePropertyError> + Default,
+    {
+        self.as_ref()
+            .map(|t| t.tile_property_value(handle, property_id))
+            .unwrap_or(Err(TilePropertyError::MissingTileSet))
+    }
+    /// The property value for the property of the given name for the tile at the given position in this tile map.
+    /// If there is no tile data at the given handle, then the default value for the property's value type is returned.
+    pub fn tile_property_value_by_name(
+        &self,
+        handle: TileDefinitionHandle,
+        property_name: &ImmutableString,
+    ) -> Result<TileSetPropertyValue, TilePropertyError> {
+        self.as_ref()
+            .map(|t| t.tile_property_value_by_name(handle, property_name))
+            .unwrap_or(Err(TilePropertyError::MissingTileSet))
+    }
+    /// The property value for the property of the given UUID for the tile at the given position in this tile map.
+    /// If there is no tile data at the given handle, then the default value for the property's value type is returned.
+    pub fn tile_property_value_by_uuid_untyped(
+        &self,
+        handle: TileDefinitionHandle,
+        property_id: Uuid,
+    ) -> Result<TileSetPropertyValue, TilePropertyError> {
+        self.as_ref()
+            .map(|t| t.tile_property_value_by_uuid_untyped(handle, property_id))
+            .unwrap_or(Err(TilePropertyError::MissingTileSet))
     }
     /// Slice containing the properties of this tile set, or an empty slice if the tile set is not loaded.
     pub fn properties(&self) -> &[TileSetPropertyLayer] {
@@ -1235,10 +1341,59 @@ pub struct TileSet {
     /// values. Saving is unnecessary whenever this value is 0.
     #[reflect(hidden)]
     #[visit(skip)]
-    pub change_count: ChangeFlag,
+    pub change_flag: ChangeFlag,
 }
 
 impl TileSet {
+    /// Iterate all valid tile handles.
+    pub fn all_tiles(&self) -> TileSetHandleIterator {
+        TileSetHandleIterator::new(Some(self.pages.iter()))
+    }
+    /// The property value for the property of the given name for the tile at the given position in this tile map.
+    /// If there is no tile data at the given handle or no property at the given UUID,
+    /// then the default value for the property's value type is returned.
+    pub fn tile_property_value<T>(
+        &self,
+        handle: TileDefinitionHandle,
+        property_id: Uuid,
+    ) -> Result<T, TilePropertyError>
+    where
+        T: TryFrom<TileSetPropertyValue, Error = TilePropertyError> + Default,
+    {
+        self.property_value(handle, property_id)
+            .map(T::try_from)
+            .unwrap_or_else(|| Ok(T::default()))
+    }
+    /// The property value for the property of the given name for the tile at the given position in this tile map.
+    /// If there is no tile data at the given handle, then the default value for the property's value type is returned.
+    pub fn tile_property_value_by_name(
+        &self,
+        handle: TileDefinitionHandle,
+        property_name: &ImmutableString,
+    ) -> Result<TileSetPropertyValue, TilePropertyError> {
+        let property = self
+            .find_property_by_name(property_name)
+            .ok_or_else(|| TilePropertyError::UnrecognizedName(property_name.clone()))?;
+        Ok(self
+            .property_value(handle, property.uuid)
+            .unwrap_or_else(|| property.prop_type.default_value()))
+    }
+    /// The property value for the property of the given UUID for the tile at the given position in this tile map.
+    /// If there is no tile data at the given handle, then the default value for the property's value type is returned.
+    pub fn tile_property_value_by_uuid_untyped(
+        &self,
+        handle: TileDefinitionHandle,
+        property_id: Uuid,
+    ) -> Result<TileSetPropertyValue, TilePropertyError> {
+        if let Some(value) = self.property_value(handle, property_id) {
+            Ok(value)
+        } else {
+            let property = self
+                .find_property(property_id)
+                .ok_or(TilePropertyError::UnrecognizedUuid(property_id))?;
+            Ok(property.prop_type.default_value())
+        }
+    }
     /// The color of the collider layer with the given uuid.
     pub fn collider_color(&self, uuid: Uuid) -> Option<Color> {
         self.find_collider(uuid).map(|layer| layer.color)
@@ -1669,8 +1824,12 @@ impl TileSet {
     pub fn redirect_handle(&self, position: ResourceTilePosition) -> Option<TileDefinitionHandle> {
         match position.stage() {
             TilePaletteStage::Tiles => match &self.pages.get(&position.page())?.source {
-                TileSetPageSource::Transform(tiles) => tiles.get_at(position.stage_position()),
-                TileSetPageSource::Animation(tiles) => tiles.get_at(position.stage_position()),
+                TileSetPageSource::Transform(tiles) => {
+                    tiles.get(&position.stage_position()).copied()
+                }
+                TileSetPageSource::Animation(tiles) => {
+                    tiles.get(&position.stage_position()).copied()
+                }
                 page => {
                     if page.contains_tile_at(position.stage_position()) {
                         position.handle()
@@ -1692,7 +1851,7 @@ impl TileSet {
         handle: TileDefinitionHandle,
     ) -> Option<TileDefinitionHandle> {
         match &self.pages.get(&handle.page())?.source {
-            TileSetPageSource::Transform(tiles) => tiles.get_at(handle.tile()),
+            TileSetPageSource::Transform(tiles) => tiles.get(&handle.tile()).copied(),
             _ => None,
         }
     }

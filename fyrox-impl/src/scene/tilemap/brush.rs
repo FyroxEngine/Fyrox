@@ -27,12 +27,15 @@
 //! In contrast, a tile set is a directory for finding tile data according to a specific position on
 //! a specific page. Tiles can be moved in a tile set, but doing so will affect the lookup of tile data.
 
+use fyrox_core::{futures::executor::block_on, log::Log};
+
 use crate::{
     asset::{
         io::ResourceIo,
         loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
         manager::ResourceManager,
         state::LoadError,
+        untyped::UntypedResource,
         Resource, ResourceData,
     },
     core::{
@@ -92,6 +95,86 @@ impl From<VisitError> for TileMapBrushResourceError {
     }
 }
 
+/// Collection of additional data that can be stored in a brush for the purposes
+/// of tile map macros. The meaning of the data is determined by matching the UUID
+/// with the UUID of some macro or other user, and it is up to the user to determine
+/// the type of the resource.
+#[derive(Debug, Clone, Default, Reflect)]
+pub struct BrushMacroInstanceList(Vec<BrushMacroData>);
+
+impl BrushMacroInstanceList {
+    /// Iterate through the macro instance resources associated with the given UUID.
+    pub fn instances_with_uuid(&self, uuid: Uuid) -> impl Iterator<Item = &UntypedResource> {
+        self.0
+            .iter()
+            .filter(move |d| d.macro_id == uuid)
+            .filter_map(|d| d.settings.as_ref())
+    }
+}
+
+impl Deref for BrushMacroInstanceList {
+    type Target = Vec<BrushMacroData>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for BrushMacroInstanceList {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+/// Custom Visit implementation to prevent the visit from completely failing if
+/// it encounters data that cannot be visited.
+impl Visit for BrushMacroInstanceList {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        let mut count = self.0.len() as u32;
+        count.visit("Count", &mut region)?;
+
+        if region.is_reading() {
+            self.clear();
+            for i in 0..(count as usize) {
+                let name = i.to_string();
+                // If one value fails to read, skip it and read the remaining data.
+                let mut value = BrushMacroData::default();
+                match value.visit(&name, &mut region) {
+                    Ok(()) => self.0.push(value),
+                    Err(err) => Log::err(format!("Failed to load brush tool data due to: {err}")),
+                }
+            }
+        } else {
+            for (i, value) in self.0.iter_mut().enumerate() {
+                let name = i.to_string();
+                value.visit(&name, &mut region)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// A brush can have zero or more instances of a macro, and each instance
+/// has its own configuration data.
+#[derive(Debug, Default, Clone, Visit, Reflect)]
+pub struct BrushMacroData {
+    /// The UUID of the macro that owns this instance data.
+    /// This is used to identify the macro that knows the type of this data.
+    /// This same UUID will be shared by every data that is an instance
+    /// of the same macro.
+    pub macro_id: Uuid,
+    /// The human-readable name of the instance.
+    pub name: String,
+    /// The configuration of the macro, allowing its behaviour to be
+    /// controlled. The macro is responsible for determining the type of this
+    /// resource and its content. The macro may also choose to have no
+    /// configuration settings.
+    pub settings: Option<UntypedResource>,
+}
+
 /// A page of tiles within a brush. Having multiple pages allows a brush to be optimized
 /// for use in multiple contexts.
 #[derive(Default, Debug, Clone, Visit, Reflect)]
@@ -101,15 +184,6 @@ pub struct TileMapBrushPage {
     /// The tiles on this page, organized by position.
     #[reflect(hidden)]
     pub tiles: Tiles,
-}
-
-impl TileSource for TileMapBrushPage {
-    fn transformation(&self) -> OrthoTransformation {
-        OrthoTransformation::default()
-    }
-    fn get_at(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
-        self.tiles.get(&position).copied()
-    }
 }
 
 impl TileMapBrushPage {
@@ -178,15 +252,54 @@ pub struct TileMapBrush {
     /// users to customize the organization of pages.
     #[reflect(hidden)]
     pub pages: TileGridMap<TileMapBrushPage>,
-    /// A count of changes since last save. New changes add +1. Reverting to previous
-    /// states add -1. Reverting to a state before the last save can result in negative
-    /// values. Saving is unnecessary whenever this value is 0.
+    /// Untyped data stored in this brush for use by some macro.
+    #[visit(optional)]
+    pub macros: BrushMacroInstanceList,
+    /// A record of whether the brush has changed since last time it was saved.
     #[reflect(hidden)]
     #[visit(skip)]
-    pub change_count: ChangeFlag,
+    pub change_flag: ChangeFlag,
 }
 
 impl TileMapBrush {
+    /// Return true after blocking to wait for the brush's tile set to load,
+    /// if the tile set loads successfully, or if the tile set has no brush.
+    /// Return false if any error occurs while trying to load the tile set.
+    pub fn block_until_tile_set_is_loaded(&self) -> bool {
+        let Some(tile_set) = self.tile_set.as_ref() else {
+            return true;
+        };
+        let tile_set = match block_on(tile_set.clone()) {
+            Ok(tile_set) => tile_set,
+            Err(e) => {
+                Log::err(format!("Tile set load failed! Reason: {e:?}"));
+                return false;
+            }
+        };
+        if tile_set.is_ok() {
+            true
+        } else {
+            Log::err("Tile set load failed!");
+            false
+        }
+    }
+    /// Return the tile set for this brush, blocking if the tile set is not yet
+    /// loaded. None is returned if this brush has no tile set or the tile set fails to load.
+    pub fn tile_set(&self) -> Option<TileSetResource> {
+        let tile_set = self.tile_set.as_ref()?;
+        let tile_set = match block_on(tile_set.clone()) {
+            Ok(tile_set) => tile_set,
+            Err(e) => {
+                Log::err(format!("Tile set load failed! Reason: {e:?}"));
+                return None;
+            }
+        };
+        if !tile_set.is_ok() {
+            Log::err("Tile set load failed!");
+            return None;
+        }
+        Some(tile_set)
+    }
     /// True if there is a tile at the given position.
     pub fn has_tile_at(&self, page: Vector2<i32>, tile: Vector2<i32>) -> bool {
         let Some(page) = self.pages.get(&page) else {
@@ -270,7 +383,7 @@ impl TileMapBrush {
 
     /// Return true if this brush has no tile set.
     pub fn is_missing_tile_set(&self) -> bool {
-        self.tile_set.is_none()
+        self.tile_set().is_none()
     }
 
     fn palette_render_loop_without_tile_set<F>(
@@ -304,7 +417,7 @@ impl TileMapBrush {
     where
         F: FnMut(Vector2<i32>, TileRenderData),
     {
-        let Some(tile_set) = self.tile_set.as_ref() else {
+        let Some(tile_set) = self.tile_set() else {
             self.palette_render_loop_without_tile_set(stage, page, func);
             return;
         };
@@ -342,7 +455,8 @@ impl TileMapBrush {
     /// then the rendering data for an error tile is returned using `TileRenderData::missing_tile()`.
     pub fn get_tile_render_data(&self, position: ResourceTilePosition) -> Option<TileRenderData> {
         let handle = self.redirect_handle(position)?;
-        let mut tile_set = self.tile_set.as_ref()?.state();
+        let tile_set = self.tile_set()?;
+        let mut tile_set = tile_set.state();
         let data = tile_set
             .data()?
             .get_tile_render_data(handle.into())
@@ -358,12 +472,29 @@ impl TileMapBrush {
         match position.stage() {
             TilePaletteStage::Tiles => {
                 let page = self.pages.get(&position.page())?;
-                page.tiles.get_at(position.stage_position())
+                page.tiles.get(&position.stage_position()).copied()
             }
             TilePaletteStage::Pages => self
                 .pages
                 .get(&position.stage_position())
                 .map(|page| page.icon),
+        }
+    }
+
+    /// The stamp element for the given position, if the tile in that cell is used
+    /// to create a stamp. The [`StampElement::handle`] refers to the location of the tile within the
+    /// tile set, while the [`StampElement::brush_cell`] refers to the location of the tile within
+    /// the brush.
+    pub fn stamp_element(&self, position: ResourceTilePosition) -> Option<StampElement> {
+        match position.stage() {
+            TilePaletteStage::Pages => self.redirect_handle(position).map(|h| h.into()),
+            TilePaletteStage::Tiles => {
+                let page = self.pages.get(&position.page())?;
+                Some(StampElement {
+                    handle: *page.tiles.get(&position.stage_position())?,
+                    brush_cell: position.handle(),
+                })
+            }
         }
     }
 

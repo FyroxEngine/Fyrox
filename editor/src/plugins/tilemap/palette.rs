@@ -63,18 +63,29 @@ use std::ops::{Deref, DerefMut};
 
 use super::{commands::*, *};
 
+/// The tint of the background material that is used for tile atlas pages of tile sets.
+/// This tint makes it possible to visibly distinguish the background material from actual tiles.
 pub const DEFAULT_MATERIAL_COLOR: Color = Color::from_rgba(255, 255, 255, 125);
+/// A mostly-transparent rectangle is drawn over the tile that the mouse is currently over,
+/// thereby visually confirming for the user which tile they would click on if they clicked.
+/// This is the color of that rectangle.
 pub const CURSOR_HIGHLIGHT_COLOR: Color = Color::from_rgba(255, 255, 255, 50);
+/// When a macro is using some cells within a brush, those cells are indicated by a special outline
+/// in the brush editor. This is the color of that outline.
+pub const MACRO_CELL_HIGHLIGHT_COLOR: Color = Color::DARK_SLATE_BLUE;
 
 const MOUSE_CLICK_DELAY_FRAMES: usize = 1;
 const NO_PAGE_COLOR: Color = Color::from_rgba(20, 5, 5, 255);
 const ANIMATION_BOOKEND_COLOR: Color = Color::DARK_CYAN;
 
+/// Messages for the [`PaletteWidget`] widget.
 #[derive(Debug, PartialEq, Clone)]
 pub enum PaletteMessage {
     /// Display the given page of the given resource.
     SetPage {
+        /// The resource to show in the palette widget.
         source: TileBook,
+        /// The coordinates of the page, or None to show no page.
         page: Option<Vector2<i32>>,
     },
     /// Center the view on the given grid position.
@@ -97,14 +108,33 @@ pub enum PaletteMessage {
 }
 
 impl PaletteMessage {
-    define_constructor!(PaletteMessage:SetPage => fn set_page(source: TileBook, page: Option<Vector2<i32>>), layout: false);
-    define_constructor!(PaletteMessage:Center => fn center(Vector2<i32>), layout: false);
-    define_constructor!(PaletteMessage:SelectAll => fn select_all(), layout: false);
-    define_constructor!(PaletteMessage:SelectOne => fn select_one(Vector2<i32>), layout: false);
-    define_constructor!(PaletteMessage:Delete => fn delete(), layout: false);
-    define_constructor!(PaletteMessage:MaterialColor => fn material_color(Color), layout: false);
-    define_constructor!(PaletteMessage:SyncToState => fn sync_to_state(), layout: false);
-    define_constructor!(PaletteMessage:BeginMotion => fn begin_motion(Vector2<f32>), layout: false);
+    define_constructor!(
+        /// Display the given page of the given resource.
+        PaletteMessage:SetPage => fn set_page(source: TileBook, page: Option<Vector2<i32>>), layout: false);
+    define_constructor!(
+        /// Center the view on the given grid position.
+        PaletteMessage:Center => fn center(Vector2<i32>), layout: false);
+    define_constructor!(
+        /// Select all tiles/pages in this view.
+        PaletteMessage:SelectAll => fn select_all(), layout: false);
+    define_constructor!(
+        /// Select the given position.
+        PaletteMessage:SelectOne => fn select_one(Vector2<i32>), layout: false);
+    define_constructor!(
+        /// Delete the selected tiles/pages in this view.
+        PaletteMessage:Delete => fn delete(), layout: false);
+    define_constructor!(
+        /// Set the tint of the background material.
+        PaletteMessage:MaterialColor => fn material_color(Color), layout: false);
+    define_constructor!(
+        /// Notify this widget that the editor state has changed.
+        PaletteMessage:SyncToState => fn sync_to_state(), layout: false);
+    define_constructor!(
+        /// Notify that the user has pressed a mouse button.
+        /// This is needed in order to delay the start of mouse operations
+        /// by one frame so that they do not clash with operations that happen
+        /// when de-focusing whatever was previously in focus.
+        PaletteMessage:BeginMotion => fn begin_motion(Vector2<f32>), layout: false);
 }
 
 /// The operation of the current mouse motion.
@@ -166,7 +196,7 @@ fn calc_slice_coord(position: f32, step: f32) -> usize {
 
 /// Displays a scrollable grid of till cells, with options to allow the tiles
 /// to be selected, dragged, and edits in various ways.
-#[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "5356a864-c026-4bd7-a4b1-30bacf77d8fa")]
 pub struct PaletteWidget {
     widget: Widget,
@@ -220,6 +250,10 @@ pub struct PaletteWidget {
     #[visit(skip)]
     #[reflect(hidden)]
     highlight: FxHashMap<Subposition, Color>,
+    /// The cells which should be marked as being included in some macro.
+    #[visit(skip)]
+    #[reflect(hidden)]
+    macro_cells: Option<MacroCellSetListRef>,
     #[visit(skip)]
     #[reflect(hidden)]
     colliders: Vec<ColliderHighlight>,
@@ -254,6 +288,20 @@ pub struct PaletteWidget {
 }
 
 define_widget_deref!(PaletteWidget);
+
+impl Debug for PaletteWidget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PaletteWidget")
+            .field("widget", &self.widget)
+            .field("content", &self.content)
+            .field("page", &self.page)
+            .field("kind", &self.kind)
+            .field("editable", &self.editable)
+            .field("material_color", &self.material_color)
+            .field("tile_size", &self.tile_size)
+            .finish()
+    }
+}
 
 type PaletteTriangleData = (Vec<Point2<f32>>, Vec<[u32; 3]>);
 
@@ -301,7 +349,7 @@ impl PaletteOverlay {
     pub fn set_to_stamp(&mut self, stamp: &Stamp, tile_set: &OptionTileSet) {
         self.movable_tiles.clear();
         self.erased_tiles.clear();
-        for (pos, handle) in stamp.iter() {
+        for (pos, StampElement { handle, .. }) in stamp.iter() {
             let data = tile_set
                 .get_transformed_render_data(stamp.transformation(), *handle)
                 .unwrap_or_else(TileRenderData::missing_data);
@@ -319,6 +367,10 @@ fn invert_transform(trans: &Matrix3<f32>) -> Matrix3<f32> {
 }
 
 impl PaletteWidget {
+    /// Each brush and tile set has two palette areas: the pages and the tiles within each page.
+    /// These two areas are called stages, and each of the two stages needs to be handled separately.
+    /// Giving a particular `TilePaletteStage` to a tile map palette will control which kind of
+    /// tiles it will display.
     pub fn stage(&self) -> TilePaletteStage {
         match &self.kind {
             TilePaletteStage::Pages => TilePaletteStage::Pages,
@@ -407,12 +459,20 @@ impl PaletteWidget {
         }
     }
 
+    /// Convert a point measured in tiles to a point on the screen, depending on how this widget
+    /// is currently scrolled and zoomed. This is the inverse of [`Self::tile_point_to_screen_point`].
+    /// When measuring a point in tiles, (0,0) is the left-bottom corner of the (0,0) tile,
+    /// and each unit along x or y is one tile.
     pub fn screen_point_to_tile_point(&self, point: Vector2<f32>) -> Vector2<f32> {
         let trans = self.visual_transform() * self.tile_to_local();
         let trans = invert_transform(&trans);
         apply_transform(&trans, point)
     }
 
+    /// Convert a point on the screen to a point measured in tiles, depending on how this widget
+    /// is currently scrolled and zoomed. This is the inverse of [`Self::screen_point_to_tile_point`].
+    /// When measuring a point in tiles, (0,0) is the left-bottom corner of the (0,0) tile,
+    /// and each unit along x or y is one tile.
     pub fn tile_point_to_screen_point(&self, point: Vector2<f32>) -> Vector2<f32> {
         let trans = self.visual_transform() * self.tile_to_local();
         apply_transform(&trans, point)
@@ -486,7 +546,7 @@ impl PaletteWidget {
             TileBook::Brush(resource) => {
                 if let Some(source_set) = source_set
                     .cloned()
-                    .or_else(|| resource.state().data()?.tile_set.clone())
+                    .or_else(|| resource.state().data()?.tile_set())
                 {
                     let mut source_set = TileSetRef::new(&source_set);
                     self.sender.do_command(SetBrushTilesCommand {
@@ -584,16 +644,22 @@ impl PaletteWidget {
             DrawingMode::Pick
         }
     }
-    pub fn sync_selection_to_model(&mut self) {
+    fn update_stamp(&self, state: &mut TileDrawStateGuardMut) {
         let page = self.page.unwrap_or_default();
+        let brush = self.content.brush_ref().cloned();
+        state.update_stamp(brush, self.content.get_tile_set(), |p| {
+            self.content
+                .get_stamp_element(ResourceTilePosition::new(self.stage(), page, p))
+        });
+    }
+    /// After the data changes in the tile set or the brush that the widget is displaying,
+    /// call this method to rebuild the stamp from the currently selected tiles. This is necessary
+    /// since the tiles in those positions may have changed.
+    pub fn sync_selection_to_model(&mut self) {
         let mut state = self.state.lock_mut("sync_selection_to_model");
-        state.tile_set = self.content.get_tile_set();
         self.selecting_tiles.clear();
         let stamp_trans = state.stamp.transformation();
-        state.update_stamp(self.content.get_tile_set(), |p| {
-            self.content
-                .get_tile_handle(ResourceTilePosition::new(self.stage(), page, p))
-        });
+        self.update_stamp(&mut state);
         state.stamp.transform(stamp_trans);
     }
     fn update_selection(&mut self) {
@@ -604,9 +670,7 @@ impl PaletteWidget {
         if self.kind == TilePaletteStage::Tiles && self.page.is_none() {
             return;
         }
-        let page = self.page.unwrap_or_default();
         let mut state = self.state.lock_mut("update_selection");
-        state.tile_set = self.content.get_tile_set();
         state.set_palette(self.handle);
         let positions = state.selection_positions_mut();
         positions.clone_from(&self.selecting_tiles);
@@ -616,10 +680,7 @@ impl PaletteWidget {
         } else {
             positions.extend(rect.iter());
         }
-        state.update_stamp(self.content.get_tile_set(), |p| {
-            self.content
-                .get_tile_handle(ResourceTilePosition::new(self.stage(), page, p))
-        });
+        self.update_stamp(&mut state);
     }
     fn finalize_selection(&mut self, ui: &mut UserInterface) {
         let MouseMode::Drawing { end, .. } = self.mode.clone() else {
@@ -634,16 +695,12 @@ impl PaletteWidget {
             }
             TilePaletteStage::Pages => self.send_new_page(end_tile, ui),
         }
-        let page = self.page.unwrap_or_default();
         let mut state = self.state.lock_mut("finalize_selection");
         state.tile_set = self.content.get_tile_set();
         state.set_palette(self.handle);
         let positions = state.selection_positions();
         self.selecting_tiles.clone_from(positions);
-        state.update_stamp(self.content.get_tile_set(), |p| {
-            self.content
-                .get_tile_handle(ResourceTilePosition::new(self.stage(), page, p))
-        });
+        self.update_stamp(&mut state);
     }
     fn select_all(&mut self) {
         let Some(page) = self.page else {
@@ -659,25 +716,19 @@ impl PaletteWidget {
         let sel = state.selection_positions_mut();
         sel.clear();
         sel.extend(results.iter().copied());
-        state.update_stamp(self.content.get_tile_set(), |p| {
-            self.content
-                .get_tile_handle(ResourceTilePosition::new(self.stage(), page, p))
-        });
+        self.update_stamp(&mut state);
     }
     fn select_one(&mut self, position: Vector2<i32>) {
-        let Some(page) = self.page else {
+        if self.page.is_none() {
             return;
-        };
+        }
         let mut state = self.state.lock_mut("select_one");
         state.tile_set = self.content.get_tile_set();
         state.set_palette(self.handle);
         let sel = state.selection_positions_mut();
         sel.clear();
         sel.insert(position);
-        state.update_stamp(self.content.get_tile_set(), |p| {
-            self.content
-                .get_tile_handle(ResourceTilePosition::new(self.stage(), page, p))
-        });
+        self.update_stamp(&mut state);
     }
     fn begin_motion(&mut self, mode: DrawingMode, pos: MousePos, ui: &mut UserInterface) {
         match mode {
@@ -1040,17 +1091,17 @@ impl PaletteWidget {
         let tile_set = tile_set.data_ref();
         for uuid in self.state.lock().visible_colliders.iter() {
             for (pos, handle) in self.update.iter() {
-                let Some((trans, handle)) = handle else {
+                let Some((trans, handle)) = handle.as_ref().map(|h| h.pair()) else {
                     continue;
                 };
                 let Some(color) = tile_set.collider_color(*uuid) else {
                     continue;
                 };
-                let tile_collider = tile_set.tile_collider(*handle, *uuid);
+                let tile_collider = tile_set.tile_collider(handle, *uuid);
                 if tile_collider.is_none() {
                     continue;
                 }
-                self.push_tile_collider(*pos, *trans, tile_collider, ctx);
+                self.push_tile_collider(*pos, trans, tile_collider, ctx);
                 self.commit_color(color, ctx);
             }
         }
@@ -1345,10 +1396,10 @@ impl Control for PaletteWidget {
             let mut tile_set = tile_set.state();
             if let Some(tile_set) = tile_set.data() {
                 for (pos, v) in self.update.iter() {
-                    let Some((t, h)) = v else {
+                    let Some((t, h)) = v.as_ref().map(|v| v.pair()) else {
                         continue;
                     };
-                    let Some(data) = tile_set.get_transformed_render_data(*t, *h) else {
+                    let Some(data) = tile_set.get_transformed_render_data(t, h) else {
                         continue;
                     };
                     let t = self.tile_size;
@@ -1456,6 +1507,18 @@ impl Control for PaletteWidget {
                 self.commit_color(Color::GREEN_YELLOW, ctx);
             }
         }
+        if stage == TilePaletteStage::Tiles {
+            if let Some(page) = self.page {
+                if let Some(cell_set_list) = &self.macro_cells {
+                    if let Some(cells_on_page) = cell_set_list.lock().cells_on_page(page) {
+                        for position in cells_on_page.iter() {
+                            self.push_cell_rect(*position, line_thickness * 6.0, ctx);
+                        }
+                        self.commit_color(MACRO_CELL_HIGHLIGHT_COLOR, ctx);
+                    }
+                }
+            }
+        }
         let state = self.state.lock();
         if state.selection_palette() == self.handle {
             for sel in state.selection_positions() {
@@ -1556,17 +1619,22 @@ impl Control for PaletteWidget {
     }
 }
 
+/// Builder for [`PaletteWidget`]
 pub struct PaletteWidgetBuilder {
     widget_builder: WidgetBuilder,
     tile_book: TileBook,
     page: Option<Vector2<i32>>,
     sender: MessageSender,
     state: TileDrawStateRef,
+    macro_cells: Option<MacroCellSetListRef>,
     kind: TilePaletteStage,
     editable: bool,
 }
 
 impl PaletteWidgetBuilder {
+    /// Build a [`PaletteWidget`] with the given sender and [`TileDrawStateRef`].
+    /// The state is a shared reference that the palette will keep for its lifetime so that
+    /// it can cooperate with other palettes and with the [`TileMapInteractionMode`].
     pub fn new(
         widget_builder: WidgetBuilder,
         sender: MessageSender,
@@ -1577,32 +1645,50 @@ impl PaletteWidgetBuilder {
             tile_book: TileBook::Empty,
             sender,
             state,
+            macro_cells: None,
             kind: TilePaletteStage::default(),
             editable: false,
             page: None,
         }
     }
 
+    /// The coordinates of the page to display. The default is None.
     pub fn with_page(mut self, page: Vector2<i32>) -> Self {
         self.page = Some(page);
         self
     }
 
+    /// The resource to display in the form of a [`TileBook`] that may be either
+    /// a [`TileMapBrush`](fyrox::scene::tilemap::brush::TileMapBrush) resource or a [`TileSet`] resource.
     pub fn with_resource(mut self, tile_book: TileBook) -> Self {
         self.tile_book = tile_book;
         self
     }
 
+    /// Each brush and tile set has two palette areas: the pages and the tiles within each page.
+    /// These two areas are called stages, and each of the two stages needs to be handled separately.
+    /// Giving a particular `TilePaletteStage` to a tile map palette will control which kind of
+    /// tiles it will display.
     pub fn with_kind(mut self, kind: TilePaletteStage) -> Self {
         self.kind = kind;
         self
     }
 
+    /// Some palettes are editable while others exist only so the user can select tiles.
+    /// The default is `false` which indicates that the palette is not for editing.
     pub fn with_editable(mut self, editable: bool) -> Self {
         self.editable = editable;
         self
     }
 
+    /// Giving the palette access to a list of macro cells allows it to draw outlines
+    /// around cells that are involved in some macros.
+    pub fn with_macro_cells(mut self, macro_cells: MacroCellSetListRef) -> Self {
+        self.macro_cells = Some(macro_cells);
+        self
+    }
+
+    /// Build the [`PaletteWidget`].
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ctx.add_node(UiNode::new(PaletteWidget {
             widget: self
@@ -1612,6 +1698,7 @@ impl PaletteWidgetBuilder {
                 .build(ctx),
             sender: self.sender,
             state: self.state,
+            macro_cells: self.macro_cells,
             overlay: PaletteOverlay::default(),
             content: self.tile_book,
             kind: self.kind,
@@ -1639,17 +1726,10 @@ impl PaletteWidgetBuilder {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum TileViewMessage {
-    LocalPosition(Vector2<i32>),
-}
-
-impl TileViewMessage {
-    define_constructor!(TileViewMessage:LocalPosition => fn local_position(Vector2<i32>), layout: false);
-}
-
 const CHECKERSIZE: f32 = 10.0;
 
+/// Draw a checkerboard pattern into the given drawing context for the purpose of visualizing
+/// the transparency of whatever is drawn on top of the checkerboard.
 pub fn draw_checker_board(bounds: Rect<f32>, clip_bounds: Rect<f32>, ctx: &mut DrawingContext) {
     let transform = ctx.transform_stack.transform();
     let bounds = bounds.transform(transform);

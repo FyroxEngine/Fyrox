@@ -154,7 +154,7 @@ impl TileMapEffect for TileUpdateEffect {
         for (&position, value) in self.update.iter() {
             if context.is_tile_visible(position) {
                 context.set_tile_visible(position, false);
-                if let Some((transform, handle)) = *value {
+                if let Some((transform, handle)) = value.as_ref().map(|v| v.pair()) {
                     let handle = context
                         .tile_set
                         .get_transformed_version(transform, handle)
