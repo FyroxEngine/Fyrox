@@ -14,6 +14,7 @@
 /fyrox-impl/test_output
 history.bin
 settings.ron
+/template-core/*.version
 
 # Nix/NixOS
 .direnv/
