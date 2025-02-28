@@ -239,7 +239,7 @@ impl LinkNodesCommand {
 
     fn link(&mut self, graph: &mut Graph) {
         let old_parent = graph[self.child].parent();
-        graph.link_nodes(self.child, self.parent);
+        graph.link_nodes_keep_global_transform(self.child, self.parent);
         self.parent = old_parent;
     }
 }
@@ -484,7 +484,7 @@ impl CommandTrait for AddNodeCommand {
             });
         }
 
-        context.scene.graph.link_nodes(
+        context.scene.graph.link_nodes_keep_global_transform(
             self.handle,
             if self.parent.is_none() {
                 *context.scene_content_root

@@ -514,23 +514,24 @@ impl Graph {
     /// Links specified child with specified parent while keeping the
     /// child's global position and rotation.
     #[inline]
-    pub fn link_nodes_keep_global_position_rotation(
-        &mut self,
-        child: Handle<Node>,
-        parent: Handle<Node>,
-    ) {
-        let parent_transform_inv = self.pool[parent]
+    pub fn link_nodes_keep_global_transform(&mut self, child: Handle<Node>, parent: Handle<Node>) {
+        let parent_global_transform_inv = self.pool[parent]
             .global_transform()
             .try_inverse()
             .unwrap_or_default();
-        let child_transform = self.pool[child].global_transform();
-        let relative_transform = parent_transform_inv * child_transform;
+        let child_global_transform = self.pool[child].global_transform();
+        let relative_transform = parent_global_transform_inv * child_global_transform;
         let local_position = relative_transform.position();
-        let local_rotation = UnitQuaternion::from_matrix(&relative_transform.basis());
+        let parent_inv_global_rotation = self.global_rotation(parent).inverse();
+        let local_rotation = parent_inv_global_rotation * self.global_rotation(child);
+        let local_scale = self
+            .global_scale(child)
+            .component_div(&self.global_scale(parent));
         self.pool[child]
             .local_transform_mut()
             .set_position(local_position)
-            .set_rotation(local_rotation);
+            .set_rotation(local_rotation)
+            .set_scale(local_scale);
         self.link_nodes(child, parent);
     }
 
@@ -1475,13 +1476,7 @@ impl Graph {
     /// Returns global scale matrix of a node.
     #[inline]
     pub fn global_scale_matrix(&self, node: Handle<Node>) -> Matrix4<f32> {
-        let node = &self[node];
-        let local_scale_matrix = Matrix4::new_nonuniform_scaling(node.local_transform().scale());
-        if node.parent().is_some() {
-            self.global_scale_matrix(node.parent()) * local_scale_matrix
-        } else {
-            local_scale_matrix
-        }
+        Matrix4::new_nonuniform_scaling(&self.global_scale(node))
     }
 
     /// Returns rotation quaternion of a node in world coordinates.
@@ -1529,9 +1524,13 @@ impl Graph {
 
     /// Returns global scale of a node.
     #[inline]
-    pub fn global_scale(&self, node: Handle<Node>) -> Vector3<f32> {
-        let m = self.global_scale_matrix(node);
-        Vector3::new(m[0], m[5], m[10])
+    pub fn global_scale(&self, mut node: Handle<Node>) -> Vector3<f32> {
+        let mut global_scale = Vector3::repeat(1.0);
+        while let Some(node_ref) = self.try_get(node) {
+            global_scale = global_scale.component_mul(&node_ref.local_transform().scale());
+            node = node_ref.parent;
+        }
+        global_scale
     }
 
     /// Tries to borrow a node using the given handle and searches the script buffer for a script
@@ -2207,6 +2206,50 @@ mod test {
                 .find_by_name(mesh, "NewChildOfMesh")
                 .unwrap();
         }
+    }
+
+    #[test]
+    fn test_global_scale() {
+        let mut graph = Graph::new();
+
+        let b;
+        let c;
+        let a = PivotBuilder::new(
+            BaseBuilder::new()
+                .with_local_transform(
+                    TransformBuilder::new()
+                        .with_local_scale(Vector3::new(1.0, 1.0, 2.0))
+                        .build(),
+                )
+                .with_children(&[{
+                    b = PivotBuilder::new(
+                        BaseBuilder::new()
+                            .with_local_transform(
+                                TransformBuilder::new()
+                                    .with_local_scale(Vector3::new(3.0, 2.0, 1.0))
+                                    .build(),
+                            )
+                            .with_children(&[{
+                                c = PivotBuilder::new(
+                                    BaseBuilder::new().with_local_transform(
+                                        TransformBuilder::new()
+                                            .with_local_scale(Vector3::new(1.0, 2.0, 3.0))
+                                            .build(),
+                                    ),
+                                )
+                                .build(&mut graph);
+                                c
+                            }]),
+                    )
+                    .build(&mut graph);
+                    b
+                }]),
+        )
+        .build(&mut graph);
+
+        assert_eq!(graph.global_scale(a), Vector3::new(1.0, 1.0, 2.0));
+        assert_eq!(graph.global_scale(b), Vector3::new(3.0, 2.0, 2.0));
+        assert_eq!(graph.global_scale(c), Vector3::new(3.0, 4.0, 6.0));
     }
 
     #[test]
