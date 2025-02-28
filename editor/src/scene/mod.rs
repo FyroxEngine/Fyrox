@@ -479,7 +479,6 @@ impl GameScene {
 }
 
 impl SceneController for GameScene {
-    #[must_use]
     fn on_key_up(
         &mut self,
         key: KeyCode,
@@ -493,7 +492,6 @@ impl SceneController for GameScene {
         false
     }
 
-    #[must_use]
     fn on_key_down(
         &mut self,
         key: KeyCode,

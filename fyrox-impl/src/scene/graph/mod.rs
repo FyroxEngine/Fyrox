@@ -1527,7 +1527,7 @@ impl Graph {
     pub fn global_scale(&self, mut node: Handle<Node>) -> Vector3<f32> {
         let mut global_scale = Vector3::repeat(1.0);
         while let Some(node_ref) = self.try_get(node) {
-            global_scale = global_scale.component_mul(&node_ref.local_transform().scale());
+            global_scale = global_scale.component_mul(node_ref.local_transform().scale());
             node = node_ref.parent;
         }
         global_scale
