@@ -26,6 +26,7 @@ pub mod constructor;
 
 use fxhash::FxHashMap;
 use fyrox_core::pool::ErasedHandle;
+use fyrox_core::reflect::{DerivedEntityListContainer, ReflectHandle};
 use fyrox_core::{
     log::{Log, MessageKind},
     pool::Handle,
@@ -82,7 +83,7 @@ impl<N> Clone for NodeHandleMap<N> {
 
 impl<N> NodeHandleMap<N>
 where
-    N: Reflect + NameProvider,
+    N: Reflect + NameProvider + DerivedEntityListContainer,
 {
     /// Adds new `original -> copy` handle mapping.
     #[inline]
@@ -121,6 +122,23 @@ where
     pub fn try_map(&self, handle: &mut Handle<N>) -> bool {
         if let Some(new_handle) = self.map.get(handle) {
             *handle = *new_handle;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Tries to map a handle to a handle of its origin. If it exists, the method returns true or false otherwise.
+    /// It should be used when you not sure that respective origin exists.
+    #[inline]
+    pub fn try_map_reflect(&self, reflect_handle: &mut dyn ReflectHandle) -> bool {
+        let handle = Handle::new(
+            reflect_handle.reflect_index(),
+            reflect_handle.reflect_generation(),
+        );
+        if let Some(new_handle) = self.map.get(&handle) {
+            reflect_handle.reflect_set_index(new_handle.index());
+            reflect_handle.reflect_set_generation(new_handle.generation());
             true
         } else {
             false
@@ -203,15 +221,21 @@ where
             return;
         }
 
-        entity.downcast_mut::<Vec<Handle<N>>>(&mut |vec| {
-            if let Some(vec) = vec {
-                for handle in vec {
-                    if handle.is_some() && !self.try_map(handle) {
-                        Log::warn(format!(
-                            "Failed to remap handle {} in array of node {}!",
-                            *handle, node_name
-                        ));
-                    }
+        // Handle derived entities handles.
+        entity.as_handle_mut(&mut |handle| {
+            if let Some(handle) = handle {
+                if handle
+                    .query_derived_entity_list()
+                    .contains(&TypeId::of::<N>())
+                    && handle.reflect_is_some()
+                    && !self.try_map_reflect(handle)
+                {
+                    Log::warn(format!(
+                        "Failed to remap handle {}:{} of node {}!",
+                        handle.reflect_index(),
+                        handle.reflect_generation(),
+                        node_name
+                    ));
                 }
                 mapped = true;
             }
@@ -338,26 +362,6 @@ where
             return;
         }
 
-        entity.downcast_mut::<Vec<Handle<N>>>(&mut |result| {
-            if let Some(vec) = result {
-                if do_map {
-                    for handle in vec {
-                        if handle.is_some() && !self.try_map(handle) {
-                            Log::warn(format!(
-                                "Failed to remap handle {} in array of node {}!",
-                                *handle, node_name
-                            ));
-                        }
-                    }
-                }
-                mapped = true;
-            }
-        });
-
-        if mapped {
-            return;
-        }
-
         entity.as_array_mut(&mut |result| {
             if let Some(array) = result {
                 // Look in every array item.
@@ -435,7 +439,7 @@ pub trait AbstractSceneNode: ComponentProvider + Reflect + NameProvider {}
 
 impl<T: SceneGraphNode> AbstractSceneNode for T {}
 
-pub trait SceneGraphNode: AbstractSceneNode + Clone + 'static {
+pub trait SceneGraphNode: AbstractSceneNode + DerivedEntityListContainer + Clone + 'static {
     type Base: Clone;
     type SceneGraph: SceneGraph<Node = Self>;
     type ResourceData: PrefabData<Graph = Self::SceneGraph>;
@@ -1390,18 +1394,23 @@ where
 #[cfg(test)]
 mod test {
     use crate::{
-        AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeMapping, PrefabData, SceneGraph,
-        SceneGraphNode,
+        AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping,
+        PrefabData, SceneGraph, SceneGraphNode,
     };
-    use fyrox_core::pool::ErasedHandle;
+    use fyrox_core::pool::{ErasedHandle, PayloadContainer};
+    use fyrox_core::reflect::DerivedEntityListProvider;
     use fyrox_core::{
+        export_derived_entity_list,
         pool::{Handle, Pool},
         reflect::prelude::*,
         type_traits::prelude::*,
         visitor::prelude::*,
         NameProvider,
     };
+    use fyrox_resource::untyped::UntypedResource;
     use fyrox_resource::{Resource, ResourceData};
+    use std::any::{Any, TypeId};
+    use std::fmt::Debug;
     use std::{
         error::Error,
         ops::{Deref, DerefMut, Index, IndexMut},
@@ -1409,7 +1418,7 @@ mod test {
     };
 
     #[derive(Default, Visit, Reflect, Debug, Clone)]
-    struct Base {
+    pub struct Base {
         name: String,
         self_handle: Handle<Node>,
         is_resource_instance_root: bool,
@@ -1419,14 +1428,129 @@ mod test {
         children: Vec<Handle<Node>>,
     }
 
-    #[derive(Clone, ComponentProvider, Visit, Reflect, Debug, Default)]
-    struct Node {
-        base: Base,
+    /// A set of useful methods that is possible to auto-implement.
+    pub trait BaseNodeTrait: Any + Debug + Deref<Target = Base> + DerefMut + Send {
+        /// This method creates raw copy of a node, it should never be called in normal circumstances
+        /// because internally nodes may (and most likely will) contain handles to other nodes. To
+        /// correctly clone a node you have to use [copy_node](struct.Graph.html#method.copy_node).
+        fn clone_box(&self) -> Node;
+    }
+
+    impl<T> BaseNodeTrait for T
+    where
+        T: Clone + NodeTrait + 'static,
+    {
+        fn clone_box(&self) -> Node {
+            Node(Box::new(self.clone()))
+        }
+    }
+
+    pub trait NodeTrait:
+        BaseNodeTrait + Reflect + Visit + ComponentProvider + DerivedEntityListProvider
+    {
+    }
+
+    #[derive(ComponentProvider, Debug)]
+    pub struct Node(Box<dyn NodeTrait>);
+
+    impl Clone for Node {
+        fn clone(&self) -> Self {
+            self.0.clone_box()
+        }
+    }
+
+    impl Node {
+        fn new(node: impl NodeTrait) -> Self {
+            Self(Box::new(node))
+        }
+    }
+
+    export_derived_entity_list!(Node = []);
+
+    impl Visit for Node {
+        fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+            self.0.visit(name, visitor)
+        }
+    }
+
+    impl Reflect for Node {
+        fn source_path() -> &'static str {
+            file!()
+        }
+
+        fn type_name(&self) -> &'static str {
+            self.0.deref().type_name()
+        }
+
+        fn doc(&self) -> &'static str {
+            self.0.deref().doc()
+        }
+
+        fn assembly_name(&self) -> &'static str {
+            self.0.deref().assembly_name()
+        }
+
+        fn type_assembly_name() -> &'static str {
+            env!("CARGO_PKG_NAME")
+        }
+
+        fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+            self.0.deref().fields_info(func)
+        }
+
+        fn into_any(self: Box<Self>) -> Box<dyn Any> {
+            self.0.into_any()
+        }
+
+        fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+            self.0.deref().as_any(func)
+        }
+
+        fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+            self.0.deref_mut().as_any_mut(func)
+        }
+
+        fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+            self.0.deref().as_reflect(func)
+        }
+
+        fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+            self.0.deref_mut().as_reflect_mut(func)
+        }
+
+        fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+            self.0.deref_mut().set(value)
+        }
+
+        fn set_field(
+            &mut self,
+            field: &str,
+            value: Box<dyn Reflect>,
+            func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),
+        ) {
+            self.0.deref_mut().set_field(field, value, func)
+        }
+
+        fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
+            self.0.deref().fields(func)
+        }
+
+        fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
+            self.0.deref_mut().fields_mut(func)
+        }
+
+        fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+            self.0.deref().field(name, func)
+        }
+
+        fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+            self.0.deref_mut().field_mut(name, func)
+        }
     }
 
     impl NameProvider for Node {
         fn name(&self) -> &str {
-            &self.base.name
+            &self.name
         }
     }
 
@@ -1434,13 +1558,57 @@ mod test {
         type Target = Base;
 
         fn deref(&self) -> &Self::Target {
-            &self.base
+            self.0.deref()
         }
     }
 
     impl DerefMut for Node {
         fn deref_mut(&mut self) -> &mut Self::Target {
-            &mut self.base
+            self.0.deref_mut()
+        }
+    }
+
+    /// A wrapper for node pool record that allows to define custom visit method to have full
+    /// control over instantiation process at deserialization.
+    #[derive(Debug, Default, Reflect)]
+    pub struct NodeContainer(Option<Node>);
+
+    impl Visit for NodeContainer {
+        fn visit(&mut self, _name: &str, _visitor: &mut Visitor) -> VisitResult {
+            // Dummy impl.
+            Ok(())
+        }
+    }
+
+    impl PayloadContainer for NodeContainer {
+        type Element = Node;
+
+        fn new_empty() -> Self {
+            Self(None)
+        }
+
+        fn new(element: Self::Element) -> Self {
+            Self(Some(element))
+        }
+
+        fn is_some(&self) -> bool {
+            self.0.is_some()
+        }
+
+        fn as_ref(&self) -> Option<&Self::Element> {
+            self.0.as_ref()
+        }
+
+        fn as_mut(&mut self) -> Option<&mut Self::Element> {
+            self.0.as_mut()
+        }
+
+        fn replace(&mut self, element: Self::Element) -> Option<Self::Element> {
+            self.0.replace(element)
+        }
+
+        fn take(&mut self) -> Option<Self::Element> {
+            self.0.take()
         }
     }
 
@@ -1450,51 +1618,51 @@ mod test {
         type ResourceData = Graph;
 
         fn base(&self) -> &Self::Base {
-            &self.base
+            &**self
         }
 
         fn set_base(&mut self, base: Self::Base) {
-            self.base = base;
+            **self = base;
         }
 
         fn is_resource_instance_root(&self) -> bool {
-            self.base.is_resource_instance_root
+            self.is_resource_instance_root
         }
 
         fn original_handle_in_resource(&self) -> Handle<Self> {
-            self.base.original_handle_in_resource
+            self.original_handle_in_resource
         }
 
         fn set_original_handle_in_resource(&mut self, handle: Handle<Self>) {
-            self.base.original_handle_in_resource = handle;
+            self.original_handle_in_resource = handle;
         }
 
         fn resource(&self) -> Option<Resource<Self::ResourceData>> {
-            self.base.resource.clone()
+            self.resource.clone()
         }
 
         fn self_handle(&self) -> Handle<Self> {
-            self.base.self_handle
+            self.self_handle
         }
 
         fn parent(&self) -> Handle<Self> {
-            self.base.parent
+            self.parent
         }
 
         fn children(&self) -> &[Handle<Self>] {
-            &self.base.children
+            &self.children
         }
 
         fn children_mut(&mut self) -> &mut [Handle<Self>] {
-            &mut self.base.children
+            &mut self.children
         }
     }
 
     #[derive(Default, TypeUuidProvider, Visit, Reflect, Debug)]
     #[type_uuid(id = "fc887063-7780-44af-8710-5e0bcf9a83fd")]
-    struct Graph {
+    pub struct Graph {
         root: Handle<Node>,
-        nodes: Pool<Node>,
+        nodes: Pool<Node, NodeContainer>,
     }
 
     impl ResourceData for Graph {
@@ -1573,8 +1741,8 @@ mod test {
         }
 
         fn add_node(&mut self, mut node: Self::Node) -> Handle<Self::Node> {
-            let children = node.base.children.clone();
-            node.base.children.clear();
+            let children = node.children.clone();
+            node.children.clear();
             let handle = self.nodes.spawn(node);
 
             if self.root.is_none() {
@@ -1588,7 +1756,7 @@ mod test {
             }
 
             let node = &mut self.nodes[handle];
-            node.base.self_handle = handle;
+            node.self_handle = handle;
             handle
         }
 
@@ -1603,8 +1771,8 @@ mod test {
 
         fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>) {
             self.isolate_node(child);
-            self.nodes[child].base.parent = parent;
-            self.nodes[parent].base.children.push(child);
+            self.nodes[child].parent = parent;
+            self.nodes[parent].children.push(child);
         }
 
         fn unlink_node(&mut self, node_handle: Handle<Self::Node>) {
@@ -1614,11 +1782,11 @@ mod test {
 
         fn isolate_node(&mut self, node_handle: Handle<Self::Node>) {
             let parent_handle =
-                std::mem::replace(&mut self.nodes[node_handle].base.parent, Handle::NONE);
+                std::mem::replace(&mut self.nodes[node_handle].parent, Handle::NONE);
 
             if let Some(parent) = self.nodes.try_borrow_mut(parent_handle) {
                 if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
-                    parent.base.children.remove(i);
+                    parent.children.remove(i);
                 }
             }
         }
@@ -1646,15 +1814,137 @@ mod test {
         }
     }
 
+    fn remap_handles(old_new_mapping: &NodeHandleMap<Node>, dest_graph: &mut Graph) {
+        // Iterate over instantiated nodes and remap handles.
+        for (_, &new_node_handle) in old_new_mapping.inner().iter() {
+            old_new_mapping.remap_handles(
+                &mut dest_graph.nodes[new_node_handle],
+                &[TypeId::of::<UntypedResource>()],
+            );
+        }
+    }
+
+    fn clear_links(mut node: Node) -> Node {
+        node.children.clear();
+        node.parent = Handle::NONE;
+        node
+    }
+
+    impl Graph {
+        #[inline]
+        pub fn copy_node(
+            &self,
+            node_handle: Handle<Node>,
+            dest_graph: &mut Graph,
+        ) -> (Handle<Node>, NodeHandleMap<Node>) {
+            let mut old_new_mapping = NodeHandleMap::default();
+            let root_handle = self.copy_node_raw(node_handle, dest_graph, &mut old_new_mapping);
+
+            remap_handles(&old_new_mapping, dest_graph);
+
+            (root_handle, old_new_mapping)
+        }
+        fn copy_node_raw(
+            &self,
+            root_handle: Handle<Node>,
+            dest_graph: &mut Graph,
+            old_new_mapping: &mut NodeHandleMap<Node>,
+        ) -> Handle<Node> {
+            let src_node = &self.nodes[root_handle];
+            let dest_node = clear_links(src_node.clone());
+            let dest_copy_handle = dest_graph.add_node(dest_node);
+            old_new_mapping.insert(root_handle, dest_copy_handle);
+            for &src_child_handle in src_node.children() {
+                let dest_child_handle =
+                    self.copy_node_raw(src_child_handle, dest_graph, old_new_mapping);
+                if !dest_child_handle.is_none() {
+                    dest_graph.link_nodes(dest_child_handle, dest_copy_handle);
+                }
+            }
+            dest_copy_handle
+        }
+    }
+
+    #[derive(Clone, Reflect, Visit, Default, Debug, ComponentProvider)]
+    pub struct Pivot {
+        base: Base,
+    }
+
+    export_derived_entity_list!(Pivot = [Node]);
+
+    impl NodeTrait for Pivot {}
+
+    impl Deref for Pivot {
+        type Target = Base;
+
+        fn deref(&self) -> &Self::Target {
+            &self.base
+        }
+    }
+
+    impl DerefMut for Pivot {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.base
+        }
+    }
+
+    #[derive(Clone, Reflect, Visit, Default, Debug, ComponentProvider)]
+    pub struct RigidBody {
+        base: Base,
+    }
+
+    export_derived_entity_list!(RigidBody = [Node]);
+
+    impl NodeTrait for RigidBody {}
+
+    impl Deref for RigidBody {
+        type Target = Base;
+
+        fn deref(&self) -> &Self::Target {
+            &self.base
+        }
+    }
+
+    impl DerefMut for RigidBody {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.base
+        }
+    }
+
+    #[derive(Clone, Reflect, Visit, Default, Debug, ComponentProvider)]
+    pub struct Joint {
+        base: Base,
+        connected_body1: Handle<RigidBody>,
+        connected_body2: Handle<RigidBody>,
+    }
+
+    export_derived_entity_list!(Joint = [Node]);
+
+    impl NodeTrait for Joint {}
+
+    impl Deref for Joint {
+        type Target = Base;
+
+        fn deref(&self) -> &Self::Target {
+            &self.base
+        }
+    }
+
+    impl DerefMut for Joint {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.base
+        }
+    }
+
     #[test]
     fn test_set_child_position() {
         let mut graph = Graph::default();
 
-        let root = graph.add_node(Node::default());
-        let a = graph.add_node(Node::default());
-        let b = graph.add_node(Node::default());
-        let c = graph.add_node(Node::default());
-        let d = graph.add_node(Node::default());
+        let root = graph.add_node(Node::new(Pivot::default()));
+        let a = graph.add_node(Node::new(Pivot::default()));
+        let b = graph.add_node(Node::new(Pivot::default()));
+        let c = graph.add_node(Node::new(Pivot::default()));
+        let d = graph.add_node(Node::new(Pivot::default()));
         graph.link_nodes(a, root);
         graph.link_nodes(b, root);
         graph.link_nodes(c, root);
@@ -1698,6 +1988,44 @@ mod test {
     }
 
     #[test]
+    fn test_derived_handles_mapping() {
+        let mut prefab_graph = Graph::default();
+
+        let root = prefab_graph.add_node(Node::new(Pivot::default()));
+        let rigid_body = prefab_graph.add_node(Node::new(RigidBody::default()));
+        let rigid_body2 = prefab_graph.add_node(Node::new(RigidBody::default()));
+        let joint = prefab_graph.add_node(Node::new(Joint {
+            base: Base::default(),
+            connected_body1: rigid_body.transmute(),
+            connected_body2: rigid_body2.transmute(),
+        }));
+
+        let mut scene_graph = Graph::default();
+        let root = scene_graph.add_node(Node::new(Pivot::default()));
+
+        let (prefab_copy_root, mapping) = prefab_graph.copy_node(root, &mut scene_graph);
+        let rigid_body_copy = mapping
+            .inner()
+            .get(&rigid_body)
+            .cloned()
+            .unwrap()
+            .transmute::<RigidBody>();
+        let rigid_body2_copy = mapping
+            .inner()
+            .get(&rigid_body2)
+            .cloned()
+            .unwrap()
+            .transmute::<RigidBody>();
+        let joint_copy = mapping.inner().get(&joint).cloned().unwrap();
+
+        let joint_copy_ref = scene_graph.nodes[joint_copy]
+            .component_ref::<Joint>()
+            .unwrap();
+        assert_eq!(joint_copy_ref.connected_body1, rigid_body_copy);
+        assert_eq!(joint_copy_ref.connected_body2, rigid_body2_copy);
+    }
+
+    #[test]
     fn test_change_root() {
         let mut graph = Graph::default();
 
@@ -1706,27 +2034,21 @@ mod test {
         //          |_B
         //          |_C_
         //             |_D
-        let root = graph.add_node(Node {
-            base: Base::default(),
-        });
-        let d = graph.add_node(Node {
-            base: Base::default(),
-        });
-        let c = graph.add_node(Node {
+        let root = graph.add_node(Node::new(Pivot::default()));
+        let d = graph.add_node(Node::new(Pivot::default()));
+        let c = graph.add_node(Node::new(Pivot {
             base: Base {
                 children: vec![d],
                 ..Default::default()
             },
-        });
-        let b = graph.add_node(Node {
-            base: Base::default(),
-        });
-        let a = graph.add_node(Node {
+        }));
+        let b = graph.add_node(Node::new(Pivot::default()));
+        let a = graph.add_node(Node::new(Pivot {
             base: Base {
                 children: vec![b, c],
                 ..Default::default()
             },
-        });
+        }));
         graph.link_nodes(a, root);
 
         dbg!(root, a, b, c, d);

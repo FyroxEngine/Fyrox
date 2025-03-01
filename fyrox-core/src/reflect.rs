@@ -318,6 +318,55 @@ pub trait Reflect: ReflectBase {
     fn as_hash_map_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHashMap>)) {
         func(None)
     }
+
+    fn as_handle(&self, func: &mut dyn FnMut(Option<&dyn ReflectHandle>)) {
+        func(None)
+    }
+
+    fn as_handle_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHandle>)) {
+        func(None)
+    }
+}
+
+pub trait DerivedEntityListContainer {
+    fn derived_entity_list() -> &'static [TypeId];
+}
+
+pub trait DerivedEntityListProvider {
+    fn query_derived_entity_list(&self) -> &'static [TypeId];
+}
+
+#[macro_export]
+macro_rules! export_derived_entity_list {
+    ($ty:ty = [$($trait_name:ty),*]) => {
+        impl $crate::reflect::DerivedEntityListContainer for $ty {
+            fn derived_entity_list() -> &'static [std::any::TypeId] {
+                static ARRAY: std::sync::LazyLock<Vec<std::any::TypeId>> = std::sync::LazyLock::new(|| vec![
+                    $(
+                        // Fucking "this stuff is unstable in const fn", typical Rust.
+                        // TODO: Remove LazyLock when it is finally stable.
+                        std::any::TypeId::of::<$trait_name>()
+                    ),*
+                ]);
+
+                &ARRAY
+            }
+        }
+
+        impl $crate::reflect::DerivedEntityListProvider for $ty {
+            fn query_derived_entity_list(&self) -> &'static [std::any::TypeId] {
+                <$ty as $crate::reflect::DerivedEntityListContainer>::derived_entity_list()
+            }
+        }
+    };
+}
+
+pub trait ReflectHandle: DerivedEntityListProvider {
+    fn reflect_is_some(&self) -> bool;
+    fn reflect_set_index(&mut self, index: u32);
+    fn reflect_index(&self) -> u32;
+    fn reflect_set_generation(&mut self, generation: u32);
+    fn reflect_generation(&self) -> u32;
 }
 
 /// [`Reflect`] sub trait for working with slices.
