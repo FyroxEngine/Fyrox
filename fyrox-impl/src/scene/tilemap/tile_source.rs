@@ -114,11 +114,15 @@ impl Ord for TileDefinitionHandle {
 impl Display for TileDefinitionHandle {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "({},{}):({},{})",
-            self.page.x, self.page.y, self.tile.x, self.tile.y
-        )
+        if self.is_empty() {
+            f.write_str("Empty")
+        } else {
+            write!(
+                f,
+                "({},{}):({},{})",
+                self.page.x, self.page.y, self.tile.x, self.tile.y
+            )
+        }
     }
 }
 
@@ -190,6 +194,9 @@ impl TileDefinitionHandle {
     /// The first two numbers are the page coodrinates. The second two numbers are the tile coordinates.
     /// None is returned if there are more than four numbers, fewer than four numbers, or any number produces an error in parsing.
     pub fn parse(s: &str) -> Option<Self> {
+        if s.eq_ignore_ascii_case("Empty") {
+            return Some(Self::EMPTY);
+        }
         let mut iter = s
             .split(|c: char| c != '-' && !c.is_ascii_digit())
             .filter(|w| !w.is_empty());

@@ -1705,7 +1705,9 @@ impl TileSet {
         trans: OrthoTransformation,
         handle: TileDefinitionHandle,
     ) -> Option<TileRenderData> {
-        if let Some(handle) = self.get_transformed_version(trans, handle) {
+        if handle.is_empty() {
+            Some(TileRenderData::empty())
+        } else if let Some(handle) = self.get_transformed_version(trans, handle) {
             self.get_tile_render_data(handle.into())
         } else {
             Some(self.get_tile_render_data(handle.into())?.transformed(trans))
@@ -1725,11 +1727,14 @@ impl TileSet {
             .or_else(|| Some(TileRenderData::missing_data()))
     }
     fn inner_get_render_data(&self, position: ResourceTilePosition) -> Option<TileRenderData> {
-        if self.is_valid_tile(self.redirect_handle(position)?) {
-            Some(TileRenderData {
-                material_bounds: Some(self.get_tile_bounds(position)?),
-                color: self.get_tile_data(position)?.color,
-            })
+        let handle = self.redirect_handle(position)?;
+        if handle.is_empty() {
+            Some(TileRenderData::empty())
+        } else if self.is_valid_tile(handle) {
+            Some(TileRenderData::new(
+                Some(self.get_tile_bounds(position)?),
+                self.get_tile_data(position)?.color,
+            ))
         } else {
             Some(TileRenderData::missing_data())
         }

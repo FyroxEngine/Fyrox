@@ -81,6 +81,9 @@ fn draw_tile(
     tile: &TileRenderData,
     drawing_context: &mut DrawingContext,
 ) {
+    if tile.is_empty() {
+        return;
+    }
     let color = tile.color;
     if let Some(material_bounds) = &tile.material_bounds {
         if let Some(texture) = material_bounds

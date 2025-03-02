@@ -184,6 +184,9 @@ impl BrushMacro for AutoTileMacro {
         message: &UiMessage,
         editor: &mut Editor,
     ) {
+        let Some(cell) = context.cell else {
+            return;
+        };
         let ui = editor.engine.user_interfaces.first_mut();
         for r in context.instances_with_uuid(*self.uuid()) {
             let instance = r.try_cast::<AutoTileInstance>().unwrap();
@@ -200,14 +203,11 @@ impl BrushMacro for AutoTileMacro {
                 .widgets
                 .value_field
                 .on_ui_message(prop, message, ui);
-            let cell = context.cell.unwrap();
             let cell_data = settings.cells.get(&cell).cloned().unwrap_or_default();
             if let Some(&TileSetPropertyValueMessage(TileSetPropertyValueElement::I8(v))) =
                 message.data()
             {
-                if message.destination() == settings.widgets.value_field.handle()
-                    && context.cell.is_some()
-                {
+                if message.destination() == settings.widgets.value_field.handle() {
                     drop(settings);
                     editor.message_sender.do_command(SetCellCommand {
                         brush: context.brush.clone(),

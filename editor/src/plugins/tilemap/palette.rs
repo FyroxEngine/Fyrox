@@ -350,9 +350,13 @@ impl PaletteOverlay {
         self.movable_tiles.clear();
         self.erased_tiles.clear();
         for (pos, StampElement { handle, .. }) in stamp.iter() {
-            let data = tile_set
-                .get_transformed_render_data(stamp.transformation(), *handle)
-                .unwrap_or_else(TileRenderData::missing_data);
+            let data = if handle.is_empty() {
+                TileRenderData::empty()
+            } else {
+                tile_set
+                    .get_transformed_render_data(stamp.transformation(), *handle)
+                    .unwrap_or_else(TileRenderData::missing_data)
+            };
             let _ = self.movable_tiles.insert(pos, data);
         }
     }
@@ -1766,12 +1770,37 @@ pub fn draw_checker_board(bounds: Rect<f32>, clip_bounds: Rect<f32>, ctx: &mut D
     ctx.transform_stack.pop();
 }
 
+fn draw_empty_tile(position: Rect<f32>, clip_bounds: Rect<f32>, ctx: &mut DrawingContext) {
+    let Some(image) = ERASER_IMAGE.clone() else {
+        return;
+    };
+    ctx.push_rect_filled(
+        &position,
+        Some(&[
+            Vector2::new(0.0, 1.0),
+            Vector2::new(1.0, 1.0),
+            Vector2::new(1.0, 0.0),
+            Vector2::new(0.0, 0.0),
+        ]),
+    );
+    ctx.commit(
+        clip_bounds,
+        Brush::Solid(Color::WHITE),
+        CommandTexture::Texture(image),
+        None,
+    );
+}
+
 fn draw_tile(
     position: Rect<f32>,
     clip_bounds: Rect<f32>,
     tile: &TileRenderData,
     ctx: &mut DrawingContext,
 ) {
+    if tile.is_empty() {
+        draw_empty_tile(position, clip_bounds, ctx);
+        return;
+    }
     draw_checker_board(position, clip_bounds, ctx);
     let color = tile.color;
     if let Some(material_bounds) = &tile.material_bounds {
