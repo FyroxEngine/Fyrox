@@ -1638,7 +1638,7 @@ pub struct PaletteWidgetBuilder {
 impl PaletteWidgetBuilder {
     /// Build a [`PaletteWidget`] with the given sender and [`TileDrawStateRef`].
     /// The state is a shared reference that the palette will keep for its lifetime so that
-    /// it can cooperate with other palettes and with the [`TileMapInteractionMode`].
+    /// it can cooperate with other palettes and with the tile map interaction mode.
     pub fn new(
         widget_builder: WidgetBuilder,
         sender: MessageSender,
