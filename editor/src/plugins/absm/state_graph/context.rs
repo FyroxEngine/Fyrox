@@ -48,6 +48,7 @@ use crate::{
     message::MessageSender,
     scene::{commands::ChangeSelectionCommand, Selection},
 };
+use fyrox::core::reflect::DerivedEntityListContainer;
 use fyrox::gui::menu::ContextMenuBuilder;
 use std::fmt::Debug;
 
@@ -90,7 +91,7 @@ impl CanvasContextMenu {
         }
     }
 
-    pub fn handle_ui_message<N: Debug + 'static>(
+    pub fn handle_ui_message<N: DerivedEntityListContainer + Debug + 'static>(
         &mut self,
         sender: &MessageSender,
         message: &UiMessage,
@@ -214,7 +215,7 @@ impl NodeContextMenu {
         }
     }
 
-    pub fn handle_ui_message<N: Debug + 'static>(
+    pub fn handle_ui_message<N: DerivedEntityListContainer + Debug + 'static>(
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
@@ -360,7 +361,7 @@ impl TransitionContextMenu {
         }
     }
 
-    pub fn handle_ui_message<N: Debug + 'static>(
+    pub fn handle_ui_message<N: DerivedEntityListContainer + Debug + 'static>(
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,

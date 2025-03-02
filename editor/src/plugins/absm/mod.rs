@@ -54,6 +54,7 @@ use crate::plugins::absm::{
 use crate::scene::GameScene;
 use crate::ui_scene::UiScene;
 use crate::{message::MessageSender, scene::Selection, Editor, Message};
+use fyrox::core::reflect::DerivedEntityListContainer;
 use fyrox::core::some_or_return;
 use fyrox::gui::dock::DockingManagerMessage;
 use fyrox::gui::menu::MenuItemMessage;
@@ -75,14 +76,14 @@ mod state_viewer;
 mod toolbar;
 mod transition;
 
-struct PreviewModeData<N: 'static> {
+struct PreviewModeData<N: DerivedEntityListContainer + 'static> {
     machine: Machine<Handle<N>>,
     nodes: Vec<(Handle<N>, N)>,
 }
 
 fn fetch_selection<N>(editor_selection: &Selection) -> AbsmSelection<N>
 where
-    N: Debug,
+    N: DerivedEntityListContainer + Debug,
 {
     if let Some(selection) = editor_selection.as_absm() {
         // Some selection in an animation.

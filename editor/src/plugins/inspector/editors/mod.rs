@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::core::reflect::DerivedEntityListContainer;
 use fyrox::scene::{rigidbody::RigidBodyMassPropertiesType, tilemap::TileDefinitionHandle};
 
 use crate::plugins::{
@@ -152,7 +153,7 @@ pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Stat
 
 fn register_absm_property_editors<T>(container: &PropertyEditorDefinitionContainer)
 where
-    T: 'static,
+    T: DerivedEntityListContainer + 'static,
 {
     use crate::fyrox::generic_animation::machine::{
         node::{

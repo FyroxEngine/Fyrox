@@ -62,7 +62,7 @@ use crate::{
     },
 };
 use fyrox_core::math::frustum::Frustum;
-use fyrox_core::{ComponentProvider, NameProvider};
+use fyrox_core::{export_derived_entity_list, ComponentProvider, NameProvider};
 use fyrox_resource::Resource;
 use std::{
     any::{Any, TypeId},
@@ -325,6 +325,8 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
 /// consumption, only disk space usage is reduced.
 #[derive(Debug)]
 pub struct Node(Box<dyn NodeTrait>);
+
+export_derived_entity_list!(Node = []);
 
 impl<T: NodeTrait> From<T> for Node {
     fn from(value: T) -> Self {

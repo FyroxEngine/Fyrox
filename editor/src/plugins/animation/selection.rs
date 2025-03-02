@@ -23,6 +23,7 @@ use crate::fyrox::{
     generic_animation::Animation,
 };
 use crate::scene::SelectionContainer;
+use fyrox::core::reflect::DerivedEntityListContainer;
 use std::fmt::{Debug, Formatter};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -35,7 +36,7 @@ pub enum SelectedEntity {
 #[derive(Eq)]
 pub struct AnimationSelection<N>
 where
-    N: 'static,
+    N: DerivedEntityListContainer + 'static,
 {
     pub animation_player: Handle<N>,
     pub animation: Handle<Animation<Handle<N>>>,
@@ -44,7 +45,7 @@ where
 
 impl<N> Debug for AnimationSelection<N>
 where
-    N: 'static,
+    N: DerivedEntityListContainer + 'static,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -57,7 +58,7 @@ where
 
 impl<N> Clone for AnimationSelection<N>
 where
-    N: 'static,
+    N: DerivedEntityListContainer + 'static,
 {
     fn clone(&self) -> Self {
         Self {
@@ -70,7 +71,7 @@ where
 
 impl<N> PartialEq for AnimationSelection<N>
 where
-    N: 'static,
+    N: DerivedEntityListContainer + 'static,
 {
     fn eq(&self, other: &Self) -> bool {
         self.entities == other.entities
@@ -81,7 +82,7 @@ where
 
 impl<N> SelectionContainer for AnimationSelection<N>
 where
-    N: 'static,
+    N: DerivedEntityListContainer + 'static,
 {
     fn len(&self) -> usize {
         self.entities.len()
@@ -90,7 +91,7 @@ where
 
 impl<N> AnimationSelection<N>
 where
-    N: 'static,
+    N: DerivedEntityListContainer + 'static,
 {
     pub fn first_selected_track(&self) -> Option<Uuid> {
         self.entities.iter().find_map(|e| {
