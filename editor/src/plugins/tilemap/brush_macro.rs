@@ -53,7 +53,7 @@ const UNKNOWN_PROPERTY: &str = "UNKNOWN PROPERTY";
 
 /// An Arc Mutex reference to a [`BrushMacroList`] that allows multiple objects
 /// to share access to a common macro list. Among the things that need to share
-/// the list are the [`TileMapInteractionMode`] and the [`TileSetEditor`].
+/// the list are the tile map interaction mode and the [`TileSetEditor`].
 #[derive(Default, Clone)]
 pub struct BrushMacroListRef(Arc<Mutex<BrushMacroList>>);
 
@@ -295,7 +295,7 @@ pub trait BrushMacro: 'static + Send + Sync {
     /// None is returned if no command is necessary, such as if the cell is already included
     /// or no cell is selected. Adding the currently selected cell will naturally require
     /// the widgets that edit the data to change, but that will wait until
-    /// [`BrushMacro::sync_cell_editor`] is called.
+    /// [`BrushMacro::sync_cell_editors`] is called.
     fn create_cell(&self, context: &BrushMacroCell) -> Option<Command>;
     /// Create a command to modify the given instances's data to remove the given cell.
     /// None is returned if no command is necessary, such as if the cell is already excluded
@@ -326,7 +326,7 @@ pub trait BrushMacro: 'static + Send + Sync {
     /// None is returned if this macro needs no widgets because cell data cannot be edited.
     /// If no cell is selected or if the cell is not part of the macro, then the widgets
     /// should stil be created but they should be invisible. They can be made visible
-    /// when [`BrushMacro::sync_cell_editor`] is called.
+    /// when [`BrushMacro::sync_cell_editors`] is called.
     fn build_cell_editor(
         &mut self,
         context: &BrushMacroCell,

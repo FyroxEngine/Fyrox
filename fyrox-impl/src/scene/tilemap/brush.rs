@@ -429,9 +429,13 @@ impl TileMapBrush {
         match stage {
             TilePaletteStage::Pages => {
                 for (k, p) in self.pages.iter() {
-                    let data = tile_set
-                        .get_tile_render_data(p.icon.into())
-                        .unwrap_or_else(TileRenderData::missing_data);
+                    let data = if p.icon.is_empty() {
+                        TileRenderData::empty()
+                    } else {
+                        tile_set
+                            .get_tile_render_data(p.icon.into())
+                            .unwrap_or_else(TileRenderData::missing_data)
+                    };
                     func(*k, data);
                 }
             }
@@ -440,9 +444,13 @@ impl TileMapBrush {
                     return;
                 };
                 for (k, &handle) in page.tiles.iter() {
-                    let data = tile_set
-                        .get_tile_render_data(handle.into())
-                        .unwrap_or_else(TileRenderData::missing_data);
+                    let data = if handle.is_empty() {
+                        TileRenderData::empty()
+                    } else {
+                        tile_set
+                            .get_tile_render_data(handle.into())
+                            .unwrap_or_else(TileRenderData::missing_data)
+                    };
                     func(*k, data);
                 }
             }
@@ -455,6 +463,9 @@ impl TileMapBrush {
     /// then the rendering data for an error tile is returned using `TileRenderData::missing_tile()`.
     pub fn get_tile_render_data(&self, position: ResourceTilePosition) -> Option<TileRenderData> {
         let handle = self.redirect_handle(position)?;
+        if handle.is_empty() {
+            return Some(TileRenderData::empty());
+        }
         let tile_set = self.tile_set()?;
         let mut tile_set = tile_set.state();
         let data = tile_set
@@ -506,6 +517,18 @@ impl TileMapBrush {
             .state()
             .data()?
             .get_tile_bounds(handle.into())
+    }
+
+    /// Returns true if the brush is unoccupied at the given position.
+    pub fn is_free_at(&self, position: ResourceTilePosition) -> bool {
+        match position.stage() {
+            TilePaletteStage::Pages => !self.pages.contains_key(&position.stage_position()),
+            TilePaletteStage::Tiles => !self
+                .pages
+                .get(&position.page())
+                .map(|p| p.tiles.contains_key(&position.stage_position()))
+                .unwrap_or_default(),
+        }
     }
 
     /// Load a tile map brush resource from the specific file path.

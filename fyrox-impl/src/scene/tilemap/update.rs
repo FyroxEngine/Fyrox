@@ -249,22 +249,22 @@ impl TileDataUpdate {
     pub fn modify_render<'a>(&self, source: &'a TileRenderData) -> Option<Cow<'a, TileRenderData>> {
         match self {
             TileDataUpdate::Erase => None,
-            TileDataUpdate::MaterialTile(tile_data) => Some(Cow::Owned(TileRenderData {
-                material_bounds: source.material_bounds.clone(),
-                color: tile_data.color,
-            })),
-            TileDataUpdate::FreeformTile(def) => Some(Cow::Owned(TileRenderData {
-                material_bounds: Some(def.material_bounds.clone()),
-                color: def.data.color,
-            })),
-            TileDataUpdate::Color(color) => Some(Cow::Owned(TileRenderData {
-                material_bounds: source.material_bounds.clone(),
-                color: *color,
-            })),
-            TileDataUpdate::Material(material_bounds) => Some(Cow::Owned(TileRenderData {
-                material_bounds: Some(material_bounds.clone()),
-                color: source.color,
-            })),
+            TileDataUpdate::MaterialTile(tile_data) => Some(Cow::Owned(TileRenderData::new(
+                source.material_bounds.clone(),
+                tile_data.color,
+            ))),
+            TileDataUpdate::FreeformTile(def) => Some(Cow::Owned(TileRenderData::new(
+                Some(def.material_bounds.clone()),
+                def.data.color,
+            ))),
+            TileDataUpdate::Color(color) => Some(Cow::Owned(TileRenderData::new(
+                source.material_bounds.clone(),
+                *color,
+            ))),
+            TileDataUpdate::Material(material_bounds) => Some(Cow::Owned(TileRenderData::new(
+                Some(material_bounds.clone()),
+                source.color,
+            ))),
             _ => Some(Cow::Borrowed(source)),
         }
     }

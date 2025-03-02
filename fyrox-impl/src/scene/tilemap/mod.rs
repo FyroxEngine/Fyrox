@@ -167,6 +167,9 @@ impl TileMapRenderContext<'_, '_> {
     /// and then [`TileMapRenderContext::set_tile_visible`] should be used to set the position to false
     /// to prevent any future effects from rendering at this position.
     pub fn draw_tile(&mut self, position: Vector2<i32>, handle: TileDefinitionHandle) {
+        if handle.is_empty() {
+            return;
+        }
         let Some(data) = self.tile_set.get_tile_render_data(handle.into()) else {
             return;
         };
@@ -176,6 +179,9 @@ impl TileMapRenderContext<'_, '_> {
     /// Render the given tile data at the given cell position. This makes it possible to render
     /// a tile that is not in the tile map's tile set.
     pub fn push_tile(&mut self, position: Vector2<i32>, data: &TileRenderData) {
+        if data.is_empty() {
+            return;
+        }
         let color = data.color;
         if let Some(tile_bounds) = data.material_bounds.as_ref() {
             let material = &tile_bounds.material;
@@ -876,14 +882,37 @@ pub struct TileRenderData {
     pub material_bounds: Option<TileMaterialBounds>,
     /// The color to use to render the tile
     pub color: Color,
+    /// This data represents the empty tile
+    empty: bool,
 }
 
 impl TileRenderData {
+    /// Create a TileRenderData
+    pub fn new(material_bounds: Option<TileMaterialBounds>, color: Color) -> Self {
+        Self {
+            material_bounds,
+            color,
+            empty: false,
+        }
+    }
+    /// Create an empty TileRenderData
+    pub fn empty() -> Self {
+        Self {
+            material_bounds: None,
+            color: Color::WHITE,
+            empty: true,
+        }
+    }
+    /// True if the render data is for the empty tile.
+    pub fn is_empty(&self) -> bool {
+        self.empty
+    }
     /// Returns TileRenderData to represent an error due to render data being unavailable.
-    pub fn missing_data() -> TileRenderData {
+    pub fn missing_data() -> Self {
         Self {
             material_bounds: None,
             color: Color::HOT_PINK,
+            empty: false,
         }
     }
 }

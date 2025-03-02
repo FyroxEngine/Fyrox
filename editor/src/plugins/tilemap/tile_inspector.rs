@@ -378,11 +378,14 @@ impl<'a> TileEditorState<'a> {
             .iter()
             .copied()
             .filter_map(move |p| TileDefinitionHandle::try_new(page?, p))
-            .filter(|handle| {
-                let Some(tile_set) = self.tile_set() else {
-                    return false;
-                };
-                tile_set.is_free_at((*handle).into())
+            .filter(|&handle| {
+                if let Some(tile_set) = self.tile_set() {
+                    tile_set.is_free_at(handle.into())
+                } else if let Some(brush) = self.brush() {
+                    brush.is_free_at(handle.into())
+                } else {
+                    false
+                }
             })
     }
     /// Iterate the selected freeform tiles to produce pairs of tile handles and borrows of the material bounds for each tile.
@@ -1197,37 +1200,52 @@ impl TileInspector {
         };
         sender.do_command(CommandGroup::from(cmds).with_custom_name("Modify Tile Page Icon"));
     }
-    /// Create default tiles at any empty tile positions in the current selection, if we are editing
-    /// a tile set.
+    /// Create default tiles at any empty tile positions in the current selection.
     fn create_tile(&self, state: &TileEditorState, sender: &MessageSender) {
-        let TileBook::TileSet(tile_set) = &self.tile_book else {
-            return;
-        };
-        let mut update = TileSetUpdate::default();
-        for handle in state.empty_tiles() {
-            match state.data.page_type(handle.page()) {
-                Some(PageType::Atlas) => {
-                    drop(update.insert(handle, TileDataUpdate::MaterialTile(TileData::default())))
+        match &self.tile_book {
+            TileBook::Empty => (),
+            TileBook::TileSet(tile_set) => {
+                let mut update = TileSetUpdate::default();
+                for handle in state.empty_tiles() {
+                    match state.data.page_type(handle.page()) {
+                        Some(PageType::Atlas) => drop(
+                            update
+                                .insert(handle, TileDataUpdate::MaterialTile(TileData::default())),
+                        ),
+                        Some(PageType::Freeform) => drop(update.insert(
+                            handle,
+                            TileDataUpdate::FreeformTile(TileDefinition::default()),
+                        )),
+                        Some(PageType::Transform) => drop(update.insert(
+                            handle,
+                            TileDataUpdate::TransformSet(Some(TileDefinitionHandle::default())),
+                        )),
+                        Some(PageType::Animation) => drop(update.insert(
+                            handle,
+                            TileDataUpdate::TransformSet(Some(TileDefinitionHandle::default())),
+                        )),
+                        _ => (),
+                    }
                 }
-                Some(PageType::Freeform) => drop(update.insert(
-                    handle,
-                    TileDataUpdate::FreeformTile(TileDefinition::default()),
-                )),
-                Some(PageType::Transform) => drop(update.insert(
-                    handle,
-                    TileDataUpdate::TransformSet(Some(TileDefinitionHandle::default())),
-                )),
-                Some(PageType::Animation) => drop(update.insert(
-                    handle,
-                    TileDataUpdate::TransformSet(Some(TileDefinitionHandle::default())),
-                )),
-                _ => (),
+                sender.do_command(SetTileSetTilesCommand {
+                    tile_set: tile_set.clone(),
+                    tiles: update,
+                });
+            }
+            TileBook::Brush(brush) => {
+                if let Some(page) = state.page {
+                    let mut tiles = TilesUpdate::default();
+                    for position in state.selected_positions() {
+                        tiles.insert(position, Some(TileDefinitionHandle::EMPTY));
+                    }
+                    sender.do_command(SetBrushTilesCommand {
+                        brush: brush.clone(),
+                        page,
+                        tiles,
+                    });
+                }
             }
         }
-        sender.do_command(SetTileSetTilesCommand {
-            tile_set: tile_set.clone(),
-            tiles: update,
-        });
     }
     fn create_brush_page(&self, state: &TileEditorState, sender: &MessageSender) {
         let TileBook::Brush(brush) = &self.tile_book else {
