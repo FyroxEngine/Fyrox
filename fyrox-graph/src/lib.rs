@@ -37,7 +37,7 @@ use fyrox_core::{
 use fyrox_resource::{untyped::UntypedResource, Resource, TypedResourceData};
 use std::any::Any;
 use std::cmp::Ordering;
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -63,6 +63,15 @@ pub enum NodeMapping {
 /// make any sense.
 pub struct NodeHandleMap<N> {
     pub(crate) map: FxHashMap<Handle<N>, Handle<N>>,
+}
+
+impl<N> Debug for NodeHandleMap<N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for (from, to) in self.map.iter() {
+            writeln!(f, "{from} -> {to}")?;
+        }
+        Ok(())
+    }
 }
 
 impl<N> Default for NodeHandleMap<N> {
