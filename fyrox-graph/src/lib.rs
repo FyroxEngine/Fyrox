@@ -1406,22 +1406,19 @@ mod test {
         AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping,
         PrefabData, SceneGraph, SceneGraphNode,
     };
-    use fyrox_core::pool::{ErasedHandle, PayloadContainer};
-    use fyrox_core::reflect::DerivedEntityListProvider;
     use fyrox_core::{
         export_derived_entity_list,
-        pool::{Handle, Pool},
-        reflect::prelude::*,
+        pool::{ErasedHandle, Handle, PayloadContainer, Pool},
+        reflect::{prelude::*, DerivedEntityListProvider},
         type_traits::prelude::*,
         visitor::prelude::*,
         NameProvider,
     };
-    use fyrox_resource::untyped::UntypedResource;
-    use fyrox_resource::{Resource, ResourceData};
-    use std::any::{Any, TypeId};
-    use std::fmt::Debug;
+    use fyrox_resource::{untyped::UntypedResource, Resource, ResourceData};
     use std::{
+        any::{Any, TypeId},
         error::Error,
+        fmt::Debug,
         ops::{Deref, DerefMut, Index, IndexMut},
         path::Path,
     };
@@ -2000,7 +1997,7 @@ mod test {
     fn test_derived_handles_mapping() {
         let mut prefab_graph = Graph::default();
 
-        let root = prefab_graph.add_node(Node::new(Pivot::default()));
+        prefab_graph.add_node(Node::new(Pivot::default()));
         let rigid_body = prefab_graph.add_node(Node::new(RigidBody::default()));
         let rigid_body2 = prefab_graph.add_node(Node::new(RigidBody::default()));
         let joint = prefab_graph.add_node(Node::new(Joint {
@@ -2012,7 +2009,7 @@ mod test {
         let mut scene_graph = Graph::default();
         let root = scene_graph.add_node(Node::new(Pivot::default()));
 
-        let (prefab_copy_root, mapping) = prefab_graph.copy_node(root, &mut scene_graph);
+        let (_, mapping) = prefab_graph.copy_node(root, &mut scene_graph);
         let rigid_body_copy = mapping
             .inner()
             .get(&rigid_body)
@@ -2026,12 +2023,11 @@ mod test {
             .unwrap()
             .transmute::<RigidBody>();
         let joint_copy = mapping.inner().get(&joint).cloned().unwrap();
-
-        let joint_copy_ref = scene_graph.nodes[joint_copy]
-            .component_ref::<Joint>()
-            .unwrap();
-        assert_eq!(joint_copy_ref.connected_body1, rigid_body_copy);
-        assert_eq!(joint_copy_ref.connected_body2, rigid_body2_copy);
+        Reflect::as_any(&scene_graph.nodes[joint_copy], &mut |any| {
+            let joint_copy_ref = any.downcast_ref::<Joint>().unwrap();
+            assert_eq!(joint_copy_ref.connected_body1, rigid_body_copy);
+            assert_eq!(joint_copy_ref.connected_body2, rigid_body2_copy);
+        });
     }
 
     #[test]
