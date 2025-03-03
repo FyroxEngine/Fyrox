@@ -54,6 +54,7 @@ use crate::{
     world::graph::item::SceneItem,
     Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox::core::reflect::DerivedEntityListProvider;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::{
@@ -76,7 +77,8 @@ impl HandlePropertyEditorMessage {
     define_constructor!(HandlePropertyEditorMessage:Hierarchy => fn hierarchy(HierarchyNode), layout: false);
 }
 
-#[derive(Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct HandlePropertyEditor {
     widget: Widget,
     text: Handle<UiNode>,

@@ -70,7 +70,8 @@ use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Debug, Reflect, Clone, Visit, ComponentProvider)]
+#[derive(Debug, Reflect, Clone, Visit, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "Node")]
 pub struct SpotLight {
     #[component(include)]
     base_light: BaseLight,

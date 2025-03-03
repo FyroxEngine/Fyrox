@@ -127,7 +127,8 @@ impl CsmOptions {
 }
 
 /// See module docs.
-#[derive(Default, Debug, Visit, Reflect, Clone, ComponentProvider)]
+#[derive(Default, Debug, Visit, Reflect, Clone, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "Node")]
 pub struct DirectionalLight {
     #[component(include)]
     base_light: BaseLight,

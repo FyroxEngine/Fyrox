@@ -99,7 +99,7 @@ use crate::{
     Message, Settings,
 };
 use fyrox::asset::untyped::ResourceKind;
-use fyrox::core::reflect::DerivedEntityListContainer;
+use fyrox::core::reflect::DerivedEntityListProvider;
 use fyrox::core::Downcast;
 use fyrox::graph::SceneGraphNode;
 use std::{
@@ -1412,29 +1412,29 @@ impl Selection {
         is_audio_bus
     );
 
-    pub fn as_absm<N: DerivedEntityListContainer + 'static>(&self) -> Option<&AbsmSelection<N>> {
+    pub fn as_absm<N: DerivedEntityListProvider + 'static>(&self) -> Option<&AbsmSelection<N>> {
         self.0.as_ref().and_then(|s| s.downcast_ref())
     }
-    pub fn as_absm_mut<N: DerivedEntityListContainer + 'static>(
+    pub fn as_absm_mut<N: DerivedEntityListProvider + 'static>(
         &mut self,
     ) -> Option<&mut AbsmSelection<N>> {
         self.0.as_mut().and_then(|s| s.downcast_mut())
     }
-    pub fn is_absm<N: DerivedEntityListContainer + 'static>(&mut self) -> bool {
+    pub fn is_absm<N: DerivedEntityListProvider + 'static>(&mut self) -> bool {
         self.as_absm::<N>().is_some()
     }
 
-    pub fn as_animation<N: DerivedEntityListContainer + 'static>(
+    pub fn as_animation<N: DerivedEntityListProvider + 'static>(
         &self,
     ) -> Option<&AnimationSelection<N>> {
         self.0.as_ref().and_then(|s| s.downcast_ref())
     }
-    pub fn as_animation_mut<N: DerivedEntityListContainer + 'static>(
+    pub fn as_animation_mut<N: DerivedEntityListProvider + 'static>(
         &mut self,
     ) -> Option<&mut AnimationSelection<N>> {
         self.0.as_mut().and_then(|s| s.downcast_mut())
     }
-    pub fn is_animation<N: DerivedEntityListContainer + 'static>(&mut self) -> bool {
+    pub fn is_animation<N: DerivedEntityListProvider + 'static>(&mut self) -> bool {
         self.as_animation::<N>().is_some()
     }
 

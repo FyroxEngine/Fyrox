@@ -40,6 +40,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
@@ -237,8 +238,9 @@ impl ListViewMessage {
 ///     ));
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
 #[visit(optional)]
+#[derived_types(type_name = "UiNode")]
 pub struct ListView {
     /// Base widget of the list view.
     pub widget: Widget,
@@ -332,7 +334,8 @@ impl ListView {
 }
 
 /// A wrapper for list view items, that is used to add selection functionality to arbitrary items.
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct ListViewItem {
     /// Base widget of the list view item.
     pub widget: Widget,

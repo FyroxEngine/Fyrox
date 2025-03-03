@@ -39,7 +39,7 @@ use crate::fyrox::{
     },
 };
 use crate::plugins::absm::selectable::{Selectable, SelectableMessage};
-use fyrox::core::reflect::DerivedEntityListContainer;
+use fyrox::core::reflect::DerivedEntityListProvider;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::{Style, StyledProperty};
 use std::{
@@ -53,10 +53,11 @@ pub struct AbsmBaseNode {
     pub output_socket: Handle<UiNode>,
 }
 
-#[derive(Visit, Reflect, ComponentProvider)]
+#[derive(Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct AbsmNode<T>
 where
-    T: DerivedEntityListContainer + 'static,
+    T: DerivedEntityListProvider + 'static,
 {
     widget: Widget,
     background: Handle<UiNode>,
@@ -74,7 +75,7 @@ where
     edit: Handle<UiNode>,
 }
 
-impl<T: DerivedEntityListContainer> Debug for AbsmNode<T> {
+impl<T: DerivedEntityListProvider> Debug for AbsmNode<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "AbsmNode")
     }
@@ -82,7 +83,7 @@ impl<T: DerivedEntityListContainer> Debug for AbsmNode<T> {
 
 impl<T> Clone for AbsmNode<T>
 where
-    T: DerivedEntityListContainer + 'static,
+    T: DerivedEntityListProvider + 'static,
 {
     fn clone(&self) -> Self {
         Self {
@@ -104,7 +105,7 @@ where
 
 impl<T> Deref for AbsmNode<T>
 where
-    T: DerivedEntityListContainer + 'static,
+    T: DerivedEntityListProvider + 'static,
 {
     type Target = Widget;
 
@@ -115,7 +116,7 @@ where
 
 impl<T> DerefMut for AbsmNode<T>
 where
-    T: DerivedEntityListContainer + 'static,
+    T: DerivedEntityListProvider + 'static,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
@@ -124,7 +125,7 @@ where
 
 impl<T> AbsmNode<T>
 where
-    T: DerivedEntityListContainer + 'static,
+    T: DerivedEntityListProvider + 'static,
 {
     fn update_colors(&self, ui: &UserInterface) {
         ui.send_message(WidgetMessage::background(
@@ -162,7 +163,7 @@ impl AbsmNodeMessage {
     define_constructor!(AbsmNodeMessage:Edit => fn edit(), layout: false);
 }
 
-impl<T: DerivedEntityListContainer + 'static> TypeUuidProvider for AbsmNode<T> {
+impl<T: DerivedEntityListProvider + 'static> TypeUuidProvider for AbsmNode<T> {
     fn type_uuid() -> Uuid {
         uuid!("15bc1a7e-a385-46e0-a65c-7e9c014b4a1d")
     }
@@ -170,7 +171,7 @@ impl<T: DerivedEntityListContainer + 'static> TypeUuidProvider for AbsmNode<T> {
 
 impl<T> Control for AbsmNode<T>
 where
-    T: DerivedEntityListContainer + 'static,
+    T: DerivedEntityListProvider + 'static,
 {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
@@ -289,7 +290,7 @@ where
 
 pub struct AbsmNodeBuilder<T>
 where
-    T: DerivedEntityListContainer + 'static,
+    T: DerivedEntityListProvider + 'static,
 {
     widget_builder: WidgetBuilder,
     name: String,
@@ -305,7 +306,7 @@ where
 
 impl<T> AbsmNodeBuilder<T>
 where
-    T: DerivedEntityListContainer + 'static,
+    T: DerivedEntityListProvider + 'static,
 {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {

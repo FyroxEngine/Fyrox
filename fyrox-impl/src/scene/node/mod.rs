@@ -24,22 +24,23 @@
 
 #![warn(missing_docs)]
 
-use crate::resource::model::Model;
 use crate::{
-    asset::untyped::UntypedResource,
+    asset::{untyped::UntypedResource, Resource},
     core::{
         algebra::{Matrix4, Vector2},
-        math::aabb::AxisAlignedBoundingBox,
+        export_derived_entity_list,
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
         pool::Handle,
-        reflect::prelude::*,
+        reflect::{prelude::*, DerivedEntityListProvider},
         uuid::Uuid,
         uuid_provider, variable,
         variable::mark_inheritable_properties_non_modified,
         visitor::{Visit, VisitResult, Visitor},
+        ComponentProvider, NameProvider,
     },
     graph::SceneGraphNode,
     renderer::bundle::RenderContext,
-    resource::model::ModelResource,
+    resource::model::{Model, ModelResource},
     scene::{
         self,
         animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
@@ -61,9 +62,6 @@ use crate::{
         Scene,
     },
 };
-use fyrox_core::math::frustum::Frustum;
-use fyrox_core::{export_derived_entity_list, ComponentProvider, NameProvider};
-use fyrox_resource::Resource;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -144,7 +142,9 @@ pub enum RdcControlFlow {
 }
 
 /// A main trait for any scene graph node.
-pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
+pub trait NodeTrait:
+    BaseNodeTrait + Reflect + Visit + ComponentProvider + DerivedEntityListProvider
+{
     /// Returns axis-aligned bounding box in **local space** of the node.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox;
 

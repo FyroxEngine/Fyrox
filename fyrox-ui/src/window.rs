@@ -44,6 +44,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, RestrictionEntry, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::{
@@ -283,7 +284,8 @@ impl WindowMessage {
 /// to interact with anything else until the modal is dismissed.
 ///
 /// Any window can be set and unset as a modal via the *modal* function.
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct Window {
     /// Base widget of the window.
     pub widget: Widget,

@@ -38,14 +38,14 @@ use crate::{
     scene::{commands::GameSceneContext, Selection},
     ui_scene::commands::UiSceneContext,
 };
-use fyrox::core::reflect::DerivedEntityListContainer;
+use fyrox::core::reflect::DerivedEntityListProvider;
 use fyrox::generic_animation::track::TrackBinding;
 use std::{
     fmt::Debug,
     ops::{IndexMut, Range},
 };
 
-pub fn fetch_animations_container<N: DerivedEntityListContainer + Debug + 'static>(
+pub fn fetch_animations_container<N: DerivedEntityListProvider + Debug + 'static>(
     handle: Handle<N>,
     context: &mut dyn CommandContext,
 ) -> &mut InheritableVariable<AnimationContainer<Handle<N>>> {
@@ -72,14 +72,14 @@ pub fn fetch_animations_container<N: DerivedEntityListContainer + Debug + 'stati
 }
 
 #[derive(Debug)]
-pub struct AddTrackCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct AddTrackCommand<N: DerivedEntityListProvider + Debug + 'static> {
     animation_player: Handle<N>,
     animation: Handle<Animation<Handle<N>>>,
     track: Option<Track>,
     binding: TrackBinding<Handle<N>>,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> AddTrackCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> AddTrackCommand<N> {
     pub fn new(
         animation_player: Handle<N>,
         animation: Handle<Animation<Handle<N>>>,
@@ -95,7 +95,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> AddTrackCommand<N> {
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for AddTrackCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for AddTrackCommand<N> {
     fn name(&mut self, _: &dyn CommandContext) -> String {
         "Add Track".to_string()
     }
@@ -116,7 +116,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for AddTrackC
 }
 
 #[derive(Debug)]
-pub struct RemoveTrackCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct RemoveTrackCommand<N: DerivedEntityListProvider + Debug + 'static> {
     animation_player: Handle<N>,
     animation: Handle<Animation<Handle<N>>>,
     id: Uuid,
@@ -124,7 +124,7 @@ pub struct RemoveTrackCommand<N: DerivedEntityListContainer + Debug + 'static> {
     track: Option<(usize, (TrackBinding<Handle<N>>, Track))>,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> RemoveTrackCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> RemoveTrackCommand<N> {
     pub fn new(
         animation_player: Handle<N>,
         animation: Handle<Animation<Handle<N>>>,
@@ -139,7 +139,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> RemoveTrackCommand<N> {
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for RemoveTrackCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for RemoveTrackCommand<N> {
     fn name(&mut self, _: &dyn CommandContext) -> String {
         "Remove Track".to_string()
     }
@@ -168,13 +168,13 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for RemoveTra
 }
 
 #[derive(Debug)]
-pub struct ReplaceTrackCurveCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct ReplaceTrackCurveCommand<N: DerivedEntityListProvider + Debug + 'static> {
     pub animation_player: Handle<N>,
     pub animation: Handle<Animation<Handle<N>>>,
     pub curve: Curve,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> ReplaceTrackCurveCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> ReplaceTrackCurveCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let animation =
             &mut fetch_animations_container(self.animation_player, context)[self.animation];
@@ -195,7 +195,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> ReplaceTrackCurveCommand<N
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for ReplaceTrackCurveCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for ReplaceTrackCurveCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Replace Track Curve".to_string()
     }
@@ -210,7 +210,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for ReplaceTr
 }
 
 #[derive(Debug)]
-pub enum AddAnimationCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub enum AddAnimationCommand<N: DerivedEntityListProvider + Debug + 'static> {
     Unknown,
     NonExecuted {
         animation_player: Handle<N>,
@@ -229,7 +229,7 @@ pub enum AddAnimationCommand<N: DerivedEntityListContainer + Debug + 'static> {
     },
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> AddAnimationCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> AddAnimationCommand<N> {
     pub fn new(animation_player: Handle<N>, animation: Animation<Handle<N>>) -> Self {
         Self::NonExecuted {
             animation_player,
@@ -238,7 +238,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> AddAnimationCommand<N> {
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for AddAnimationCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for AddAnimationCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Animation".to_string()
     }
@@ -326,7 +326,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for AddAnimat
 }
 
 #[derive(Debug)]
-pub enum RemoveAnimationCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub enum RemoveAnimationCommand<N: DerivedEntityListProvider + Debug + 'static> {
     Unknown,
     NonExecuted {
         animation_player: Handle<N>,
@@ -343,7 +343,7 @@ pub enum RemoveAnimationCommand<N: DerivedEntityListContainer + Debug + 'static>
     },
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> RemoveAnimationCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> RemoveAnimationCommand<N> {
     pub fn new(animation_player: Handle<N>, animation: Handle<Animation<Handle<N>>>) -> Self {
         Self::NonExecuted {
             animation_player,
@@ -352,7 +352,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> RemoveAnimationCommand<N> 
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for RemoveAnimationCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for RemoveAnimationCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Remove Animation".to_string()
     }
@@ -412,13 +412,13 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for RemoveAni
 }
 
 #[derive(Debug)]
-pub struct ReplaceAnimationCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct ReplaceAnimationCommand<N: DerivedEntityListProvider + Debug + 'static> {
     pub animation_player: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub animation: Animation<Handle<N>>,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> ReplaceAnimationCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> ReplaceAnimationCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         std::mem::swap(
             fetch_animations_container(self.animation_player, context)
@@ -428,7 +428,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> ReplaceAnimationCommand<N>
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for ReplaceAnimationCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for ReplaceAnimationCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Replace Animation".to_string()
     }
@@ -446,19 +446,19 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for ReplaceAn
 macro_rules! define_animation_swap_command {
     ($name:ident<$value_type:ty>($self:ident, $context:ident) $swap:block) => {
         #[derive(Debug)]
-        pub struct $name<N:DerivedEntityListContainer + Debug + 'static> {
+        pub struct $name<N:DerivedEntityListProvider + Debug + 'static> {
             pub node_handle: Handle<N>,
             pub animation_handle: Handle<Animation<Handle<N>>>,
             pub value: $value_type,
         }
 
-        impl<N:DerivedEntityListContainer + Debug + 'static> $name<N> {
+        impl<N:DerivedEntityListProvider + Debug + 'static> $name<N> {
             fn swap(&mut $self, $context: &mut dyn CommandContext) {
                 $swap
             }
         }
 
-        impl<N: DerivedEntityListContainer +Debug + 'static> CommandTrait for $name<N> {
+        impl<N: DerivedEntityListProvider +Debug + 'static> CommandTrait for $name<N> {
             fn name(&mut self, _context: &dyn CommandContext) -> String {
                 stringify!($name).to_string()
             }
@@ -474,7 +474,7 @@ macro_rules! define_animation_swap_command {
     };
 }
 
-fn fetch_animation<N: DerivedEntityListContainer + Debug + 'static>(
+fn fetch_animation<N: DerivedEntityListProvider + Debug + 'static>(
     animation_player: Handle<N>,
     animation: Handle<Animation<Handle<N>>>,
     ctx: &mut dyn CommandContext,
@@ -525,13 +525,13 @@ define_animation_swap_command!(SetAnimationRootMotionSettingsCommand<Option<Root
 });
 
 #[derive(Debug)]
-pub struct AddAnimationSignal<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct AddAnimationSignal<N: DerivedEntityListProvider + Debug + 'static> {
     pub animation_player_handle: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub signal: Option<AnimationSignal>,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for AddAnimationSignal<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for AddAnimationSignal<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Animation Signal".to_string()
     }
@@ -548,14 +548,14 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for AddAnimat
 }
 
 #[derive(Debug)]
-pub struct MoveAnimationSignal<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct MoveAnimationSignal<N: DerivedEntityListProvider + Debug + 'static> {
     pub animation_player_handle: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub signal: Uuid,
     pub time: f32,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> MoveAnimationSignal<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> MoveAnimationSignal<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         std::mem::swap(
             &mut fetch_animation(self.animation_player_handle, self.animation_handle, context)
@@ -569,7 +569,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> MoveAnimationSignal<N> {
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for MoveAnimationSignal<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for MoveAnimationSignal<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Move Animation Signal".to_string()
     }
@@ -584,14 +584,14 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for MoveAnima
 }
 
 #[derive(Debug)]
-pub struct RemoveAnimationSignal<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct RemoveAnimationSignal<N: DerivedEntityListProvider + Debug + 'static> {
     pub animation_player_handle: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub signal_index: usize,
     pub signal: Option<AnimationSignal>,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for RemoveAnimationSignal<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for RemoveAnimationSignal<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Remove Animation".to_string()
     }
@@ -610,14 +610,14 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for RemoveAni
 }
 
 #[derive(Debug)]
-pub struct SetTrackEnabledCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct SetTrackEnabledCommand<N: DerivedEntityListProvider + Debug + 'static> {
     pub animation_player_handle: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub track: Uuid,
     pub enabled: bool,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> SetTrackEnabledCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> SetTrackEnabledCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .track_bindings_mut()
@@ -630,7 +630,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> SetTrackEnabledCommand<N> 
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for SetTrackEnabledCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for SetTrackEnabledCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Track Enabled".to_string()
     }
@@ -645,14 +645,14 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for SetTrackE
 }
 
 #[derive(Debug)]
-pub struct SetTrackTargetCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct SetTrackTargetCommand<N: DerivedEntityListProvider + Debug + 'static> {
     pub animation_player_handle: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub track: Uuid,
     pub target: Handle<N>,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> SetTrackTargetCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> SetTrackTargetCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .track_bindings_mut()
@@ -665,7 +665,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> SetTrackTargetCommand<N> {
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for SetTrackTargetCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for SetTrackTargetCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Track Target".to_string()
     }
@@ -680,14 +680,14 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for SetTrackT
 }
 
 #[derive(Debug)]
-pub struct SetTrackValueBindingCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct SetTrackValueBindingCommand<N: DerivedEntityListProvider + Debug + 'static> {
     pub animation_player_handle: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub track: Uuid,
     pub binding: ValueBinding,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> SetTrackValueBindingCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> SetTrackValueBindingCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let animation =
             fetch_animation(self.animation_player_handle, self.animation_handle, context);
@@ -706,7 +706,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> SetTrackValueBindingComman
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait
     for SetTrackValueBindingCommand<N>
 {
     fn name(&mut self, _context: &dyn CommandContext) -> String {

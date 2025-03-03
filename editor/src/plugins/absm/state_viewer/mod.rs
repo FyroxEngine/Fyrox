@@ -59,7 +59,7 @@ use crate::{
     scene::{commands::ChangeSelectionCommand, Selection},
     send_sync_message,
 };
-use fyrox::core::reflect::DerivedEntityListContainer;
+use fyrox::core::reflect::DerivedEntityListProvider;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::cmp::Ordering;
@@ -77,7 +77,7 @@ pub struct StateViewer {
     prev_layer: Option<usize>,
 }
 
-fn create_socket<N: DerivedEntityListContainer + 'static>(
+fn create_socket<N: DerivedEntityListProvider + 'static>(
     direction: SocketDirection,
     index: usize,
     show_index: bool,
@@ -92,7 +92,7 @@ fn create_socket<N: DerivedEntityListContainer + 'static>(
         .build(&mut ui.build_ctx())
 }
 
-fn create_sockets<N: DerivedEntityListContainer + 'static>(
+fn create_sockets<N: DerivedEntityListProvider + 'static>(
     count: usize,
     direction: SocketDirection,
     parent_node: Handle<PoseNode<Handle<N>>>,
@@ -103,7 +103,7 @@ fn create_sockets<N: DerivedEntityListContainer + 'static>(
         .collect::<Vec<_>>()
 }
 
-fn fetch_pose_node_model_handle<N: DerivedEntityListContainer + 'static>(
+fn fetch_pose_node_model_handle<N: DerivedEntityListProvider + 'static>(
     handle: Handle<UiNode>,
     ui: &UserInterface,
 ) -> Handle<PoseNode<Handle<N>>> {
@@ -113,7 +113,7 @@ fn fetch_pose_node_model_handle<N: DerivedEntityListContainer + 'static>(
         .model_handle
 }
 
-fn fetch_socket_pose_node_model_handle<N: DerivedEntityListContainer + 'static>(
+fn fetch_socket_pose_node_model_handle<N: DerivedEntityListProvider + 'static>(
     handle: Handle<UiNode>,
     ui: &UserInterface,
 ) -> Handle<PoseNode<Handle<N>>> {

@@ -46,6 +46,7 @@ use crate::{
     utils::make_node_name,
     Message,
 };
+use fyrox::core::reflect::DerivedEntityListProvider;
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
@@ -71,7 +72,8 @@ pub enum DropAnchor {
     OnTop,
 }
 
-#[derive(Visit, Reflect, ComponentProvider)]
+#[derive(Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct SceneItem {
     #[component(include)]
     pub tree: Tree,

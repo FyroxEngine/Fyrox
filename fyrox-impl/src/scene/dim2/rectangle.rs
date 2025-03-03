@@ -50,6 +50,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fyrox_core::value_as_u8_slice;
+use fyrox_core_derive::DerivedEntityListProvider;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -164,7 +165,8 @@ impl Hash for RectangleVertex {
 /// image, but just changing portion for rendering. Keep in mind that the coordinates are normalized
 /// which means `[0; 0]` corresponds to top-left corner of the texture and `[1; 1]` corresponds to
 /// right-bottom corner.
-#[derive(Reflect, Debug, Clone, ComponentProvider)]
+#[derive(Reflect, Debug, Clone, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "Node")]
 pub struct Rectangle {
     base: Base,
 

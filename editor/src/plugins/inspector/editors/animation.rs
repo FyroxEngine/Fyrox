@@ -40,7 +40,7 @@ use crate::fyrox::{
 };
 use crate::plugins::inspector::EditorEnvironment;
 use crate::Message;
-use fyrox::core::reflect::DerivedEntityListContainer;
+use fyrox::core::reflect::DerivedEntityListProvider;
 use fyrox::gui::utils::make_dropdown_list_option_universal;
 use std::{
     any::TypeId,
@@ -48,17 +48,17 @@ use std::{
     marker::PhantomData,
 };
 
-pub struct AnimationPropertyEditorDefinition<T: DerivedEntityListContainer> {
+pub struct AnimationPropertyEditorDefinition<T: DerivedEntityListProvider> {
     phantom: PhantomData<T>,
 }
 
-impl<T: DerivedEntityListContainer> Debug for AnimationPropertyEditorDefinition<T> {
+impl<T: DerivedEntityListProvider> Debug for AnimationPropertyEditorDefinition<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "AnimationPropertyEditorDefinition")
     }
 }
 
-impl<T: DerivedEntityListContainer> Default for AnimationPropertyEditorDefinition<T> {
+impl<T: DerivedEntityListProvider> Default for AnimationPropertyEditorDefinition<T> {
     fn default() -> Self {
         Self {
             phantom: PhantomData,
@@ -68,7 +68,7 @@ impl<T: DerivedEntityListContainer> Default for AnimationPropertyEditorDefinitio
 
 impl<T> PropertyEditorDefinition for AnimationPropertyEditorDefinition<T>
 where
-    T: DerivedEntityListContainer + Send + Sync + 'static,
+    T: DerivedEntityListProvider + Send + Sync + 'static,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<Handle<T>>()

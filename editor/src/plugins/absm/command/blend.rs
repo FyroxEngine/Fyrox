@@ -20,7 +20,7 @@
 
 use crate::command::CommandContext;
 use crate::fyrox::{
-    core::{algebra::Vector2, pool::Handle, reflect::DerivedEntityListContainer},
+    core::{algebra::Vector2, pool::Handle, reflect::DerivedEntityListProvider},
     generic_animation::machine::{
         node::blendspace::BlendSpacePoint, BlendPose, IndexedBlendInput, PoseNode,
     },
@@ -94,7 +94,7 @@ define_set_collection_element_command!(
 );
 
 #[derive(Debug)]
-pub struct RemoveBlendSpacePointCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct RemoveBlendSpacePointCommand<N: DerivedEntityListProvider + Debug + 'static> {
     pub scene_node_handle: Handle<N>,
     pub layer_index: usize,
     pub node_handle: Handle<PoseNode<Handle<N>>>,
@@ -102,7 +102,7 @@ pub struct RemoveBlendSpacePointCommand<N: DerivedEntityListContainer + Debug + 
     pub point: Option<BlendSpacePoint<Handle<N>>>,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait
     for RemoveBlendSpacePointCommand<N>
 {
     fn name(&mut self, _context: &dyn CommandContext) -> String {

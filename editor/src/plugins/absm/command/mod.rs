@@ -35,7 +35,7 @@ use crate::{
     scene::commands::GameSceneContext,
     ui_scene::commands::UiSceneContext,
 };
-use fyrox::core::reflect::DerivedEntityListContainer;
+use fyrox::core::reflect::DerivedEntityListProvider;
 use std::fmt::Debug;
 
 pub mod blend;
@@ -43,7 +43,7 @@ pub mod blend;
 macro_rules! define_spawn_command {
     ($name:ident, $ent_type:ty, $container:ident) => {
         #[derive(Debug)]
-        pub enum $name<N: DerivedEntityListContainer + Debug + 'static> {
+        pub enum $name<N: DerivedEntityListProvider + Debug + 'static> {
             Unknown,
             NonExecuted {
                 node_handle: Handle<N>,
@@ -63,7 +63,7 @@ macro_rules! define_spawn_command {
             },
         }
 
-        impl<N: DerivedEntityListContainer + Debug + 'static> $name<N> {
+        impl<N: DerivedEntityListProvider + Debug + 'static> $name<N> {
             pub fn new(node_handle: Handle<N>, layer_index: usize, state: $ent_type) -> Self {
                 Self::NonExecuted {
                     node_handle,
@@ -73,7 +73,7 @@ macro_rules! define_spawn_command {
             }
         }
 
-        impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for $name<N> {
+        impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for $name<N> {
             fn name(&mut self, _context: &dyn CommandContext) -> String {
                 "Add State".to_string()
             }
@@ -154,7 +154,7 @@ macro_rules! define_spawn_command {
 define_spawn_command!(AddTransitionCommand, Transition<Handle<N>>, transitions_mut);
 
 #[derive(Debug)]
-pub enum AddStateCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub enum AddStateCommand<N: DerivedEntityListProvider + Debug + 'static> {
     Unknown,
     NonExecuted {
         node_handle: Handle<N>,
@@ -175,7 +175,7 @@ pub enum AddStateCommand<N: DerivedEntityListContainer + Debug + 'static> {
     },
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> AddStateCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> AddStateCommand<N> {
     pub fn new(node_handle: Handle<N>, layer_index: usize, state: State<Handle<N>>) -> Self {
         Self::NonExecuted {
             node_handle,
@@ -185,7 +185,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> AddStateCommand<N> {
     }
 }
 
-pub fn fetch_machine<N: DerivedEntityListContainer + Debug + 'static>(
+pub fn fetch_machine<N: DerivedEntityListProvider + Debug + 'static>(
     context: &mut dyn CommandContext,
     node_handle: Handle<N>,
 ) -> &mut Machine<Handle<N>> {
@@ -211,7 +211,7 @@ pub fn fetch_machine<N: DerivedEntityListContainer + Debug + 'static>(
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for AddStateCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for AddStateCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add State".to_string()
     }
@@ -315,7 +315,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for AddStateC
 }
 
 #[derive(Debug)]
-pub enum AddPoseNodeCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub enum AddPoseNodeCommand<N: DerivedEntityListProvider + Debug + 'static> {
     Unknown,
     NonExecuted {
         node_handle: Handle<N>,
@@ -336,7 +336,7 @@ pub enum AddPoseNodeCommand<N: DerivedEntityListContainer + Debug + 'static> {
     },
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> AddPoseNodeCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> AddPoseNodeCommand<N> {
     pub fn new(node_handle: Handle<N>, layer_index: usize, node: PoseNode<Handle<N>>) -> Self {
         Self::NonExecuted {
             node_handle,
@@ -346,7 +346,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> AddPoseNodeCommand<N> {
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for AddPoseNodeCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for AddPoseNodeCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Pose Node".to_string()
     }
@@ -450,7 +450,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for AddPoseNo
 macro_rules! define_move_command {
     ($name:ident, $ent_type:ty, $container:ident) => {
         #[derive(Debug)]
-        pub struct $name<N: DerivedEntityListContainer + Debug + 'static> {
+        pub struct $name<N: DerivedEntityListProvider + Debug + 'static> {
             absm_node_handle: Handle<N>,
             layer_index: usize,
             node: Handle<$ent_type>,
@@ -458,7 +458,7 @@ macro_rules! define_move_command {
             new_position: Vector2<f32>,
         }
 
-        impl<N: DerivedEntityListContainer + Debug + 'static> $name<N> {
+        impl<N: DerivedEntityListProvider + Debug + 'static> $name<N> {
             pub fn new(
                 absm_node_handle: Handle<N>,
                 node: Handle<$ent_type>,
@@ -487,7 +487,7 @@ macro_rules! define_move_command {
             }
         }
 
-        impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for $name<N> {
+        impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for $name<N> {
             fn name(&mut self, _context: &dyn CommandContext) -> String {
                 "Move Entity".to_owned()
             }
@@ -511,7 +511,7 @@ define_move_command!(MovePoseNodeCommand, PoseNode<Handle<N>>, nodes_mut);
 macro_rules! define_free_command {
     ($name:ident, $ent_type:ty, $container:ident) => {
         #[derive(Debug)]
-        pub enum $name<N: DerivedEntityListContainer + Debug + 'static> {
+        pub enum $name<N: DerivedEntityListProvider + Debug + 'static> {
             Unknown,
             NonExecuted {
                 node_handle: Handle<N>,
@@ -531,7 +531,7 @@ macro_rules! define_free_command {
             },
         }
 
-        impl<N: DerivedEntityListContainer + Debug + 'static> $name<N> {
+        impl<N: DerivedEntityListProvider + Debug + 'static> $name<N> {
             pub fn new(
                 node_handle: Handle<N>,
                 layer_index: usize,
@@ -545,7 +545,7 @@ macro_rules! define_free_command {
             }
         }
 
-        impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for $name<N> {
+        impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for $name<N> {
             fn name(&mut self, _context: &dyn CommandContext) -> String {
                 "Free Entity".to_owned()
             }
@@ -631,14 +631,14 @@ define_free_command!(
 macro_rules! define_push_element_to_collection_command {
     ($name:ident<$model_handle:ty, $value_type:ty>($self:ident, $context:ident) $get_collection:block) => {
         #[derive(Debug)]
-        pub struct $name<N:DerivedEntityListContainer + Debug + 'static> {
+        pub struct $name<N:DerivedEntityListProvider + Debug + 'static> {
             pub node_handle: Handle<N>,
             pub handle: $model_handle,
             pub layer_index: usize,
             pub value: Option<$value_type>,
         }
 
-        impl<N:DerivedEntityListContainer + Debug + 'static> $name<N> {
+        impl<N:DerivedEntityListProvider + Debug + 'static> $name<N> {
             pub fn new(node_handle: Handle<N>, handle: $model_handle, layer_index: usize, value: $value_type) -> Self {
                 Self {
                     node_handle,
@@ -649,7 +649,7 @@ macro_rules! define_push_element_to_collection_command {
             }
         }
 
-        impl<N:DerivedEntityListContainer + Debug + 'static> CommandTrait for $name<N> {
+        impl<N:DerivedEntityListProvider + Debug + 'static> CommandTrait for $name<N> {
             fn name(&mut self, _context: &dyn CommandContext) -> String {
                 "Push Element To Collection".to_string()
             }
@@ -708,7 +708,7 @@ macro_rules! define_remove_collection_element_command {
 macro_rules! define_set_collection_element_command {
     ($name:ident<$model_handle:ty, $value_type:ty>($self:ident, $context:ident) $swap_value:block) => {
         #[derive(Debug)]
-        pub struct $name<N:DerivedEntityListContainer + Debug + 'static> {
+        pub struct $name<N:DerivedEntityListProvider + Debug + 'static> {
             pub node_handle: Handle<N>,
             pub handle: $model_handle,
             pub layer_index: usize,
@@ -716,13 +716,13 @@ macro_rules! define_set_collection_element_command {
             pub value: $value_type,
         }
 
-        impl<N: DerivedEntityListContainer +Debug + 'static> $name<N> {
+        impl<N: DerivedEntityListProvider +Debug + 'static> $name<N> {
             pub fn swap(&mut $self, $context: &mut dyn CommandContext) {
                  $swap_value
             }
         }
 
-        impl<N: DerivedEntityListContainer +Debug + 'static> CommandTrait for $name<N> {
+        impl<N: DerivedEntityListProvider +Debug + 'static> CommandTrait for $name<N> {
             fn name(&mut self,
                 #[allow(unused_variables)]
                 $context: &dyn CommandContext
@@ -742,13 +742,13 @@ macro_rules! define_set_collection_element_command {
 }
 
 #[derive(Debug)]
-pub struct SetMachineEntryStateCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct SetMachineEntryStateCommand<N: DerivedEntityListProvider + Debug + 'static> {
     pub node_handle: Handle<N>,
     pub layer: usize,
     pub entry: Handle<State<Handle<N>>>,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> SetMachineEntryStateCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> SetMachineEntryStateCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let machine = fetch_machine(context, self.node_handle);
         let layer = &mut machine.layers_mut()[self.layer];
@@ -759,7 +759,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> SetMachineEntryStateComman
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait
     for SetMachineEntryStateCommand<N>
 {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
@@ -779,7 +779,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait
 macro_rules! define_absm_swap_command {
     ($name:ident<$model_type:ty, $value_type:ty>[$($field_name:ident:$field_type:ty),*]($self:ident, $context:ident) $get_field:block) => {
         #[derive(Debug)]
-        pub struct $name<N:DerivedEntityListContainer + Debug + 'static> {
+        pub struct $name<N:DerivedEntityListProvider + Debug + 'static> {
             pub node_handle: Handle<N>,
             pub handle: $model_type,
             pub value: $value_type,
@@ -788,7 +788,7 @@ macro_rules! define_absm_swap_command {
             )*
         }
 
-        impl<N:DerivedEntityListContainer + Debug + 'static> $name<N> {
+        impl<N:DerivedEntityListProvider + Debug + 'static> $name<N> {
             fn swap(&mut $self, $context: &mut dyn CommandContext) {
                 let field = $get_field;
 
@@ -796,7 +796,7 @@ macro_rules! define_absm_swap_command {
             }
         }
 
-        impl<N:DerivedEntityListContainer + Debug + 'static> CommandTrait for $name<N> {
+        impl<N:DerivedEntityListProvider + Debug + 'static> CommandTrait for $name<N> {
             fn name(&mut self, _context: &dyn CommandContext) -> String {
                 stringify!($name).to_string()
             }
@@ -818,13 +818,13 @@ define_absm_swap_command!(SetStateRootPoseCommand<Handle<State<Handle<N>>>, Hand
 });
 
 #[derive(Debug)]
-pub struct SetLayerNameCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct SetLayerNameCommand<N: DerivedEntityListProvider + Debug + 'static> {
     pub absm_node_handle: Handle<N>,
     pub layer_index: usize,
     pub name: String,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> SetLayerNameCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> SetLayerNameCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let layer =
             &mut fetch_machine(context, self.absm_node_handle).layers_mut()[self.layer_index];
@@ -834,7 +834,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> SetLayerNameCommand<N> {
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for SetLayerNameCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for SetLayerNameCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Layer Name".to_string()
     }
@@ -849,12 +849,12 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for SetLayerN
 }
 
 #[derive(Debug)]
-pub struct AddLayerCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct AddLayerCommand<N: DerivedEntityListProvider + Debug + 'static> {
     pub absm_node_handle: Handle<N>,
     pub layer: Option<MachineLayer<Handle<N>>>,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for AddLayerCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for AddLayerCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Layer".to_string()
     }
@@ -869,13 +869,13 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for AddLayerC
 }
 
 #[derive(Debug)]
-pub struct RemoveLayerCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct RemoveLayerCommand<N: DerivedEntityListProvider + Debug + 'static> {
     pub absm_node_handle: Handle<N>,
     pub layer_index: usize,
     pub layer: Option<MachineLayer<Handle<N>>>,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> RemoveLayerCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> RemoveLayerCommand<N> {
     pub fn new(absm_node_handle: Handle<N>, layer_index: usize) -> Self {
         Self {
             absm_node_handle,
@@ -885,7 +885,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> RemoveLayerCommand<N> {
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for RemoveLayerCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for RemoveLayerCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         format!("Remove {} Layer", self.layer_index)
     }
@@ -902,13 +902,13 @@ impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for RemoveLay
 }
 
 #[derive(Debug)]
-pub struct SetLayerMaskCommand<N: DerivedEntityListContainer + Debug + 'static> {
+pub struct SetLayerMaskCommand<N: DerivedEntityListProvider + Debug + 'static> {
     pub absm_node_handle: Handle<N>,
     pub layer_index: usize,
     pub mask: LayerMask<Handle<N>>,
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> SetLayerMaskCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> SetLayerMaskCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let layer =
             &mut fetch_machine(context, self.absm_node_handle).layers_mut()[self.layer_index];
@@ -917,7 +917,7 @@ impl<N: DerivedEntityListContainer + Debug + 'static> SetLayerMaskCommand<N> {
     }
 }
 
-impl<N: DerivedEntityListContainer + Debug + 'static> CommandTrait for SetLayerMaskCommand<N> {
+impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait for SetLayerMaskCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Layer Mask".to_string()
     }

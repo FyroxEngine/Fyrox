@@ -908,7 +908,8 @@ impl OrthoTransform for TileRenderData {
 /// which contains all the pages that may be referenced by the tile map's handles.
 ///
 /// Optional [`TileMapEffect`] objects may be included in the `TileMap` to change how it renders.
-#[derive(Reflect, Debug, ComponentProvider, TypeUuidProvider)]
+#[derive(Reflect, Debug, ComponentProvider, TypeUuidProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "Node")]
 #[type_uuid(id = "aa9a3385-a4af-4faf-a69a-8d3af1a3aa67")]
 pub struct TileMap {
     base: Base,

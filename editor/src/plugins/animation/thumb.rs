@@ -39,6 +39,7 @@ use crate::fyrox::{
         BuildContext, Control, UiNode, UserInterface,
     },
 };
+use fyrox::core::reflect::DerivedEntityListProvider;
 use fyrox::gui::curve::CurveTransformCell;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -57,7 +58,8 @@ impl ThumbMessage {
     define_constructor!(ThumbMessage:Position => fn position(f32), layout: false);
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct Thumb {
     widget: Widget,
     #[visit(skip)]

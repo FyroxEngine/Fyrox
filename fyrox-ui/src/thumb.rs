@@ -28,6 +28,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -44,7 +45,17 @@ impl ThumbMessage {
     define_constructor!(ThumbMessage:DragCompleted => fn drag_completed(position: Vector2<f32>), layout: false);
 }
 
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
+#[derive(
+    Default,
+    Clone,
+    Visit,
+    Reflect,
+    Debug,
+    TypeUuidProvider,
+    ComponentProvider,
+    DerivedEntityListProvider,
+)]
+#[derived_types(type_name = "UiNode")]
 #[type_uuid(id = "71ad2ff4-6e9e-461d-b7c2-867bd4039684")]
 pub struct Thumb {
     pub widget: Widget,

@@ -35,6 +35,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use core::f32;
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -238,7 +239,8 @@ pub type Row = GridDimension;
 /// You can add any number of rows and columns to a grid widget, and each grid cell does **not** need to have a UI widget
 /// in it to be valid. For example you can add a column and set it to a specific size via strict to provide spacing between
 /// two other columns.
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct Grid {
     /// Base widget of the grid.
     pub widget: Widget,

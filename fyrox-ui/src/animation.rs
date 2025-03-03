@@ -37,6 +37,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::export_derived_entity_list;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
@@ -167,6 +168,8 @@ pub struct AnimationPlayer {
     #[component(include)]
     auto_apply: bool,
 }
+
+export_derived_entity_list!(AnimationPlayer = [UiNode]);
 
 impl ConstructorProvider<UiNode, UserInterface> for AnimationPlayer {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

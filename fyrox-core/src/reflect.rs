@@ -23,6 +23,7 @@
 mod external_impls;
 mod std_impls;
 
+pub use fyrox_core_derive::DerivedEntityListProvider;
 pub use fyrox_core_derive::Reflect;
 use std::{
     any::{Any, TypeId},
@@ -32,8 +33,8 @@ use std::{
 
 pub mod prelude {
     pub use super::{
-        FieldInfo, Reflect, ReflectArray, ReflectHashMap, ReflectInheritableVariable, ReflectList,
-        ResolvePath, SetFieldByPathError,
+        DerivedEntityListProvider, FieldInfo, Reflect, ReflectArray, ReflectHashMap,
+        ReflectInheritableVariable, ReflectList, ResolvePath, SetFieldByPathError,
     };
 }
 
@@ -328,18 +329,17 @@ pub trait Reflect: ReflectBase {
     }
 }
 
-pub trait DerivedEntityListContainer {
-    fn derived_entity_list() -> &'static [TypeId];
-}
-
 pub trait DerivedEntityListProvider {
+    fn derived_entity_list() -> &'static [TypeId]
+    where
+        Self: Sized;
     fn query_derived_entity_list(&self) -> &'static [TypeId];
 }
 
 #[macro_export]
 macro_rules! export_derived_entity_list {
     ($ty:ty = [$($trait_name:ty),*]) => {
-        impl $crate::reflect::DerivedEntityListContainer for $ty {
+        impl $crate::reflect::DerivedEntityListProvider for $ty {
             fn derived_entity_list() -> &'static [std::any::TypeId] {
                 static ARRAY: std::sync::LazyLock<Vec<std::any::TypeId>> = std::sync::LazyLock::new(|| vec![
                     $(
@@ -351,11 +351,9 @@ macro_rules! export_derived_entity_list {
 
                 &ARRAY
             }
-        }
 
-        impl $crate::reflect::DerivedEntityListProvider for $ty {
             fn query_derived_entity_list(&self) -> &'static [std::any::TypeId] {
-                <$ty as $crate::reflect::DerivedEntityListContainer>::derived_entity_list()
+                <$ty as $crate::reflect::DerivedEntityListProvider>::derived_entity_list()
             }
         }
     };

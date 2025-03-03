@@ -26,7 +26,7 @@ pub mod constructor;
 
 use fxhash::FxHashMap;
 use fyrox_core::pool::ErasedHandle;
-use fyrox_core::reflect::{DerivedEntityListContainer, ReflectHandle};
+use fyrox_core::reflect::{DerivedEntityListProvider, ReflectHandle};
 use fyrox_core::{
     log::{Log, MessageKind},
     pool::Handle,
@@ -92,7 +92,7 @@ impl<N> Clone for NodeHandleMap<N> {
 
 impl<N> NodeHandleMap<N>
 where
-    N: Reflect + NameProvider + DerivedEntityListContainer,
+    N: Reflect + NameProvider + DerivedEntityListProvider,
 {
     /// Adds new `original -> copy` handle mapping.
     #[inline]
@@ -448,7 +448,7 @@ pub trait AbstractSceneNode: ComponentProvider + Reflect + NameProvider {}
 
 impl<T: SceneGraphNode> AbstractSceneNode for T {}
 
-pub trait SceneGraphNode: AbstractSceneNode + DerivedEntityListContainer + Clone + 'static {
+pub trait SceneGraphNode: AbstractSceneNode + DerivedEntityListProvider + Clone + 'static {
     type Base: Clone;
     type SceneGraph: SceneGraph<Node = Self>;
     type ResourceData: PrefabData<Graph = Self::SceneGraph>;
@@ -1456,7 +1456,8 @@ mod test {
     {
     }
 
-    #[derive(ComponentProvider, Debug)]
+    #[derive(ComponentProvider, Debug, DerivedEntityListProvider)]
+    #[derived_types()]
     pub struct Node(Box<dyn NodeTrait>);
 
     impl Clone for Node {
@@ -1470,8 +1471,6 @@ mod test {
             Self(Box::new(node))
         }
     }
-
-    export_derived_entity_list!(Node = []);
 
     impl Visit for Node {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {

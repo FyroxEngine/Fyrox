@@ -46,6 +46,7 @@ use crate::{
     },
     utils::make_node_name,
 };
+use fyrox::core::reflect::DerivedEntityListProvider;
 use fyrox::gui::message::KeyCode;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -163,7 +164,8 @@ struct TreeData {
     handle: ErasedHandle,
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct NodeSelector {
     widget: Widget,
     tree_root: Handle<UiNode>,
@@ -391,7 +393,8 @@ impl NodeSelectorBuilder {
     }
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct NodeSelectorWindow {
     #[component(include)]
     window: Window,

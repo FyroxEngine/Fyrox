@@ -32,7 +32,7 @@ use crate::{
     Animation, AnimationContainer, AnimationPose, EntityId,
 };
 use fxhash::FxHashSet;
-use fyrox_core::reflect::{DerivedEntityListContainer, DerivedEntityListProvider};
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_core::uuid::{uuid, Uuid};
 use fyrox_core::{NameProvider, TypeUuidProvider};
 use std::any::TypeId;
@@ -150,13 +150,10 @@ pub struct State<T: EntityId> {
     pub root: Handle<PoseNode<T>>,
 }
 
-impl<T: EntityId> DerivedEntityListContainer for State<T> {
+impl<T: EntityId> DerivedEntityListProvider for State<T> {
     fn derived_entity_list() -> &'static [TypeId] {
         &[]
     }
-}
-
-impl<T: EntityId> DerivedEntityListProvider for State<T> {
     fn query_derived_entity_list(&self) -> &'static [TypeId] {
         &[]
     }
