@@ -28,7 +28,7 @@ use crate::plugins::{
             MachinePropertyEditorDefinition,
         },
         font::FontPropertyEditorDefinition,
-        handle::{EntityKind, NodeHandlePropertyEditorDefinition},
+        handle::NodeHandlePropertyEditorDefinition,
         resource::ResourceFieldPropertyEditorDefinition,
         script::ScriptPropertyEditorDefinition,
         spritesheet::SpriteSheetFramesContainerEditorDefinition,
@@ -217,6 +217,14 @@ where
     container.insert(InspectablePropertyEditorDefinition::<NotNode<Handle<T>>>::new());
 }
 
+macro_rules! reg_node_handle_editors {
+    ($container:ident, $sender:ident, $($ty:ty),*) => {
+        $(
+            $container.insert(NodeHandlePropertyEditorDefinition::<$ty>::new($sender.clone()));
+        ),*
+    };
+}
+
 pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorDefinitionContainer {
     let container = PropertyEditorDefinitionContainer::with_default_editors();
 
@@ -236,17 +244,9 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.insert(InheritablePropertyEditorDefinition::<Handle<Node>>::new());
     container.register_inheritable_vec_collection::<Handle<Node>>();
-    container.insert(NodeHandlePropertyEditorDefinition::new(
-        sender.clone(),
-        EntityKind::SceneNode,
-    ));
 
     container.insert(InheritablePropertyEditorDefinition::<Handle<UiNode>>::new());
     container.register_inheritable_vec_collection::<Handle<UiNode>>();
-    container.insert(NodeHandlePropertyEditorDefinition::new(
-        sender.clone(),
-        EntityKind::UiNode,
-    ));
 
     container.register_inheritable_vec_collection::<Surface>();
     container.register_inheritable_inspectable::<Surface>();
@@ -487,6 +487,9 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.register_inheritable_enum::<TileCollider, _>();
     container.register_inheritable_enum::<RigidBodyMassPropertiesType, _>();
+
+    reg_node_handle_editors!(container, sender, UiNode);
+    reg_node_handle_editors!(container, sender, Node);
 
     container
 }

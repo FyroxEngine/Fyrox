@@ -62,7 +62,7 @@ impl<T: DerivedEntityListProvider> DerivedEntityListProvider for Handle<T> {
     }
 }
 
-impl<T: DerivedEntityListProvider> ReflectHandle for Handle<T> {
+impl<T: DerivedEntityListProvider + 'static> ReflectHandle for Handle<T> {
     fn reflect_inner_type_id(&self) -> TypeId {
         TypeId::of::<T>()
     }

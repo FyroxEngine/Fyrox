@@ -18,48 +18,47 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    core::{
-        color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
-        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
-    },
-    gui::{
-        brush::Brush,
-        button::{ButtonBuilder, ButtonMessage},
-        define_constructor,
-        draw::{CommandTexture, Draw, DrawingContext},
-        grid::{Column, GridBuilder, Row},
-        image::ImageBuilder,
-        inspector::{
-            editors::{
-                PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-                PropertyEditorMessageContext, PropertyEditorTranslationContext,
-            },
-            FieldKind, InspectorError, PropertyChanged,
-        },
-        message::MessageDirection,
-        text::{TextBuilder, TextMessage},
-        utils::make_simple_tooltip,
-        widget::{Widget, WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Control, Thickness,
-    },
-    scene::node::Node,
-};
 use crate::{
+    fyrox::{
+        core::{
+            color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
+            reflect::DerivedEntityListProvider, type_traits::prelude::*, uuid_provider,
+            visitor::prelude::*,
+        },
+        graph::BaseSceneGraph,
+        gui::{
+            brush::Brush,
+            button::{ButtonBuilder, ButtonMessage},
+            define_constructor,
+            draw::{CommandTexture, Draw, DrawingContext},
+            grid::{Column, GridBuilder, Row},
+            image::ImageBuilder,
+            inspector::{
+                editors::{
+                    PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+                    PropertyEditorMessageContext, PropertyEditorTranslationContext,
+                },
+                FieldKind, InspectorError, PropertyChanged,
+            },
+            message::MessageDirection,
+            style::{resource::StyleResourceExt, Style},
+            text::{TextBuilder, TextMessage},
+            utils::make_simple_tooltip,
+            widget::{Widget, WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, Control, Thickness,
+        },
+    },
     load_image_internal,
     message::MessageSender,
     scene::selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
     world::graph::item::SceneItem,
     Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox::core::reflect::DerivedEntityListProvider;
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
+use fyrox::core::PhantomDataSendSync;
 use std::{
     any::TypeId,
-    fmt::Debug,
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     sync::Mutex,
 };
@@ -431,55 +430,47 @@ impl HandlePropertyEditorBuilder {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum EntityKind {
-    UiNode,
-    SceneNode,
-}
-
-#[derive(Debug)]
-pub struct NodeHandlePropertyEditorDefinition {
+pub struct NodeHandlePropertyEditorDefinition<T: DerivedEntityListProvider + 'static> {
     sender: Mutex<MessageSender>,
-    kind: EntityKind,
+    type_info: PhantomDataSendSync<T>,
 }
 
-impl NodeHandlePropertyEditorDefinition {
-    pub fn new(sender: MessageSender, kind: EntityKind) -> Self {
+impl<T: DerivedEntityListProvider + 'static> Debug for NodeHandlePropertyEditorDefinition<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Node Handle")
+    }
+}
+
+impl<T: DerivedEntityListProvider + 'static> NodeHandlePropertyEditorDefinition<T> {
+    pub fn new(sender: MessageSender) -> Self {
         Self {
             sender: Mutex::new(sender),
-            kind,
-        }
-    }
-
-    pub fn value(&self, property_info: &FieldInfo) -> Result<ErasedHandle, InspectorError> {
-        match self.kind {
-            EntityKind::UiNode => Ok((*property_info.cast_value::<Handle<UiNode>>()?).into()),
-            EntityKind::SceneNode => Ok((*property_info.cast_value::<Handle<Node>>()?).into()),
+            type_info: PhantomDataSendSync::default(),
         }
     }
 }
 
-impl PropertyEditorDefinition for NodeHandlePropertyEditorDefinition {
+impl<T: DerivedEntityListProvider + 'static> PropertyEditorDefinition
+    for NodeHandlePropertyEditorDefinition<T>
+{
     fn value_type_id(&self) -> TypeId {
-        match self.kind {
-            EntityKind::UiNode => TypeId::of::<Handle<UiNode>>(),
-            EntityKind::SceneNode => TypeId::of::<Handle<Node>>(),
-        }
+        TypeId::of::<Handle<T>>()
     }
 
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
-        let value = self.value(ctx.property_info)?;
+        let value = ctx.property_info.cast_value::<Handle<T>>()?;
 
         let sender = self.sender.lock().unwrap().clone();
 
+        let erased = ErasedHandle::from(*value);
         let editor = HandlePropertyEditorBuilder::new(WidgetBuilder::new(), sender.clone())
-            .with_value(value)
+            .with_value(erased)
             .build(ctx.build_context);
 
-        request_name_sync(&sender, editor, value);
+        request_name_sync(&sender, editor, erased);
 
         Ok(PropertyEditorInstance::Simple { editor })
     }
@@ -488,12 +479,12 @@ impl PropertyEditorDefinition for NodeHandlePropertyEditorDefinition {
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        let value = self.value(ctx.property_info)?;
+        let value = ctx.property_info.cast_value::<Handle<T>>()?;
 
         Ok(Some(HandlePropertyEditorMessage::value(
             ctx.instance,
             MessageDirection::ToWidget,
-            value,
+            ErasedHandle::from(*value),
         )))
     }
 
@@ -505,10 +496,7 @@ impl PropertyEditorDefinition for NodeHandlePropertyEditorDefinition {
                 return Some(PropertyChanged {
                     owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),
-                    value: match self.kind {
-                        EntityKind::UiNode => FieldKind::object(Handle::<UiNode>::from(*value)),
-                        EntityKind::SceneNode => FieldKind::object(Handle::<Node>::from(*value)),
-                    },
+                    value: FieldKind::object(Handle::<T>::from(*value)),
                 });
             }
         }
