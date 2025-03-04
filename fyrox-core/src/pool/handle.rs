@@ -63,6 +63,14 @@ impl<T: DerivedEntityListProvider> DerivedEntityListProvider for Handle<T> {
 }
 
 impl<T: DerivedEntityListProvider> ReflectHandle for Handle<T> {
+    fn reflect_inner_type_id(&self) -> TypeId {
+        TypeId::of::<T>()
+    }
+
+    fn reflect_inner_type_name(&self) -> &'static str {
+        type_name::<T>()
+    }
+
     fn reflect_is_some(&self) -> bool {
         self.is_some()
     }
@@ -81,6 +89,10 @@ impl<T: DerivedEntityListProvider> ReflectHandle for Handle<T> {
 
     fn reflect_generation(&self) -> u32 {
         self.generation
+    }
+
+    fn reflect_as_erased(&self) -> ErasedHandle {
+        ErasedHandle::new(self.index, self.generation)
     }
 }
 

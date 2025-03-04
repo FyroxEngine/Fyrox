@@ -360,11 +360,14 @@ macro_rules! export_derived_entity_list {
 }
 
 pub trait ReflectHandle: DerivedEntityListProvider {
+    fn reflect_inner_type_id(&self) -> TypeId;
+    fn reflect_inner_type_name(&self) -> &'static str;
     fn reflect_is_some(&self) -> bool;
     fn reflect_set_index(&mut self, index: u32);
     fn reflect_index(&self) -> u32;
     fn reflect_set_generation(&mut self, generation: u32);
     fn reflect_generation(&self) -> u32;
+    fn reflect_as_erased(&self) -> ErasedHandle;
 }
 
 /// [`Reflect`] sub trait for working with slices.
@@ -1385,6 +1388,7 @@ macro_rules! newtype_reflect {
     };
 }
 
+use crate::pool::ErasedHandle;
 use crate::sstorage::ImmutableString;
 use crate::variable::{InheritError, VariableFlags};
 pub use blank_reflect;
