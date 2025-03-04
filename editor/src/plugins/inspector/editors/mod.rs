@@ -18,32 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::core::reflect::DerivedEntityListProvider;
-use fyrox::scene::{rigidbody::RigidBodyMassPropertiesType, tilemap::TileDefinitionHandle};
-
-use crate::plugins::{
-    inspector::editors::{
-        animation::{
-            AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
-            MachinePropertyEditorDefinition,
-        },
-        font::FontPropertyEditorDefinition,
-        handle::NodeHandlePropertyEditorDefinition,
-        resource::ResourceFieldPropertyEditorDefinition,
-        script::ScriptPropertyEditorDefinition,
-        spritesheet::SpriteSheetFramesContainerEditorDefinition,
-        surface::SurfaceDataPropertyEditorDefinition,
-        texture::TexturePropertyEditorDefinition,
-    },
-    tilemap::{
-        OptionTileDefinitionHandlePropertyEditorDefinition,
-        TileDefinitionHandlePropertyEditorDefinition,
-    },
-};
 use crate::{
     fyrox::{
         asset::{untyped::UntypedResource, Resource},
-        core::pool::{ErasedHandle, Handle},
+        core::{
+            pool::{ErasedHandle, Handle},
+            reflect::DerivedEntityListProvider,
+        },
         gui::{
             self,
             font::FontResource,
@@ -56,6 +37,44 @@ use crate::{
                 PropertyEditorDefinitionContainer,
             },
             UiNode, UserInterface,
+        },
+        gui::{
+            border::Border,
+            button::Button,
+            canvas::Canvas,
+            check_box::CheckBox,
+            decorator::Decorator,
+            dropdown_list::DropdownList,
+            dropdown_menu::DropdownMenu,
+            expander::Expander,
+            grid::Grid,
+            image::Image,
+            key::KeyBindingEditor,
+            list_view::{ListView, ListViewItem},
+            menu::{ContextMenu, Menu, MenuItem},
+            messagebox::MessageBox,
+            navigation::NavigationLayer,
+            nine_patch::NinePatch,
+            path::PathEditor,
+            popup::Popup,
+            progress_bar::ProgressBar,
+            screen::Screen,
+            scroll_bar::ScrollBar,
+            scroll_panel::ScrollPanel,
+            scroll_viewer::ScrollViewer,
+            searchbar::SearchBar,
+            selector::Selector,
+            stack_panel::StackPanel,
+            tab_control::TabControl,
+            text::Text,
+            text_box::TextBox,
+            thumb::Thumb,
+            toggle::ToggleButton,
+            tree::{Tree, TreeRoot},
+            uuid::UuidEditor,
+            vector_image::VectorImage,
+            window::Window,
+            wrap_panel::WrapPanel,
         },
         material::shader::{Shader, ShaderResource},
         renderer::framework::PolygonFillMode,
@@ -119,8 +138,35 @@ use crate::{
             tilemap::{tileset::TileSet, Tile},
             transform::Transform,
         },
+        scene::{
+            camera::Camera, collider::Collider, decal::Decal, light::directional::DirectionalLight,
+            light::point::PointLight, light::spot::SpotLight, mesh::Mesh,
+            navmesh::NavigationalMesh, particle_system::ParticleSystem, pivot::Pivot,
+            ragdoll::Ragdoll, rigidbody::RigidBody, rigidbody::RigidBodyMassPropertiesType,
+            sound::listener::Listener, sound::Sound, sprite::Sprite, terrain::Terrain,
+            tilemap::TileDefinitionHandle, tilemap::TileMap,
+        },
     },
     message::MessageSender,
+    plugins::{
+        inspector::editors::{
+            animation::{
+                AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
+                MachinePropertyEditorDefinition,
+            },
+            font::FontPropertyEditorDefinition,
+            handle::NodeHandlePropertyEditorDefinition,
+            resource::ResourceFieldPropertyEditorDefinition,
+            script::ScriptPropertyEditorDefinition,
+            spritesheet::SpriteSheetFramesContainerEditorDefinition,
+            surface::SurfaceDataPropertyEditorDefinition,
+            texture::TexturePropertyEditorDefinition,
+        },
+        tilemap::{
+            OptionTileDefinitionHandlePropertyEditorDefinition,
+            TileDefinitionHandlePropertyEditorDefinition,
+        },
+    },
 };
 
 pub mod animation;
@@ -221,7 +267,7 @@ macro_rules! reg_node_handle_editors {
     ($container:ident, $sender:ident, $($ty:ty),*) => {
         $(
             $container.insert(NodeHandlePropertyEditorDefinition::<$ty>::new($sender.clone()));
-        ),*
+        )*
     };
 }
 
@@ -488,8 +534,83 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_enum::<TileCollider, _>();
     container.register_inheritable_enum::<RigidBodyMassPropertiesType, _>();
 
-    reg_node_handle_editors!(container, sender, UiNode);
-    reg_node_handle_editors!(container, sender, Node);
+    reg_node_handle_editors!(
+        container,
+        sender,
+        UiNode,
+        gui::absm::AnimationBlendingStateMachine,
+        gui::absm::AbsmEventProvider,
+        gui::animation::AnimationPlayer,
+        Window,
+        TreeRoot,
+        Tree,
+        ToggleButton,
+        TextBox,
+        TabControl,
+        Selector,
+        ScrollViewer,
+        ScrollBar,
+        ProgressBar,
+        PathEditor,
+        NinePatch,
+        MessageBox,
+        MenuItem,
+        ListViewItem,
+        Grid,
+        DropdownMenu,
+        Decorator,
+        CheckBox,
+        Button,
+        Border,
+        Canvas,
+        DropdownList,
+        Expander,
+        Image,
+        KeyBindingEditor,
+        ListView,
+        Menu,
+        ContextMenu,
+        NavigationLayer,
+        Popup,
+        Screen,
+        ScrollPanel,
+        StackPanel,
+        SearchBar,
+        Text,
+        Thumb,
+        UuidEditor,
+        VectorImage,
+        WrapPanel // TODO: Add generic property editors too (NumericUpDown<T>, etc.).
+    );
+    reg_node_handle_editors!(
+        container,
+        sender,
+        Node,
+        scene::animation::absm::AnimationBlendingStateMachine,
+        scene::animation::AnimationPlayer,
+        Collider,
+        Ragdoll,
+        NavigationalMesh,
+        RigidBody,
+        Camera,
+        Joint,
+        Decal,
+        Sprite,
+        Pivot,
+        dim2::collider::Collider,
+        dim2::rigidbody::RigidBody,
+        dim2::joint::Joint,
+        dim2::rectangle::Rectangle,
+        SpotLight,
+        DirectionalLight,
+        PointLight,
+        Mesh,
+        ParticleSystem,
+        Sound,
+        Listener,
+        Terrain,
+        TileMap
+    );
 
     container
 }

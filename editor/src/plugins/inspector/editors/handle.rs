@@ -432,6 +432,7 @@ impl HandlePropertyEditorBuilder {
 
 pub struct NodeHandlePropertyEditorDefinition<T: DerivedEntityListProvider + 'static> {
     sender: Mutex<MessageSender>,
+    #[allow(dead_code)]
     type_info: PhantomDataSendSync<T>,
 }
 
