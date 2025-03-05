@@ -20,8 +20,21 @@ members = [
     "fyrox-graphics",
     "fyrox-build-tools",
     "fyrox-texture",
-    "fyrox-autotile"]
+    "fyrox-autotile",
+    "fyrox-reflect",
+    "fyrox-utils",
+]
 resolver = "2"
+
+[workspace.dependencies]
+uuid = { version = "1" }
+nalgebra = { version = "0.33" }
+parking_lot = "0.12.0"
+bitflags = "2.2.1"
+serde = { version = "1" }
+fxhash = "0.2.1"
+lazy_static = "1.4.0"
+rectutils = "0.3.0"
 
 [profile.dev]
 opt-level = 1

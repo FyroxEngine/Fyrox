@@ -1,0 +1,15 @@
+[package]
+name = "fyrox-reflect-macros"
+version = "0.36.2"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+convert_case = "0.6.0"
+proc-macro2 = "1.0.33"
+quote = "1.0.10"
+syn = "1.0.82"
+darling = "0.14.0"
+fxhash = "0.2.1"

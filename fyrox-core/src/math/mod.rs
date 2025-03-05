@@ -21,8 +21,6 @@
 // Clippy complains about normal mathematical symbols like A, B, C for quadratic equation.
 #![allow(clippy::many_single_char_names)]
 
-pub use fyrox_math::*;
-
 use crate::math::curve::Curve;
 use crate::math::curve::CurveKey;
 use crate::math::curve::CurveKeyKind;
@@ -31,15 +29,10 @@ use crate::{
     algebra::Scalar,
     math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, plane::Plane},
     num_traits::NumAssign,
-    reflect::prelude::*,
     visitor::prelude::*,
 };
-use fyrox_core_derive::{impl_reflect, impl_visit};
-use std::fmt::Debug;
-
-impl_reflect!(
-    pub struct Rect<T: Debug> {}
-);
+use fyrox_core_derive::impl_visit;
+pub use fyrox_math::*;
 
 impl<T> Visit for Rect<T>
 where
@@ -106,34 +99,11 @@ impl Visit for Plane {
     }
 }
 
-impl_reflect!(
-    pub struct TriangleDefinition(pub [u32; 3]);
-);
-
 impl_visit!(
     pub struct SmoothAngle {
         angle: f32,
         target: f32,
         speed: f32,
-    }
-);
-
-impl_reflect!(
-    pub struct SmoothAngle {
-        angle: f32,
-        target: f32,
-        speed: f32,
-    }
-);
-
-impl_reflect!(
-    pub enum CurveKeyKind {
-        Constant,
-        Linear,
-        Cubic {
-            left_tangent: f32,
-            right_tangent: f32,
-        },
     }
 );
 
@@ -154,15 +124,6 @@ impl_visit!(
         location: f32,
         pub value: f32,
         pub kind: CurveKeyKind,
-    }
-);
-
-impl_reflect!(
-    #[reflect(hide_all)]
-    pub struct Curve {
-        pub id: Uuid,
-        pub name: String,
-        pub keys: Vec<CurveKey>,
     }
 );
 

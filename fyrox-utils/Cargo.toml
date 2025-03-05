@@ -1,0 +1,10 @@
+[package]
+name = "fyrox-utils"
+version = "0.36.2"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true }
+parking_lot = { workspace = true }
+fxhash = { workspace = true }
+lazy_static = { workspace = true }

@@ -14,9 +14,11 @@ repository = "https://github.com/FyroxEngine/Fyrox"
 rust-version = "1.80"
 
 [dependencies]
-rectutils = "0.3.0"
+fyrox-reflect = { path = "../fyrox-reflect" }
+
+rectutils = { workspace = true }
+uuid = { workspace = true , features = ["v4"] }
 nalgebra = { version = "0.33", features = ["bytemuck"] }
 arrayvec = "0.7.4"
 num-traits = "0.2.18"
-uuid = { version = "1", features = ["v4"] }
 bytemuck = { version = "1.16.1", features = ["derive"] }

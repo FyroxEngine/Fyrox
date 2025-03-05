@@ -20,11 +20,16 @@
 
 //! `Reflect` implementations for external types othern than `std` types
 
-use fyrox_core_derive::impl_reflect;
+use fyrox_reflect_macros::impl_reflect;
 use nalgebra::*;
+use rectutils::Rect;
 use std::fmt::Debug;
 
-use crate::reflect::prelude::*;
+use crate::prelude::*;
+
+impl_reflect!(
+    pub struct Rect<T: Debug> {}
+);
 
 impl_reflect! {
     pub struct Matrix<T: 'static, R: Dim + 'static, C: Dim + 'static, S: 'static> {
