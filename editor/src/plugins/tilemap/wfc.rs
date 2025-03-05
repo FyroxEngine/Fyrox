@@ -39,7 +39,8 @@ use fyrox::{
             NamableValue, TileSetPropertyF32, TileSetPropertyId, TileSetPropertyNine,
             TileSetPropertyType, TileSetPropertyValueElement,
         },
-        MacroTilesUpdate, TileSetWfcConstraint, TileSetWfcPropagator, TileTerrainId,
+        MacroTilesUpdate, TileMapDataResource, TileSetWfcConstraint, TileSetWfcPropagator,
+        TileTerrainId,
     },
 };
 
@@ -50,7 +51,7 @@ use crate::{
 
 use super::*;
 
-const DEFAULT_MAX_ATTEMPTS: u32 = 10;
+const DEFAULT_MAX_ATTEMPTS: u32 = 300;
 const DEFAULT_CONSTRAIN_EDGES: bool = true;
 
 const PATTERN_PROP_DESC: &str = concat!("Choose a nine-slice property from the tile set. ",
@@ -71,8 +72,6 @@ pub struct WfcMacro {
     add_button: Handle<UiNode>,
     terrain_stack: Handle<UiNode>,
     current_terrain: TileTerrainId,
-    constraint: TileSetWfcConstraint,
-    propagator: TileSetWfcPropagator,
 }
 
 #[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider)]
@@ -634,71 +633,63 @@ impl BrushMacro for WfcMacro {
         update: &mut MacroTilesUpdate,
         tile_map: &TileMapContext,
     ) -> Option<Command> {
-        let Some(tile_set) = tile_map.tile_set() else {
-            self.constraint.clear();
-            return None;
-        };
+        let tile_set = tile_map.tile_set()?;
         if context.tile_set().as_deref() != Some(tile_set) {
-            self.constraint.clear();
             return None;
         }
         let instance = context.settings::<WfcInstance>().unwrap();
         let instance = instance.data_ref();
-        let Some(pattern_property) = instance.pattern_property else {
-            self.constraint.clear();
-            return None;
-        };
+        let pattern_property = instance.pattern_property?;
         let frequency_property = instance.frequency_property;
-        Log::verify(self.constraint.fill_pattern_map(
+        let mut constraint = TileSetWfcConstraint::default();
+        if let Err(e) = constraint.fill_pattern_map(
             &tile_set.data_ref(),
             pattern_property,
             frequency_property,
             &instance.terrain_freq,
-        ));
-        let mut rng = thread_rng();
-        for _ in 0..instance.max_attempts {
-            self.propagator.fill_from(self.constraint.deref());
-            for (&p, v) in update.iter() {
-                if let Some(StampElement {
-                    brush_cell: Some(cell),
-                    ..
-                }) = v
-                {
-                    if instance.cells.contains(cell) {
-                        self.propagator.add_cell(p);
-                    }
+        ) {
+            Log::err(e.to_string());
+            return None;
+        }
+        if constraint.is_empty() {
+            return None;
+        }
+        let mut propagator = TileSetWfcPropagator::default();
+        propagator.fill_from(constraint.deref());
+        for (&p, v) in update.iter() {
+            if let Some(StampElement {
+                brush_cell: Some(cell),
+                ..
+            }) = v
+            {
+                if instance.cells.contains(cell) {
+                    propagator.add_cell(p);
                 }
             }
-            if instance.constrain_edges
-                && self
-                    .propagator
-                    .constrain_edges(
-                        &tile_set.data_ref(),
-                        pattern_property,
-                        tile_map.tile_map(),
-                        update,
-                        self.constraint.deref(),
-                    )
-                    .is_err()
-            {
-                return None;
-            }
-            if let Ok(()) = self
-                .propagator
-                .observe_all(&mut rng, self.constraint.deref())
-            {
-                self.propagator
-                    .apply_autotile_to_update(&mut rng, &self.constraint, update);
-                return None;
-            }
         }
-        Log::err(format!(
-            "WFC failed after {} attempts",
-            instance.max_attempts
-        ));
-        self.propagator
-            .apply_autotile_to_update(&mut rng, &self.constraint, update);
-        None
+        if propagator.is_empty() {
+            return None;
+        }
+        if instance.constrain_edges
+            && propagator
+                .constrain_edges(
+                    &tile_set.data_ref(),
+                    pattern_property,
+                    tile_map.tile_map(),
+                    update,
+                    constraint.deref(),
+                )
+                .is_err()
+        {
+            Log::err("WFC failed while constraining edges.");
+            return None;
+        }
+        Some(Command::new(WaveFunctionTaskCommand::new(
+            tile_map.tile_map().tiles().cloned()?,
+            instance.max_attempts,
+            constraint,
+            propagator,
+        )))
     }
 }
 
@@ -884,4 +875,136 @@ impl CommandTrait for SetMaxAttemptsCommand {
     fn revert(&mut self, _context: &mut dyn CommandContext) {
         self.swap();
     }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum WfcTaskState {
+    Running,
+    Cancelled,
+    Finished,
+}
+
+struct WaveFunctionTaskCommand {
+    tile_data_resource: TileMapDataResource,
+    max_attempts: u32,
+    task_data: Arc<Mutex<WaveFunctionTaskCommandData>>,
+}
+
+struct WaveFunctionTaskCommandData {
+    state: WfcTaskState,
+    attempts: u32,
+    constraint: TileSetWfcConstraint,
+    initial_propagator: TileSetWfcPropagator,
+    working_propagator: TileSetWfcPropagator,
+}
+
+impl WaveFunctionTaskCommand {
+    fn new(
+        tile_data_resource: TileMapDataResource,
+        max_attempts: u32,
+        constraint: TileSetWfcConstraint,
+        propagator: TileSetWfcPropagator,
+    ) -> Self {
+        let task_data = Arc::new(Mutex::new(WaveFunctionTaskCommandData {
+            state: WfcTaskState::Running,
+            attempts: 0,
+            constraint,
+            initial_propagator: propagator,
+            working_propagator: TileSetWfcPropagator::default(),
+        }));
+        Self {
+            tile_data_resource,
+            max_attempts,
+            task_data,
+        }
+    }
+}
+
+impl Debug for WaveFunctionTaskCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("WaveFunctionTaskCommand")
+    }
+}
+
+impl CommandTrait for WaveFunctionTaskCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Wave Function Collapse".into()
+    }
+
+    fn execute(&mut self, _context: &mut dyn CommandContext) {
+        let mut data_guard = self.task_data.lock();
+        if data_guard.state == WfcTaskState::Finished {
+            write_propagator_to_tile_data(
+                &data_guard.constraint,
+                &data_guard.working_propagator,
+                &self.tile_data_resource,
+            );
+            return;
+        }
+        data_guard.state = WfcTaskState::Running;
+        drop(data_guard);
+        let task_data = self.task_data.clone();
+        let max_attempts = self.max_attempts;
+        let resource = self.tile_data_resource.clone();
+        match std::thread::Builder::new()
+            .name("Wave Function Collapse".into())
+            .spawn(move || run_wfc(task_data, max_attempts, resource))
+        {
+            Ok(_) => (),
+            Err(_) => {
+                Log::err("WFC thread failed to start.");
+            }
+        }
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        let mut data_guard = self.task_data.lock();
+        if data_guard.state != WfcTaskState::Finished {
+            data_guard.state = WfcTaskState::Cancelled;
+        }
+    }
+}
+
+fn write_propagator_to_tile_data(
+    constraint: &TileSetWfcConstraint,
+    propagator: &TileSetWfcPropagator,
+    tile_data: &TileMapDataResource,
+) {
+    let mut tile_data = tile_data.data_ref();
+    propagator.apply_autotile_to_data(&mut thread_rng(), constraint, &mut tile_data);
+}
+
+fn run_wfc(
+    task_data: Arc<Mutex<WaveFunctionTaskCommandData>>,
+    max_attempts: u32,
+    data: TileMapDataResource,
+) {
+    let attempts = task_data.lock().attempts;
+    let mut rng = thread_rng();
+    for i in attempts..max_attempts {
+        let mut guard = task_data.lock();
+        let task_data = guard.deref_mut();
+        if task_data.state == WfcTaskState::Cancelled {
+            task_data.attempts = i;
+            return;
+        }
+        task_data
+            .working_propagator
+            .clone_from(&task_data.initial_propagator);
+        if let Ok(()) = task_data
+            .working_propagator
+            .observe_all(&mut rng, task_data.constraint.deref())
+        {
+            write_propagator_to_tile_data(
+                &task_data.constraint,
+                &task_data.working_propagator,
+                &data,
+            );
+            task_data.state = WfcTaskState::Finished;
+            return;
+        }
+        write_propagator_to_tile_data(&task_data.constraint, &task_data.working_propagator, &data);
+    }
+    Log::err(format!("WFC failed after {max_attempts} attempts"));
+    task_data.lock().state = WfcTaskState::Finished;
 }

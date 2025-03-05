@@ -152,6 +152,10 @@ impl<Pat, V> HashWfcConstraint<Pat, V>
 where
     Pat: Eq + Hash,
 {
+    /// True if this constraint contains no patterns.
+    pub fn is_empty(&self) -> bool {
+        self.pattern_map.is_empty()
+    }
     /// Remove all data, reseting this object to empty so it is ready
     /// to be reused with new pattern data.
     pub fn clear(&mut self) {
@@ -187,8 +191,46 @@ where
             .values()
             .map(|v| v.value_set.total_frequency())
             .sum();
-        for v in self.pattern_map.values_mut() {
-            v.probability = v.value_set.total_frequency() / sum;
+        if sum > 0.0 {
+            for v in self.pattern_map.values_mut() {
+                v.probability = v.value_set.total_frequency() / sum;
+            }
+        }
+    }
+    /// Calculate the probability of each pattern based on the frequencies
+    /// of all values that were added with [`add`](Self::add).
+    /// Divide the frequency of each pattern by the total number of patterns
+    /// in that pattern's terrain so that terrains with many patterns are not
+    /// given an advantage over terrains with few patterns.
+    /// The `terrain` function is used to determine the terrain of each pattern.
+    /// The sum of the frequencies is calculated and then each frequency is
+    /// divided by the sum to normalize the frequencies into probabilities between
+    /// 0.0 and 1.0.
+    pub fn finalize_with_terrain_normalization<Ter, F>(&mut self, terrain: F)
+    where
+        Ter: Hash + Eq,
+        F: Fn(&Pat) -> Ter,
+    {
+        let mut terrain_count = FxHashMap::<Ter, usize>::default();
+        for p in self.pattern_map.keys() {
+            *terrain_count.entry(terrain(p)).or_default() += 1;
+        }
+        let sum: f32 = self
+            .pattern_map
+            .iter()
+            .map(|(p, v)| {
+                let count = terrain_count.get(&terrain(p)).copied().unwrap_or_default() as f32;
+                if count > 0.0 {
+                    v.value_set.total_frequency() / count
+                } else {
+                    1.0
+                }
+            })
+            .sum();
+        if sum > 0.0 {
+            for v in self.pattern_map.values_mut() {
+                v.probability = v.value_set.total_frequency() / sum;
+            }
         }
     }
     /// A random value that matches the given pattern, based upon previous calls to
@@ -399,6 +441,10 @@ pub struct WfcPropagator<Pos: WavePosition, Pat> {
 }
 
 impl<Pos: WavePosition + Debug, Pat: Clone + Hash + Eq + Debug> WfcPropagator<Pos, Pat> {
+    /// This propagator contains no cells.
+    pub fn is_empty(&self) -> bool {
+        self.wave.is_empty()
+    }
     /// An iterator over the positions of every cell of the wave.
     pub fn positions(&self) -> impl Iterator<Item = &Pos> {
         self.wave.keys()
