@@ -1,0 +1,14 @@
+[package]
+name = "fyrox-reflect"
+version = "0.36.2"
+edition = "2021"
+
+[dependencies]
+fyrox-reflect-macros = { path = "./macros" }
+fyrox-utils= { path = "../fyrox-utils" }
+
+uuid = { workspace = true }
+nalgebra = { workspace = true }
+parking_lot = { workspace = true }
+bitflags = { workspace = true }
+rectutils = { workspace = true }

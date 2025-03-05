@@ -20,13 +20,8 @@
 
 //! `Reflect` implementations for `std` types
 
-use crate::{
-    delegate_reflect,
-    reflect::{blank_reflect, prelude::*},
-    sstorage::ImmutableString,
-    uuid::Uuid,
-};
-use fyrox_core_derive::impl_reflect;
+use crate::{blank_reflect, delegate_reflect, prelude::*};
+use fyrox_reflect_macros::impl_reflect;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -38,6 +33,9 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
+
+use fyrox_utils::sstorage::ImmutableString;
+use uuid::Uuid;
 
 macro_rules! impl_blank_reflect {
     ( $( $ty:ty ),* $(,)? ) => {
