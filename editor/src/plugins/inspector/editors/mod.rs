@@ -267,6 +267,8 @@ macro_rules! reg_node_handle_editors {
     ($container:ident, $sender:ident, $($ty:ty),*) => {
         $(
             $container.insert(NodeHandlePropertyEditorDefinition::<$ty>::new($sender.clone()));
+            $container.insert(InheritablePropertyEditorDefinition::<Handle<$ty>>::new());
+            $container.register_inheritable_vec_collection::<Handle<$ty>>();
         )*
     };
 }
@@ -287,12 +289,6 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(InheritablePropertyEditorDefinition::<Option<UntypedResource>>::new());
     container.register_inheritable_vec_collection::<Option<TextureResource>>();
     container.register_inheritable_vec_collection::<Option<UntypedResource>>();
-
-    container.insert(InheritablePropertyEditorDefinition::<Handle<Node>>::new());
-    container.register_inheritable_vec_collection::<Handle<Node>>();
-
-    container.insert(InheritablePropertyEditorDefinition::<Handle<UiNode>>::new());
-    container.register_inheritable_vec_collection::<Handle<UiNode>>();
 
     container.register_inheritable_vec_collection::<Surface>();
     container.register_inheritable_inspectable::<Surface>();

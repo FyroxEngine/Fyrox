@@ -18,16 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::absm::{
-    command::fetch_machine,
-    selection::{AbsmSelection, SelectedEntity},
-};
-use crate::plugins::animation::{
-    self, command::fetch_animations_container, selection::AnimationSelection,
-};
-use crate::plugins::inspector::{
-    editors::handle::HandlePropertyEditorMessage, handlers::node::SceneNodePropertyChangedHandler,
-};
 use crate::{
     asset::item::AssetItem,
     audio::AudioBusSelection,
@@ -84,6 +74,17 @@ use crate::{
     highlight::HighlightRenderPass,
     interaction::navmesh::selection::NavmeshSelection,
     message::MessageSender,
+    plugins::{
+        absm::{
+            command::fetch_machine,
+            selection::{AbsmSelection, SelectedEntity},
+        },
+        animation::{self, command::fetch_animations_container, selection::AnimationSelection},
+        inspector::editors::handle::{
+            HandlePropertyEditorHierarchyMessage, HandlePropertyEditorNameMessage,
+        },
+        inspector::handlers::node::SceneNodePropertyChangedHandler,
+    },
     scene::{
         clipboard::Clipboard,
         commands::{
@@ -102,6 +103,7 @@ use fyrox::asset::untyped::ResourceKind;
 use fyrox::core::reflect::DerivedEntityListProvider;
 use fyrox::core::Downcast;
 use fyrox::graph::SceneGraphNode;
+use fyrox::gui::message::UiMessage;
 use std::{
     cell::RefCell,
     fmt::Debug,
@@ -991,32 +993,33 @@ impl SceneController for GameScene {
             }
             Message::SyncNodeHandleName { view, handle } => {
                 let scene = &engine.scenes[self.scene];
-                engine
-                    .user_interfaces
-                    .first_mut()
-                    .send_message(HandlePropertyEditorMessage::name(
-                        *view,
-                        MessageDirection::ToWidget,
+                engine.user_interfaces.first_mut().send_message(
+                    UiMessage::with_data(HandlePropertyEditorNameMessage(
                         scene
                             .graph
                             .try_get((*handle).into())
                             .map(|n| n.name_owned()),
-                    ));
+                    ))
+                    .with_destination(*view)
+                    .with_direction(MessageDirection::ToWidget),
+                );
                 false
             }
             Message::ProvideSceneHierarchy { view } => {
                 let scene = &engine.scenes[self.scene];
+
                 engine.user_interfaces.first_mut().send_message(
-                    HandlePropertyEditorMessage::hierarchy(
-                        *view,
-                        MessageDirection::ToWidget,
+                    UiMessage::with_data(HandlePropertyEditorHierarchyMessage(
                         HierarchyNode::from_scene_node(
                             self.scene_content_root,
                             Handle::NONE,
                             &scene.graph,
                         ),
-                    ),
+                    ))
+                    .with_destination(*view)
+                    .with_direction(MessageDirection::ToWidget),
                 );
+
                 false
             }
             _ => false,
