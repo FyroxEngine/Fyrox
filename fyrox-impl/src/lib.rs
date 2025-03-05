@@ -95,12 +95,12 @@ mod test {
         let widget = WidgetBuilder::new().build(&ui.build_ctx());
         let status = Status::Stopped;
 
-        assert_eq!(var.assembly_name(), "fyrox-core");
+        assert_eq!(var.assembly_name(), "fyrox-reflect");
         assert_eq!(base.assembly_name(), "fyrox-impl");
         assert_eq!(widget.assembly_name(), "fyrox-ui");
         assert_eq!(status.assembly_name(), "fyrox-sound");
 
-        assert_eq!(ImmutableString::type_assembly_name(), "fyrox-core");
+        assert_eq!(ImmutableString::type_assembly_name(), "fyrox-reflect");
         assert_eq!(Base::type_assembly_name(), "fyrox-impl");
         assert_eq!(Widget::type_assembly_name(), "fyrox-ui");
         assert_eq!(Status::type_assembly_name(), "fyrox-sound");
