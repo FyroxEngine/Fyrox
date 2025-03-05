@@ -1,8 +1,10 @@
+#![allow(clippy::manual_unwrap_or_default)]
+
 mod reflect;
 
 use darling::FromDeriveInput;
 use proc_macro::TokenStream;
-use syn::{DeriveInput, parse_macro_input};
+use syn::{parse_macro_input, DeriveInput};
 
 /// Implements `Reflect` trait
 #[proc_macro_derive(Reflect, attributes(reflect))]

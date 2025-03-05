@@ -42,11 +42,9 @@ struct State {
 
 /// Immutable string is a string with constant content. Immutability gives some nice properties:
 ///
-/// - Address of the string could be used as a hash, which improves hashing performance dramatically
-/// and basically making it constant in terms of complexity (O(1))
+/// - Address of the string could be used as a hash, which improves hashing performance dramatically and basically making it constant in terms of complexity (O(1))
 /// - Equality comparison becomes constant in terms of complexity.
-/// - Uniqueness guarantees - means that calling multiple times will allocate memory only once
-/// `ImmutableString::new("foo")` and in consecutive calls existing string will be used.
+/// - Uniqueness guarantees - means that calling multiple times will allocate memory only once.`ImmutableString::new("foo")` and in consecutive calls existing string will be used.
 ///
 /// # Use cases
 ///
