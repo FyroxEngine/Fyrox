@@ -50,6 +50,7 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_core_derive::DerivedEntityListProvider;
 use fyrox_graph::constructor::ConstructorProvider;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
@@ -354,7 +355,8 @@ impl Default for Exposure {
 ///
 /// Each camera forces engine to re-render same scene one more time, which may cause almost double load
 /// of your GPU.
-#[derive(Debug, Visit, Reflect, Clone, ComponentProvider)]
+#[derive(Debug, Visit, Reflect, Clone, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "Node")]
 pub struct Camera {
     base: Base,
 

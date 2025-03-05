@@ -33,6 +33,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut, Range};
@@ -116,7 +117,8 @@ impl<T: NumericType> RangeEditorMessage<T> {
 ///
 /// Be very careful about the type of the range when sending a message, you need to send a range of exact type, that match the type
 /// of your editor, otherwise the message have no effect. The same applied to fetching.
-#[derive(Default, Debug, Clone, Reflect, Visit, ComponentProvider)]
+#[derive(Default, Debug, Clone, Reflect, Visit, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct RangeEditor<T>
 where
     T: NumericType,

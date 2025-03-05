@@ -23,6 +23,7 @@
 
 use crate::effects::{Effect, EffectRenderTrait};
 use fyrox_core::{
+    export_derived_entity_list,
     pool::{Handle, Pool, Ticket},
     reflect::prelude::*,
     visitor::prelude::*,
@@ -312,6 +313,8 @@ pub struct AudioBusGraph {
     buses: Pool<AudioBus>,
     root: Handle<AudioBus>,
 }
+
+export_derived_entity_list!(AudioBus = []);
 
 impl AudioBusGraph {
     /// The name of the audio bus that output samples directly to an audio playback device.

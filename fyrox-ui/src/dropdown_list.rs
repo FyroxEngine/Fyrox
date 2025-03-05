@@ -40,6 +40,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
@@ -188,7 +189,8 @@ impl DropdownListMessage {
 ///
 /// A dropdown list could be opened and closed manually using [`DropdownListMessage::Open`] and
 /// [`DropdownListMessage::Close`] messages.  
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct DropdownList {
     /// Base widget of the dropdown list.
     pub widget: Widget,

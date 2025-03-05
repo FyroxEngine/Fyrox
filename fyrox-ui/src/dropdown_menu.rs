@@ -28,13 +28,24 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use std::ops::{Deref, DerefMut};
 use std::sync::mpsc::Sender;
 
 /// A simple widget that opens a popup when clicked. It could be used to create drop down menus that
 /// consolidates content of a group.
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
+#[derive(
+    Default,
+    Clone,
+    Visit,
+    Reflect,
+    Debug,
+    TypeUuidProvider,
+    ComponentProvider,
+    DerivedEntityListProvider,
+)]
 #[type_uuid(id = "c0a4c51b-f041-453b-a89d-7ceb5394e321")]
+#[derived_types(type_name = "UiNode")]
 pub struct DropdownMenu {
     /// Base widget of the dropdown menu.
     pub widget: Widget,

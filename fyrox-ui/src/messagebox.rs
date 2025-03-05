@@ -42,6 +42,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
     UserInterface,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -173,7 +174,8 @@ pub enum MessageBoxButtons {
 ///
 /// There's no way to change the style of the message box, nor add some widgets to it. If you need custom message box, then you
 /// need to create your own widget. This message box is meant to be used as a standard dialog box for standard situations in UI.
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct MessageBox {
     /// Base window of the message box.
     #[component(include)]

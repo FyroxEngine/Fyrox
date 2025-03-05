@@ -40,6 +40,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use core::time;
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
@@ -134,7 +135,8 @@ pub enum FileBrowserMode {
     },
 }
 
-#[derive(Default, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct FileBrowser {
     pub widget: Widget,
     pub tree_root: Handle<UiNode>,

@@ -25,6 +25,9 @@ pub mod menu;
 pub mod selection;
 pub mod utils;
 
+use crate::plugins::inspector::editors::handle::{
+    HandlePropertyEditorHierarchyMessage, HandlePropertyEditorNameMessage,
+};
 use crate::{
     asset::item::AssetItem,
     command::{make_command, Command, CommandGroup, CommandStack},
@@ -59,7 +62,6 @@ use crate::{
     plugins::{
         absm::{command::fetch_machine, selection::SelectedEntity},
         animation::{self, command::fetch_animations_container},
-        inspector::editors::handle::HandlePropertyEditorMessage,
     },
     scene::{
         commands::ChangeSelectionCommand, controller::SceneController, selector::HierarchyNode,
@@ -75,6 +77,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::gui::message::UiMessage;
 use std::{fs::File, io::Write, path::Path};
 
 pub struct PreviewInstance {
@@ -460,24 +463,23 @@ impl SceneController for UiScene {
                 self.select_object(*handle);
             }
             Message::SyncNodeHandleName { view, handle } => {
-                engine
-                    .user_interfaces
-                    .first_mut()
-                    .send_message(HandlePropertyEditorMessage::name(
-                        *view,
-                        MessageDirection::ToWidget,
+                engine.user_interfaces.first_mut().send_message(
+                    UiMessage::with_data(HandlePropertyEditorNameMessage(
                         self.ui
                             .try_get((*handle).into())
                             .map(|n| n.name().to_owned()),
-                    ));
+                    ))
+                    .with_destination(*view)
+                    .with_direction(MessageDirection::ToWidget),
+                );
             }
             Message::ProvideSceneHierarchy { view } => {
                 engine.user_interfaces.first_mut().send_message(
-                    HandlePropertyEditorMessage::hierarchy(
-                        *view,
-                        MessageDirection::ToWidget,
-                        HierarchyNode::from_ui_node(self.ui.root(), Handle::NONE, &self.ui),
-                    ),
+                    UiMessage::with_data(HandlePropertyEditorHierarchyMessage(
+                        HierarchyNode::from_scene_node(self.ui.root(), Handle::NONE, &self.ui),
+                    ))
+                    .with_destination(*view)
+                    .with_direction(MessageDirection::ToWidget),
                 );
             }
             _ => {}

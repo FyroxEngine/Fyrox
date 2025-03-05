@@ -217,7 +217,8 @@ impl LayerMaskExt for LayerMask {
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Visit, Reflect, Clone, Debug, Default, ComponentProvider)]
+#[derive(Visit, Reflect, Clone, Debug, Default, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "Node")]
 pub struct AnimationBlendingStateMachine {
     base: Base,
     #[component(include)]

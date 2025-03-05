@@ -43,6 +43,7 @@ use crate::{
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, VerticalAlignment,
     Widget, WidgetMessage,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     any::TypeId,
@@ -61,7 +62,8 @@ impl InheritablePropertyEditorMessage {
     define_constructor!(InheritablePropertyEditorMessage:Modified => fn modified(bool), layout: false);
 }
 
-#[derive(Debug, Clone, Visit, Reflect, ComponentProvider)]
+#[derive(Debug, Clone, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct InheritablePropertyEditor {
     widget: Widget,
     revert: Handle<UiNode>,

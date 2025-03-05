@@ -36,6 +36,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
@@ -166,7 +167,8 @@ impl ScrollPanelMessage {
 ///     ))
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct ScrollPanel {
     /// Base widget of the scroll panel.
     pub widget: Widget,

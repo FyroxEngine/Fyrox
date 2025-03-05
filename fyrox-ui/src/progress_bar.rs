@@ -37,6 +37,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -92,7 +93,8 @@ impl ProgressBarMessage {
 ///     ));
 /// }
 /// ```
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct ProgressBar {
     /// Base widget of the progress bar.
     pub widget: Widget,

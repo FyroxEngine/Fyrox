@@ -53,6 +53,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fxhash::FxHashSet;
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -420,7 +421,8 @@ impl CurvesContainer {
     }
 }
 
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct CurveEditor {
     widget: Widget,
     background_curves: CurvesContainer,

@@ -37,6 +37,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
@@ -176,7 +177,8 @@ impl ScrollViewerMessage {
 ///     ))
 /// }
 /// ```
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct ScrollViewer {
     /// Base widget of the scroll viewer.
     pub widget: Widget,

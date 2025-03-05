@@ -42,6 +42,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -59,8 +60,18 @@ impl ColorGradientEditorMessage {
     define_constructor!(ColorGradientEditorMessage:Value => fn value(ColorGradient), layout: false);
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(
+    Default,
+    Clone,
+    Debug,
+    Visit,
+    Reflect,
+    TypeUuidProvider,
+    ComponentProvider,
+    DerivedEntityListProvider,
+)]
 #[type_uuid(id = "50d00eb7-f30b-4973-8a36-03d6b8f007ec")]
+#[derived_types(type_name = "UiNode")]
 pub struct ColorGradientField {
     widget: Widget,
     color_gradient: ColorGradient,
@@ -182,8 +193,18 @@ impl ColorGradientFieldBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(
+    Default,
+    Clone,
+    Debug,
+    Visit,
+    Reflect,
+    TypeUuidProvider,
+    ComponentProvider,
+    DerivedEntityListProvider,
+)]
 #[type_uuid(id = "82843d8b-1972-46e6-897c-9619b74059cc")]
+#[derived_types(type_name = "UiNode")]
 pub struct ColorGradientEditor {
     widget: Widget,
     gradient_field: Handle<UiNode>,
@@ -508,8 +529,18 @@ impl ColorPointMessage {
     define_constructor!(ColorPointMessage:Location => fn location(f32), layout: false);
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(
+    Default,
+    Clone,
+    Debug,
+    Visit,
+    Reflect,
+    TypeUuidProvider,
+    ComponentProvider,
+    DerivedEntityListProvider,
+)]
 #[type_uuid(id = "a493a603-3451-4005-8c80-559707729e70")]
+#[derived_types(type_name = "UiNode")]
 pub struct ColorPoint {
     pub widget: Widget,
     pub location: f32,
@@ -648,8 +679,11 @@ impl ColorPointBuilder {
     }
 }
 
-#[derive(Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
+#[derive(
+    Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider, DerivedEntityListProvider,
+)]
 #[type_uuid(id = "2608955a-4095-4fd1-af71-99bcdf2600f0")]
+#[derived_types(type_name = "UiNode")]
 struct ColorPointsCanvas {
     widget: Widget,
 }

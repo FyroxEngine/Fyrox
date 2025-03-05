@@ -36,6 +36,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RestrictionEntry, Thickness, UiNode, UserInterface,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
@@ -302,7 +303,8 @@ impl Placement {
 ///
 /// Popup widget can automatically adjust its position to always remain on screen, which is useful for tooltips, dropdown lists,
 /// etc. To enable this option, use [`PopupBuilder::with_smart_placement`] with `true` as the first argument.
-#[derive(Default, Clone, Visit, Debug, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Visit, Debug, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct Popup {
     /// Base widget of the popup.
     pub widget: Widget,

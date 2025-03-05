@@ -38,6 +38,7 @@ use crate::{
     source::{SoundSource, Status},
 };
 use fyrox_core::{
+    export_derived_entity_list,
     pool::{Handle, Pool},
     reflect::prelude::*,
     uuid_provider,
@@ -143,6 +144,8 @@ pub struct State {
     #[reflect(hidden)]
     pub serialization_options: SerializationOptions,
 }
+
+export_derived_entity_list!(SoundSource = []);
 
 impl State {
     /// Extracts a source from the context and reserves its handle. It is used to temporarily take

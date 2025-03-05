@@ -55,6 +55,7 @@ use crate::{
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_texture::TextureKind;
 use std::{
     any::TypeId,
@@ -81,8 +82,11 @@ struct DragContext {
     texture_region: Rect<u32>,
 }
 
-#[derive(Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider, Debug)]
+#[derive(
+    Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider, Debug, DerivedEntityListProvider,
+)]
 #[type_uuid(id = "bd89b59f-13be-4804-bd9c-ed40cfd48b92")]
+#[derived_types(type_name = "UiNode")]
 pub struct TextureSliceEditor {
     widget: Widget,
     slice: TextureSlice,
@@ -478,8 +482,11 @@ impl TextureSliceEditorBuilder {
     }
 }
 
-#[derive(Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider, Debug)]
+#[derive(
+    Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider, Debug, DerivedEntityListProvider,
+)]
 #[type_uuid(id = "0293081d-55fd-4aa2-a06e-d53fba1a2617")]
+#[derived_types(type_name = "UiNode")]
 pub struct TextureSliceEditorWindow {
     window: Window,
     parent_editor: Handle<UiNode>,
@@ -760,8 +767,11 @@ impl TextureSliceEditorWindowBuilder {
     }
 }
 
-#[derive(Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider, Debug)]
+#[derive(
+    Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider, Debug, DerivedEntityListProvider,
+)]
 #[type_uuid(id = "024f3a3a-6784-4675-bd99-a4c6c19a8d91")]
+#[derived_types(type_name = "UiNode")]
 pub struct TextureSliceFieldEditor {
     widget: Widget,
     texture_slice: TextureSlice,

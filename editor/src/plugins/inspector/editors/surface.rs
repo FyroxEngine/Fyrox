@@ -49,6 +49,7 @@ use crate::{
     message::MessageSender,
     Message,
 };
+use fyrox::core::reflect::DerivedEntityListProvider;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -63,8 +64,11 @@ impl SurfaceDataPropertyEditorMessage {
     define_constructor!(SurfaceDataPropertyEditorMessage:Value => fn value(SurfaceResource), layout: false);
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
+#[derive(
+    Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider, DerivedEntityListProvider,
+)]
 #[type_uuid(id = "8461a183-4fd4-4f74-a4f4-7fd8e84bf423")]
+#[derived_types(type_name = "UiNode")]
 #[allow(dead_code)]
 pub struct SurfaceDataPropertyEditor {
     widget: Widget,

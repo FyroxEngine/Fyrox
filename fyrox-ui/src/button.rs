@@ -39,6 +39,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::export_derived_entity_list;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::RefCell,
@@ -135,6 +136,8 @@ pub struct Button {
     #[visit(optional)]
     pub repeat_clicks_on_hold: InheritableVariable<bool>,
 }
+
+export_derived_entity_list!(Button = [UiNode]);
 
 impl Button {
     /// A name of style property, that defines corner radius of a button.

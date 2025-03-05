@@ -22,6 +22,7 @@
 //! currently selected tile stamp, including whatever transformations have been applied
 //! to the stamp.
 
+use super::*;
 use crate::fyrox::{
     core::{
         algebra::{Matrix3, Vector2},
@@ -43,15 +44,17 @@ use crate::fyrox::{
     resource::texture::TextureKind,
     scene::tilemap::{TileRenderData, TileSource},
 };
+use fyrox::core::reflect::DerivedEntityListProvider;
 use std::ops::{Deref, DerefMut};
-
-use super::*;
 
 /// The preview widget of the tile map control panel. This allows the user to see the
 /// currently selected tile stamp, including whatever transformations have been applied
 /// to the stamp.
-#[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(
+    Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider, DerivedEntityListProvider,
+)]
 #[type_uuid(id = "5356a864-c026-4bd7-a4b1-30bacf77d8fa")]
+#[derived_types(type_name = "UiNode")]
 pub struct PanelPreview {
     widget: Widget,
     /// The tile editing state that is shared with palette widgets, the tile map interaction mode,
