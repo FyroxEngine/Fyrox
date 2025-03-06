@@ -1397,6 +1397,7 @@ pub use delegate_reflect;
 #[cfg(test)]
 mod test {
     use super::prelude::*;
+    use std::any::TypeId;
     use std::collections::HashMap;
 
     #[derive(Reflect, Default, Debug)]
@@ -1444,5 +1445,17 @@ mod test {
         assert_eq!(names[7], "hash_map");
         assert_eq!(names[8], "hash_map[Foobar]");
         assert_eq!(names[9], "hash_map[Foobar].payload");
+    }
+
+    #[derive(DerivedEntityListProvider)]
+    #[derived_types(type_name = "Derived")]
+    struct Base;
+
+    struct Derived(Box<Base>);
+
+    #[test]
+    fn test_derived() {
+        let base = Base;
+        assert_eq!(base.query_derived_entity_list(), &[TypeId::of::<Derived>()])
     }
 }
