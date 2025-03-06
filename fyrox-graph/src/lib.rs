@@ -371,6 +371,31 @@ where
             return;
         }
 
+        // Handle derived entities handles.
+        entity.as_handle_mut(&mut |handle| {
+            if let Some(handle) = handle {
+                if do_map
+                    && handle
+                        .query_derived_entity_list()
+                        .contains(&TypeId::of::<N>())
+                    && handle.reflect_is_some()
+                    && !self.try_map_reflect(handle)
+                {
+                    Log::warn(format!(
+                        "Failed to remap handle {}:{} of node {}!",
+                        handle.reflect_index(),
+                        handle.reflect_generation(),
+                        node_name
+                    ));
+                }
+                mapped = true;
+            }
+        });
+
+        if mapped {
+            return;
+        }
+
         entity.as_array_mut(&mut |result| {
             if let Some(array) = result {
                 // Look in every array item.
@@ -664,6 +689,9 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
 
     /// Returns actual type id of the node.
     fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId>;
+
+    /// Returns a list of derived type ids of the node.
+    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>>;
 
     /// Returns a handle of the root node of the graph.
     fn root(&self) -> Handle<Self::Node>;
@@ -1815,6 +1843,16 @@ mod test {
             self.nodes
                 .try_borrow(handle)
                 .map(|n| Downcast::as_any(n.0.deref()).type_id())
+        }
+
+        fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
+            self.nodes.try_borrow(handle).map(|n| {
+                n.0.deref()
+                    .query_derived_entity_list()
+                    .iter()
+                    .cloned()
+                    .collect::<Vec<_>>()
+            })
         }
     }
 
