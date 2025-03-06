@@ -87,8 +87,7 @@ impl HierarchyNode {
                     }
                 })
                 .collect(),
-            // TODO
-            inner_type_id: ().type_id(),
+            inner_type_id: graph.actual_type_id(node_handle).unwrap(),
         }
     }
 
@@ -118,7 +117,7 @@ impl HierarchyNode {
         .with_items(self.children.iter().map(|c| c.make_view(ctx)).collect())
         .with_content(
             TextBuilder::new(WidgetBuilder::new())
-                .with_text(make_node_name(&self.name, self.handle.into()))
+                .with_text(make_node_name(&self.name, self.handle))
                 .build(ctx),
         )
         .build(ctx)

@@ -871,7 +871,7 @@ impl TrackList {
         } else if let Some(NodeSelectorMessage::Selection(node_selection)) = message.data() {
             if message.destination() == self.node_selector {
                 if let Some(first) = node_selection.first() {
-                    self.selected_node = first.handle.into();
+                    self.selected_node = first.handle;
 
                     match self.property_binding_mode {
                         PropertyBindingMode::Generic => {

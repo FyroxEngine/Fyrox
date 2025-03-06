@@ -547,7 +547,7 @@ impl<T: DerivedEntityListProvider + 'static> PropertyEditorDefinition
                 return Some(PropertyChanged {
                     owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),
-                    value: FieldKind::object(Handle::<T>::from(*value)),
+                    value: FieldKind::object(*value),
                 });
             }
         }
@@ -568,12 +568,14 @@ fn request_name_sync(sender: &MessageSender, editor: Handle<UiNode>, handle: Era
 #[cfg(test)]
 mod test {
     use crate::plugins::inspector::editors::handle::HandlePropertyEditorBuilder;
+    use fyrox::scene::node::Node;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
 
     #[test]
     fn test_deletion() {
         test_widget_deletion(|ctx| {
-            HandlePropertyEditorBuilder::new(WidgetBuilder::new(), Default::default()).build(ctx)
+            HandlePropertyEditorBuilder::<Node>::new(WidgetBuilder::new(), Default::default())
+                .build(ctx)
         });
     }
 }
