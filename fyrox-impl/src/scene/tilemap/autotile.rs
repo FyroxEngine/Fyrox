@@ -181,7 +181,7 @@ impl TileSetWfcConstraint {
                 }
             }
         }
-        self.finalize();
+        self.finalize_with_terrain_normalization(PatternBits::center);
         Ok(())
     }
 }
@@ -481,7 +481,7 @@ impl TileSetWfcPropagator {
         Ok(())
     }
     /// Modify the given tile map update based on the result of the
-    /// auto-tiler.
+    /// autotiler.
     pub fn apply_autotile_to_update<R: Rng + ?Sized>(
         &self,
         rng: &mut R,
@@ -503,6 +503,21 @@ impl TileSetWfcPropagator {
                 Some(StampElement { handle, brush_cell })
             };
             _ = update.insert(*pos, handle);
+        }
+    }
+    /// Modify the given tile map data based on the result of the
+    /// autotiler.
+    pub fn apply_autotile_to_data<R: Rng + ?Sized>(
+        &self,
+        rng: &mut R,
+        value_map: &TileSetWfcConstraint,
+        data: &mut TileMapData,
+    ) {
+        for (pos, pat) in self.assigned_patterns() {
+            let Some(&handle) = value_map.get_random(rng, pat) else {
+                continue;
+            };
+            data.set(*pos, handle);
         }
     }
 }

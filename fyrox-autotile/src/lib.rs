@@ -353,6 +353,14 @@ impl<V> ProbabilitySet<V> {
     pub fn iter(&self) -> impl Iterator<Item = (f32, &V)> {
         self.content.iter().map(|(f, v)| (*f, v))
     }
+    /// The number of elements in the set.
+    pub fn len(&self) -> usize {
+        self.content.len()
+    }
+    /// True if the set has no elements.
+    pub fn is_empty(&self) -> bool {
+        self.content.is_empty()
+    }
     /// Remove the content of the set.
     pub fn clear(&mut self) {
         self.total = 0.0;
@@ -371,6 +379,15 @@ impl<V> ProbabilitySet<V> {
     /// that element divided by this total.
     pub fn total_frequency(&self) -> f32 {
         self.total
+    }
+
+    /// The mean of the frequencies of all the elements of the set.
+    pub fn average_frequency(&self) -> f32 {
+        let size = self.content.len();
+        if size == 0 {
+            return 0.0;
+        }
+        self.total / (size as f32)
     }
 
     /// Choose a value from the set using the given random number generator.
