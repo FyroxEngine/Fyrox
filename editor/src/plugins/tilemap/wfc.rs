@@ -617,7 +617,13 @@ impl BrushMacro for WfcMacro {
 
     fn sync_cell_editors(&mut self, _context: &MacroMessageContext, _ui: &mut UserInterface) {}
 
-    fn begin_update(&mut self, _context: &BrushMacroInstance, _tile_map: &TileMapContext) {}
+    fn begin_update(
+        &mut self,
+        _context: &BrushMacroInstance,
+        _stamp: &Stamp,
+        _tile_map: &TileMapContext,
+    ) {
+    }
 
     fn amend_update(
         &mut self,

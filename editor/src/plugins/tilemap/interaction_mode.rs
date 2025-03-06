@@ -287,10 +287,13 @@ fn macro_begin(
     tile_map_context: &TileMapContext,
     update: &mut TransTilesUpdate,
     macro_update: &mut MacroTilesUpdate,
-    brush: &TileMapBrushResource,
+    stamp: &Stamp,
     macros: &mut BrushMacroList,
     macro_instances: &mut Vec<(Uuid, Option<UntypedResource>)>,
 ) {
+    let Some(brush) = stamp.brush() else {
+        return;
+    };
     let tile_map_handle = tile_map_context.node;
     let Some(tile_map) = tile_map_context.engine.scenes[tile_map_context.scene].graph
         [tile_map_handle]
@@ -324,7 +327,7 @@ fn macro_begin(
             continue;
         };
         context.settings = settings;
-        brush_macro.begin_update(&context, tile_map_context);
+        brush_macro.begin_update(&context, stamp, tile_map_context);
         brush_macro.amend_update(&context, macro_update, tile_map);
     }
     macro_update.fill_trans_tiles_update(update);
@@ -545,7 +548,7 @@ impl InteractionMode for TileMapInteractionMode {
                     let update = &mut self.update_effect.lock().update;
                     draw(update, tiles, mode, &state, grid_coord, grid_coord);
                     drop(tiles_guard);
-                    if let Some(brush) = state.stamp.brush() {
+                    if state.stamp.brush().is_some() {
                         let tile_map = TileMapContext {
                             node: self.tile_map,
                             scene: scene_handle,
@@ -555,7 +558,7 @@ impl InteractionMode for TileMapInteractionMode {
                             &tile_map,
                             update,
                             &mut self.macro_update,
-                            brush,
+                            &state.stamp,
                             &mut self.brush_macro_list.lock(),
                             &mut self.macro_instance_list,
                         );
