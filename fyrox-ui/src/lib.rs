@@ -302,6 +302,7 @@ use fyrox_resource::{
     ResourceData,
 };
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 use std::{
     any::TypeId,
     cell::{Ref, RefCell, RefMut},
@@ -335,6 +336,7 @@ use crate::style::resource::{StyleResource, StyleResourceExt};
 use crate::style::{Style, DEFAULT_STYLE};
 pub use fyrox_animation as generic_animation;
 use fyrox_core::pool::ErasedHandle;
+use fyrox_core::Downcast;
 use fyrox_resource::untyped::ResourceKind;
 pub use fyrox_texture as texture;
 
@@ -3139,6 +3141,13 @@ impl BaseSceneGraph for UserInterface {
     type Node = UiNode;
 
     #[inline]
+    fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
+        self.nodes
+            .try_borrow(handle)
+            .map(|n| Downcast::as_any(n.0.deref()).type_id())
+    }
+
+    #[inline]
     fn root(&self) -> Handle<Self::Node> {
         self.root_canvas
     }
@@ -3257,6 +3266,20 @@ impl SceneGraph for UserInterface {
     #[inline]
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
         self.nodes.iter_mut()
+    }
+
+    #[inline]
+    fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T> {
+        self.nodes
+            .try_borrow(handle.transmute())
+            .and_then(|n| Downcast::as_any(n.0.deref()).downcast_ref::<T>())
+    }
+
+    #[inline]
+    fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T> {
+        self.nodes
+            .try_borrow_mut(handle.transmute())
+            .and_then(|n| Downcast::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
     }
 }
 

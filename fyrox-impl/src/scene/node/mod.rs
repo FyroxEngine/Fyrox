@@ -324,7 +324,7 @@ pub trait NodeTrait:
 /// of every field, even those inheritable variables which are non-modified. Which means that there's no benefits of RAM
 /// consumption, only disk space usage is reduced.
 #[derive(Debug)]
-pub struct Node(Box<dyn NodeTrait>);
+pub struct Node(pub(crate) Box<dyn NodeTrait>);
 
 export_derived_entity_list!(Node = []);
 

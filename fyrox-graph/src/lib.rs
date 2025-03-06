@@ -662,6 +662,9 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
     type Prefab: PrefabData<Graph = Self>;
     type Node: SceneGraphNode<SceneGraph = Self, ResourceData = Self::Prefab>;
 
+    /// Returns actual type id of the node.
+    fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId>;
+
     /// Returns a handle of the root node of the graph.
     fn root(&self) -> Handle<Self::Node>;
 
@@ -803,6 +806,10 @@ pub trait SceneGraph: BaseSceneGraph {
     /// Creates an iterator that has linear iteration order over internal collection
     /// of nodes. It does *not* perform any tree traversal!
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
+
+    fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T>;
+
+    fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T>;
 
     /// Tries to borrow a node and fetch its component of specified type.
     #[inline]
@@ -1412,7 +1419,7 @@ mod test {
         reflect::{prelude::*, DerivedEntityListProvider},
         type_traits::prelude::*,
         visitor::prelude::*,
-        NameProvider,
+        Downcast, NameProvider,
     };
     use fyrox_resource::{untyped::UntypedResource, Resource, ResourceData};
     use std::{
@@ -1452,7 +1459,7 @@ mod test {
     }
 
     pub trait NodeTrait:
-        BaseNodeTrait + Reflect + Visit + ComponentProvider + DerivedEntityListProvider
+        BaseNodeTrait + Reflect + Visit + ComponentProvider + DerivedEntityListProvider + Downcast
     {
     }
 
@@ -1504,15 +1511,15 @@ mod test {
         }
 
         fn into_any(self: Box<Self>) -> Box<dyn Any> {
-            self.0.into_any()
+            Reflect::into_any(self.0)
         }
 
         fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
-            self.0.deref().as_any(func)
+            Reflect::as_any(self.0.deref(), func)
         }
 
         fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
-            self.0.deref_mut().as_any_mut(func)
+            Reflect::as_any_mut(self.0.deref_mut(), func)
         }
 
         fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
@@ -1803,6 +1810,12 @@ mod test {
         fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
             self.nodes.try_borrow_mut(handle)
         }
+
+        fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
+            self.nodes
+                .try_borrow(handle)
+                .map(|n| Downcast::as_any(n.0.deref()).type_id())
+        }
     }
 
     impl SceneGraph for Graph {
@@ -1816,6 +1829,20 @@ mod test {
 
         fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
             self.nodes.iter_mut()
+        }
+
+        #[inline]
+        fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T> {
+            self.nodes
+                .try_borrow(handle.transmute())
+                .and_then(|n| Downcast::as_any(n.0.deref()).downcast_ref::<T>())
+        }
+
+        #[inline]
+        fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T> {
+            self.nodes
+                .try_borrow_mut(handle.transmute())
+                .and_then(|n| Downcast::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
         }
     }
 

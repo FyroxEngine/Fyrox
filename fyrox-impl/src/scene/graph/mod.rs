@@ -76,6 +76,7 @@ use crate::{
 };
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_core::Downcast;
 use fyrox_graph::SceneGraphNode;
 use std::{
     any::{Any, TypeId},
@@ -123,6 +124,26 @@ impl GraphPerformanceStatistics {
 
 /// A helper type alias for node pool.
 pub type NodePool = Pool<Node, NodeContainer>;
+
+pub trait NodePoolExt {
+    fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T>;
+
+    fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T>;
+}
+
+impl NodePoolExt for NodePool {
+    #[inline]
+    fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T> {
+        self.try_borrow(handle.transmute())
+            .and_then(|n| Downcast::as_any(n.0.deref()).downcast_ref::<T>())
+    }
+
+    #[inline]
+    fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T> {
+        self.try_borrow_mut(handle.transmute())
+            .and_then(|n| Downcast::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
+    }
+}
 
 /// See module docs.
 #[derive(Debug, Reflect)]
@@ -1725,6 +1746,13 @@ impl BaseSceneGraph for Graph {
     type Node = Node;
 
     #[inline]
+    fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
+        self.pool
+            .try_borrow(handle)
+            .map(|n| n.0.as_any_ref().type_id())
+    }
+
+    #[inline]
     fn root(&self) -> Handle<Self::Node> {
         self.root
     }
@@ -1860,6 +1888,16 @@ impl SceneGraph for Graph {
     #[inline]
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
         self.pool.iter_mut()
+    }
+
+    #[inline]
+    fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T> {
+        self.pool.try_cast(handle)
+    }
+
+    #[inline]
+    fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T> {
+        self.pool.try_cast_mut(handle)
     }
 }
 
