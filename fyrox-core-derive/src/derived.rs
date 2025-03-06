@@ -24,12 +24,12 @@ use quote::*;
 use syn::*;
 
 #[derive(FromDeriveInput)]
-#[darling(supports(struct_any, enum_any))]
+#[darling(attributes(derived_types), supports(struct_any, enum_any))]
 pub struct TypeArgs {
     pub ident: Ident,
     pub generics: Generics,
     #[darling(multiple)]
-    pub type_name: Vec<String>,
+    pub type_name: Vec<Path>,
 }
 
 pub fn impl_derived_entity_list_provider(ast: DeriveInput) -> TokenStream2 {
@@ -38,9 +38,11 @@ pub fn impl_derived_entity_list_provider(ast: DeriveInput) -> TokenStream2 {
     let types = ty_args
         .type_name
         .iter()
-        .map(|ty| quote! { std::any::TypeId::of<#ty>(), })
+        .map(|ty| {
+            quote! { std::any::TypeId::of::<#ty>() }
+        })
         .collect::<Vec<TokenStream2>>();
-    let types = quote! { #(#types)* };
+    let types = quote! { #(#types),* };
 
     let (impl_generics, ty_generics, where_clause) = ty_args.generics.split_for_impl();
 
