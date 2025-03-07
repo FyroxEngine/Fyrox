@@ -3250,6 +3250,15 @@ impl BaseSceneGraph for UserInterface {
             self.nodes[parent_handle].remove_child(node_handle);
         }
     }
+
+    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
+        self.nodes.try_borrow(handle).map(|n| {
+            n.0.query_derived_entity_list()
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+    }
 }
 
 impl SceneGraph for UserInterface {
@@ -3272,14 +3281,14 @@ impl SceneGraph for UserInterface {
     fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T> {
         self.nodes
             .try_borrow(handle.transmute())
-            .and_then(|n| Downcast::as_any(n.0.deref()).downcast_ref::<T>())
+            .and_then(|n| Downcast::as_any(Box::deref(&n.0)).downcast_ref::<T>())
     }
 
     #[inline]
     fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T> {
         self.nodes
             .try_borrow_mut(handle.transmute())
-            .and_then(|n| Downcast::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
+            .and_then(|n| Downcast::as_any_mut(Box::deref_mut(&mut n.0)).downcast_mut::<T>())
     }
 }
 

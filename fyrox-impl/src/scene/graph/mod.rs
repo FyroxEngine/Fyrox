@@ -42,6 +42,8 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::scene::node::BaseNodeTrait;
+use crate::script::ScriptMessagePayload;
 use crate::{
     asset::untyped::UntypedResource,
     core::{
@@ -76,8 +78,8 @@ use crate::{
 };
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::Downcast;
 use fyrox_graph::SceneGraphNode;
+use std::ops::{Deref, DerefMut};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -135,13 +137,14 @@ impl NodePoolExt for NodePool {
     #[inline]
     fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T> {
         self.try_borrow(handle.transmute())
-            .and_then(|n| Downcast::as_any(n.0.deref()).downcast_ref::<T>())
+            .and_then(|n| BaseNodeTrait::as_any_ref(Box::deref(&n.0)).downcast_ref::<T>())
     }
 
     #[inline]
     fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T> {
-        self.try_borrow_mut(handle.transmute())
-            .and_then(|n| Downcast::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
+        self.try_borrow_mut(handle.transmute()).and_then(|n| {
+            BaseNodeTrait::as_any_ref_mut(Box::deref_mut(&mut n.0)).downcast_mut::<T>()
+        })
     }
 }
 
@@ -1871,6 +1874,16 @@ impl BaseSceneGraph for Graph {
     #[inline]
     fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
         self.pool.try_borrow_mut(handle)
+    }
+
+    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
+        self.pool.try_borrow(handle).map(|n| {
+            dbg!(n.type_name());
+            dbg!(Box::deref(&n.0).query_derived_entity_list())
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
+        })
     }
 }
 

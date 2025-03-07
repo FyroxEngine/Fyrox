@@ -62,6 +62,7 @@ pub struct HierarchyNode {
     pub name: String,
     pub handle: ErasedHandle,
     pub inner_type_id: TypeId,
+    pub derived_type_ids: Vec<TypeId>,
     pub children: Vec<HierarchyNode>,
 }
 
@@ -88,6 +89,7 @@ impl HierarchyNode {
                 })
                 .collect(),
             inner_type_id: graph.actual_type_id(node_handle).unwrap(),
+            derived_type_ids: graph.derived_type_ids(node_handle).unwrap(),
         }
     }
 
@@ -112,6 +114,7 @@ impl HierarchyNode {
                 name: self.name.clone(),
                 handle: self.handle,
                 inner_type_id: self.inner_type_id,
+                derived_type_ids: self.derived_type_ids.clone(),
             }))),
         )
         .with_items(self.children.iter().map(|c| c.make_view(ctx)).collect())
@@ -129,6 +132,9 @@ pub struct SelectedHandle {
     #[visit(skip)]
     #[reflect(hidden)]
     pub inner_type_id: TypeId,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub derived_type_ids: Vec<TypeId>,
     pub handle: ErasedHandle,
 }
 
@@ -136,6 +142,7 @@ impl<T: DerivedEntityListProvider + 'static> From<Handle<T>> for SelectedHandle 
     fn from(value: Handle<T>) -> Self {
         Self {
             inner_type_id: TypeId::of::<T>(),
+            derived_type_ids: T::derived_entity_list().iter().cloned().collect::<Vec<_>>(),
             handle: value.into(),
         }
     }
@@ -145,6 +152,7 @@ impl Default for SelectedHandle {
     fn default() -> Self {
         Self {
             inner_type_id: ().type_id(),
+            derived_type_ids: Default::default(),
             handle: Default::default(),
         }
     }
@@ -169,6 +177,7 @@ struct TreeData {
     name: String,
     handle: ErasedHandle,
     inner_type_id: TypeId,
+    pub derived_type_ids: Vec<TypeId>,
 }
 
 #[derive(
@@ -279,6 +288,7 @@ impl Control for NodeSelector {
                             SelectedHandle {
                                 handle: tree_data.handle,
                                 inner_type_id: tree_data.inner_type_id,
+                                derived_type_ids: tree_data.derived_type_ids,
                             }
                         })
                         .collect(),

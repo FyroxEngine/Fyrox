@@ -235,6 +235,10 @@ impl<T: DerivedEntityListProvider + 'static> Control for HandlePropertyEditor<T>
                     vec![SelectedHandle {
                         handle: self.value.into(),
                         inner_type_id: TypeId::of::<T>(),
+                        derived_type_ids: T::derived_entity_list()
+                            .iter()
+                            .cloned()
+                            .collect::<Vec<_>>(),
                     }],
                 ));
             }
@@ -310,10 +314,10 @@ impl<T: DerivedEntityListProvider + 'static> Control for HandlePropertyEditor<T>
             if message.destination() == self.selector
                 && message.direction() == MessageDirection::FromWidget
             {
-                if let Some(suitable) = selection
-                    .iter()
-                    .find(|selected| selected.inner_type_id == TypeId::of::<T>())
-                {
+                if let Some(suitable) = selection.iter().find(|selected| {
+                    selected.inner_type_id == TypeId::of::<T>()
+                        || selected.derived_type_ids.contains(&TypeId::of::<T>())
+                }) {
                     ui.send_message(HandlePropertyEditorMessage::<T>::value(
                         self.handle,
                         MessageDirection::ToWidget,
