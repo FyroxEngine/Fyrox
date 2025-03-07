@@ -44,7 +44,7 @@ use crate::{
 use fyrox_core::algebra::{Isometry3, Vector3};
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use rapier2d::na::UnitQuaternion;
 use rapier3d::dynamics::ImpulseJointHandle;
 use std::cell::RefCell;
@@ -223,10 +223,10 @@ pub struct Joint {
     pub(crate) params: InheritableVariable<JointParams>,
 
     #[reflect(setter = "set_body1")]
-    pub(crate) body1: InheritableVariable<Handle<Node>>,
+    pub(crate) body1: InheritableVariable<Handle<RigidBody>>,
 
     #[reflect(setter = "set_body2")]
-    pub(crate) body2: InheritableVariable<Handle<Node>>,
+    pub(crate) body2: InheritableVariable<Handle<RigidBody>>,
 
     #[reflect(setter = "set_contacts_enabled")]
     #[visit(optional)] // Backward compatibility
@@ -315,23 +315,23 @@ impl Joint {
 
     /// Sets the first body of the joint. The handle should point to the RigidBody node, otherwise
     /// the joint will have no effect!
-    pub fn set_body1(&mut self, handle: Handle<Node>) -> Handle<Node> {
+    pub fn set_body1(&mut self, handle: Handle<RigidBody>) -> Handle<RigidBody> {
         self.body1.set_value_and_mark_modified(handle)
     }
 
     /// Returns current first body of the joint.
-    pub fn body1(&self) -> Handle<Node> {
+    pub fn body1(&self) -> Handle<RigidBody> {
         *self.body1
     }
 
     /// Sets the second body of the joint. The handle should point to the RigidBody node, otherwise
     /// the joint will have no effect!
-    pub fn set_body2(&mut self, handle: Handle<Node>) -> Handle<Node> {
+    pub fn set_body2(&mut self, handle: Handle<RigidBody>) -> Handle<RigidBody> {
         self.body2.set_value_and_mark_modified(handle)
     }
 
     /// Returns current second body of the joint.
-    pub fn body2(&self) -> Handle<Node> {
+    pub fn body2(&self) -> Handle<RigidBody> {
         *self.body2
     }
 
@@ -428,25 +428,13 @@ impl NodeTrait for Joint {
     }
 
     fn validate(&self, scene: &Scene) -> Result<(), String> {
-        if let Some(body1) = scene.graph.try_get(self.body1()) {
-            if body1.component_ref::<RigidBody>().is_none() {
-                return Err("First body of 3D Joint must be an \
-                    instance of 3D Rigid Body!"
-                    .to_string());
-            }
-        } else {
+        if scene.graph.try_cast(self.body1()).is_none() {
             return Err("3D Joint has invalid or unassigned handle to a \
             first body, the joint will not operate!"
                 .to_string());
         }
 
-        if let Some(body2) = scene.graph.try_get(self.body2()) {
-            if body2.component_ref::<RigidBody>().is_none() {
-                return Err("Second body of 3D Joint must be an instance \
-                    of 3D Rigid Body!"
-                    .to_string());
-            }
-        } else {
+        if scene.graph.try_cast(self.body2()).is_none() {
             return Err("3D Joint has invalid or unassigned handle to a \
             second body, the joint will not operate!"
                 .to_string());
@@ -460,8 +448,8 @@ impl NodeTrait for Joint {
 pub struct JointBuilder {
     base_builder: BaseBuilder,
     params: JointParams,
-    body1: Handle<Node>,
-    body2: Handle<Node>,
+    body1: Handle<RigidBody>,
+    body2: Handle<RigidBody>,
     contacts_enabled: bool,
     auto_rebind: bool,
 }
@@ -487,14 +475,14 @@ impl JointBuilder {
 
     /// Sets desired first body of the joint. This handle should be a handle to rigid body node,
     /// otherwise joint will have no effect!
-    pub fn with_body1(mut self, body1: Handle<Node>) -> Self {
+    pub fn with_body1(mut self, body1: Handle<RigidBody>) -> Self {
         self.body1 = body1;
         self
     }
 
     /// Sets desired second body of the joint. This handle should be a handle to rigid body node,
     /// otherwise joint will have no effect!
-    pub fn with_body2(mut self, body2: Handle<Node>) -> Self {
+    pub fn with_body2(mut self, body2: Handle<RigidBody>) -> Self {
         self.body2 = body2;
         self
     }

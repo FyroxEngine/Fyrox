@@ -1752,7 +1752,7 @@ impl BaseSceneGraph for Graph {
     fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
         self.pool
             .try_borrow(handle)
-            .map(|n| n.0.as_any_ref().type_id())
+            .map(|n| Box::deref(&n.0).as_any_ref().type_id())
     }
 
     #[inline]
@@ -1878,8 +1878,8 @@ impl BaseSceneGraph for Graph {
 
     fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
         self.pool.try_borrow(handle).map(|n| {
-            dbg!(n.type_name());
-            dbg!(Box::deref(&n.0).query_derived_entity_list())
+            Box::deref(&n.0)
+                .query_derived_entity_list()
                 .iter()
                 .cloned()
                 .collect::<Vec<_>>()

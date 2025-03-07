@@ -79,6 +79,7 @@ use std::{
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
+use crate::scene::graph::NodePoolExt;
 use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
 pub use rapier3d::geometry::shape::*;
 
@@ -1814,18 +1815,12 @@ impl PhysicsWorld {
 
         if let Some(native) = self.joints.set.get_mut(joint.native.get(), false) {
             joint.body1.try_sync_model(|v| {
-                if let Some(rigid_body_node) = nodes
-                    .try_borrow(v)
-                    .and_then(|n| n.cast::<scene::rigidbody::RigidBody>())
-                {
+                if let Some(rigid_body_node) = nodes.try_cast(v) {
                     native.body1 = rigid_body_node.native.get();
                 }
             });
             joint.body2.try_sync_model(|v| {
-                if let Some(rigid_body_node) = nodes
-                    .try_borrow(v)
-                    .and_then(|n| n.cast::<scene::rigidbody::RigidBody>())
-                {
+                if let Some(rigid_body_node) = nodes.try_cast(v) {
                     native.body2 = rigid_body_node.native.get();
                 }
             });
@@ -1840,14 +1835,9 @@ impl PhysicsWorld {
 
             let mut local_frames = joint.local_frames.borrow_mut();
             if local_frames.is_none() {
-                if let (Some(body1), Some(body2)) = (
-                    nodes
-                        .try_borrow(joint.body1())
-                        .and_then(|n| n.cast::<scene::rigidbody::RigidBody>()),
-                    nodes
-                        .try_borrow(joint.body2())
-                        .and_then(|n| n.cast::<scene::rigidbody::RigidBody>()),
-                ) {
+                if let (Some(body1), Some(body2)) =
+                    (nodes.try_cast(joint.body1()), nodes.try_cast(joint.body2()))
+                {
                     let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
                     native.data =
                         convert_joint_params((*joint.params).clone(), local_frame1, local_frame2);
@@ -1862,14 +1852,12 @@ impl PhysicsWorld {
             // A native joint can be created iff both rigid bodies are correctly assigned and their respective
             // native bodies exists.
             if let (Some(body1), Some(body2)) = (
-                nodes.try_borrow(body1_handle).and_then(|n| {
-                    n.cast::<scene::rigidbody::RigidBody>()
-                        .filter(|b| self.bodies.get(b.native.get()).is_some())
-                }),
-                nodes.try_borrow(body2_handle).and_then(|n| {
-                    n.cast::<scene::rigidbody::RigidBody>()
-                        .filter(|b| self.bodies.get(b.native.get()).is_some())
-                }),
+                nodes
+                    .try_cast(body1_handle)
+                    .filter(|b| self.bodies.get(b.native.get()).is_some()),
+                nodes
+                    .try_cast(body2_handle)
+                    .filter(|b| self.bodies.get(b.native.get()).is_some()),
             ) {
                 // Calculate local frames first (if needed).
                 let mut local_frames = joint.local_frames.borrow_mut();

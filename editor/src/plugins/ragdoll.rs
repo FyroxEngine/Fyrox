@@ -247,8 +247,8 @@ fn try_make_ball_joint(
             ),
         )
         .with_params(JointParams::BallJoint(joint))
-        .with_body1(body1)
-        .with_body2(body2)
+        .with_body1(body1.transmute())
+        .with_body2(body2.transmute())
         .with_auto_rebinding_enabled(false)
         .with_contacts_enabled(false)
         .build(graph);
@@ -291,8 +291,8 @@ fn try_make_hinge_joint(
             ),
         )
         .with_params(JointParams::RevoluteJoint(joint))
-        .with_body1(body1)
-        .with_body2(body2)
+        .with_body1(body1.transmute())
+        .with_body2(body2.transmute())
         .with_auto_rebinding_enabled(false)
         .with_contacts_enabled(false)
         .build(graph);
