@@ -235,10 +235,7 @@ impl<T: DerivedEntityListProvider + 'static> Control for HandlePropertyEditor<T>
                     vec![SelectedHandle {
                         handle: self.value.into(),
                         inner_type_id: TypeId::of::<T>(),
-                        derived_type_ids: T::derived_entity_list()
-                            .iter()
-                            .cloned()
-                            .collect::<Vec<_>>(),
+                        derived_type_ids: T::derived_entity_list().to_vec(),
                     }],
                 ));
             }

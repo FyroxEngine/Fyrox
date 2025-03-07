@@ -336,7 +336,6 @@ use crate::style::resource::{StyleResource, StyleResourceExt};
 use crate::style::{Style, DEFAULT_STYLE};
 pub use fyrox_animation as generic_animation;
 use fyrox_core::pool::ErasedHandle;
-use fyrox_core::Downcast;
 use fyrox_resource::untyped::ResourceKind;
 pub use fyrox_texture as texture;
 
@@ -3144,7 +3143,7 @@ impl BaseSceneGraph for UserInterface {
     fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
         self.nodes
             .try_borrow(handle)
-            .map(|n| Downcast::as_any(n.0.deref()).type_id())
+            .map(|n| ControlAsAny::as_any(n.0.deref()).type_id())
     }
 
     #[inline]
@@ -3252,12 +3251,9 @@ impl BaseSceneGraph for UserInterface {
     }
 
     fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
-        self.nodes.try_borrow(handle).map(|n| {
-            n.0.query_derived_entity_list()
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>()
-        })
+        self.nodes
+            .try_borrow(handle)
+            .map(|n| n.0.query_derived_entity_list().to_vec())
     }
 }
 
@@ -3281,14 +3277,14 @@ impl SceneGraph for UserInterface {
     fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T> {
         self.nodes
             .try_borrow(handle.transmute())
-            .and_then(|n| Downcast::as_any(Box::deref(&n.0)).downcast_ref::<T>())
+            .and_then(|n| ControlAsAny::as_any(Box::deref(&n.0)).downcast_ref::<T>())
     }
 
     #[inline]
     fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T> {
         self.nodes
             .try_borrow_mut(handle.transmute())
-            .and_then(|n| Downcast::as_any_mut(Box::deref_mut(&mut n.0)).downcast_mut::<T>())
+            .and_then(|n| ControlAsAny::as_any_mut(Box::deref_mut(&mut n.0)).downcast_mut::<T>())
     }
 }
 

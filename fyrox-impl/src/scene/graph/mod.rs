@@ -42,8 +42,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::node::BaseNodeTrait;
-use crate::script::ScriptMessagePayload;
+use crate::scene::node::NodeAsAny;
 use crate::{
     asset::untyped::UntypedResource,
     core::{
@@ -127,9 +126,15 @@ impl GraphPerformanceStatistics {
 /// A helper type alias for node pool.
 pub type NodePool = Pool<Node, NodeContainer>;
 
+/// A trait, that allows accessing a node pool using typed node handles (`Handle<RigidBody>` instead
+/// of "untyped" `Handle<Node>`).
 pub trait NodePoolExt {
+    /// Allows accessing a node at the given typed handle. Internally performs an attempt to downcast
+    /// the node to the given type.
     fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T>;
 
+    /// Allows accessing a node at the given typed handle. Internally performs an attempt to downcast
+    /// the node to the given type.
     fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T>;
 }
 
@@ -137,14 +142,13 @@ impl NodePoolExt for NodePool {
     #[inline]
     fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T> {
         self.try_borrow(handle.transmute())
-            .and_then(|n| BaseNodeTrait::as_any_ref(Box::deref(&n.0)).downcast_ref::<T>())
+            .and_then(|n| NodeAsAny::as_any(n.0.deref()).downcast_ref::<T>())
     }
 
     #[inline]
     fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T> {
-        self.try_borrow_mut(handle.transmute()).and_then(|n| {
-            BaseNodeTrait::as_any_ref_mut(Box::deref_mut(&mut n.0)).downcast_mut::<T>()
-        })
+        self.try_borrow_mut(handle.transmute())
+            .and_then(|n| NodeAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
     }
 }
 
@@ -1752,7 +1756,7 @@ impl BaseSceneGraph for Graph {
     fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
         self.pool
             .try_borrow(handle)
-            .map(|n| Box::deref(&n.0).as_any_ref().type_id())
+            .map(|n| NodeAsAny::as_any(n.0.deref()).type_id())
     }
 
     #[inline]
@@ -1877,13 +1881,9 @@ impl BaseSceneGraph for Graph {
     }
 
     fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
-        self.pool.try_borrow(handle).map(|n| {
-            Box::deref(&n.0)
-                .query_derived_entity_list()
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>()
-        })
+        self.pool
+            .try_borrow(handle)
+            .map(|n| Box::deref(&n.0).query_derived_entity_list().to_vec())
     }
 }
 

@@ -18,10 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{
-    fyrox::{core::Downcast, gui::message::UiMessage},
-    Editor, Message,
-};
+use crate::{fyrox::gui::message::UiMessage, Editor, Message};
+use fyrox::core::define_as_any_trait;
+
+define_as_any_trait!(EditorPluginAsAny => EditorPlugin);
 
 /// Editor plugin allows you to extend editor functionality with custom tools. It provides a standard way of interaction
 /// between your plugin and built-in editor's functionality.
@@ -42,7 +42,7 @@ use crate::{
 /// The editor usually operates on scenes (there could be multiple opened scenes, but only one active) and any modification of
 /// their content **must** be done via _commands_. [Command](https://en.wikipedia.org/wiki/Command_pattern) is a standard
 /// pattern that encapsulates an action. Command pattern is used for undo/redo functionality.
-pub trait EditorPlugin: Downcast {
+pub trait EditorPlugin: EditorPluginAsAny {
     /// This method is called right after the editor was fully initialized. It is guaranteed to be called only once.
     fn on_start(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
 

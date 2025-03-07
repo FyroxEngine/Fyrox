@@ -23,12 +23,9 @@
 
 #![warn(missing_docs)]
 
-use crate::{
-    core::{color::Color, Downcast},
-    define_shared_wrapper,
-    error::FrameworkError,
-};
+use crate::{core::color::Color, define_shared_wrapper, error::FrameworkError};
 use bytemuck::Pod;
+use fyrox_core::define_as_any_trait;
 
 /// A kind of GPU texture.
 #[derive(Copy, Clone)]
@@ -565,6 +562,8 @@ impl Default for GpuTextureDescriptor<'_> {
     }
 }
 
+define_as_any_trait!(GpuTextureAsAny => GpuTextureTrait);
+
 /// Texture is an image that used to fill faces to add details to them. It could also be used as a
 /// generic and mostly unlimited capacity storage for arbitrary data.
 ///
@@ -607,7 +606,7 @@ impl Default for GpuTextureDescriptor<'_> {
 ///     })
 /// }
 /// ```
-pub trait GpuTextureTrait: Downcast {
+pub trait GpuTextureTrait: GpuTextureAsAny {
     /// Max samples for anisotropic filtering. Default value is 16.0 (max). However, real value passed
     /// to GPU will be clamped to maximum supported by current GPU. To disable anisotropic filtering
     /// set this to 1.0. Typical values are 2.0, 4.0, 8.0, 16.0.

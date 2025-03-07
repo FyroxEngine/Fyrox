@@ -1442,12 +1442,12 @@ mod test {
         PrefabData, SceneGraph, SceneGraphNode,
     };
     use fyrox_core::{
-        export_derived_entity_list,
+        define_as_any_trait, export_derived_entity_list,
         pool::{ErasedHandle, Handle, PayloadContainer, Pool},
         reflect::{prelude::*, DerivedEntityListProvider},
         type_traits::prelude::*,
         visitor::prelude::*,
-        Downcast, NameProvider,
+        NameProvider,
     };
     use fyrox_resource::{untyped::UntypedResource, Resource, ResourceData};
     use std::{
@@ -1486,8 +1486,10 @@ mod test {
         }
     }
 
+    define_as_any_trait!(NodeAsAny => NodeTrait);
+
     pub trait NodeTrait:
-        BaseNodeTrait + Reflect + Visit + ComponentProvider + DerivedEntityListProvider + Downcast
+        BaseNodeTrait + Reflect + Visit + ComponentProvider + DerivedEntityListProvider + NodeAsAny
     {
     }
 
@@ -1657,6 +1659,7 @@ mod test {
         type SceneGraph = Graph;
         type ResourceData = Graph;
 
+        #[allow(clippy::explicit_auto_deref)] // False-positive
         fn base(&self) -> &Self::Base {
             &**self
         }
@@ -1842,17 +1845,13 @@ mod test {
         fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
             self.nodes
                 .try_borrow(handle)
-                .map(|n| Downcast::as_any(n.0.deref()).type_id())
+                .map(|n| NodeAsAny::as_any(n.0.deref()).type_id())
         }
 
         fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
-            self.nodes.try_borrow(handle).map(|n| {
-                n.0.deref()
-                    .query_derived_entity_list()
-                    .iter()
-                    .cloned()
-                    .collect::<Vec<_>>()
-            })
+            self.nodes
+                .try_borrow(handle)
+                .map(|n| n.0.deref().query_derived_entity_list().to_vec())
         }
     }
 
@@ -1873,14 +1872,14 @@ mod test {
         fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T> {
             self.nodes
                 .try_borrow(handle.transmute())
-                .and_then(|n| Downcast::as_any(n.0.deref()).downcast_ref::<T>())
+                .and_then(|n| NodeAsAny::as_any(n.0.deref()).downcast_ref::<T>())
         }
 
         #[inline]
         fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T> {
             self.nodes
                 .try_borrow_mut(handle.transmute())
-                .and_then(|n| Downcast::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
+                .and_then(|n| NodeAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
         }
     }
 

@@ -47,7 +47,7 @@ use crate::{
     resource::texture::TextureResource,
 };
 use fxhash::FxHashMap;
-use fyrox_core::Downcast;
+use fyrox_resource::ResourceDataAsAny;
 use lazy_static::lazy_static;
 use std::{
     error::Error,
@@ -1228,7 +1228,7 @@ impl MaterialResourceExtension for MaterialResource {
             }
             ResourceState::Ok(ref material) => MaterialResource::new_ok(
                 kind,
-                Downcast::as_any(&**material)
+                ResourceDataAsAny::as_any(&**material)
                     .downcast_ref::<Material>()
                     .unwrap()
                     .clone(),

@@ -25,14 +25,16 @@ use crate::{
         sstorage::ImmutableString,
         type_traits::prelude::*,
         visitor::prelude::*,
-        Downcast,
     },
     define_shared_wrapper,
 };
+use fyrox_core::define_as_any_trait;
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
-pub trait GpuProgramTrait: Downcast {}
+define_as_any_trait!(GpuProgramAsAny => GpuProgramTrait);
+
+pub trait GpuProgramTrait: GpuProgramAsAny {}
 
 /// A fallback value for the sampler.
 ///

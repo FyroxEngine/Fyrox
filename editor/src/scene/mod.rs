@@ -100,8 +100,8 @@ use crate::{
     Message, Settings,
 };
 use fyrox::asset::untyped::ResourceKind;
+use fyrox::core::define_as_any_trait;
 use fyrox::core::reflect::DerivedEntityListProvider;
-use fyrox::core::Downcast;
 use fyrox::graph::SceneGraphNode;
 use fyrox::gui::message::UiMessage;
 use std::{
@@ -1291,7 +1291,9 @@ impl SceneController for GameScene {
     }
 }
 
-pub trait BaseSelectionContainer: Downcast + Debug {
+define_as_any_trait!(SelectionContainerAsAny => SelectionContainer);
+
+pub trait BaseSelectionContainer: SelectionContainerAsAny + Debug {
     fn clone_boxed(&self) -> Box<dyn SelectionContainer>;
     fn eq_ref(&self, other: &dyn SelectionContainer) -> bool;
 }

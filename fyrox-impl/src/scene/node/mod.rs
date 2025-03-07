@@ -62,6 +62,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::define_as_any_trait;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -71,18 +72,14 @@ use std::{
 pub mod constructor;
 pub mod container;
 
+define_as_any_trait!(NodeAsAny => BaseNodeTrait);
+
 /// A set of useful methods that is possible to auto-implement.
-pub trait BaseNodeTrait: Any + Debug + Deref<Target = Base> + DerefMut + Send {
+pub trait BaseNodeTrait: NodeAsAny + Debug + Deref<Target = Base> + DerefMut + Send {
     /// This method creates raw copy of a node, it should never be called in normal circumstances
     /// because internally nodes may (and most likely will) contain handles to other nodes. To
     /// correctly clone a node you have to use [copy_node](struct.Graph.html#method.copy_node).
     fn clone_box(&self) -> Node;
-
-    /// Casts self as `Any`
-    fn as_any_ref(&self) -> &dyn Any;
-
-    /// Casts self as `Any`
-    fn as_any_ref_mut(&mut self) -> &mut dyn Any;
 }
 
 impl<T> BaseNodeTrait for T
@@ -91,14 +88,6 @@ where
 {
     fn clone_box(&self) -> Node {
         Node(Box::new(self.clone()))
-    }
-
-    fn as_any_ref(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_ref_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }
 
@@ -467,7 +456,7 @@ impl Node {
     /// ```
     #[inline]
     pub fn cast<T: NodeTrait>(&self) -> Option<&T> {
-        self.0.as_any_ref().downcast_ref::<T>()
+        NodeAsAny::as_any(self.0.deref()).downcast_ref::<T>()
     }
 
     /// Performs downcasting to a particular type.
@@ -484,7 +473,7 @@ impl Node {
     /// ```
     #[inline]
     pub fn cast_mut<T: NodeTrait>(&mut self) -> Option<&mut T> {
-        self.0.as_any_ref_mut().downcast_mut::<T>()
+        NodeAsAny::as_any_mut(self.0.deref_mut()).downcast_mut::<T>()
     }
 
     pub(crate) fn mark_inheritable_variables_as_modified(&mut self) {
@@ -570,15 +559,15 @@ impl Reflect for Node {
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self.0.into_any()
+        Reflect::into_any(self.0)
     }
 
     fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
-        self.0.deref().as_any(func)
+        Reflect::as_any(self.0.deref(), func)
     }
 
     fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
-        self.0.deref_mut().as_any_mut(func)
+        Reflect::as_any_mut(self.0.deref_mut(), func)
     }
 
     fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {

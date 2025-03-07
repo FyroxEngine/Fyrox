@@ -25,10 +25,11 @@
 
 use crate::{
     buffer::BufferUsage,
-    core::{array_as_u8_slice, math::TriangleDefinition, Downcast},
+    core::{array_as_u8_slice, math::TriangleDefinition},
     define_shared_wrapper, ElementKind,
 };
 use bytemuck::Pod;
+use fyrox_core::define_as_any_trait;
 use std::mem::size_of;
 
 /// Attribute kind of a vertex.
@@ -135,6 +136,8 @@ pub struct GeometryBufferDescriptor<'a> {
     pub elements: ElementsDescriptor<'a>,
 }
 
+define_as_any_trait!(GpuGeometryBufferAsAny => GpuGeometryBufferTrait);
+
 /// Geometry buffer is a mesh buffer, that could contain multiple vertex buffers and only one
 /// element buffer. Element could be either a line or triangle (the most commonly used one).
 ///
@@ -197,7 +200,7 @@ pub struct GeometryBufferDescriptor<'a> {
 ///     })
 /// }
 /// ```
-pub trait GpuGeometryBufferTrait: Downcast {
+pub trait GpuGeometryBufferTrait: GpuGeometryBufferAsAny {
     /// Write untyped data to a vertex buffer with the given index.
     fn set_buffer_data(&self, buffer: usize, data: &[u8]);
 

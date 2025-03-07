@@ -29,7 +29,6 @@ use crate::query::GpuQuery;
 use crate::read_buffer::GpuAsyncReadBuffer;
 use crate::{
     buffer::{BufferKind, BufferUsage, GpuBuffer},
-    core::Downcast,
     error::FrameworkError,
     framebuffer::{Attachment, GpuFrameBuffer},
     geometry_buffer::GeometryBufferDescriptor,
@@ -41,6 +40,7 @@ use crate::{
     stats::PipelineStatistics,
     PolygonFace, PolygonFillMode,
 };
+use fyrox_core::define_as_any_trait;
 use std::rc::{Rc, Weak};
 
 /// Graphics server capabilities.
@@ -58,13 +58,15 @@ pub struct ServerCapabilities {
 /// A shared reference to a graphics server.
 pub type SharedGraphicsServer = Rc<dyn GraphicsServer>;
 
+define_as_any_trait!(GraphicsServerAsAny => GraphicsServer);
+
 /// Graphics server is an abstraction layer over various graphics APIs used on different platforms
 /// supported by the engine. Such abstraction layer tries to provide more or less high-level and
 /// unified interface, that can be used to build graphics pipelines quickly and more or less efficiently.
 ///
 /// Low-level GAPI-specific optimizations could be performed using direct access to the underlying API,
 /// by downcasting to a specific type.
-pub trait GraphicsServer: Downcast {
+pub trait GraphicsServer: GraphicsServerAsAny {
     /// Creates a GPU buffer with the given size and kind. Usage is a hint to the video driver
     /// that allows to perform some potential performance optimizations.
     fn create_buffer(

@@ -1451,6 +1451,7 @@ mod test {
     #[derived_types(type_name = "Derived")]
     struct Base;
 
+    #[allow(dead_code)]
     struct Derived(Box<Base>);
 
     #[test]

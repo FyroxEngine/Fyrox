@@ -24,7 +24,7 @@ use crate::{
             algebra::{Vector2, Vector3},
             pool::Handle,
             uuid::Uuid,
-            Downcast, TypeUuidProvider,
+            TypeUuidProvider,
         },
         gui::{
             border::BorderBuilder,
@@ -46,6 +46,7 @@ use crate::{
     settings::Settings,
     Engine, Message,
 };
+use fyrox::core::define_as_any_trait;
 
 pub mod gizmo;
 pub mod move_mode;
@@ -56,7 +57,9 @@ pub mod scale_mode;
 pub mod select_mode;
 pub mod terrain;
 
-pub trait InteractionMode: Downcast {
+define_as_any_trait!(InteractionModeAsAny => InteractionMode);
+
+pub trait InteractionMode: InteractionModeAsAny {
     fn on_left_mouse_button_down(
         &mut self,
         editor_selection: &Selection,

@@ -23,21 +23,18 @@
 use crate::{
     core::uuid::Uuid, io::ResourceIo, options::BaseImportOptions, state::LoadError, ResourceData,
 };
-use fyrox_core::Downcast;
+
+use fyrox_core::define_as_any_trait;
 use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc};
 
 #[cfg(target_arch = "wasm32")]
-#[doc(hidden)]
-pub trait BaseResourceLoader: Downcast {}
+define_as_any_trait!(ResourceLoaderAsAny => ResourceLoader);
 
 #[cfg(not(target_arch = "wasm32"))]
-#[doc(hidden)]
-pub trait BaseResourceLoader: Send + Downcast {}
-
-impl<T> BaseResourceLoader for T where T: ResourceLoader {}
+define_as_any_trait!(ResourceLoaderAsAny: Send => ResourceLoader);
 
 /// Trait for resource loading.
-pub trait ResourceLoader: BaseResourceLoader {
+pub trait ResourceLoader: ResourceLoaderAsAny {
     /// Returns a list of file extensions supported by the loader. Resource manager will use this list
     /// to pick the correct resource loader when the user requests a resource.
     fn extensions(&self) -> &[&str];

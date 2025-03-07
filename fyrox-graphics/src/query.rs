@@ -3,8 +3,8 @@
 
 #![warn(missing_docs)]
 
-use crate::core::Downcast;
 use crate::define_shared_wrapper;
+use fyrox_core::define_as_any_trait;
 use std::fmt::Debug;
 
 /// Kind of a GPU query.
@@ -27,6 +27,8 @@ pub enum QueryResult {
     /// A flag that defines whether the rendering operation produced any pixels or not.
     AnySamplesPassed(bool),
 }
+
+define_as_any_trait!(GpuQueryAsAny => GpuQueryTrait);
 
 /// A query object is used to fetch some data from rendering operations asynchronously. Usually it
 /// is used to perform occlusion queries.
@@ -66,7 +68,7 @@ pub enum QueryResult {
 /// Keep in mind that you should always re-use the queries instead of creating them on the fly!
 /// This is much more efficient, because it removes all redundant memory allocations and calls
 /// to the GPU driver.
-pub trait GpuQueryTrait: Downcast + Debug {
+pub trait GpuQueryTrait: GpuQueryAsAny + Debug {
     /// Begins a query of the given kind. All drawing commands must be enclosed withing a pair of
     /// this method and [`Self::end`] calls. See [`QueryKind`] for more info.
     fn begin(&self, kind: QueryKind);

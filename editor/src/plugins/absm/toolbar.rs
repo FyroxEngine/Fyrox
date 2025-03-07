@@ -249,7 +249,7 @@ impl Toolbar {
                     name: "root".to_string(),
                     handle: Default::default(),
                     inner_type_id: TypeId::of::<N>(),
-                    derived_type_ids: N::derived_entity_list().iter().cloned().collect::<Vec<_>>(),
+                    derived_type_ids: N::derived_entity_list().to_vec(),
                     children: vec![],
                 };
 

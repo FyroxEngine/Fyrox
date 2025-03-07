@@ -21,7 +21,7 @@
 use crate::{
     command::{Command, CommandStack},
     fyrox::{
-        core::{algebra::Vector2, math::Rect, pool::Handle, reflect::Reflect, Downcast},
+        core::{algebra::Vector2, math::Rect, pool::Handle, reflect::Reflect},
         engine::Engine,
         gui::{
             inspector::PropertyChanged,
@@ -35,9 +35,12 @@ use crate::{
     settings::{keys::KeyBindings, Settings},
     Message,
 };
+use fyrox::core::define_as_any_trait;
 use std::path::Path;
 
-pub trait SceneController: Downcast {
+define_as_any_trait!(SceneControllerAsAny => SceneController);
+
+pub trait SceneController: SceneControllerAsAny {
     fn on_key_up(&mut self, key: KeyCode, engine: &mut Engine, key_bindings: &KeyBindings) -> bool;
 
     fn on_key_down(
