@@ -32,6 +32,7 @@ pub mod triangulator;
 
 use crate::ray::IntersectionResult;
 use bytemuck::{Pod, Zeroable};
+use fyrox_reflect::{impl_reflect, FieldInfo, Reflect};
 use nalgebra::{
     Matrix3, Matrix4, RealField, Scalar, SimdRealField, UnitQuaternion, Vector2, Vector3,
 };
@@ -445,6 +446,10 @@ impl Hash for TriangleEdge {
 #[repr(C)]
 pub struct TriangleDefinition(pub [u32; 3]);
 
+impl_reflect!(
+    pub struct TriangleDefinition(pub [u32; 3]);
+);
+
 impl TriangleDefinition {
     #[inline]
     pub fn indices(&self) -> &[u32] {
@@ -618,6 +623,14 @@ pub struct SmoothAngle {
     /// Turn speed in radians per second (rad/s)
     pub speed: f32,
 }
+
+impl_reflect!(
+    pub struct SmoothAngle {
+        angle: f32,
+        target: f32,
+        speed: f32,
+    }
+);
 
 impl SmoothAngle {
     #[inline]

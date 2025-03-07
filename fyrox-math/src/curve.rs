@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{cubicf, inf_sup_cubicf, lerpf, Rect};
+use fyrox_reflect::{impl_reflect, FieldInfo, Reflect};
 use std::cmp::Ordering;
 use uuid::Uuid;
 
@@ -42,6 +43,17 @@ pub enum CurveKeyKind {
         right_tangent: f32,
     },
 }
+
+impl_reflect!(
+    pub enum CurveKeyKind {
+        Constant,
+        Linear,
+        Cubic {
+            left_tangent: f32,
+            right_tangent: f32,
+        },
+    }
+);
 
 impl CurveKeyKind {
     #[inline]
@@ -156,6 +168,15 @@ pub struct Curve {
     pub name: String,
     pub keys: Vec<CurveKey>,
 }
+
+impl_reflect!(
+    #[reflect(hide_all)]
+    pub struct Curve {
+        pub id: Uuid,
+        pub name: String,
+        pub keys: Vec<CurveKey>,
+    }
+);
 
 impl Default for Curve {
     fn default() -> Self {
