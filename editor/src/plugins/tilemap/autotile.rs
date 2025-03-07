@@ -499,7 +499,12 @@ impl BrushMacro for AutoTileMacro {
         }
     }
 
-    fn begin_update(&mut self, context: &BrushMacroInstance, tile_map: &TileMapContext) {
+    fn begin_update(
+        &mut self,
+        context: &BrushMacroInstance,
+        stamp: &Stamp,
+        tile_map: &TileMapContext,
+    ) {
         let Some(tile_set) = tile_map.tile_set() else {
             self.context.clear();
             return;
@@ -515,6 +520,13 @@ impl BrushMacro for AutoTileMacro {
             return;
         };
         let frequency_property = instance.frequency_property;
+        // Check that at least one cell in the stamp is part of this instance.
+        if !stamp.values().any(|StampElement { brush_cell, .. }| {
+            brush_cell.is_some_and(|handle| instance.cells.contains_key(&handle))
+        }) {
+            self.context.clear();
+            return;
+        }
         Log::verify(self.context.fill_pattern_map(
             &tile_set.data_ref(),
             pattern_property,
@@ -528,6 +540,9 @@ impl BrushMacro for AutoTileMacro {
         update: &mut MacroTilesUpdate,
         tile_map: &TileMap,
     ) {
+        if self.context.is_empty() {
+            return;
+        }
         let Some(instance) = &context.settings() else {
             return;
         };

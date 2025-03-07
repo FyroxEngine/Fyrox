@@ -475,6 +475,10 @@ impl<Ter, Pat, Tile> Default for AutoTileContext<Ter, Pat, Tile> {
 }
 
 impl<Ter: Eq + Hash, Pat: Eq + Hash + Clone, Tile> AutoTileContext<Ter, Pat, Tile> {
+    /// True if this context contains no patterns.
+    pub fn is_empty(&self) -> bool {
+        self.patterns.is_empty()
+    }
     /// Make the context empty in preparation for building a new context.
     pub fn clear(&mut self) {
         for (_, mut list) in self.patterns.drain() {

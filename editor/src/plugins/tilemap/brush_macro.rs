@@ -343,7 +343,12 @@ pub trait BrushMacro: 'static + Send + Sync {
     /// stored in the current brush when the user presses the mouse button down to begin a stroke
     /// and gives the macros a chance to prepare themselves for the series of [`amend_update`](BrushMacro::amend_update)
     /// calls that will follow.
-    fn begin_update(&mut self, context: &BrushMacroInstance, tile_map: &TileMapContext);
+    fn begin_update(
+        &mut self,
+        context: &BrushMacroInstance,
+        stamp: &Stamp,
+        tile_map: &TileMapContext,
+    );
     /// This is called for every macro instance whenever the user uses a brush to update a tile map.
     /// - `context`: The macro instance.
     /// - `update`: The change that the user is attempting to make to the tile map. Modify this to

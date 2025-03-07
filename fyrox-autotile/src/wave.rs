@@ -105,6 +105,7 @@ pub trait WfcConstrain {
     /// The type of patterns that wave function collapse will choose.
     type Pattern: Eq + Hash + Clone;
     /// Iterator for all the patterns that wave function collapse is allowed to choose.
+    /// Note that any pattern with a probability of 0.0 must not be included.
     fn all_patterns(&self) -> impl Iterator<Item = &Self::Pattern>;
     /// The probability of choosing a given pattern when there are no restrictions on patterns
     /// in any of the adjacent cells. This should be between 0.0 and 1.0.
@@ -567,9 +568,24 @@ impl<Pos: WavePosition + Debug, Pat: Clone + Hash + Eq + Debug> WfcPropagator<Po
         Con: WfcConstrain<Pattern = Pat, Offset = Pos::Offset>,
         Pos: Debug,
     {
-        for p in constraint.all_patterns() {
-            if pattern != p {
-                self.after_restrict(position, p, constraint)?;
+        for offset in Pos::all_offsets() {
+            let other_pos = position.clone() + offset.clone();
+            let Some(other_cell) = self.wave.get_mut(&other_pos) else {
+                continue;
+            };
+            other_cell
+                .pattern_possibilities
+                .retain(|other_pattern, _counter| {
+                    if !constraint.is_legal(pattern, &offset, other_pattern) {
+                        self.pending
+                            .push((other_pos.clone(), other_pattern.clone()));
+                        false
+                    } else {
+                        true
+                    }
+                });
+            if other_cell.pattern_possibilities.is_empty() {
+                return Err(WfcFailure);
             }
         }
         Ok(())
