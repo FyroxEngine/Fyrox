@@ -302,7 +302,6 @@ use fyrox_resource::{
     ResourceData,
 };
 use serde::{Deserialize, Serialize};
-use std::any::Any;
 use std::{
     any::TypeId,
     cell::{Ref, RefCell, RefMut},
@@ -335,7 +334,7 @@ use crate::message::RoutingStrategy;
 use crate::style::resource::{StyleResource, StyleResourceExt};
 use crate::style::{Style, DEFAULT_STYLE};
 pub use fyrox_animation as generic_animation;
-use fyrox_core::pool::ErasedHandle;
+use fyrox_core::pool::{BorrowAs, ErasedHandle};
 use fyrox_resource::untyped::ResourceKind;
 pub use fyrox_texture as texture;
 
@@ -3137,6 +3136,7 @@ impl AbstractSceneGraph for UserInterface {
 
 impl BaseSceneGraph for UserInterface {
     type Prefab = Self;
+    type NodeContainer = WidgetContainer;
     type Node = UiNode;
 
     #[inline]
@@ -3273,18 +3273,18 @@ impl SceneGraph for UserInterface {
         self.nodes.iter_mut()
     }
 
-    #[inline]
-    fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T> {
-        self.nodes
-            .try_borrow(handle.transmute())
-            .and_then(|n| ControlAsAny::as_any(Box::deref(&n.0)).downcast_ref::<T>())
+    fn typed_ref<Ref>(
+        &self,
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+    ) -> Option<&Ref> {
+        self.nodes.typed_ref(handle)
     }
 
-    #[inline]
-    fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T> {
-        self.nodes
-            .try_borrow_mut(handle.transmute())
-            .and_then(|n| ControlAsAny::as_any_mut(Box::deref_mut(&mut n.0)).downcast_mut::<T>())
+    fn typed_mut<Ref>(
+        &mut self,
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+    ) -> Option<&mut Ref> {
+        self.nodes.typed_mut(handle)
     }
 }
 

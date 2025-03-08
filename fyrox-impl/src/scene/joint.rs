@@ -428,13 +428,13 @@ impl NodeTrait for Joint {
     }
 
     fn validate(&self, scene: &Scene) -> Result<(), String> {
-        if scene.graph.try_cast(self.body1()).is_none() {
+        if scene.graph.typed_ref(self.body1()).is_none() {
             return Err("3D Joint has invalid or unassigned handle to a \
             first body, the joint will not operate!"
                 .to_string());
         }
 
-        if scene.graph.try_cast(self.body2()).is_none() {
+        if scene.graph.typed_ref(self.body2()).is_none() {
             return Err("3D Joint has invalid or unassigned handle to a \
             second body, the joint will not operate!"
                 .to_string());

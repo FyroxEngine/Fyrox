@@ -25,7 +25,7 @@
 pub mod constructor;
 
 use fxhash::FxHashMap;
-use fyrox_core::pool::ErasedHandle;
+use fyrox_core::pool::{BorrowAs, ErasedHandle, PayloadContainer};
 use fyrox_core::reflect::{DerivedEntityListProvider, ReflectHandle};
 use fyrox_core::{
     log::{Log, MessageKind},
@@ -685,6 +685,7 @@ pub trait AbstractSceneGraph: 'static {
 
 pub trait BaseSceneGraph: AbstractSceneGraph {
     type Prefab: PrefabData<Graph = Self>;
+    type NodeContainer: PayloadContainer<Element = Self::Node>;
     type Node: SceneGraphNode<SceneGraph = Self, ResourceData = Self::Prefab>;
 
     /// Returns actual type id of the node.
@@ -835,9 +836,15 @@ pub trait SceneGraph: BaseSceneGraph {
     /// of nodes. It does *not* perform any tree traversal!
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
 
-    fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T>;
+    fn typed_ref<Ref>(
+        &self,
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+    ) -> Option<&Ref>;
 
-    fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T>;
+    fn typed_mut<Ref>(
+        &mut self,
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+    ) -> Option<&mut Ref>;
 
     /// Tries to borrow a node and fetch its component of specified type.
     #[inline]
@@ -1441,6 +1448,7 @@ mod test {
         AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping,
         PrefabData, SceneGraph, SceneGraphNode,
     };
+    use fyrox_core::pool::BorrowAs;
     use fyrox_core::{
         define_as_any_trait, export_derived_entity_list,
         pool::{ErasedHandle, Handle, PayloadContainer, Pool},
@@ -1769,6 +1777,7 @@ mod test {
 
     impl BaseSceneGraph for Graph {
         type Prefab = Graph;
+        type NodeContainer = NodeContainer;
         type Node = Node;
 
         fn root(&self) -> Handle<Self::Node> {
@@ -1868,18 +1877,18 @@ mod test {
             self.nodes.iter_mut()
         }
 
-        #[inline]
-        fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T> {
-            self.nodes
-                .try_borrow(handle.transmute())
-                .and_then(|n| NodeAsAny::as_any(n.0.deref()).downcast_ref::<T>())
+        fn typed_ref<Ref>(
+            &self,
+            handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+        ) -> Option<&Ref> {
+            self.nodes.typed_ref(handle)
         }
 
-        #[inline]
-        fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T> {
-            self.nodes
-                .try_borrow_mut(handle.transmute())
-                .and_then(|n| NodeAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
+        fn typed_mut<Ref>(
+            &mut self,
+            handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+        ) -> Option<&mut Ref> {
+            self.nodes.typed_mut(handle)
         }
     }
 

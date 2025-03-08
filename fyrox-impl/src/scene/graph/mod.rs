@@ -77,6 +77,7 @@ use crate::{
 };
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_core::pool::BorrowAs;
 use fyrox_graph::SceneGraphNode;
 use std::ops::{Deref, DerefMut};
 use std::{
@@ -126,28 +127,24 @@ impl GraphPerformanceStatistics {
 /// A helper type alias for node pool.
 pub type NodePool = Pool<Node, NodeContainer>;
 
-/// A trait, that allows accessing a node pool using typed node handles (`Handle<RigidBody>` instead
-/// of "untyped" `Handle<Node>`).
-pub trait NodePoolExt {
-    /// Allows accessing a node at the given typed handle. Internally performs an attempt to downcast
-    /// the node to the given type.
-    fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T>;
+impl BorrowAs<Node, NodeContainer, Node> for Handle<Node> {
+    fn borrow_as_ref(self, pool: &NodePool) -> Option<&Node> {
+        pool.try_borrow(self)
+    }
 
-    /// Allows accessing a node at the given typed handle. Internally performs an attempt to downcast
-    /// the node to the given type.
-    fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T>;
+    fn borrow_as_mut(self, pool: &mut NodePool) -> Option<&mut Node> {
+        pool.try_borrow_mut(self)
+    }
 }
 
-impl NodePoolExt for NodePool {
-    #[inline]
-    fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T> {
-        self.try_borrow(handle.transmute())
+impl<T: NodeTrait> BorrowAs<Node, NodeContainer, T> for Handle<T> {
+    fn borrow_as_ref(self, pool: &NodePool) -> Option<&T> {
+        pool.try_borrow(self.transmute())
             .and_then(|n| NodeAsAny::as_any(n.0.deref()).downcast_ref::<T>())
     }
 
-    #[inline]
-    fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T> {
-        self.try_borrow_mut(handle.transmute())
+    fn borrow_as_mut(self, pool: &mut NodePool) -> Option<&mut T> {
+        pool.try_borrow_mut(self.transmute())
             .and_then(|n| NodeAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
     }
 }
@@ -1750,6 +1747,7 @@ impl AbstractSceneGraph for Graph {
 
 impl BaseSceneGraph for Graph {
     type Prefab = Model;
+    type NodeContainer = NodeContainer;
     type Node = Node;
 
     #[inline]
@@ -1903,19 +1901,24 @@ impl SceneGraph for Graph {
         self.pool.iter_mut()
     }
 
-    #[inline]
-    fn try_cast<T: Any>(&self, handle: Handle<T>) -> Option<&T> {
-        self.pool.try_cast(handle)
+    fn typed_ref<Ref>(
+        &self,
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+    ) -> Option<&Ref> {
+        self.pool.typed_ref(handle)
     }
 
-    #[inline]
-    fn try_cast_mut<T: Any>(&mut self, handle: Handle<T>) -> Option<&mut T> {
-        self.pool.try_cast_mut(handle)
+    fn typed_mut<Ref>(
+        &mut self,
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+    ) -> Option<&mut Ref> {
+        self.pool.typed_mut(handle)
     }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::scene::rigidbody::{RigidBody, RigidBodyBuilder};
     use crate::{
         asset::{io::FsResourceIo, manager::ResourceManager},
         core::{
@@ -2394,9 +2397,33 @@ mod test {
         assert!(graph[c].global_visibility());
         assert!(graph[d].global_visibility());
 
-        assert!(!graph[a].is_globally_enabled());
+        assert!(!graph.pool.typed_ref(a).unwrap().is_globally_enabled());
         assert!(!graph[b].is_globally_enabled());
         assert!(!graph[c].is_globally_enabled());
         assert!(!graph[d].is_globally_enabled());
+    }
+
+    #[test]
+    fn test_typed_borrow() {
+        let mut graph = Graph::new();
+        let pivot = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
+        let rigid_body = RigidBodyBuilder::new(BaseBuilder::new()).build(&mut graph);
+
+        assert!(graph.pool.typed_ref(pivot).is_some());
+        assert!(graph.pool.typed_ref(pivot.transmute::<Pivot>()).is_some());
+        assert!(graph
+            .pool
+            .typed_ref(pivot.transmute::<RigidBody>())
+            .is_none());
+
+        assert!(graph.pool.typed_ref(rigid_body).is_some());
+        assert!(graph
+            .pool
+            .typed_ref(rigid_body.transmute::<RigidBody>())
+            .is_some());
+        assert!(graph
+            .pool
+            .typed_ref(rigid_body.transmute::<Pivot>())
+            .is_none());
     }
 }
