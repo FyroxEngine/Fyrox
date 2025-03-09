@@ -74,14 +74,17 @@ where
     free_stack: Vec<u32>,
 }
 
-pub trait BorrowAs<Object, Container: PayloadContainer<Element = Object>, T> {
-    fn borrow_as_ref(self, pool: &Pool<Object, Container>) -> Option<&T>;
-    fn borrow_as_mut(self, pool: &mut Pool<Object, Container>) -> Option<&mut T>;
+pub trait BorrowAs<Object, Container: PayloadContainer<Element = Object>> {
+    type Target;
+    fn borrow_as_ref(self, pool: &Pool<Object, Container>) -> Option<&Self::Target>;
+    fn borrow_as_mut(self, pool: &mut Pool<Object, Container>) -> Option<&mut Self::Target>;
 }
 
-impl<Object, Container: PayloadContainer<Element = Object> + 'static>
-    BorrowAs<Object, Container, Object> for Handle<Object>
+impl<Object, Container: PayloadContainer<Element = Object> + 'static> BorrowAs<Object, Container>
+    for Handle<Object>
 {
+    type Target = Object;
+
     fn borrow_as_ref(self, pool: &Pool<Object, Container>) -> Option<&Object> {
         pool.try_borrow(self)
     }
@@ -381,12 +384,15 @@ where
     }
 
     #[inline]
-    pub fn typed_ref<Ref>(&self, handle: impl BorrowAs<T, P, Ref>) -> Option<&Ref> {
+    pub fn typed_ref<Ref>(&self, handle: impl BorrowAs<T, P, Target = Ref>) -> Option<&Ref> {
         handle.borrow_as_ref(self)
     }
 
     #[inline]
-    pub fn typed_mut<Ref>(&mut self, handle: impl BorrowAs<T, P, Ref>) -> Option<&mut Ref> {
+    pub fn typed_mut<Ref>(
+        &mut self,
+        handle: impl BorrowAs<T, P, Target = Ref>,
+    ) -> Option<&mut Ref> {
         handle.borrow_as_mut(self)
     }
 

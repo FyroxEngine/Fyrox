@@ -841,12 +841,12 @@ pub trait SceneGraph: BaseSceneGraph {
 
     fn typed_ref<Ref>(
         &self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
     ) -> Option<&Ref>;
 
     fn typed_mut<Ref>(
         &mut self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
     ) -> Option<&mut Ref>;
 
     /// Tries to borrow a node and fetch its component of specified type.
@@ -1888,14 +1888,14 @@ mod test {
 
         fn typed_ref<Ref>(
             &self,
-            handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+            handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
         ) -> Option<&Ref> {
             self.nodes.typed_ref(handle)
         }
 
         fn typed_mut<Ref>(
             &mut self,
-            handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+            handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
         ) -> Option<&mut Ref> {
             self.nodes.typed_mut(handle)
         }

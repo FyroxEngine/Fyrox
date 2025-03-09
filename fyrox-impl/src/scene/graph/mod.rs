@@ -127,7 +127,9 @@ impl GraphPerformanceStatistics {
 /// A helper type alias for node pool.
 pub type NodePool = Pool<Node, NodeContainer>;
 
-impl<T: NodeTrait> BorrowAs<Node, NodeContainer, T> for Handle<T> {
+impl<T: NodeTrait> BorrowAs<Node, NodeContainer> for Handle<T> {
+    type Target = T;
+
     fn borrow_as_ref(self, pool: &NodePool) -> Option<&T> {
         pool.try_borrow(self.transmute())
             .and_then(|n| NodeAsAny::as_any(n.0.deref()).downcast_ref::<T>())
@@ -1636,43 +1638,19 @@ impl Graph {
     }
 }
 
-impl Index<Handle<Node>> for Graph {
-    type Output = Node;
-
-    #[inline]
-    fn index(&self, handle: Handle<Node>) -> &Self::Output {
-        self.typed_ref(handle)
-            .expect("The node handle is invalid or the object it points to has different type.")
-    }
-}
-
-impl IndexMut<Handle<Node>> for Graph {
-    #[inline]
-    fn index_mut(&mut self, handle: Handle<Node>) -> &mut Self::Output {
-        self.typed_mut(handle)
-            .expect("The node handle is invalid or the object it points to has different type.")
-    }
-}
-
-impl<T> Index<Handle<T>> for Graph
-where
-    T: NodeTrait,
-{
+impl<T, B: BorrowAs<Node, NodeContainer, Target = T>> Index<B> for Graph {
     type Output = T;
 
     #[inline]
-    fn index(&self, typed_handle: Handle<T>) -> &Self::Output {
+    fn index(&self, typed_handle: B) -> &Self::Output {
         self.typed_ref(typed_handle)
             .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
 
-impl<T> IndexMut<Handle<T>> for Graph
-where
-    T: NodeTrait,
-{
+impl<T, B: BorrowAs<Node, NodeContainer, Target = T>> IndexMut<B> for Graph {
     #[inline]
-    fn index_mut(&mut self, typed_handle: Handle<T>) -> &mut Self::Output {
+    fn index_mut(&mut self, typed_handle: B) -> &mut Self::Output {
         self.typed_mut(typed_handle)
             .expect("The node handle is invalid or the object it points to has different type.")
     }
@@ -1879,14 +1857,14 @@ impl SceneGraph for Graph {
 
     fn typed_ref<Ref>(
         &self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
     ) -> Option<&Ref> {
         self.pool.typed_ref(handle)
     }
 
     fn typed_mut<Ref>(
         &mut self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
     ) -> Option<&mut Ref> {
         self.pool.typed_mut(handle)
     }
