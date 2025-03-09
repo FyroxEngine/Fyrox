@@ -104,6 +104,17 @@ where
         file!()
     }
 
+    fn derived_entity_list() -> &'static [TypeId]
+    where
+        Self: Sized,
+    {
+        &[]
+    }
+
+    fn query_derived_entity_list(&self) -> &'static [TypeId] {
+        Self::derived_entity_list()
+    }
+
     #[inline]
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()

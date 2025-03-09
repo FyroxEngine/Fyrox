@@ -55,6 +55,9 @@ pub struct TypeArgs {
 
     #[darling(default, rename = "ReflectList")]
     pub impl_as_list: bool,
+
+    #[darling(multiple)]
+    pub derived_type: Vec<Path>,
 }
 
 impl TypeArgs {

@@ -59,7 +59,7 @@ use crate::fyrox::{
         TileSource, TransTilesUpdate,
     },
 };
-use fyrox::core::reflect::DerivedEntityListProvider;
+
 use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
 
@@ -196,9 +196,9 @@ fn calc_slice_coord(position: f32, step: f32) -> usize {
 
 /// Displays a scrollable grid of till cells, with options to allow the tiles
 /// to be selected, dragged, and edits in various ways.
-#[derive(Clone, Visit, Reflect, TypeUuidProvider, ComponentProvider, DerivedEntityListProvider)]
+#[derive(Clone, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "5356a864-c026-4bd7-a4b1-30bacf77d8fa")]
-#[derived_types(type_name = "UiNode")]
+#[reflect(derived_type = "UiNode")]
 pub struct PaletteWidget {
     widget: Widget,
     #[visit(skip)]

@@ -43,7 +43,7 @@ use crate::fyrox::{
         BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
 };
-use fyrox::core::reflect::DerivedEntityListProvider;
+
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::{
@@ -296,8 +296,8 @@ where
     descriptors
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct PropertySelector {
     widget: Widget,
     #[reflect(hidden)]
@@ -500,8 +500,8 @@ impl PropertySelectorBuilder {
     }
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct PropertySelectorWindow {
     #[component(include)]
     window: Window,

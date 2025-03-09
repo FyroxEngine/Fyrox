@@ -47,7 +47,8 @@ use crate::{
     scene::{commands::ChangeSelectionCommand, Selection},
     send_sync_message,
 };
-use fyrox::core::reflect::DerivedEntityListProvider;
+
+use fyrox::core::reflect::Reflect;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::cmp::Ordering;
@@ -69,7 +70,7 @@ fn fetch_state_node_model_handle<N>(
     ui: &UserInterface,
 ) -> Handle<State<Handle<N>>>
 where
-    N: DerivedEntityListProvider + 'static,
+    N: Reflect + 'static,
 {
     ui.node(handle)
         .query_component::<AbsmNode<State<Handle<N>>>>()
@@ -128,7 +129,7 @@ impl StateGraphViewer {
         ui: &UserInterface,
         transition: Handle<Transition<Handle<N>>>,
     ) where
-        N: DerivedEntityListProvider + 'static,
+        N: Reflect + 'static,
     {
         if let Some(view_handle) = ui.node(self.canvas).children().iter().cloned().find(|c| {
             ui.node(*c)
@@ -146,7 +147,7 @@ impl StateGraphViewer {
 
     pub fn activate_state<N>(&self, ui: &UserInterface, state: Handle<State<Handle<N>>>)
     where
-        N: DerivedEntityListProvider + 'static,
+        N: Reflect + 'static,
     {
         for (state_view_handle, state_view_ref) in ui
             .node(self.canvas)
@@ -497,7 +498,7 @@ impl StateGraphViewer {
                                 .model_handle
                                 .into()
                     }) {
-                        fn find_state_view<N: DerivedEntityListProvider + 'static>(
+                        fn find_state_view<N: Reflect + 'static>(
                             state_handle: Handle<State<Handle<N>>>,
                             states: &[Handle<UiNode>],
                             ui: &UserInterface,

@@ -32,7 +32,7 @@ use crate::{
     widget::WidgetBuilder,
     BuildContext, Control, Thickness, UiNode, UserInterface, Widget,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -95,8 +95,8 @@ where
     define_constructor!(VecEditorMessage:Value => fn value(SVector<T, D>), layout: false);
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct VecEditor<T, const D: usize>
 where
     T: NumericType,

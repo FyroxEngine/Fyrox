@@ -39,7 +39,7 @@ use crate::fyrox::{
     },
     scene::sound::{AudioBus, AudioBusGraph},
 };
-use fyrox::core::reflect::DerivedEntityListProvider;
+
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::utils::make_dropdown_list_option;
@@ -60,8 +60,8 @@ impl AudioBusViewMessage {
     define_constructor!(AudioBusViewMessage:Name => fn name(String), layout: false);
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct AudioBusView {
     widget: Widget,
     pub bus: Handle<AudioBus>,

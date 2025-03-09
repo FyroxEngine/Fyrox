@@ -34,7 +34,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -155,8 +155,8 @@ impl ExpanderMessage {
 ///
 /// To switch expander state at runtime, send [`ExpanderMessage::Expand`] to your Expander widget instance with
 /// [`MessageDirection::ToWidget`].
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct Expander {
     /// Base widget of the expander.
     pub widget: Widget,

@@ -49,7 +49,7 @@ use crate::{
         Scene,
     },
 };
-use fyrox_core_derive::DerivedEntityListProvider;
+
 use fyrox_graph::constructor::ConstructorProvider;
 use rapier2d::geometry::ColliderHandle;
 use std::{
@@ -268,8 +268,8 @@ impl ColliderShape {
 
 /// Collider is a geometric entity that can be attached to a rigid body to allow participate it
 /// participate in contact generation, collision response and proximity queries.
-#[derive(Reflect, Visit, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "Node")]
+#[derive(Reflect, Visit, Debug, ComponentProvider)]
+#[reflect(derived_type = "Node")]
 pub struct Collider {
     base: Base,
 

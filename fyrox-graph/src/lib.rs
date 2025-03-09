@@ -26,7 +26,7 @@ pub mod constructor;
 
 use fxhash::FxHashMap;
 use fyrox_core::pool::{BorrowAs, ErasedHandle, PayloadContainer};
-use fyrox_core::reflect::{DerivedEntityListProvider, ReflectHandle};
+use fyrox_core::reflect::ReflectHandle;
 use fyrox_core::{
     log::{Log, MessageKind},
     pool::Handle,
@@ -92,7 +92,7 @@ impl<N> Clone for NodeHandleMap<N> {
 
 impl<N> NodeHandleMap<N>
 where
-    N: Reflect + NameProvider + DerivedEntityListProvider,
+    N: Reflect + NameProvider,
 {
     /// Adds new `original -> copy` handle mapping.
     #[inline]
@@ -473,7 +473,7 @@ pub trait AbstractSceneNode: ComponentProvider + Reflect + NameProvider {}
 
 impl<T: SceneGraphNode> AbstractSceneNode for T {}
 
-pub trait SceneGraphNode: AbstractSceneNode + DerivedEntityListProvider + Clone + 'static {
+pub trait SceneGraphNode: AbstractSceneNode + Clone + 'static {
     type Base: Clone;
     type SceneGraph: SceneGraph<Node = Self>;
     type ResourceData: PrefabData<Graph = Self::SceneGraph>;
@@ -1453,9 +1453,9 @@ mod test {
     };
     use fyrox_core::pool::BorrowAs;
     use fyrox_core::{
-        define_as_any_trait, export_derived_entity_list,
+        define_as_any_trait,
         pool::{ErasedHandle, Handle, PayloadContainer, Pool},
-        reflect::{prelude::*, DerivedEntityListProvider},
+        reflect::prelude::*,
         type_traits::prelude::*,
         visitor::prelude::*,
         NameProvider,
@@ -1499,13 +1499,9 @@ mod test {
 
     define_as_any_trait!(NodeAsAny => NodeTrait);
 
-    pub trait NodeTrait:
-        BaseNodeTrait + Reflect + Visit + ComponentProvider + DerivedEntityListProvider + NodeAsAny
-    {
-    }
+    pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider + NodeAsAny {}
 
-    #[derive(ComponentProvider, Debug, DerivedEntityListProvider)]
-    #[derived_types()]
+    #[derive(ComponentProvider, Debug)]
     pub struct Node(Box<dyn NodeTrait>);
 
     impl Clone for Node {
@@ -1598,6 +1594,14 @@ mod test {
 
         fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
             self.0.deref_mut().field_mut(name, func)
+        }
+
+        fn derived_entity_list() -> &'static [TypeId] {
+            &[]
+        }
+
+        fn query_derived_entity_list(&self) -> &'static [TypeId] {
+            Self::derived_entity_list()
         }
     }
 
@@ -1953,11 +1957,10 @@ mod test {
     }
 
     #[derive(Clone, Reflect, Visit, Default, Debug, ComponentProvider)]
+    #[reflect(derived_type = "Node")]
     pub struct Pivot {
         base: Base,
     }
-
-    export_derived_entity_list!(Pivot = [Node]);
 
     impl NodeTrait for Pivot {}
 
@@ -1976,11 +1979,10 @@ mod test {
     }
 
     #[derive(Clone, Reflect, Visit, Default, Debug, ComponentProvider)]
+    #[reflect(derived_type = "Node")]
     pub struct RigidBody {
         base: Base,
     }
-
-    export_derived_entity_list!(RigidBody = [Node]);
 
     impl NodeTrait for RigidBody {}
 
@@ -1999,13 +2001,12 @@ mod test {
     }
 
     #[derive(Clone, Reflect, Visit, Default, Debug, ComponentProvider)]
+    #[reflect(derived_type = "Node")]
     pub struct Joint {
         base: Base,
         connected_body1: Handle<RigidBody>,
         connected_body2: Handle<RigidBody>,
     }
-
-    export_derived_entity_list!(Joint = [Node]);
 
     impl NodeTrait for Joint {}
 

@@ -43,7 +43,7 @@ use crate::fyrox::{
     scene::animation::spritesheet::prelude::*,
 };
 use crate::plugins::inspector::editors::spritesheet::window::SpriteSheetFramesEditorWindow;
-use fyrox::core::reflect::DerivedEntityListProvider;
+
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -63,8 +63,8 @@ impl SpriteSheetFramesPropertyEditorMessage {
     define_constructor!(SpriteSheetFramesPropertyEditorMessage:Value => fn value(SpriteSheetFramesContainer), layout: false);
 }
 
-#[derive(Clone, Debug, Reflect, Visit, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Clone, Debug, Reflect, Visit, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct SpriteSheetFramesPropertyEditor {
     widget: Widget,
     edit_button: Handle<UiNode>,

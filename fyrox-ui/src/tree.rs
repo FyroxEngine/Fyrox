@@ -43,7 +43,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, MouseButton, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
@@ -358,8 +358,8 @@ impl TreeRootMessage {
 ///     ));
 /// }
 /// ```
-#[derive(Default, Debug, Clone, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Debug, Clone, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct Tree {
     /// Base widget of the tree.
     pub widget: Widget,
@@ -908,8 +908,8 @@ fn build_expander(
 ///     ));
 /// }
 /// ```
-#[derive(Default, Debug, Clone, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Debug, Clone, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct TreeRoot {
     /// Base widget of the tree root.
     pub widget: Widget,

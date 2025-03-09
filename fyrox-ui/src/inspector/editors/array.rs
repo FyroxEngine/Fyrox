@@ -39,7 +39,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_graph::BaseSceneGraph;
 use std::sync::Arc;
 use std::{
@@ -62,8 +62,8 @@ impl ArrayEditorMessage {
     define_constructor!(ArrayEditorMessage:ItemChanged => fn item_changed(index: usize, message: UiMessage), layout: false);
 }
 
-#[derive(Clone, Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct ArrayEditor {
     pub widget: Widget,
     pub items: Vec<Item>,

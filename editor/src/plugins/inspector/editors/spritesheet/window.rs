@@ -44,7 +44,7 @@ use crate::fyrox::{
     scene::animation::spritesheet::prelude::*,
 };
 use crate::plugins::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
-use fyrox::core::reflect::DerivedEntityListProvider;
+
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::{
@@ -52,8 +52,8 @@ use std::{
     sync::{mpsc::Sender, Arc},
 };
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct SpriteSheetFramesEditorWindow {
     #[component(include)]
     window: Window,

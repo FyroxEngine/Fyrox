@@ -20,7 +20,7 @@
 
 use crate::command::CommandContext;
 use crate::fyrox::{
-    core::{algebra::Vector2, pool::Handle, reflect::DerivedEntityListProvider},
+    core::{algebra::Vector2, pool::Handle},
     generic_animation::machine::{
         node::blendspace::BlendSpacePoint, BlendPose, IndexedBlendInput, PoseNode,
     },
@@ -30,6 +30,7 @@ use crate::{
     command::CommandTrait, define_push_element_to_collection_command,
     define_set_collection_element_command,
 };
+use fyrox::core::reflect::Reflect;
 use std::fmt::Debug;
 
 define_push_element_to_collection_command!(AddInputCommand<Handle<PoseNode<Handle<N>>>, IndexedBlendInput<Handle<N>>>(self, context) {
@@ -94,7 +95,7 @@ define_set_collection_element_command!(
 );
 
 #[derive(Debug)]
-pub struct RemoveBlendSpacePointCommand<N: DerivedEntityListProvider + Debug + 'static> {
+pub struct RemoveBlendSpacePointCommand<N: Reflect + Debug + 'static> {
     pub scene_node_handle: Handle<N>,
     pub layer_index: usize,
     pub node_handle: Handle<PoseNode<Handle<N>>>,
@@ -102,9 +103,7 @@ pub struct RemoveBlendSpacePointCommand<N: DerivedEntityListProvider + Debug + '
     pub point: Option<BlendSpacePoint<Handle<N>>>,
 }
 
-impl<N: DerivedEntityListProvider + Debug + 'static> CommandTrait
-    for RemoveBlendSpacePointCommand<N>
-{
+impl<N: Reflect + Debug + 'static> CommandTrait for RemoveBlendSpacePointCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Remove Blend Space Point".to_string()
     }

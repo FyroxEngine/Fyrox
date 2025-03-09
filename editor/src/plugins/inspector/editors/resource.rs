@@ -47,7 +47,7 @@ use crate::fyrox::{
 };
 use crate::plugins::inspector::EditorEnvironment;
 use crate::{asset::item::AssetItem, load_image, message::MessageSender, Message};
-use fyrox::core::reflect::DerivedEntityListProvider;
+
 use fyrox::core::PhantomDataSendSync;
 use std::{
     any::TypeId,
@@ -110,8 +110,8 @@ pub type ResourceLoaderCallback<T> = Arc<
     >,
 >;
 
-#[derive(Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct ResourceField<T>
 where
     T: TypedResourceData,

@@ -40,7 +40,6 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, MouseButton, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-use fyrox_core::export_derived_entity_list;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -152,6 +151,7 @@ impl CheckBoxMessage {
 /// 4) [`CheckBoxBuilder::with_undefined_mark`] - sets the widget that will be used as undefined icon.
 #[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "3a866ba8-7682-4ce7-954a-46360f5837dc")]
+#[reflect(derived_type = "UiNode")]
 pub struct CheckBox {
     /// Base widget of the check box.
     pub widget: Widget,
@@ -164,8 +164,6 @@ pub struct CheckBox {
     /// Check mark that is used when the state is `None`.
     pub undefined_mark: InheritableVariable<Handle<UiNode>>,
 }
-
-export_derived_entity_list!(CheckBox = [UiNode]);
 
 impl CheckBox {
     /// A name of style property, that defines corner radius of a checkbox.

@@ -51,7 +51,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph, SceneGraph,
@@ -477,8 +477,8 @@ pub trait InspectorEnvironment: Any + Send + Sync {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct Inspector {
     pub widget: Widget,
     #[reflect(hidden)]

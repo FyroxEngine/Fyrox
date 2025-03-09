@@ -35,7 +35,6 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface,
 };
-use fyrox_core::export_derived_entity_list;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -103,6 +102,7 @@ use std::ops::{Deref, DerefMut};
 /// ```
 #[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "6aba3dc5-831d-481a-bc83-ec10b2b2bf12")]
+#[reflect(derived_type = "UiNode")]
 pub struct Border {
     /// Base widget of the border. See [`Widget`] docs for more info.
     pub widget: Widget,
@@ -116,8 +116,6 @@ pub struct Border {
     #[visit(optional)]
     pub pad_by_corner_radius: InheritableVariable<bool>,
 }
-
-export_derived_entity_list!(Border = [UiNode]);
 
 impl ConstructorProvider<UiNode, UserInterface> for Border {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

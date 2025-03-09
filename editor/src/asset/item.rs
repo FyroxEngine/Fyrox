@@ -48,7 +48,7 @@ use crate::{
     message::MessageSender,
     Message,
 };
-use fyrox::core::reflect::DerivedEntityListProvider;
+
 use fyrox::resource::texture::TextureResource;
 use std::{
     ops::{Deref, DerefMut},
@@ -70,8 +70,8 @@ impl AssetItemMessage {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Debug, Clone, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct AssetItem {
     widget: Widget,
     pub path: PathBuf,

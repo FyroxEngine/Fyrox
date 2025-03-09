@@ -23,7 +23,7 @@ use crate::{
     fyrox::{
         core::{
             color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
-            reflect::DerivedEntityListProvider, type_traits::prelude::*, visitor::prelude::*,
+            type_traits::prelude::*, visitor::prelude::*,
         },
         graph::BaseSceneGraph,
         gui::{
@@ -63,11 +63,11 @@ use std::{
     sync::Mutex,
 };
 
-pub enum HandlePropertyEditorMessage<T: DerivedEntityListProvider + 'static> {
+pub enum HandlePropertyEditorMessage<T: Reflect + 'static> {
     Value(Handle<T>),
 }
 
-impl<T: DerivedEntityListProvider> Clone for HandlePropertyEditorMessage<T> {
+impl<T: Reflect> Clone for HandlePropertyEditorMessage<T> {
     fn clone(&self) -> Self {
         match self {
             Self::Value(v) => Self::Value(*v),
@@ -75,7 +75,7 @@ impl<T: DerivedEntityListProvider> Clone for HandlePropertyEditorMessage<T> {
     }
 }
 
-impl<T: DerivedEntityListProvider> Debug for HandlePropertyEditorMessage<T> {
+impl<T: Reflect> Debug for HandlePropertyEditorMessage<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Value(v) => v.fmt(f),
@@ -83,7 +83,7 @@ impl<T: DerivedEntityListProvider> Debug for HandlePropertyEditorMessage<T> {
     }
 }
 
-impl<T: DerivedEntityListProvider> PartialEq for HandlePropertyEditorMessage<T> {
+impl<T: Reflect> PartialEq for HandlePropertyEditorMessage<T> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Value(left), Self::Value(right)) => left.eq(right),
@@ -91,7 +91,7 @@ impl<T: DerivedEntityListProvider> PartialEq for HandlePropertyEditorMessage<T> 
     }
 }
 
-impl<T: DerivedEntityListProvider + 'static> HandlePropertyEditorMessage<T> {
+impl<T: Reflect + 'static> HandlePropertyEditorMessage<T> {
     define_constructor!(HandlePropertyEditorMessage:Value => fn value(Handle<T>), layout: false);
 }
 
@@ -101,10 +101,10 @@ pub struct HandlePropertyEditorNameMessage(pub Option<String>);
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HandlePropertyEditorHierarchyMessage(pub HierarchyNode);
 
-#[derive(Visit, Reflect, TypeUuidProvider, ComponentProvider, DerivedEntityListProvider)]
+#[derive(Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "3ceca8c1-c365-4f03-a413-062f8f3cd685")]
-#[derived_types(type_name = "UiNode")]
-pub struct HandlePropertyEditor<T: DerivedEntityListProvider + 'static> {
+#[reflect(derived_type = "UiNode")]
+pub struct HandlePropertyEditor<T: Reflect + 'static> {
     widget: Widget,
     text: Handle<UiNode>,
     locate: Handle<UiNode>,
@@ -118,13 +118,13 @@ pub struct HandlePropertyEditor<T: DerivedEntityListProvider + 'static> {
     pick: Handle<UiNode>,
 }
 
-impl<T: DerivedEntityListProvider + 'static> Debug for HandlePropertyEditor<T> {
+impl<T: Reflect + 'static> Debug for HandlePropertyEditor<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "HandlePropertyEditor")
     }
 }
 
-impl<T: DerivedEntityListProvider + 'static> Clone for HandlePropertyEditor<T> {
+impl<T: Reflect + 'static> Clone for HandlePropertyEditor<T> {
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.clone(),
@@ -140,7 +140,7 @@ impl<T: DerivedEntityListProvider + 'static> Clone for HandlePropertyEditor<T> {
     }
 }
 
-impl<T: DerivedEntityListProvider + 'static> Deref for HandlePropertyEditor<T> {
+impl<T: Reflect + 'static> Deref for HandlePropertyEditor<T> {
     type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
@@ -148,13 +148,13 @@ impl<T: DerivedEntityListProvider + 'static> Deref for HandlePropertyEditor<T> {
     }
 }
 
-impl<T: DerivedEntityListProvider + 'static> DerefMut for HandlePropertyEditor<T> {
+impl<T: Reflect + 'static> DerefMut for HandlePropertyEditor<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<T: DerivedEntityListProvider + 'static> Control for HandlePropertyEditor<T> {
+impl<T: Reflect + 'static> Control for HandlePropertyEditor<T> {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Emit transparent geometry for the field to be able to catch mouse events without precise pointing at the
         // node name letters.
@@ -341,7 +341,7 @@ impl<T: DerivedEntityListProvider + 'static> Control for HandlePropertyEditor<T>
     }
 }
 
-struct HandlePropertyEditorBuilder<T: DerivedEntityListProvider + 'static> {
+struct HandlePropertyEditorBuilder<T: Reflect + 'static> {
     widget_builder: WidgetBuilder,
     value: Handle<T>,
     sender: MessageSender,
@@ -359,7 +359,7 @@ fn make_icon(data: &[u8], color: Color, ctx: &mut BuildContext) -> Handle<UiNode
     .build(ctx)
 }
 
-impl<T: DerivedEntityListProvider + 'static> HandlePropertyEditorBuilder<T> {
+impl<T: Reflect + 'static> HandlePropertyEditorBuilder<T> {
     pub fn new(widget_builder: WidgetBuilder, sender: MessageSender) -> Self {
         Self {
             widget_builder,
@@ -490,19 +490,19 @@ impl<T: DerivedEntityListProvider + 'static> HandlePropertyEditorBuilder<T> {
     }
 }
 
-pub struct NodeHandlePropertyEditorDefinition<T: DerivedEntityListProvider + 'static> {
+pub struct NodeHandlePropertyEditorDefinition<T: Reflect + 'static> {
     sender: Mutex<MessageSender>,
     #[allow(dead_code)]
     type_info: PhantomDataSendSync<T>,
 }
 
-impl<T: DerivedEntityListProvider + 'static> Debug for NodeHandlePropertyEditorDefinition<T> {
+impl<T: Reflect + 'static> Debug for NodeHandlePropertyEditorDefinition<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Node Handle")
     }
 }
 
-impl<T: DerivedEntityListProvider + 'static> NodeHandlePropertyEditorDefinition<T> {
+impl<T: Reflect + 'static> NodeHandlePropertyEditorDefinition<T> {
     pub fn new(sender: MessageSender) -> Self {
         Self {
             sender: Mutex::new(sender),
@@ -511,9 +511,7 @@ impl<T: DerivedEntityListProvider + 'static> NodeHandlePropertyEditorDefinition<
     }
 }
 
-impl<T: DerivedEntityListProvider + 'static> PropertyEditorDefinition
-    for NodeHandlePropertyEditorDefinition<T>
-{
+impl<T: Reflect + 'static> PropertyEditorDefinition for NodeHandlePropertyEditorDefinition<T> {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<Handle<T>>()
     }

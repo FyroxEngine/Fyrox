@@ -51,7 +51,7 @@ use crate::{
     message::MessageSender,
     Message, MessageDirection,
 };
-use fyrox::core::reflect::DerivedEntityListProvider;
+
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -67,8 +67,8 @@ impl MaterialFieldMessage {
     define_constructor!(MaterialFieldMessage:Material => fn material(MaterialResource), layout: false);
 }
 
-#[derive(Clone, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Clone, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct MaterialFieldEditor {
     widget: Widget,
     #[visit(skip)]

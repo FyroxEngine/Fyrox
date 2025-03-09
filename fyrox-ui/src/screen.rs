@@ -32,7 +32,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::Cell,
@@ -109,8 +109,8 @@ use std::{
 ///     .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct Screen {
     /// Base widget of the screen.
     pub widget: Widget,

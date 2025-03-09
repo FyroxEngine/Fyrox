@@ -28,21 +28,12 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
-#[derive(
-    Default,
-    Clone,
-    Visit,
-    Reflect,
-    Debug,
-    TypeUuidProvider,
-    ComponentProvider,
-    DerivedEntityListProvider,
-)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 #[type_uuid(id = "8d8f114d-7fc6-4d7e-8f57-cd4e39958c36")]
 pub struct ToggleButton {
     pub widget: Widget,

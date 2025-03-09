@@ -37,7 +37,6 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
-use fyrox_core::export_derived_entity_list;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
@@ -161,6 +160,7 @@ impl BoundValueCollectionExt for BoundValueCollection {
 /// The node could be a source of animations for animation blending state machines. To learn more about
 /// animations, see [`Animation`] docs.
 #[derive(Visit, Reflect, Clone, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct AnimationPlayer {
     widget: Widget,
     #[component(include)]
@@ -168,8 +168,6 @@ pub struct AnimationPlayer {
     #[component(include)]
     auto_apply: bool,
 }
-
-export_derived_entity_list!(AnimationPlayer = [UiNode]);
 
 impl ConstructorProvider<UiNode, UserInterface> for AnimationPlayer {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

@@ -54,7 +54,7 @@ use crate::{
     settings::{general::ScriptEditor, SettingsData},
     DropdownListBuilder, MSG_SYNC_FLAG,
 };
-use fyrox::core::reflect::DerivedEntityListProvider;
+
 use fyrox::gui::utils::make_dropdown_list_option;
 use std::{
     any::TypeId,
@@ -74,8 +74,8 @@ impl ScriptPropertyEditorMessage {
     define_constructor!(ScriptPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
-#[derive(Clone, Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct ScriptPropertyEditor {
     widget: Widget,
     inspector: Handle<UiNode>,

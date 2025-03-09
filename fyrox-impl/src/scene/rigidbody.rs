@@ -168,8 +168,8 @@ uuid_provider!(RigidBodyMassPropertiesType = "663b6a92-9c0f-4f47-b66a-6b4293312a
 ///
 /// Rigid body that does not move for some time will go asleep. This means that the body will not
 /// move unless it is woken up by some other moving body. This feature allows to save CPU resources.
-#[derive(Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "Node")]
+#[derive(Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "Node")]
 pub struct RigidBody {
     base: Base,
 

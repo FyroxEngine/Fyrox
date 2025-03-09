@@ -28,7 +28,7 @@ use crate::{
     widget::Widget,
     Control, ControlAsAny, UserInterface,
 };
-use fyrox_core::export_derived_entity_list;
+
 use fyrox_graph::SceneGraphNode;
 use fyrox_resource::{untyped::UntypedResource, Resource};
 use std::{
@@ -73,8 +73,6 @@ impl Clone for UiNode {
         Self(self.0.clone_boxed())
     }
 }
-
-export_derived_entity_list!(UiNode = []);
 
 impl SceneGraphNode for UiNode {
     type Base = Widget;
@@ -167,8 +165,8 @@ impl UiNode {
     /// # };
     /// # use fyrox_core::uuid_provider;
     /// #
-    /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-    /// #[derived_types(type_name = "UiNode")]
+    /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+    /// #[reflect(derived_type = "UiNode")]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }
@@ -283,6 +281,14 @@ impl Visit for UiNode {
 impl Reflect for UiNode {
     fn source_path() -> &'static str {
         file!()
+    }
+
+    fn derived_entity_list() -> &'static [TypeId] {
+        &[]
+    }
+
+    fn query_derived_entity_list(&self) -> &'static [TypeId] {
+        Self::derived_entity_list()
     }
 
     fn type_name(&self) -> &'static str {

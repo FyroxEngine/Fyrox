@@ -47,7 +47,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_core::ComponentProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -76,8 +76,8 @@ impl EnumPropertyEditorMessage {
     define_constructor!(EnumPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
-#[derive(Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct EnumPropertyEditor<T: InspectableEnum> {
     pub widget: Widget,
     pub variant_selector: Handle<UiNode>,

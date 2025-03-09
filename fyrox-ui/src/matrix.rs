@@ -30,7 +30,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, Widget,
 };
 use fyrox_core::algebra::SMatrix;
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use std::ops::{Deref, DerefMut};
 
 fn make_numeric_input<T: NumericType>(
@@ -79,8 +79,8 @@ where
     define_constructor!(MatrixEditorMessage:Value => fn value(SMatrix<T, R, C>), layout: false);
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct MatrixEditor<const R: usize, const C: usize, T>
 where
     T: NumericType,

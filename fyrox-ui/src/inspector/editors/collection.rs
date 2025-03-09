@@ -44,7 +44,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_graph::BaseSceneGraph;
 use std::{
     any::TypeId,
@@ -70,8 +70,8 @@ impl<T> CollectionItem for T where
 {
 }
 
-#[derive(Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Debug, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct CollectionEditor<T: CollectionItem> {
     pub widget: Widget,
     pub add: Handle<UiNode>,

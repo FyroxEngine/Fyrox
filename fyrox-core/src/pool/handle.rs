@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::reflect::{DerivedEntityListProvider, ReflectHandle};
+use crate::reflect::ReflectHandle;
 use crate::{
     combine_uuids, pool::INVALID_GENERATION, reflect::prelude::*, uuid_provider,
     visitor::prelude::*, TypeUuidProvider,
@@ -49,20 +49,7 @@ pub struct Handle<T> {
     pub(super) type_marker: PhantomData<T>,
 }
 
-impl<T: DerivedEntityListProvider> DerivedEntityListProvider for Handle<T> {
-    fn derived_entity_list() -> &'static [TypeId]
-    where
-        Self: Sized,
-    {
-        T::derived_entity_list()
-    }
-
-    fn query_derived_entity_list(&self) -> &'static [TypeId] {
-        T::derived_entity_list()
-    }
-}
-
-impl<T: DerivedEntityListProvider + 'static> ReflectHandle for Handle<T> {
+impl<T: Reflect> ReflectHandle for Handle<T> {
     fn reflect_inner_type_id(&self) -> TypeId {
         TypeId::of::<T>()
     }
@@ -96,9 +83,20 @@ impl<T: DerivedEntityListProvider + 'static> ReflectHandle for Handle<T> {
     }
 }
 
-impl<T: DerivedEntityListProvider + 'static> Reflect for Handle<T> {
+impl<T: Reflect + 'static> Reflect for Handle<T> {
     fn source_path() -> &'static str {
         file!()
+    }
+
+    fn derived_entity_list() -> &'static [TypeId]
+    where
+        Self: Sized,
+    {
+        T::derived_entity_list()
+    }
+
+    fn query_derived_entity_list(&self) -> &'static [TypeId] {
+        Self::derived_entity_list()
     }
 
     fn type_name(&self) -> &'static str {

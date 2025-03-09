@@ -21,10 +21,7 @@
 use crate::{
     fyrox::{
         asset::{untyped::UntypedResource, Resource},
-        core::{
-            pool::{ErasedHandle, Handle},
-            reflect::DerivedEntityListProvider,
-        },
+        core::pool::{ErasedHandle, Handle},
         gui::{
             self,
             font::FontResource,
@@ -168,6 +165,7 @@ use crate::{
         },
     },
 };
+use fyrox::core::reflect::Reflect;
 
 pub mod animation;
 pub mod font;
@@ -199,7 +197,7 @@ pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Stat
 
 fn register_absm_property_editors<T>(container: &PropertyEditorDefinitionContainer)
 where
-    T: DerivedEntityListProvider + 'static,
+    T: Reflect + 'static,
 {
     use crate::fyrox::generic_animation::machine::{
         node::{

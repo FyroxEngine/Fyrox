@@ -40,8 +40,8 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
-use fyrox_core::{export_derived_entity_list, uuid_provider};
+
+use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -125,14 +125,13 @@ impl ColorFieldMessage {
 }
 
 #[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct AlphaBar {
     pub widget: Widget,
     pub orientation: Orientation,
     pub alpha: f32,
     pub is_picking: bool,
 }
-
-export_derived_entity_list!(AlphaBar = [UiNode]);
 
 impl ConstructorProvider<UiNode, UserInterface> for AlphaBar {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
@@ -401,8 +400,8 @@ impl AlphaBarBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct HueBar {
     pub widget: Widget,
     pub orientation: Orientation,
@@ -565,8 +564,8 @@ impl HueBarBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct SaturationBrightnessField {
     pub widget: Widget,
     pub is_picking: bool,
@@ -780,8 +779,8 @@ impl SaturationBrightnessFieldBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct ColorPicker {
     pub widget: Widget,
     pub hue_bar: Handle<UiNode>,
@@ -1208,8 +1207,8 @@ impl ColorPickerBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct ColorField {
     pub widget: Widget,
     pub popup: Handle<UiNode>,

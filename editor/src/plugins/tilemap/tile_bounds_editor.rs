@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use super::*;
-use fyrox::core::reflect::DerivedEntityListProvider;
+
 use fyrox::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     gui::{
@@ -51,18 +51,9 @@ impl TileBoundsMessage {
     define_constructor!(TileBoundsMessage:FlipY => fn flip_y(), layout: false);
 }
 
-#[derive(
-    Clone,
-    Default,
-    Debug,
-    Visit,
-    Reflect,
-    TypeUuidProvider,
-    ComponentProvider,
-    DerivedEntityListProvider,
-)]
+#[derive(Clone, Default, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "1e600103-6516-4c5a-a30b-f90f64fc9623")]
-#[derived_types(type_name = "UiNode")]
+#[reflect(derived_type = "UiNode")]
 pub struct TileBoundsEditor {
     widget: Widget,
     pub value: Option<TileBounds>,

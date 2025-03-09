@@ -40,7 +40,6 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
     },
 };
-use fyrox_core_derive::DerivedEntityListProvider;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
@@ -244,8 +243,8 @@ impl BoundValueCollectionExt for BoundValueCollection {
 /// The example creates a bounce animation first - it is a simple animation that animates position of a given node
 /// (`animated_node`). Only then it creates an animation player node with an animation container with a single animation.
 /// To understand why this is so complicated, see the docs of [`Animation`].
-#[derive(Visit, Reflect, Clone, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "Node")]
+#[derive(Visit, Reflect, Clone, Debug, ComponentProvider)]
+#[reflect(derived_type = "Node")]
 pub struct AnimationPlayer {
     base: Base,
     #[component(include)]

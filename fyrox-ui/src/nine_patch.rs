@@ -31,7 +31,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
@@ -186,18 +186,9 @@ impl TextureSlice {
 ///         .build(&mut ui.build_ctx())
 /// }
 /// ```
-#[derive(
-    Default,
-    Clone,
-    Visit,
-    Reflect,
-    Debug,
-    ComponentProvider,
-    TypeUuidProvider,
-    DerivedEntityListProvider,
-)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "c345033e-8c10-4186-b101-43f73b85981d")]
-#[derived_types(type_name = "UiNode")]
+#[reflect(derived_type = "UiNode")]
 pub struct NinePatch {
     pub widget: Widget,
     pub texture_slice: TextureSlice,

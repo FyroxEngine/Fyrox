@@ -48,7 +48,7 @@ use crate::plugins::absm::{
     transition::{self, TransitionView},
 };
 use crate::utils::fetch_node_screen_center_ui;
-use fyrox::core::reflect::DerivedEntityListProvider;
+
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -118,8 +118,8 @@ impl AbsmCanvasMessage {
     define_constructor!(AbsmCanvasMessage:ForceSyncDependentObjects => fn force_sync_dependent_objects(), layout: true);
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct AbsmCanvas {
     widget: Widget,
     selection: Vec<Handle<UiNode>>,

@@ -44,7 +44,7 @@ use crate::{
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, VerticalAlignment,
     Widget,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_graph::BaseSceneGraph;
 use fyrox_texture::TextureResource;
 use std::{
@@ -57,11 +57,9 @@ use std::{
 static BIND_ICON: LazyLock<Option<TextureResource>> =
     LazyLock::new(|| load_image(include_bytes!("../../resources/chain.png")));
 
-#[derive(
-    Debug, Clone, Visit, Reflect, ComponentProvider, TypeUuidProvider, DerivedEntityListProvider,
-)]
+#[derive(Debug, Clone, Visit, Reflect, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "1b8fb74a-3911-4b44-bb71-1a0382ebb9a7")]
-#[derived_types(type_name = "UiNode")]
+#[reflect(derived_type = "UiNode")]
 pub struct StyledPropertyEditor {
     widget: Widget,
     bind: Handle<UiNode>,

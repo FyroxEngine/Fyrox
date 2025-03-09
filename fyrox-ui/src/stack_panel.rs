@@ -33,7 +33,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -117,8 +117,8 @@ impl StackPanelMessage {
 ///     .build(ctx);
 /// # }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct StackPanel {
     /// Base widget of the stack panel.
     pub widget: Widget,

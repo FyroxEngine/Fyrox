@@ -73,8 +73,8 @@ pub mod context;
 pub mod listener;
 
 /// Sound source.
-#[derive(Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "Node")]
+#[derive(Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "Node")]
 pub struct Sound {
     base: Base,
 

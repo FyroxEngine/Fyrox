@@ -28,10 +28,9 @@ use crate::{
     asset::{untyped::UntypedResource, Resource},
     core::{
         algebra::{Matrix4, Vector2},
-        export_derived_entity_list,
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
         pool::Handle,
-        reflect::{prelude::*, DerivedEntityListProvider},
+        reflect::prelude::*,
         uuid::Uuid,
         uuid_provider, variable,
         variable::mark_inheritable_properties_non_modified,
@@ -131,9 +130,7 @@ pub enum RdcControlFlow {
 }
 
 /// A main trait for any scene graph node.
-pub trait NodeTrait:
-    BaseNodeTrait + Reflect + Visit + ComponentProvider + DerivedEntityListProvider
-{
+pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
     /// Returns axis-aligned bounding box in **local space** of the node.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox;
 
@@ -314,8 +311,6 @@ pub trait NodeTrait:
 /// consumption, only disk space usage is reduced.
 #[derive(Debug)]
 pub struct Node(pub(crate) Box<dyn NodeTrait>);
-
-export_derived_entity_list!(Node = []);
 
 impl<T: NodeTrait> From<T> for Node {
     fn from(value: T) -> Self {
@@ -536,6 +531,14 @@ impl Visit for Node {
 impl Reflect for Node {
     fn source_path() -> &'static str {
         file!()
+    }
+
+    fn derived_entity_list() -> &'static [TypeId] {
+        &[]
+    }
+
+    fn query_derived_entity_list(&self) -> &'static [TypeId] {
+        Self::derived_entity_list()
     }
 
     fn type_name(&self) -> &'static str {

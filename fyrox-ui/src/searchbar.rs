@@ -47,7 +47,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -100,8 +100,8 @@ impl SearchBarMessage {
 ///     }
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct SearchBar {
     /// Base widget of the search bar.
     pub widget: Widget,

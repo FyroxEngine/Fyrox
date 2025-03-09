@@ -44,7 +44,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
@@ -251,8 +251,8 @@ pub struct Tab {
 /// # }
 ///
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct TabControl {
     /// Base widget of the tab control.
     pub widget: Widget,

@@ -27,10 +27,9 @@ mod syntax;
 use convert_case::{Case, Casing};
 use darling::ast;
 use proc_macro2::TokenStream as TokenStream2;
+use prop::Property;
 use quote::quote;
 use syn::Index;
-
-use prop::Property;
 
 pub fn impl_reflect(ty_args: &args::TypeArgs) -> TokenStream2 {
     if ty_args.hide_all {
@@ -441,6 +440,15 @@ fn gen_impl(
         }
     });
 
+    let types = ty_args
+        .derived_type
+        .iter()
+        .map(|ty| {
+            quote! { std::any::TypeId::of::<#ty>() }
+        })
+        .collect::<Vec<TokenStream2>>();
+    let types = quote! { #(#types),* };
+
     quote! {
         #[allow(warnings)]
         impl #impl_generics Reflect for #ty_ident #ty_generics #where_clause {
@@ -450,6 +458,18 @@ fn gen_impl(
 
             fn type_name(&self) -> &'static str {
                 std::any::type_name::<Self>()
+            }
+
+             fn derived_entity_list() -> &'static [std::any::TypeId] {
+                static ARRAY: std::sync::LazyLock<Vec<std::any::TypeId>> = std::sync::LazyLock::new(|| vec![
+                    #types
+                ]);
+
+                &ARRAY
+            }
+
+            fn query_derived_entity_list(&self) -> &'static [std::any::TypeId] {
+                Self::derived_entity_list()
             }
 
             fn doc(&self) -> &'static str {

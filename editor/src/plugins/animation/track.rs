@@ -90,7 +90,7 @@ use crate::{
     },
     send_sync_message, utils,
 };
-use fyrox::core::reflect::DerivedEntityListProvider;
+
 use fyrox::generic_animation::track::TrackBinding;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -281,8 +281,8 @@ impl TrackViewMessage {
     define_constructor!(TrackViewMessage:TrackTargetIsValid => fn track_target_is_valid(Result<(), String>), layout: false);
 }
 
-#[derive(Clone, Debug, Reflect, Visit, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Clone, Debug, Reflect, Visit, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 struct TrackView {
     #[component(include)]
     tree: Tree,

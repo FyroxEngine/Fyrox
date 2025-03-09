@@ -23,11 +23,12 @@ use crate::fyrox::{
     generic_animation::machine::{PoseNode, State, Transition},
 };
 use crate::scene::SelectionContainer;
-use fyrox::core::reflect::DerivedEntityListProvider;
+
+use fyrox::core::reflect::Reflect;
 use std::fmt::{Debug, Formatter};
 
 #[derive(Eq)]
-pub enum SelectedEntity<N: DerivedEntityListProvider + 'static> {
+pub enum SelectedEntity<N: Reflect + 'static> {
     Transition(Handle<Transition<Handle<N>>>),
     State(Handle<State<Handle<N>>>),
     PoseNode(Handle<PoseNode<Handle<N>>>),
@@ -35,7 +36,7 @@ pub enum SelectedEntity<N: DerivedEntityListProvider + 'static> {
 
 impl<N> Debug for SelectedEntity<N>
 where
-    N: DerivedEntityListProvider + 'static,
+    N: Reflect + 'static,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -48,7 +49,7 @@ where
 
 impl<N> Clone for SelectedEntity<N>
 where
-    N: DerivedEntityListProvider + 'static,
+    N: Reflect + 'static,
 {
     fn clone(&self) -> Self {
         match self {
@@ -61,7 +62,7 @@ where
 
 impl<N> PartialEq for SelectedEntity<N>
 where
-    N: DerivedEntityListProvider + 'static,
+    N: Reflect + 'static,
 {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -74,7 +75,7 @@ where
 }
 
 #[derive(Eq, Default)]
-pub struct AbsmSelection<N: DerivedEntityListProvider + 'static> {
+pub struct AbsmSelection<N: Reflect + 'static> {
     pub absm_node_handle: Handle<N>,
     pub layer: Option<usize>,
     pub entities: Vec<SelectedEntity<N>>,
@@ -82,7 +83,7 @@ pub struct AbsmSelection<N: DerivedEntityListProvider + 'static> {
 
 impl<N> Debug for AbsmSelection<N>
 where
-    N: DerivedEntityListProvider + 'static,
+    N: Reflect + 'static,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -95,7 +96,7 @@ where
 
 impl<N> Clone for AbsmSelection<N>
 where
-    N: DerivedEntityListProvider + 'static,
+    N: Reflect + 'static,
 {
     fn clone(&self) -> Self {
         Self {
@@ -108,7 +109,7 @@ where
 
 impl<N> PartialEq for AbsmSelection<N>
 where
-    N: DerivedEntityListProvider + 'static,
+    N: Reflect + 'static,
 {
     fn eq(&self, other: &Self) -> bool {
         self.entities == other.entities
@@ -117,7 +118,7 @@ where
     }
 }
 
-impl<N: DerivedEntityListProvider + 'static> SelectionContainer for AbsmSelection<N> {
+impl<N: Reflect + 'static> SelectionContainer for AbsmSelection<N> {
     fn len(&self) -> usize {
         self.entities.len()
     }

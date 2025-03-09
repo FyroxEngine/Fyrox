@@ -66,6 +66,14 @@ macro_rules! define_two_args_node {
                 file!()
             }
 
+            fn derived_entity_list() -> &'static [TypeId] {
+                &[]
+            }
+
+            fn query_derived_entity_list(&self) -> &'static [TypeId] {
+                Self::derived_entity_list()
+            }
+
             fn type_name(&self) -> &'static str {
                 type_name::<Self>()
             }
@@ -220,6 +228,14 @@ impl<T: EntityId> Visit for NotNode<T> {
 impl<T: EntityId> Reflect for NotNode<T> {
     fn source_path() -> &'static str {
         file!()
+    }
+
+    fn derived_entity_list() -> &'static [TypeId] {
+        &[]
+    }
+
+    fn query_derived_entity_list(&self) -> &'static [TypeId] {
+        Self::derived_entity_list()
     }
 
     fn type_name(&self) -> &'static str {

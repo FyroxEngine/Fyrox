@@ -21,7 +21,6 @@
 #![allow(clippy::manual_unwrap_or_default)]
 
 mod component;
-mod derived;
 mod reflect;
 mod uuid;
 mod visit;
@@ -190,13 +189,4 @@ pub fn type_uuid(input: TokenStream) -> TokenStream {
 pub fn component(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
     TokenStream::from(component::impl_type_uuid_provider(ast))
-}
-
-/// Implements `ComponentProvider` trait
-///
-/// User has to import `ComponentProvider` trait to use this macro.
-#[proc_macro_derive(DerivedEntityListProvider, attributes(derived_types))]
-pub fn derived(input: TokenStream) -> TokenStream {
-    let ast = parse_macro_input!(input as DeriveInput);
-    TokenStream::from(derived::impl_derived_entity_list_provider(ast))
 }

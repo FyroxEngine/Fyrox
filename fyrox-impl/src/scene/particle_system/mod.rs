@@ -221,8 +221,8 @@ impl Visit for ParticleSystemRng {
 ///     .build(graph);
 /// }
 /// ```
-#[derive(Debug, Clone, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "Node")]
+#[derive(Debug, Clone, Reflect, ComponentProvider)]
+#[reflect(derived_type = "Node")]
 pub struct ParticleSystem {
     base: Base,
 

@@ -671,6 +671,14 @@ impl Reflect for Script {
         file!()
     }
 
+    fn derived_entity_list() -> &'static [TypeId] {
+        &[]
+    }
+
+    fn query_derived_entity_list(&self) -> &'static [TypeId] {
+        Self::derived_entity_list()
+    }
+
     fn type_name(&self) -> &'static str {
         self.instance.type_name()
     }

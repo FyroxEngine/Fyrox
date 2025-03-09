@@ -39,7 +39,6 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_resource::{Resource, ResourceData};
-use std::any::TypeId;
 use std::{
     collections::VecDeque,
     error::Error,
@@ -53,7 +52,6 @@ use value::{nlerp, TrackValue, ValueBinding};
 use crate::container::TrackDataContainer;
 use crate::track::TrackBinding;
 pub use fyrox_core as core;
-use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_resource::untyped::ResourceKind;
 pub use pose::{AnimationPose, NodePose};
 pub use signal::{AnimationEvent, AnimationSignal};
@@ -289,15 +287,6 @@ pub struct Animation<T: EntityId> {
     events: VecDeque<AnimationEvent>,
 }
 
-impl<T: EntityId> DerivedEntityListProvider for Animation<T> {
-    fn derived_entity_list() -> &'static [TypeId] {
-        &[]
-    }
-    fn query_derived_entity_list(&self) -> &'static [TypeId] {
-        &[]
-    }
-}
-
 #[derive(Visit, Default)]
 struct OldTrack<T: EntityId> {
     binding: ValueBinding,
@@ -371,7 +360,7 @@ pub trait EntityId:
 {
 }
 
-impl<T: DerivedEntityListProvider + 'static> EntityId for Handle<T> {}
+impl<T: Reflect> EntityId for Handle<T> {}
 impl EntityId for ErasedHandle {}
 
 /// Root motion settings. It allows you to set a node (root) from which the motion will be taken

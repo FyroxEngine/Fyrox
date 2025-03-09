@@ -34,7 +34,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -199,8 +199,8 @@ impl Primitive {
 ///
 /// Keep in mind that all primitives located in local coordinates. The color of the vector image can be changed by
 /// setting a new foreground brush.
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct VectorImage {
     /// Base widget of the image.
     pub widget: Widget,

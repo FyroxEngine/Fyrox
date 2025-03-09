@@ -47,7 +47,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
     UserInterface, VerticalAlignment,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph, SceneGraph, SceneGraphNode,
@@ -243,8 +243,8 @@ impl MenuItemMessage {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct Menu {
     widget: Widget,
     active: bool,
@@ -452,8 +452,8 @@ impl ItemsContainer {
 
 /// Menu item is a widget with arbitrary content, that has a "floating" panel (popup) for sub-items if the menu item. This was menu items can form
 /// arbitrary hierarchies. See [`Menu`] docs for examples.
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct MenuItem {
     /// Base widget of the menu item.
     pub widget: Widget,
@@ -1211,18 +1211,9 @@ impl MenuItemBuilder {
 
 /// A simple wrapper over [`Popup`] widget, that holds the sub-items of a menu item and provides
 /// an ability for keyboard navigation.
-#[derive(
-    Default,
-    Clone,
-    Debug,
-    Visit,
-    Reflect,
-    TypeUuidProvider,
-    ComponentProvider,
-    DerivedEntityListProvider,
-)]
+#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "ad8e9e76-c213-4232-9bab-80ebcabd69fa")]
-#[derived_types(type_name = "UiNode")]
+#[reflect(derived_type = "UiNode")]
 pub struct ContextMenu {
     /// Inner popup widget of the context menu.
     #[component(include)]

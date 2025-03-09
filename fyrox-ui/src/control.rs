@@ -27,7 +27,7 @@ use crate::{
     UiNode, UserInterface,
 };
 use fyrox_core::define_as_any_trait;
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use std::{
     any::Any,
     ops::{Deref, DerefMut},
@@ -76,13 +76,7 @@ where
 
 /// Trait for all UI controls in library.
 pub trait Control:
-    BaseControl
-    + Deref<Target = Widget>
-    + DerefMut
-    + Reflect
-    + Visit
-    + ComponentProvider
-    + DerivedEntityListProvider
+    BaseControl + Deref<Target = Widget> + DerefMut + Reflect + Visit + ComponentProvider
 {
     /// This method will be called before the widget is destroyed (dropped). At the moment, when this
     /// method is called, the widget is still in the widget graph and can be accessed via handles. It
@@ -107,8 +101,8 @@ pub trait Control:
     /// # use fyrox_core::uuid_provider;
     /// # use fyrox_graph::BaseSceneGraph;
     /// #
-    /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-    /// #[derived_types(type_name = "UiNode")]
+    /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+    /// #[reflect(derived_type = "UiNode")]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }
@@ -178,8 +172,8 @@ pub trait Control:
     /// # };
     /// # use fyrox_core::uuid_provider;
     /// #
-    /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-    /// #[derived_types(type_name = "UiNode")]
+    /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+    /// #[reflect(derived_type = "UiNode")]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }
@@ -236,8 +230,8 @@ pub trait Control:
     /// # };
     /// # use fyrox_core::uuid_provider;
     /// #
-    /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-    /// #[derived_types(type_name = "UiNode")]
+    /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+    /// #[reflect(derived_type = "UiNode")]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }

@@ -47,15 +47,15 @@ use crate::{
         },
     },
 };
-use fyrox::core::reflect::DerivedEntityListProvider;
+
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Clone, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct FontField {
     widget: Widget,
     text_preview: Handle<UiNode>,

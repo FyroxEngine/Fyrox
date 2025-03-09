@@ -22,8 +22,7 @@ use crate::{
     fyrox::{
         core::{
             algebra::Vector2, parking_lot::Mutex, pool::ErasedHandle, pool::Handle,
-            reflect::prelude::*, reflect::DerivedEntityListProvider, type_traits::prelude::*,
-            visitor::prelude::*,
+            reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
         },
         fxhash::FxHashSet,
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
@@ -164,7 +163,7 @@ pub struct SelectedHandle {
     pub handle: ErasedHandle,
 }
 
-impl<T: DerivedEntityListProvider + 'static> From<Handle<T>> for SelectedHandle {
+impl<T: Reflect + 'static> From<Handle<T>> for SelectedHandle {
     fn from(value: Handle<T>) -> Self {
         Self {
             inner_type_id: TypeId::of::<T>(),
@@ -206,10 +205,8 @@ struct TreeData {
     pub derived_type_ids: Vec<TypeId>,
 }
 
-#[derive(
-    Debug, Clone, Visit, Reflect, TypeUuidProvider, ComponentProvider, DerivedEntityListProvider,
-)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 #[type_uuid(id = "1d718f90-323c-492d-b057-98d47495900a")]
 pub struct NodeSelector {
     widget: Widget,
@@ -457,11 +454,9 @@ impl NodeSelectorBuilder {
     }
 }
 
-#[derive(
-    Debug, Clone, Visit, Reflect, TypeUuidProvider, ComponentProvider, DerivedEntityListProvider,
-)]
+#[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "5bb00f15-d6ec-4f0e-af7e-9472b0e290b4")]
-#[derived_types(type_name = "UiNode")]
+#[reflect(derived_type = "UiNode")]
 pub struct NodeSelectorWindow {
     #[component(include)]
     window: Window,

@@ -33,7 +33,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
@@ -70,8 +70,8 @@ impl UuidEditorMessage {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct UuidEditor {
     widget: Widget,
     value: Uuid,

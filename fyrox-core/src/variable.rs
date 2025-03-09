@@ -374,6 +374,17 @@ where
         file!()
     }
 
+    fn derived_entity_list() -> &'static [TypeId]
+    where
+        Self: Sized,
+    {
+        T::derived_entity_list()
+    }
+
+    fn query_derived_entity_list(&self) -> &'static [TypeId] {
+        Self::derived_entity_list()
+    }
+
     #[inline]
     fn type_name(&self) -> &'static str {
         self.value.type_name()

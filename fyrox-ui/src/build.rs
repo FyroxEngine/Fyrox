@@ -57,8 +57,8 @@ use std::{
 /// # };
 /// # use fyrox_core::uuid_provider;
 /// #
-/// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
-/// #[derived_types(type_name = "UiNode")]
+/// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+/// #[reflect(derived_type = "UiNode")]
 /// struct MyWidget {
 ///     widget: Widget,
 /// }

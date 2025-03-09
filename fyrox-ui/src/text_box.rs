@@ -47,7 +47,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::RefCell,
@@ -414,8 +414,8 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 ///
 /// You can change brush of caret by using [`TextBoxBuilder::with_caret_brush`] and also selection brush by using
 /// [`TextBoxBuilder::with_selection_brush`], it could be useful if you don't like default colors.
-#[derive(Default, Clone, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct TextBox {
     /// Base widget of the text box.
     pub widget: Widget,

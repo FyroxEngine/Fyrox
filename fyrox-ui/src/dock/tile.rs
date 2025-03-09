@@ -31,7 +31,7 @@ use crate::{
     window::{Window, WindowMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
-use fyrox_core::reflect::DerivedEntityListProvider;
+
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph};
@@ -114,8 +114,8 @@ fn send_background(ui: &UserInterface, destination: Handle<UiNode>, color: Color
     ));
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
-#[derived_types(type_name = "UiNode")]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[reflect(derived_type = "UiNode")]
 pub struct Tile {
     pub widget: Widget,
     pub left_anchor: Handle<UiNode>,
