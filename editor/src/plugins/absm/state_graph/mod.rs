@@ -70,7 +70,7 @@ fn fetch_state_node_model_handle<N>(
     ui: &UserInterface,
 ) -> Handle<State<Handle<N>>>
 where
-    N: Reflect + 'static,
+    N: Reflect,
 {
     ui.node(handle)
         .query_component::<AbsmNode<State<Handle<N>>>>()
@@ -129,7 +129,7 @@ impl StateGraphViewer {
         ui: &UserInterface,
         transition: Handle<Transition<Handle<N>>>,
     ) where
-        N: Reflect + 'static,
+        N: Reflect,
     {
         if let Some(view_handle) = ui.node(self.canvas).children().iter().cloned().find(|c| {
             ui.node(*c)
@@ -147,7 +147,7 @@ impl StateGraphViewer {
 
     pub fn activate_state<N>(&self, ui: &UserInterface, state: Handle<State<Handle<N>>>)
     where
-        N: Reflect + 'static,
+        N: Reflect,
     {
         for (state_view_handle, state_view_ref) in ui
             .node(self.canvas)
@@ -498,7 +498,7 @@ impl StateGraphViewer {
                                 .model_handle
                                 .into()
                     }) {
-                        fn find_state_view<N: Reflect + 'static>(
+                        fn find_state_view<N: Reflect>(
                             state_handle: Handle<State<Handle<N>>>,
                             states: &[Handle<UiNode>],
                             ui: &UserInterface,

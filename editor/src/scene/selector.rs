@@ -163,7 +163,7 @@ pub struct SelectedHandle {
     pub handle: ErasedHandle,
 }
 
-impl<T: Reflect + 'static> From<Handle<T>> for SelectedHandle {
+impl<T: Reflect> From<Handle<T>> for SelectedHandle {
     fn from(value: Handle<T>) -> Self {
         Self {
             inner_type_id: TypeId::of::<T>(),

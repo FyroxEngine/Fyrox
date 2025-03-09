@@ -41,9 +41,9 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub mod signal;
 
 /// Trait for anything that can be used as a texture.
-pub trait SpriteSheetTexture: PartialEq + Clone + Visit + Reflect + 'static {}
+pub trait SpriteSheetTexture: PartialEq + Clone + Visit + Reflect {}
 
-impl<T: PartialEq + Clone + Visit + Reflect + 'static> SpriteSheetTexture for T {}
+impl<T: PartialEq + Clone + Visit + Reflect> SpriteSheetTexture for T {}
 
 /// Animation playback status.
 #[derive(Visit, Reflect, Copy, Clone, Eq, PartialEq, Debug, AsRefStr, EnumString, VariantNames)]

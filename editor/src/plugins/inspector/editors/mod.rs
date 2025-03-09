@@ -197,7 +197,7 @@ pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Stat
 
 fn register_absm_property_editors<T>(container: &PropertyEditorDefinitionContainer)
 where
-    T: Reflect + 'static,
+    T: Reflect,
 {
     use crate::fyrox::generic_animation::machine::{
         node::{

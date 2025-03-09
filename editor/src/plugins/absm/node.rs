@@ -57,7 +57,7 @@ pub struct AbsmBaseNode {
 #[reflect(derived_type = "UiNode")]
 pub struct AbsmNode<T>
 where
-    T: Reflect + 'static,
+    T: Reflect,
 {
     widget: Widget,
     background: Handle<UiNode>,
@@ -83,7 +83,7 @@ impl<T: Reflect> Debug for AbsmNode<T> {
 
 impl<T> Clone for AbsmNode<T>
 where
-    T: Reflect + 'static,
+    T: Reflect,
 {
     fn clone(&self) -> Self {
         Self {
@@ -105,7 +105,7 @@ where
 
 impl<T> Deref for AbsmNode<T>
 where
-    T: Reflect + 'static,
+    T: Reflect,
 {
     type Target = Widget;
 
@@ -116,7 +116,7 @@ where
 
 impl<T> DerefMut for AbsmNode<T>
 where
-    T: Reflect + 'static,
+    T: Reflect,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
@@ -125,7 +125,7 @@ where
 
 impl<T> AbsmNode<T>
 where
-    T: Reflect + 'static,
+    T: Reflect,
 {
     fn update_colors(&self, ui: &UserInterface) {
         ui.send_message(WidgetMessage::background(
@@ -163,7 +163,7 @@ impl AbsmNodeMessage {
     define_constructor!(AbsmNodeMessage:Edit => fn edit(), layout: false);
 }
 
-impl<T: Reflect + 'static> TypeUuidProvider for AbsmNode<T> {
+impl<T: Reflect> TypeUuidProvider for AbsmNode<T> {
     fn type_uuid() -> Uuid {
         uuid!("15bc1a7e-a385-46e0-a65c-7e9c014b4a1d")
     }
@@ -171,7 +171,7 @@ impl<T: Reflect + 'static> TypeUuidProvider for AbsmNode<T> {
 
 impl<T> Control for AbsmNode<T>
 where
-    T: Reflect + 'static,
+    T: Reflect,
 {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
@@ -290,7 +290,7 @@ where
 
 pub struct AbsmNodeBuilder<T>
 where
-    T: Reflect + 'static,
+    T: Reflect,
 {
     widget_builder: WidgetBuilder,
     name: String,
@@ -306,7 +306,7 @@ where
 
 impl<T> AbsmNodeBuilder<T>
 where
-    T: Reflect + 'static,
+    T: Reflect,
 {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {

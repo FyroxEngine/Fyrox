@@ -78,7 +78,7 @@ pub struct StateViewer {
     prev_layer: Option<usize>,
 }
 
-fn create_socket<N: Reflect + 'static>(
+fn create_socket<N: Reflect>(
     direction: SocketDirection,
     index: usize,
     show_index: bool,
@@ -93,7 +93,7 @@ fn create_socket<N: Reflect + 'static>(
         .build(&mut ui.build_ctx())
 }
 
-fn create_sockets<N: Reflect + 'static>(
+fn create_sockets<N: Reflect>(
     count: usize,
     direction: SocketDirection,
     parent_node: Handle<PoseNode<Handle<N>>>,
@@ -104,7 +104,7 @@ fn create_sockets<N: Reflect + 'static>(
         .collect::<Vec<_>>()
 }
 
-fn fetch_pose_node_model_handle<N: Reflect + 'static>(
+fn fetch_pose_node_model_handle<N: Reflect>(
     handle: Handle<UiNode>,
     ui: &UserInterface,
 ) -> Handle<PoseNode<Handle<N>>> {
@@ -114,7 +114,7 @@ fn fetch_pose_node_model_handle<N: Reflect + 'static>(
         .model_handle
 }
 
-fn fetch_socket_pose_node_model_handle<N: Reflect + 'static>(
+fn fetch_socket_pose_node_model_handle<N: Reflect>(
     handle: Handle<UiNode>,
     ui: &UserInterface,
 ) -> Handle<PoseNode<Handle<N>>> {

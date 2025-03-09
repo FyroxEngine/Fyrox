@@ -60,7 +60,7 @@ use fyrox::core::some_or_return;
 use fyrox::gui::dock::DockingManagerMessage;
 use fyrox::gui::menu::MenuItemMessage;
 use fyrox::gui::widget::WidgetMessage;
-use std::{any::Any, fmt::Debug};
+use std::any::Any;
 
 mod blendspace;
 mod canvas;
@@ -77,14 +77,14 @@ mod state_viewer;
 mod toolbar;
 mod transition;
 
-struct PreviewModeData<N: Reflect + 'static> {
+struct PreviewModeData<N: Reflect> {
     machine: Machine<Handle<N>>,
     nodes: Vec<(Handle<N>, N)>,
 }
 
 fn fetch_selection<N>(editor_selection: &Selection) -> AbsmSelection<N>
 where
-    N: Reflect + Debug,
+    N: Reflect,
 {
     if let Some(selection) = editor_selection.as_absm() {
         // Some selection in an animation.

@@ -46,7 +46,7 @@ use std::{
     ops::{IndexMut, Range},
 };
 
-pub fn fetch_animations_container<N: Reflect + Debug + 'static>(
+pub fn fetch_animations_container<N: Reflect>(
     handle: Handle<N>,
     context: &mut dyn CommandContext,
 ) -> &mut InheritableVariable<AnimationContainer<Handle<N>>> {
@@ -73,14 +73,14 @@ pub fn fetch_animations_container<N: Reflect + Debug + 'static>(
 }
 
 #[derive(Debug)]
-pub struct AddTrackCommand<N: Reflect + Debug + 'static> {
+pub struct AddTrackCommand<N: Reflect> {
     animation_player: Handle<N>,
     animation: Handle<Animation<Handle<N>>>,
     track: Option<Track>,
     binding: TrackBinding<Handle<N>>,
 }
 
-impl<N: Reflect + Debug + 'static> AddTrackCommand<N> {
+impl<N: Reflect> AddTrackCommand<N> {
     pub fn new(
         animation_player: Handle<N>,
         animation: Handle<Animation<Handle<N>>>,
@@ -96,7 +96,7 @@ impl<N: Reflect + Debug + 'static> AddTrackCommand<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for AddTrackCommand<N> {
+impl<N: Reflect> CommandTrait for AddTrackCommand<N> {
     fn name(&mut self, _: &dyn CommandContext) -> String {
         "Add Track".to_string()
     }
@@ -117,7 +117,7 @@ impl<N: Reflect + Debug + 'static> CommandTrait for AddTrackCommand<N> {
 }
 
 #[derive(Debug)]
-pub struct RemoveTrackCommand<N: Reflect + Debug + 'static> {
+pub struct RemoveTrackCommand<N: Reflect> {
     animation_player: Handle<N>,
     animation: Handle<Animation<Handle<N>>>,
     id: Uuid,
@@ -125,7 +125,7 @@ pub struct RemoveTrackCommand<N: Reflect + Debug + 'static> {
     track: Option<(usize, (TrackBinding<Handle<N>>, Track))>,
 }
 
-impl<N: Reflect + Debug + 'static> RemoveTrackCommand<N> {
+impl<N: Reflect> RemoveTrackCommand<N> {
     pub fn new(
         animation_player: Handle<N>,
         animation: Handle<Animation<Handle<N>>>,
@@ -140,7 +140,7 @@ impl<N: Reflect + Debug + 'static> RemoveTrackCommand<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for RemoveTrackCommand<N> {
+impl<N: Reflect> CommandTrait for RemoveTrackCommand<N> {
     fn name(&mut self, _: &dyn CommandContext) -> String {
         "Remove Track".to_string()
     }
@@ -169,13 +169,13 @@ impl<N: Reflect + Debug + 'static> CommandTrait for RemoveTrackCommand<N> {
 }
 
 #[derive(Debug)]
-pub struct ReplaceTrackCurveCommand<N: Reflect + Debug + 'static> {
+pub struct ReplaceTrackCurveCommand<N: Reflect> {
     pub animation_player: Handle<N>,
     pub animation: Handle<Animation<Handle<N>>>,
     pub curve: Curve,
 }
 
-impl<N: Reflect + Debug + 'static> ReplaceTrackCurveCommand<N> {
+impl<N: Reflect> ReplaceTrackCurveCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let animation =
             &mut fetch_animations_container(self.animation_player, context)[self.animation];
@@ -196,7 +196,7 @@ impl<N: Reflect + Debug + 'static> ReplaceTrackCurveCommand<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for ReplaceTrackCurveCommand<N> {
+impl<N: Reflect> CommandTrait for ReplaceTrackCurveCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Replace Track Curve".to_string()
     }
@@ -211,7 +211,7 @@ impl<N: Reflect + Debug + 'static> CommandTrait for ReplaceTrackCurveCommand<N> 
 }
 
 #[derive(Debug)]
-pub enum AddAnimationCommand<N: Reflect + Debug + 'static> {
+pub enum AddAnimationCommand<N: Reflect> {
     Unknown,
     NonExecuted {
         animation_player: Handle<N>,
@@ -230,7 +230,7 @@ pub enum AddAnimationCommand<N: Reflect + Debug + 'static> {
     },
 }
 
-impl<N: Reflect + Debug + 'static> AddAnimationCommand<N> {
+impl<N: Reflect> AddAnimationCommand<N> {
     pub fn new(animation_player: Handle<N>, animation: Animation<Handle<N>>) -> Self {
         Self::NonExecuted {
             animation_player,
@@ -239,7 +239,7 @@ impl<N: Reflect + Debug + 'static> AddAnimationCommand<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for AddAnimationCommand<N> {
+impl<N: Reflect> CommandTrait for AddAnimationCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Animation".to_string()
     }
@@ -327,7 +327,7 @@ impl<N: Reflect + Debug + 'static> CommandTrait for AddAnimationCommand<N> {
 }
 
 #[derive(Debug)]
-pub enum RemoveAnimationCommand<N: Reflect + Debug + 'static> {
+pub enum RemoveAnimationCommand<N: Reflect> {
     Unknown,
     NonExecuted {
         animation_player: Handle<N>,
@@ -344,7 +344,7 @@ pub enum RemoveAnimationCommand<N: Reflect + Debug + 'static> {
     },
 }
 
-impl<N: Reflect + Debug + 'static> RemoveAnimationCommand<N> {
+impl<N: Reflect> RemoveAnimationCommand<N> {
     pub fn new(animation_player: Handle<N>, animation: Handle<Animation<Handle<N>>>) -> Self {
         Self::NonExecuted {
             animation_player,
@@ -353,7 +353,7 @@ impl<N: Reflect + Debug + 'static> RemoveAnimationCommand<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for RemoveAnimationCommand<N> {
+impl<N: Reflect> CommandTrait for RemoveAnimationCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Remove Animation".to_string()
     }
@@ -413,13 +413,13 @@ impl<N: Reflect + Debug + 'static> CommandTrait for RemoveAnimationCommand<N> {
 }
 
 #[derive(Debug)]
-pub struct ReplaceAnimationCommand<N: Reflect + Debug + 'static> {
+pub struct ReplaceAnimationCommand<N: Reflect> {
     pub animation_player: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub animation: Animation<Handle<N>>,
 }
 
-impl<N: Reflect + Debug + 'static> ReplaceAnimationCommand<N> {
+impl<N: Reflect> ReplaceAnimationCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         std::mem::swap(
             fetch_animations_container(self.animation_player, context)
@@ -429,7 +429,7 @@ impl<N: Reflect + Debug + 'static> ReplaceAnimationCommand<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for ReplaceAnimationCommand<N> {
+impl<N: Reflect> CommandTrait for ReplaceAnimationCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Replace Animation".to_string()
     }
@@ -447,13 +447,13 @@ impl<N: Reflect + Debug + 'static> CommandTrait for ReplaceAnimationCommand<N> {
 macro_rules! define_animation_swap_command {
     ($name:ident<$value_type:ty>($self:ident, $context:ident) $swap:block) => {
         #[derive(Debug)]
-        pub struct $name<N:Reflect + Debug + 'static> {
+        pub struct $name<N:Reflect> {
             pub node_handle: Handle<N>,
             pub animation_handle: Handle<Animation<Handle<N>>>,
             pub value: $value_type,
         }
 
-        impl<N:Reflect + Debug + 'static> $name<N> {
+        impl<N:Reflect> $name<N> {
             fn swap(&mut $self, $context: &mut dyn CommandContext) {
                 $swap
             }
@@ -475,7 +475,7 @@ macro_rules! define_animation_swap_command {
     };
 }
 
-fn fetch_animation<N: Reflect + Debug + 'static>(
+fn fetch_animation<N: Reflect>(
     animation_player: Handle<N>,
     animation: Handle<Animation<Handle<N>>>,
     ctx: &mut dyn CommandContext,
@@ -526,13 +526,13 @@ define_animation_swap_command!(SetAnimationRootMotionSettingsCommand<Option<Root
 });
 
 #[derive(Debug)]
-pub struct AddAnimationSignal<N: Reflect + Debug + 'static> {
+pub struct AddAnimationSignal<N: Reflect> {
     pub animation_player_handle: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub signal: Option<AnimationSignal>,
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for AddAnimationSignal<N> {
+impl<N: Reflect> CommandTrait for AddAnimationSignal<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Animation Signal".to_string()
     }
@@ -549,14 +549,14 @@ impl<N: Reflect + Debug + 'static> CommandTrait for AddAnimationSignal<N> {
 }
 
 #[derive(Debug)]
-pub struct MoveAnimationSignal<N: Reflect + Debug + 'static> {
+pub struct MoveAnimationSignal<N: Reflect> {
     pub animation_player_handle: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub signal: Uuid,
     pub time: f32,
 }
 
-impl<N: Reflect + Debug + 'static> MoveAnimationSignal<N> {
+impl<N: Reflect> MoveAnimationSignal<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         std::mem::swap(
             &mut fetch_animation(self.animation_player_handle, self.animation_handle, context)
@@ -570,7 +570,7 @@ impl<N: Reflect + Debug + 'static> MoveAnimationSignal<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for MoveAnimationSignal<N> {
+impl<N: Reflect> CommandTrait for MoveAnimationSignal<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Move Animation Signal".to_string()
     }
@@ -585,14 +585,14 @@ impl<N: Reflect + Debug + 'static> CommandTrait for MoveAnimationSignal<N> {
 }
 
 #[derive(Debug)]
-pub struct RemoveAnimationSignal<N: Reflect + Debug + 'static> {
+pub struct RemoveAnimationSignal<N: Reflect> {
     pub animation_player_handle: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub signal_index: usize,
     pub signal: Option<AnimationSignal>,
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for RemoveAnimationSignal<N> {
+impl<N: Reflect> CommandTrait for RemoveAnimationSignal<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Remove Animation".to_string()
     }
@@ -611,14 +611,14 @@ impl<N: Reflect + Debug + 'static> CommandTrait for RemoveAnimationSignal<N> {
 }
 
 #[derive(Debug)]
-pub struct SetTrackEnabledCommand<N: Reflect + Debug + 'static> {
+pub struct SetTrackEnabledCommand<N: Reflect> {
     pub animation_player_handle: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub track: Uuid,
     pub enabled: bool,
 }
 
-impl<N: Reflect + Debug + 'static> SetTrackEnabledCommand<N> {
+impl<N: Reflect> SetTrackEnabledCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .track_bindings_mut()
@@ -631,7 +631,7 @@ impl<N: Reflect + Debug + 'static> SetTrackEnabledCommand<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for SetTrackEnabledCommand<N> {
+impl<N: Reflect> CommandTrait for SetTrackEnabledCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Track Enabled".to_string()
     }
@@ -646,14 +646,14 @@ impl<N: Reflect + Debug + 'static> CommandTrait for SetTrackEnabledCommand<N> {
 }
 
 #[derive(Debug)]
-pub struct SetTrackTargetCommand<N: Reflect + Debug + 'static> {
+pub struct SetTrackTargetCommand<N: Reflect> {
     pub animation_player_handle: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub track: Uuid,
     pub target: Handle<N>,
 }
 
-impl<N: Reflect + Debug + 'static> SetTrackTargetCommand<N> {
+impl<N: Reflect> SetTrackTargetCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .track_bindings_mut()
@@ -666,7 +666,7 @@ impl<N: Reflect + Debug + 'static> SetTrackTargetCommand<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for SetTrackTargetCommand<N> {
+impl<N: Reflect> CommandTrait for SetTrackTargetCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Track Target".to_string()
     }
@@ -681,14 +681,14 @@ impl<N: Reflect + Debug + 'static> CommandTrait for SetTrackTargetCommand<N> {
 }
 
 #[derive(Debug)]
-pub struct SetTrackValueBindingCommand<N: Reflect + Debug + 'static> {
+pub struct SetTrackValueBindingCommand<N: Reflect> {
     pub animation_player_handle: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub track: Uuid,
     pub binding: ValueBinding,
 }
 
-impl<N: Reflect + Debug + 'static> SetTrackValueBindingCommand<N> {
+impl<N: Reflect> SetTrackValueBindingCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let animation =
             fetch_animation(self.animation_player_handle, self.animation_handle, context);
@@ -707,7 +707,7 @@ impl<N: Reflect + Debug + 'static> SetTrackValueBindingCommand<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for SetTrackValueBindingCommand<N> {
+impl<N: Reflect> CommandTrait for SetTrackValueBindingCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Track Binding".to_string()
     }

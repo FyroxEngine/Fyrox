@@ -229,7 +229,7 @@ impl PropertyAction {
 }
 
 /// Trait of values that can be edited by an Inspector through reflection.
-pub trait Value: Reflect + Debug + Send {
+pub trait Value: Reflect + Send {
     fn clone_box(&self) -> Box<dyn Value>;
 
     fn into_box_reflect(self: Box<Self>) -> Box<dyn Reflect>;

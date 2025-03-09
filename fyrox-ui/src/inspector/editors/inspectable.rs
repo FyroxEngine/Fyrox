@@ -48,7 +48,7 @@ use std::{
 /// The layer_index for the inner inspector is increased by 1.
 pub struct InspectablePropertyEditorDefinition<T>
 where
-    T: Reflect + 'static,
+    T: Reflect,
 {
     #[allow(dead_code)]
     phantom: PhantomDataSendSync<T>,
@@ -56,7 +56,7 @@ where
 
 impl<T> InspectablePropertyEditorDefinition<T>
 where
-    T: Reflect + 'static,
+    T: Reflect,
 {
     pub fn new() -> Self {
         Self {
@@ -67,7 +67,7 @@ where
 
 impl<T> Debug for InspectablePropertyEditorDefinition<T>
 where
-    T: Reflect + 'static,
+    T: Reflect,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "InspectablePropertyEditorDefinition")
@@ -76,7 +76,7 @@ where
 
 impl<T> PropertyEditorDefinition for InspectablePropertyEditorDefinition<T>
 where
-    T: Reflect + 'static,
+    T: Reflect,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<T>()

@@ -118,10 +118,10 @@ impl<const N: usize, T: Reflect> ReflectArray for [T; N] {
 
 impl_reflect! {
     #[reflect(ReflectList, ReflectArray)]
-    pub struct Vec<T: Reflect + 'static>;
+    pub struct Vec<T: Reflect>;
 }
 
-impl<T: Reflect + 'static> ReflectArray for Vec<T> {
+impl<T: Reflect> ReflectArray for Vec<T> {
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
         self.get(index).map(|x| x as &dyn Reflect)
     }
@@ -136,7 +136,7 @@ impl<T: Reflect + 'static> ReflectArray for Vec<T> {
 }
 
 /// REMARK: `Reflect` is implemented for `Vec<T>` where `T: Reflect` only.
-impl<T: Reflect + 'static> ReflectList for Vec<T> {
+impl<T: Reflect> ReflectList for Vec<T> {
     fn reflect_push(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>> {
         self.push(*value.downcast::<T>()?);
         Ok(())
@@ -170,8 +170,8 @@ impl<T: Reflect + 'static> ReflectList for Vec<T> {
 
 impl<K, V, S> Reflect for HashMap<K, V, S>
 where
-    K: Reflect + Debug + Eq + Hash + 'static,
-    V: Reflect + Debug + 'static,
+    K: Reflect + Eq + Hash + 'static,
+    V: Reflect,
     S: BuildHasher + 'static,
 {
     blank_reflect!();
@@ -187,8 +187,8 @@ where
 
 impl<K, V, S> ReflectHashMap for HashMap<K, V, S>
 where
-    K: Reflect + Debug + Eq + Hash + 'static,
-    V: Reflect + Debug + 'static,
+    K: Reflect + Eq + Hash + 'static,
+    V: Reflect,
     S: BuildHasher + 'static,
 {
     fn reflect_insert(

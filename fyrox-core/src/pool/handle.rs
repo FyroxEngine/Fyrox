@@ -83,7 +83,7 @@ impl<T: Reflect> ReflectHandle for Handle<T> {
     }
 }
 
-impl<T: Reflect + 'static> Reflect for Handle<T> {
+impl<T: Reflect> Reflect for Handle<T> {
     fn source_path() -> &'static str {
         file!()
     }

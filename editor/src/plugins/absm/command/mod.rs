@@ -44,7 +44,7 @@ pub mod blend;
 macro_rules! define_spawn_command {
     ($name:ident, $ent_type:ty, $container:ident) => {
         #[derive(Debug)]
-        pub enum $name<N: Reflect + Debug + 'static> {
+        pub enum $name<N: Reflect> {
             Unknown,
             NonExecuted {
                 node_handle: Handle<N>,
@@ -64,7 +64,7 @@ macro_rules! define_spawn_command {
             },
         }
 
-        impl<N: Reflect + Debug + 'static> $name<N> {
+        impl<N: Reflect> $name<N> {
             pub fn new(node_handle: Handle<N>, layer_index: usize, state: $ent_type) -> Self {
                 Self::NonExecuted {
                     node_handle,
@@ -74,7 +74,7 @@ macro_rules! define_spawn_command {
             }
         }
 
-        impl<N: Reflect + Debug + 'static> CommandTrait for $name<N> {
+        impl<N: Reflect> CommandTrait for $name<N> {
             fn name(&mut self, _context: &dyn CommandContext) -> String {
                 "Add State".to_string()
             }
@@ -155,7 +155,7 @@ macro_rules! define_spawn_command {
 define_spawn_command!(AddTransitionCommand, Transition<Handle<N>>, transitions_mut);
 
 #[derive(Debug)]
-pub enum AddStateCommand<N: Reflect + Debug + 'static> {
+pub enum AddStateCommand<N: Reflect> {
     Unknown,
     NonExecuted {
         node_handle: Handle<N>,
@@ -176,7 +176,7 @@ pub enum AddStateCommand<N: Reflect + Debug + 'static> {
     },
 }
 
-impl<N: Reflect + Debug + 'static> AddStateCommand<N> {
+impl<N: Reflect> AddStateCommand<N> {
     pub fn new(node_handle: Handle<N>, layer_index: usize, state: State<Handle<N>>) -> Self {
         Self::NonExecuted {
             node_handle,
@@ -186,7 +186,7 @@ impl<N: Reflect + Debug + 'static> AddStateCommand<N> {
     }
 }
 
-pub fn fetch_machine<N: Reflect + Debug + 'static>(
+pub fn fetch_machine<N: Reflect>(
     context: &mut dyn CommandContext,
     node_handle: Handle<N>,
 ) -> &mut Machine<Handle<N>> {
@@ -212,7 +212,7 @@ pub fn fetch_machine<N: Reflect + Debug + 'static>(
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for AddStateCommand<N> {
+impl<N: Reflect> CommandTrait for AddStateCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add State".to_string()
     }
@@ -316,7 +316,7 @@ impl<N: Reflect + Debug + 'static> CommandTrait for AddStateCommand<N> {
 }
 
 #[derive(Debug)]
-pub enum AddPoseNodeCommand<N: Reflect + Debug + 'static> {
+pub enum AddPoseNodeCommand<N: Reflect> {
     Unknown,
     NonExecuted {
         node_handle: Handle<N>,
@@ -337,7 +337,7 @@ pub enum AddPoseNodeCommand<N: Reflect + Debug + 'static> {
     },
 }
 
-impl<N: Reflect + Debug + 'static> AddPoseNodeCommand<N> {
+impl<N: Reflect> AddPoseNodeCommand<N> {
     pub fn new(node_handle: Handle<N>, layer_index: usize, node: PoseNode<Handle<N>>) -> Self {
         Self::NonExecuted {
             node_handle,
@@ -347,7 +347,7 @@ impl<N: Reflect + Debug + 'static> AddPoseNodeCommand<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for AddPoseNodeCommand<N> {
+impl<N: Reflect> CommandTrait for AddPoseNodeCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Pose Node".to_string()
     }
@@ -451,7 +451,7 @@ impl<N: Reflect + Debug + 'static> CommandTrait for AddPoseNodeCommand<N> {
 macro_rules! define_move_command {
     ($name:ident, $ent_type:ty, $container:ident) => {
         #[derive(Debug)]
-        pub struct $name<N: Reflect + Debug + 'static> {
+        pub struct $name<N: Reflect> {
             absm_node_handle: Handle<N>,
             layer_index: usize,
             node: Handle<$ent_type>,
@@ -459,7 +459,7 @@ macro_rules! define_move_command {
             new_position: Vector2<f32>,
         }
 
-        impl<N: Reflect + Debug + 'static> $name<N> {
+        impl<N: Reflect> $name<N> {
             pub fn new(
                 absm_node_handle: Handle<N>,
                 node: Handle<$ent_type>,
@@ -488,7 +488,7 @@ macro_rules! define_move_command {
             }
         }
 
-        impl<N: Reflect + Debug + 'static> CommandTrait for $name<N> {
+        impl<N: Reflect> CommandTrait for $name<N> {
             fn name(&mut self, _context: &dyn CommandContext) -> String {
                 "Move Entity".to_owned()
             }
@@ -512,7 +512,7 @@ define_move_command!(MovePoseNodeCommand, PoseNode<Handle<N>>, nodes_mut);
 macro_rules! define_free_command {
     ($name:ident, $ent_type:ty, $container:ident) => {
         #[derive(Debug)]
-        pub enum $name<N: Reflect + Debug + 'static> {
+        pub enum $name<N: Reflect> {
             Unknown,
             NonExecuted {
                 node_handle: Handle<N>,
@@ -532,7 +532,7 @@ macro_rules! define_free_command {
             },
         }
 
-        impl<N: Reflect + Debug + 'static> $name<N> {
+        impl<N: Reflect> $name<N> {
             pub fn new(
                 node_handle: Handle<N>,
                 layer_index: usize,
@@ -546,7 +546,7 @@ macro_rules! define_free_command {
             }
         }
 
-        impl<N: Reflect + Debug + 'static> CommandTrait for $name<N> {
+        impl<N: Reflect> CommandTrait for $name<N> {
             fn name(&mut self, _context: &dyn CommandContext) -> String {
                 "Free Entity".to_owned()
             }
@@ -632,14 +632,14 @@ define_free_command!(
 macro_rules! define_push_element_to_collection_command {
     ($name:ident<$model_handle:ty, $value_type:ty>($self:ident, $context:ident) $get_collection:block) => {
         #[derive(Debug)]
-        pub struct $name<N: fyrox::core::reflect::Reflect + Debug + 'static> {
+        pub struct $name<N: fyrox::core::reflect::Reflect> {
             pub node_handle: Handle<N>,
             pub handle: $model_handle,
             pub layer_index: usize,
             pub value: Option<$value_type>,
         }
 
-        impl<N: fyrox::core::reflect::Reflect + Debug + 'static> $name<N> {
+        impl<N: fyrox::core::reflect::Reflect> $name<N> {
             pub fn new(node_handle: Handle<N>, handle: $model_handle, layer_index: usize, value: $value_type) -> Self {
                 Self {
                     node_handle,
@@ -650,7 +650,7 @@ macro_rules! define_push_element_to_collection_command {
             }
         }
 
-        impl<N: fyrox::core::reflect::Reflect + Debug + 'static> CommandTrait for $name<N> {
+        impl<N: fyrox::core::reflect::Reflect> CommandTrait for $name<N> {
             fn name(&mut self, _context: &dyn CommandContext) -> String {
                 "Push Element To Collection".to_string()
             }
@@ -709,7 +709,7 @@ macro_rules! define_remove_collection_element_command {
 macro_rules! define_set_collection_element_command {
     ($name:ident<$model_handle:ty, $value_type:ty>($self:ident, $context:ident) $swap_value:block) => {
         #[derive(Debug)]
-        pub struct $name<N: fyrox::core::reflect::Reflect + Debug + 'static> {
+        pub struct $name<N: fyrox::core::reflect::Reflect> {
             pub node_handle: Handle<N>,
             pub handle: $model_handle,
             pub layer_index: usize,
@@ -717,13 +717,13 @@ macro_rules! define_set_collection_element_command {
             pub value: $value_type,
         }
 
-        impl<N: fyrox::core::reflect::Reflect + Debug + 'static> $name<N> {
+        impl<N: fyrox::core::reflect::Reflect> $name<N> {
             pub fn swap(&mut $self, $context: &mut dyn CommandContext) {
                  $swap_value
             }
         }
 
-        impl<N: fyrox::core::reflect::Reflect + Debug + 'static> CommandTrait for $name<N> {
+        impl<N: fyrox::core::reflect::Reflect> CommandTrait for $name<N> {
             fn name(&mut self,
                 #[allow(unused_variables)]
                 $context: &dyn CommandContext
@@ -743,13 +743,13 @@ macro_rules! define_set_collection_element_command {
 }
 
 #[derive(Debug)]
-pub struct SetMachineEntryStateCommand<N: Reflect + Debug + 'static> {
+pub struct SetMachineEntryStateCommand<N: Reflect> {
     pub node_handle: Handle<N>,
     pub layer: usize,
     pub entry: Handle<State<Handle<N>>>,
 }
 
-impl<N: Reflect + Debug + 'static> SetMachineEntryStateCommand<N> {
+impl<N: Reflect> SetMachineEntryStateCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let machine = fetch_machine(context, self.node_handle);
         let layer = &mut machine.layers_mut()[self.layer];
@@ -760,7 +760,7 @@ impl<N: Reflect + Debug + 'static> SetMachineEntryStateCommand<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for SetMachineEntryStateCommand<N> {
+impl<N: Reflect> CommandTrait for SetMachineEntryStateCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Entry State".to_string()
     }
@@ -778,7 +778,7 @@ impl<N: Reflect + Debug + 'static> CommandTrait for SetMachineEntryStateCommand<
 macro_rules! define_absm_swap_command {
     ($name:ident<$model_type:ty, $value_type:ty>[$($field_name:ident:$field_type:ty),*]($self:ident, $context:ident) $get_field:block) => {
         #[derive(Debug)]
-        pub struct $name<N:Reflect + Debug + 'static> {
+        pub struct $name<N:Reflect> {
             pub node_handle: Handle<N>,
             pub handle: $model_type,
             pub value: $value_type,
@@ -787,7 +787,7 @@ macro_rules! define_absm_swap_command {
             )*
         }
 
-        impl<N:Reflect + Debug + 'static> $name<N> {
+        impl<N:Reflect> $name<N> {
             fn swap(&mut $self, $context: &mut dyn CommandContext) {
                 let field = $get_field;
 
@@ -795,7 +795,7 @@ macro_rules! define_absm_swap_command {
             }
         }
 
-        impl<N:Reflect + Debug + 'static> CommandTrait for $name<N> {
+        impl<N:Reflect> CommandTrait for $name<N> {
             fn name(&mut self, _context: &dyn CommandContext) -> String {
                 stringify!($name).to_string()
             }
@@ -817,13 +817,13 @@ define_absm_swap_command!(SetStateRootPoseCommand<Handle<State<Handle<N>>>, Hand
 });
 
 #[derive(Debug)]
-pub struct SetLayerNameCommand<N: Reflect + Debug + 'static> {
+pub struct SetLayerNameCommand<N: Reflect> {
     pub absm_node_handle: Handle<N>,
     pub layer_index: usize,
     pub name: String,
 }
 
-impl<N: Reflect + Debug + 'static> SetLayerNameCommand<N> {
+impl<N: Reflect> SetLayerNameCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let layer =
             &mut fetch_machine(context, self.absm_node_handle).layers_mut()[self.layer_index];
@@ -833,7 +833,7 @@ impl<N: Reflect + Debug + 'static> SetLayerNameCommand<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for SetLayerNameCommand<N> {
+impl<N: Reflect> CommandTrait for SetLayerNameCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Layer Name".to_string()
     }
@@ -848,12 +848,12 @@ impl<N: Reflect + Debug + 'static> CommandTrait for SetLayerNameCommand<N> {
 }
 
 #[derive(Debug)]
-pub struct AddLayerCommand<N: Reflect + Debug + 'static> {
+pub struct AddLayerCommand<N: Reflect> {
     pub absm_node_handle: Handle<N>,
     pub layer: Option<MachineLayer<Handle<N>>>,
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for AddLayerCommand<N> {
+impl<N: Reflect> CommandTrait for AddLayerCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Layer".to_string()
     }
@@ -868,13 +868,13 @@ impl<N: Reflect + Debug + 'static> CommandTrait for AddLayerCommand<N> {
 }
 
 #[derive(Debug)]
-pub struct RemoveLayerCommand<N: Reflect + Debug + 'static> {
+pub struct RemoveLayerCommand<N: Reflect> {
     pub absm_node_handle: Handle<N>,
     pub layer_index: usize,
     pub layer: Option<MachineLayer<Handle<N>>>,
 }
 
-impl<N: Reflect + Debug + 'static> RemoveLayerCommand<N> {
+impl<N: Reflect> RemoveLayerCommand<N> {
     pub fn new(absm_node_handle: Handle<N>, layer_index: usize) -> Self {
         Self {
             absm_node_handle,
@@ -884,7 +884,7 @@ impl<N: Reflect + Debug + 'static> RemoveLayerCommand<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for RemoveLayerCommand<N> {
+impl<N: Reflect> CommandTrait for RemoveLayerCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         format!("Remove {} Layer", self.layer_index)
     }
@@ -901,13 +901,13 @@ impl<N: Reflect + Debug + 'static> CommandTrait for RemoveLayerCommand<N> {
 }
 
 #[derive(Debug)]
-pub struct SetLayerMaskCommand<N: Reflect + Debug + 'static> {
+pub struct SetLayerMaskCommand<N: Reflect> {
     pub absm_node_handle: Handle<N>,
     pub layer_index: usize,
     pub mask: LayerMask<Handle<N>>,
 }
 
-impl<N: Reflect + Debug + 'static> SetLayerMaskCommand<N> {
+impl<N: Reflect> SetLayerMaskCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let layer =
             &mut fetch_machine(context, self.absm_node_handle).layers_mut()[self.layer_index];
@@ -916,7 +916,7 @@ impl<N: Reflect + Debug + 'static> SetLayerMaskCommand<N> {
     }
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for SetLayerMaskCommand<N> {
+impl<N: Reflect> CommandTrait for SetLayerMaskCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Layer Mask".to_string()
     }

@@ -63,7 +63,7 @@ use std::{
     sync::Mutex,
 };
 
-pub enum HandlePropertyEditorMessage<T: Reflect + 'static> {
+pub enum HandlePropertyEditorMessage<T: Reflect> {
     Value(Handle<T>),
 }
 
@@ -91,7 +91,7 @@ impl<T: Reflect> PartialEq for HandlePropertyEditorMessage<T> {
     }
 }
 
-impl<T: Reflect + 'static> HandlePropertyEditorMessage<T> {
+impl<T: Reflect> HandlePropertyEditorMessage<T> {
     define_constructor!(HandlePropertyEditorMessage:Value => fn value(Handle<T>), layout: false);
 }
 
@@ -104,7 +104,7 @@ pub struct HandlePropertyEditorHierarchyMessage(pub HierarchyNode);
 #[derive(Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "3ceca8c1-c365-4f03-a413-062f8f3cd685")]
 #[reflect(derived_type = "UiNode")]
-pub struct HandlePropertyEditor<T: Reflect + 'static> {
+pub struct HandlePropertyEditor<T: Reflect> {
     widget: Widget,
     text: Handle<UiNode>,
     locate: Handle<UiNode>,
@@ -118,13 +118,13 @@ pub struct HandlePropertyEditor<T: Reflect + 'static> {
     pick: Handle<UiNode>,
 }
 
-impl<T: Reflect + 'static> Debug for HandlePropertyEditor<T> {
+impl<T: Reflect> Debug for HandlePropertyEditor<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "HandlePropertyEditor")
     }
 }
 
-impl<T: Reflect + 'static> Clone for HandlePropertyEditor<T> {
+impl<T: Reflect> Clone for HandlePropertyEditor<T> {
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.clone(),
@@ -140,7 +140,7 @@ impl<T: Reflect + 'static> Clone for HandlePropertyEditor<T> {
     }
 }
 
-impl<T: Reflect + 'static> Deref for HandlePropertyEditor<T> {
+impl<T: Reflect> Deref for HandlePropertyEditor<T> {
     type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
@@ -148,13 +148,13 @@ impl<T: Reflect + 'static> Deref for HandlePropertyEditor<T> {
     }
 }
 
-impl<T: Reflect + 'static> DerefMut for HandlePropertyEditor<T> {
+impl<T: Reflect> DerefMut for HandlePropertyEditor<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<T: Reflect + 'static> Control for HandlePropertyEditor<T> {
+impl<T: Reflect> Control for HandlePropertyEditor<T> {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Emit transparent geometry for the field to be able to catch mouse events without precise pointing at the
         // node name letters.
@@ -341,7 +341,7 @@ impl<T: Reflect + 'static> Control for HandlePropertyEditor<T> {
     }
 }
 
-struct HandlePropertyEditorBuilder<T: Reflect + 'static> {
+struct HandlePropertyEditorBuilder<T: Reflect> {
     widget_builder: WidgetBuilder,
     value: Handle<T>,
     sender: MessageSender,
@@ -359,7 +359,7 @@ fn make_icon(data: &[u8], color: Color, ctx: &mut BuildContext) -> Handle<UiNode
     .build(ctx)
 }
 
-impl<T: Reflect + 'static> HandlePropertyEditorBuilder<T> {
+impl<T: Reflect> HandlePropertyEditorBuilder<T> {
     pub fn new(widget_builder: WidgetBuilder, sender: MessageSender) -> Self {
         Self {
             widget_builder,
@@ -490,19 +490,19 @@ impl<T: Reflect + 'static> HandlePropertyEditorBuilder<T> {
     }
 }
 
-pub struct NodeHandlePropertyEditorDefinition<T: Reflect + 'static> {
+pub struct NodeHandlePropertyEditorDefinition<T: Reflect> {
     sender: Mutex<MessageSender>,
     #[allow(dead_code)]
     type_info: PhantomDataSendSync<T>,
 }
 
-impl<T: Reflect + 'static> Debug for NodeHandlePropertyEditorDefinition<T> {
+impl<T: Reflect> Debug for NodeHandlePropertyEditorDefinition<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Node Handle")
     }
 }
 
-impl<T: Reflect + 'static> NodeHandlePropertyEditorDefinition<T> {
+impl<T: Reflect> NodeHandlePropertyEditorDefinition<T> {
     pub fn new(sender: MessageSender) -> Self {
         Self {
             sender: Mutex::new(sender),
@@ -511,7 +511,7 @@ impl<T: Reflect + 'static> NodeHandlePropertyEditorDefinition<T> {
     }
 }
 
-impl<T: Reflect + 'static> PropertyEditorDefinition for NodeHandlePropertyEditorDefinition<T> {
+impl<T: Reflect> PropertyEditorDefinition for NodeHandlePropertyEditorDefinition<T> {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<Handle<T>>()
     }

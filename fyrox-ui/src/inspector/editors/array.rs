@@ -94,7 +94,7 @@ impl Control for ArrayEditor {
 
 pub struct ArrayEditorBuilder<'a, T, I>
 where
-    T: Reflect + 'static,
+    T: Reflect,
     I: IntoIterator<Item = &'a T>,
 {
     widget_builder: WidgetBuilder,
@@ -158,7 +158,7 @@ fn create_items<'a, 'b, T, I>(
     name_column_width: f32,
 ) -> Result<Vec<Item>, InspectorError>
 where
-    T: Reflect + 'static,
+    T: Reflect,
     I: IntoIterator<Item = &'a T>,
 {
     let mut items = Vec::new();
@@ -203,7 +203,7 @@ where
 
 impl<'a, T, I> ArrayEditorBuilder<'a, T, I>
 where
-    T: Reflect + 'static,
+    T: Reflect,
     I: IntoIterator<Item = &'a T>,
 {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
@@ -299,7 +299,7 @@ where
 #[derive(Debug)]
 pub struct ArrayPropertyEditorDefinition<T, const N: usize>
 where
-    T: Reflect + Debug + 'static,
+    T: Reflect,
 {
     #[allow(dead_code)]
     phantom: PhantomDataSendSync<T>,
@@ -307,7 +307,7 @@ where
 
 impl<T, const N: usize> ArrayPropertyEditorDefinition<T, N>
 where
-    T: Reflect + Debug + 'static,
+    T: Reflect,
 {
     pub fn new() -> Self {
         Self::default()
@@ -316,7 +316,7 @@ where
 
 impl<T, const N: usize> Default for ArrayPropertyEditorDefinition<T, N>
 where
-    T: Reflect + Debug + 'static,
+    T: Reflect,
 {
     fn default() -> Self {
         Self {
@@ -327,7 +327,7 @@ where
 
 impl<T, const N: usize> PropertyEditorDefinition for ArrayPropertyEditorDefinition<T, N>
 where
-    T: Reflect + Debug + 'static,
+    T: Reflect,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<[T; N]>()

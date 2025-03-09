@@ -51,7 +51,6 @@ use crate::{
 
 use fyrox::core::reflect::Reflect;
 use fyrox::gui::menu::ContextMenuBuilder;
-use std::fmt::Debug;
 
 pub struct CanvasContextMenu {
     create_state: Handle<UiNode>,
@@ -92,7 +91,7 @@ impl CanvasContextMenu {
         }
     }
 
-    pub fn handle_ui_message<N: Reflect + Debug + 'static>(
+    pub fn handle_ui_message<N: Reflect>(
         &mut self,
         sender: &MessageSender,
         message: &UiMessage,
@@ -216,7 +215,7 @@ impl NodeContextMenu {
         }
     }
 
-    pub fn handle_ui_message<N: Reflect + Debug + 'static>(
+    pub fn handle_ui_message<N: Reflect>(
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
@@ -362,7 +361,7 @@ impl TransitionContextMenu {
         }
     }
 
-    pub fn handle_ui_message<N: Reflect + Debug + 'static>(
+    pub fn handle_ui_message<N: Reflect>(
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,

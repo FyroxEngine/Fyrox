@@ -60,15 +60,9 @@ pub struct Item {
     remove: Handle<UiNode>,
 }
 
-pub trait CollectionItem:
-    Clone + Reflect + Debug + Default + TypeUuidProvider + Send + 'static
-{
-}
+pub trait CollectionItem: Clone + Reflect + Default + TypeUuidProvider + Send + 'static {}
 
-impl<T> CollectionItem for T where
-    T: Clone + Reflect + Debug + Default + TypeUuidProvider + Send + 'static
-{
-}
+impl<T> CollectionItem for T where T: Clone + Reflect + Default + TypeUuidProvider + Send + 'static {}
 
 #[derive(Debug, Visit, Reflect, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]

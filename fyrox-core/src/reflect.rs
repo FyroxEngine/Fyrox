@@ -384,7 +384,7 @@ pub trait ReflectHashMap: Reflect {
     fn reflect_remove(&mut self, key: &dyn Reflect, func: &mut dyn FnMut(Option<Box<dyn Reflect>>));
 }
 
-pub trait ReflectInheritableVariable: Reflect + Debug {
+pub trait ReflectInheritableVariable: Reflect {
     /// Tries to inherit a value from parent. It will succeed only if the current variable is
     /// not marked as modified.
     fn try_inherit(
@@ -1112,11 +1112,7 @@ pub fn is_path_to_array_element(path: &str) -> bool {
 
 // Make it a trait?
 impl dyn ReflectList {
-    pub fn get_reflect_index<T: Reflect + 'static>(
-        &self,
-        index: usize,
-        func: &mut dyn FnMut(Option<&T>),
-    ) {
+    pub fn get_reflect_index<T: Reflect>(&self, index: usize, func: &mut dyn FnMut(Option<&T>)) {
         if let Some(reflect) = self.reflect_index(index) {
             reflect.downcast_ref(func)
         } else {
@@ -1124,7 +1120,7 @@ impl dyn ReflectList {
         }
     }
 
-    pub fn get_reflect_index_mut<T: Reflect + 'static>(
+    pub fn get_reflect_index_mut<T: Reflect>(
         &mut self,
         index: usize,
         func: &mut dyn FnMut(Option<&mut T>),

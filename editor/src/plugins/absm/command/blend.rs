@@ -95,7 +95,7 @@ define_set_collection_element_command!(
 );
 
 #[derive(Debug)]
-pub struct RemoveBlendSpacePointCommand<N: Reflect + Debug + 'static> {
+pub struct RemoveBlendSpacePointCommand<N: Reflect> {
     pub scene_node_handle: Handle<N>,
     pub layer_index: usize,
     pub node_handle: Handle<PoseNode<Handle<N>>>,
@@ -103,7 +103,7 @@ pub struct RemoveBlendSpacePointCommand<N: Reflect + Debug + 'static> {
     pub point: Option<BlendSpacePoint<Handle<N>>>,
 }
 
-impl<N: Reflect + Debug + 'static> CommandTrait for RemoveBlendSpacePointCommand<N> {
+impl<N: Reflect> CommandTrait for RemoveBlendSpacePointCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Remove Blend Space Point".to_string()
     }
