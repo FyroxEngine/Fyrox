@@ -21,14 +21,16 @@
 use crate::{
     fyrox::{
         core::{
-            algebra::Vector2, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
-            reflect::DerivedEntityListProvider, type_traits::prelude::*, visitor::prelude::*,
+            algebra::Vector2, parking_lot::Mutex, pool::ErasedHandle, pool::Handle,
+            reflect::prelude::*, reflect::DerivedEntityListProvider, type_traits::prelude::*,
+            visitor::prelude::*,
         },
+        fxhash::FxHashSet,
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},
-            define_constructor,
+            define_constructor, define_widget_deref,
             draw::DrawingContext,
             grid::{Column, GridBuilder, Row},
             message::{KeyCode, MessageDirection, OsEvent, UiMessage},
@@ -47,19 +49,19 @@ use crate::{
     },
     utils::make_node_name,
 };
-use fyrox::core::pool::ErasedHandle;
-use fyrox::gui::define_widget_deref;
-use std::any::{Any, TypeId};
-use std::fmt::Debug;
+use fyrox::gui::formatted_text::WrapMode;
+use std::hash::{Hash, Hasher};
 use std::{
+    any::{Any, TypeId},
+    fmt::Debug,
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
-    sync::Arc,
+    sync::{mpsc::Sender, Arc},
 };
 
 #[derive(Eq, Clone, Debug, PartialEq)]
 pub struct HierarchyNode {
     pub name: String,
+    pub inner_type_name: String,
     pub handle: ErasedHandle,
     pub inner_type_id: TypeId,
     pub derived_type_ids: Vec<TypeId>,
@@ -76,6 +78,10 @@ impl HierarchyNode {
 
         Self {
             name: node.name().to_string(),
+            inner_type_name: graph
+                .actual_type_name(node_handle)
+                .unwrap_or_default()
+                .to_string(),
             handle: node_handle.into(),
             children: node
                 .children()
@@ -120,7 +126,7 @@ impl HierarchyNode {
         .with_items(self.children.iter().map(|c| c.make_view(ctx)).collect())
         .with_content(
             TextBuilder::new(WidgetBuilder::new())
-                .with_text(make_node_name(&self.name, self.handle))
+                .with_text(make_node_name(&self.name, self.handle) + " - " + &self.inner_type_name)
                 .build(ctx),
         )
         .build(ctx)
@@ -430,6 +436,9 @@ pub struct NodeSelectorWindow {
     selector: Handle<UiNode>,
     ok: Handle<UiNode>,
     cancel: Handle<UiNode>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    allowed_types: FxHashSet<AllowedType>,
 }
 
 impl Deref for NodeSelectorWindow {
@@ -514,7 +523,14 @@ impl Control for NodeSelectorWindow {
                     ui.send_message(WidgetMessage::enabled(
                         self.ok,
                         MessageDirection::ToWidget,
-                        !selection.is_empty(),
+                        !selection.is_empty()
+                            && selection.iter().all(|h| {
+                                self.allowed_types
+                                    .contains(&AllowedType::unnamed(h.inner_type_id))
+                                    || h.derived_type_ids.iter().any(|derived| {
+                                        self.allowed_types.contains(&AllowedType::unnamed(*derived))
+                                    })
+                            }),
                     ));
                 }
             }
@@ -551,9 +567,37 @@ impl Control for NodeSelectorWindow {
     }
 }
 
+#[derive(Clone, Eq, Debug)]
+pub struct AllowedType {
+    pub id: TypeId,
+    pub name: String,
+}
+
+impl AllowedType {
+    pub fn unnamed(id: TypeId) -> Self {
+        Self {
+            id,
+            name: Default::default(),
+        }
+    }
+}
+
+impl Hash for AllowedType {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state)
+    }
+}
+
+impl PartialEq for AllowedType {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
 pub struct NodeSelectorWindowBuilder {
     window_builder: WindowBuilder,
     hierarchy: Option<HierarchyNode>,
+    allowed_types: FxHashSet<AllowedType>,
 }
 
 impl NodeSelectorWindowBuilder {
@@ -561,11 +605,17 @@ impl NodeSelectorWindowBuilder {
         Self {
             window_builder,
             hierarchy: None,
+            allowed_types: Default::default(),
         }
     }
 
     pub fn with_hierarchy(mut self, hierarchy: HierarchyNode) -> Self {
         self.hierarchy = Some(hierarchy);
+        self
+    }
+
+    pub fn with_allowed_types(mut self, allowed_types: FxHashSet<AllowedType>) -> Self {
+        self.allowed_types = allowed_types;
         self
     }
 
@@ -575,8 +625,26 @@ impl NodeSelectorWindowBuilder {
         let selector;
         let content = GridBuilder::new(
             WidgetBuilder::new()
+                .with_child(
+                    TextBuilder::new(
+                        WidgetBuilder::new()
+                            .with_visibility(!self.allowed_types.is_empty())
+                            .with_margin(Thickness::uniform(2.0)),
+                    )
+                    .with_text(
+                        "Select a node of the following type(s):\n".to_string()
+                            + &self
+                                .allowed_types
+                                .iter()
+                                .map(|ty| ty.name.clone())
+                                .collect::<Vec<_>>()
+                                .join("\n"),
+                    )
+                    .with_wrap(WrapMode::Letter)
+                    .build(ctx),
+                )
                 .with_child({
-                    selector = NodeSelectorBuilder::new(WidgetBuilder::new())
+                    selector = NodeSelectorBuilder::new(WidgetBuilder::new().on_row(1))
                         .with_hierarchy(self.hierarchy)
                         .build(ctx);
                     selector
@@ -585,7 +653,7 @@ impl NodeSelectorWindowBuilder {
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(2.0))
-                            .on_row(1)
+                            .on_row(2)
                             .on_column(0)
                             .with_horizontal_alignment(HorizontalAlignment::Right)
                             .with_child({
@@ -617,6 +685,7 @@ impl NodeSelectorWindowBuilder {
                 ),
         )
         .add_column(Column::stretch())
+        .add_row(Row::auto())
         .add_row(Row::stretch())
         .add_row(Row::strict(27.0))
         .build(ctx);
@@ -630,6 +699,7 @@ impl NodeSelectorWindowBuilder {
             ok,
             cancel,
             selector,
+            allowed_types: self.allowed_types,
         };
 
         ctx.add_node(UiNode::new(window))

@@ -247,6 +247,7 @@ impl Toolbar {
             } else if message.destination() == self.edit_mask {
                 let mut root = HierarchyNode {
                     name: "root".to_string(),
+                    inner_type_name: std::any::type_name::<N>().to_string(),
                     handle: Default::default(),
                     inner_type_id: TypeId::of::<N>(),
                     derived_type_ids: N::derived_entity_list().to_vec(),

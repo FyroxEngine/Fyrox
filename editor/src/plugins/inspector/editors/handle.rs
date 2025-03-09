@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::selector::SelectedHandle;
+use crate::scene::selector::{AllowedType, SelectedHandle};
 use crate::{
     fyrox::{
         core::{
@@ -288,6 +288,14 @@ impl<T: DerivedEntityListProvider + 'static> Control for HandlePropertyEditor<T>
                     WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                         .with_title(WindowTitle::text("Select a Node"))
                         .open(false),
+                )
+                .with_allowed_types(
+                    [AllowedType {
+                        id: TypeId::of::<T>(),
+                        name: std::any::type_name::<T>().to_string(),
+                    }]
+                    .into_iter()
+                    .collect(),
                 )
                 .build(&mut ui.build_ctx());
 

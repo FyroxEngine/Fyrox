@@ -1640,15 +1640,17 @@ impl Index<Handle<Node>> for Graph {
     type Output = Node;
 
     #[inline]
-    fn index(&self, index: Handle<Node>) -> &Self::Output {
-        &self.pool[index]
+    fn index(&self, handle: Handle<Node>) -> &Self::Output {
+        self.typed_ref(handle)
+            .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
 
 impl IndexMut<Handle<Node>> for Graph {
     #[inline]
-    fn index_mut(&mut self, index: Handle<Node>) -> &mut Self::Output {
-        &mut self.pool[index]
+    fn index_mut(&mut self, handle: Handle<Node>) -> &mut Self::Output {
+        self.typed_mut(handle)
+            .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
 
@@ -1850,6 +1852,12 @@ impl BaseSceneGraph for Graph {
         self.pool
             .try_borrow(handle)
             .map(|n| Box::deref(&n.0).query_derived_entity_list().to_vec())
+    }
+
+    fn actual_type_name(&self, handle: Handle<Self::Node>) -> Option<&'static str> {
+        self.pool
+            .try_borrow(handle)
+            .map(|n| n.0.deref().type_name())
     }
 }
 

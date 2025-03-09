@@ -3255,6 +3255,12 @@ impl BaseSceneGraph for UserInterface {
             .try_borrow(handle)
             .map(|n| n.0.query_derived_entity_list().to_vec())
     }
+
+    fn actual_type_name(&self, handle: Handle<Self::Node>) -> Option<&'static str> {
+        self.nodes
+            .try_borrow(handle)
+            .map(|n| Reflect::type_name(n.0.deref()))
+    }
 }
 
 impl SceneGraph for UserInterface {

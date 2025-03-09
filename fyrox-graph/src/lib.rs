@@ -691,6 +691,9 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
     /// Returns actual type id of the node.
     fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId>;
 
+    /// Returns actual type name of the node.
+    fn actual_type_name(&self, handle: Handle<Self::Node>) -> Option<&'static str>;
+
     /// Returns a list of derived type ids of the node.
     fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>>;
 
@@ -1861,6 +1864,12 @@ mod test {
             self.nodes
                 .try_borrow(handle)
                 .map(|n| n.0.deref().query_derived_entity_list().to_vec())
+        }
+
+        fn actual_type_name(&self, handle: Handle<Self::Node>) -> Option<&'static str> {
+            self.nodes
+                .try_borrow(handle)
+                .map(|n| n.0.deref().type_name())
         }
     }
 
