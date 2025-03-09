@@ -114,7 +114,22 @@ impl HierarchyNode {
         None
     }
 
-    fn make_view(&self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    fn make_view(
+        &self,
+        allowed_types: &FxHashSet<AllowedType>,
+        ctx: &mut BuildContext,
+    ) -> Handle<UiNode> {
+        let brush = if allowed_types.contains(&AllowedType::unnamed(self.inner_type_id))
+            || self
+                .derived_type_ids
+                .iter()
+                .any(|derived| allowed_types.contains(&AllowedType::unnamed(*derived)))
+        {
+            ctx.style.property(Style::BRUSH_TEXT)
+        } else {
+            ctx.style.property(Style::BRUSH_LIGHT)
+        };
+
         TreeBuilder::new(
             WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(TreeData {
                 name: self.name.clone(),
@@ -123,9 +138,14 @@ impl HierarchyNode {
                 derived_type_ids: self.derived_type_ids.clone(),
             }))),
         )
-        .with_items(self.children.iter().map(|c| c.make_view(ctx)).collect())
+        .with_items(
+            self.children
+                .iter()
+                .map(|c| c.make_view(allowed_types, ctx))
+                .collect(),
+        )
         .with_content(
-            TextBuilder::new(WidgetBuilder::new())
+            TextBuilder::new(WidgetBuilder::new().with_foreground(brush))
                 .with_text(make_node_name(&self.name, self.handle) + " - " + &self.inner_type_name)
                 .build(ctx),
         )
@@ -197,6 +217,9 @@ pub struct NodeSelector {
     search_bar: Handle<UiNode>,
     selected: Vec<SelectedHandle>,
     scroll_viewer: Handle<UiNode>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    allowed_types: FxHashSet<AllowedType>,
 }
 
 define_widget_deref!(NodeSelector);
@@ -235,7 +258,8 @@ impl Control for NodeSelector {
             {
                 match msg {
                     NodeSelectorMessage::Hierarchy(hierarchy) => {
-                        let items = vec![hierarchy.make_view(&mut ui.build_ctx())];
+                        let items =
+                            vec![hierarchy.make_view(&self.allowed_types, &mut ui.build_ctx())];
                         ui.send_message(TreeRootMessage::items(
                             self.tree_root,
                             MessageDirection::ToWidget,
@@ -356,6 +380,7 @@ impl NodeSelector {
 pub struct NodeSelectorBuilder {
     widget_builder: WidgetBuilder,
     hierarchy: Option<HierarchyNode>,
+    allowed_types: FxHashSet<AllowedType>,
 }
 
 impl NodeSelectorBuilder {
@@ -363,6 +388,7 @@ impl NodeSelectorBuilder {
         Self {
             widget_builder,
             hierarchy: None,
+            allowed_types: Default::default(),
         }
     }
 
@@ -371,10 +397,15 @@ impl NodeSelectorBuilder {
         self
     }
 
+    pub fn with_allowed_types(mut self, allowed_types: FxHashSet<AllowedType>) -> Self {
+        self.allowed_types = allowed_types;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let items = self
             .hierarchy
-            .map(|h| vec![h.make_view(ctx)])
+            .map(|h| vec![h.make_view(&self.allowed_types, ctx)])
             .unwrap_or_default();
 
         let tree_root = TreeRootBuilder::new(WidgetBuilder::new().with_tab_index(Some(1)))
@@ -419,6 +450,7 @@ impl NodeSelectorBuilder {
             search_bar,
             selected: Default::default(),
             scroll_viewer,
+            allowed_types: self.allowed_types,
         };
 
         ctx.add_node(UiNode::new(selector))
@@ -646,6 +678,7 @@ impl NodeSelectorWindowBuilder {
                 .with_child({
                     selector = NodeSelectorBuilder::new(WidgetBuilder::new().on_row(1))
                         .with_hierarchy(self.hierarchy)
+                        .with_allowed_types(self.allowed_types.clone())
                         .build(ctx);
                     selector
                 })
