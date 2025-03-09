@@ -1336,27 +1336,29 @@ where
     }
 }
 
-impl<T, P> Index<Handle<T>> for Pool<T, P>
+impl<Object, Container, Borrow, Ref> Index<Borrow> for Pool<Object, Container>
 where
-    T: 'static,
-    P: PayloadContainer<Element = T> + 'static,
+    Object: 'static,
+    Container: PayloadContainer<Element = Object> + 'static,
+    Borrow: BorrowAs<Object, Container, Target = Ref>,
 {
-    type Output = T;
+    type Output = Ref;
 
     #[inline]
-    fn index(&self, index: Handle<T>) -> &Self::Output {
-        self.borrow(index)
+    fn index(&self, index: Borrow) -> &Self::Output {
+        self.typed_ref(index).expect("The handle must be valid!")
     }
 }
 
-impl<T, P> IndexMut<Handle<T>> for Pool<T, P>
+impl<Object, Container, Borrow, Ref> IndexMut<Borrow> for Pool<Object, Container>
 where
-    T: 'static,
-    P: PayloadContainer<Element = T> + 'static,
+    Object: 'static,
+    Container: PayloadContainer<Element = Object> + 'static,
+    Borrow: BorrowAs<Object, Container, Target = Ref>,
 {
     #[inline]
-    fn index_mut(&mut self, index: Handle<T>) -> &mut Self::Output {
-        self.borrow_mut(index)
+    fn index_mut(&mut self, index: Borrow) -> &mut Self::Output {
+        self.typed_mut(index).expect("The handle must be valid!")
     }
 }
 
