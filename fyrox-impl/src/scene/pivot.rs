@@ -40,7 +40,8 @@ use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// A simplest possible node which represents point in space.
-#[derive(Clone, Reflect, Default, Debug, ComponentProvider)]
+#[derive(Clone, Reflect, Default, Debug, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "Node")]
 pub struct Pivot {
     base: Base,
 }

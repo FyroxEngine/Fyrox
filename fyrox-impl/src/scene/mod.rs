@@ -76,6 +76,7 @@ use crate::{
 };
 use asset::io::ResourceIo;
 use fxhash::FxHashSet;
+use fyrox_core::export_derived_entity_list;
 use fyrox_core::variable::InheritableVariable;
 use std::{
     fmt::{Display, Formatter},
@@ -234,6 +235,8 @@ pub struct Scene {
     /// set `enabled` flag to false for level's scene.
     pub enabled: InheritableVariable<bool>,
 }
+
+export_derived_entity_list!(Scene = []);
 
 impl Default for Scene {
     fn default() -> Self {

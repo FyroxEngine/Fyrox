@@ -18,72 +18,99 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    core::{
-        color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
-        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
-    },
-    gui::{
-        brush::Brush,
-        button::{ButtonBuilder, ButtonMessage},
-        define_constructor,
-        draw::{CommandTexture, Draw, DrawingContext},
-        grid::{Column, GridBuilder, Row},
-        image::ImageBuilder,
-        inspector::{
-            editors::{
-                PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-                PropertyEditorMessageContext, PropertyEditorTranslationContext,
-            },
-            FieldKind, InspectorError, PropertyChanged,
-        },
-        message::MessageDirection,
-        text::{TextBuilder, TextMessage},
-        utils::make_simple_tooltip,
-        widget::{Widget, WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Control, Thickness,
-    },
-    scene::node::Node,
-};
+use crate::scene::selector::SelectedHandle;
 use crate::{
+    fyrox::{
+        core::{
+            color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
+            reflect::DerivedEntityListProvider, type_traits::prelude::*, visitor::prelude::*,
+        },
+        graph::BaseSceneGraph,
+        gui::{
+            brush::Brush,
+            button::{ButtonBuilder, ButtonMessage},
+            define_constructor,
+            draw::{CommandTexture, Draw, DrawingContext},
+            grid::{Column, GridBuilder, Row},
+            image::ImageBuilder,
+            inspector::{
+                editors::{
+                    PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+                    PropertyEditorMessageContext, PropertyEditorTranslationContext,
+                },
+                FieldKind, InspectorError, PropertyChanged,
+            },
+            message::MessageDirection,
+            style::{resource::StyleResourceExt, Style},
+            text::{TextBuilder, TextMessage},
+            utils::make_simple_tooltip,
+            widget::{Widget, WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, Control, Thickness,
+        },
+    },
     load_image_internal,
     message::MessageSender,
     scene::selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
     world::graph::item::SceneItem,
     Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
+use fyrox::core::PhantomDataSendSync;
 use std::{
     any::TypeId,
-    fmt::Debug,
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     sync::Mutex,
 };
 
+pub enum HandlePropertyEditorMessage<T: DerivedEntityListProvider + 'static> {
+    Value(Handle<T>),
+}
+
+impl<T: DerivedEntityListProvider> Clone for HandlePropertyEditorMessage<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Value(v) => Self::Value(*v),
+        }
+    }
+}
+
+impl<T: DerivedEntityListProvider> Debug for HandlePropertyEditorMessage<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Value(v) => v.fmt(f),
+        }
+    }
+}
+
+impl<T: DerivedEntityListProvider> PartialEq for HandlePropertyEditorMessage<T> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Value(left), Self::Value(right)) => left.eq(right),
+        }
+    }
+}
+
+impl<T: DerivedEntityListProvider + 'static> HandlePropertyEditorMessage<T> {
+    define_constructor!(HandlePropertyEditorMessage:Value => fn value(Handle<T>), layout: false);
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum HandlePropertyEditorMessage {
-    Value(ErasedHandle),
-    Name(Option<String>),
-    Hierarchy(HierarchyNode),
-}
+pub struct HandlePropertyEditorNameMessage(pub Option<String>);
 
-impl HandlePropertyEditorMessage {
-    define_constructor!(HandlePropertyEditorMessage:Value => fn value(ErasedHandle), layout: false);
-    define_constructor!(HandlePropertyEditorMessage:Name => fn name(Option<String>), layout: false);
-    define_constructor!(HandlePropertyEditorMessage:Hierarchy => fn hierarchy(HierarchyNode), layout: false);
-}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HandlePropertyEditorHierarchyMessage(pub HierarchyNode);
 
-#[derive(Debug, Visit, Reflect, ComponentProvider)]
-pub struct HandlePropertyEditor {
+#[derive(Visit, Reflect, TypeUuidProvider, ComponentProvider, DerivedEntityListProvider)]
+#[type_uuid(id = "3ceca8c1-c365-4f03-a413-062f8f3cd685")]
+#[derived_types(type_name = "UiNode")]
+pub struct HandlePropertyEditor<T: DerivedEntityListProvider + 'static> {
     widget: Widget,
     text: Handle<UiNode>,
     locate: Handle<UiNode>,
     select: Handle<UiNode>,
     make_unassigned: Handle<UiNode>,
-    value: ErasedHandle,
+    value: Handle<T>,
     #[visit(skip)]
     #[reflect(hidden)]
     sender: MessageSender,
@@ -91,7 +118,13 @@ pub struct HandlePropertyEditor {
     pick: Handle<UiNode>,
 }
 
-impl Clone for HandlePropertyEditor {
+impl<T: DerivedEntityListProvider + 'static> Debug for HandlePropertyEditor<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "HandlePropertyEditor")
+    }
+}
+
+impl<T: DerivedEntityListProvider + 'static> Clone for HandlePropertyEditor<T> {
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.clone(),
@@ -107,7 +140,7 @@ impl Clone for HandlePropertyEditor {
     }
 }
 
-impl Deref for HandlePropertyEditor {
+impl<T: DerivedEntityListProvider + 'static> Deref for HandlePropertyEditor<T> {
     type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
@@ -115,15 +148,13 @@ impl Deref for HandlePropertyEditor {
     }
 }
 
-impl DerefMut for HandlePropertyEditor {
+impl<T: DerivedEntityListProvider + 'static> DerefMut for HandlePropertyEditor<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-uuid_provider!(HandlePropertyEditor = "3ceca8c1-c365-4f03-a413-062f8f3cd685");
-
-impl Control for HandlePropertyEditor {
+impl<T: DerivedEntityListProvider + 'static> Control for HandlePropertyEditor<T> {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Emit transparent geometry for the field to be able to catch mouse events without precise pointing at the
         // node name letters.
@@ -139,7 +170,78 @@ impl Control for HandlePropertyEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(msg) = message.data::<HandlePropertyEditorMessage>() {
+        if let Some(msg) = message.data::<HandlePropertyEditorNameMessage>() {
+            let value = &msg.0;
+            if message.destination() == self.handle()
+                && message.direction() == MessageDirection::ToWidget
+            {
+                // Handle messages from the editor, it will respond to requests and provide
+                // node names in efficient way.
+                let value = if let Some(value) = value {
+                    Some(value.as_str())
+                } else if self.value.is_none() {
+                    Some("Unassigned")
+                } else {
+                    None
+                };
+
+                if let Some(value) = value {
+                    ui.send_message(TextMessage::text(
+                        self.text,
+                        MessageDirection::ToWidget,
+                        format!("{} ({})", value, self.value),
+                    ));
+
+                    let color = if self.value.is_none() {
+                        ui.style.property(Style::BRUSH_WARNING)
+                    } else {
+                        ui.style.property(Style::BRUSH_FOREGROUND)
+                    };
+                    ui.send_message(WidgetMessage::foreground(
+                        self.text,
+                        MessageDirection::ToWidget,
+                        color,
+                    ));
+                } else {
+                    ui.send_message(TextMessage::text(
+                        self.text,
+                        MessageDirection::ToWidget,
+                        format!("<Invalid handle!> ({})", self.value),
+                    ));
+
+                    ui.send_message(WidgetMessage::foreground(
+                        self.text,
+                        MessageDirection::ToWidget,
+                        ui.style.property(Style::BRUSH_ERROR),
+                    ));
+                };
+            }
+        }
+
+        if let Some(msg) = message.data::<HandlePropertyEditorHierarchyMessage>() {
+            let value = &msg.0;
+            if message.destination() == self.handle()
+                && message.direction() == MessageDirection::ToWidget
+            {
+                ui.send_message(NodeSelectorMessage::hierarchy(
+                    self.selector,
+                    MessageDirection::ToWidget,
+                    value.clone(),
+                ));
+
+                ui.send_message(NodeSelectorMessage::selection(
+                    self.selector,
+                    MessageDirection::ToWidget,
+                    vec![SelectedHandle {
+                        handle: self.value.into(),
+                        inner_type_id: TypeId::of::<T>(),
+                        derived_type_ids: T::derived_entity_list().to_vec(),
+                    }],
+                ));
+            }
+        }
+
+        if let Some(msg) = message.data::<HandlePropertyEditorMessage<T>>() {
             if message.destination() == self.handle()
                 && message.direction() == MessageDirection::ToWidget
             {
@@ -151,87 +253,35 @@ impl Control for HandlePropertyEditor {
                         }
 
                         // Sync name in any case, because it may be changed.
-                        request_name_sync(&self.sender, self.handle, self.value);
-                    }
-                    HandlePropertyEditorMessage::Name(value) => {
-                        // Handle messages from the editor, it will respond to requests and provide
-                        // node names in efficient way.
-                        let value = if let Some(value) = value {
-                            Some(value.as_str())
-                        } else if self.value.is_none() {
-                            Some("Unassigned")
-                        } else {
-                            None
-                        };
-
-                        if let Some(value) = value {
-                            ui.send_message(TextMessage::text(
-                                self.text,
-                                MessageDirection::ToWidget,
-                                format!("{} ({})", value, self.value),
-                            ));
-
-                            let color = if self.value.is_none() {
-                                ui.style.property(Style::BRUSH_WARNING)
-                            } else {
-                                ui.style.property(Style::BRUSH_FOREGROUND)
-                            };
-                            ui.send_message(WidgetMessage::foreground(
-                                self.text,
-                                MessageDirection::ToWidget,
-                                color,
-                            ));
-                        } else {
-                            ui.send_message(TextMessage::text(
-                                self.text,
-                                MessageDirection::ToWidget,
-                                format!("<Invalid handle!> ({})", self.value),
-                            ));
-
-                            ui.send_message(WidgetMessage::foreground(
-                                self.text,
-                                MessageDirection::ToWidget,
-                                ui.style.property(Style::BRUSH_ERROR),
-                            ));
-                        };
-                    }
-                    HandlePropertyEditorMessage::Hierarchy(hierarchy) => {
-                        ui.send_message(NodeSelectorMessage::hierarchy(
-                            self.selector,
-                            MessageDirection::ToWidget,
-                            hierarchy.clone(),
-                        ));
-
-                        ui.send_message(NodeSelectorMessage::selection(
-                            self.selector,
-                            MessageDirection::ToWidget,
-                            vec![self.value],
-                        ));
+                        request_name_sync(&self.sender, self.handle, self.value.into());
                     }
                 }
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if message.destination() == self.handle() {
                 if let Some(item) = ui.node(*dropped).cast::<SceneItem>() {
-                    ui.send_message(HandlePropertyEditorMessage::value(
+                    ui.send_message(HandlePropertyEditorMessage::<T>::value(
                         self.handle(),
                         MessageDirection::ToWidget,
-                        item.entity_handle,
+                        // TODO: Do type check here.
+                        item.entity_handle.into(),
                     ))
                 }
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination == self.locate {
-                self.sender
-                    .send(Message::LocateObject { handle: self.value });
+                self.sender.send(Message::LocateObject {
+                    handle: self.value.into(),
+                });
             } else if message.destination == self.select {
-                self.sender
-                    .send(Message::SelectObject { handle: self.value });
+                self.sender.send(Message::SelectObject {
+                    handle: self.value.into(),
+                });
             } else if message.destination == self.make_unassigned {
                 ui.send_message(HandlePropertyEditorMessage::value(
                     self.handle,
                     MessageDirection::ToWidget,
-                    ErasedHandle::default(),
+                    Handle::<T>::NONE,
                 ));
             } else if message.destination == self.pick {
                 let node_selector = NodeSelectorWindowBuilder::new(
@@ -261,11 +311,14 @@ impl Control for HandlePropertyEditor {
             if message.destination() == self.selector
                 && message.direction() == MessageDirection::FromWidget
             {
-                if let Some(first) = selection.first() {
-                    ui.send_message(HandlePropertyEditorMessage::value(
+                if let Some(suitable) = selection.iter().find(|selected| {
+                    selected.inner_type_id == TypeId::of::<T>()
+                        || selected.derived_type_ids.contains(&TypeId::of::<T>())
+                }) {
+                    ui.send_message(HandlePropertyEditorMessage::<T>::value(
                         self.handle,
                         MessageDirection::ToWidget,
-                        *first,
+                        suitable.handle.into(),
                     ));
                 }
             }
@@ -280,9 +333,9 @@ impl Control for HandlePropertyEditor {
     }
 }
 
-struct HandlePropertyEditorBuilder {
+struct HandlePropertyEditorBuilder<T: DerivedEntityListProvider + 'static> {
     widget_builder: WidgetBuilder,
-    value: ErasedHandle,
+    value: Handle<T>,
     sender: MessageSender,
 }
 
@@ -298,7 +351,7 @@ fn make_icon(data: &[u8], color: Color, ctx: &mut BuildContext) -> Handle<UiNode
     .build(ctx)
 }
 
-impl HandlePropertyEditorBuilder {
+impl<T: DerivedEntityListProvider + 'static> HandlePropertyEditorBuilder<T> {
     pub fn new(widget_builder: WidgetBuilder, sender: MessageSender) -> Self {
         Self {
             widget_builder,
@@ -307,7 +360,7 @@ impl HandlePropertyEditorBuilder {
         }
     }
 
-    pub fn with_value(mut self, value: ErasedHandle) -> Self {
+    pub fn with_value(mut self, value: Handle<T>) -> Self {
         self.value = value;
         self
     }
@@ -429,55 +482,47 @@ impl HandlePropertyEditorBuilder {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum EntityKind {
-    UiNode,
-    SceneNode,
-}
-
-#[derive(Debug)]
-pub struct NodeHandlePropertyEditorDefinition {
+pub struct NodeHandlePropertyEditorDefinition<T: DerivedEntityListProvider + 'static> {
     sender: Mutex<MessageSender>,
-    kind: EntityKind,
+    #[allow(dead_code)]
+    type_info: PhantomDataSendSync<T>,
 }
 
-impl NodeHandlePropertyEditorDefinition {
-    pub fn new(sender: MessageSender, kind: EntityKind) -> Self {
+impl<T: DerivedEntityListProvider + 'static> Debug for NodeHandlePropertyEditorDefinition<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Node Handle")
+    }
+}
+
+impl<T: DerivedEntityListProvider + 'static> NodeHandlePropertyEditorDefinition<T> {
+    pub fn new(sender: MessageSender) -> Self {
         Self {
             sender: Mutex::new(sender),
-            kind,
-        }
-    }
-
-    pub fn value(&self, property_info: &FieldInfo) -> Result<ErasedHandle, InspectorError> {
-        match self.kind {
-            EntityKind::UiNode => Ok((*property_info.cast_value::<Handle<UiNode>>()?).into()),
-            EntityKind::SceneNode => Ok((*property_info.cast_value::<Handle<Node>>()?).into()),
+            type_info: PhantomDataSendSync::default(),
         }
     }
 }
 
-impl PropertyEditorDefinition for NodeHandlePropertyEditorDefinition {
+impl<T: DerivedEntityListProvider + 'static> PropertyEditorDefinition
+    for NodeHandlePropertyEditorDefinition<T>
+{
     fn value_type_id(&self) -> TypeId {
-        match self.kind {
-            EntityKind::UiNode => TypeId::of::<Handle<UiNode>>(),
-            EntityKind::SceneNode => TypeId::of::<Handle<Node>>(),
-        }
+        TypeId::of::<Handle<T>>()
     }
 
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
-        let value = self.value(ctx.property_info)?;
+        let value = ctx.property_info.cast_value::<Handle<T>>()?;
 
         let sender = self.sender.lock().unwrap().clone();
 
         let editor = HandlePropertyEditorBuilder::new(WidgetBuilder::new(), sender.clone())
-            .with_value(value)
+            .with_value(*value)
             .build(ctx.build_context);
 
-        request_name_sync(&sender, editor, value);
+        request_name_sync(&sender, editor, ErasedHandle::from(*value));
 
         Ok(PropertyEditorInstance::Simple { editor })
     }
@@ -486,27 +531,24 @@ impl PropertyEditorDefinition for NodeHandlePropertyEditorDefinition {
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        let value = self.value(ctx.property_info)?;
+        let value = ctx.property_info.cast_value::<Handle<T>>()?;
 
         Ok(Some(HandlePropertyEditorMessage::value(
             ctx.instance,
             MessageDirection::ToWidget,
-            value,
+            *value,
         )))
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if ctx.message.direction() == MessageDirection::FromWidget {
             if let Some(HandlePropertyEditorMessage::Value(value)) =
-                ctx.message.data::<HandlePropertyEditorMessage>()
+                ctx.message.data::<HandlePropertyEditorMessage<T>>()
             {
                 return Some(PropertyChanged {
                     owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),
-                    value: match self.kind {
-                        EntityKind::UiNode => FieldKind::object(Handle::<UiNode>::from(*value)),
-                        EntityKind::SceneNode => FieldKind::object(Handle::<Node>::from(*value)),
-                    },
+                    value: FieldKind::object(*value),
                 });
             }
         }
@@ -527,12 +569,14 @@ fn request_name_sync(sender: &MessageSender, editor: Handle<UiNode>, handle: Era
 #[cfg(test)]
 mod test {
     use crate::plugins::inspector::editors::handle::HandlePropertyEditorBuilder;
+    use fyrox::scene::node::Node;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
 
     #[test]
     fn test_deletion() {
         test_widget_deletion(|ctx| {
-            HandlePropertyEditorBuilder::new(WidgetBuilder::new(), Default::default()).build(ctx)
+            HandlePropertyEditorBuilder::<Node>::new(WidgetBuilder::new(), Default::default())
+                .build(ctx)
         });
     }
 }

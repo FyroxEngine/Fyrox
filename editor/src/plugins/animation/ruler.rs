@@ -43,6 +43,7 @@ use crate::fyrox::{
     },
 };
 use crate::menu::create_menu_item;
+use fyrox::core::reflect::DerivedEntityListProvider;
 use fyrox::gui::curve::{CurveTransformCell, STANDARD_GRID_SIZE};
 use fyrox::gui::menu::ContextMenuBuilder;
 use fyrox::gui::style::resource::StyleResourceExt;
@@ -159,7 +160,8 @@ struct DragContext {
     entity: DragEntity,
 }
 
-#[derive(Clone, Visit, Reflect, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct Ruler {
     widget: Widget,
     #[visit(skip)]

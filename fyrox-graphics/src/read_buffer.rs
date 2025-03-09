@@ -19,14 +19,15 @@
 // SOFTWARE.
 
 use crate::{
-    core::{math::Rect, Downcast},
-    define_shared_wrapper,
-    error::FrameworkError,
+    core::math::Rect, define_shared_wrapper, error::FrameworkError,
     framebuffer::GpuFrameBufferTrait,
 };
 use bytemuck::Pod;
+use fyrox_core::define_as_any_trait;
 
-pub trait GpuAsyncReadBufferTrait: Downcast {
+define_as_any_trait!(GpuAsyncReadBufferAsAny => GpuAsyncReadBufferTrait);
+
+pub trait GpuAsyncReadBufferTrait: GpuAsyncReadBufferAsAny {
     fn schedule_pixels_transfer(
         &self,
         framebuffer: &dyn GpuFrameBufferTrait,

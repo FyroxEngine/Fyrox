@@ -18,16 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::absm::{
-    command::fetch_machine,
-    selection::{AbsmSelection, SelectedEntity},
-};
-use crate::plugins::animation::{
-    self, command::fetch_animations_container, selection::AnimationSelection,
-};
-use crate::plugins::inspector::{
-    editors::handle::HandlePropertyEditorMessage, handlers::node::SceneNodePropertyChangedHandler,
-};
 use crate::{
     asset::item::AssetItem,
     audio::AudioBusSelection,
@@ -84,6 +74,17 @@ use crate::{
     highlight::HighlightRenderPass,
     interaction::navmesh::selection::NavmeshSelection,
     message::MessageSender,
+    plugins::{
+        absm::{
+            command::fetch_machine,
+            selection::{AbsmSelection, SelectedEntity},
+        },
+        animation::{self, command::fetch_animations_container, selection::AnimationSelection},
+        inspector::editors::handle::{
+            HandlePropertyEditorHierarchyMessage, HandlePropertyEditorNameMessage,
+        },
+        inspector::handlers::node::SceneNodePropertyChangedHandler,
+    },
     scene::{
         clipboard::Clipboard,
         commands::{
@@ -99,8 +100,10 @@ use crate::{
     Message, Settings,
 };
 use fyrox::asset::untyped::ResourceKind;
-use fyrox::core::Downcast;
+use fyrox::core::define_as_any_trait;
+use fyrox::core::reflect::DerivedEntityListProvider;
 use fyrox::graph::SceneGraphNode;
+use fyrox::gui::message::UiMessage;
 use std::{
     cell::RefCell,
     fmt::Debug,
@@ -990,32 +993,33 @@ impl SceneController for GameScene {
             }
             Message::SyncNodeHandleName { view, handle } => {
                 let scene = &engine.scenes[self.scene];
-                engine
-                    .user_interfaces
-                    .first_mut()
-                    .send_message(HandlePropertyEditorMessage::name(
-                        *view,
-                        MessageDirection::ToWidget,
+                engine.user_interfaces.first_mut().send_message(
+                    UiMessage::with_data(HandlePropertyEditorNameMessage(
                         scene
                             .graph
                             .try_get((*handle).into())
                             .map(|n| n.name_owned()),
-                    ));
+                    ))
+                    .with_destination(*view)
+                    .with_direction(MessageDirection::ToWidget),
+                );
                 false
             }
             Message::ProvideSceneHierarchy { view } => {
                 let scene = &engine.scenes[self.scene];
+
                 engine.user_interfaces.first_mut().send_message(
-                    HandlePropertyEditorMessage::hierarchy(
-                        *view,
-                        MessageDirection::ToWidget,
+                    UiMessage::with_data(HandlePropertyEditorHierarchyMessage(
                         HierarchyNode::from_scene_node(
                             self.scene_content_root,
                             Handle::NONE,
                             &scene.graph,
                         ),
-                    ),
+                    ))
+                    .with_destination(*view)
+                    .with_direction(MessageDirection::ToWidget),
                 );
+
                 false
             }
             _ => false,
@@ -1287,7 +1291,9 @@ impl SceneController for GameScene {
     }
 }
 
-pub trait BaseSelectionContainer: Downcast + Debug {
+define_as_any_trait!(SelectionContainerAsAny => SelectionContainer);
+
+pub trait BaseSelectionContainer: SelectionContainerAsAny + Debug {
     fn clone_boxed(&self) -> Box<dyn SelectionContainer>;
     fn eq_ref(&self, other: &dyn SelectionContainer) -> bool;
 }
@@ -1411,23 +1417,29 @@ impl Selection {
         is_audio_bus
     );
 
-    pub fn as_absm<N: 'static>(&self) -> Option<&AbsmSelection<N>> {
+    pub fn as_absm<N: DerivedEntityListProvider + 'static>(&self) -> Option<&AbsmSelection<N>> {
         self.0.as_ref().and_then(|s| s.downcast_ref())
     }
-    pub fn as_absm_mut<N: 'static>(&mut self) -> Option<&mut AbsmSelection<N>> {
+    pub fn as_absm_mut<N: DerivedEntityListProvider + 'static>(
+        &mut self,
+    ) -> Option<&mut AbsmSelection<N>> {
         self.0.as_mut().and_then(|s| s.downcast_mut())
     }
-    pub fn is_absm<N: 'static>(&mut self) -> bool {
+    pub fn is_absm<N: DerivedEntityListProvider + 'static>(&mut self) -> bool {
         self.as_absm::<N>().is_some()
     }
 
-    pub fn as_animation<N: 'static>(&self) -> Option<&AnimationSelection<N>> {
+    pub fn as_animation<N: DerivedEntityListProvider + 'static>(
+        &self,
+    ) -> Option<&AnimationSelection<N>> {
         self.0.as_ref().and_then(|s| s.downcast_ref())
     }
-    pub fn as_animation_mut<N: 'static>(&mut self) -> Option<&mut AnimationSelection<N>> {
+    pub fn as_animation_mut<N: DerivedEntityListProvider + 'static>(
+        &mut self,
+    ) -> Option<&mut AnimationSelection<N>> {
         self.0.as_mut().and_then(|s| s.downcast_mut())
     }
-    pub fn is_animation<N: 'static>(&mut self) -> bool {
+    pub fn is_animation<N: DerivedEntityListProvider + 'static>(&mut self) -> bool {
         self.as_animation::<N>().is_some()
     }
 

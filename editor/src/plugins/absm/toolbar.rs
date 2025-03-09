@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::fyrox::{
-    core::{pool::ErasedHandle, pool::Handle},
+    core::pool::Handle,
     fxhash::FxHashSet,
     generic_animation::machine::{mask::LayerMask, Machine, MachineLayer},
     graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
@@ -44,6 +44,7 @@ use crate::plugins::absm::{
     fetch_selection, machine_container_ref,
     selection::AbsmSelection,
 };
+use crate::scene::selector::SelectedHandle;
 use crate::{
     command::{Command, CommandGroup},
     load_image,
@@ -58,6 +59,7 @@ use crate::{
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::utils::make_dropdown_list_option;
+use std::any::TypeId;
 
 pub struct Toolbar {
     pub panel: Handle<UiNode>,
@@ -246,6 +248,8 @@ impl Toolbar {
                 let mut root = HierarchyNode {
                     name: "root".to_string(),
                     handle: Default::default(),
+                    inner_type_id: TypeId::of::<N>(),
+                    derived_type_ids: N::derived_entity_list().to_vec(),
                     children: vec![],
                 };
 
@@ -304,7 +308,7 @@ impl Toolbar {
                                 .inner()
                                 .iter()
                                 .cloned()
-                                .map(ErasedHandle::from)
+                                .map(SelectedHandle::from)
                                 .collect::<Vec<_>>();
 
                             ui.send_message(NodeSelectorMessage::selection(
@@ -349,7 +353,7 @@ impl Toolbar {
                     let new_mask = LayerMask::from(
                         mask_selection
                             .iter()
-                            .map(|h| Handle::<N>::from(*h))
+                            .map(|h| Handle::<N>::from(h.handle))
                             .collect::<Vec<_>>(),
                     );
                     sender.do_command(SetLayerMaskCommand {

@@ -44,13 +44,15 @@ use crate::fyrox::{
     resource::texture::{Texture, TextureResource},
 };
 use crate::plugins::inspector::EditorEnvironment;
+use fyrox::core::reflect::DerivedEntityListProvider;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone, Visit, Reflect, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct TextureEditor {
     widget: Widget,
     image: Handle<UiNode>,

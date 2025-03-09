@@ -30,7 +30,6 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         visitor::{Visit, VisitError},
-        Downcast,
     },
     engine::{
         task::TaskPoolHandler, AsyncSceneLoader, GraphicsContext, PerformanceStatistics,
@@ -43,6 +42,7 @@ use crate::{
     },
     scene::{Scene, SceneContainer},
 };
+use fyrox_core::define_as_any_trait;
 use std::{
     ops::{Deref, DerefMut},
     path::Path,
@@ -187,15 +187,17 @@ pub struct PluginContext<'a, 'b> {
     pub task_pool: &'a mut TaskPoolHandler,
 }
 
+define_as_any_trait!(PluginAsAny => Plugin);
+
 impl dyn Plugin {
     /// Performs downcasting to a particular type.
     pub fn cast<T: Plugin>(&self) -> Option<&T> {
-        Downcast::as_any(self).downcast_ref::<T>()
+        PluginAsAny::as_any(self).downcast_ref::<T>()
     }
 
     /// Performs downcasting to a particular type.
     pub fn cast_mut<T: Plugin>(&mut self) -> Option<&mut T> {
-        Downcast::as_any_mut(self).downcast_mut::<T>()
+        PluginAsAny::as_any_mut(self).downcast_mut::<T>()
     }
 }
 
@@ -245,7 +247,7 @@ impl dyn Plugin {
 ///     }
 /// }
 /// ```
-pub trait Plugin: Downcast + Visit + Reflect {
+pub trait Plugin: PluginAsAny + Visit + Reflect {
     /// The method is called when the plugin constructor was just registered in the engine. The main
     /// use of this method is to register scripts and custom scene graph nodes in [`SerializationContext`].
     fn register(&self, #[allow(unused_variables)] context: PluginRegistrationContext) {}

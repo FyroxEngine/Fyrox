@@ -90,6 +90,7 @@ use crate::{
     },
     send_sync_message, utils,
 };
+use fyrox::core::reflect::DerivedEntityListProvider;
 use fyrox::generic_animation::track::TrackBinding;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -280,7 +281,8 @@ impl TrackViewMessage {
     define_constructor!(TrackViewMessage:TrackTargetIsValid => fn track_target_is_valid(Result<(), String>), layout: false);
 }
 
-#[derive(Clone, Debug, Reflect, Visit, ComponentProvider)]
+#[derive(Clone, Debug, Reflect, Visit, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 struct TrackView {
     #[component(include)]
     tree: Tree,
@@ -869,12 +871,12 @@ impl TrackList {
         } else if let Some(NodeSelectorMessage::Selection(node_selection)) = message.data() {
             if message.destination() == self.node_selector {
                 if let Some(first) = node_selection.first() {
-                    self.selected_node = *first;
+                    self.selected_node = first.handle;
 
                     match self.property_binding_mode {
                         PropertyBindingMode::Generic => {
                             self.property_selector =
-                                Self::open_property_selector(graph, (*first).into(), None, ui);
+                                Self::open_property_selector(graph, first.handle.into(), None, ui);
                         }
                         PropertyBindingMode::Position => {
                             sender.do_command(AddTrackCommand::new(
@@ -912,7 +914,7 @@ impl TrackList {
                                 animation_player_handle: selection.animation_player,
                                 animation_handle: selection.animation,
                                 track: *id,
-                                target: (*first).into(),
+                                target: first.handle.into(),
                             }));
                         }
                     }

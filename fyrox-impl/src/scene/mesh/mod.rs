@@ -317,7 +317,8 @@ impl RenderDataBundleStorageTrait for BatchContainer {
 ///
 /// This example creates a unit cube surface with default material and then creates a mesh with this surface. If you need to create
 /// custom surface, see [`crate::scene::mesh::surface::SurfaceData`] docs for more info.
-#[derive(Debug, Reflect, Clone, Visit, ComponentProvider)]
+#[derive(Debug, Reflect, Clone, Visit, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "Node")]
 pub struct Mesh {
     #[visit(rename = "Common")]
     base: Base,

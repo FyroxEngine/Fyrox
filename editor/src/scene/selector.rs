@@ -21,21 +21,22 @@
 use crate::{
     fyrox::{
         core::{
-            algebra::Vector2, parking_lot::Mutex, pool::ErasedHandle, pool::Handle,
-            reflect::prelude::*, type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+            algebra::Vector2, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
+            reflect::DerivedEntityListProvider, type_traits::prelude::*, visitor::prelude::*,
         },
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},
-            define_constructor, define_widget_deref,
+            define_constructor,
             draw::DrawingContext,
             grid::{Column, GridBuilder, Row},
-            message::{MessageDirection, OsEvent, UiMessage},
+            message::{KeyCode, MessageDirection, OsEvent, UiMessage},
             scroll_viewer::ScrollViewerBuilder,
             scroll_viewer::ScrollViewerMessage,
             searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
+            style::{resource::StyleResourceExt, Style},
             text::TextBuilder,
             tree::{Tree, TreeBuilder, TreeRootBuilder, TreeRootMessage},
             widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -46,19 +47,22 @@ use crate::{
     },
     utils::make_node_name,
 };
-use fyrox::gui::message::KeyCode;
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
+use fyrox::core::pool::ErasedHandle;
+use fyrox::gui::define_widget_deref;
+use std::any::{Any, TypeId};
+use std::fmt::Debug;
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
     sync::Arc,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Eq, Clone, Debug, PartialEq)]
 pub struct HierarchyNode {
     pub name: String,
     pub handle: ErasedHandle,
+    pub inner_type_id: TypeId,
+    pub derived_type_ids: Vec<TypeId>,
     pub children: Vec<HierarchyNode>,
 }
 
@@ -68,7 +72,7 @@ impl HierarchyNode {
         G: SceneGraph<Node = N>,
         N: SceneGraphNode<SceneGraph = G>,
     {
-        let node = &graph.node(node_handle);
+        let node = graph.node(node_handle);
 
         Self {
             name: node.name().to_string(),
@@ -84,30 +88,8 @@ impl HierarchyNode {
                     }
                 })
                 .collect(),
-        }
-    }
-
-    pub fn from_ui_node(
-        node_handle: Handle<UiNode>,
-        ignored_node: Handle<UiNode>,
-        ui: &UserInterface,
-    ) -> Self {
-        let node = ui.node(node_handle);
-
-        Self {
-            name: node.name().to_owned(),
-            handle: node_handle.into(),
-            children: node
-                .children()
-                .iter()
-                .filter_map(|c| {
-                    if *c == ignored_node {
-                        None
-                    } else {
-                        Some(HierarchyNode::from_ui_node(*c, ignored_node, ui))
-                    }
-                })
-                .collect(),
+            inner_type_id: graph.actual_type_id(node_handle).unwrap(),
+            derived_type_ids: graph.derived_type_ids(node_handle).unwrap(),
         }
     }
 
@@ -131,6 +113,8 @@ impl HierarchyNode {
             WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(TreeData {
                 name: self.name.clone(),
                 handle: self.handle,
+                inner_type_id: self.inner_type_id,
+                derived_type_ids: self.derived_type_ids.clone(),
             }))),
         )
         .with_items(self.children.iter().map(|c| c.make_view(ctx)).collect())
@@ -143,17 +127,48 @@ impl HierarchyNode {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Visit, Reflect)]
+pub struct SelectedHandle {
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub inner_type_id: TypeId,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub derived_type_ids: Vec<TypeId>,
+    pub handle: ErasedHandle,
+}
+
+impl<T: DerivedEntityListProvider + 'static> From<Handle<T>> for SelectedHandle {
+    fn from(value: Handle<T>) -> Self {
+        Self {
+            inner_type_id: TypeId::of::<T>(),
+            derived_type_ids: T::derived_entity_list().to_vec(),
+            handle: value.into(),
+        }
+    }
+}
+
+impl Default for SelectedHandle {
+    fn default() -> Self {
+        Self {
+            inner_type_id: ().type_id(),
+            derived_type_ids: Default::default(),
+            handle: Default::default(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NodeSelectorMessage {
     #[allow(dead_code)] // Might be used in the future.
     Hierarchy(HierarchyNode),
-    Selection(Vec<ErasedHandle>),
+    Selection(Vec<SelectedHandle>),
     ChooseFocus,
 }
 
 impl NodeSelectorMessage {
     define_constructor!(NodeSelectorMessage:Hierarchy => fn hierarchy(HierarchyNode), layout: false);
-    define_constructor!(NodeSelectorMessage:Selection => fn selection(Vec<ErasedHandle>), layout: false);
+    define_constructor!(NodeSelectorMessage:Selection => fn selection(Vec<SelectedHandle>), layout: false);
     define_constructor!(NodeSelectorMessage:ChooseFocus => fn choose_focus(), layout: false);
 }
 
@@ -161,14 +176,20 @@ impl NodeSelectorMessage {
 struct TreeData {
     name: String,
     handle: ErasedHandle,
+    inner_type_id: TypeId,
+    pub derived_type_ids: Vec<TypeId>,
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(
+    Debug, Clone, Visit, Reflect, TypeUuidProvider, ComponentProvider, DerivedEntityListProvider,
+)]
+#[derived_types(type_name = "UiNode")]
+#[type_uuid(id = "1d718f90-323c-492d-b057-98d47495900a")]
 pub struct NodeSelector {
     widget: Widget,
     tree_root: Handle<UiNode>,
     search_bar: Handle<UiNode>,
-    selected: Vec<ErasedHandle>,
+    selected: Vec<SelectedHandle>,
     scroll_viewer: Handle<UiNode>,
 }
 
@@ -197,8 +218,6 @@ fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface
 
     is_any_match
 }
-
-uuid_provider!(NodeSelector = "1d718f90-323c-492d-b057-98d47495900a");
 
 impl Control for NodeSelector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
@@ -263,7 +282,15 @@ impl Control for NodeSelector {
                     MessageDirection::ToWidget,
                     selection
                         .iter()
-                        .map(|s| ui.node(*s).user_data_cloned::<TreeData>().unwrap().handle)
+                        .map(|s| {
+                            let tree_data = ui.node(*s).user_data_cloned::<TreeData>().unwrap();
+
+                            SelectedHandle {
+                                handle: tree_data.handle,
+                                inner_type_id: tree_data.inner_type_id,
+                                derived_type_ids: tree_data.derived_type_ids,
+                            }
+                        })
                         .collect(),
                 ));
             }
@@ -286,10 +313,11 @@ impl NodeSelector {
             let node = ui.node(node_handle);
 
             if let Some(tree) = node.query_component::<Tree>() {
-                if self
-                    .selected
-                    .contains(&tree.user_data_cloned::<TreeData>().unwrap().handle)
-                {
+                if self.selected.iter().any(|selected| {
+                    let tree_data = tree.user_data_cloned::<TreeData>().unwrap();
+                    tree_data.handle == selected.handle
+                        && tree_data.inner_type_id == selected.inner_type_id
+                }) {
                     selected_trees.push(node_handle);
                 }
             }
@@ -391,7 +419,11 @@ impl NodeSelectorBuilder {
     }
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(
+    Debug, Clone, Visit, Reflect, TypeUuidProvider, ComponentProvider, DerivedEntityListProvider,
+)]
+#[type_uuid(id = "5bb00f15-d6ec-4f0e-af7e-9472b0e290b4")]
+#[derived_types(type_name = "UiNode")]
 pub struct NodeSelectorWindow {
     #[component(include)]
     window: Window,
@@ -432,8 +464,6 @@ impl NodeSelectorWindow {
         ));
     }
 }
-
-uuid_provider!(NodeSelectorWindow = "5bb00f15-d6ec-4f0e-af7e-9472b0e290b4");
 
 impl Control for NodeSelectorWindow {
     fn on_remove(&self, sender: &Sender<UiMessage>) {

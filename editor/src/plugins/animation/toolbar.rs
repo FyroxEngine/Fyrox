@@ -313,7 +313,7 @@ impl RootMotionDropdownArea {
                             node: node_selection
                                 .first()
                                 .cloned()
-                                .map(Handle::from)
+                                .map(|selected| selected.handle.into())
                                 .unwrap_or_default(),
                             ..*settings
                         }),
@@ -812,13 +812,6 @@ impl Toolbar {
         .with_stroke_thickness(Thickness::uniform(1.0).into())
         .build(ctx);
 
-        let node_selector = NodeSelectorWindowBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                .with_title(WindowTitle::text("Select a Target Node"))
-                .open(false),
-        )
-        .build(ctx);
-
         let import_file_selector = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
@@ -854,7 +847,7 @@ impl Toolbar {
             clone_current_animation,
             import,
             reimport,
-            node_selector,
+            node_selector: Default::default(),
             import_file_selector,
             selected_import_root: Default::default(),
             looping,
@@ -1039,7 +1032,7 @@ impl Toolbar {
         &mut self,
         message: &UiMessage,
         sender: &MessageSender,
-        ui: &UserInterface,
+        ui: &mut UserInterface,
         animation_player_handle: Handle<N>,
         graph: &G,
         root: Handle<N>,
@@ -1052,6 +1045,14 @@ impl Toolbar {
     {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.import || message.destination() == self.reimport {
+                self.node_selector = NodeSelectorWindowBuilder::new(
+                    WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                        .with_remove_on_close(true)
+                        .with_title(WindowTitle::text("Select a Target Node"))
+                        .open(false),
+                )
+                .build(&mut ui.build_ctx());
+
                 ui.send_message(NodeSelectorMessage::hierarchy(
                     self.node_selector,
                     MessageDirection::ToWidget,
@@ -1076,7 +1077,7 @@ impl Toolbar {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(first) = selected_nodes.first() {
-                    self.selected_import_root = *first;
+                    self.selected_import_root = first.handle;
 
                     ui.send_message(WindowMessage::open_modal(
                         self.import_file_selector,

@@ -43,7 +43,6 @@ pub use uuid;
 use crate::visitor::{Visit, VisitResult, Visitor};
 use bytemuck::Pod;
 use fxhash::FxHashMap;
-use std::any::Any;
 use std::collections::hash_map::Entry;
 use std::ffi::OsString;
 use std::hash::Hasher;
@@ -495,31 +494,59 @@ pub fn swap_hash_map_entries<K0, K1, V>(entry0: Entry<K0, V>, entry1: Entry<K1, 
     }
 }
 
-/// A simple trait for downcasting through [`Any`] trait.
-pub trait Downcast: Any {
-    /// Converts self reference as a reference to [`Any`]. Could be used to downcast a trait object
-    /// to a particular type.
-    fn as_any(&self) -> &dyn Any;
+#[macro_export]
+macro_rules! define_as_any_trait {
+    ($trait_name:ident => $derived_trait:ident) => {
+        /// A base trait that provides useful methods for trait downcasting.
+        pub trait $trait_name: std::any::Any {
+            /// Casts `self` as `&dyn Any`.
+            fn as_any(&self) -> &dyn std::any::Any;
 
-    /// Converts self reference as a reference to [`Any`]. Could be used to downcast a trait object
-    /// to a particular type.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+            /// Casts `self` as `&mut dyn Any`.
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any>;
-}
+            /// Casts `Box<Self>` as `Box<dyn Any>`.
+            fn into_any(self: Box<Self>) -> Box<dyn std::any::Any>;
+        }
 
-impl<T: Any> Downcast for T {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+        impl<T: $derived_trait> $trait_name for T {
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                self
+            }
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
+            fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
+                self
+            }
+        }
+    };
+    ($trait_name:ident: $($sub_trait:ident),* => $derived_trait:ident) => {
+        /// A base trait that provides useful methods for trait downcasting.
+        pub trait $trait_name: std::any::Any + $($sub_trait),* {
+            fn as_any(&self) -> &dyn std::any::Any;
+
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
+
+            fn into_any(self: Box<Self>) -> Box<dyn std::any::Any>;
+        }
+
+        impl<T: $derived_trait> $trait_name for T {
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                self
+            }
+
+            fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
+                self
+            }
+        }
+    };
 }
 
 #[cfg(test)]

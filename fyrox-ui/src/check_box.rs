@@ -40,6 +40,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, MouseButton, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::export_derived_entity_list;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -163,6 +164,8 @@ pub struct CheckBox {
     /// Check mark that is used when the state is `None`.
     pub undefined_mark: InheritableVariable<Handle<UiNode>>,
 }
+
+export_derived_entity_list!(CheckBox = [UiNode]);
 
 impl CheckBox {
     /// A name of style property, that defines corner radius of a checkbox.

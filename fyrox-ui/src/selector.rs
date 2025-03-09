@@ -32,6 +32,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -65,7 +66,17 @@ impl SelectorMessage {
     );
 }
 
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
+#[derive(
+    Default,
+    Clone,
+    Visit,
+    Reflect,
+    Debug,
+    ComponentProvider,
+    TypeUuidProvider,
+    DerivedEntityListProvider,
+)]
+#[derived_types(type_name = "UiNode")]
 #[type_uuid(id = "25118853-5c3c-4197-9e4b-2e3b9d92f4d2")]
 pub struct Selector {
     widget: Widget,

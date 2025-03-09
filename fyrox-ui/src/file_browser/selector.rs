@@ -37,6 +37,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
@@ -66,7 +67,8 @@ impl FileSelectorMessage {
 
 /// File selector is a modal window that allows you to select a file (or directory) and commit or
 /// cancel selection.
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct FileSelector {
     #[component(include)]
     pub window: Window,
@@ -329,7 +331,8 @@ impl FileSelectorFieldMessage {
     define_constructor!(FileSelectorFieldMessage:Path => fn path(PathBuf), layout: false);
 }
 
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct FileSelectorField {
     widget: Widget,
     path: PathBuf,

@@ -37,6 +37,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
@@ -124,7 +125,8 @@ impl<T: NumericType> RectEditorMessage<T> {
 ///     }
 /// }
 /// ```
-#[derive(Default, Debug, Clone, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Debug, Clone, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct RectEditor<T>
 where
     T: NumericType,

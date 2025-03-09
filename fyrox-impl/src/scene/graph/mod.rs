@@ -42,6 +42,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::scene::node::NodeAsAny;
 use crate::{
     asset::untyped::UntypedResource,
     core::{
@@ -76,7 +77,9 @@ use crate::{
 };
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_core::pool::BorrowAs;
 use fyrox_graph::SceneGraphNode;
+use std::ops::{Deref, DerefMut};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -123,6 +126,18 @@ impl GraphPerformanceStatistics {
 
 /// A helper type alias for node pool.
 pub type NodePool = Pool<Node, NodeContainer>;
+
+impl<T: NodeTrait> BorrowAs<Node, NodeContainer, T> for Handle<T> {
+    fn borrow_as_ref(self, pool: &NodePool) -> Option<&T> {
+        pool.try_borrow(self.transmute())
+            .and_then(|n| NodeAsAny::as_any(n.0.deref()).downcast_ref::<T>())
+    }
+
+    fn borrow_as_mut(self, pool: &mut NodePool) -> Option<&mut T> {
+        pool.try_borrow_mut(self.transmute())
+            .and_then(|n| NodeAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
+    }
+}
 
 /// See module docs.
 #[derive(Debug, Reflect)]
@@ -1645,16 +1660,8 @@ where
 
     #[inline]
     fn index(&self, typed_handle: Handle<T>) -> &Self::Output {
-        let node = &self.pool[typed_handle.transmute()];
-        node.cast().unwrap_or_else(|| {
-            panic!(
-                "Downcasting of node {} ({}:{}) to type {} failed!",
-                node.name(),
-                typed_handle.index(),
-                typed_handle.generation(),
-                node.type_name()
-            )
-        })
+        self.typed_ref(typed_handle)
+            .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
 
@@ -1664,22 +1671,8 @@ where
 {
     #[inline]
     fn index_mut(&mut self, typed_handle: Handle<T>) -> &mut Self::Output {
-        let node = &mut self.pool[typed_handle.transmute()];
-
-        // SAFETY: This is safe to do, because we only read node's values for panicking.
-        let second_node_ref = unsafe { &*(node as *const Node) };
-
-        if let Some(downcasted) = node.cast_mut() {
-            downcasted
-        } else {
-            panic!(
-                "Downcasting of node {} ({}:{}) to type {} failed!",
-                second_node_ref.name(),
-                typed_handle.index(),
-                typed_handle.generation(),
-                second_node_ref.type_name()
-            )
-        }
+        self.typed_mut(typed_handle)
+            .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
 
@@ -1722,7 +1715,15 @@ impl AbstractSceneGraph for Graph {
 
 impl BaseSceneGraph for Graph {
     type Prefab = Model;
+    type NodeContainer = NodeContainer;
     type Node = Node;
+
+    #[inline]
+    fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
+        self.pool
+            .try_borrow(handle)
+            .map(|n| NodeAsAny::as_any(n.0.deref()).type_id())
+    }
 
     #[inline]
     fn root(&self) -> Handle<Self::Node> {
@@ -1844,6 +1845,12 @@ impl BaseSceneGraph for Graph {
     fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
         self.pool.try_borrow_mut(handle)
     }
+
+    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
+        self.pool
+            .try_borrow(handle)
+            .map(|n| Box::deref(&n.0).query_derived_entity_list().to_vec())
+    }
 }
 
 impl SceneGraph for Graph {
@@ -1861,10 +1868,25 @@ impl SceneGraph for Graph {
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
         self.pool.iter_mut()
     }
+
+    fn typed_ref<Ref>(
+        &self,
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+    ) -> Option<&Ref> {
+        self.pool.typed_ref(handle)
+    }
+
+    fn typed_mut<Ref>(
+        &mut self,
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+    ) -> Option<&mut Ref> {
+        self.pool.typed_mut(handle)
+    }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::scene::rigidbody::{RigidBody, RigidBodyBuilder};
     use crate::{
         asset::{io::FsResourceIo, manager::ResourceManager},
         core::{
@@ -2343,9 +2365,33 @@ mod test {
         assert!(graph[c].global_visibility());
         assert!(graph[d].global_visibility());
 
-        assert!(!graph[a].is_globally_enabled());
+        assert!(!graph.pool.typed_ref(a).unwrap().is_globally_enabled());
         assert!(!graph[b].is_globally_enabled());
         assert!(!graph[c].is_globally_enabled());
         assert!(!graph[d].is_globally_enabled());
+    }
+
+    #[test]
+    fn test_typed_borrow() {
+        let mut graph = Graph::new();
+        let pivot = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
+        let rigid_body = RigidBodyBuilder::new(BaseBuilder::new()).build(&mut graph);
+
+        assert!(graph.pool.typed_ref(pivot).is_some());
+        assert!(graph.pool.typed_ref(pivot.transmute::<Pivot>()).is_some());
+        assert!(graph
+            .pool
+            .typed_ref(pivot.transmute::<RigidBody>())
+            .is_none());
+
+        assert!(graph.pool.typed_ref(rigid_body).is_some());
+        assert!(graph
+            .pool
+            .typed_ref(rigid_body.transmute::<RigidBody>())
+            .is_some());
+        assert!(graph
+            .pool
+            .typed_ref(rigid_body.transmute::<Pivot>())
+            .is_none());
     }
 }

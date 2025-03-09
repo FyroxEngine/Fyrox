@@ -64,6 +64,7 @@ use crate::{
     ui_scene::UiScene,
     Editor, Message,
 };
+use fyrox::core::reflect::DerivedEntityListProvider;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::any::{Any, TypeId};
@@ -129,7 +130,9 @@ where
     sel
 }
 
-fn inner_fetch_selection<N>(editor_selection: &Selection) -> AnimationSelection<N> {
+fn inner_fetch_selection<N: DerivedEntityListProvider>(
+    editor_selection: &Selection,
+) -> AnimationSelection<N> {
     if let Some(selection) = editor_selection.as_animation() {
         // Some selection in an animation.
         AnimationSelection {

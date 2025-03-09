@@ -34,6 +34,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -85,7 +86,8 @@ impl WrapPanelMessage {
 ///
 /// Wrap panel can stack your widgets either in vertical or horizontal direction. Use `.with_orientation` while building
 /// the panel to switch orientation to desired.
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct WrapPanel {
     /// Base widget of the wrap panel.
     pub widget: Widget,

@@ -35,6 +35,8 @@ use crate::{
     Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
 };
 use fxhash::FxHashSet;
+use fyrox_core::reflect::DerivedEntityListProvider;
+use std::any::TypeId;
 use std::{
     cell::Ref,
     ops::{Deref, DerefMut},
@@ -69,6 +71,15 @@ pub enum PoseNode<T: EntityId> {
 
     /// See doc for [`BlendSpace`]
     BlendSpace(BlendSpace<T>),
+}
+
+impl<T: EntityId> DerivedEntityListProvider for PoseNode<T> {
+    fn derived_entity_list() -> &'static [TypeId] {
+        &[]
+    }
+    fn query_derived_entity_list(&self) -> &'static [TypeId] {
+        &[]
+    }
 }
 
 impl<T: EntityId> Default for PoseNode<T> {

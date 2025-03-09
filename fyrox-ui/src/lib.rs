@@ -334,7 +334,7 @@ use crate::message::RoutingStrategy;
 use crate::style::resource::{StyleResource, StyleResourceExt};
 use crate::style::{Style, DEFAULT_STYLE};
 pub use fyrox_animation as generic_animation;
-use fyrox_core::pool::ErasedHandle;
+use fyrox_core::pool::{BorrowAs, ErasedHandle};
 use fyrox_resource::untyped::ResourceKind;
 pub use fyrox_texture as texture;
 
@@ -3136,7 +3136,15 @@ impl AbstractSceneGraph for UserInterface {
 
 impl BaseSceneGraph for UserInterface {
     type Prefab = Self;
+    type NodeContainer = WidgetContainer;
     type Node = UiNode;
+
+    #[inline]
+    fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
+        self.nodes
+            .try_borrow(handle)
+            .map(|n| ControlAsAny::as_any(n.0.deref()).type_id())
+    }
 
     #[inline]
     fn root(&self) -> Handle<Self::Node> {
@@ -3241,6 +3249,12 @@ impl BaseSceneGraph for UserInterface {
             self.nodes[parent_handle].remove_child(node_handle);
         }
     }
+
+    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
+        self.nodes
+            .try_borrow(handle)
+            .map(|n| n.0.query_derived_entity_list().to_vec())
+    }
 }
 
 impl SceneGraph for UserInterface {
@@ -3257,6 +3271,20 @@ impl SceneGraph for UserInterface {
     #[inline]
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
         self.nodes.iter_mut()
+    }
+
+    fn typed_ref<Ref>(
+        &self,
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+    ) -> Option<&Ref> {
+        self.nodes.typed_ref(handle)
+    }
+
+    fn typed_mut<Ref>(
+        &mut self,
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Ref>,
+    ) -> Option<&mut Ref> {
+        self.nodes.typed_mut(handle)
     }
 }
 

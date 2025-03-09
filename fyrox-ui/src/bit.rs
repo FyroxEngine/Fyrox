@@ -37,6 +37,7 @@ use crate::{
     BuildContext, Control, MessageDirection, MouseButton, Orientation, Thickness, UiNode,
     UserInterface, WidgetMessage,
 };
+use fyrox_core::reflect::DerivedEntityListProvider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -108,7 +109,8 @@ impl<T: BitContainer> ConstructorProvider<UiNode, UserInterface> for BitField<T>
     }
 }
 
-#[derive(Default, Clone, Reflect, Visit, Debug, ComponentProvider)]
+#[derive(Default, Clone, Reflect, Visit, Debug, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct BitField<T>
 where
     T: BitContainer,

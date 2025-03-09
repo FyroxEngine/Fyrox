@@ -33,6 +33,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::export_derived_entity_list;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -75,6 +76,8 @@ pub struct Canvas {
     /// Base widget of the canvas.
     pub widget: Widget,
 }
+
+export_derived_entity_list!(Canvas = [UiNode]);
 
 impl ConstructorProvider<UiNode, UserInterface> for Canvas {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

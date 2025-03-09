@@ -23,6 +23,7 @@
 mod external_impls;
 mod std_impls;
 
+pub use fyrox_core_derive::DerivedEntityListProvider;
 pub use fyrox_core_derive::Reflect;
 use std::{
     any::{Any, TypeId},
@@ -32,8 +33,8 @@ use std::{
 
 pub mod prelude {
     pub use super::{
-        FieldInfo, Reflect, ReflectArray, ReflectHashMap, ReflectInheritableVariable, ReflectList,
-        ResolvePath, SetFieldByPathError,
+        DerivedEntityListProvider, FieldInfo, Reflect, ReflectArray, ReflectHashMap,
+        ReflectInheritableVariable, ReflectList, ResolvePath, SetFieldByPathError,
     };
 }
 
@@ -318,6 +319,55 @@ pub trait Reflect: ReflectBase {
     fn as_hash_map_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHashMap>)) {
         func(None)
     }
+
+    fn as_handle(&self, func: &mut dyn FnMut(Option<&dyn ReflectHandle>)) {
+        func(None)
+    }
+
+    fn as_handle_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHandle>)) {
+        func(None)
+    }
+}
+
+pub trait DerivedEntityListProvider {
+    fn derived_entity_list() -> &'static [TypeId]
+    where
+        Self: Sized;
+    fn query_derived_entity_list(&self) -> &'static [TypeId];
+}
+
+#[macro_export]
+macro_rules! export_derived_entity_list {
+    ($ty:ty = [$($trait_name:ty),*]) => {
+        impl $crate::reflect::DerivedEntityListProvider for $ty {
+            fn derived_entity_list() -> &'static [std::any::TypeId] {
+                static ARRAY: std::sync::LazyLock<Vec<std::any::TypeId>> = std::sync::LazyLock::new(|| vec![
+                    $(
+                        // Fucking "this stuff is unstable in const fn", typical Rust.
+                        // TODO: Remove LazyLock when it is finally stable.
+                        std::any::TypeId::of::<$trait_name>()
+                    ),*
+                ]);
+
+                &ARRAY
+            }
+
+            fn query_derived_entity_list(&self) -> &'static [std::any::TypeId] {
+                <$ty as $crate::reflect::DerivedEntityListProvider>::derived_entity_list()
+            }
+        }
+    };
+}
+
+pub trait ReflectHandle: DerivedEntityListProvider {
+    fn reflect_inner_type_id(&self) -> TypeId;
+    fn reflect_inner_type_name(&self) -> &'static str;
+    fn reflect_is_some(&self) -> bool;
+    fn reflect_set_index(&mut self, index: u32);
+    fn reflect_index(&self) -> u32;
+    fn reflect_set_generation(&mut self, generation: u32);
+    fn reflect_generation(&self) -> u32;
+    fn reflect_as_erased(&self) -> ErasedHandle;
 }
 
 /// [`Reflect`] sub trait for working with slices.
@@ -1338,6 +1388,7 @@ macro_rules! newtype_reflect {
     };
 }
 
+use crate::pool::ErasedHandle;
 use crate::sstorage::ImmutableString;
 use crate::variable::{InheritError, VariableFlags};
 pub use blank_reflect;
@@ -1346,6 +1397,7 @@ pub use delegate_reflect;
 #[cfg(test)]
 mod test {
     use super::prelude::*;
+    use std::any::TypeId;
     use std::collections::HashMap;
 
     #[derive(Reflect, Default, Debug)]
@@ -1393,5 +1445,18 @@ mod test {
         assert_eq!(names[7], "hash_map");
         assert_eq!(names[8], "hash_map[Foobar]");
         assert_eq!(names[9], "hash_map[Foobar].payload");
+    }
+
+    #[derive(DerivedEntityListProvider)]
+    #[derived_types(type_name = "Derived")]
+    struct Base;
+
+    #[allow(dead_code)]
+    struct Derived(Box<Base>);
+
+    #[test]
+    fn test_derived() {
+        let base = Base;
+        assert_eq!(base.query_derived_entity_list(), &[TypeId::of::<Derived>()])
     }
 }

@@ -44,6 +44,7 @@ use crate::plugins::absm::{
     selectable::{Selectable, SelectableMessage},
 };
 use crate::utils::fetch_node_center;
+use fyrox::core::reflect::DerivedEntityListProvider;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::ops::{Deref, DerefMut};
@@ -57,7 +58,8 @@ impl TransitionMessage {
     define_constructor!(TransitionMessage:Activate => fn activate(), layout: false);
 }
 
-#[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Clone, Debug, Visit, Reflect, ComponentProvider, DerivedEntityListProvider)]
+#[derived_types(type_name = "UiNode")]
 pub struct TransitionView {
     widget: Widget,
     pub segment: Segment,
