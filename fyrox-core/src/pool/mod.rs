@@ -79,6 +79,18 @@ pub trait BorrowAs<Object, Container: PayloadContainer<Element = Object>, T> {
     fn borrow_as_mut(self, pool: &mut Pool<Object, Container>) -> Option<&mut T>;
 }
 
+impl<Object, Container: PayloadContainer<Element = Object> + 'static>
+    BorrowAs<Object, Container, Object> for Handle<Object>
+{
+    fn borrow_as_ref(self, pool: &Pool<Object, Container>) -> Option<&Object> {
+        pool.try_borrow(self)
+    }
+
+    fn borrow_as_mut(self, pool: &mut Pool<Object, Container>) -> Option<&mut Object> {
+        pool.try_borrow_mut(self)
+    }
+}
+
 impl<T, P> Reflect for Pool<T, P>
 where
     T: Reflect,

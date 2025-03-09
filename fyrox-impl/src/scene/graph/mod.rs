@@ -127,16 +127,6 @@ impl GraphPerformanceStatistics {
 /// A helper type alias for node pool.
 pub type NodePool = Pool<Node, NodeContainer>;
 
-impl BorrowAs<Node, NodeContainer, Node> for Handle<Node> {
-    fn borrow_as_ref(self, pool: &NodePool) -> Option<&Node> {
-        pool.try_borrow(self)
-    }
-
-    fn borrow_as_mut(self, pool: &mut NodePool) -> Option<&mut Node> {
-        pool.try_borrow_mut(self)
-    }
-}
-
 impl<T: NodeTrait> BorrowAs<Node, NodeContainer, T> for Handle<T> {
     fn borrow_as_ref(self, pool: &NodePool) -> Option<&T> {
         pool.try_borrow(self.transmute())
