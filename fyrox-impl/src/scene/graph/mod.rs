@@ -1660,16 +1660,8 @@ where
 
     #[inline]
     fn index(&self, typed_handle: Handle<T>) -> &Self::Output {
-        let node = &self.pool[typed_handle.transmute()];
-        node.cast().unwrap_or_else(|| {
-            panic!(
-                "Downcasting of node {} ({}:{}) to type {} failed!",
-                node.name(),
-                typed_handle.index(),
-                typed_handle.generation(),
-                node.type_name()
-            )
-        })
+        self.typed_ref(typed_handle)
+            .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
 
@@ -1679,22 +1671,8 @@ where
 {
     #[inline]
     fn index_mut(&mut self, typed_handle: Handle<T>) -> &mut Self::Output {
-        let node = &mut self.pool[typed_handle.transmute()];
-
-        // SAFETY: This is safe to do, because we only read node's values for panicking.
-        let second_node_ref = unsafe { &*(node as *const Node) };
-
-        if let Some(downcasted) = node.cast_mut() {
-            downcasted
-        } else {
-            panic!(
-                "Downcasting of node {} ({}:{}) to type {} failed!",
-                second_node_ref.name(),
-                typed_handle.index(),
-                typed_handle.generation(),
-                second_node_ref.type_name()
-            )
-        }
+        self.typed_mut(typed_handle)
+            .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
 
