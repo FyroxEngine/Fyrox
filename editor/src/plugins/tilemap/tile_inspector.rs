@@ -1181,20 +1181,12 @@ impl TileInspector {
             TileBook::Empty => return,
             TileBook::TileSet(tile_set) => state
                 .page_positions()
-                .map(|position| ModifyPageIconCommand {
-                    tile_set: tile_set.clone(),
-                    page: position,
-                    icon,
-                })
+                .map(|position| ModifyPageIconCommand::new(tile_set.clone(), position, icon))
                 .map(Command::new)
                 .collect::<Vec<_>>(),
             TileBook::Brush(brush) => state
                 .page_positions()
-                .map(|position| ModifyBrushPageIconCommand {
-                    brush: brush.clone(),
-                    page: position,
-                    icon,
-                })
+                .map(|position| ModifyBrushPageIconCommand::new(brush.clone(), position, icon))
                 .map(Command::new)
                 .collect::<Vec<_>>(),
         };

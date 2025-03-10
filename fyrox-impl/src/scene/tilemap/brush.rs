@@ -494,16 +494,19 @@ impl TileMapBrush {
 
     /// The stamp element for the given position, if the tile in that cell is used
     /// to create a stamp. The [`StampElement::handle`] refers to the location of the tile within the
-    /// tile set, while the [`StampElement::brush_cell`] refers to the location of the tile within
+    /// tile set, while the [`StampElement::source`] refers to the location of the tile within
     /// the brush.
     pub fn stamp_element(&self, position: ResourceTilePosition) -> Option<StampElement> {
         match position.stage() {
-            TilePaletteStage::Pages => self.redirect_handle(position).map(|h| h.into()),
+            TilePaletteStage::Pages => self.redirect_handle(position).map(|handle| StampElement {
+                handle,
+                source: Some(position),
+            }),
             TilePaletteStage::Tiles => {
                 let page = self.pages.get(&position.page())?;
                 Some(StampElement {
                     handle: *page.tiles.get(&position.stage_position())?,
-                    brush_cell: position.handle(),
+                    source: Some(position),
                 })
             }
         }

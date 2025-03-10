@@ -409,6 +409,17 @@ pub enum ResourceTilePosition {
     Tile(Vector2<i32>, Vector2<i32>),
 }
 
+impl Display for ResourceTilePosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResourceTilePosition::Page(p) => write!(f, "Page({},{})", p.x, p.y),
+            ResourceTilePosition::Tile(page, pos) => {
+                write!(f, "({},{}):({},{})", page.x, page.y, pos.x, pos.y)
+            }
+        }
+    }
+}
+
 impl From<TileDefinitionHandle> for ResourceTilePosition {
     fn from(value: TileDefinitionHandle) -> Self {
         Self::Tile(value.page(), value.tile())
@@ -733,11 +744,7 @@ impl TileBook {
     pub fn get_stamp_element(&self, position: ResourceTilePosition) -> Option<StampElement> {
         match self {
             TileBook::Empty => None,
-            TileBook::TileSet(r) => r
-                .state()
-                .data()?
-                .redirect_handle(position)
-                .map(|h| h.into()),
+            TileBook::TileSet(r) => r.state().data()?.stamp_element(position),
             TileBook::Brush(r) => r.state().data()?.stamp_element(position),
         }
     }

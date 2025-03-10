@@ -618,9 +618,9 @@ impl Debug for MacroTilesUpdate {
         f.write_str("MacroTilesUpdate")?;
         for (p, v) in self.0.iter() {
             write!(f, " ({:2},{:2})->", p.x, p.y)?;
-            if let Some(StampElement { handle, brush_cell }) = v {
+            if let Some(StampElement { handle, source }) = v {
                 write!(f, "{handle}")?;
-                if let Some(cell) = brush_cell {
+                if let Some(cell) = source {
                     write!(f, "[{cell}]")?;
                 }
             } else {
@@ -737,7 +737,7 @@ impl TransTilesUpdate {
                     *pos,
                     Some(StampElement {
                         handle,
-                        brush_cell: element.brush_cell,
+                        source: element.source,
                     }),
                 );
             } else {

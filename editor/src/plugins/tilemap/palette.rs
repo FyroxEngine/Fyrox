@@ -22,8 +22,9 @@
 //! is responsible for displaying a grid of tiles where the user may select tiles,
 //! drag tiles, and use drawing tools upon the tiles.
 
+use fyrox::scene::tilemap::brush::TileMapBrushResource;
 use fyrox::scene::tilemap::tileset::OptionTileSet;
-use fyrox::scene::tilemap::ResourceTilePosition;
+use fyrox::scene::tilemap::{ResourceTilePosition, RotTileHandle};
 
 use super::{commands::*, *};
 use crate::asset::item::AssetItem;
@@ -255,6 +256,10 @@ pub struct PaletteWidget {
     #[visit(skip)]
     #[reflect(hidden)]
     macro_cells: Option<MacroCellSetListRef>,
+    /// The cells which should be marked as being included in some macro.
+    #[visit(skip)]
+    #[reflect(hidden)]
+    macro_list: Option<BrushMacroListRef>,
     #[visit(skip)]
     #[reflect(hidden)]
     colliders: Vec<ColliderHighlight>,
@@ -371,6 +376,317 @@ fn invert_transform(trans: &Matrix3<f32>) -> Matrix3<f32> {
     trans.try_inverse().unwrap_or(Matrix3::identity())
 }
 
+fn send_update_tile_set_pages(
+    tile_set: &TileSetResource,
+    update: &TransTilesUpdate,
+    state: &TileDrawStateRef,
+    sender: &mut MessageSender,
+) {
+    match state.lock().stamp.source() {
+        Some(TileBook::TileSet(source)) => {
+            send_copy_tile_set_pages(source, update, tile_set, sender)
+        }
+        _ => send_update_tile_set_icons(update, tile_set, sender),
+    }
+}
+
+fn send_copy_tile_set_pages(
+    source: &TileSetResource,
+    update: &TransTilesUpdate,
+    destination: &TileSetResource,
+    sender: &mut MessageSender,
+) {
+    let mut commands = Vec::default();
+    for (p, data) in update.iter() {
+        let Some(RotTileHandle {
+            element:
+                StampElement {
+                    handle,
+                    source: element_source,
+                },
+            transform,
+        }) = data
+        else {
+            commands.push(Command::new(SetTileSetPageCommand {
+                tile_set: destination.clone(),
+                position: *p,
+                page: None,
+            }));
+            continue;
+        };
+        if let Some(ResourceTilePosition::Page(source_page)) = element_source {
+            let source = source.data_ref();
+            let mut page_data = source.get_page(*source_page).cloned();
+            if let Some(page_data) = page_data.as_mut() {
+                let icon = page_data.icon;
+                let icon = source
+                    .get_transformed_version(*transform, icon)
+                    .unwrap_or(icon);
+                page_data.icon = icon;
+            }
+            commands.push(Command::new(SetTileSetPageCommand {
+                tile_set: destination.clone(),
+                position: *p,
+                page: page_data,
+            }));
+        } else {
+            let source = source.data_ref();
+            let icon = source
+                .get_transformed_version(*transform, *handle)
+                .unwrap_or(*handle);
+            commands.push(Command::new(ModifyPageIconCommand::new(
+                destination.clone(),
+                *p,
+                icon,
+            )));
+        }
+    }
+    if !commands.is_empty() {
+        sender.do_command(CommandGroup::from(commands).with_custom_name("Edit Tile Set Pages"));
+    }
+}
+
+fn send_update_tile_set_icons(
+    update: &TransTilesUpdate,
+    destination: &TileSetResource,
+    sender: &mut MessageSender,
+) {
+    let mut commands = Vec::default();
+    for (p, data) in update.iter() {
+        let Some(RotTileHandle {
+            element: StampElement { handle, .. },
+            transform,
+        }) = data
+        else {
+            commands.push(Command::new(SetTileSetPageCommand {
+                tile_set: destination.clone(),
+                position: *p,
+                page: None,
+            }));
+            continue;
+        };
+        let tile_set = destination.data_ref();
+        let icon = tile_set
+            .get_transformed_version(*transform, *handle)
+            .unwrap_or(*handle);
+        commands.push(Command::new(ModifyPageIconCommand::new(
+            destination.clone(),
+            *p,
+            icon,
+        )));
+    }
+    if !commands.is_empty() {
+        sender.do_command(CommandGroup::from(commands).with_custom_name("Edit Tile Set Pages"));
+    }
+}
+
+fn send_update_brush_pages(
+    brush: &TileMapBrushResource,
+    update: &TransTilesUpdate,
+    state: &TileDrawStateRef,
+    macro_list: Option<&BrushMacroListRef>,
+    sender: &mut MessageSender,
+) {
+    let guard = state.lock();
+    match guard.stamp.source() {
+        Some(TileBook::Brush(source)) => {
+            send_copy_brush_pages(source, update, brush, macro_list, sender)
+        }
+        _ => {
+            send_update_brush_icons(guard.tile_set.as_ref(), update, brush, macro_list, sender);
+        }
+    }
+}
+
+fn send_copy_brush_pages(
+    source: &TileMapBrushResource,
+    update: &TransTilesUpdate,
+    destination: &TileMapBrushResource,
+    macro_list: Option<&BrushMacroListRef>,
+    sender: &mut MessageSender,
+) {
+    let mut commands = CommandGroup::default();
+    let same_brush = source == destination;
+    for (p, data) in update.iter() {
+        let Some(RotTileHandle {
+            element:
+                StampElement {
+                    handle,
+                    source: element_source,
+                },
+            transform,
+        }) = data
+        else {
+            make_commands_to_erase_brush_page(destination, *p, macro_list, &mut commands);
+            continue;
+        };
+        if let Some(ResourceTilePosition::Page(source_page)) = element_source {
+            let source = source.data_ref();
+            let tile_set = source.tile_set();
+            let mut page_data = source.pages.get(source_page).cloned();
+            if let (Some(tile_set), Some(page_data)) = (tile_set, page_data.as_mut()) {
+                let icon = page_data.icon;
+                let icon = tile_set
+                    .data_ref()
+                    .get_transformed_version(*transform, icon)
+                    .unwrap_or(icon);
+                page_data.icon = icon;
+            }
+            if same_brush {
+                drop(source);
+                make_commands_to_copy_brush_page(
+                    destination,
+                    *source_page,
+                    *p,
+                    macro_list,
+                    &mut commands,
+                );
+            }
+            commands.push(SetBrushPageCommand {
+                brush: destination.clone(),
+                position: *p,
+                page: page_data,
+            });
+        } else {
+            let source = source.data_ref();
+            let icon = if let Some(tile_set) = source.tile_set() {
+                tile_set
+                    .data_ref()
+                    .get_transformed_version(*transform, *handle)
+                    .unwrap_or(*handle)
+            } else {
+                *handle
+            };
+            commands.push(ModifyBrushPageIconCommand::new(
+                destination.clone(),
+                *p,
+                icon,
+            ));
+        }
+    }
+    if !commands.is_empty() {
+        sender.do_command(commands.with_custom_name("Edit Tile Set Pages"));
+    }
+}
+
+fn send_update_brush_icons(
+    tile_set: Option<&TileSetResource>,
+    update: &TransTilesUpdate,
+    destination: &TileMapBrushResource,
+    macro_list: Option<&BrushMacroListRef>,
+    sender: &mut MessageSender,
+) {
+    let mut commands = CommandGroup::default();
+    for (p, data) in update.iter() {
+        let Some(RotTileHandle {
+            element: StampElement { handle, .. },
+            transform,
+        }) = data
+        else {
+            make_commands_to_erase_brush_page(destination, *p, macro_list, &mut commands);
+            continue;
+        };
+        let icon = if let Some(tile_set) = tile_set {
+            tile_set
+                .data_ref()
+                .get_transformed_version(*transform, *handle)
+                .unwrap_or(*handle)
+        } else {
+            *handle
+        };
+        commands.push(ModifyBrushPageIconCommand::new(
+            destination.clone(),
+            *p,
+            icon,
+        ));
+    }
+    if !commands.is_empty() {
+        sender.do_command(commands.with_custom_name("Edit Tile Set Pages"));
+    }
+}
+
+fn make_commands_to_erase_brush_page(
+    brush: &TileMapBrushResource,
+    page: Vector2<i32>,
+    macro_list: Option<&BrushMacroListRef>,
+    commands: &mut CommandGroup,
+) {
+    if let Some(macro_list) = macro_list {
+        let macro_list = macro_list.lock();
+        for instance in brush.data_ref().macros.iter() {
+            if let Some(m) = macro_list.get_by_uuid(&instance.macro_id) {
+                if let Some(command) = m.copy_page(
+                    None,
+                    page,
+                    &BrushMacroInstance {
+                        brush: brush.clone(),
+                        settings: instance.settings.clone(),
+                    },
+                ) {
+                    commands.push_command(command);
+                }
+            }
+        }
+    }
+    commands.push(SetBrushPageCommand {
+        brush: brush.clone(),
+        position: page,
+        page: None,
+    });
+}
+
+fn make_commands_to_copy_brush_page(
+    brush: &TileMapBrushResource,
+    from: Vector2<i32>,
+    to: Vector2<i32>,
+    macro_list: Option<&BrushMacroListRef>,
+    commands: &mut CommandGroup,
+) {
+    if let Some(macro_list) = macro_list {
+        let macro_list = macro_list.lock();
+        for instance in brush.data_ref().macros.iter() {
+            if let Some(m) = macro_list.get_by_uuid(&instance.macro_id) {
+                if let Some(command) = m.copy_page(
+                    Some(from),
+                    to,
+                    &BrushMacroInstance {
+                        brush: brush.clone(),
+                        settings: instance.settings.clone(),
+                    },
+                ) {
+                    commands.push_command(command);
+                }
+            }
+        }
+    }
+}
+
+fn make_commands_to_copy_brush_tile(
+    brush: &TileMapBrushResource,
+    from: Option<TileDefinitionHandle>,
+    to: TileDefinitionHandle,
+    macro_list: Option<&BrushMacroListRef>,
+    commands: &mut CommandGroup,
+) {
+    if let Some(macro_list) = macro_list {
+        let macro_list = macro_list.lock();
+        for instance in brush.data_ref().macros.iter() {
+            if let Some(m) = macro_list.get_by_uuid(&instance.macro_id) {
+                if let Some(command) = m.copy_cell(
+                    from,
+                    to,
+                    &BrushMacroInstance {
+                        brush: brush.clone(),
+                        settings: instance.settings.clone(),
+                    },
+                ) {
+                    commands.push_command(command);
+                }
+            }
+        }
+    }
+}
+
 impl PaletteWidget {
     /// Each brush and tile set has two palette areas: the pages and the tiles within each page.
     /// These two areas are called stages, and each of the two stages needs to be handled separately.
@@ -393,10 +709,7 @@ impl PaletteWidget {
     fn sync_to_state(&mut self, ui: &mut UserInterface) {
         let state = self.state.lock();
         let drawing_mode = if self.editable {
-            match self.kind {
-                TilePaletteStage::Pages => DrawingMode::Pick,
-                TilePaletteStage::Tiles => state.drawing_mode,
-            }
+            state.drawing_mode
         } else {
             DrawingMode::Pick
         };
@@ -437,7 +750,7 @@ impl PaletteWidget {
                         .push(ColliderHighlight::new(pos, color, tile_collider.clone()));
                 });
         }
-        if self.editable && self.kind == TilePaletteStage::Tiles {
+        if self.editable {
             self.overlay.clear();
             self.highlight.clear();
             match state.drawing_mode {
@@ -525,11 +838,37 @@ impl PaletteWidget {
         Vector2::new((pos.x / s.x).floor() as i32, (pos.y / s.y).floor() as i32)
     }
     fn send_update(&mut self) {
+        match self.kind {
+            TilePaletteStage::Pages => self.send_update_pages(),
+            TilePaletteStage::Tiles => self.send_update_tiles(),
+        }
+    }
+    fn send_update_pages(&mut self) {
+        assert_eq!(self.kind, TilePaletteStage::Pages);
+        match &self.content {
+            TileBook::Empty => (),
+            TileBook::TileSet(tile_set) => {
+                send_update_tile_set_pages(tile_set, &self.update, &self.state, &mut self.sender);
+            }
+            TileBook::Brush(brush) => {
+                send_update_brush_pages(
+                    brush,
+                    &self.update,
+                    &self.state,
+                    self.macro_list.as_ref(),
+                    &mut self.sender,
+                );
+            }
+        }
+        self.update.clear();
+    }
+    fn send_update_tiles(&mut self) {
         assert_eq!(self.kind, TilePaletteStage::Tiles);
         let Some(page) = self.page else {
             return;
         };
         let state = self.state.lock();
+        let source = state.stamp.source();
         let source_set = state.tile_set.as_ref();
         match &self.content {
             TileBook::Empty => (),
@@ -553,12 +892,37 @@ impl PaletteWidget {
                     .cloned()
                     .or_else(|| resource.state().data()?.tile_set())
                 {
+                    let mut commands = CommandGroup::default();
+                    let same_brush = if let Some(TileBook::Brush(brush)) = source.as_ref() {
+                        brush == resource
+                    } else {
+                        false
+                    };
+                    for (p, d) in self.update.iter() {
+                        let from = if same_brush {
+                            d.as_ref().and_then(|d| d.element.source?.handle())
+                        } else {
+                            None
+                        };
+                        let Some(to) = TileDefinitionHandle::try_new(page, *p) else {
+                            continue;
+                        };
+                        make_commands_to_copy_brush_tile(
+                            resource,
+                            from,
+                            to,
+                            self.macro_list.as_ref(),
+                            &mut commands,
+                        );
+                    }
                     let mut source_set = TileSetRef::new(&source_set);
-                    self.sender.do_command(SetBrushTilesCommand {
+                    commands.push(SetBrushTilesCommand {
                         brush: resource.clone(),
                         page,
                         tiles: self.update.build_tiles_update(&source_set.as_loaded()),
                     });
+                    self.sender
+                        .do_command(commands.with_custom_name("Edit Brush Tiles"));
                 }
                 self.update.clear();
             }
@@ -579,45 +943,12 @@ impl PaletteWidget {
         if state.selection_palette() != self.handle || !state.has_selection() {
             return false;
         }
-        match self.kind {
-            TilePaletteStage::Pages => {
-                let sel = state
-                    .selection_positions()
-                    .iter()
-                    .copied()
-                    .collect::<Vec<_>>();
-                drop(state);
-                let commands = sel
-                    .into_iter()
-                    .filter_map(|p| self.delete_page(p))
-                    .collect::<Vec<_>>();
-                self.sender
-                    .do_command(CommandGroup::from(commands).with_custom_name("Delete Pages"));
-            }
-            TilePaletteStage::Tiles => {
-                for position in state.selection_positions() {
-                    self.update.insert(*position, None);
-                }
-                drop(state);
-                self.send_update();
-            }
+        for position in state.selection_positions() {
+            self.update.insert(*position, None);
         }
+        drop(state);
+        self.send_update();
         true
-    }
-    fn delete_page(&mut self, position: Vector2<i32>) -> Option<Command> {
-        match &self.content {
-            TileBook::Empty => None,
-            TileBook::TileSet(tile_set) => Some(Command::new(SetTileSetPageCommand {
-                tile_set: tile_set.clone(),
-                position,
-                page: None,
-            })),
-            TileBook::Brush(brush) => Some(Command::new(SetBrushPageCommand {
-                brush: brush.clone(),
-                position,
-                page: None,
-            })),
-        }
     }
     fn set_page(&mut self, resource: TileBook, page: Option<Vector2<i32>>, ui: &mut UserInterface) {
         let mut state = self.state.lock_mut("set_page");
@@ -641,21 +972,21 @@ impl PaletteWidget {
     }
     fn drawing_mode(&self) -> DrawingMode {
         if self.editable {
-            match self.kind {
-                TilePaletteStage::Pages => DrawingMode::Pick,
-                TilePaletteStage::Tiles => self.current_tool,
-            }
+            self.current_tool
         } else {
             DrawingMode::Pick
         }
     }
     fn update_stamp(&self, state: &mut TileDrawStateGuardMut) {
         let page = self.page.unwrap_or_default();
-        let brush = self.content.brush_ref().cloned();
-        state.update_stamp(brush, self.content.get_tile_set(), |p| {
-            self.content
-                .get_stamp_element(ResourceTilePosition::new(self.stage(), page, p))
-        });
+        state.update_stamp(
+            Some(self.content.clone()),
+            self.content.get_tile_set(),
+            |p| {
+                self.content
+                    .get_stamp_element(ResourceTilePosition::new(self.stage(), page, p))
+            },
+        );
     }
     /// After the data changes in the tile set or the brush that the widget is displaying,
     /// call this method to rebuild the stamp from the currently selected tiles. This is necessary
@@ -897,8 +1228,29 @@ impl PaletteWidget {
                     .do_command(MoveTileSetPageCommand::new(tile_set, pages, offset));
             }
             TileBook::Brush(brush) => {
+                let mut commands = CommandGroup::default();
+                let from = pages.clone().into_boxed_slice();
+                let to = pages.iter().map(|p| *p + offset).collect::<Box<_>>();
+                if let Some(macro_list) = self.macro_list.as_ref() {
+                    let macro_list = macro_list.lock();
+                    for instance in brush.data_ref().macros.iter() {
+                        if let Some(m) = macro_list.get_by_uuid(&instance.macro_id) {
+                            if let Some(command) = m.move_pages(
+                                from.clone(),
+                                to.clone(),
+                                &BrushMacroInstance {
+                                    brush: brush.clone(),
+                                    settings: instance.settings.clone(),
+                                },
+                            ) {
+                                commands.push_command(command)
+                            }
+                        }
+                    }
+                }
+                commands.push(MoveBrushPageCommand::new(brush, pages, offset));
                 self.sender
-                    .do_command(MoveBrushPageCommand::new(brush, pages, offset));
+                    .do_command(commands.with_custom_name("Move Brush Pages"));
             }
         }
     }
@@ -923,13 +1275,40 @@ impl PaletteWidget {
                     .do_command(MoveTileSetTileCommand::new(tile_set, page, tiles, offset));
             }
             TileBook::Brush(brush) => {
+                let mut commands = CommandGroup::default();
                 let data = brush.data_ref();
                 let tiles = tiles
                     .filter(|p| data.has_tile_at(page, *p))
                     .collect::<Vec<_>>();
+                let from = tiles
+                    .iter()
+                    .filter_map(|p| TileDefinitionHandle::try_new(page, *p))
+                    .collect::<Box<_>>();
+                let to = tiles
+                    .iter()
+                    .filter_map(|p| TileDefinitionHandle::try_new(page, *p + offset))
+                    .collect::<Box<_>>();
+                if let Some(macro_list) = self.macro_list.as_ref() {
+                    let macro_list = macro_list.lock();
+                    for instance in data.macros.iter() {
+                        if let Some(m) = macro_list.get_by_uuid(&instance.macro_id) {
+                            if let Some(command) = m.move_cells(
+                                from.clone(),
+                                to.clone(),
+                                &BrushMacroInstance {
+                                    brush: brush.clone(),
+                                    settings: instance.settings.clone(),
+                                },
+                            ) {
+                                commands.push_command(command)
+                            }
+                        }
+                    }
+                }
                 drop(data);
+                commands.push(MoveBrushTileCommand::new(brush, page, tiles, offset));
                 self.sender
-                    .do_command(MoveBrushTileCommand::new(brush, page, tiles, offset));
+                    .do_command(commands.with_custom_name("Move Brush Tiles"));
             }
         }
     }
@@ -1297,10 +1676,7 @@ impl PaletteWidget {
     }
     fn is_overlay_visible(&self) -> bool {
         let drawing_mode = if self.editable {
-            match self.kind {
-                TilePaletteStage::Pages => DrawingMode::Pick,
-                TilePaletteStage::Tiles => self.state.lock().drawing_mode,
-            }
+            self.state.lock().drawing_mode
         } else {
             DrawingMode::Pick
         };
@@ -1497,10 +1873,7 @@ impl Control for PaletteWidget {
             self.commit_color(CURSOR_HIGHLIGHT_COLOR, ctx);
         }
 
-        if self.editable
-            && self.kind == TilePaletteStage::Tiles
-            && self.state.lock().drawing_mode == DrawingMode::Erase
-        {
+        if self.editable && self.state.lock().drawing_mode == DrawingMode::Erase {
             self.push_erase_area(line_thickness, ctx);
             self.commit_color(Color::RED, ctx);
         }
@@ -1632,6 +2005,7 @@ pub struct PaletteWidgetBuilder {
     sender: MessageSender,
     state: TileDrawStateRef,
     macro_cells: Option<MacroCellSetListRef>,
+    macro_list: Option<BrushMacroListRef>,
     kind: TilePaletteStage,
     editable: bool,
 }
@@ -1651,6 +2025,7 @@ impl PaletteWidgetBuilder {
             sender,
             state,
             macro_cells: None,
+            macro_list: None,
             kind: TilePaletteStage::default(),
             editable: false,
             page: None,
@@ -1693,6 +2068,13 @@ impl PaletteWidgetBuilder {
         self
     }
 
+    /// Giving the palette access to a list of macro cells allows it to draw outlines
+    /// around cells that are involved in some macros.
+    pub fn with_macro_list(mut self, macro_list: BrushMacroListRef) -> Self {
+        self.macro_list = Some(macro_list);
+        self
+    }
+
     /// Build the [`PaletteWidget`].
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ctx.add_node(UiNode::new(PaletteWidget {
@@ -1704,6 +2086,7 @@ impl PaletteWidgetBuilder {
             sender: self.sender,
             state: self.state,
             macro_cells: self.macro_cells,
+            macro_list: self.macro_list,
             overlay: PaletteOverlay::default(),
             content: self.tile_book,
             kind: self.kind,

@@ -292,6 +292,7 @@ impl TileSetEditor {
         .with_resource(tile_book.clone())
         .with_kind(TilePaletteStage::Pages)
         .with_editable(true)
+        .with_macro_list(macro_list.clone())
         .build(ctx);
 
         let tiles_palette = PaletteWidgetBuilder::new(
@@ -305,6 +306,7 @@ impl TileSetEditor {
         .with_resource(tile_book.clone())
         .with_kind(TilePaletteStage::Tiles)
         .with_editable(true)
+        .with_macro_list(macro_list.clone())
         .with_macro_cells(brush_macro_cell_sets.clone())
         .build(ctx);
 

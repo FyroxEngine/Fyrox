@@ -59,7 +59,6 @@ use fyrox::gui::style::Style;
 use fyrox::gui::text::TextBuilder;
 use fyrox::gui::{message::KeyCode, texture::TextureResource};
 use fyrox::gui::{HorizontalAlignment, VerticalAlignment};
-use fyrox::scene::tilemap::brush::TileMapBrushResource;
 use fyrox::scene::tilemap::tileset::{TileSetPropertyLayer, ELEMENT_MATCH_HIGHLIGHT_COLOR};
 use fyrox::scene::tilemap::{StampElement, TileMapEffectRef};
 pub use handle_editor::*;
@@ -547,7 +546,7 @@ impl TileDrawState {
     #[inline]
     pub fn update_stamp<F>(
         &mut self,
-        brush: Option<TileMapBrushResource>,
+        book: Option<TileBook>,
         tile_set: Option<TileSetResource>,
         tile_handle: F,
     ) where
@@ -555,7 +554,7 @@ impl TileDrawState {
     {
         self.tile_set = tile_set;
         self.stamp.build(
-            brush,
+            book,
             self.selection
                 .positions
                 .iter()
