@@ -297,10 +297,6 @@ pub trait BrushMacro: 'static + Send + Sync {
     /// the widgets that edit the data to change, but that will wait until
     /// [`BrushMacro::sync_cell_editors`] is called.
     fn create_cell(&self, context: &BrushMacroCellContext) -> Option<Command>;
-    /// Create a command to modify the given instances's data to remove the given cell.
-    /// None is returned if no command is necessary, such as if the cell is already excluded
-    /// or no cell is selected.
-    fn remove_cell(&self, context: &BrushMacroCellContext) -> Option<Command>;
     /// Create a command to move cell data from the given cells to the given cells.
     /// The two lists of cells should always be the same length.
     /// This method works on multiple cells at once because `from` and `to` may

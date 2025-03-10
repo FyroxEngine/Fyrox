@@ -291,17 +291,6 @@ impl BrushMacro for AutoTileMacro {
         }))
     }
 
-    fn remove_cell(&self, context: &BrushMacroCellContext) -> Option<Command> {
-        let instance = context.settings()?;
-        let cell = context.cell?;
-        Some(Command::new(SetCellCommand {
-            brush: context.brush.clone(),
-            cell,
-            instance,
-            data: None,
-        }))
-    }
-
     fn move_cells(
         &self,
         from: Box<[TileDefinitionHandle]>,

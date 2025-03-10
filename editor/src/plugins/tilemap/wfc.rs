@@ -442,17 +442,6 @@ impl BrushMacro for WfcMacro {
         )))
     }
 
-    fn remove_cell(&self, context: &BrushMacroCellContext) -> Option<Command> {
-        let instance = context.settings()?;
-        let cell = context.cell?;
-        Some(Command::new(SetCellCommand {
-            brush: context.brush.clone(),
-            cell,
-            instance,
-            included: false,
-        }))
-    }
-
     fn copy_cell(
         &self,
         source: Option<TileDefinitionHandle>,
