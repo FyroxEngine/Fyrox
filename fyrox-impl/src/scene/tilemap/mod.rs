@@ -736,11 +736,10 @@ impl TileBook {
             TileBook::Brush(r) => r.state().data()?.redirect_handle(position),
         }
     }
-    /// The StampElement for the given position in this resource. For tile sets the element's
-    /// [`StampElement::brush_cell`] is None.
-    /// For brushes, the [`StampElement::handle`] refers to the location of the tile within the
-    /// tile set, while the [`StampElement::brush_cell`] refers to the location of the tile within
-    /// the brush.
+    /// The StampElement for the given position in this resource.
+    /// For brushes, the [`StampElement::handle`] refers to the ultimate location of the tile within the
+    /// tile set, while the [`StampElement::source`] refers to the location of the tile within
+    /// the brush or tile set that was used to create the stamp.
     pub fn get_stamp_element(&self, position: ResourceTilePosition) -> Option<StampElement> {
         match self {
             TileBook::Empty => None,
