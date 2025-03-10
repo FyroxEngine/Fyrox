@@ -233,9 +233,7 @@ where
         // Handle derived entities handles.
         entity.as_handle_mut(&mut |handle| {
             if let Some(handle) = handle {
-                if handle
-                    .query_derived_entity_list()
-                    .contains(&TypeId::of::<N>())
+                if handle.query_derived_types().contains(&TypeId::of::<N>())
                     && handle.reflect_is_some()
                     && !self.try_map_reflect(handle)
                 {
@@ -375,9 +373,7 @@ where
         entity.as_handle_mut(&mut |handle| {
             if let Some(handle) = handle {
                 if do_map
-                    && handle
-                        .query_derived_entity_list()
-                        .contains(&TypeId::of::<N>())
+                    && handle.query_derived_types().contains(&TypeId::of::<N>())
                     && handle.reflect_is_some()
                     && !self.try_map_reflect(handle)
                 {
@@ -1596,12 +1592,12 @@ mod test {
             self.0.deref_mut().field_mut(name, func)
         }
 
-        fn derived_entity_list() -> &'static [TypeId] {
+        fn derived_types() -> &'static [TypeId] {
             &[]
         }
 
-        fn query_derived_entity_list(&self) -> &'static [TypeId] {
-            Self::derived_entity_list()
+        fn query_derived_types(&self) -> &'static [TypeId] {
+            Self::derived_types()
         }
     }
 
@@ -1867,7 +1863,7 @@ mod test {
         fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
             self.nodes
                 .try_borrow(handle)
-                .map(|n| n.0.deref().query_derived_entity_list().to_vec())
+                .map(|n| n.0.deref().query_derived_types().to_vec())
         }
 
         fn actual_type_name(&self, handle: Handle<Self::Node>) -> Option<&'static str> {

@@ -304,14 +304,14 @@ macro_rules! impl_reflect_inner_mutability {
             file!()
         }
 
-        fn derived_entity_list() -> &'static [std::any::TypeId] {
+        fn derived_types() -> &'static [std::any::TypeId] {
             // TODO: This seems to be impossible to implement because of `?Sized` trait bound
             // up above.
             &[]
         }
 
-        fn query_derived_entity_list(&self) -> &'static [std::any::TypeId] {
-            T::derived_entity_list()
+        fn query_derived_types(&self) -> &'static [std::any::TypeId] {
+            T::derived_types()
         }
 
         fn type_name(&$self) -> &'static str {

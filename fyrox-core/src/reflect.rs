@@ -204,11 +204,11 @@ pub trait Reflect: ReflectBase {
     where
         Self: Sized;
 
-    fn derived_entity_list() -> &'static [TypeId]
+    fn derived_types() -> &'static [TypeId]
     where
         Self: Sized;
 
-    fn query_derived_entity_list(&self) -> &'static [TypeId];
+    fn query_derived_types(&self) -> &'static [TypeId];
 
     fn type_name(&self) -> &'static str;
 
@@ -1140,15 +1140,15 @@ macro_rules! blank_reflect {
             file!()
         }
 
-        fn derived_entity_list() -> &'static [std::any::TypeId]
+        fn derived_types() -> &'static [std::any::TypeId]
         where
             Self: Sized,
         {
             &[]
         }
 
-        fn query_derived_entity_list(&self) -> &'static [std::any::TypeId] {
-            Self::derived_entity_list()
+        fn query_derived_types(&self) -> &'static [std::any::TypeId] {
+            Self::derived_types()
         }
 
         fn type_name(&self) -> &'static str {
@@ -1213,13 +1213,13 @@ macro_rules! delegate_reflect {
             file!()
         }
 
-        fn derived_entity_list() -> &'static [std::any::TypeId] {
+        fn derived_types() -> &'static [std::any::TypeId] {
             // TODO
             &[]
         }
 
-        fn query_derived_entity_list(&self) -> &'static [std::any::TypeId] {
-            Self::derived_entity_list()
+        fn query_derived_types(&self) -> &'static [std::any::TypeId] {
+            Self::derived_types()
         }
 
         fn type_name(&self) -> &'static str {
@@ -1448,6 +1448,6 @@ mod test {
     #[test]
     fn test_derived() {
         let base = Base;
-        assert_eq!(base.query_derived_entity_list(), &[TypeId::of::<Derived>()])
+        assert_eq!(base.query_derived_types(), &[TypeId::of::<Derived>()])
     }
 }

@@ -250,7 +250,7 @@ impl Toolbar {
                     inner_type_name: std::any::type_name::<N>().to_string(),
                     handle: Default::default(),
                     inner_type_id: TypeId::of::<N>(),
-                    derived_type_ids: N::derived_entity_list().to_vec(),
+                    derived_type_ids: N::derived_types().to_vec(),
                     children: vec![],
                 };
 

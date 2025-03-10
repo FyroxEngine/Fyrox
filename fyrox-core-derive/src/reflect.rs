@@ -460,7 +460,7 @@ fn gen_impl(
                 std::any::type_name::<Self>()
             }
 
-             fn derived_entity_list() -> &'static [std::any::TypeId] {
+             fn derived_types() -> &'static [std::any::TypeId] {
                 static ARRAY: std::sync::LazyLock<Vec<std::any::TypeId>> = std::sync::LazyLock::new(|| vec![
                     #types
                 ]);
@@ -468,8 +468,8 @@ fn gen_impl(
                 &ARRAY
             }
 
-            fn query_derived_entity_list(&self) -> &'static [std::any::TypeId] {
-                Self::derived_entity_list()
+            fn query_derived_types(&self) -> &'static [std::any::TypeId] {
+                Self::derived_types()
             }
 
             fn doc(&self) -> &'static str {

@@ -66,12 +66,12 @@ macro_rules! define_two_args_node {
                 file!()
             }
 
-            fn derived_entity_list() -> &'static [TypeId] {
+            fn derived_types() -> &'static [TypeId] {
                 &[]
             }
 
-            fn query_derived_entity_list(&self) -> &'static [TypeId] {
-                Self::derived_entity_list()
+            fn query_derived_types(&self) -> &'static [TypeId] {
+                Self::derived_types()
             }
 
             fn type_name(&self) -> &'static str {
@@ -230,12 +230,12 @@ impl<T: EntityId> Reflect for NotNode<T> {
         file!()
     }
 
-    fn derived_entity_list() -> &'static [TypeId] {
+    fn derived_types() -> &'static [TypeId] {
         &[]
     }
 
-    fn query_derived_entity_list(&self) -> &'static [TypeId] {
-        Self::derived_entity_list()
+    fn query_derived_types(&self) -> &'static [TypeId] {
+        Self::derived_types()
     }
 
     fn type_name(&self) -> &'static str {

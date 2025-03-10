@@ -104,15 +104,15 @@ where
         file!()
     }
 
-    fn derived_entity_list() -> &'static [TypeId]
+    fn derived_types() -> &'static [TypeId]
     where
         Self: Sized,
     {
         &[]
     }
 
-    fn query_derived_entity_list(&self) -> &'static [TypeId] {
-        Self::derived_entity_list()
+    fn query_derived_types(&self) -> &'static [TypeId] {
+        Self::derived_types()
     }
 
     #[inline]
