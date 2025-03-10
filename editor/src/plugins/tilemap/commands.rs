@@ -1127,13 +1127,26 @@ pub struct ModifyPageIconCommand {
     pub tile_set: TileSetResource,
     pub page: Vector2<i32>,
     pub icon: TileDefinitionHandle,
+    error: bool,
 }
 
 impl ModifyPageIconCommand {
+    pub fn new(tile_set: TileSetResource, page: Vector2<i32>, icon: TileDefinitionHandle) -> Self {
+        Self {
+            tile_set,
+            page,
+            icon,
+            error: false,
+        }
+    }
     fn swap(&mut self) {
+        if self.error {
+            return;
+        }
         let mut tile_set = self.tile_set.data_ref();
         let Some(page) = &mut tile_set.pages.get_mut(&self.page) else {
             Log::err("Modify icon of non-existent tile page.");
+            self.error = true;
             return;
         };
         std::mem::swap(&mut self.icon, &mut page.icon);
@@ -1160,13 +1173,30 @@ pub struct ModifyBrushPageIconCommand {
     pub brush: TileMapBrushResource,
     pub page: Vector2<i32>,
     pub icon: TileDefinitionHandle,
+    error: bool,
 }
 
 impl ModifyBrushPageIconCommand {
+    pub fn new(
+        brush: TileMapBrushResource,
+        page: Vector2<i32>,
+        icon: TileDefinitionHandle,
+    ) -> Self {
+        Self {
+            brush,
+            page,
+            icon,
+            error: false,
+        }
+    }
     fn swap(&mut self) {
+        if self.error {
+            return;
+        }
         let mut brush = self.brush.data_ref();
         let Some(page) = &mut brush.pages.get_mut(&self.page) else {
             Log::err("Modify icon of non-existent tile page.");
+            self.error = true;
             return;
         };
         std::mem::swap(&mut self.icon, &mut page.icon);

@@ -156,8 +156,8 @@ pub struct MacroMessageContext {
     pub cell: Option<TileDefinitionHandle>,
 }
 
-impl From<BrushMacroCell> for MacroMessageContext {
-    fn from(value: BrushMacroCell) -> Self {
+impl From<BrushMacroCellContext> for MacroMessageContext {
+    fn from(value: BrushMacroCellContext) -> Self {
         Self {
             brush: value.brush,
             cell: value.cell,
@@ -192,7 +192,7 @@ impl MacroMessageContext {
 /// such as adding a new cell to the macro, removing a cell, or building the widgets
 /// for editing the settings of a cell.
 #[derive(Debug, Clone)]
-pub struct BrushMacroCell {
+pub struct BrushMacroCellContext {
     /// The brush that has an instance of the macro.
     pub brush: TileMapBrushResource,
     /// The configuration for an instance of the macro.
@@ -201,8 +201,8 @@ pub struct BrushMacroCell {
     pub cell: Option<TileDefinitionHandle>,
 }
 
-impl From<BrushMacroCell> for BrushMacroInstance {
-    fn from(value: BrushMacroCell) -> Self {
+impl From<BrushMacroCellContext> for BrushMacroInstance {
+    fn from(value: BrushMacroCellContext) -> Self {
         Self {
             brush: value.brush,
             settings: value.settings,
@@ -210,7 +210,7 @@ impl From<BrushMacroCell> for BrushMacroInstance {
     }
 }
 
-impl BrushMacroCell {
+impl BrushMacroCellContext {
     /// A typed reference to the configuration resource.
     pub fn settings<T>(&self) -> Option<Resource<T>>
     where
@@ -296,11 +296,47 @@ pub trait BrushMacro: 'static + Send + Sync {
     /// or no cell is selected. Adding the currently selected cell will naturally require
     /// the widgets that edit the data to change, but that will wait until
     /// [`BrushMacro::sync_cell_editors`] is called.
-    fn create_cell(&self, context: &BrushMacroCell) -> Option<Command>;
-    /// Create a command to modify the given instances's data to remove the given cell.
-    /// None is returned if no command is necessary, such as if the cell is already excluded
-    /// or no cell is selected.
-    fn remove_cell(&self, context: &BrushMacroCell) -> Option<Command>;
+    fn create_cell(&self, context: &BrushMacroCellContext) -> Option<Command>;
+    /// Create a command to move cell data from the given cells to the given cells.
+    /// The two lists of cells should always be the same length.
+    /// This method works on multiple cells at once because `from` and `to` may
+    /// share some cells in common, in which case correctly moving the cells
+    /// requires first removing all the cells from `from`, then inserting all
+    /// the cells into `to`.
+    fn move_cells(
+        &self,
+        from: Box<[TileDefinitionHandle]>,
+        to: Box<[TileDefinitionHandle]>,
+        context: &BrushMacroInstance,
+    ) -> Option<Command>;
+    /// Create a command to move cell data from the given pages to the given pages.
+    /// The two lists of pages should always be the same length.
+    /// This method works on multiple pages at once because `from` and `to` may
+    /// share some pages in common, in which case correctly moving the pages
+    /// requires first removing all the pages from `from`, then inserting all
+    /// the pages into `to`.
+    fn move_pages(
+        &self,
+        from: Box<[Vector2<i32>]>,
+        to: Box<[Vector2<i32>]>,
+        context: &BrushMacroInstance,
+    ) -> Option<Command>;
+    /// Create a command to modify the given instances's data to copy the given cell.
+    /// None is returned if no command is necessary, such as if the macro has no cell data.
+    fn copy_cell(
+        &self,
+        source: Option<TileDefinitionHandle>,
+        destination: TileDefinitionHandle,
+        context: &BrushMacroInstance,
+    ) -> Option<Command>;
+    /// Create a command to modify the given instances's data to copy the given page.
+    /// None is returned if no command is necessary, such as if the macro has no cell data.
+    fn copy_page(
+        &self,
+        source: Option<Vector2<i32>>,
+        destination: Vector2<i32>,
+        context: &BrushMacroInstance,
+    ) -> Option<Command>;
     /// Modify the given `cell_set` to include the handles of all the cells that are part of
     /// the given instance of this macro. This is necessary for the brush editor to accurately
     /// update itself.
@@ -329,7 +365,7 @@ pub trait BrushMacro: 'static + Send + Sync {
     /// when [`BrushMacro::sync_cell_editors`] is called.
     fn build_cell_editor(
         &mut self,
-        context: &BrushMacroCell,
+        context: &BrushMacroCellContext,
         ctx: &mut BuildContext,
     ) -> Option<Handle<UiNode>>;
     /// Send the necessary messages to update the cell editor widgets to edit the data for

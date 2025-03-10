@@ -325,15 +325,11 @@ impl TileSetAutoTiler {
             else {
                 continue;
             };
-            let brush_cell = update
-                .get(pos)
-                .cloned()
-                .flatten()
-                .and_then(|el| el.brush_cell);
+            let source = update.get(pos).cloned().flatten().and_then(|el| el.source);
             let handle = if handle.is_empty() {
                 None
             } else {
-                Some(StampElement { handle, brush_cell })
+                Some(StampElement { handle, source })
             };
             _ = update.insert(*pos, handle);
         }
@@ -492,15 +488,11 @@ impl TileSetWfcPropagator {
             let Some(&handle) = value_map.get_random(rng, pat) else {
                 continue;
             };
-            let brush_cell = update
-                .get(pos)
-                .cloned()
-                .flatten()
-                .and_then(|el| el.brush_cell);
+            let source = update.get(pos).cloned().flatten().and_then(|el| el.source);
             let handle = if handle.is_empty() {
                 None
             } else {
-                Some(StampElement { handle, brush_cell })
+                Some(StampElement { handle, source })
             };
             _ = update.insert(*pos, handle);
         }

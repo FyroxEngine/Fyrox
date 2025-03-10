@@ -1345,6 +1345,17 @@ pub struct TileSet {
 }
 
 impl TileSet {
+    /// The stamp element for the given position, if the tile in that cell is used
+    /// to create a stamp. The [`StampElement::handle`] refers to the location of the tile within the
+    /// tile set, while the [`StampElement::source`] refers to the location of the tile within
+    /// the brush.
+    pub fn stamp_element(&self, position: ResourceTilePosition) -> Option<StampElement> {
+        self.redirect_handle(position).map(|handle| StampElement {
+            handle,
+            source: Some(position),
+        })
+    }
+
     /// Iterate all valid tile handles.
     pub fn all_tiles(&self) -> TileSetHandleIterator {
         TileSetHandleIterator::new(Some(self.pages.iter()))

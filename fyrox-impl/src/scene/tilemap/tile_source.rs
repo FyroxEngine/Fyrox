@@ -273,7 +273,7 @@ impl TileRegion {
 /// A trait for types that can produce a TileDefinitionHandle upon demand,
 /// for use with drawing on tilemaps.
 pub trait TileSource {
-    /// The brush where these tiles were originally taken from.
+    /// The source where these tiles were originally taken from.
     fn brush(&self) -> Option<&TileMapBrushResource>;
     /// The transformation that should be applied to the tiles before they are written.
     fn transformation(&self) -> OrthoTransformation;
@@ -376,7 +376,7 @@ pub struct Stamp {
     #[visit(skip)]
     elements: OrthoTransformMap<StampElement>,
     #[visit(skip)]
-    brush: Option<TileMapBrushResource>,
+    source: Option<TileBook>,
 }
 
 /// Each cell of a stamp must have a tile handle and it may optionally have
@@ -386,14 +386,14 @@ pub struct StampElement {
     /// The stamp cell's tile handle
     pub handle: TileDefinitionHandle,
     /// The brush cell that this stamp element came from.
-    pub brush_cell: Option<TileDefinitionHandle>,
+    pub source: Option<ResourceTilePosition>,
 }
 
 impl From<TileDefinitionHandle> for StampElement {
     fn from(handle: TileDefinitionHandle) -> Self {
         Self {
             handle,
-            brush_cell: None,
+            source: None,
         }
     }
 }
@@ -432,7 +432,7 @@ impl DerefMut for Tiles {
 
 impl TileSource for Stamp {
     fn brush(&self) -> Option<&TileMapBrushResource> {
-        self.brush.as_ref()
+        self.source.as_ref().and_then(|s| s.brush_ref())
     }
     fn transformation(&self) -> OrthoTransformation {
         self.transform
@@ -443,6 +443,10 @@ impl TileSource for Stamp {
 }
 
 impl Stamp {
+    /// The resource where this stamp was taken from.
+    pub fn source(&self) -> Option<&TileBook> {
+        self.source.as_ref()
+    }
     /// Iterate over the tile handles of the stamp.
     pub fn tile_iter(&self) -> impl Iterator<Item = TileDefinitionHandle> + '_ {
         self.elements.values().map(|s| s.handle)
@@ -479,10 +483,10 @@ impl Stamp {
     /// The transform is set to identity.
     pub fn build<I: Iterator<Item = (Vector2<i32>, StampElement)> + Clone>(
         &mut self,
-        brush: Option<TileMapBrushResource>,
+        book: Option<TileBook>,
         source: I,
     ) {
-        self.brush = brush;
+        self.source = book;
         self.clear();
         let mut rect = OptionTileRect::default();
         for (p, _) in source.clone() {

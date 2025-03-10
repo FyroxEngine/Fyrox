@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use std::hash::Hash;
+
 use fyrox::{
     asset::{
         untyped::{ResourceKind, UntypedResource},
@@ -45,7 +47,7 @@ use fyrox::{
 };
 
 use crate::{
-    command::{Command, CommandContext, CommandTrait},
+    command::{Command, CommandContext, CommandGroup, CommandTrait},
     send_sync_message,
 };
 
@@ -399,7 +401,7 @@ impl BrushMacro for WfcMacro {
         cell_set.extend(data.cells.iter());
     }
 
-    fn create_cell(&self, context: &BrushMacroCell) -> Option<Command> {
+    fn create_cell(&self, context: &BrushMacroCellContext) -> Option<Command> {
         let instance = context.settings()?;
         let cell = context.cell?;
         Some(Command::new(SetCellCommand {
@@ -410,15 +412,97 @@ impl BrushMacro for WfcMacro {
         }))
     }
 
-    fn remove_cell(&self, context: &BrushMacroCell) -> Option<Command> {
+    fn move_cells(
+        &self,
+        from: Box<[TileDefinitionHandle]>,
+        to: Box<[TileDefinitionHandle]>,
+        context: &BrushMacroInstance,
+    ) -> Option<Command> {
         let instance = context.settings()?;
-        let cell = context.cell?;
+        Some(Command::new(MoveCellsCommand::new(
+            context.brush.clone(),
+            from,
+            to,
+            instance,
+        )))
+    }
+
+    fn move_pages(
+        &self,
+        from: Box<[Vector2<i32>]>,
+        to: Box<[Vector2<i32>]>,
+        context: &BrushMacroInstance,
+    ) -> Option<Command> {
+        let instance = context.settings()?;
+        Some(Command::new(MovePagesCommand::new(
+            context.brush.clone(),
+            from,
+            to,
+            instance,
+        )))
+    }
+
+    fn copy_cell(
+        &self,
+        source: Option<TileDefinitionHandle>,
+        destination: TileDefinitionHandle,
+        context: &BrushMacroInstance,
+    ) -> Option<Command> {
+        let instance = context.settings::<WfcInstance>()?;
+        let guard = instance.data_ref();
+        let included = if let Some(source) = source {
+            guard.cells.contains(&source)
+        } else {
+            false
+        };
         Some(Command::new(SetCellCommand {
             brush: context.brush.clone(),
-            cell,
-            instance,
-            included: false,
+            cell: destination,
+            instance: instance.clone(),
+            included,
         }))
+    }
+
+    fn copy_page(
+        &self,
+        source: Option<Vector2<i32>>,
+        destination: Vector2<i32>,
+        context: &BrushMacroInstance,
+    ) -> Option<Command> {
+        let instance = context.settings::<WfcInstance>()?;
+        let guard = instance.data_ref();
+        let used = guard
+            .cells
+            .iter()
+            .filter(|h| Some(h.page()) == source)
+            .map(|h| h.tile())
+            .collect::<Vec<_>>();
+        let commands = guard
+            .cells
+            .iter()
+            .filter_map(|handle| {
+                if Some(handle.page()) == source {
+                    let cell = TileDefinitionHandle::try_new(destination, handle.tile())?;
+                    Some(Command::new(SetCellCommand {
+                        brush: context.brush.clone(),
+                        cell,
+                        instance: instance.clone(),
+                        included: true,
+                    }))
+                } else if handle.page() == destination && !used.contains(&handle.tile()) {
+                    Some(Command::new(SetCellCommand {
+                        brush: context.brush.clone(),
+                        cell: *handle,
+                        instance: instance.clone(),
+                        included: false,
+                    }))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        (!commands.is_empty())
+            .then(|| Command::new(CommandGroup::from(commands).with_custom_name("Set Page Macros")))
     }
 
     fn build_instance_editor(
@@ -550,7 +634,7 @@ impl BrushMacro for WfcMacro {
 
     fn build_cell_editor(
         &mut self,
-        _context: &BrushMacroCell,
+        _context: &BrushMacroCellContext,
         _ctx: &mut BuildContext,
     ) -> Option<Handle<UiNode>> {
         None
@@ -663,13 +747,11 @@ impl BrushMacro for WfcMacro {
         let mut propagator = TileSetWfcPropagator::default();
         propagator.fill_from(constraint.deref());
         for (&p, v) in update.iter() {
-            if let Some(StampElement {
-                brush_cell: Some(cell),
-                ..
-            }) = v
-            {
-                if instance.cells.contains(cell) {
-                    propagator.add_cell(p);
+            if let Some(StampElement { source, .. }) = v {
+                if let Some(cell) = source.and_then(|s| s.handle()) {
+                    if instance.cells.contains(&cell) {
+                        propagator.add_cell(p);
+                    }
                 }
             }
         }
@@ -726,6 +808,142 @@ impl SetCellCommand {
 impl CommandTrait for SetCellCommand {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Update Wave Function Collapse Cell".into()
+    }
+
+    fn execute(&mut self, _context: &mut dyn CommandContext) {
+        self.swap();
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        self.swap();
+    }
+}
+
+#[derive(Debug)]
+struct MoveCellsCommand {
+    pub brush: TileMapBrushResource,
+    pub from: Box<[TileDefinitionHandle]>,
+    pub to: Box<[TileDefinitionHandle]>,
+    pub instance: Resource<WfcInstance>,
+    data: Box<[bool]>,
+}
+
+impl MoveCellsCommand {
+    fn new(
+        brush: TileMapBrushResource,
+        from: Box<[TileDefinitionHandle]>,
+        to: Box<[TileDefinitionHandle]>,
+        instance: Resource<WfcInstance>,
+    ) -> Self {
+        Self {
+            data: vec![false; from.len()].into_boxed_slice(),
+            brush,
+            from,
+            to,
+            instance,
+        }
+    }
+    fn swap(&mut self) {
+        let mut instance = self.instance.data_ref();
+        for (&from, data) in self.from.iter().zip(self.data.iter_mut()) {
+            swap_set_entry(&mut instance.cells, from, data);
+        }
+        for (&to, data) in self.to.iter().zip(self.data.iter_mut()) {
+            swap_set_entry(&mut instance.cells, to, data);
+        }
+        std::mem::swap(&mut self.from, &mut self.to);
+        self.brush.data_ref().change_flag.set();
+    }
+}
+
+fn swap_set_entry<T: Hash + Eq>(set: &mut FxHashSet<T>, value: T, contains: &mut bool) {
+    let old_contains = set.contains(&value);
+    if old_contains == *contains {
+        return;
+    };
+    if *contains {
+        set.insert(value);
+    } else {
+        set.remove(&value);
+    }
+    *contains = old_contains;
+}
+
+impl CommandTrait for MoveCellsCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Update Autotile Cell".into()
+    }
+
+    fn execute(&mut self, _context: &mut dyn CommandContext) {
+        self.swap();
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        self.swap();
+    }
+}
+
+#[derive(Debug)]
+struct MovePagesCommand {
+    pub brush: TileMapBrushResource,
+    pub from: Box<[Vector2<i32>]>,
+    pub to: Box<[Vector2<i32>]>,
+    pub instance: Resource<WfcInstance>,
+    data: Box<[FxHashSet<Vector2<i32>>]>,
+}
+
+impl MovePagesCommand {
+    fn new(
+        brush: TileMapBrushResource,
+        from: Box<[Vector2<i32>]>,
+        to: Box<[Vector2<i32>]>,
+        instance: Resource<WfcInstance>,
+    ) -> Self {
+        Self {
+            data: vec![FxHashSet::default(); from.len()].into_boxed_slice(),
+            brush,
+            from,
+            to,
+            instance,
+        }
+    }
+    fn swap(&mut self) {
+        let mut instance = self.instance.data_ref();
+        for (&from, data) in self.from.iter().zip(self.data.iter_mut()) {
+            swap_page(&mut instance.cells, from, data);
+        }
+        for (&to, data) in self.to.iter().zip(self.data.iter_mut()) {
+            swap_page(&mut instance.cells, to, data);
+        }
+        std::mem::swap(&mut self.from, &mut self.to);
+        self.brush.data_ref().change_flag.set();
+    }
+}
+
+fn swap_page(
+    set: &mut FxHashSet<TileDefinitionHandle>,
+    position: Vector2<i32>,
+    data: &mut FxHashSet<Vector2<i32>>,
+) {
+    let mut new_data = FxHashSet::default();
+    set.retain(|h| {
+        if h.page() != position {
+            true
+        } else {
+            new_data.insert(h.tile());
+            false
+        }
+    });
+    set.extend(
+        data.drain()
+            .filter_map(|p| TileDefinitionHandle::try_new(position, p)),
+    );
+    *data = new_data;
+}
+
+impl CommandTrait for MovePagesCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Update Autotile Cell".into()
     }
 
     fn execute(&mut self, _context: &mut dyn CommandContext) {

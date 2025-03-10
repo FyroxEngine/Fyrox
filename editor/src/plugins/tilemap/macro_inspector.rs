@@ -231,7 +231,7 @@ fn make_items(
             });
             continue;
         }
-        let brush_macro_cell = BrushMacroCell {
+        let brush_macro_cell = BrushMacroCellContext {
             brush: brush.clone(),
             settings: instance.settings.clone(),
             cell,
@@ -410,15 +410,10 @@ impl MacroInspector {
                     let settings = instance.settings.clone();
                     drop(brush_guard);
                     let command = if cell_sets.cell_has_macro(cell, i) {
-                        let cell = Some(cell);
-                        brush_macro.remove_cell(&BrushMacroCell {
-                            brush,
-                            settings,
-                            cell,
-                        })
+                        brush_macro.copy_cell(None, cell, &BrushMacroInstance { brush, settings })
                     } else {
                         let cell = Some(cell);
-                        brush_macro.create_cell(&BrushMacroCell {
+                        brush_macro.create_cell(&BrushMacroCellContext {
                             brush,
                             settings,
                             cell,

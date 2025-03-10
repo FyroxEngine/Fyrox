@@ -77,17 +77,28 @@ impl dyn CommandContext + '_ {
     }
 }
 
+/// An object that can be added to the editors [`CommandStack`] so the user
+/// can execute it and revert it.
 pub trait CommandTrait: Debug + 'static {
+    /// The name that the user should see in the command stack.
     fn name(&mut self, context: &dyn CommandContext) -> String;
+    /// Perform the operation that this object represents.
+    /// This happens when the object is first added to the command stack,
+    /// and when the object is redone after being undone.
     fn execute(&mut self, context: &mut dyn CommandContext);
+    /// Undo the consequences of calling [`CommandTrait::execute`].
     fn revert(&mut self, context: &mut dyn CommandContext);
+    /// This object is leaving the command stack, so it will never
+    /// be executed or reverted again.
     fn finalize(&mut self, _: &mut dyn CommandContext) {}
 }
 
+/// An untyped command for the editor to execute or revert.
 #[derive(Debug)]
 pub struct Command(pub Box<dyn CommandTrait>);
 
 impl Command {
+    /// Create a command from the given `CommandTrait` object.
     pub fn new<C: CommandTrait>(cmd: C) -> Self {
         Self(Box::new(cmd))
     }
@@ -107,6 +118,11 @@ impl DerefMut for Command {
     }
 }
 
+/// A list of commands to execute in order as a single command.
+/// The commands are reverted in reverse order.
+/// Use [`CommandGroup::with_custom_name`] to give the command a
+/// name. Otherwise, a name is automatically constructed by listing
+/// the names of the commands in the group.
 #[derive(Debug, Default)]
 pub struct CommandGroup {
     commands: Vec<Command>,
@@ -123,19 +139,28 @@ impl From<Vec<Command>> for CommandGroup {
 }
 
 impl CommandGroup {
+    /// Add an object of the `CommandTriat` to the group.
     pub fn push<C: CommandTrait>(&mut self, command: C) {
         self.commands.push(Command::new(command))
     }
 
+    /// Add a `Command` to the group.
+    pub fn push_command(&mut self, command: Command) {
+        self.commands.push(command)
+    }
+
+    /// Replace the automatically constructed name.
     pub fn with_custom_name<S: AsRef<str>>(mut self, name: S) -> Self {
         self.custom_name = name.as_ref().to_string();
         self
     }
 
+    /// True if this group contains no commands.
     pub fn is_empty(&self) -> bool {
         self.commands.is_empty()
     }
 
+    /// The number of commands in the group.
     pub fn len(&self) -> usize {
         self.commands.len()
     }
