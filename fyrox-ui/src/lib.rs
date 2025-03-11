@@ -650,10 +650,26 @@ pub struct UiUpdateSwitches {
     pub node_overrides: Option<FxHashSet<Handle<UiNode>>>,
 }
 
+pub type WidgetPool = Pool<UiNode, WidgetContainer>;
+
+impl<T: Control> BorrowAs<UiNode, WidgetContainer> for Handle<T> {
+    type Target = T;
+
+    fn borrow_as_ref(self, pool: &WidgetPool) -> Option<&T> {
+        pool.try_borrow(self.transmute())
+            .and_then(|n| ControlAsAny::as_any(n.0.deref()).downcast_ref::<T>())
+    }
+
+    fn borrow_as_mut(self, pool: &mut WidgetPool) -> Option<&mut T> {
+        pool.try_borrow_mut(self.transmute())
+            .and_then(|n| ControlAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
+    }
+}
+
 #[derive(Reflect, Debug)]
 pub struct UserInterface {
     screen_size: Vector2<f32>,
-    nodes: Pool<UiNode, WidgetContainer>,
+    nodes: WidgetPool,
     #[reflect(hidden)]
     drawing_context: DrawingContext,
     visual_debug: bool,
