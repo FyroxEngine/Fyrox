@@ -947,7 +947,7 @@ impl InspectorContext {
                             .with_vertical_text_alignment(VerticalAlignment::Center)
                             .with_text(format!(
                                 "Property Editor Is Missing For Type {}!",
-                                info.type_name
+                                info.value.type_name()
                             ))
                             .build(ctx),
                         &description,

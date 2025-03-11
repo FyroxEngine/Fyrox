@@ -195,7 +195,7 @@ where
                     let mut descriptor = PropertyDescriptor {
                         path: path.clone(),
                         display_name: field_info.display_name.to_owned(),
-                        type_name: field_info.type_name.to_owned(),
+                        type_name: field_info.value.type_name().to_owned(),
                         type_id: field_info.value.type_id(),
                         children_properties: Default::default(),
                         read_only: field_info.read_only,
@@ -227,7 +227,7 @@ where
                         let mut descriptor = PropertyDescriptor {
                             path: path.clone(),
                             display_name: field_info.display_name.to_owned(),
-                            type_name: field_info.type_name.to_owned(),
+                            type_name: field_info.value.type_name().to_owned(),
                             type_id: field_info.value.type_id(),
                             children_properties: Default::default(),
                             read_only: field_info.read_only,
@@ -283,7 +283,7 @@ where
             if !processed {
                 descriptors.push(PropertyDescriptor {
                     display_name: field_info.display_name.to_owned(),
-                    type_name: field_info.type_name.to_owned(),
+                    type_name: field_info.value.type_name().to_owned(),
                     type_id: field_info.value.type_id(),
                     read_only: field_info.read_only,
                     children_properties: object_to_property_tree(&path, field_ref, filter),

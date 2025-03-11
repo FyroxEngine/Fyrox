@@ -120,8 +120,6 @@ fn quote_field_prop(
 
     let tag = field.tag.clone().unwrap_or_default();
 
-    let ty = field.ty.clone();
-
     let read_only = field.read_only;
 
     let immutable_collection = field.immutable_collection;
@@ -143,8 +141,7 @@ fn quote_field_prop(
             reflect_value: #field_getter,
             step: #step,
             precision: #precision,
-            description: #description,
-            type_name: std::any::type_name::<#ty>()
+            description: #description
         }
     }
 }

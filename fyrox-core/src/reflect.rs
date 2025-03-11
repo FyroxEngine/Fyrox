@@ -41,11 +41,17 @@ pub mod prelude {
 pub trait FieldValue: Any + 'static {
     /// Casts `self` to a `&dyn Any`
     fn as_any(&self) -> &dyn Any;
+
+    fn type_name(&self) -> &'static str;
 }
 
 impl<T: 'static> FieldValue for T {
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<T>()
     }
 }
 
@@ -81,9 +87,6 @@ pub struct FieldInfo<'a, 'b> {
     /// Tag of the property. Could be used to group properties by a certain criteria or to find a
     /// specific property by its tag.
     pub tag: &'b str,
-
-    /// Type name of the property.
-    pub type_name: &'b str,
 
     /// Doc comment content.
     pub doc: &'b str,

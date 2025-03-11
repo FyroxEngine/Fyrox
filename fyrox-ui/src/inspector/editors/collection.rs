@@ -254,7 +254,6 @@ where
         precision: collection_property_info.precision,
         description: collection_property_info.description,
         tag: collection_property_info.tag,
-        type_name: collection_property_info.type_name,
         doc: collection_property_info.doc,
     })
 }

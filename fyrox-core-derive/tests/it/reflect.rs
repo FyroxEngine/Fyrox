@@ -345,7 +345,6 @@ fn default_prop() -> FieldInfo<'static, 'static> {
         precision: None,
         description: "",
         tag: "",
-        type_name: "",
         doc: "",
     }
 }
@@ -415,7 +414,6 @@ fn inspect_attributes() {
             name: "x",
             display_name: "Super X",
             value: &data.x,
-            type_name: std::any::type_name::<f32>(),
             ..default_prop()
         },
         FieldInfo {
@@ -432,7 +430,6 @@ fn inspect_attributes() {
             precision: Some(3),
             description: "This is a property description.",
             tag: "SomeTag",
-            type_name: std::any::type_name::<f32>(),
             doc: "",
         },
     ];
@@ -456,7 +453,6 @@ fn inspect_struct() {
                     name: "0",
                     display_name: "0",
                     value: &x.0,
-                    type_name: std::any::type_name::<f32>(),
                     ..default_prop()
                 },
                 FieldInfo {
@@ -464,7 +460,6 @@ fn inspect_struct() {
                     name: "1",
                     display_name: "1",
                     value: &x.1,
-                    type_name: std::any::type_name::<f32>(),
                     ..default_prop()
                 },
             ]
@@ -510,14 +505,12 @@ fn inspect_enum() {
                         Data::Named { ref x, .. } => x,
                         _ => unreachable!(),
                     },
-                    type_name: std::any::type_name::<u32>(),
                     ..default_prop()
                 },
                 FieldInfo {
                     owner_type_id: TypeId::of::<Data>(),
                     name: "Named@y",
                     display_name: "Y",
-                    type_name: std::any::type_name::<u32>(),
                     value: match data {
                         Data::Named { ref y, .. } => y,
                         _ => unreachable!(),
@@ -528,7 +521,6 @@ fn inspect_enum() {
                     owner_type_id: TypeId::of::<Data>(),
                     name: "Named@z",
                     display_name: "Z",
-                    type_name: std::any::type_name::<NonCopy>(),
                     value: match data {
                         Data::Named { ref z, .. } => z,
                         _ => unreachable!(),
@@ -549,7 +541,6 @@ fn inspect_enum() {
                     owner_type_id: TypeId::of::<Data>(),
                     name: "Tuple@0",
                     display_name: "0",
-                    type_name: std::any::type_name::<f32>(),
                     value: match data {
                         Data::Tuple(ref f0, ref _f1) => f0,
                         _ => unreachable!(),
@@ -560,7 +551,6 @@ fn inspect_enum() {
                     owner_type_id: TypeId::of::<Data>(),
                     name: "Tuple@1",
                     display_name: "1",
-                    type_name: std::any::type_name::<f32>(),
                     value: match data {
                         Data::Tuple(ref _f0, ref f1) => f1,
                         _ => unreachable!(),
