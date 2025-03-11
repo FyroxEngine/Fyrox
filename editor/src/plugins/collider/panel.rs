@@ -30,9 +30,7 @@ use crate::{
             stack_panel::StackPanelBuilder,
             utils::make_simple_tooltip,
             widget::{WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-            VerticalAlignment,
+            BuildContext, HorizontalAlignment, Orientation, UiNode, UserInterface,
         },
         scene::{
             collider::{Collider, ColliderShape},
@@ -49,7 +47,6 @@ pub struct ColliderControlPanel {
     pub window: Handle<UiNode>,
     fit: Handle<UiNode>,
     edit: Handle<UiNode>,
-    scene_frame: Handle<UiNode>,
 }
 
 fn set_property<T: Reflect>(
@@ -71,7 +68,7 @@ fn set_property<T: Reflect>(
 }
 
 impl ColliderControlPanel {
-    pub fn new(scene_frame: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
+    pub fn new(ctx: &mut BuildContext) -> Self {
         let try_fit_tooltip = "Tries to calculate the new collider shape parameters (half extents,\
         radius, etc.) using bounding boxes of descendant nodes of the parent rigid body. This \
         operation performed in world-space coordinates.";
@@ -81,65 +78,35 @@ impl ColliderControlPanel {
 
         let fit;
         let edit;
-        let window = WindowBuilder::new(
+        let window = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .with_width(250.0)
-                .with_height(50.0)
-                .with_name("ColliderControlPanel"),
+                .with_horizontal_alignment(HorizontalAlignment::Right)
+                .with_child({
+                    fit = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_width(80.0)
+                            .with_height(24.0)
+                            .with_tooltip(make_simple_tooltip(ctx, try_fit_tooltip)),
+                    )
+                    .with_text("Try Fit")
+                    .build(ctx);
+                    fit
+                })
+                .with_child({
+                    edit = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_width(80.0)
+                            .with_height(24.0)
+                            .with_tooltip(make_simple_tooltip(ctx, edit_tooltip)),
+                    )
+                    .with_text("Edit")
+                    .build(ctx);
+                    edit
+                }),
         )
-        .open(false)
-        .with_title(WindowTitle::text("Collider Control Panel"))
-        .with_content(
-            StackPanelBuilder::new(
-                WidgetBuilder::new()
-                    .with_horizontal_alignment(HorizontalAlignment::Right)
-                    .with_child({
-                        fit = ButtonBuilder::new(
-                            WidgetBuilder::new()
-                                .with_width(80.0)
-                                .with_height(24.0)
-                                .with_tooltip(make_simple_tooltip(ctx, try_fit_tooltip)),
-                        )
-                        .with_text("Try Fit")
-                        .build(ctx);
-                        fit
-                    })
-                    .with_child({
-                        edit = ButtonBuilder::new(
-                            WidgetBuilder::new()
-                                .with_width(80.0)
-                                .with_height(24.0)
-                                .with_tooltip(make_simple_tooltip(ctx, edit_tooltip)),
-                        )
-                        .with_text("Edit")
-                        .build(ctx);
-                        edit
-                    }),
-            )
-            .with_orientation(Orientation::Horizontal)
-            .build(ctx),
-        )
+        .with_orientation(Orientation::Horizontal)
         .build(ctx);
-
-        Self {
-            window,
-            fit,
-            edit,
-            scene_frame,
-        }
-    }
-
-    pub fn open(&self, ui: &UserInterface) {
-        ui.send_message(WindowMessage::open_and_align(
-            self.window,
-            MessageDirection::ToWidget,
-            self.scene_frame,
-            HorizontalAlignment::Right,
-            VerticalAlignment::Top,
-            Thickness::uniform(1.0),
-            false,
-            false,
-        ));
+        Self { window, fit, edit }
     }
 
     pub fn destroy(self, ui: &UserInterface) {
