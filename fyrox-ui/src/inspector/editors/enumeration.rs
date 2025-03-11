@@ -554,13 +554,13 @@ where
                 EnumPropertyEditorMessage::PropertyChanged(property_changed) => {
                     Some(PropertyChanged {
                         name: ctx.name.to_string(),
-                        owner_type_id: ctx.owner_type_id,
+
                         value: FieldKind::Inspectable(Box::new(property_changed.clone())),
                     })
                 }
                 EnumPropertyEditorMessage::Variant(index) => Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    owner_type_id: ctx.owner_type_id,
+
                     value: FieldKind::object((self.variant_generator)(*index)),
                 }),
             };

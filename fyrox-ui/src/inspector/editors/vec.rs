@@ -105,7 +105,6 @@ impl<T: NumericType, const D: usize> PropertyEditorDefinition
                 ctx.message.data::<VecEditorMessage<T, D>>()
             {
                 return Some(PropertyChanged {
-                    owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),
                     value: FieldKind::object(*value),
                 });

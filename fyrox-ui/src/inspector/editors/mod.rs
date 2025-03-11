@@ -242,9 +242,6 @@ pub struct PropertyEditorTranslationContext<'b, 'c> {
     /// The name of the property being edited.
     /// This comes from [ContextEntry::property_name](crate::inspector::ContextEntry).
     pub name: &'b str,
-    /// The type of the object whose property is being edited.
-    /// This comes from [ContextEntry::property_owner_type_id](crate::inspector::ContextEntry).
-    pub owner_type_id: TypeId,
     /// The original message that may be translated, if it represents a change in the property.
     pub message: &'c UiMessage,
     /// The list of the Inspectors property editors.

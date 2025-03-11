@@ -75,7 +75,7 @@ impl PropertyEditorDefinition for HotKeyPropertyEditorDefinition {
             if let Some(HotKeyEditorMessage::Value(value)) = ctx.message.data() {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    owner_type_id: ctx.owner_type_id,
+
                     value: FieldKind::object(value.clone()),
                 });
             }
@@ -123,7 +123,7 @@ impl PropertyEditorDefinition for KeyBindingPropertyEditorDefinition {
             if let Some(KeyBindingEditorMessage::Value(value)) = ctx.message.data() {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    owner_type_id: ctx.owner_type_id,
+
                     value: FieldKind::object(value.clone()),
                 });
             }

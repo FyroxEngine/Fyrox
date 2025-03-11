@@ -127,7 +127,6 @@ where
     'b: 'a,
 {
     Ok(FieldInfo {
-        owner_type_id: TypeId::of::<T>(),
         name,
         display_name,
         value: item,
@@ -446,7 +445,7 @@ where
                 {
                     return Some(PropertyChanged {
                         name: ctx.name.to_string(),
-                        owner_type_id: ctx.owner_type_id,
+
                         value: FieldKind::Collection(Box::new(CollectionChanged::ItemChanged {
                             index: *index,
                             property: definition
@@ -454,7 +453,6 @@ where
                                 .translate_message(PropertyEditorTranslationContext {
                                     environment: ctx.environment.clone(),
                                     name: "",
-                                    owner_type_id: ctx.owner_type_id,
                                     message,
                                     definition_container: ctx.definition_container.clone(),
                                 })?

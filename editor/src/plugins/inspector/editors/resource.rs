@@ -412,7 +412,6 @@ where
                 ctx.message.data::<ResourceFieldMessage<T>>()
             {
                 return Some(PropertyChanged {
-                    owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),
                     value: FieldKind::object(value.clone()),
                 });

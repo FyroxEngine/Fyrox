@@ -183,7 +183,7 @@ impl PropertyEditorDefinition for SpriteSheetFramesContainerEditorDefinition {
             {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    owner_type_id: ctx.owner_type_id,
+
                     value: FieldKind::object(container.clone()),
                 });
             }

@@ -215,7 +215,6 @@ where
     let value = property_info.cast_value::<StyledProperty<T>>()?;
 
     Ok(FieldInfo {
-        owner_type_id: TypeId::of::<T>(),
         name: property_info.name,
         display_name: property_info.display_name,
         value: &**value,
@@ -338,7 +337,7 @@ where
                     .translate_message(PropertyEditorTranslationContext {
                         environment: ctx.environment.clone(),
                         name: ctx.name,
-                        owner_type_id: ctx.owner_type_id,
+
                         message: ctx.message,
                         definition_container: ctx.definition_container.clone(),
                     })?;

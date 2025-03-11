@@ -322,8 +322,6 @@ impl FieldKind {
 pub struct PropertyChanged {
     /// The name of the edited property.
     pub name: String,
-    /// The type of the object that owns the property.
-    pub owner_type_id: TypeId,
     /// The details of the change.
     pub value: FieldKind,
 }
@@ -542,8 +540,6 @@ pub struct ContextEntry {
     pub property_display_name: String,
     /// The name of the field being edited, as found in [FieldInfo::tag].
     pub property_tag: String,
-    /// The type of the objects whose fields are being inspected, as found in [FieldInfo::owner_type_id].
-    pub property_owner_type_id: TypeId,
     /// The type of the property being edited, as found in [PropertyEditorDefinition::value_type_id](editors::PropertyEditorDefinition::value_type_id).
     pub property_value_type_id: TypeId,
     /// The list of property editor definitions being used by the inspector.
@@ -911,7 +907,6 @@ impl InspectorContext {
                                 property_name: info.name.to_string(),
                                 property_display_name: info.display_name.to_string(),
                                 property_tag: info.tag.to_string(),
-                                property_owner_type_id: info.owner_type_id,
                                 property_debug_output: field_text.clone(),
                                 property_container: container,
                             });
@@ -1170,7 +1165,6 @@ impl Control for Inspector {
                                 .translate_message(PropertyEditorTranslationContext {
                                     environment: env.clone(),
                                     name: &entry.property_name,
-                                    owner_type_id: entry.property_owner_type_id,
                                     message,
                                     definition_container: self.context.property_definitions.clone(),
                                 })

@@ -72,9 +72,6 @@ pub enum CastError {
 }
 
 pub struct FieldInfo<'a, 'b> {
-    /// A type id of the owner of the property.
-    pub owner_type_id: TypeId,
-
     /// A name of the property.
     pub name: &'b str,
 
@@ -136,7 +133,6 @@ impl FieldInfo<'_, '_> {
 impl fmt::Debug for FieldInfo<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PropertyInfo")
-            .field("owner_type_id", &self.owner_type_id)
             .field("name", &self.name)
             .field("display_name", &self.display_name)
             .field("value", &format_args!("{:?}", self.value as *const _))
@@ -155,8 +151,7 @@ impl PartialEq<Self> for FieldInfo<'_, '_> {
         let value_ptr_a = self.value as *const _ as *const ();
         let value_ptr_b = other.value as *const _ as *const ();
 
-        self.owner_type_id == other.owner_type_id
-            && self.name == other.name
+        self.name == other.name
             && self.display_name == other.display_name
             && std::ptr::eq(value_ptr_a, value_ptr_b)
             && self.read_only == other.read_only

@@ -118,7 +118,6 @@ where
                 );
                 let rotation = quat_from_euler(euler, RotationOrder::XYZ);
                 return Some(PropertyChanged {
-                    owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),
                     value: FieldKind::object(rotation),
                 });

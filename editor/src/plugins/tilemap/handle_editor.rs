@@ -267,7 +267,6 @@ impl PropertyEditorDefinition for TileDefinitionHandlePropertyEditorDefinition {
             if let Some(&TileDefinitionHandleEditorMessage::Value(Some(value))) = ctx.message.data()
             {
                 return Some(PropertyChanged {
-                    owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),
                     value: FieldKind::object(value),
                 });
@@ -322,7 +321,6 @@ impl PropertyEditorDefinition for OptionTileDefinitionHandlePropertyEditorDefini
         if ctx.message.direction() == MessageDirection::FromWidget {
             if let Some(&TileDefinitionHandleEditorMessage::Value(value)) = ctx.message.data() {
                 return Some(PropertyChanged {
-                    owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),
                     value: FieldKind::object(value),
                 });

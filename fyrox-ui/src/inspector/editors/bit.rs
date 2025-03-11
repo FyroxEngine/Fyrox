@@ -91,7 +91,6 @@ where
             if let Some(BitFieldMessage::Value(value)) = ctx.message.data::<BitFieldMessage<T>>() {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    owner_type_id: ctx.owner_type_id,
                     value: FieldKind::object(*value),
                 });
             }

@@ -148,7 +148,7 @@ where
                     if let Some(definition) = environment.available_animations.get(*value) {
                         return Some(PropertyChanged {
                             name: ctx.name.to_string(),
-                            owner_type_id: ctx.owner_type_id,
+
                             value: FieldKind::object(Handle::<T>::from(definition.handle)),
                         });
                     }

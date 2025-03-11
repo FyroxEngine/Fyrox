@@ -30,7 +30,6 @@ use crate::{
     scene::commands::terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
     Command,
 };
-use std::any::TypeId;
 
 pub struct SceneNodePropertyChangedHandler;
 
@@ -39,10 +38,10 @@ impl SceneNodePropertyChangedHandler {
         &self,
         args: &PropertyChanged,
         handle: Handle<Node>,
-        _node: &mut Node,
+        node: &mut Node,
     ) -> Option<Command> {
         // Terrain is special and have its own commands for specific properties.
-        if args.path() == Terrain::LAYERS && args.owner_type_id == TypeId::of::<Terrain>() {
+        if args.path() == Terrain::LAYERS && node.is_terrain() {
             match args.value {
                 FieldKind::Collection(ref collection_changed) => match **collection_changed {
                     CollectionChanged::Add(_) => {

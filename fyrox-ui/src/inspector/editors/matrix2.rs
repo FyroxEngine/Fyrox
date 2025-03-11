@@ -107,7 +107,6 @@ impl<const R: usize, const C: usize, T: NumericType> PropertyEditorDefinition
                 ctx.message.data::<MatrixEditorMessage<R, C, T>>()
             {
                 return Some(PropertyChanged {
-                    owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),
                     value: FieldKind::object(*value),
                 });

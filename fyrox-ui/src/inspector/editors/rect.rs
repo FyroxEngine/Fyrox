@@ -102,7 +102,7 @@ where
             {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    owner_type_id: ctx.owner_type_id,
+
                     value: FieldKind::object(*value),
                 });
             }

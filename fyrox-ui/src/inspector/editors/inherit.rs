@@ -222,7 +222,6 @@ where
     let value = property_info.cast_value::<InheritableVariable<T>>()?;
 
     Ok(FieldInfo {
-        owner_type_id: TypeId::of::<T>(),
         name: property_info.name,
         display_name: property_info.display_name,
         value: &**value,
@@ -348,7 +347,7 @@ where
         if let Some(InheritablePropertyEditorMessage::Revert) = ctx.message.data() {
             return Some(PropertyChanged {
                 name: ctx.name.to_string(),
-                owner_type_id: ctx.owner_type_id,
+
                 value: FieldKind::Inheritable(InheritableAction::Revert),
             });
         }
@@ -363,7 +362,7 @@ where
                 PropertyEditorTranslationContext {
                     environment: ctx.environment.clone(),
                     name: ctx.name,
-                    owner_type_id: ctx.owner_type_id,
+
                     message: ctx.message,
                     definition_container: ctx.definition_container.clone(),
                 },

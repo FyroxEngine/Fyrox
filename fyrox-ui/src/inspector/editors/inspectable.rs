@@ -160,7 +160,7 @@ where
             if ctx.message.direction() == MessageDirection::FromWidget {
                 return Some(PropertyChanged {
                     name: ctx.name.to_owned(),
-                    owner_type_id: ctx.owner_type_id,
+
                     value: FieldKind::Inspectable(Box::new(msg.clone())),
                 });
             }

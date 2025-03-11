@@ -73,7 +73,6 @@ where
     'b: 'a,
 {
     Ok(FieldInfo {
-        owner_type_id: TypeId::of::<T>(),
         name: property_info.name,
         display_name: property_info.display_name,
         value,
@@ -166,7 +165,7 @@ where
                 PropertyEditorTranslationContext {
                     environment: ctx.environment.clone(),
                     name: ctx.name,
-                    owner_type_id: ctx.owner_type_id,
+
                     message: ctx.message,
                     definition_container: ctx.definition_container.clone(),
                 },

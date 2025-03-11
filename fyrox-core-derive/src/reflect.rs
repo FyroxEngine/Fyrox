@@ -128,7 +128,6 @@ fn quote_field_prop(
 
     quote! {
         FieldInfo {
-            owner_type_id: std::any::TypeId::of::<Self>(),
             name: #prop_key_name,
             display_name: #display_name,
             tag: #tag,

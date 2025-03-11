@@ -83,7 +83,6 @@ impl PropertyEditorDefinition for ImmutableStringPropertyEditorDefinition {
         if ctx.message.direction() == MessageDirection::FromWidget {
             if let Some(TextMessage::Text(value)) = ctx.message.data::<TextMessage>() {
                 return Some(PropertyChanged {
-                    owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),
                     value: FieldKind::object(ImmutableString::new(value)),
                 });

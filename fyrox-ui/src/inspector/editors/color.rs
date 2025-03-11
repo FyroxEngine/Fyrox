@@ -78,7 +78,7 @@ impl PropertyEditorDefinition for ColorPropertyEditorDefinition {
             if let Some(ColorFieldMessage::Color(value)) = ctx.message.data::<ColorFieldMessage>() {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    owner_type_id: ctx.owner_type_id,
+
                     value: FieldKind::object(*value),
                 });
             }
@@ -128,7 +128,7 @@ impl PropertyEditorDefinition for ColorGradientPropertyEditorDefinition {
             if let Some(ColorGradientEditorMessage::Value(value)) = ctx.message.data() {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    owner_type_id: ctx.owner_type_id,
+
                     value: FieldKind::object(value.clone()),
                 });
             }

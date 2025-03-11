@@ -93,7 +93,6 @@ macro_rules! define_two_args_node {
             fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
                 func(&[
                     FieldInfo {
-                        owner_type_id: TypeId::of::<Self>(),
                         name: "Lhs",
                         display_name: "Lhs",
                         description: "",
@@ -109,7 +108,6 @@ macro_rules! define_two_args_node {
                         doc: "",
                     },
                     FieldInfo {
-                        owner_type_id: TypeId::of::<Self>(),
                         name: "Rhs",
                         display_name: "Rhs",
                         description: "",
@@ -254,7 +252,6 @@ impl<T: EntityId> Reflect for NotNode<T> {
 
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         func(&[FieldInfo {
-            owner_type_id: TypeId::of::<Self>(),
             name: "Lhs",
             display_name: "Lhs",
             description: "",

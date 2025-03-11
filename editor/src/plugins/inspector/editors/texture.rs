@@ -246,7 +246,6 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
                 ctx.message.data::<TextureEditorMessage>()
             {
                 return Some(PropertyChanged {
-                    owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),
                     value: if self.untyped {
                         FieldKind::object(value.clone().map(|r| r.into_untyped()))

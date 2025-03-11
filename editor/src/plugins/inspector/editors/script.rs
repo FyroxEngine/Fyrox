@@ -556,7 +556,6 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                             });
 
                             return Some(PropertyChanged {
-                                owner_type_id: ctx.owner_type_id,
                                 name: ctx.name.to_string(),
                                 value: FieldKind::object(script),
                             });
@@ -567,7 +566,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                             // Mimic Option<Script> path by adding `.Some@0` suffix to property path.
                             // It is needed because we're editing compound type in this editor.
                             name: ctx.name.to_string() + ".Some@0",
-                            owner_type_id: ctx.owner_type_id,
+
                             value: FieldKind::Inspectable(Box::new(property_changed.clone())),
                         });
                     }

@@ -23,7 +23,6 @@
 #![allow(clippy::disallowed_names)] // Useless in tests
 
 use std::{
-    any::TypeId,
     collections::HashMap,
     ops::{Deref, DerefMut},
 };
@@ -332,7 +331,6 @@ fn reflect_fields_list_of_enum() {
 
 fn default_prop() -> FieldInfo<'static, 'static> {
     FieldInfo {
-        owner_type_id: TypeId::of::<()>(),
         name: "",
         value: &(),
         reflect_value: &(),
@@ -361,14 +359,12 @@ fn inspect_default() {
 
     let expected = vec![
         FieldInfo {
-            owner_type_id: TypeId::of::<Data>(),
             name: "the_field",
             display_name: "The Field",
             value: &data.the_field,
             ..default_prop()
         },
         FieldInfo {
-            owner_type_id: TypeId::of::<Data>(),
             name: "another_field",
             display_name: "Another Field",
             value: &data.another_field,
@@ -410,14 +406,12 @@ fn inspect_attributes() {
 
     let expected = vec![
         FieldInfo {
-            owner_type_id: TypeId::of::<Data>(),
             name: "x",
             display_name: "Super X",
             value: &data.x,
             ..default_prop()
         },
         FieldInfo {
-            owner_type_id: TypeId::of::<Data>(),
             name: "y",
             display_name: "Y",
             value: &data.y,
@@ -449,14 +443,12 @@ fn inspect_struct() {
             fields_info,
             vec![
                 FieldInfo {
-                    owner_type_id: TypeId::of::<Tuple>(),
                     name: "0",
                     display_name: "0",
                     value: &x.0,
                     ..default_prop()
                 },
                 FieldInfo {
-                    owner_type_id: TypeId::of::<Tuple>(),
                     name: "1",
                     display_name: "1",
                     value: &x.1,
@@ -498,7 +490,6 @@ fn inspect_enum() {
             fields_info,
             vec![
                 FieldInfo {
-                    owner_type_id: TypeId::of::<Data>(),
                     name: "Named@x",
                     display_name: "X",
                     value: match data {
@@ -508,7 +499,6 @@ fn inspect_enum() {
                     ..default_prop()
                 },
                 FieldInfo {
-                    owner_type_id: TypeId::of::<Data>(),
                     name: "Named@y",
                     display_name: "Y",
                     value: match data {
@@ -518,7 +508,6 @@ fn inspect_enum() {
                     ..default_prop()
                 },
                 FieldInfo {
-                    owner_type_id: TypeId::of::<Data>(),
                     name: "Named@z",
                     display_name: "Z",
                     value: match data {
@@ -538,7 +527,6 @@ fn inspect_enum() {
             fields_info,
             vec![
                 FieldInfo {
-                    owner_type_id: TypeId::of::<Data>(),
                     name: "Tuple@0",
                     display_name: "0",
                     value: match data {
@@ -548,7 +536,6 @@ fn inspect_enum() {
                     ..default_prop()
                 },
                 FieldInfo {
-                    owner_type_id: TypeId::of::<Data>(),
                     name: "Tuple@1",
                     display_name: "1",
                     value: match data {

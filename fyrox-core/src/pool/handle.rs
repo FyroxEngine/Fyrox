@@ -118,7 +118,6 @@ impl<T: Reflect> Reflect for Handle<T> {
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         func(&[
             FieldInfo {
-                owner_type_id: TypeId::of::<Self>(),
                 name: "Index",
                 display_name: "Index",
                 description: "",
@@ -134,7 +133,6 @@ impl<T: Reflect> Reflect for Handle<T> {
                 doc: "",
             },
             FieldInfo {
-                owner_type_id: TypeId::of::<Self>(),
                 name: "Generation",
                 display_name: "Generation",
                 description: "",

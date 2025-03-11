@@ -303,7 +303,7 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
             if let Some(MaterialFieldMessage::Material(value)) = ctx.message.data() {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    owner_type_id: ctx.owner_type_id,
+
                     value: FieldKind::object(value.clone()),
                 });
             }

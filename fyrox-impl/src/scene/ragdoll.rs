@@ -98,7 +98,6 @@ impl Reflect for Limb {
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         func(&[
             FieldInfo {
-                owner_type_id: TypeId::of::<Self>(),
                 name: "Bone",
                 display_name: "Bone",
                 description: "",
@@ -114,7 +113,6 @@ impl Reflect for Limb {
                 doc: "",
             },
             FieldInfo {
-                owner_type_id: TypeId::of::<Self>(),
                 name: "PhysicalBone",
                 display_name: "Physical Bone",
                 description: "",
@@ -130,7 +128,6 @@ impl Reflect for Limb {
                 doc: "",
             },
             FieldInfo {
-                owner_type_id: TypeId::of::<Self>(),
                 name: "Children",
                 display_name: "Children",
                 description: "",

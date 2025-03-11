@@ -552,7 +552,6 @@ impl<T: Reflect> PropertyEditorDefinition for NodeHandlePropertyEditorDefinition
                 ctx.message.data::<HandlePropertyEditorMessage<T>>()
             {
                 return Some(PropertyChanged {
-                    owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),
                     value: FieldKind::object(*value),
                 });

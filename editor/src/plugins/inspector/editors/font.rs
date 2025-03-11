@@ -238,7 +238,6 @@ impl PropertyEditorDefinition for FontPropertyEditorDefinition {
         if ctx.message.direction() == MessageDirection::FromWidget {
             if let Some(FontFieldMessage::Font(value)) = ctx.message.data() {
                 return Some(PropertyChanged {
-                    owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),
                     value: FieldKind::object(value.clone()),
                 });
