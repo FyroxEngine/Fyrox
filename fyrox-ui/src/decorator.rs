@@ -201,7 +201,7 @@ impl Control for Decorator {
                 }
                 DecoratorMessage::HoverBrush(brush) => {
                     self.hover_brush.set_value_and_mark_modified(brush.clone());
-                    if self.is_mouse_directly_over {
+                    if self.has_descendant(ui.picked_node, ui) {
                         ui.send_message(WidgetMessage::background(
                             self.handle(),
                             MessageDirection::ToWidget,
@@ -211,7 +211,7 @@ impl Control for Decorator {
                 }
                 DecoratorMessage::NormalBrush(brush) => {
                     self.normal_brush.set_value_and_mark_modified(brush.clone());
-                    if !*self.is_selected && !self.is_mouse_directly_over {
+                    if !*self.is_selected && !self.has_descendant(ui.picked_node, ui) {
                         ui.send_message(WidgetMessage::background(
                             self.handle(),
                             MessageDirection::ToWidget,

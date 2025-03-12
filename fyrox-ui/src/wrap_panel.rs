@@ -35,6 +35,7 @@ use crate::{
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
 
+use core::f32;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -139,7 +140,7 @@ impl Control for WrapPanel {
         let mut line_size = Vector2::default();
         for child_handle in self.widget.children() {
             let child = ui.node(*child_handle);
-            ui.measure_node(*child_handle, available_size);
+            ui.measure_node(*child_handle, Vector2::new(f32::INFINITY, f32::INFINITY));
             let desired = child.desired_size();
             match *self.orientation {
                 Orientation::Vertical => {
