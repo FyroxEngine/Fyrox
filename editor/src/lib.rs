@@ -873,10 +873,10 @@ impl Editor {
                                 .build(ctx)
                         }))
                         .with_floating_windows(vec![
-                            particle_system_control_panel.window,
-                            camera_control_panel.window,
-                            mesh_control_panel.window,
-                            audio_preview_panel.window,
+                            particle_system_control_panel.root_widget,
+                            camera_control_panel.root_widget,
+                            mesh_control_panel.root_widget,
+                            audio_preview_panel.root_widget,
                             navmesh_panel.window,
                             doc_window.window,
                             light_panel.window,

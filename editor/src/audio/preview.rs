@@ -45,7 +45,7 @@ use crate::{
 };
 
 pub struct AudioPreviewPanel {
-    pub window: Handle<UiNode>,
+    pub root_widget: Handle<UiNode>,
     preview: Handle<UiNode>,
     play: Handle<UiNode>,
     pause: Handle<UiNode>,
@@ -63,7 +63,7 @@ impl AudioPreviewPanel {
         let stop;
         let rewind;
         let time;
-        let window = GridBuilder::new(
+        let root_widget = GridBuilder::new(
             WidgetBuilder::new()
                 .with_visibility(false)
                 .with_child(
@@ -167,13 +167,13 @@ impl AudioPreviewPanel {
         .build(ctx);
 
         ctx.send_message(WidgetMessage::link(
-            window,
+            root_widget,
             MessageDirection::ToWidget,
             inspector_head,
         ));
 
         Self {
-            window,
+            root_widget,
             preview,
             play,
             pause,
@@ -209,7 +209,7 @@ impl AudioPreviewPanel {
                     .user_interfaces
                     .first_mut()
                     .send_message(WidgetMessage::visibility(
-                        self.window,
+                        self.root_widget,
                         MessageDirection::ToWidget,
                         any_sound_selected,
                     ));

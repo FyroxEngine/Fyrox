@@ -44,7 +44,7 @@ use crate::{
 };
 
 pub struct ColliderControlPanel {
-    pub window: Handle<UiNode>,
+    pub root_widget: Handle<UiNode>,
     fit: Handle<UiNode>,
     edit: Handle<UiNode>,
 }
@@ -78,7 +78,7 @@ impl ColliderControlPanel {
 
         let fit;
         let edit;
-        let window = StackPanelBuilder::new(
+        let root_widget = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_horizontal_alignment(HorizontalAlignment::Right)
                 .with_child({
@@ -106,12 +106,16 @@ impl ColliderControlPanel {
         )
         .with_orientation(Orientation::Horizontal)
         .build(ctx);
-        Self { window, fit, edit }
+        Self {
+            root_widget,
+            fit,
+            edit,
+        }
     }
 
     pub fn destroy(self, ui: &UserInterface) {
         ui.send_message(WidgetMessage::remove(
-            self.window,
+            self.root_widget,
             MessageDirection::ToWidget,
         ));
     }

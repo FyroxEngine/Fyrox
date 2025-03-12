@@ -42,7 +42,7 @@ use crate::{
 };
 
 pub struct ParticleSystemPreviewControlPanel {
-    pub window: Handle<UiNode>,
+    pub root_widget: Handle<UiNode>,
     preview: Handle<UiNode>,
     play: Handle<UiNode>,
     pause: Handle<UiNode>,
@@ -139,7 +139,7 @@ impl ParticleSystemPreviewControlPanel {
 
         let time;
         let set_time;
-        let window = GridBuilder::new(
+        let root_widget = GridBuilder::new(
             WidgetBuilder::new()
                 .with_visibility(false)
                 .with_child(grid)
@@ -195,13 +195,13 @@ impl ParticleSystemPreviewControlPanel {
         .build(ctx);
 
         ctx.send_message(WidgetMessage::link(
-            window,
+            root_widget,
             MessageDirection::ToWidget,
             inspector_head,
         ));
 
         Self {
-            window,
+            root_widget,
             play,
             pause,
             stop,
@@ -239,7 +239,7 @@ impl ParticleSystemPreviewControlPanel {
                     .user_interfaces
                     .first_mut()
                     .send_message(WidgetMessage::visibility(
-                        self.window,
+                        self.root_widget,
                         MessageDirection::ToWidget,
                         any_particle_system_selected,
                     ));

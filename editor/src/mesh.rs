@@ -58,7 +58,7 @@ use crate::{
 };
 
 pub struct MeshControlPanel {
-    pub window: Handle<UiNode>,
+    pub root_widget: Handle<UiNode>,
     create_trimesh_collider: Handle<UiNode>,
     create_convex_collider: Handle<UiNode>,
     create_trimesh_rigid_body: Handle<UiNode>,
@@ -120,7 +120,7 @@ impl MeshControlPanel {
             rigid body.",
             ctx,
         );
-        let window = StackPanelBuilder::new(
+        let root_widget = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_visibility(false)
                 .with_child(create_trimesh_collider)
@@ -132,13 +132,13 @@ impl MeshControlPanel {
         .build(ctx);
 
         ctx.send_message(WidgetMessage::link(
-            window,
+            root_widget,
             MessageDirection::ToWidget,
             inspector_head,
         ));
 
         Self {
-            window,
+            root_widget,
             create_trimesh_collider,
             create_convex_collider,
             create_trimesh_rigid_body,
@@ -285,7 +285,7 @@ impl MeshControlPanel {
             .user_interfaces
             .first_mut()
             .send_message(WidgetMessage::visibility(
-                self.window,
+                self.root_widget,
                 MessageDirection::ToWidget,
                 any_mesh,
             ));
