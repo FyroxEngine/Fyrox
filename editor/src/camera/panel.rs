@@ -18,21 +18,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::gui::widget::WidgetMessage;
+
 use crate::{
     fyrox::{
         core::pool::Handle,
         engine::Engine,
         graph::SceneGraph,
+        gui::Thickness,
         gui::{
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             message::{MessageDirection, UiMessage},
             stack_panel::StackPanelBuilder,
             text::TextBuilder,
             widget::WidgetBuilder,
-            window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Orientation, UiNode, VerticalAlignment,
         },
-        gui::{HorizontalAlignment, Thickness},
         scene::{camera::Camera, node::Node},
     },
     scene::{GameScene, Selection},
@@ -40,51 +41,45 @@ use crate::{
 };
 
 pub struct CameraPreviewControlPanel {
-    pub window: Handle<UiNode>,
+    pub root_widget: Handle<UiNode>,
     preview: Handle<UiNode>,
     cameras_state: Vec<(Handle<Node>, Node)>,
-    scene_viewer_frame: Handle<UiNode>,
 }
 
 impl CameraPreviewControlPanel {
-    pub fn new(scene_viewer_frame: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
+    pub fn new(inspector_head: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
         let preview;
-        let window = WindowBuilder::new(
+        let root_widget = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .with_width(200.0)
-                .with_height(50.0)
-                .with_name("CameraPanel"),
-        )
-        .with_title(WindowTitle::text("Camera Preview"))
-        .with_content(
-            StackPanelBuilder::new(
-                WidgetBuilder::new()
-                    .with_margin(Thickness::uniform(1.0))
-                    .with_child({
-                        preview = CheckBoxBuilder::new(WidgetBuilder::new())
-                            .with_content(
-                                TextBuilder::new(
-                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("Preview")
-                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .build(ctx),
+                .with_visibility(false)
+                .with_margin(Thickness::uniform(1.0))
+                .with_child({
+                    preview = CheckBoxBuilder::new(WidgetBuilder::new())
+                        .with_content(
+                            TextBuilder::new(
+                                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                             )
-                            .build(ctx);
-                        preview
-                    }),
-            )
-            .with_orientation(Orientation::Vertical)
-            .build(ctx),
+                            .with_text("Preview")
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .build(ctx),
+                        )
+                        .build(ctx);
+                    preview
+                }),
         )
-        .open(false)
+        .with_orientation(Orientation::Vertical)
         .build(ctx);
 
+        ctx.send_message(WidgetMessage::link(
+            root_widget,
+            MessageDirection::ToWidget,
+            inspector_head,
+        ));
+
         Self {
-            window,
+            root_widget,
             cameras_state: Default::default(),
             preview,
-            scene_viewer_frame,
         }
     }
 
@@ -109,29 +104,14 @@ impl CameraPreviewControlPanel {
                     .nodes
                     .iter()
                     .any(|n| scene.graph.try_get_of_type::<Camera>(*n).is_some());
-                if any_camera {
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(WindowMessage::open_and_align(
-                            self.window,
-                            MessageDirection::ToWidget,
-                            self.scene_viewer_frame,
-                            HorizontalAlignment::Right,
-                            VerticalAlignment::Top,
-                            Thickness::top_right(5.0),
-                            false,
-                            false,
-                        ));
-                } else {
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(WindowMessage::close(
-                            self.window,
-                            MessageDirection::ToWidget,
-                        ));
-                }
+                engine
+                    .user_interfaces
+                    .first_mut()
+                    .send_message(WidgetMessage::visibility(
+                        self.root_widget,
+                        MessageDirection::ToWidget,
+                        any_camera,
+                    ));
             }
         }
     }

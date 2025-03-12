@@ -18,8 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::gui::widget::WidgetMessage;
+
 use crate::fyrox::graph::SceneGraph;
-use crate::fyrox::gui::HorizontalAlignment;
 use crate::fyrox::{
     core::pool::Handle,
     engine::Engine,
@@ -31,7 +32,6 @@ use crate::fyrox::{
         numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         text::TextBuilder,
         widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Thickness, UiNode, VerticalAlignment,
     },
     scene::{node::Node, particle_system::ParticleSystem},
@@ -42,7 +42,7 @@ use crate::{
 };
 
 pub struct ParticleSystemPreviewControlPanel {
-    pub window: Handle<UiNode>,
+    pub root_widget: Handle<UiNode>,
     preview: Handle<UiNode>,
     play: Handle<UiNode>,
     pause: Handle<UiNode>,
@@ -52,11 +52,10 @@ pub struct ParticleSystemPreviewControlPanel {
     set_time: Handle<UiNode>,
     particle_systems_state: Vec<(Handle<Node>, Node)>,
     desired_playback_time: f32,
-    scene_viewer_frame: Handle<UiNode>,
 }
 
 impl ParticleSystemPreviewControlPanel {
-    pub fn new(scene_viewer_frame: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
+    pub fn new(inspector_head: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
         let preview;
         let play;
         let pause;
@@ -140,17 +139,11 @@ impl ParticleSystemPreviewControlPanel {
 
         let time;
         let set_time;
-        let window = WindowBuilder::new(
+        let root_widget = GridBuilder::new(
             WidgetBuilder::new()
-                .with_name("ParticleSystemPanel")
-                .with_width(300.0)
-                .with_height(70.0),
-        )
-        .open(false)
-        .with_title(WindowTitle::text("Particle System"))
-        .with_content(
-            GridBuilder::new(
-                WidgetBuilder::new().with_child(grid).with_child(
+                .with_visibility(false)
+                .with_child(grid)
+                .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
                             .on_row(1)
@@ -195,16 +188,20 @@ impl ParticleSystemPreviewControlPanel {
                     .add_column(Column::auto())
                     .build(ctx),
                 ),
-            )
-            .add_row(Row::stretch())
-            .add_row(Row::stretch())
-            .add_column(Column::stretch())
-            .build(ctx),
         )
+        .add_row(Row::stretch())
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
         .build(ctx);
 
+        ctx.send_message(WidgetMessage::link(
+            root_widget,
+            MessageDirection::ToWidget,
+            inspector_head,
+        ));
+
         Self {
-            window,
+            root_widget,
             play,
             pause,
             stop,
@@ -214,7 +211,6 @@ impl ParticleSystemPreviewControlPanel {
             particle_systems_state: Default::default(),
             set_time,
             desired_playback_time: 0.0,
-            scene_viewer_frame,
         }
     }
 
@@ -239,29 +235,14 @@ impl ParticleSystemPreviewControlPanel {
                     .nodes
                     .iter()
                     .any(|n| scene.graph.try_get_of_type::<ParticleSystem>(*n).is_some());
-                if any_particle_system_selected {
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(WindowMessage::open_and_align(
-                            self.window,
-                            MessageDirection::ToWidget,
-                            self.scene_viewer_frame,
-                            HorizontalAlignment::Right,
-                            VerticalAlignment::Top,
-                            Thickness::top_right(5.0),
-                            false,
-                            false,
-                        ));
-                } else {
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(WindowMessage::close(
-                            self.window,
-                            MessageDirection::ToWidget,
-                        ));
-                }
+                engine
+                    .user_interfaces
+                    .first_mut()
+                    .send_message(WidgetMessage::visibility(
+                        self.root_widget,
+                        MessageDirection::ToWidget,
+                        any_particle_system_selected,
+                    ));
             }
         }
     }

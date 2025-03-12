@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::gui::widget::WidgetMessage;
+
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -31,7 +33,7 @@ use crate::{
             utils::make_simple_tooltip,
             widget::WidgetBuilder,
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
+            BuildContext, Thickness, UiNode,
         },
         scene::{
             base::BaseBuilder,
@@ -56,8 +58,7 @@ use crate::{
 };
 
 pub struct MeshControlPanel {
-    scene_viewer_frame: Handle<UiNode>,
-    pub window: Handle<UiNode>,
+    pub root_widget: Handle<UiNode>,
     create_trimesh_collider: Handle<UiNode>,
     create_convex_collider: Handle<UiNode>,
     create_trimesh_rigid_body: Handle<UiNode>,
@@ -88,7 +89,7 @@ fn meshes_iter<'a>(
 }
 
 impl MeshControlPanel {
-    pub fn new(scene_viewer_frame: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
+    pub fn new(inspector_head: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
         let create_trimesh_collider = make_button(
             "Create Trimesh Collider",
             "Creates a new trimesh collider and attaches it to the selected mesh(es)",
@@ -119,30 +120,25 @@ impl MeshControlPanel {
             rigid body.",
             ctx,
         );
-        let window = WindowBuilder::new(
+        let root_widget = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .with_width(210.0)
-                .with_height(200.0)
-                .with_name("MeshControlPanel"),
-        )
-        .open(false)
-        .with_title(WindowTitle::text("Mesh Control Panel"))
-        .with_content(
-            StackPanelBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(create_trimesh_collider)
-                    .with_child(create_convex_collider)
-                    .with_child(create_trimesh_rigid_body)
-                    .with_child(add_convex_collider)
-                    .with_child(add_trimesh_collider),
-            )
-            .build(ctx),
+                .with_visibility(false)
+                .with_child(create_trimesh_collider)
+                .with_child(create_convex_collider)
+                .with_child(create_trimesh_rigid_body)
+                .with_child(add_convex_collider)
+                .with_child(add_trimesh_collider),
         )
         .build(ctx);
 
+        ctx.send_message(WidgetMessage::link(
+            root_widget,
+            MessageDirection::ToWidget,
+            inspector_head,
+        ));
+
         Self {
-            scene_viewer_frame,
-            window,
+            root_widget,
             create_trimesh_collider,
             create_convex_collider,
             create_trimesh_rigid_body,
@@ -285,29 +281,14 @@ impl MeshControlPanel {
             .nodes
             .iter()
             .any(|n| scene.graph.try_get_of_type::<Mesh>(*n).is_some());
-        if any_mesh {
-            engine
-                .user_interfaces
-                .first_mut()
-                .send_message(WindowMessage::open_and_align(
-                    self.window,
-                    MessageDirection::ToWidget,
-                    self.scene_viewer_frame,
-                    HorizontalAlignment::Right,
-                    VerticalAlignment::Top,
-                    Thickness::top_right(5.0),
-                    false,
-                    false,
-                ));
-        } else {
-            engine
-                .user_interfaces
-                .first_mut()
-                .send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
-        }
+        engine
+            .user_interfaces
+            .first_mut()
+            .send_message(WidgetMessage::visibility(
+                self.root_widget,
+                MessageDirection::ToWidget,
+                any_mesh,
+            ));
     }
 }
 
