@@ -24,6 +24,7 @@ mod external_impls;
 mod std_impls;
 
 pub use fyrox_core_derive::Reflect;
+use std::ops::Deref;
 use std::{
     any::{Any, TypeId},
     fmt::{self, Debug, Display, Formatter},
@@ -32,8 +33,8 @@ use std::{
 
 pub mod prelude {
     pub use super::{
-        FieldInfo, Reflect, ReflectArray, ReflectHashMap, ReflectInheritableVariable, ReflectList,
-        ResolvePath, SetFieldByPathError,
+        FieldInfo, FieldMetadata, FieldValue, Reflect, ReflectArray, ReflectHashMap,
+        ReflectInheritableVariable, ReflectList, ResolvePath, SetFieldByPathError,
     };
 }
 
@@ -71,30 +72,23 @@ pub enum CastError {
     },
 }
 
-pub struct FieldInfo<'a, 'b> {
+#[derive(Debug)]
+pub struct FieldMetadata<'s> {
     /// A name of the property.
-    pub name: &'b str,
+    pub name: &'s str,
 
     /// A human-readable name of the property.
-    pub display_name: &'b str,
+    pub display_name: &'s str,
 
     /// Description of the property.
-    pub description: &'b str,
+    pub description: &'s str,
 
     /// Tag of the property. Could be used to group properties by a certain criteria or to find a
     /// specific property by its tag.
-    pub tag: &'b str,
+    pub tag: &'s str,
 
     /// Doc comment content.
-    pub doc: &'b str,
-
-    /// An reference to the actual value of the property. This is "non-mangled" reference, which
-    /// means that while `field/fields/field_mut/fields_mut` might return a reference to other value,
-    /// than the actual field, the `value` is guaranteed to be a reference to the real value.
-    pub value: &'a dyn FieldValue,
-
-    /// A reference to the value casted to `Reflect`.
-    pub reflect_value: &'a dyn Reflect,
+    pub doc: &'s str,
 
     /// A property is not meant to be edited.
     pub read_only: bool,
@@ -116,13 +110,34 @@ pub struct FieldInfo<'a, 'b> {
     pub precision: Option<usize>,
 }
 
+pub struct FieldInfo<'a, 'b> {
+    /// A reference to field's metadata.
+    pub metadata: &'a FieldMetadata<'b>,
+
+    /// An reference to the actual value of the property. This is "non-mangled" reference, which
+    /// means that while `field/fields/field_mut/fields_mut` might return a reference to other value,
+    /// than the actual field, the `value` is guaranteed to be a reference to the real value.
+    pub value: &'a dyn FieldValue,
+
+    /// A reference to the value casted to `Reflect`.
+    pub reflect_value: &'a dyn Reflect,
+}
+
+impl<'b> Deref for FieldInfo<'_, 'b> {
+    type Target = FieldMetadata<'b>;
+
+    fn deref(&self) -> &Self::Target {
+        self.metadata
+    }
+}
+
 impl FieldInfo<'_, '_> {
     /// Tries to cast a value to a given type.
     pub fn cast_value<T: 'static>(&self) -> Result<&T, CastError> {
         match self.value.as_any().downcast_ref::<T>() {
             Some(value) => Ok(value),
             None => Err(CastError::TypeMismatch {
-                property_name: self.name.to_string(),
+                property_name: self.metadata.name.to_string(),
                 expected_type_id: TypeId::of::<T>(),
                 actual_type_id: self.value.type_id(),
             }),
@@ -132,16 +147,9 @@ impl FieldInfo<'_, '_> {
 
 impl fmt::Debug for FieldInfo<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PropertyInfo")
-            .field("name", &self.name)
-            .field("display_name", &self.display_name)
+        f.debug_struct("FieldInfo")
+            .field("metadata", &self.metadata)
             .field("value", &format_args!("{:?}", self.value as *const _))
-            .field("read_only", &self.read_only)
-            .field("min_value", &self.min_value)
-            .field("max_value", &self.max_value)
-            .field("step", &self.step)
-            .field("precision", &self.precision)
-            .field("description", &self.description)
             .finish()
     }
 }
@@ -151,15 +159,7 @@ impl PartialEq<Self> for FieldInfo<'_, '_> {
         let value_ptr_a = self.value as *const _ as *const ();
         let value_ptr_b = other.value as *const _ as *const ();
 
-        self.name == other.name
-            && self.display_name == other.display_name
-            && std::ptr::eq(value_ptr_a, value_ptr_b)
-            && self.read_only == other.read_only
-            && self.min_value == other.min_value
-            && self.max_value == other.max_value
-            && self.step == other.step
-            && self.precision == other.precision
-            && self.description == other.description
+        std::ptr::eq(value_ptr_a, value_ptr_b)
     }
 }
 
@@ -955,9 +955,9 @@ impl dyn Reflect {
             for field in fields {
                 let compound_path;
                 let field_path = if path.is_empty() {
-                    field.name
+                    field.metadata.name
                 } else {
-                    compound_path = format!("{}.{}", path, field.name);
+                    compound_path = format!("{}.{}", path, field.metadata.name);
                     &compound_path
                 };
 

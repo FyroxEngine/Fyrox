@@ -117,35 +117,46 @@ impl<T: Reflect> Reflect for Handle<T> {
 
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         func(&[
-            FieldInfo {
-                name: "Index",
-                display_name: "Index",
-                description: "",
-                tag: "",
-                value: &self.index,
-                reflect_value: &self.index,
-                read_only: false,
-                immutable_collection: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                doc: "",
+            {
+                static METADATA: FieldMetadata = FieldMetadata {
+                    name: "Index",
+                    display_name: "Index",
+                    description: "",
+                    tag: "",
+                    read_only: false,
+                    immutable_collection: false,
+                    min_value: None,
+                    max_value: None,
+                    step: None,
+                    precision: None,
+                    doc: "",
+                };
+                FieldInfo {
+                    metadata: &METADATA,
+                    value: &self.index,
+                    reflect_value: &self.index,
+                }
             },
-            FieldInfo {
-                name: "Generation",
-                display_name: "Generation",
-                description: "",
-                tag: "",
-                value: &self.generation,
-                reflect_value: &self.generation,
-                read_only: false,
-                immutable_collection: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                doc: "",
+            {
+                static METADATA: FieldMetadata = FieldMetadata {
+                    name: "Generation",
+                    display_name: "Generation",
+                    description: "",
+                    tag: "",
+                    read_only: false,
+                    immutable_collection: false,
+                    min_value: None,
+                    max_value: None,
+                    step: None,
+                    precision: None,
+                    doc: "",
+                };
+
+                FieldInfo {
+                    metadata: &METADATA,
+                    value: &self.generation,
+                    reflect_value: &self.generation,
+                }
             },
         ])
     }

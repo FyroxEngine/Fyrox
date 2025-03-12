@@ -212,32 +212,6 @@ where
     }
 }
 
-fn make_proxy<'a, 'b, 'c, T>(
-    property_info: &'b FieldInfo<'a, 'c>,
-) -> Result<FieldInfo<'a, 'c>, InspectorError>
-where
-    T: Reflect + FieldValue,
-    'b: 'a,
-{
-    let value = property_info.cast_value::<InheritableVariable<T>>()?;
-
-    Ok(FieldInfo {
-        name: property_info.name,
-        display_name: property_info.display_name,
-        value: &**value,
-        reflect_value: &**value,
-        read_only: property_info.read_only,
-        immutable_collection: property_info.immutable_collection,
-        min_value: property_info.min_value,
-        max_value: property_info.max_value,
-        step: property_info.step,
-        precision: property_info.precision,
-        description: property_info.description,
-        tag: property_info.tag,
-        doc: property_info.doc,
-    })
-}
-
 impl<T> PropertyEditorDefinition for InheritablePropertyEditorDefinition<T>
 where
     T: Reflect + FieldValue,
@@ -255,12 +229,34 @@ where
             .definitions()
             .get(&TypeId::of::<T>())
         {
+            let property_info = ctx.property_info;
+
+            let value = property_info.cast_value::<InheritableVariable<T>>()?;
+
+            let proxy_property_info = FieldInfo {
+                metadata: &FieldMetadata {
+                    name: property_info.name,
+                    display_name: property_info.display_name,
+                    read_only: property_info.read_only,
+                    immutable_collection: property_info.immutable_collection,
+                    min_value: property_info.min_value,
+                    max_value: property_info.max_value,
+                    step: property_info.step,
+                    precision: property_info.precision,
+                    description: property_info.description,
+                    tag: property_info.tag,
+                    doc: property_info.doc,
+                },
+                value: &**value,
+                reflect_value: &**value,
+            };
+
             let instance =
                 definition
                     .property_editor
                     .create_instance(PropertyEditorBuildContext {
                         build_context: ctx.build_context,
-                        property_info: &make_proxy::<T>(ctx.property_info)?,
+                        property_info: &proxy_property_info,
                         environment: ctx.environment.clone(),
                         definition_container: ctx.definition_container.clone(),
                         sync_flag: ctx.sync_flag,
@@ -324,10 +320,32 @@ where
                         .is_modified(),
                 ));
 
+            let property_info = ctx.property_info;
+
+            let value = property_info.cast_value::<InheritableVariable<T>>()?;
+
+            let proxy_property_info = FieldInfo {
+                metadata: &FieldMetadata {
+                    name: property_info.name,
+                    display_name: property_info.display_name,
+                    read_only: property_info.read_only,
+                    immutable_collection: property_info.immutable_collection,
+                    min_value: property_info.min_value,
+                    max_value: property_info.max_value,
+                    step: property_info.step,
+                    precision: property_info.precision,
+                    description: property_info.description,
+                    tag: property_info.tag,
+                    doc: property_info.doc,
+                },
+                value: &**value,
+                reflect_value: &**value,
+            };
+
             return definition
                 .property_editor
                 .create_message(PropertyEditorMessageContext {
-                    property_info: &make_proxy::<T>(ctx.property_info)?,
+                    property_info: &proxy_property_info,
                     environment: ctx.environment.clone(),
                     definition_container: ctx.definition_container.clone(),
                     sync_flag: ctx.sync_flag,

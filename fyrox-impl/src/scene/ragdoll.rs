@@ -97,50 +97,65 @@ impl Reflect for Limb {
 
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         func(&[
-            FieldInfo {
-                name: "Bone",
-                display_name: "Bone",
-                description: "",
-                tag: "",
-                value: &self.bone,
-                reflect_value: &self.bone,
-                read_only: false,
-                immutable_collection: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                doc: "",
+            {
+                static METADATA: FieldMetadata = FieldMetadata {
+                    name: "Bone",
+                    display_name: "Bone",
+                    description: "",
+                    tag: "",
+                    read_only: false,
+                    immutable_collection: false,
+                    min_value: None,
+                    max_value: None,
+                    step: None,
+                    precision: None,
+                    doc: "",
+                };
+                FieldInfo {
+                    metadata: &METADATA,
+                    value: &self.bone,
+                    reflect_value: &self.bone,
+                }
             },
-            FieldInfo {
-                name: "PhysicalBone",
-                display_name: "Physical Bone",
-                description: "",
-                tag: "",
-                value: &self.physical_bone,
-                reflect_value: &self.physical_bone,
-                read_only: false,
-                immutable_collection: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                doc: "",
+            {
+                static METADATA: FieldMetadata = FieldMetadata {
+                    name: "PhysicalBone",
+                    display_name: "Physical Bone",
+                    description: "",
+                    tag: "",
+                    read_only: false,
+                    immutable_collection: false,
+                    min_value: None,
+                    max_value: None,
+                    step: None,
+                    precision: None,
+                    doc: "",
+                };
+                FieldInfo {
+                    metadata: &METADATA,
+                    value: &self.physical_bone,
+                    reflect_value: &self.physical_bone,
+                }
             },
-            FieldInfo {
-                name: "Children",
-                display_name: "Children",
-                description: "",
-                tag: "",
-                value: &self.children,
-                reflect_value: &self.children,
-                read_only: false,
-                immutable_collection: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                doc: "",
+            {
+                static METADATA: FieldMetadata = FieldMetadata {
+                    name: "Children",
+                    display_name: "Children",
+                    description: "",
+                    tag: "",
+                    read_only: false,
+                    immutable_collection: false,
+                    min_value: None,
+                    max_value: None,
+                    step: None,
+                    precision: None,
+                    doc: "",
+                };
+                FieldInfo {
+                    metadata: &METADATA,
+                    value: &self.children,
+                    reflect_value: &self.children,
+                }
             },
         ])
     }

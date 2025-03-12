@@ -127,20 +127,26 @@ fn quote_field_prop(
     let description = field.description.clone().unwrap_or_default();
 
     quote! {
-        FieldInfo {
-            name: #prop_key_name,
-            display_name: #display_name,
-            tag: #tag,
-            doc: #doc,
-            read_only: #read_only,
-            immutable_collection: #immutable_collection,
-            min_value: #min_value,
-            max_value: #max_value,
-            value: #field_getter,
-            reflect_value: #field_getter,
-            step: #step,
-            precision: #precision,
-            description: #description
+        {
+            static METADATA: FieldMetadata = FieldMetadata {
+                name: #prop_key_name,
+                display_name: #display_name,
+                tag: #tag,
+                doc: #doc,
+                read_only: #read_only,
+                immutable_collection: #immutable_collection,
+                min_value: #min_value,
+                max_value: #max_value,
+                step: #step,
+                precision: #precision,
+                description: #description,
+            };
+
+            FieldInfo {
+                metadata: &METADATA,
+                value: #field_getter,
+                reflect_value: #field_getter,
+            }
         }
     }
 }

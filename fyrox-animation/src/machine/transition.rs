@@ -92,34 +92,46 @@ macro_rules! define_two_args_node {
 
             fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
                 func(&[
-                    FieldInfo {
-                        name: "Lhs",
-                        display_name: "Lhs",
-                        description: "",
-                        tag: "",
-                        value: &*self.lhs,
-                        reflect_value: &*self.lhs,
-                        read_only: false,
-                        immutable_collection: false,
-                        min_value: None,
-                        max_value: None,
-                        step: None,
-                        precision: None,
-                        doc: "",
+                    {
+                        static METADATA: FieldMetadata = FieldMetadata {
+                            name: "Lhs",
+                            display_name: "Lhs",
+                            description: "",
+                            tag: "",
+                            read_only: false,
+                            immutable_collection: false,
+                            min_value: None,
+                            max_value: None,
+                            step: None,
+                            precision: None,
+                            doc: "",
+                        };
+
+                        FieldInfo {
+                            metadata: &METADATA,
+                            value: &*self.lhs,
+                            reflect_value: &*self.lhs,
+                        }
                     },
-                    FieldInfo {
-                        name: "Rhs",
-                        display_name: "Rhs",
-                        description: "",
-                        tag: "",
-                        value: &*self.rhs,
-                        reflect_value: &*self.rhs,
-                        read_only: false,
-                        immutable_collection: false,
-                        min_value: None,
-                        max_value: None,
-                        step: None,
-                        precision: None,doc: "",
+                    {
+                        static METADATA: FieldMetadata = FieldMetadata {
+                            name: "Rhs",
+                            display_name: "Rhs",
+                            description: "",
+                            tag: "",
+                            read_only: false,
+                            immutable_collection: false,
+                            min_value: None,
+                            max_value: None,
+                            step: None,
+                            precision: None,doc: "",
+                        };
+
+                        FieldInfo {
+                            metadata: &METADATA,
+                            value: &*self.rhs,
+                            reflect_value: &*self.rhs,
+                        }
                     },
                 ])
             }
@@ -251,20 +263,26 @@ impl<T: EntityId> Reflect for NotNode<T> {
     }
 
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
-        func(&[FieldInfo {
-            name: "Lhs",
-            display_name: "Lhs",
-            description: "",
-            tag: "",
-            value: &*self.lhs,
-            reflect_value: &*self.lhs,
-            read_only: false,
-            immutable_collection: false,
-            min_value: None,
-            max_value: None,
-            step: None,
-            precision: None,
-            doc: "",
+        func(&[{
+            static METADATA: FieldMetadata = FieldMetadata {
+                name: "Lhs",
+                display_name: "Lhs",
+                description: "",
+                tag: "",
+                read_only: false,
+                immutable_collection: false,
+                min_value: None,
+                max_value: None,
+                step: None,
+                precision: None,
+                doc: "",
+            };
+
+            FieldInfo {
+                metadata: &METADATA,
+                value: &*self.lhs,
+                reflect_value: &*self.lhs,
+            }
         }])
     }
 

@@ -20,8 +20,8 @@
 
 use crate::{
     core::{
-        pool::Handle, reflect::prelude::*, reflect::FieldValue, type_traits::prelude::*,
-        uuid_provider, visitor::prelude::*, PhantomDataSendSync,
+        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
+        visitor::prelude::*, PhantomDataSendSync,
     },
     define_constructor,
     inspector::{
@@ -116,33 +116,6 @@ fn create_item_views(items: &[Item]) -> Vec<Handle<UiNode>> {
         .collect::<Vec<_>>()
 }
 
-fn make_proxy<'a, 'b, T>(
-    array_property_info: &'b FieldInfo<'a, 'b>,
-    item: &'a T,
-    name: &'b str,
-    display_name: &'b str,
-) -> Result<FieldInfo<'a, 'b>, InspectorError>
-where
-    T: Reflect + FieldValue,
-    'b: 'a,
-{
-    Ok(FieldInfo {
-        name,
-        display_name,
-        value: item,
-        reflect_value: item,
-        read_only: array_property_info.read_only,
-        immutable_collection: array_property_info.immutable_collection,
-        min_value: array_property_info.min_value,
-        max_value: array_property_info.max_value,
-        step: array_property_info.step,
-        precision: array_property_info.precision,
-        description: array_property_info.description,
-        tag: array_property_info.tag,
-        doc: array_property_info.doc,
-    })
-}
-
 fn create_items<'a, 'b, T, I>(
     iter: I,
     environment: Option<Arc<dyn InspectorEnvironment>>,
@@ -166,12 +139,32 @@ where
             let name = format!("{}[{index}]", property_info.name);
             let display_name = format!("{}[{index}]", property_info.display_name);
 
+            let metadata = FieldMetadata {
+                name: &name,
+                display_name: &display_name,
+                read_only: property_info.read_only,
+                immutable_collection: property_info.immutable_collection,
+                min_value: property_info.min_value,
+                max_value: property_info.max_value,
+                step: property_info.step,
+                precision: property_info.precision,
+                description: property_info.description,
+                tag: property_info.tag,
+                doc: property_info.doc,
+            };
+
+            let proxy_property_info = FieldInfo {
+                metadata: &metadata,
+                value: item,
+                reflect_value: item,
+            };
+
             let editor =
                 definition
                     .property_editor
                     .create_instance(PropertyEditorBuildContext {
                         build_context: ctx,
-                        property_info: &make_proxy::<T>(property_info, item, &name, &display_name)?,
+                        property_info: &proxy_property_info,
                         environment: environment.clone(),
                         definition_container: definition_container.clone(),
                         sync_flag,
@@ -406,16 +399,31 @@ where
                 let name = format!("{}[{index}]", property_info.name);
                 let display_name = format!("{}[{index}]", property_info.display_name);
 
+                let metadata = FieldMetadata {
+                    name: &name,
+                    display_name: &display_name,
+                    read_only: property_info.read_only,
+                    immutable_collection: property_info.immutable_collection,
+                    min_value: property_info.min_value,
+                    max_value: property_info.max_value,
+                    step: property_info.step,
+                    precision: property_info.precision,
+                    description: property_info.description,
+                    tag: property_info.tag,
+                    doc: property_info.doc,
+                };
+
+                let proxy_property_info = FieldInfo {
+                    metadata: &metadata,
+                    value: obj,
+                    reflect_value: obj,
+                };
+
                 if let Some(message) =
                     definition
                         .property_editor
                         .create_message(PropertyEditorMessageContext {
-                            property_info: &make_proxy::<T>(
-                                property_info,
-                                obj,
-                                &name,
-                                &display_name,
-                            )?,
+                            property_info: &proxy_property_info,
                             environment: environment.clone(),
                             definition_container: definition_container.clone(),
                             sync_flag,

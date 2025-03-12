@@ -329,11 +329,9 @@ fn reflect_fields_list_of_enum() {
     });
 }
 
-fn default_prop() -> FieldInfo<'static, 'static> {
-    FieldInfo {
+fn default_prop_metadata() -> FieldMetadata<'static> {
+    FieldMetadata {
         name: "",
-        value: &(),
-        reflect_value: &(),
         display_name: "",
         read_only: false,
         immutable_collection: false,
@@ -357,18 +355,28 @@ fn inspect_default() {
 
     let data = Data::default();
 
+    let the_field_metadata = FieldMetadata {
+        name: "the_field",
+        display_name: "The Field",
+        ..default_prop_metadata()
+    };
+
+    let another_field_metadata = FieldMetadata {
+        name: "another_field",
+        display_name: "Another Field",
+        ..default_prop_metadata()
+    };
+
     let expected = vec![
         FieldInfo {
-            name: "the_field",
-            display_name: "The Field",
+            metadata: &the_field_metadata,
             value: &data.the_field,
-            ..default_prop()
+            reflect_value: &data.the_field,
         },
         FieldInfo {
-            name: "another_field",
-            display_name: "Another Field",
+            metadata: &another_field_metadata,
             value: &data.another_field,
-            ..default_prop()
+            reflect_value: &data.another_field,
         },
     ];
 
@@ -404,27 +412,34 @@ fn inspect_attributes() {
 
     let data = Data::default();
 
+    let x_metadata = FieldMetadata {
+        name: "x",
+        display_name: "Super X",
+        ..default_prop_metadata()
+    };
+
     let expected = vec![
         FieldInfo {
-            name: "x",
-            display_name: "Super X",
+            metadata: &x_metadata,
             value: &data.x,
-            ..default_prop()
+            reflect_value: &data.x,
         },
         FieldInfo {
-            name: "y",
-            display_name: "Y",
+            metadata: &FieldMetadata {
+                name: "y",
+                display_name: "Y",
+                read_only: true,
+                immutable_collection: false,
+                min_value: Some(0.1),
+                max_value: Some(1.1),
+                step: Some(0.1),
+                precision: Some(3),
+                description: "This is a property description.",
+                tag: "SomeTag",
+                doc: "",
+            },
             value: &data.y,
             reflect_value: &data.y,
-            read_only: true,
-            immutable_collection: false,
-            min_value: Some(0.1),
-            max_value: Some(1.1),
-            step: Some(0.1),
-            precision: Some(3),
-            description: "This is a property description.",
-            tag: "SomeTag",
-            doc: "",
         },
     ];
 
@@ -443,16 +458,22 @@ fn inspect_struct() {
             fields_info,
             vec![
                 FieldInfo {
-                    name: "0",
-                    display_name: "0",
+                    metadata: &FieldMetadata {
+                        name: "0",
+                        display_name: "0",
+                        ..default_prop_metadata()
+                    },
                     value: &x.0,
-                    ..default_prop()
+                    reflect_value: &x.0,
                 },
                 FieldInfo {
-                    name: "1",
-                    display_name: "1",
+                    metadata: &FieldMetadata {
+                        name: "1",
+                        display_name: "1",
+                        ..default_prop_metadata()
+                    },
                     value: &x.1,
-                    ..default_prop()
+                    reflect_value: &x.1,
                 },
             ]
         )
@@ -490,31 +511,49 @@ fn inspect_enum() {
             fields_info,
             vec![
                 FieldInfo {
-                    name: "Named@x",
-                    display_name: "X",
+                    metadata: &FieldMetadata {
+                        name: "Named@x",
+                        display_name: "X",
+                        ..default_prop_metadata()
+                    },
                     value: match data {
                         Data::Named { ref x, .. } => x,
                         _ => unreachable!(),
                     },
-                    ..default_prop()
+                    reflect_value: match data {
+                        Data::Named { ref x, .. } => x,
+                        _ => unreachable!(),
+                    },
                 },
                 FieldInfo {
-                    name: "Named@y",
-                    display_name: "Y",
+                    metadata: &FieldMetadata {
+                        name: "Named@y",
+                        display_name: "Y",
+                        ..default_prop_metadata()
+                    },
                     value: match data {
                         Data::Named { ref y, .. } => y,
                         _ => unreachable!(),
                     },
-                    ..default_prop()
+                    reflect_value: match data {
+                        Data::Named { ref y, .. } => y,
+                        _ => unreachable!(),
+                    },
                 },
                 FieldInfo {
-                    name: "Named@z",
-                    display_name: "Z",
+                    metadata: &FieldMetadata {
+                        name: "Named@z",
+                        display_name: "Z",
+                        ..default_prop_metadata()
+                    },
                     value: match data {
                         Data::Named { ref z, .. } => z,
                         _ => unreachable!(),
                     },
-                    ..default_prop()
+                    reflect_value: match data {
+                        Data::Named { ref z, .. } => z,
+                        _ => unreachable!(),
+                    },
                 },
             ]
         )
@@ -527,22 +566,34 @@ fn inspect_enum() {
             fields_info,
             vec![
                 FieldInfo {
-                    name: "Tuple@0",
-                    display_name: "0",
+                    metadata: &FieldMetadata {
+                        name: "Tuple@0",
+                        display_name: "0",
+                        ..default_prop_metadata()
+                    },
                     value: match data {
                         Data::Tuple(ref f0, ref _f1) => f0,
                         _ => unreachable!(),
                     },
-                    ..default_prop()
+                    reflect_value: match data {
+                        Data::Tuple(ref f0, ref _f1) => f0,
+                        _ => unreachable!(),
+                    },
                 },
                 FieldInfo {
-                    name: "Tuple@1",
-                    display_name: "1",
+                    metadata: &FieldMetadata {
+                        name: "Tuple@1",
+                        display_name: "1",
+                        ..default_prop_metadata()
+                    },
                     value: match data {
                         Data::Tuple(ref _f0, ref f1) => f1,
                         _ => unreachable!(),
                     },
-                    ..default_prop()
+                    reflect_value: match data {
+                        Data::Tuple(ref _f0, ref f1) => f1,
+                        _ => unreachable!(),
+                    },
                 },
             ]
         )

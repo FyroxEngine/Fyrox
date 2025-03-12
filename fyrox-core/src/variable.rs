@@ -1154,7 +1154,7 @@ mod test {
     fn inheritable_variable_type_name() {
         let v = InheritableVariable::from(42);
 
-        assert_eq!(v.type_name(), "i32");
+        assert_eq!(Reflect::type_name(&v), "i32");
     }
 
     #[test]
