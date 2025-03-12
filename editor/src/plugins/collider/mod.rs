@@ -737,7 +737,7 @@ impl EditorPlugin for ColliderPlugin {
                     let ui = editor.engine.user_interfaces.first_mut();
                     let panel = ColliderControlPanel::new(&mut ui.build_ctx());
                     ui.send_message(WidgetMessage::link(
-                        panel.window,
+                        panel.root_widget,
                         MessageDirection::ToWidget,
                         inspector.head,
                     ));

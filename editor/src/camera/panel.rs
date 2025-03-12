@@ -41,7 +41,7 @@ use crate::{
 };
 
 pub struct CameraPreviewControlPanel {
-    pub window: Handle<UiNode>,
+    pub root_widget: Handle<UiNode>,
     preview: Handle<UiNode>,
     cameras_state: Vec<(Handle<Node>, Node)>,
 }
@@ -49,7 +49,7 @@ pub struct CameraPreviewControlPanel {
 impl CameraPreviewControlPanel {
     pub fn new(inspector_head: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
         let preview;
-        let window = StackPanelBuilder::new(
+        let root_widget = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_visibility(false)
                 .with_margin(Thickness::uniform(1.0))
@@ -71,13 +71,13 @@ impl CameraPreviewControlPanel {
         .build(ctx);
 
         ctx.send_message(WidgetMessage::link(
-            window,
+            root_widget,
             MessageDirection::ToWidget,
             inspector_head,
         ));
 
         Self {
-            window,
+            root_widget,
             cameras_state: Default::default(),
             preview,
         }
@@ -108,7 +108,7 @@ impl CameraPreviewControlPanel {
                     .user_interfaces
                     .first_mut()
                     .send_message(WidgetMessage::visibility(
-                        self.window,
+                        self.root_widget,
                         MessageDirection::ToWidget,
                         any_camera,
                     ));
