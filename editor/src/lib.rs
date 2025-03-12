@@ -746,10 +746,10 @@ impl Editor {
         );
         let inspector_plugin = InspectorPlugin::new(ctx, message_sender.clone());
         let particle_system_control_panel =
-            ParticleSystemPreviewControlPanel::new(scene_viewer.frame(), ctx);
-        let camera_control_panel = CameraPreviewControlPanel::new(scene_viewer.frame(), ctx);
-        let mesh_control_panel = MeshControlPanel::new(scene_viewer.frame(), ctx);
-        let audio_preview_panel = AudioPreviewPanel::new(scene_viewer.frame(), ctx);
+            ParticleSystemPreviewControlPanel::new(inspector_plugin.head, ctx);
+        let camera_control_panel = CameraPreviewControlPanel::new(inspector_plugin.head, ctx);
+        let mesh_control_panel = MeshControlPanel::new(inspector_plugin.head, ctx);
+        let audio_preview_panel = AudioPreviewPanel::new(inspector_plugin.head, ctx);
         let doc_window = DocWindow::new(ctx);
         let node_removal_dialog = NodeRemovalDialog::new(ctx);
         let scene_settings = SceneSettingsWindow::new(ctx, message_sender.clone());
@@ -873,10 +873,10 @@ impl Editor {
                                 .build(ctx)
                         }))
                         .with_floating_windows(vec![
-                            particle_system_control_panel.window,
-                            camera_control_panel.window,
-                            mesh_control_panel.window,
-                            audio_preview_panel.window,
+                            particle_system_control_panel.root_widget,
+                            camera_control_panel.root_widget,
+                            mesh_control_panel.root_widget,
+                            audio_preview_panel.root_widget,
                             navmesh_panel.window,
                             doc_window.window,
                             light_panel.window,
