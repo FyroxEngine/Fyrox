@@ -80,10 +80,18 @@ pub struct EditorEnvironment {
 }
 
 impl EditorEnvironment {
-    pub fn try_get_from(environment: &Option<Arc<dyn InspectorEnvironment>>) -> Option<&Self> {
+    pub fn try_get_from(
+        environment: &Option<Arc<dyn InspectorEnvironment>>,
+    ) -> Result<&Self, InspectorError> {
+        let environment = environment.as_ref().ok_or(InspectorError::Custom(
+            "Missing InspectorEnvironment".into(),
+        ))?;
         environment
-            .as_ref()
-            .and_then(|e| e.as_any().downcast_ref::<Self>())
+            .as_any()
+            .downcast_ref::<Self>()
+            .ok_or(InspectorError::Custom(
+                "Expected InspectorEnvironment to be EditorEnvironment".into(),
+            ))
     }
 }
 

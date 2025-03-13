@@ -217,19 +217,14 @@ impl PropertyEditorDefinition for SurfaceDataPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<SurfaceResource>()?;
+        let environment = EditorEnvironment::try_get_from(&ctx.environment)?;
 
         Ok(PropertyEditorInstance::Simple {
             editor: SurfaceDataPropertyEditor::build(
                 ctx.build_context,
                 value.clone(),
                 self.sender.clone(),
-                ctx.environment
-                    .as_ref()
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<EditorEnvironment>()
-                    .map(|e| e.resource_manager.clone())
-                    .unwrap(),
+                environment.resource_manager.clone(),
             ),
         })
     }
