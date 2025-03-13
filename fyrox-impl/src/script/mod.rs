@@ -728,14 +728,6 @@ impl Reflect for Script {
         self.instance.deref_mut().set(value)
     }
 
-    fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
-        self.instance.deref().fields(func)
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
-        self.instance.deref_mut().fields_mut(func)
-    }
-
     fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
         self.instance.deref().field(name, func)
     }

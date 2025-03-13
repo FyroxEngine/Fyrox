@@ -287,14 +287,20 @@ fn reflect_fields_list_of_struct() {
         field_b: "Foobar".to_string(),
     };
 
-    foo.fields(&mut |fields| assert_eq!(fields.len(), 2));
-    foo.fields(&mut |fields| {
-        fields[0].downcast_ref::<f32>(&mut |result| assert_eq!(result.cloned(), Some(1.23)))
+    foo.fields_info(&mut |fields| assert_eq!(fields.len(), 2));
+    foo.fields_info(&mut |fields| {
+        fields[0]
+            .value
+            .field_value_as_reflect()
+            .downcast_ref::<f32>(&mut |result| assert_eq!(result.cloned(), Some(1.23)))
     });
-    foo.fields(&mut |fields| {
-        fields[1].downcast_ref::<String>(&mut |result| {
-            assert_eq!(result.cloned(), Some("Foobar".to_string()))
-        })
+    foo.fields_info(&mut |fields| {
+        fields[1]
+            .value
+            .field_value_as_reflect()
+            .downcast_ref::<String>(&mut |result| {
+                assert_eq!(result.cloned(), Some("Foobar".to_string()))
+            })
     });
 }
 
@@ -308,9 +314,12 @@ fn reflect_fields_list_of_enum() {
 
     let bar_variant = Foo::Bar { field_a: 1.23 };
 
-    bar_variant.fields(&mut |fields| assert_eq!(fields.len(), 1));
-    bar_variant.fields(&mut |fields| {
-        fields[0].downcast_ref::<f32>(&mut |result| assert_eq!(result.cloned(), Some(1.23)))
+    bar_variant.fields_info(&mut |fields| assert_eq!(fields.len(), 1));
+    bar_variant.fields_info(&mut |fields| {
+        fields[0]
+            .value
+            .field_value_as_reflect()
+            .downcast_ref::<f32>(&mut |result| assert_eq!(result.cloned(), Some(1.23)))
     });
 
     let baz_variant = Foo::Baz {
@@ -318,14 +327,20 @@ fn reflect_fields_list_of_enum() {
         field_c: "Foobar".to_string(),
     };
 
-    baz_variant.fields(&mut |fields| assert_eq!(fields.len(), 2));
-    baz_variant.fields(&mut |fields| {
-        fields[0].downcast_ref::<u32>(&mut |result| assert_eq!(result.cloned(), Some(321)))
+    baz_variant.fields_info(&mut |fields| assert_eq!(fields.len(), 2));
+    baz_variant.fields_info(&mut |fields| {
+        fields[0]
+            .value
+            .field_value_as_reflect()
+            .downcast_ref::<u32>(&mut |result| assert_eq!(result.cloned(), Some(321)))
     });
-    baz_variant.fields(&mut |fields| {
-        fields[1].downcast_ref::<String>(&mut |result| {
-            assert_eq!(result.cloned(), Some("Foobar".to_string()))
-        })
+    baz_variant.fields_info(&mut |fields| {
+        fields[1]
+            .value
+            .field_value_as_reflect()
+            .downcast_ref::<String>(&mut |result| {
+                assert_eq!(result.cloned(), Some("Foobar".to_string()))
+            })
     });
 }
 

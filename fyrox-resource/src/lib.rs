@@ -636,9 +636,9 @@ pub fn collect_used_resources(
         return;
     }
 
-    entity.fields(&mut |fields| {
+    entity.fields_info(&mut |fields| {
         for field in fields {
-            collect_used_resources(*field, resources_collection);
+            collect_used_resources(field.value.field_value_as_reflect(), resources_collection);
         }
     })
 }

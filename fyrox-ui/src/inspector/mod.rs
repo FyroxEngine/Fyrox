@@ -843,10 +843,10 @@ impl InspectorContext {
         let mut entries = Vec::new();
 
         let mut fields_text = Vec::new();
-        object.fields(&mut |fields| {
+        object.fields_info(&mut |fields| {
             for field in fields {
                 fields_text.push(if generate_property_string_values {
-                    format!("{field:?}")
+                    format!("{:?}", field.value.field_value_as_reflect())
                 } else {
                     Default::default()
                 })

@@ -202,14 +202,6 @@ impl<T: Reflect> Reflect for Handle<T> {
         Ok(Box::new(this))
     }
 
-    fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
-        func(&[&self.index, &self.generation])
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
-        func(&mut [&mut self.index, &mut self.generation])
-    }
-
     fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
         func(match name {
             "Index" => Some(&self.index),

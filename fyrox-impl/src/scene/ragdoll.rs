@@ -244,14 +244,6 @@ impl Reflect for Limb {
         Ok(Box::new(this))
     }
 
-    fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
-        func(&[&self.bone, &self.physical_bone, &self.children])
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
-        func(&mut [&mut self.bone, &mut self.physical_bone, &mut self.children])
-    }
-
     fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
         func(match name {
             "Bone" => Some(&self.bone),

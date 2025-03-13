@@ -314,14 +314,6 @@ pub trait Reflect: ReflectBase {
         });
     }
 
-    fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
-        func(&[])
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
-        func(&mut [])
-    }
-
     fn field(
         &self,
         #[allow(unused_variables)] name: &str,
@@ -1086,9 +1078,12 @@ impl dyn Reflect {
             return;
         }
 
-        self.fields(&mut |fields| {
-            for field in fields {
-                field.apply_recursively(func, ignored_types);
+        self.fields_info(&mut |fields| {
+            for field_info_ref in fields {
+                field_info_ref
+                    .value
+                    .field_value_as_reflect()
+                    .apply_recursively(func, ignored_types);
             }
         })
     }
@@ -1152,9 +1147,10 @@ impl dyn Reflect {
             return;
         }
 
-        self.fields_mut(&mut |fields| {
-            for field in fields {
-                (*field).apply_recursively_mut(func, ignored_types);
+        self.fields_info_mut(&mut |fields| {
+            for field_info_mut in fields {
+                (*field_info_mut.value.field_value_as_reflect_mut())
+                    .apply_recursively_mut(func, ignored_types);
             }
         })
     }

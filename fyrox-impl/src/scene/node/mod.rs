@@ -598,14 +598,6 @@ impl Reflect for Node {
         self.0.deref_mut().set_field(field, value, func)
     }
 
-    fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
-        self.0.deref().fields(func)
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
-        self.0.deref_mut().fields_mut(func)
-    }
-
     fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
         self.0.deref().field(name, func)
     }

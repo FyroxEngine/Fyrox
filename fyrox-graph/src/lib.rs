@@ -302,11 +302,14 @@ where
         }
 
         // Continue remapping recursively for every compound field.
-        entity.fields_mut(&mut |fields| {
-            for field in fields {
-                field.as_reflect_mut(&mut |field| {
-                    self.remap_handles_internal(field, node_name, ignored_types)
-                })
+        entity.fields_info_mut(&mut |fields| {
+            for field_info_mut in fields {
+                field_info_mut
+                    .value
+                    .field_value_as_reflect_mut()
+                    .as_reflect_mut(&mut |field| {
+                        self.remap_handles_internal(field, node_name, ignored_types)
+                    })
             }
         })
     }
@@ -439,10 +442,10 @@ where
         }
 
         // Continue remapping recursively for every compound field.
-        entity.fields_mut(&mut |fields| {
-            for field in fields {
+        entity.fields_info_mut(&mut |fields| {
+            for field_info_mut in fields {
                 self.remap_inheritable_handles_internal(
-                    *field,
+                    field_info_mut.value.field_value_as_reflect_mut(),
                     node_name,
                     // Propagate mapping flag - it means that we're inside inheritable variable. In this
                     // case we will map handles.
@@ -1578,14 +1581,6 @@ mod test {
             func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),
         ) {
             self.0.deref_mut().set_field(field, value, func)
-        }
-
-        fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
-            self.0.deref().fields(func)
-        }
-
-        fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
-            self.0.deref_mut().fields_mut(func)
         }
 
         fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {

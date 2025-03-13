@@ -37,8 +37,6 @@ pub fn impl_reflect(ty_args: &args::TypeArgs) -> TokenStream2 {
             ty_args,
             quote!(None),
             quote!(None),
-            quote!(func(&[])),
-            quote!(func(&mut [])),
             None,
             quote!(func(&[])),
             quote!(func(&mut [])),
@@ -197,29 +195,11 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
         }
     };
 
-    let fields_body = quote! {
-        func(&[
-            #(
-                #fields as &dyn Reflect,
-            )*
-        ])
-    };
-
-    let fields_mut_body = quote! {
-        func(&mut [
-            #(
-                #field_muts as &mut dyn Reflect,
-            )*
-        ])
-    };
-
     let set_field_body = self::struct_set_field_body(ty_args);
     self::gen_impl(
         ty_args,
         field_body,
         field_mut_body,
-        fields_body,
-        fields_mut_body,
         set_field_body,
         quote! {
             func(&[#metadata_ref])
@@ -370,8 +350,6 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             ty_args,
             quote!(None),
             quote!(None),
-            quote!(func(&[])),
-            quote!(func(&mut [])),
             None,
             quote!(func(&[])),
             quote!(func(&mut [])),
@@ -392,24 +370,6 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
                     #field_muts
                 )*
                 _ => None,
-            }
-        };
-
-        let fields_body = quote! {
-            match self {
-                #(
-                    #fields_list
-                )*
-                _ => func(&[])
-            }
-        };
-
-        let fields_mut_body = quote! {
-            match self {
-                #(
-                    #fields_list_mut
-                )*
-                _ => func(&mut [])
             }
         };
 
@@ -435,8 +395,6 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             ty_args,
             field_body,
             field_mut_body,
-            fields_body,
-            fields_mut_body,
             None,
             fields_metadata_ref_body,
             fields_metadata_mut_body,
@@ -449,8 +407,6 @@ fn gen_impl(
     ty_args: &args::TypeArgs,
     field: TokenStream2,
     field_mut: TokenStream2,
-    fields: TokenStream2,
-    fields_mut: TokenStream2,
     set_field: Option<TokenStream2>,
     metadata_ref: TokenStream2,
     metadata_mut: TokenStream2,
@@ -554,14 +510,6 @@ fn gen_impl(
 
             fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
                 func(self as &mut dyn Reflect)
-            }
-
-            fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
-                #fields
-            }
-
-            fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
-                #fields_mut
             }
 
             fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
