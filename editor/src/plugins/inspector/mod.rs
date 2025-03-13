@@ -59,6 +59,7 @@ use fyrox::gui::stack_panel::StackPanelBuilder;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::utils::make_image_button_with_tooltip;
+use std::any::TypeId;
 use std::{any::Any, sync::Arc};
 
 pub mod editors;
@@ -83,19 +84,23 @@ impl EditorEnvironment {
     pub fn try_get_from(
         environment: &Option<Arc<dyn InspectorEnvironment>>,
     ) -> Result<&Self, InspectorError> {
-        let environment = environment.as_ref().ok_or(InspectorError::Custom(
+        let environment = &**environment.as_ref().ok_or(InspectorError::Custom(
             "Missing InspectorEnvironment".into(),
         ))?;
         environment
             .as_any()
             .downcast_ref::<Self>()
-            .ok_or(InspectorError::Custom(
-                "Expected InspectorEnvironment to be EditorEnvironment".into(),
-            ))
+            .ok_or(InspectorError::Custom(format!(
+                "Expected InspectorEnvironment to be EditorEnvironment, found: {}",
+                environment.name(),
+            )))
     }
 }
 
 impl InspectorEnvironment for EditorEnvironment {
+    fn name(&self) -> String {
+        format!("EditorEnvironment:{:?}", self.type_id())
+    }
     fn as_any(&self) -> &dyn Any {
         self
     }

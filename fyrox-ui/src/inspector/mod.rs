@@ -52,6 +52,7 @@ use crate::{
 };
 use copypasta::ClipboardProvider;
 
+use fyrox_core::log::Log;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph, SceneGraph,
@@ -393,6 +394,7 @@ impl InspectorMessage {
 /// Instead, when a property editor needs to talk to the application using the Inspector,
 /// it can attempt to cast InspectorEnvironment to whatever type it might be.
 pub trait InspectorEnvironment: Any + Send + Sync {
+    fn name(&self) -> String;
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -917,20 +919,25 @@ impl InspectorContext {
 
                             container
                         }
-                        Err(e) => make_simple_property_container(
-                            create_header(ctx, info.display_name, layer_index),
-                            TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
-                                .with_wrap(WrapMode::Word)
-                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .with_text(format!(
-                                    "Unable to create property \
+                        Err(e) => {
+                            Log::err(format!(
+                                "Unable to create property editor instance: Reason {e:?}"
+                            ));
+                            make_simple_property_container(
+                                create_header(ctx, info.display_name, layer_index),
+                                TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
+                                    .with_wrap(WrapMode::Word)
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .with_text(format!(
+                                        "Unable to create property \
                                                     editor instance: Reason {e:?}"
-                                ))
-                                .build(ctx),
-                            &description,
-                            name_column_width,
-                            ctx,
-                        ),
+                                    ))
+                                    .build(ctx),
+                                &description,
+                                name_column_width,
+                                ctx,
+                            )
+                        }
                     };
 
                     editors.push(editor);
