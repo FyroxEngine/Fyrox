@@ -83,6 +83,34 @@ impl<T: Reflect> ReflectHandle for Handle<T> {
     }
 }
 
+static INDEX_METADATA: FieldMetadata = FieldMetadata {
+    name: "Index",
+    display_name: "Index",
+    description: "",
+    tag: "",
+    read_only: false,
+    immutable_collection: false,
+    min_value: None,
+    max_value: None,
+    step: None,
+    precision: None,
+    doc: "",
+};
+
+static GENERATION_METADATA: FieldMetadata = FieldMetadata {
+    name: "Generation",
+    display_name: "Generation",
+    description: "",
+    tag: "",
+    read_only: false,
+    immutable_collection: false,
+    min_value: None,
+    max_value: None,
+    step: None,
+    precision: None,
+    doc: "",
+};
+
 impl<T: Reflect> Reflect for Handle<T> {
     fn source_path() -> &'static str {
         file!()
@@ -115,47 +143,35 @@ impl<T: Reflect> Reflect for Handle<T> {
         env!("CARGO_PKG_NAME")
     }
 
-    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
         func(&[
             {
-                static METADATA: FieldMetadata = FieldMetadata {
-                    name: "Index",
-                    display_name: "Index",
-                    description: "",
-                    tag: "",
-                    read_only: false,
-                    immutable_collection: false,
-                    min_value: None,
-                    max_value: None,
-                    step: None,
-                    precision: None,
-                    doc: "",
-                };
-                FieldInfo {
-                    metadata: &METADATA,
+                FieldInfoRef {
+                    metadata: &INDEX_METADATA,
                     value: &self.index,
-                    reflect_value: &self.index,
                 }
             },
             {
-                static METADATA: FieldMetadata = FieldMetadata {
-                    name: "Generation",
-                    display_name: "Generation",
-                    description: "",
-                    tag: "",
-                    read_only: false,
-                    immutable_collection: false,
-                    min_value: None,
-                    max_value: None,
-                    step: None,
-                    precision: None,
-                    doc: "",
-                };
-
-                FieldInfo {
-                    metadata: &METADATA,
+                FieldInfoRef {
+                    metadata: &GENERATION_METADATA,
                     value: &self.generation,
-                    reflect_value: &self.generation,
+                }
+            },
+        ])
+    }
+
+    fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
+        func(&mut [
+            {
+                FieldInfoMut {
+                    metadata: &INDEX_METADATA,
+                    value: &mut self.index,
+                }
+            },
+            {
+                FieldInfoMut {
+                    metadata: &GENERATION_METADATA,
+                    value: &mut self.generation,
                 }
             },
         ])

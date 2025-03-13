@@ -90,7 +90,7 @@ macro_rules! define_two_args_node {
                 env!("CARGO_PKG_NAME")
             }
 
-            fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+            fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
                 func(&[
                     {
                         static METADATA: FieldMetadata = FieldMetadata {
@@ -107,10 +107,9 @@ macro_rules! define_two_args_node {
                             doc: "",
                         };
 
-                        FieldInfo {
+                        FieldInfoRef {
                             metadata: &METADATA,
                             value: &*self.lhs,
-                            reflect_value: &*self.lhs,
                         }
                     },
                     {
@@ -127,14 +126,58 @@ macro_rules! define_two_args_node {
                             precision: None,doc: "",
                         };
 
-                        FieldInfo {
+                        FieldInfoRef {
                             metadata: &METADATA,
                             value: &*self.rhs,
-                            reflect_value: &*self.rhs,
                         }
                     },
                 ])
             }
+
+            fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
+                func(&mut [
+                    {
+                        static METADATA: FieldMetadata = FieldMetadata {
+                            name: "Lhs",
+                            display_name: "Lhs",
+                            description: "",
+                            tag: "",
+                            read_only: false,
+                            immutable_collection: false,
+                            min_value: None,
+                            max_value: None,
+                            step: None,
+                            precision: None,
+                            doc: "",
+                        };
+
+                        FieldInfoMut {
+                            metadata: &METADATA,
+                            value: &mut *self.lhs,
+                        }
+                    },
+                    {
+                        static METADATA: FieldMetadata = FieldMetadata {
+                            name: "Rhs",
+                            display_name: "Rhs",
+                            description: "",
+                            tag: "",
+                            read_only: false,
+                            immutable_collection: false,
+                            min_value: None,
+                            max_value: None,
+                            step: None,
+                            precision: None,doc: "",
+                        };
+
+                        FieldInfoMut {
+                            metadata: &METADATA,
+                            value: &mut *self.rhs,
+                        }
+                    },
+                ])
+            }
+
 
             fn into_any(self: Box<Self>) -> Box<dyn Any> {
                 self
@@ -262,7 +305,7 @@ impl<T: EntityId> Reflect for NotNode<T> {
         env!("CARGO_PKG_NAME")
     }
 
-    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
         func(&[{
             static METADATA: FieldMetadata = FieldMetadata {
                 name: "Lhs",
@@ -278,10 +321,32 @@ impl<T: EntityId> Reflect for NotNode<T> {
                 doc: "",
             };
 
-            FieldInfo {
+            FieldInfoRef {
                 metadata: &METADATA,
                 value: &*self.lhs,
-                reflect_value: &*self.lhs,
+            }
+        }])
+    }
+
+    fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
+        func(&mut [{
+            static METADATA: FieldMetadata = FieldMetadata {
+                name: "Lhs",
+                display_name: "Lhs",
+                description: "",
+                tag: "",
+                read_only: false,
+                immutable_collection: false,
+                min_value: None,
+                max_value: None,
+                step: None,
+                precision: None,
+                doc: "",
+            };
+
+            FieldInfoMut {
+                metadata: &METADATA,
+                value: &mut *self.lhs,
             }
         }])
     }

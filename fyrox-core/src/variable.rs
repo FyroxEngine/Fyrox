@@ -404,8 +404,13 @@ where
     }
 
     #[inline]
-    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
         self.value.fields_info(func)
+    }
+
+    #[inline]
+    fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
+        self.value.fields_info_mut(func)
     }
 
     #[inline]

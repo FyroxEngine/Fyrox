@@ -126,8 +126,13 @@ where
     }
 
     #[inline]
-    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
         func(&[])
+    }
+
+    #[inline]
+    fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
+        func(&mut [])
     }
 
     #[inline]

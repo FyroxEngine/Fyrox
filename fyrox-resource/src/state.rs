@@ -208,7 +208,7 @@ impl ResourceState {
 #[cfg(test)]
 mod test {
     use fyrox_core::{
-        reflect::{FieldInfo, Reflect},
+        reflect::{FieldInfoRef, Reflect},
         TypeUuidProvider,
     };
     use std::error::Error;

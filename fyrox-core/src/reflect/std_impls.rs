@@ -330,9 +330,14 @@ macro_rules! impl_reflect_inner_mutability {
             env!("CARGO_PKG_NAME")
         }
 
-        fn fields_info(&$self, func: &mut dyn FnMut(&[FieldInfo])) {
+        fn fields_info(&$self, func: &mut dyn FnMut(&[FieldInfoRef])) {
             let guard = $acquire_lock_guard;
             guard.fields_info(func)
+        }
+
+        fn fields_info_mut(&mut $self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
+            let mut guard = $acquire_lock_guard;
+            guard.fields_info_mut(func)
         }
 
         fn into_any($self: Box<Self>) -> Box<dyn Any> {
