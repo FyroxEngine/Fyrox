@@ -224,6 +224,11 @@ impl FileMenu {
             MessageDirection::ToWidget,
             std::env::current_dir().unwrap(),
         ));
+        ui.send_message(FileSelectorMessage::root(
+            self.save_file_selector,
+            MessageDirection::ToWidget,
+            std::env::current_dir().ok(),
+        ));
     }
 
     pub fn handle_ui_message(

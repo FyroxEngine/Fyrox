@@ -56,6 +56,7 @@ pub mod utils;
 pub mod world;
 
 pub use fyrox;
+use fyrox::core::make_relative_path;
 
 use crate::{
     asset::{item::AssetItem, AssetBrowser},
@@ -1862,6 +1863,21 @@ impl Editor {
     }
 
     fn save_scene(&mut self, id: Uuid, path: PathBuf) {
+        let path = match make_relative_path(path) {
+            Ok(path) => path,
+            Err(err) => {
+                Log::err(err.to_string());
+                return;
+            }
+        };
+
+        for entry in self.scenes.entries.iter() {
+            if entry.path.as_ref() == Some(&path) {
+                self.close_scene(entry.id);
+                break;
+            }
+        }
+
         self.try_leave_preview_mode();
 
         let engine = &mut self.engine;
@@ -1902,6 +1918,14 @@ impl Editor {
     }
 
     fn load_scene(&mut self, scene_path: PathBuf) {
+        let scene_path = match make_relative_path(scene_path) {
+            Ok(path) => path,
+            Err(err) => {
+                Log::err(err.to_string());
+                return;
+            }
+        };
+
         for entry in self.scenes.entries.iter() {
             if entry.path.as_ref() == Some(&scene_path) {
                 self.set_current_scene(entry.id);
