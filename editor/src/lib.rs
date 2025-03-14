@@ -1863,10 +1863,13 @@ impl Editor {
     }
 
     fn save_scene(&mut self, id: Uuid, path: PathBuf) {
-        let path = match make_relative_path(path) {
+        let path = match make_relative_path(path.clone()) {
             Ok(path) => path,
             Err(err) => {
-                Log::err(err.to_string());
+                Log::err(format!(
+                    "Failed to create relative path for {}. Reason: {err}",
+                    path.display()
+                ));
                 return;
             }
         };

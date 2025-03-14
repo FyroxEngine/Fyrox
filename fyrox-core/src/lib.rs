@@ -46,6 +46,7 @@ use fxhash::FxHashMap;
 use std::collections::hash_map::Entry;
 use std::ffi::OsString;
 use std::hash::Hasher;
+use std::io::ErrorKind;
 use std::{
     borrow::Borrow,
     cmp,
@@ -304,12 +305,23 @@ pub fn hash_combine(lhs: u64, rhs: u64) -> u64 {
 
 /// Strip working directory from file name. The function may fail for one main reason -
 /// input path is not valid, does not exist, or there is some other issues with it.
+/// The last component of the path is permitted to not exist, so long as the rest of the path exists.
 pub fn make_relative_path<P: AsRef<Path>>(path: P) -> Result<PathBuf, std::io::Error> {
-    match path
-        .as_ref()
-        .canonicalize()?
-        .strip_prefix(std::env::current_dir()?.canonicalize()?)
-    {
+    let path = path.as_ref();
+    // Canonicalization requires the full path to exist, so remove the file name before
+    // calling canonicalize.
+    let file_name = path.file_name().ok_or(std::io::Error::new(
+        ErrorKind::InvalidData,
+        format!("Invalid path: {}", path.display()),
+    ))?;
+    let dir = path.parent();
+    let dir = if let Some(dir) = dir {
+        dir.canonicalize()?
+    } else {
+        PathBuf::default()
+    };
+    let canon_path = dir.join(file_name);
+    match canon_path.strip_prefix(std::env::current_dir()?.canonicalize()?) {
         Ok(relative_path) => Ok(replace_slashes(relative_path)),
         Err(_) => Err(std::io::Error::new(
             std::io::ErrorKind::Other,
