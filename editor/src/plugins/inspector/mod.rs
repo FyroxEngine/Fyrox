@@ -59,7 +59,6 @@ use fyrox::gui::stack_panel::StackPanelBuilder;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::utils::make_image_button_with_tooltip;
-use std::any::TypeId;
 use std::{any::Any, sync::Arc};
 
 pub mod editors;
