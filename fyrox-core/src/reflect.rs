@@ -314,20 +314,26 @@ pub trait Reflect: ReflectBase {
         });
     }
 
-    fn field(
-        &self,
-        #[allow(unused_variables)] name: &str,
-        func: &mut dyn FnMut(Option<&dyn Reflect>),
-    ) {
-        func(None)
+    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        self.fields_info(&mut |fields| {
+            func(
+                fields
+                    .iter()
+                    .find(|field| field.name == name)
+                    .map(|field| field.value.field_value_as_reflect()),
+            )
+        });
     }
 
-    fn field_mut(
-        &mut self,
-        #[allow(unused_variables)] name: &str,
-        func: &mut dyn FnMut(Option<&mut dyn Reflect>),
-    ) {
-        func(None)
+    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+        self.fields_info_mut(&mut |fields| {
+            func(
+                fields
+                    .iter_mut()
+                    .find(|field| field.name == name)
+                    .map(|field| field.value.field_value_as_reflect_mut()),
+            )
+        });
     }
 
     fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
