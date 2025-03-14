@@ -1874,8 +1874,9 @@ impl Editor {
             }
         };
 
+        /// If there is some other open scene with the same name, then close it.
         for entry in self.scenes.entries.iter() {
-            if entry.path.as_ref() == Some(&path) {
+            if entry.id != id && entry.path.as_ref() == Some(&path) {
                 self.close_scene(entry.id);
                 break;
             }
