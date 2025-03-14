@@ -287,14 +287,20 @@ fn reflect_fields_list_of_struct() {
         field_b: "Foobar".to_string(),
     };
 
-    foo.fields(&mut |fields| assert_eq!(fields.len(), 2));
-    foo.fields(&mut |fields| {
-        fields[0].downcast_ref::<f32>(&mut |result| assert_eq!(result.cloned(), Some(1.23)))
+    foo.fields_info(&mut |fields| assert_eq!(fields.len(), 2));
+    foo.fields_info(&mut |fields| {
+        fields[0]
+            .value
+            .field_value_as_reflect()
+            .downcast_ref::<f32>(&mut |result| assert_eq!(result.cloned(), Some(1.23)))
     });
-    foo.fields(&mut |fields| {
-        fields[1].downcast_ref::<String>(&mut |result| {
-            assert_eq!(result.cloned(), Some("Foobar".to_string()))
-        })
+    foo.fields_info(&mut |fields| {
+        fields[1]
+            .value
+            .field_value_as_reflect()
+            .downcast_ref::<String>(&mut |result| {
+                assert_eq!(result.cloned(), Some("Foobar".to_string()))
+            })
     });
 }
 
@@ -308,9 +314,12 @@ fn reflect_fields_list_of_enum() {
 
     let bar_variant = Foo::Bar { field_a: 1.23 };
 
-    bar_variant.fields(&mut |fields| assert_eq!(fields.len(), 1));
-    bar_variant.fields(&mut |fields| {
-        fields[0].downcast_ref::<f32>(&mut |result| assert_eq!(result.cloned(), Some(1.23)))
+    bar_variant.fields_info(&mut |fields| assert_eq!(fields.len(), 1));
+    bar_variant.fields_info(&mut |fields| {
+        fields[0]
+            .value
+            .field_value_as_reflect()
+            .downcast_ref::<f32>(&mut |result| assert_eq!(result.cloned(), Some(1.23)))
     });
 
     let baz_variant = Foo::Baz {
@@ -318,14 +327,20 @@ fn reflect_fields_list_of_enum() {
         field_c: "Foobar".to_string(),
     };
 
-    baz_variant.fields(&mut |fields| assert_eq!(fields.len(), 2));
-    baz_variant.fields(&mut |fields| {
-        fields[0].downcast_ref::<u32>(&mut |result| assert_eq!(result.cloned(), Some(321)))
+    baz_variant.fields_info(&mut |fields| assert_eq!(fields.len(), 2));
+    baz_variant.fields_info(&mut |fields| {
+        fields[0]
+            .value
+            .field_value_as_reflect()
+            .downcast_ref::<u32>(&mut |result| assert_eq!(result.cloned(), Some(321)))
     });
-    baz_variant.fields(&mut |fields| {
-        fields[1].downcast_ref::<String>(&mut |result| {
-            assert_eq!(result.cloned(), Some("Foobar".to_string()))
-        })
+    baz_variant.fields_info(&mut |fields| {
+        fields[1]
+            .value
+            .field_value_as_reflect()
+            .downcast_ref::<String>(&mut |result| {
+                assert_eq!(result.cloned(), Some("Foobar".to_string()))
+            })
     });
 }
 
@@ -368,15 +383,13 @@ fn inspect_default() {
     };
 
     let expected = vec![
-        FieldInfo {
+        FieldInfoRef {
             metadata: &the_field_metadata,
             value: &data.the_field,
-            reflect_value: &data.the_field,
         },
-        FieldInfo {
+        FieldInfoRef {
             metadata: &another_field_metadata,
             value: &data.another_field,
-            reflect_value: &data.another_field,
         },
     ];
 
@@ -419,12 +432,11 @@ fn inspect_attributes() {
     };
 
     let expected = vec![
-        FieldInfo {
+        FieldInfoRef {
             metadata: &x_metadata,
             value: &data.x,
-            reflect_value: &data.x,
         },
-        FieldInfo {
+        FieldInfoRef {
             metadata: &FieldMetadata {
                 name: "y",
                 display_name: "Y",
@@ -439,7 +451,6 @@ fn inspect_attributes() {
                 doc: "",
             },
             value: &data.y,
-            reflect_value: &data.y,
         },
     ];
 
@@ -457,23 +468,21 @@ fn inspect_struct() {
         assert_eq!(
             fields_info,
             vec![
-                FieldInfo {
+                FieldInfoRef {
                     metadata: &FieldMetadata {
                         name: "0",
                         display_name: "0",
                         ..default_prop_metadata()
                     },
                     value: &x.0,
-                    reflect_value: &x.0,
                 },
-                FieldInfo {
+                FieldInfoRef {
                     metadata: &FieldMetadata {
                         name: "1",
                         display_name: "1",
                         ..default_prop_metadata()
                     },
                     value: &x.1,
-                    reflect_value: &x.1,
                 },
             ]
         )
@@ -510,7 +519,7 @@ fn inspect_enum() {
         assert_eq!(
             fields_info,
             vec![
-                FieldInfo {
+                FieldInfoRef {
                     metadata: &FieldMetadata {
                         name: "Named@x",
                         display_name: "X",
@@ -520,12 +529,8 @@ fn inspect_enum() {
                         Data::Named { ref x, .. } => x,
                         _ => unreachable!(),
                     },
-                    reflect_value: match data {
-                        Data::Named { ref x, .. } => x,
-                        _ => unreachable!(),
-                    },
                 },
-                FieldInfo {
+                FieldInfoRef {
                     metadata: &FieldMetadata {
                         name: "Named@y",
                         display_name: "Y",
@@ -535,22 +540,14 @@ fn inspect_enum() {
                         Data::Named { ref y, .. } => y,
                         _ => unreachable!(),
                     },
-                    reflect_value: match data {
-                        Data::Named { ref y, .. } => y,
-                        _ => unreachable!(),
-                    },
                 },
-                FieldInfo {
+                FieldInfoRef {
                     metadata: &FieldMetadata {
                         name: "Named@z",
                         display_name: "Z",
                         ..default_prop_metadata()
                     },
                     value: match data {
-                        Data::Named { ref z, .. } => z,
-                        _ => unreachable!(),
-                    },
-                    reflect_value: match data {
                         Data::Named { ref z, .. } => z,
                         _ => unreachable!(),
                     },
@@ -565,7 +562,7 @@ fn inspect_enum() {
         assert_eq!(
             fields_info,
             vec![
-                FieldInfo {
+                FieldInfoRef {
                     metadata: &FieldMetadata {
                         name: "Tuple@0",
                         display_name: "0",
@@ -575,22 +572,14 @@ fn inspect_enum() {
                         Data::Tuple(ref f0, ref _f1) => f0,
                         _ => unreachable!(),
                     },
-                    reflect_value: match data {
-                        Data::Tuple(ref f0, ref _f1) => f0,
-                        _ => unreachable!(),
-                    },
                 },
-                FieldInfo {
+                FieldInfoRef {
                     metadata: &FieldMetadata {
                         name: "Tuple@1",
                         display_name: "1",
                         ..default_prop_metadata()
                     },
                     value: match data {
-                        Data::Tuple(ref _f0, ref f1) => f1,
-                        _ => unreachable!(),
-                    },
-                    reflect_value: match data {
                         Data::Tuple(ref _f0, ref f1) => f1,
                         _ => unreachable!(),
                     },

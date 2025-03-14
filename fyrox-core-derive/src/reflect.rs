@@ -37,10 +37,9 @@ pub fn impl_reflect(ty_args: &args::TypeArgs) -> TokenStream2 {
             ty_args,
             quote!(None),
             quote!(None),
-            quote!(func(&[])),
-            quote!(func(&mut [])),
             None,
             quote!(func(&[])),
+            quote!(func(&mut [])),
         );
     }
 
@@ -59,6 +58,7 @@ pub fn gen_fields_metadata_body(
     props: &[Property],
     field_getters: &[TokenStream2],
     field_args: &ast::Fields<args::FieldArgs>,
+    is_mut: bool,
 ) -> TokenStream2 {
     let props = field_args
         .fields
@@ -67,7 +67,7 @@ pub fn gen_fields_metadata_body(
         .filter(|(_i, f)| !f.hidden)
         .zip(props.iter().zip(field_getters))
         .map(|((i, field), (prop, field_getter))| {
-            self::quote_field_prop(&prop.value, i, field_getter, field)
+            self::quote_field_prop(&prop.value, i, field_getter, field, is_mut)
         });
 
     quote! {
@@ -81,6 +81,7 @@ fn quote_field_prop(
     nth_field: usize,
     field_getter: &TokenStream2,
     field: &args::FieldArgs,
+    is_mut: bool,
 ) -> TokenStream2 {
     let field_ident = match &field.ident {
         Some(ident) => quote!(#ident),
@@ -126,6 +127,12 @@ fn quote_field_prop(
 
     let description = field.description.clone().unwrap_or_default();
 
+    let variant = if is_mut {
+        quote! { FieldInfoMut }
+    } else {
+        quote! { FieldInfoRef }
+    };
+
     quote! {
         {
             static METADATA: FieldMetadata = FieldMetadata {
@@ -142,10 +149,9 @@ fn quote_field_prop(
                 description: #description,
             };
 
-            FieldInfo {
+            #variant {
                 metadata: &METADATA,
                 value: #field_getter,
-                reflect_value: #field_getter,
             }
         }
     }
@@ -168,7 +174,8 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
     let fields = fields.collect::<Vec<_>>();
     let field_muts = field_muts.collect::<Vec<_>>();
 
-    let metadata = gen_fields_metadata_body(&props, &fields, field_args);
+    let metadata_ref = gen_fields_metadata_body(&props, &fields, field_args, false);
+    let metadata_mut = gen_fields_metadata_body(&props, &field_muts, field_args, true);
 
     let field_body = quote! {
         match name {
@@ -188,32 +195,17 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
         }
     };
 
-    let fields_body = quote! {
-        func(&[
-            #(
-                #fields as &dyn Reflect,
-            )*
-        ])
-    };
-
-    let fields_mut_body = quote! {
-        func(&mut [
-            #(
-                #field_muts as &mut dyn Reflect,
-            )*
-        ])
-    };
-
     let set_field_body = self::struct_set_field_body(ty_args);
     self::gen_impl(
         ty_args,
         field_body,
         field_mut_body,
-        fields_body,
-        fields_mut_body,
         set_field_body,
         quote! {
-            func(&[#metadata])
+            func(&[#metadata_ref])
+        },
+        quote! {
+            func(&mut [#metadata_mut])
         },
     )
 }
@@ -266,7 +258,8 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
 fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) -> TokenStream2 {
     let mut fields_list = Vec::new();
     let mut fields_list_mut = Vec::new();
-    let mut fields_info = Vec::new();
+    let mut fields_info_ref = Vec::new();
+    let mut fields_info_mut = Vec::new();
     let (fields, field_muts): (Vec<_>, Vec<_>) = variant_args
         .iter()
         .map(|v| {
@@ -299,7 +292,8 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             let fields = fields.collect::<Vec<_>>();
             let field_muts = field_muts.collect::<Vec<_>>();
 
-            let metadata = gen_fields_metadata_body(&props, &fields, &v.fields);
+            let metadata_ref = gen_fields_metadata_body(&props, &fields, &v.fields, false);
+            let metadata_mut = gen_fields_metadata_body(&props, &field_muts, &v.fields, true);
 
             let fields_list_raw = quote! {
                 #(
@@ -339,8 +333,12 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
                 #matcher => func(&mut [ #fields_mut_list_raw ]),
             });
 
-            fields_info.push(quote! {
-                #matcher => func(&[#metadata]),
+            fields_info_ref.push(quote! {
+                #matcher => func(&[#metadata_ref]),
+            });
+
+            fields_info_mut.push(quote! {
+                #matcher => func(&mut [#metadata_mut]),
             });
 
             (fields, field_muts)
@@ -352,10 +350,9 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             ty_args,
             quote!(None),
             quote!(None),
-            quote!(func(&[])),
-            quote!(func(&mut [])),
             None,
             quote!(func(&[])),
+            quote!(func(&mut [])),
         )
     } else {
         let field_body = quote! {
@@ -376,30 +373,21 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             }
         };
 
-        let fields_body = quote! {
+        let fields_metadata_ref_body = quote! {
             match self {
                 #(
-                    #fields_list
+                    #fields_info_ref
                 )*
                 _ => func(&[])
             }
         };
 
-        let fields_mut_body = quote! {
+        let fields_metadata_mut_body = quote! {
             match self {
                 #(
-                    #fields_list_mut
+                    #fields_info_mut
                 )*
                 _ => func(&mut [])
-            }
-        };
-
-        let fields_metadata_body = quote! {
-            match self {
-                #(
-                    #fields_info
-                )*
-                _ => func(&[])
             }
         };
 
@@ -407,22 +395,21 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             ty_args,
             field_body,
             field_mut_body,
-            fields_body,
-            fields_mut_body,
             None,
-            fields_metadata_body,
+            fields_metadata_ref_body,
+            fields_metadata_mut_body,
         )
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn gen_impl(
     ty_args: &args::TypeArgs,
     field: TokenStream2,
     field_mut: TokenStream2,
-    fields: TokenStream2,
-    fields_mut: TokenStream2,
     set_field: Option<TokenStream2>,
-    metadata: TokenStream2,
+    metadata_ref: TokenStream2,
+    metadata_mut: TokenStream2,
 ) -> TokenStream2 {
     let ty_ident = &ty_args.ident;
     let generics = ty_args.impl_generics();
@@ -486,8 +473,12 @@ fn gen_impl(
                 #assembly_name
             }
 
-            fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
-                #metadata
+            fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
+                #metadata_ref
+            }
+
+            fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
+                #metadata_mut
             }
 
             fn into_any(self: Box<Self>) -> Box<dyn ::core::any::Any> {
@@ -519,14 +510,6 @@ fn gen_impl(
 
             fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
                 func(self as &mut dyn Reflect)
-            }
-
-            fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
-                #fields
-            }
-
-            fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
-                #fields_mut
             }
 
             fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {

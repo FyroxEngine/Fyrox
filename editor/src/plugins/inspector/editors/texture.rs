@@ -183,7 +183,7 @@ pub struct TexturePropertyEditorDefinition {
 }
 
 impl TexturePropertyEditorDefinition {
-    fn value(&self, field_info: &FieldInfo) -> Result<Option<TextureResource>, InspectorError> {
+    fn value(&self, field_info: &FieldInfoRef) -> Result<Option<TextureResource>, InspectorError> {
         if self.untyped {
             let value = field_info.cast_value::<Option<UntypedResource>>()?;
             let casted = value.as_ref().and_then(|r| r.try_cast::<Texture>());

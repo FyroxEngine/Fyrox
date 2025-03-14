@@ -152,7 +152,7 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
     /// General context for widget building to be used for creating the editor.
     pub build_context: &'a mut BuildContext<'c>,
     /// The FieldInfo of the property to edit, extracted from the object we are inspecting by reflection.
-    pub property_info: &'b FieldInfo<'b, 'd>,
+    pub property_info: &'b FieldInfoRef<'b, 'd>,
     /// Untyped reference to the environment that the Inspector is being used in.
     /// This will often be
     /// [fyroxed_base::inspector::EditorEnvironment](https://docs.rs/fyroxed_base/latest/fyroxed_base/inspector/struct.EditorEnvironment.html)
@@ -197,7 +197,7 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
     /// [UiMessage::flags] set to `sync_flag`.
     pub ui: &'b mut UserInterface,
     /// The FieldInfo of the property to edit, extracted from the object we are inspecting by reflection.
-    pub property_info: &'a FieldInfo<'a, 'c>,
+    pub property_info: &'a FieldInfoRef<'a, 'c>,
     /// The list of the Inspectors property editors.
     /// This allows one property editor to make use of other property editors.
     pub definition_container: Arc<PropertyEditorDefinitionContainer>,

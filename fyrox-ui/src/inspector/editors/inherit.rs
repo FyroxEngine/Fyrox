@@ -233,7 +233,7 @@ where
 
             let value = property_info.cast_value::<InheritableVariable<T>>()?;
 
-            let proxy_property_info = FieldInfo {
+            let proxy_property_info = FieldInfoRef {
                 metadata: &FieldMetadata {
                     name: property_info.name,
                     display_name: property_info.display_name,
@@ -248,7 +248,6 @@ where
                     doc: property_info.doc,
                 },
                 value: &**value,
-                reflect_value: &**value,
             };
 
             let instance =
@@ -324,7 +323,7 @@ where
 
             let value = property_info.cast_value::<InheritableVariable<T>>()?;
 
-            let proxy_property_info = FieldInfo {
+            let proxy_property_info = FieldInfoRef {
                 metadata: &FieldMetadata {
                     name: property_info.name,
                     display_name: property_info.display_name,
@@ -339,7 +338,6 @@ where
                     doc: property_info.doc,
                 },
                 value: &**value,
-                reflect_value: &**value,
             };
 
             return definition

@@ -869,7 +869,7 @@ mod test {
 
     use fyrox_core::uuid::{uuid, Uuid};
     use fyrox_core::{
-        reflect::{FieldInfo, Reflect},
+        reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
         TypeUuidProvider,
     };

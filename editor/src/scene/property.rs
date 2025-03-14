@@ -170,7 +170,7 @@ pub fn object_to_property_tree<F>(
     filter: &mut F,
 ) -> Vec<PropertyDescriptor>
 where
-    F: FnMut(&FieldInfo) -> bool,
+    F: FnMut(&FieldInfoRef) -> bool,
 {
     let mut descriptors = Vec::new();
 
@@ -180,7 +180,7 @@ where
                 continue;
             }
 
-            let field_ref = field_info.reflect_value;
+            let field_ref = field_info.value.field_value_as_reflect();
 
             let path = if parent_path.is_empty() {
                 field_info.name.to_owned()

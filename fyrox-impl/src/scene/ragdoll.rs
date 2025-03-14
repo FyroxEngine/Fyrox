@@ -95,7 +95,7 @@ impl Reflect for Limb {
         env!("CARGO_PKG_NAME")
     }
 
-    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
         func(&[
             {
                 static METADATA: FieldMetadata = FieldMetadata {
@@ -111,10 +111,9 @@ impl Reflect for Limb {
                     precision: None,
                     doc: "",
                 };
-                FieldInfo {
+                FieldInfoRef {
                     metadata: &METADATA,
                     value: &self.bone,
-                    reflect_value: &self.bone,
                 }
             },
             {
@@ -131,10 +130,9 @@ impl Reflect for Limb {
                     precision: None,
                     doc: "",
                 };
-                FieldInfo {
+                FieldInfoRef {
                     metadata: &METADATA,
                     value: &self.physical_bone,
-                    reflect_value: &self.physical_bone,
                 }
             },
             {
@@ -151,10 +149,71 @@ impl Reflect for Limb {
                     precision: None,
                     doc: "",
                 };
-                FieldInfo {
+                FieldInfoRef {
                     metadata: &METADATA,
                     value: &self.children,
-                    reflect_value: &self.children,
+                }
+            },
+        ])
+    }
+
+    fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
+        func(&mut [
+            {
+                static METADATA: FieldMetadata = FieldMetadata {
+                    name: "Bone",
+                    display_name: "Bone",
+                    description: "",
+                    tag: "",
+                    read_only: false,
+                    immutable_collection: false,
+                    min_value: None,
+                    max_value: None,
+                    step: None,
+                    precision: None,
+                    doc: "",
+                };
+                FieldInfoMut {
+                    metadata: &METADATA,
+                    value: &mut self.bone,
+                }
+            },
+            {
+                static METADATA: FieldMetadata = FieldMetadata {
+                    name: "PhysicalBone",
+                    display_name: "Physical Bone",
+                    description: "",
+                    tag: "",
+                    read_only: false,
+                    immutable_collection: false,
+                    min_value: None,
+                    max_value: None,
+                    step: None,
+                    precision: None,
+                    doc: "",
+                };
+                FieldInfoMut {
+                    metadata: &METADATA,
+                    value: &mut self.physical_bone,
+                }
+            },
+            {
+                static METADATA: FieldMetadata = FieldMetadata {
+                    name: "Children",
+                    display_name: "Children",
+                    description: "",
+                    tag: "",
+                    read_only: false,
+                    immutable_collection: false,
+                    min_value: None,
+                    max_value: None,
+                    step: None,
+                    precision: None,
+                    doc: "",
+                };
+                FieldInfoMut {
+                    metadata: &METADATA,
+                    value: &mut self.children,
                 }
             },
         ])
@@ -183,14 +242,6 @@ impl Reflect for Limb {
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         let this = std::mem::replace(self, value.take()?);
         Ok(Box::new(this))
-    }
-
-    fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
-        func(&[&self.bone, &self.physical_bone, &self.children])
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
-        func(&mut [&mut self.bone, &mut self.physical_bone, &mut self.children])
     }
 
     fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {

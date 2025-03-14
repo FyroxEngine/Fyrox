@@ -30,23 +30,24 @@ use crate::{
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
-        visitor::prelude::*,
+        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        uuid_provider, visitor::prelude::*,
     },
     decorator::{DecoratorBuilder, DecoratorMessage},
     define_constructor,
     grid::{Column, GridBuilder, Row},
-    message::{MessageDirection, MouseButton, UiMessage},
-    stack_panel::StackPanelBuilder,
+    message::{ButtonState, MessageDirection, MouseButton, UiMessage},
     utils::make_cross_primitive,
     vector_image::VectorImageBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
+    wrap_panel::WrapPanelBuilder,
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
 
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
+use fyrox_graph::BaseSceneGraph;
 use std::{
     any::Any,
     cmp::Ordering,
@@ -78,7 +79,12 @@ pub enum TabControlMessage {
     /// Used to remove a particular tab by its UUID.
     RemoveTabByUuid(Uuid),
     /// Adds a new tab using its definition and activates the tab.
-    AddTab(TabDefinition),
+    AddTab {
+        /// The UUID of the newly created tab.
+        uuid: Uuid,
+        /// The specifications for the tab.
+        definition: TabDefinition,
+    },
 }
 
 impl TabControlMessage {
@@ -108,8 +114,27 @@ impl TabControlMessage {
     );
     define_constructor!(
         /// Creates [`TabControlMessage::AddTab`] message.
-        TabControlMessage:AddTab => fn add_tab(TabDefinition), layout: false
+        TabControlMessage:AddTab => fn add_tab_with_uuid(uuid: Uuid, definition: TabDefinition), layout: false
     );
+    /// Creates [`TabControlMessage::AddTab`] message with a random UUID.
+    pub fn add_tab(
+        destination: Handle<UiNode>,
+        direction: MessageDirection,
+        definition: TabDefinition,
+    ) -> UiMessage {
+        UiMessage {
+            handled: std::cell::Cell::new(false),
+            data: Box::new(Self::AddTab {
+                uuid: Uuid::new_v4(),
+                definition,
+            }),
+            destination,
+            direction,
+            routing_strategy: Default::default(),
+            perform_layout: std::cell::Cell::new(false),
+            flags: 0,
+        }
+    }
 }
 
 /// User-defined data of a tab.
@@ -256,6 +281,8 @@ pub struct Tab {
 pub struct TabControl {
     /// Base widget of the tab control.
     pub widget: Widget,
+    /// True if the user permitted to change the order of the tabs.
+    pub is_tab_drag_allowed: bool,
     /// A set of tabs used by the tab control.
     pub tabs: Vec<Tab>,
     /// Active tab of the tab control.
@@ -285,6 +312,46 @@ crate::define_widget_deref!(TabControl);
 uuid_provider!(TabControl = "d54cfac3-0afc-464b-838a-158b3a2253f5");
 
 impl TabControl {
+    fn do_drag(&mut self, position: Vector2<f32>, ui: &mut UserInterface) {
+        let mut dragged_index = None;
+        let mut target_index = None;
+        for (tab_index, tab) in self.tabs.iter().enumerate() {
+            let bounds = ui.node(tab.header_button).screen_bounds();
+            let node_x = bounds.center().x;
+            if bounds.contains(position) {
+                if node_x < position.x {
+                    target_index = Some(tab_index + 1);
+                } else {
+                    target_index = Some(tab_index);
+                }
+            }
+            if ui.is_node_child_of(ui.captured_node, tab.header_button) {
+                dragged_index = Some(tab_index);
+            }
+        }
+        if let (Some(dragged_index), Some(mut target_index)) = (dragged_index, target_index) {
+            if dragged_index < target_index {
+                target_index -= 1;
+            }
+            if target_index != dragged_index {
+                self.finalize_drag(dragged_index, target_index, ui);
+            }
+        }
+    }
+    fn finalize_drag(&mut self, from: usize, to: usize, ui: &mut UserInterface) {
+        let uuid = self.active_tab.map(|i| self.tabs[i].uuid);
+        let tab = self.tabs.remove(from);
+        self.tabs.insert(to, tab);
+        if let Some(uuid) = uuid {
+            self.active_tab = self.tabs.iter().position(|t| t.uuid == uuid);
+        }
+        let new_tab_handles = self.tabs.iter().map(|t| t.header_container).collect();
+        ui.send_message(WidgetMessage::replace_children(
+            self.headers_container,
+            MessageDirection::ToWidget,
+            new_tab_handles,
+        ));
+    }
     /// Use a tab's UUID to look up the tab.
     pub fn get_tab_by_uuid(&self, uuid: Uuid) -> Option<&Tab> {
         self.tabs.iter().find(|t| t.uuid == uuid)
@@ -414,6 +481,13 @@ impl Control for TabControl {
                     }
                 }
             }
+        } else if let Some(WidgetMessage::MouseMove { pos, state }) = message.data() {
+            if state.left == ButtonState::Pressed
+                && self.is_tab_drag_allowed
+                && ui.is_node_child_of(ui.captured_node, self.headers_container)
+            {
+                self.do_drag(*pos, ui);
+            }
         } else if let Some(msg) = message.data::<TabControlMessage>() {
             if message.destination() == self.handle()
                 && message.direction() == MessageDirection::ToWidget
@@ -460,7 +534,7 @@ impl Control for TabControl {
                             }
                         }
                     }
-                    TabControlMessage::AddTab(definition) => {
+                    TabControlMessage::AddTab { uuid, definition } => {
                         let header = Header::build(
                             definition,
                             false,
@@ -483,7 +557,7 @@ impl Control for TabControl {
                         ui.send_message(message.reverse());
 
                         self.tabs.push(Tab {
-                            uuid: Uuid::new_v4(),
+                            uuid: *uuid,
                             header_button: header.button,
                             content: definition.content,
                             close_button: header.close_button,
@@ -504,6 +578,7 @@ impl Control for TabControl {
 /// Tab control builder is used to create [`TabControl`] widget instances and add them to the user interface.
 pub struct TabControlBuilder {
     widget_builder: WidgetBuilder,
+    is_tab_drag_allowed: bool,
     tabs: Vec<TabDefinition>,
     active_tab_brush: Option<StyledProperty<Brush>>,
     initial_tab: usize,
@@ -620,10 +695,17 @@ impl TabControlBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             tabs: Default::default(),
+            is_tab_drag_allowed: false,
             active_tab_brush: None,
             initial_tab: 0,
             widget_builder,
         }
+    }
+
+    /// Controls whether tabs may be dragged. The default is false.
+    pub fn with_tab_drag(mut self, is_tab_drag_allowed: bool) -> Self {
+        self.is_tab_drag_allowed = is_tab_drag_allowed;
+        self
     }
 
     /// Adds a new tab to the builder.
@@ -666,7 +748,7 @@ impl TabControlBuilder {
             })
             .collect::<Vec<_>>();
 
-        let headers_container = StackPanelBuilder::new(
+        let headers_container = WrapPanelBuilder::new(
             WidgetBuilder::new()
                 .with_children(tab_headers.iter().map(|h| h.button))
                 .on_row(0),
@@ -702,6 +784,7 @@ impl TabControlBuilder {
 
         let tc = TabControl {
             widget: self.widget_builder.with_child(border).build(ctx),
+            is_tab_drag_allowed: self.is_tab_drag_allowed,
             active_tab: if tab_count == 0 {
                 None
             } else {
