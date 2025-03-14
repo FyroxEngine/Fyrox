@@ -44,7 +44,7 @@ use std::{
 /// A general-purpose property editor definition that creates
 /// a nested inspector within an [Expander](crate::expander::Expander) widget to allow the user
 /// to edited properties of type T.
-/// The expander is labeled with [FieldInfo::display_name].
+/// The expander is labeled with [FieldRef::display_name].
 /// The layer_index for the inner inspector is increased by 1.
 pub struct InspectablePropertyEditorDefinition<T>
 where

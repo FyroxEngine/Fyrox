@@ -304,16 +304,42 @@ pub fn hash_combine(lhs: u64, rhs: u64) -> u64 {
 
 /// Strip working directory from file name. The function may fail for one main reason -
 /// input path is not valid, does not exist, or there is some other issues with it.
+/// The last component of the path is permitted to not exist, so long as the rest of the path exists.
 pub fn make_relative_path<P: AsRef<Path>>(path: P) -> Result<PathBuf, std::io::Error> {
-    match path
-        .as_ref()
-        .canonicalize()?
-        .strip_prefix(std::env::current_dir()?.canonicalize()?)
-    {
+    let path = path.as_ref();
+    // Canonicalization requires the full path to exist, so remove the file name before
+    // calling canonicalize.
+    let file_name = path.file_name().ok_or(std::io::Error::new(
+        std::io::ErrorKind::InvalidData,
+        format!("Invalid path: {}", path.display()),
+    ))?;
+    let dir = path.parent();
+    let dir = if let Some(dir) = dir {
+        if dir.as_os_str().is_empty() {
+            Path::new(".")
+        } else {
+            dir
+        }
+    } else {
+        Path::new(".")
+    };
+    let canon_path = dir
+        .canonicalize()
+        .map_err(|err| {
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Unable to canonicalize '{}'. Reason: {err}", dir.display()),
+            )
+        })?
+        .join(file_name);
+    match canon_path.strip_prefix(std::env::current_dir()?.canonicalize()?) {
         Ok(relative_path) => Ok(replace_slashes(relative_path)),
-        Err(_) => Err(std::io::Error::new(
+        Err(err) => Err(std::io::Error::new(
             std::io::ErrorKind::Other,
-            "unable to strip prefix!",
+            format!(
+                "unable to strip prefix from '{}'! Reason: {err}",
+                canon_path.display()
+            ),
         )),
     }
 }
@@ -721,8 +747,9 @@ mod test {
 
     #[test]
     fn test_make_relative_path() {
-        assert!(make_relative_path(Path::new("foo.txt")).is_err());
-        assert!(make_relative_path(Path::new("Cargo.toml")).is_ok());
+        assert!(make_relative_path(Path::new("fake_dir").join(Path::new("foo.txt"))).is_err());
+        make_relative_path(Path::new("Cargo.toml")).unwrap();
+        make_relative_path(Path::new("Cargo.toml").canonicalize().unwrap()).unwrap();
     }
 
     #[test]

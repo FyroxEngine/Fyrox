@@ -1863,16 +1863,20 @@ impl Editor {
     }
 
     fn save_scene(&mut self, id: Uuid, path: PathBuf) {
-        let path = match make_relative_path(path) {
+        let path = match make_relative_path(path.clone()) {
             Ok(path) => path,
             Err(err) => {
-                Log::err(err.to_string());
+                Log::err(format!(
+                    "Failed to create relative path for {}. Reason: {err}",
+                    path.display()
+                ));
                 return;
             }
         };
 
+        // If there is some other open scene with the same name, then close it.
         for entry in self.scenes.entries.iter() {
-            if entry.path.as_ref() == Some(&path) {
+            if entry.id != id && entry.path.as_ref() == Some(&path) {
                 self.close_scene(entry.id);
                 break;
             }
@@ -2017,7 +2021,15 @@ impl Editor {
     }
 
     fn close_scene(&mut self, id: Uuid) -> bool {
-        self.try_leave_preview_mode();
+        let closing_current_scene = self
+            .scenes
+            .current_scene_entry_ref()
+            .map(|s| s.id == id)
+            .unwrap_or_default();
+
+        if closing_current_scene {
+            self.try_leave_preview_mode();
+        }
 
         let engine = &mut self.engine;
         if let Some(mut entry) = self.scenes.take_scene(id) {
@@ -2025,17 +2037,21 @@ impl Editor {
                 .controller
                 .on_destroy(&mut entry.command_stack, engine, &mut entry.selection);
 
-            // Preview frame has scene frame texture assigned, it must be cleared explicitly,
-            // otherwise it will show last rendered frame in preview which is not what we want.
-            self.scene_viewer
-                .set_render_target(engine.user_interfaces.first(), None);
-            // Set default title scene
-            self.scene_viewer
-                .set_title(engine.user_interfaces.first(), "Scene Preview".to_string());
+            if closing_current_scene {
+                // Preview frame has scene frame texture assigned, it must be cleared explicitly,
+                // otherwise it will show last rendered frame in preview which is not what we want.
+                self.scene_viewer
+                    .set_render_target(engine.user_interfaces.first(), None);
+                // Set default title scene
+                self.scene_viewer
+                    .set_title(engine.user_interfaces.first(), "Scene Preview".to_string());
+            }
 
             entry.before_drop(engine);
 
-            self.on_scene_changed();
+            if closing_current_scene {
+                self.on_scene_changed();
+            }
 
             true
         } else {

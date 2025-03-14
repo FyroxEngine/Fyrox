@@ -33,7 +33,7 @@ use std::{
 
 pub mod prelude {
     pub use super::{
-        FieldInfo, FieldMetadata, FieldValue, Reflect, ReflectArray, ReflectHashMap,
+        FieldMetadata, FieldMut, FieldRef, FieldValue, Reflect, ReflectArray, ReflectHashMap,
         ReflectInheritableVariable, ReflectList, ResolvePath, SetFieldByPathError,
     };
 }
@@ -41,13 +41,31 @@ pub mod prelude {
 /// A value of a field..
 pub trait FieldValue: Any + 'static {
     /// Casts `self` to a `&dyn Any`
-    fn as_any(&self) -> &dyn Any;
+    fn field_value_as_any_ref(&self) -> &dyn Any;
+
+    /// Casts `self` to a `&mut dyn Any`
+    fn field_value_as_any_mut(&mut self) -> &mut dyn Any;
+
+    fn field_value_as_reflect(&self) -> &dyn Reflect;
+    fn field_value_as_reflect_mut(&mut self) -> &mut dyn Reflect;
 
     fn type_name(&self) -> &'static str;
 }
 
-impl<T: 'static> FieldValue for T {
-    fn as_any(&self) -> &dyn Any {
+impl<T: Reflect> FieldValue for T {
+    fn field_value_as_any_ref(&self) -> &dyn Any {
+        self
+    }
+
+    fn field_value_as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn field_value_as_reflect(&self) -> &dyn Reflect {
+        self
+    }
+
+    fn field_value_as_reflect_mut(&mut self) -> &mut dyn Reflect {
         self
     }
 
@@ -110,7 +128,7 @@ pub struct FieldMetadata<'s> {
     pub precision: Option<usize>,
 }
 
-pub struct FieldInfo<'a, 'b> {
+pub struct FieldRef<'a, 'b> {
     /// A reference to field's metadata.
     pub metadata: &'a FieldMetadata<'b>,
 
@@ -118,12 +136,9 @@ pub struct FieldInfo<'a, 'b> {
     /// means that while `field/fields/field_mut/fields_mut` might return a reference to other value,
     /// than the actual field, the `value` is guaranteed to be a reference to the real value.
     pub value: &'a dyn FieldValue,
-
-    /// A reference to the value casted to `Reflect`.
-    pub reflect_value: &'a dyn Reflect,
 }
 
-impl<'b> Deref for FieldInfo<'_, 'b> {
+impl<'b> Deref for FieldRef<'_, 'b> {
     type Target = FieldMetadata<'b>;
 
     fn deref(&self) -> &Self::Target {
@@ -131,10 +146,10 @@ impl<'b> Deref for FieldInfo<'_, 'b> {
     }
 }
 
-impl FieldInfo<'_, '_> {
+impl FieldRef<'_, '_> {
     /// Tries to cast a value to a given type.
     pub fn cast_value<T: 'static>(&self) -> Result<&T, CastError> {
-        match self.value.as_any().downcast_ref::<T>() {
+        match self.value.field_value_as_any_ref().downcast_ref::<T>() {
             Some(value) => Ok(value),
             None => Err(CastError::TypeMismatch {
                 property_name: self.metadata.name.to_string(),
@@ -145,7 +160,7 @@ impl FieldInfo<'_, '_> {
     }
 }
 
-impl fmt::Debug for FieldInfo<'_, '_> {
+impl fmt::Debug for FieldRef<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FieldInfo")
             .field("metadata", &self.metadata)
@@ -154,7 +169,43 @@ impl fmt::Debug for FieldInfo<'_, '_> {
     }
 }
 
-impl PartialEq<Self> for FieldInfo<'_, '_> {
+impl PartialEq<Self> for FieldRef<'_, '_> {
+    fn eq(&self, other: &Self) -> bool {
+        let value_ptr_a = self.value as *const _ as *const ();
+        let value_ptr_b = other.value as *const _ as *const ();
+
+        std::ptr::eq(value_ptr_a, value_ptr_b)
+    }
+}
+
+pub struct FieldMut<'a, 'b> {
+    /// A reference to field's metadata.
+    pub metadata: &'a FieldMetadata<'b>,
+
+    /// An reference to the actual value of the property. This is "non-mangled" reference, which
+    /// means that while `field/fields/field_mut/fields_mut` might return a reference to other value,
+    /// than the actual field, the `value` is guaranteed to be a reference to the real value.
+    pub value: &'a mut dyn FieldValue,
+}
+
+impl<'b> Deref for FieldMut<'_, 'b> {
+    type Target = FieldMetadata<'b>;
+
+    fn deref(&self) -> &Self::Target {
+        self.metadata
+    }
+}
+
+impl fmt::Debug for FieldMut<'_, '_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FieldInfo")
+            .field("metadata", &self.metadata)
+            .field("value", &format_args!("{:?}", self.value as *const _))
+            .finish()
+    }
+}
+
+impl PartialEq<Self> for FieldMut<'_, '_> {
     fn eq(&self, other: &Self) -> bool {
         let value_ptr_a = self.value as *const _ as *const ();
         let value_ptr_b = other.value as *const _ as *const ();
@@ -212,7 +263,9 @@ pub trait Reflect: ReflectBase {
 
     fn doc(&self) -> &'static str;
 
-    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo]));
+    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef]));
+
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut]));
 
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
@@ -261,28 +314,26 @@ pub trait Reflect: ReflectBase {
         });
     }
 
-    fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
-        func(&[])
+    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        self.fields_ref(&mut |fields| {
+            func(
+                fields
+                    .iter()
+                    .find(|field| field.name == name)
+                    .map(|field| field.value.field_value_as_reflect()),
+            )
+        });
     }
 
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
-        func(&mut [])
-    }
-
-    fn field(
-        &self,
-        #[allow(unused_variables)] name: &str,
-        func: &mut dyn FnMut(Option<&dyn Reflect>),
-    ) {
-        func(None)
-    }
-
-    fn field_mut(
-        &mut self,
-        #[allow(unused_variables)] name: &str,
-        func: &mut dyn FnMut(Option<&mut dyn Reflect>),
-    ) {
-        func(None)
+    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+        self.fields_mut(&mut |fields| {
+            func(
+                fields
+                    .iter_mut()
+                    .find(|field| field.name == name)
+                    .map(|field| field.value.field_value_as_reflect_mut()),
+            )
+        });
     }
 
     fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
@@ -850,7 +901,7 @@ impl dyn Reflect {
 
     pub fn enumerate_fields_recursively<F>(&self, func: &mut F, ignored_types: &[TypeId])
     where
-        F: FnMut(&str, Option<&FieldInfo>, &dyn Reflect),
+        F: FnMut(&str, Option<&FieldRef>, &dyn Reflect),
     {
         self.enumerate_fields_recursively_internal("", None, func, ignored_types)
     }
@@ -858,11 +909,11 @@ impl dyn Reflect {
     fn enumerate_fields_recursively_internal<F>(
         &self,
         path: &str,
-        field_info: Option<&FieldInfo>,
+        field_info: Option<&FieldRef>,
         func: &mut F,
         ignored_types: &[TypeId],
     ) where
-        F: FnMut(&str, Option<&FieldInfo>, &dyn Reflect),
+        F: FnMut(&str, Option<&FieldRef>, &dyn Reflect),
     {
         if ignored_types.contains(&self.type_id()) {
             return;
@@ -951,7 +1002,7 @@ impl dyn Reflect {
             return;
         }
 
-        self.fields_info(&mut |fields| {
+        self.fields_ref(&mut |fields| {
             for field in fields {
                 let compound_path;
                 let field_path = if path.is_empty() {
@@ -961,12 +1012,15 @@ impl dyn Reflect {
                     &compound_path
                 };
 
-                field.reflect_value.enumerate_fields_recursively_internal(
-                    field_path,
-                    Some(field),
-                    func,
-                    ignored_types,
-                );
+                field
+                    .value
+                    .field_value_as_reflect()
+                    .enumerate_fields_recursively_internal(
+                        field_path,
+                        Some(field),
+                        func,
+                        ignored_types,
+                    );
             }
         })
     }
@@ -1030,9 +1084,12 @@ impl dyn Reflect {
             return;
         }
 
-        self.fields(&mut |fields| {
-            for field in fields {
-                field.apply_recursively(func, ignored_types);
+        self.fields_ref(&mut |fields| {
+            for field_info_ref in fields {
+                field_info_ref
+                    .value
+                    .field_value_as_reflect()
+                    .apply_recursively(func, ignored_types);
             }
         })
     }
@@ -1097,8 +1154,9 @@ impl dyn Reflect {
         }
 
         self.fields_mut(&mut |fields| {
-            for field in fields {
-                (*field).apply_recursively_mut(func, ignored_types);
+            for field_info_mut in fields {
+                (*field_info_mut.value.field_value_as_reflect_mut())
+                    .apply_recursively_mut(func, ignored_types);
             }
         })
     }
@@ -1165,8 +1223,13 @@ macro_rules! blank_reflect {
             env!("CARGO_PKG_NAME")
         }
 
-        fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+        fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
             func(&[])
+        }
+
+        #[inline]
+        fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
+            func(&mut [])
         }
 
         fn into_any(self: Box<Self>) -> Box<dyn Any> {
@@ -1236,8 +1299,12 @@ macro_rules! delegate_reflect {
             env!("CARGO_PKG_NAME")
         }
 
-        fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
-            self.deref().fields_info(func)
+        fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
+            self.deref().fields_ref(func)
+        }
+
+        fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
+            self.deref_mut().fields_mut(func)
         }
 
         fn into_any(self: Box<Self>) -> Box<dyn Any> {
@@ -1301,8 +1368,8 @@ macro_rules! newtype_reflect {
             self.0.doc()
         }
 
-        fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
-            self.0.fields_info(func)
+        fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
+            self.0.fields_ref(func)
         }
 
         fn into_any(self: Box<Self>) -> Box<dyn Any> {

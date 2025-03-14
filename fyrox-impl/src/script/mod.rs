@@ -27,7 +27,7 @@ use crate::{
     core::{
         log::Log,
         pool::Handle,
-        reflect::{FieldInfo, Reflect, ReflectArray, ReflectList},
+        reflect::{FieldRef, Reflect, ReflectArray, ReflectList},
         type_traits::ComponentProvider,
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
@@ -39,6 +39,7 @@ use crate::{
     plugin::{Plugin, PluginContainer},
     scene::{base::NodeScriptMessage, node::Node, Scene},
 };
+use fyrox_core::reflect::FieldMut;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -695,8 +696,12 @@ impl Reflect for Script {
         env!("CARGO_PKG_NAME")
     }
 
-    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
-        self.instance.fields_info(func)
+    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
+        self.instance.fields_ref(func)
+    }
+
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
+        self.instance.fields_mut(func)
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
@@ -721,14 +726,6 @@ impl Reflect for Script {
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         self.instance.deref_mut().set(value)
-    }
-
-    fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
-        self.instance.deref().fields(func)
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
-        self.instance.deref_mut().fields_mut(func)
     }
 
     fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {

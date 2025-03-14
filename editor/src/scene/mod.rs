@@ -274,7 +274,10 @@ impl GameScene {
         pure_scene.save("Scene", &mut visitor).unwrap();
 
         if let Err(e) = visitor.save_binary(path) {
-            Err(format!("Failed to save scene! Reason: {e}"))
+            Err(format!(
+                "Failed to save scene {}! Reason: {e}",
+                path.display()
+            ))
         } else {
             if settings.debugging.save_scene_in_text_form {
                 let text = visitor.save_text();

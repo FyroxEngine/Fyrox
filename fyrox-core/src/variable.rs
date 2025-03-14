@@ -404,8 +404,13 @@ where
     }
 
     #[inline]
-    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
-        self.value.fields_info(func)
+    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
+        self.value.fields_ref(func)
+    }
+
+    #[inline]
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
+        self.value.fields_mut(func)
     }
 
     #[inline]
@@ -448,16 +453,6 @@ where
     ) {
         self.mark_modified_and_need_sync();
         self.value.set_field(field, value, func)
-    }
-
-    #[inline]
-    fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
-        self.value.fields(func)
-    }
-
-    #[inline]
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
-        self.value.fields_mut(func)
     }
 
     #[inline]
@@ -713,13 +708,15 @@ pub fn try_inherit_properties(
 
     if result.is_none() {
         child.fields_mut(&mut |child_fields| {
-            parent.fields(&mut |parent_fields| {
+            parent.fields_ref(&mut |parent_fields| {
                 for (child_field, parent_field) in child_fields.iter_mut().zip(parent_fields) {
                     // Look into inner properties recursively and try to inherit them. This is mandatory step, because inner
                     // fields may also be InheritableVariable<T>.
-                    if let Err(e) =
-                        try_inherit_properties(*child_field, *parent_field, ignored_types)
-                    {
+                    if let Err(e) = try_inherit_properties(
+                        child_field.value.field_value_as_reflect_mut(),
+                        parent_field.value.field_value_as_reflect(),
+                        ignored_types,
+                    ) {
                         result = Some(Err(e));
                     }
 

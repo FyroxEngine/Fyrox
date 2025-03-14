@@ -196,17 +196,26 @@ impl Control for Button {
                     WidgetMessage::MouseDown { .. }
                     | WidgetMessage::TouchStarted { .. }
                     | WidgetMessage::TouchMoved { .. } => {
-                        ui.capture_mouse(self.handle);
+                        // The only way to avoid a `MouseLeave` message is by capturing the currently picked node.
+                        // Capturing any other node will change the picked node and be considered leaving,
+                        // which would affect the decorator.
+                        ui.capture_mouse(message.destination());
                         message.set_handled(true);
                         if *self.repeat_clicks_on_hold {
                             self.repeat_timer.replace(Some(*self.repeat_interval));
                         }
                     }
                     WidgetMessage::MouseUp { .. } | WidgetMessage::TouchEnded { .. } => {
-                        ui.send_message(ButtonMessage::click(
-                            self.handle(),
-                            MessageDirection::FromWidget,
-                        ));
+                        // Do the click only if the mouse is still within the button and the event hasn't been handled.
+                        // The event might be handled if there is a child button within this button, as with the
+                        // close button on a tab.
+                        if self.screen_bounds().contains(ui.cursor_position()) && !message.handled()
+                        {
+                            ui.send_message(ButtonMessage::click(
+                                self.handle(),
+                                MessageDirection::FromWidget,
+                            ));
+                        }
                         ui.release_mouse_capture();
                         message.set_handled(true);
                         self.repeat_timer.replace(None);

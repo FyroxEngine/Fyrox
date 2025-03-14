@@ -536,11 +536,11 @@ impl From<CastError> for InspectorError {
 /// Stores the association between a field in an object and an editor widget in an [Inspector].
 #[derive(Clone, Debug)]
 pub struct ContextEntry {
-    /// The name of the field being edited, as found in [FieldInfo::name].
+    /// The name of the field being edited, as found in [FieldRef::name].
     pub property_name: String,
-    /// The name of the field being edited, as found in [FieldInfo::display_name].
+    /// The name of the field being edited, as found in [FieldRef::display_name].
     pub property_display_name: String,
-    /// The name of the field being edited, as found in [FieldInfo::tag].
+    /// The name of the field being edited, as found in [FieldRef::tag].
     pub property_tag: String,
     /// The type of the property being edited, as found in [PropertyEditorDefinition::value_type_id](editors::PropertyEditorDefinition::value_type_id).
     pub property_value_type_id: TypeId,
@@ -845,10 +845,10 @@ impl InspectorContext {
         let mut entries = Vec::new();
 
         let mut fields_text = Vec::new();
-        object.fields(&mut |fields| {
+        object.fields_ref(&mut |fields| {
             for field in fields {
                 fields_text.push(if generate_property_string_values {
-                    format!("{field:?}")
+                    format!("{:?}", field.value.field_value_as_reflect())
                 } else {
                     Default::default()
                 })
@@ -856,9 +856,9 @@ impl InspectorContext {
         });
 
         let mut editors = Vec::new();
-        object.fields_info(&mut |fields_info| {
-            for (i, (field_text, info)) in fields_text.iter().zip(fields_info.iter()).enumerate() {
-                if !filter.pass(info.reflect_value) {
+        object.fields_ref(&mut |fields_ref| {
+            for (i, (field_text, info)) in fields_text.iter().zip(fields_ref.iter()).enumerate() {
+                if !filter.pass(info.value.field_value_as_reflect()) {
                     continue;
                 }
 
@@ -1027,9 +1027,9 @@ impl InspectorContext {
 
         let mut sync_errors = Vec::new();
 
-        object.fields_info(&mut |fields_info| {
-            for info in fields_info {
-                if !filter.pass(info.reflect_value) {
+        object.fields_ref(&mut |fields_ref| {
+            for info in fields_ref {
+                if !filter.pass(info.value.field_value_as_reflect()) {
                     continue;
                 }
 

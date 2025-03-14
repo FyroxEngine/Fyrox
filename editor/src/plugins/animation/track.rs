@@ -1110,8 +1110,8 @@ impl TrackList {
         let mut descriptors = Vec::new();
         if let Some(node) = graph.try_get(node) {
             node.as_reflect(&mut |node| {
-                descriptors = object_to_property_tree("", node, &mut |field: &FieldInfo| {
-                    let type_id = field.reflect_value.type_id();
+                descriptors = object_to_property_tree("", node, &mut |field: &FieldRef| {
+                    let type_id = field.value.field_value_as_reflect().type_id();
                     type_id != TypeId::of::<TextureBytes>()
                         // Vertex buffer cannot be animated (mainly because it contains untyped data).
                         && type_id != TypeId::of::<VertexBuffer>()
