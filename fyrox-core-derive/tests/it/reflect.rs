@@ -70,7 +70,7 @@ fn doc_comments() {
         field: 0,
         hidden: 0,
     };
-    s.fields_info(&mut |infos| {
+    s.fields_ref(&mut |infos| {
         assert_eq!(
             infos[0].doc,
             " This is a \
@@ -287,14 +287,14 @@ fn reflect_fields_list_of_struct() {
         field_b: "Foobar".to_string(),
     };
 
-    foo.fields_info(&mut |fields| assert_eq!(fields.len(), 2));
-    foo.fields_info(&mut |fields| {
+    foo.fields_ref(&mut |fields| assert_eq!(fields.len(), 2));
+    foo.fields_ref(&mut |fields| {
         fields[0]
             .value
             .field_value_as_reflect()
             .downcast_ref::<f32>(&mut |result| assert_eq!(result.cloned(), Some(1.23)))
     });
-    foo.fields_info(&mut |fields| {
+    foo.fields_ref(&mut |fields| {
         fields[1]
             .value
             .field_value_as_reflect()
@@ -314,8 +314,8 @@ fn reflect_fields_list_of_enum() {
 
     let bar_variant = Foo::Bar { field_a: 1.23 };
 
-    bar_variant.fields_info(&mut |fields| assert_eq!(fields.len(), 1));
-    bar_variant.fields_info(&mut |fields| {
+    bar_variant.fields_ref(&mut |fields| assert_eq!(fields.len(), 1));
+    bar_variant.fields_ref(&mut |fields| {
         fields[0]
             .value
             .field_value_as_reflect()
@@ -327,14 +327,14 @@ fn reflect_fields_list_of_enum() {
         field_c: "Foobar".to_string(),
     };
 
-    baz_variant.fields_info(&mut |fields| assert_eq!(fields.len(), 2));
-    baz_variant.fields_info(&mut |fields| {
+    baz_variant.fields_ref(&mut |fields| assert_eq!(fields.len(), 2));
+    baz_variant.fields_ref(&mut |fields| {
         fields[0]
             .value
             .field_value_as_reflect()
             .downcast_ref::<u32>(&mut |result| assert_eq!(result.cloned(), Some(321)))
     });
-    baz_variant.fields_info(&mut |fields| {
+    baz_variant.fields_ref(&mut |fields| {
         fields[1]
             .value
             .field_value_as_reflect()
@@ -383,17 +383,17 @@ fn inspect_default() {
     };
 
     let expected = vec![
-        FieldInfoRef {
+        FieldRef {
             metadata: &the_field_metadata,
             value: &data.the_field,
         },
-        FieldInfoRef {
+        FieldRef {
             metadata: &another_field_metadata,
             value: &data.another_field,
         },
     ];
 
-    data.fields_info(&mut |fields_info| assert_eq!(fields_info, expected));
+    data.fields_ref(&mut |fields_ref| assert_eq!(fields_ref, expected));
 }
 
 #[test]
@@ -432,11 +432,11 @@ fn inspect_attributes() {
     };
 
     let expected = vec![
-        FieldInfoRef {
+        FieldRef {
             metadata: &x_metadata,
             value: &data.x,
         },
-        FieldInfoRef {
+        FieldRef {
             metadata: &FieldMetadata {
                 name: "y",
                 display_name: "Y",
@@ -454,7 +454,7 @@ fn inspect_attributes() {
         },
     ];
 
-    data.fields_info(&mut |fields_info| assert_eq!(fields_info[0..2], expected));
+    data.fields_ref(&mut |fields_ref| assert_eq!(fields_ref[0..2], expected));
 }
 
 #[test]
@@ -464,11 +464,11 @@ fn inspect_struct() {
 
     let x = Tuple::default();
 
-    x.fields_info(&mut |fields_info| {
+    x.fields_ref(&mut |fields_ref| {
         assert_eq!(
-            fields_info,
+            fields_ref,
             vec![
-                FieldInfoRef {
+                FieldRef {
                     metadata: &FieldMetadata {
                         name: "0",
                         display_name: "0",
@@ -476,7 +476,7 @@ fn inspect_struct() {
                     },
                     value: &x.0,
                 },
-                FieldInfoRef {
+                FieldRef {
                     metadata: &FieldMetadata {
                         name: "1",
                         display_name: "1",
@@ -492,7 +492,7 @@ fn inspect_struct() {
     struct Unit;
 
     let x = Unit;
-    x.fields_info(&mut |fields_info| assert_eq!(fields_info, vec![]));
+    x.fields_ref(&mut |fields_ref| assert_eq!(fields_ref, vec![]));
 }
 
 #[test]
@@ -515,11 +515,11 @@ fn inspect_enum() {
         z: NonCopy { inner: 10 },
     };
 
-    data.fields_info(&mut |fields_info| {
+    data.fields_ref(&mut |fields_ref| {
         assert_eq!(
-            fields_info,
+            fields_ref,
             vec![
-                FieldInfoRef {
+                FieldRef {
                     metadata: &FieldMetadata {
                         name: "Named@x",
                         display_name: "X",
@@ -530,7 +530,7 @@ fn inspect_enum() {
                         _ => unreachable!(),
                     },
                 },
-                FieldInfoRef {
+                FieldRef {
                     metadata: &FieldMetadata {
                         name: "Named@y",
                         display_name: "Y",
@@ -541,7 +541,7 @@ fn inspect_enum() {
                         _ => unreachable!(),
                     },
                 },
-                FieldInfoRef {
+                FieldRef {
                     metadata: &FieldMetadata {
                         name: "Named@z",
                         display_name: "Z",
@@ -558,11 +558,11 @@ fn inspect_enum() {
 
     let data = Data::Tuple(10.0, 20.0);
 
-    data.fields_info(&mut |fields_info| {
+    data.fields_ref(&mut |fields_ref| {
         assert_eq!(
-            fields_info,
+            fields_ref,
             vec![
-                FieldInfoRef {
+                FieldRef {
                     metadata: &FieldMetadata {
                         name: "Tuple@0",
                         display_name: "0",
@@ -573,7 +573,7 @@ fn inspect_enum() {
                         _ => unreachable!(),
                     },
                 },
-                FieldInfoRef {
+                FieldRef {
                     metadata: &FieldMetadata {
                         name: "Tuple@1",
                         display_name: "1",
@@ -590,7 +590,7 @@ fn inspect_enum() {
 
     // unit variants don't have fields
     let data = Data::Unit;
-    data.fields_info(&mut |fields_info| assert_eq!(fields_info, vec![]));
+    data.fields_ref(&mut |fields_ref| assert_eq!(fields_ref, vec![]));
 }
 
 #[test]
@@ -622,12 +622,12 @@ fn inspect_prop_key_constants() {
     }
 
     assert_eq!(E::TUPLE_F_0, "Tuple@0");
-    E::Tuple(0).fields_info(&mut |fields_info| assert_eq!(E::TUPLE_F_0, fields_info[0].name));
+    E::Tuple(0).fields_ref(&mut |fields_ref| assert_eq!(E::TUPLE_F_0, fields_ref[0].name));
 
     assert_eq!(E::STRUCT_FIELD, "Struct@field");
 
     E::Struct { field: 0 }
-        .fields_info(&mut |fields_info| assert_eq!(E::STRUCT_FIELD, fields_info[0].name));
+        .fields_ref(&mut |fields_ref| assert_eq!(E::STRUCT_FIELD, fields_ref[0].name));
 }
 
 #[test]

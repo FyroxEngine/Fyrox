@@ -170,12 +170,12 @@ pub fn object_to_property_tree<F>(
     filter: &mut F,
 ) -> Vec<PropertyDescriptor>
 where
-    F: FnMut(&FieldInfoRef) -> bool,
+    F: FnMut(&FieldRef) -> bool,
 {
     let mut descriptors = Vec::new();
 
-    object.fields_info(&mut |fields_info| {
-        for field_info in fields_info.iter() {
+    object.fields_ref(&mut |fields_ref| {
+        for field_info in fields_ref.iter() {
             if !filter(field_info) {
                 continue;
             }

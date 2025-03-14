@@ -90,7 +90,7 @@ macro_rules! define_two_args_node {
                 env!("CARGO_PKG_NAME")
             }
 
-            fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
+            fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
                 func(&[
                     {
                         static METADATA: FieldMetadata = FieldMetadata {
@@ -107,7 +107,7 @@ macro_rules! define_two_args_node {
                             doc: "",
                         };
 
-                        FieldInfoRef {
+                        FieldRef {
                             metadata: &METADATA,
                             value: &*self.lhs,
                         }
@@ -126,7 +126,7 @@ macro_rules! define_two_args_node {
                             precision: None,doc: "",
                         };
 
-                        FieldInfoRef {
+                        FieldRef {
                             metadata: &METADATA,
                             value: &*self.rhs,
                         }
@@ -134,7 +134,7 @@ macro_rules! define_two_args_node {
                 ])
             }
 
-            fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
+            fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
                 func(&mut [
                     {
                         static METADATA: FieldMetadata = FieldMetadata {
@@ -151,7 +151,7 @@ macro_rules! define_two_args_node {
                             doc: "",
                         };
 
-                        FieldInfoMut {
+                        FieldMut {
                             metadata: &METADATA,
                             value: &mut *self.lhs,
                         }
@@ -170,7 +170,7 @@ macro_rules! define_two_args_node {
                             precision: None,doc: "",
                         };
 
-                        FieldInfoMut {
+                        FieldMut {
                             metadata: &METADATA,
                             value: &mut *self.rhs,
                         }
@@ -297,7 +297,7 @@ impl<T: EntityId> Reflect for NotNode<T> {
         env!("CARGO_PKG_NAME")
     }
 
-    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
+    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
         func(&[{
             static METADATA: FieldMetadata = FieldMetadata {
                 name: "Lhs",
@@ -313,14 +313,14 @@ impl<T: EntityId> Reflect for NotNode<T> {
                 doc: "",
             };
 
-            FieldInfoRef {
+            FieldRef {
                 metadata: &METADATA,
                 value: &*self.lhs,
             }
         }])
     }
 
-    fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
         func(&mut [{
             static METADATA: FieldMetadata = FieldMetadata {
                 name: "Lhs",
@@ -336,7 +336,7 @@ impl<T: EntityId> Reflect for NotNode<T> {
                 doc: "",
             };
 
-            FieldInfoMut {
+            FieldMut {
                 metadata: &METADATA,
                 value: &mut *self.lhs,
             }

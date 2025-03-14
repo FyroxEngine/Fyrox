@@ -95,7 +95,7 @@ impl Reflect for Limb {
         env!("CARGO_PKG_NAME")
     }
 
-    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
+    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
         func(&[
             {
                 static METADATA: FieldMetadata = FieldMetadata {
@@ -111,7 +111,7 @@ impl Reflect for Limb {
                     precision: None,
                     doc: "",
                 };
-                FieldInfoRef {
+                FieldRef {
                     metadata: &METADATA,
                     value: &self.bone,
                 }
@@ -130,7 +130,7 @@ impl Reflect for Limb {
                     precision: None,
                     doc: "",
                 };
-                FieldInfoRef {
+                FieldRef {
                     metadata: &METADATA,
                     value: &self.physical_bone,
                 }
@@ -149,7 +149,7 @@ impl Reflect for Limb {
                     precision: None,
                     doc: "",
                 };
-                FieldInfoRef {
+                FieldRef {
                     metadata: &METADATA,
                     value: &self.children,
                 }
@@ -157,7 +157,7 @@ impl Reflect for Limb {
         ])
     }
 
-    fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
         func(&mut [
             {
                 static METADATA: FieldMetadata = FieldMetadata {
@@ -173,7 +173,7 @@ impl Reflect for Limb {
                     precision: None,
                     doc: "",
                 };
-                FieldInfoMut {
+                FieldMut {
                     metadata: &METADATA,
                     value: &mut self.bone,
                 }
@@ -192,7 +192,7 @@ impl Reflect for Limb {
                     precision: None,
                     doc: "",
                 };
-                FieldInfoMut {
+                FieldMut {
                     metadata: &METADATA,
                     value: &mut self.physical_bone,
                 }
@@ -211,7 +211,7 @@ impl Reflect for Limb {
                     precision: None,
                     doc: "",
                 };
-                FieldInfoMut {
+                FieldMut {
                     metadata: &METADATA,
                     value: &mut self.children,
                 }

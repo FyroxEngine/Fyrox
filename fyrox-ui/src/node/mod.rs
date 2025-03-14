@@ -307,12 +307,12 @@ impl Reflect for UiNode {
         env!("CARGO_PKG_NAME")
     }
 
-    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
-        self.0.deref().fields_info(func)
+    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
+        self.0.deref().fields_ref(func)
     }
 
-    fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
-        self.0.deref_mut().fields_info_mut(func)
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
+        self.0.deref_mut().fields_mut(func)
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {

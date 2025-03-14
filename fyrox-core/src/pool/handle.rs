@@ -143,16 +143,16 @@ impl<T: Reflect> Reflect for Handle<T> {
         env!("CARGO_PKG_NAME")
     }
 
-    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
+    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
         func(&[
             {
-                FieldInfoRef {
+                FieldRef {
                     metadata: &INDEX_METADATA,
                     value: &self.index,
                 }
             },
             {
-                FieldInfoRef {
+                FieldRef {
                     metadata: &GENERATION_METADATA,
                     value: &self.generation,
                 }
@@ -160,16 +160,16 @@ impl<T: Reflect> Reflect for Handle<T> {
         ])
     }
 
-    fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
         func(&mut [
             {
-                FieldInfoMut {
+                FieldMut {
                     metadata: &INDEX_METADATA,
                     value: &mut self.index,
                 }
             },
             {
-                FieldInfoMut {
+                FieldMut {
                     metadata: &GENERATION_METADATA,
                     value: &mut self.generation,
                 }

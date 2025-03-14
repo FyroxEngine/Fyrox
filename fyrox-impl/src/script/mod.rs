@@ -27,7 +27,7 @@ use crate::{
     core::{
         log::Log,
         pool::Handle,
-        reflect::{FieldInfoRef, Reflect, ReflectArray, ReflectList},
+        reflect::{FieldRef, Reflect, ReflectArray, ReflectList},
         type_traits::ComponentProvider,
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
@@ -39,7 +39,7 @@ use crate::{
     plugin::{Plugin, PluginContainer},
     scene::{base::NodeScriptMessage, node::Node, Scene},
 };
-use fyrox_core::reflect::FieldInfoMut;
+use fyrox_core::reflect::FieldMut;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -696,12 +696,12 @@ impl Reflect for Script {
         env!("CARGO_PKG_NAME")
     }
 
-    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
-        self.instance.fields_info(func)
+    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
+        self.instance.fields_ref(func)
     }
 
-    fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
-        self.instance.fields_info_mut(func)
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
+        self.instance.fields_mut(func)
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {

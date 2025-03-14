@@ -121,9 +121,9 @@ fn quote_field_prop(
     let description = field.description.clone().unwrap_or_default();
 
     let variant = if is_mut {
-        quote! { FieldInfoMut }
+        quote! { FieldMut }
     } else {
-        quote! { FieldInfoRef }
+        quote! { FieldRef }
     };
 
     quote! {
@@ -228,8 +228,8 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
 }
 
 fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) -> TokenStream2 {
-    let mut fields_info_ref = Vec::new();
-    let mut fields_info_mut = Vec::new();
+    let mut fields_ref_ref = Vec::new();
+    let mut fields_mut = Vec::new();
     for v in variant_args.iter() {
         let fields = v
             .fields
@@ -261,11 +261,11 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
         let metadata_ref = gen_fields_metadata_body(&props, &fields, &v.fields, false);
         let metadata_mut = gen_fields_metadata_body(&props, &field_muts, &v.fields, true);
 
-        fields_info_ref.push(quote! {
+        fields_ref_ref.push(quote! {
             #matcher => func(&[#metadata_ref]),
         });
 
-        fields_info_mut.push(quote! {
+        fields_mut.push(quote! {
             #matcher => func(&mut [#metadata_mut]),
         });
     }
@@ -273,7 +273,7 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
     let fields_metadata_ref_body = quote! {
         match self {
             #(
-                #fields_info_ref
+                #fields_ref_ref
             )*
             _ => func(&[])
         }
@@ -282,7 +282,7 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
     let fields_metadata_mut_body = quote! {
         match self {
             #(
-                #fields_info_mut
+                #fields_mut
             )*
             _ => func(&mut [])
         }
@@ -365,11 +365,11 @@ fn gen_impl(
                 #assembly_name
             }
 
-            fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
+            fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
                 #metadata_ref
             }
 
-            fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
+            fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
                 #metadata_mut
             }
 

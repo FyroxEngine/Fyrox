@@ -33,8 +33,8 @@ use std::{
 
 pub mod prelude {
     pub use super::{
-        FieldInfoMut, FieldInfoRef, FieldMetadata, FieldValue, Reflect, ReflectArray,
-        ReflectHashMap, ReflectInheritableVariable, ReflectList, ResolvePath, SetFieldByPathError,
+        FieldMetadata, FieldMut, FieldRef, FieldValue, Reflect, ReflectArray, ReflectHashMap,
+        ReflectInheritableVariable, ReflectList, ResolvePath, SetFieldByPathError,
     };
 }
 
@@ -128,7 +128,7 @@ pub struct FieldMetadata<'s> {
     pub precision: Option<usize>,
 }
 
-pub struct FieldInfoRef<'a, 'b> {
+pub struct FieldRef<'a, 'b> {
     /// A reference to field's metadata.
     pub metadata: &'a FieldMetadata<'b>,
 
@@ -138,7 +138,7 @@ pub struct FieldInfoRef<'a, 'b> {
     pub value: &'a dyn FieldValue,
 }
 
-impl<'b> Deref for FieldInfoRef<'_, 'b> {
+impl<'b> Deref for FieldRef<'_, 'b> {
     type Target = FieldMetadata<'b>;
 
     fn deref(&self) -> &Self::Target {
@@ -146,7 +146,7 @@ impl<'b> Deref for FieldInfoRef<'_, 'b> {
     }
 }
 
-impl FieldInfoRef<'_, '_> {
+impl FieldRef<'_, '_> {
     /// Tries to cast a value to a given type.
     pub fn cast_value<T: 'static>(&self) -> Result<&T, CastError> {
         match self.value.field_value_as_any_ref().downcast_ref::<T>() {
@@ -160,7 +160,7 @@ impl FieldInfoRef<'_, '_> {
     }
 }
 
-impl fmt::Debug for FieldInfoRef<'_, '_> {
+impl fmt::Debug for FieldRef<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FieldInfo")
             .field("metadata", &self.metadata)
@@ -169,7 +169,7 @@ impl fmt::Debug for FieldInfoRef<'_, '_> {
     }
 }
 
-impl PartialEq<Self> for FieldInfoRef<'_, '_> {
+impl PartialEq<Self> for FieldRef<'_, '_> {
     fn eq(&self, other: &Self) -> bool {
         let value_ptr_a = self.value as *const _ as *const ();
         let value_ptr_b = other.value as *const _ as *const ();
@@ -178,7 +178,7 @@ impl PartialEq<Self> for FieldInfoRef<'_, '_> {
     }
 }
 
-pub struct FieldInfoMut<'a, 'b> {
+pub struct FieldMut<'a, 'b> {
     /// A reference to field's metadata.
     pub metadata: &'a FieldMetadata<'b>,
 
@@ -188,7 +188,7 @@ pub struct FieldInfoMut<'a, 'b> {
     pub value: &'a mut dyn FieldValue,
 }
 
-impl<'b> Deref for FieldInfoMut<'_, 'b> {
+impl<'b> Deref for FieldMut<'_, 'b> {
     type Target = FieldMetadata<'b>;
 
     fn deref(&self) -> &Self::Target {
@@ -196,7 +196,7 @@ impl<'b> Deref for FieldInfoMut<'_, 'b> {
     }
 }
 
-impl fmt::Debug for FieldInfoMut<'_, '_> {
+impl fmt::Debug for FieldMut<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FieldInfo")
             .field("metadata", &self.metadata)
@@ -205,7 +205,7 @@ impl fmt::Debug for FieldInfoMut<'_, '_> {
     }
 }
 
-impl PartialEq<Self> for FieldInfoMut<'_, '_> {
+impl PartialEq<Self> for FieldMut<'_, '_> {
     fn eq(&self, other: &Self) -> bool {
         let value_ptr_a = self.value as *const _ as *const ();
         let value_ptr_b = other.value as *const _ as *const ();
@@ -263,9 +263,9 @@ pub trait Reflect: ReflectBase {
 
     fn doc(&self) -> &'static str;
 
-    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef]));
+    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef]));
 
-    fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut]));
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut]));
 
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
@@ -315,7 +315,7 @@ pub trait Reflect: ReflectBase {
     }
 
     fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-        self.fields_info(&mut |fields| {
+        self.fields_ref(&mut |fields| {
             func(
                 fields
                     .iter()
@@ -326,7 +326,7 @@ pub trait Reflect: ReflectBase {
     }
 
     fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
-        self.fields_info_mut(&mut |fields| {
+        self.fields_mut(&mut |fields| {
             func(
                 fields
                     .iter_mut()
@@ -901,7 +901,7 @@ impl dyn Reflect {
 
     pub fn enumerate_fields_recursively<F>(&self, func: &mut F, ignored_types: &[TypeId])
     where
-        F: FnMut(&str, Option<&FieldInfoRef>, &dyn Reflect),
+        F: FnMut(&str, Option<&FieldRef>, &dyn Reflect),
     {
         self.enumerate_fields_recursively_internal("", None, func, ignored_types)
     }
@@ -909,11 +909,11 @@ impl dyn Reflect {
     fn enumerate_fields_recursively_internal<F>(
         &self,
         path: &str,
-        field_info: Option<&FieldInfoRef>,
+        field_info: Option<&FieldRef>,
         func: &mut F,
         ignored_types: &[TypeId],
     ) where
-        F: FnMut(&str, Option<&FieldInfoRef>, &dyn Reflect),
+        F: FnMut(&str, Option<&FieldRef>, &dyn Reflect),
     {
         if ignored_types.contains(&self.type_id()) {
             return;
@@ -1002,7 +1002,7 @@ impl dyn Reflect {
             return;
         }
 
-        self.fields_info(&mut |fields| {
+        self.fields_ref(&mut |fields| {
             for field in fields {
                 let compound_path;
                 let field_path = if path.is_empty() {
@@ -1084,7 +1084,7 @@ impl dyn Reflect {
             return;
         }
 
-        self.fields_info(&mut |fields| {
+        self.fields_ref(&mut |fields| {
             for field_info_ref in fields {
                 field_info_ref
                     .value
@@ -1153,7 +1153,7 @@ impl dyn Reflect {
             return;
         }
 
-        self.fields_info_mut(&mut |fields| {
+        self.fields_mut(&mut |fields| {
             for field_info_mut in fields {
                 (*field_info_mut.value.field_value_as_reflect_mut())
                     .apply_recursively_mut(func, ignored_types);
@@ -1223,12 +1223,12 @@ macro_rules! blank_reflect {
             env!("CARGO_PKG_NAME")
         }
 
-        fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
+        fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
             func(&[])
         }
 
         #[inline]
-        fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
+        fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
             func(&mut [])
         }
 
@@ -1299,12 +1299,12 @@ macro_rules! delegate_reflect {
             env!("CARGO_PKG_NAME")
         }
 
-        fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
-            self.deref().fields_info(func)
+        fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
+            self.deref().fields_ref(func)
         }
 
-        fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
-            self.deref_mut().fields_info_mut(func)
+        fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
+            self.deref_mut().fields_mut(func)
         }
 
         fn into_any(self: Box<Self>) -> Box<dyn Any> {
@@ -1368,8 +1368,8 @@ macro_rules! newtype_reflect {
             self.0.doc()
         }
 
-        fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
-            self.0.fields_info(func)
+        fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
+            self.0.fields_ref(func)
         }
 
         fn into_any(self: Box<Self>) -> Box<dyn Any> {

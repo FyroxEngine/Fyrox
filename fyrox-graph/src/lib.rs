@@ -302,7 +302,7 @@ where
         }
 
         // Continue remapping recursively for every compound field.
-        entity.fields_info_mut(&mut |fields| {
+        entity.fields_mut(&mut |fields| {
             for field_info_mut in fields {
                 field_info_mut
                     .value
@@ -442,7 +442,7 @@ where
         }
 
         // Continue remapping recursively for every compound field.
-        entity.fields_info_mut(&mut |fields| {
+        entity.fields_mut(&mut |fields| {
             for field_info_mut in fields {
                 self.remap_inheritable_handles_internal(
                     field_info_mut.value.field_value_as_reflect_mut(),
@@ -1542,12 +1542,12 @@ mod test {
             env!("CARGO_PKG_NAME")
         }
 
-        fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfoRef])) {
-            self.0.deref().fields_info(func)
+        fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
+            self.0.deref().fields_ref(func)
         }
 
-        fn fields_info_mut(&mut self, func: &mut dyn FnMut(&mut [FieldInfoMut])) {
-            self.0.deref_mut().fields_info_mut(func)
+        fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
+            self.0.deref_mut().fields_mut(func)
         }
 
         fn into_any(self: Box<Self>) -> Box<dyn Any> {

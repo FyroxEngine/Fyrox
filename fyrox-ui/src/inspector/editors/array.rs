@@ -120,7 +120,7 @@ fn create_items<'a, 'b, T, I>(
     iter: I,
     environment: Option<Arc<dyn InspectorEnvironment>>,
     definition_container: Arc<PropertyEditorDefinitionContainer>,
-    property_info: &FieldInfoRef<'a, 'b>,
+    property_info: &FieldRef<'a, 'b>,
     ctx: &mut BuildContext,
     sync_flag: u64,
     layer_index: usize,
@@ -153,7 +153,7 @@ where
                 doc: property_info.doc,
             };
 
-            let proxy_property_info = FieldInfoRef {
+            let proxy_property_info = FieldRef {
                 metadata: &metadata,
                 value: item,
             };
@@ -247,7 +247,7 @@ where
     pub fn build(
         self,
         ctx: &mut BuildContext,
-        property_info: &FieldInfoRef<'a, '_>,
+        property_info: &FieldRef<'a, '_>,
         sync_flag: u64,
         name_column_width: f32,
     ) -> Result<Handle<UiNode>, InspectorError> {
@@ -412,7 +412,7 @@ where
                     doc: property_info.doc,
                 };
 
-                let proxy_property_info = FieldInfoRef {
+                let proxy_property_info = FieldRef {
                     metadata: &metadata,
                     value: obj,
                 };
