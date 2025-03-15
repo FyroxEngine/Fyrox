@@ -80,41 +80,38 @@ where
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Handle<T>>()?;
-        if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
-            Ok(PropertyEditorInstance::Simple {
-                editor: DropdownListBuilder::new(WidgetBuilder::new())
-                    .with_items(
-                        environment
-                            .available_animations
-                            .iter()
-                            .map(|d| {
-                                make_dropdown_list_option_universal(
-                                    ctx.build_context,
-                                    &d.name,
-                                    22.0,
-                                    *value,
-                                )
-                            })
-                            .collect(),
-                    )
-                    .with_opt_selected(
-                        environment
-                            .available_animations
-                            .iter()
-                            .enumerate()
-                            .find_map(|(i, d)| {
-                                if *value == d.handle.into() {
-                                    Some(i)
-                                } else {
-                                    None
-                                }
-                            }),
-                    )
-                    .build(ctx.build_context),
-            })
-        } else {
-            Err(InspectorError::Custom("No environment!".to_string()))
-        }
+        let environment = EditorEnvironment::try_get_from(&ctx.environment)?;
+        Ok(PropertyEditorInstance::Simple {
+            editor: DropdownListBuilder::new(WidgetBuilder::new())
+                .with_items(
+                    environment
+                        .available_animations
+                        .iter()
+                        .map(|d| {
+                            make_dropdown_list_option_universal(
+                                ctx.build_context,
+                                &d.name,
+                                22.0,
+                                *value,
+                            )
+                        })
+                        .collect(),
+                )
+                .with_opt_selected(
+                    environment
+                        .available_animations
+                        .iter()
+                        .enumerate()
+                        .find_map(|(i, d)| {
+                            if *value == d.handle.into() {
+                                Some(i)
+                            } else {
+                                None
+                            }
+                        }),
+                )
+                .build(ctx.build_context),
+        })
     }
 
     fn create_message(
@@ -122,29 +119,26 @@ where
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Handle<T>>()?;
-        if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
-            if let Some(index) = environment
-                .available_animations
-                .iter()
-                .position(|d| *value == d.handle.into())
-            {
-                Ok(Some(DropdownListMessage::selection(
-                    ctx.instance,
-                    MessageDirection::ToWidget,
-                    Some(index),
-                )))
-            } else {
-                Ok(None)
-            }
+        let environment = EditorEnvironment::try_get_from(&ctx.environment)?;
+        if let Some(index) = environment
+            .available_animations
+            .iter()
+            .position(|d| *value == d.handle.into())
+        {
+            Ok(Some(DropdownListMessage::selection(
+                ctx.instance,
+                MessageDirection::ToWidget,
+                Some(index),
+            )))
         } else {
-            Err(InspectorError::Custom("No environment!".to_string()))
+            Ok(None)
         }
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if ctx.message.direction() == MessageDirection::FromWidget {
             if let Some(DropdownListMessage::SelectionChanged(Some(value))) = ctx.message.data() {
-                if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
+                if let Ok(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
                     if let Some(definition) = environment.available_animations.get(*value) {
                         return Some(PropertyChanged {
                             name: ctx.name.to_string(),
@@ -206,7 +200,7 @@ where
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if ctx.message.direction() == MessageDirection::FromWidget {
             if let Some(ButtonMessage::Click) = ctx.message.data() {
-                if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
+                if let Ok(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
                     environment.sender.send(Message::OpenAnimationEditor);
                 }
             }
@@ -262,7 +256,7 @@ where
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if ctx.message.direction() == MessageDirection::FromWidget {
             if let Some(ButtonMessage::Click) = ctx.message.data() {
-                if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
+                if let Ok(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
                     environment.sender.send(Message::OpenAbsmEditor);
                 }
             }

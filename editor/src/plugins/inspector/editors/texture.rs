@@ -208,22 +208,14 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = self.value(ctx.property_info)?;
+        let environment = EditorEnvironment::try_get_from(&ctx.environment)?;
 
         Ok(PropertyEditorInstance::Simple {
             editor: TextureEditorBuilder::new(
                 WidgetBuilder::new().with_min_size(Vector2::new(0.0, 17.0)),
             )
             .with_texture(value.clone())
-            .build(
-                ctx.build_context,
-                ctx.environment
-                    .as_ref()
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<EditorEnvironment>()
-                    .map(|e| e.resource_manager.clone())
-                    .unwrap(),
-            ),
+            .build(ctx.build_context, environment.resource_manager.clone()),
         })
     }
 

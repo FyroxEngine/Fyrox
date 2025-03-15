@@ -376,20 +376,11 @@ where
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Option<Resource<T>>>()?;
-
+        let environment = EditorEnvironment::try_get_from(&ctx.environment)?;
         Ok(PropertyEditorInstance::Simple {
             editor: ResourceFieldBuilder::new(WidgetBuilder::new(), self.sender.clone())
                 .with_resource(value.clone())
-                .build(
-                    ctx.build_context,
-                    ctx.environment
-                        .as_ref()
-                        .unwrap()
-                        .as_any()
-                        .downcast_ref::<EditorEnvironment>()
-                        .map(|e| e.resource_manager.clone())
-                        .unwrap(),
-                ),
+                .build(ctx.build_context, environment.resource_manager.clone()),
         })
     }
 
