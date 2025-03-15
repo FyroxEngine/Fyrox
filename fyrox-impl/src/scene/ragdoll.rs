@@ -243,24 +243,6 @@ impl Reflect for Limb {
         let this = std::mem::replace(self, value.take()?);
         Ok(Box::new(this))
     }
-
-    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-        func(match name {
-            "Bone" => Some(&self.bone),
-            "PhysicalBone" => Some(&self.physical_bone),
-            "Children" => Some(&self.children),
-            _ => None,
-        })
-    }
-
-    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
-        func(match name {
-            "Bone" => Some(&mut self.bone),
-            "PhysicalBone" => Some(&mut self.physical_bone),
-            "Children" => Some(&mut self.children),
-            _ => None,
-        })
-    }
 }
 
 impl Visit for Limb {

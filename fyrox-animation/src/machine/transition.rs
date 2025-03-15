@@ -206,26 +206,6 @@ macro_rules! define_two_args_node {
                 let this = std::mem::replace(self, value.take()?);
                 Ok(Box::new(this))
             }
-
-            fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-                func(match name {
-                    "Lhs" => Some(&self.lhs),
-                    "Rhs" => Some(&self.rhs),
-                    _ => None,
-                })
-            }
-
-            fn field_mut(
-                &mut self,
-                name: &str,
-                func: &mut dyn FnMut(Option<&mut dyn Reflect>),
-            ) {
-                func(match name {
-                    "Lhs" => Some(&mut self.lhs),
-                    "Rhs" => Some(&mut self.rhs),
-                    _ => None,
-                })
-            }
         }
     };
 }
@@ -366,20 +346,6 @@ impl<T: EntityId> Reflect for NotNode<T> {
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         let this = std::mem::replace(self, value.take()?);
         Ok(Box::new(this))
-    }
-
-    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-        func(match name {
-            "Lhs" => Some(&self.lhs),
-            _ => None,
-        })
-    }
-
-    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
-        func(match name {
-            "Lhs" => Some(&mut self.lhs),
-            _ => None,
-        })
     }
 }
 
