@@ -329,23 +329,28 @@ fn selected_script(
 fn fetch_script_definitions(
     instance: Handle<UiNode>,
     ui: &mut UserInterface,
-) -> Option<Vec<Handle<UiNode>>> {
-    let instance_ref = ui
-        .node(instance)
-        .cast::<ScriptPropertyEditor>()
-        .expect("Must be ScriptPropertyEditor!");
+) -> Result<Vec<Handle<UiNode>>, InspectorError> {
+    let instance_ref =
+        ui.node(instance)
+            .cast::<ScriptPropertyEditor>()
+            .ok_or(InspectorError::Custom(
+                "Must be ScriptPropertyEditor!".into(),
+            ))?;
 
     let environment = ui
         .node(instance_ref.inspector)
         .cast::<Inspector>()
-        .expect("Must be Inspector!")
+        .ok_or(InspectorError::Custom("Must be Inspector!".into()))?
         .context()
         .environment
         .clone();
 
-    let editor_environment = EditorEnvironment::try_get_from(&environment);
+    let editor_environment = EditorEnvironment::try_get_from(&environment)?;
 
-    editor_environment.map(|e| create_items(e.serialization_context.clone(), &mut ui.build_ctx()))
+    Ok(create_items(
+        editor_environment.serialization_context.clone(),
+        &mut ui.build_ctx(),
+    ))
 }
 
 #[derive(Debug)]
@@ -361,9 +366,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Option<Script>>()?;
-
-        let environment = EditorEnvironment::try_get_from(&ctx.environment)
-            .expect("Must have editor environment!");
+        let environment = EditorEnvironment::try_get_from(&ctx.environment)?;
 
         let items = create_items(environment.serialization_context.clone(), ctx.build_context);
 
@@ -432,22 +435,21 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Option<Script>>()?;
 
-        let new_script_definitions_items = fetch_script_definitions(ctx.instance, ctx.ui);
+        let new_script_definitions_items = fetch_script_definitions(ctx.instance, ctx.ui)?;
 
         let instance_ref = ctx
             .ui
             .node(ctx.instance)
             .cast::<ScriptPropertyEditor>()
-            .expect("Must be EnumPropertyEditor!");
+            .ok_or(InspectorError::Custom("Must be EnumPropertyEditor!".into()))?;
 
-        let editor_environment =
-            EditorEnvironment::try_get_from(&ctx.environment).expect("Environment must be set!");
+        let editor_environment = EditorEnvironment::try_get_from(&ctx.environment)?;
 
         let variant_selector_ref = ctx
             .ui
             .node(instance_ref.variant_selector)
             .cast::<DropdownList>()
-            .expect("Must be a DropDownList");
+            .ok_or(InspectorError::Custom("Must be a DropDownList".into()))?;
 
         // Script list might change over time if some plugins were reloaded.
         if variant_selector_ref.items.len()
@@ -458,24 +460,22 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                 .values()
                 .count()
         {
-            if let Some(items) = new_script_definitions_items {
-                send_sync_message(
-                    ctx.ui,
-                    DropdownListMessage::items(
-                        instance_ref.variant_selector,
-                        MessageDirection::ToWidget,
-                        items,
-                    ),
-                );
-                send_sync_message(
-                    ctx.ui,
-                    ScriptPropertyEditorMessage::value(
-                        ctx.instance,
-                        MessageDirection::ToWidget,
-                        value.as_ref().map(|s| s.id()),
-                    ),
-                );
-            }
+            send_sync_message(
+                ctx.ui,
+                DropdownListMessage::items(
+                    instance_ref.variant_selector,
+                    MessageDirection::ToWidget,
+                    new_script_definitions_items,
+                ),
+            );
+            send_sync_message(
+                ctx.ui,
+                ScriptPropertyEditorMessage::value(
+                    ctx.instance,
+                    MessageDirection::ToWidget,
+                    value.as_ref().map(|s| s.id()),
+                ),
+            );
         }
 
         if instance_ref.selected_script_uuid != value.as_ref().map(|s| s.id())
@@ -548,7 +548,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             if let Some(message) = ctx.message.data::<ScriptPropertyEditorMessage>() {
                 match message {
                     ScriptPropertyEditorMessage::Value(value) => {
-                        if let Some(env) = EditorEnvironment::try_get_from(&ctx.environment) {
+                        if let Ok(env) = EditorEnvironment::try_get_from(&ctx.environment) {
                             let script = value.and_then(|uuid| {
                                 env.serialization_context
                                     .script_constructors
