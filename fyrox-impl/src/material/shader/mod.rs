@@ -459,7 +459,7 @@ use crate::{
         DrawParameters,
     },
 };
-use fyrox_core::algebra;
+use fyrox_core::{algebra, some_or_continue};
 pub use fyrox_graphics::gpu_program::{
     SamplerFallback, ShaderResourceDefinition, ShaderResourceKind,
 };
@@ -469,7 +469,7 @@ use std::{
     error::Error,
     fmt::{Display, Formatter},
     fs::File,
-    io::{Cursor, Write},
+    io::Write,
     path::Path,
     sync::Arc,
 };
@@ -569,8 +569,14 @@ pub struct RenderPassDefinition {
     pub draw_parameters: DrawParameters,
     /// A source code of vertex shader.
     pub vertex_shader: String,
+    /// Vertex shader line number.
+    #[serde(default)]
+    pub vertex_shader_line: usize,
     /// A source code of fragment shader.
     pub fragment_shader: String,
+    /// Fragment shader line number.
+    #[serde(default)]
+    pub fragment_shader_line: usize,
 }
 
 /// A definition of the shader.
@@ -599,15 +605,51 @@ impl ShaderDefinition {
     /// Maximum amount of blend shape weight groups (packed weights of blend shapes into vec4).
     pub const MAX_BLEND_SHAPE_WEIGHT_GROUPS: usize = 32;
 
-    fn from_buf(buf: Vec<u8>) -> Result<Self, ShaderError> {
-        let mut definition: ShaderDefinition = ron::de::from_reader(Cursor::new(buf))?;
-        definition.generate_built_in_resources();
-        Ok(definition)
+    fn find_shader_line_locations(&mut self, str: &str) {
+        let mut line_ends = Vec::new();
+        for (i, ch) in str.bytes().enumerate() {
+            if ch == b'\n' {
+                line_ends.push(i);
+            }
+        }
+        if str.bytes().last().is_some_and(|ch| ch != b'\n') {
+            line_ends.push(str.len());
+        }
+
+        fn find_line(line_ends: &[usize], byte_pos: usize) -> usize {
+            line_ends
+                .windows(2)
+                .enumerate()
+                .find_map(|(line_num, ends)| {
+                    if (ends[0]..ends[1]).contains(&byte_pos) {
+                        Some(line_num)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(0)
+                + 1
+        }
+
+        let mut substr = str;
+        for pass in self.passes.iter_mut() {
+            let name_location = some_or_continue!(substr.find(&format!("\"{}\"", pass.name)));
+            let vertex_shader_location = some_or_continue!(substr.find("vertex_shader:"));
+            let fragment_shader_location = some_or_continue!(substr.find("fragment_shader:"));
+            let offset = str.len() - substr.len();
+            pass.vertex_shader_line = find_line(&line_ends, offset + vertex_shader_location);
+            pass.fragment_shader_line = find_line(&line_ends, offset + fragment_shader_location);
+            let max = name_location
+                .max(vertex_shader_location)
+                .max(fragment_shader_location);
+            substr = &substr[(max + 1)..];
+        }
     }
 
     fn from_str(str: &str) -> Result<Self, ShaderError> {
         let mut definition: ShaderDefinition = ron::de::from_str(str)?;
         definition.generate_built_in_resources();
+        definition.find_shader_line_locations(str);
         Ok(definition)
     }
 
@@ -754,9 +796,10 @@ impl Shader {
         path: P,
         io: &dyn ResourceIo,
     ) -> Result<Self, ShaderError> {
-        let content = io.load_file(path.as_ref()).await?;
+        let bytes = io.load_file(path.as_ref()).await?;
+        let content = String::from_utf8_lossy(&bytes);
         Ok(Self {
-            definition: ShaderDefinition::from_buf(content)?,
+            definition: ShaderDefinition::from_str(&content)?,
             cache_index: Default::default(),
         })
     }
@@ -1041,7 +1084,9 @@ mod test {
                 name: "GBuffer".to_string(),
                 draw_parameters: Default::default(),
                 vertex_shader: "<CODE>".to_string(),
+                vertex_shader_line: 35,
                 fragment_shader: "<CODE>".to_string(),
+                fragment_shader_line: 36,
             }],
             disabled_passes: vec![],
         };
