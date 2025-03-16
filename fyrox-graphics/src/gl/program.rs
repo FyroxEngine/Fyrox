@@ -45,26 +45,51 @@ impl SamplerKind {
     }
 }
 
+fn count_lines(src: &str) -> isize {
+    src.bytes().filter(|b| *b == b'\n').count() as isize + 1
+}
+
+fn patch_error_message(src: &mut String, line_offset: isize) {
+    // TODO: This works with nvidia only for now.
+    let re = regex::Regex::new(r"\([0-9]*\)").unwrap();
+    let mut offset = 0;
+    while let Some(result) = re.find_at(src, offset) {
+        offset += result.end();
+        let substr = &src[(result.start() + 1)..(result.end() - 1)];
+        if let Ok(line_number) = substr.parse::<isize>() {
+            let new_line_number = line_number + line_offset;
+            let new_substr = format!("({new_line_number})");
+            src.replace_range(result.range(), &new_substr);
+        }
+    }
+}
+
 unsafe fn create_shader(
     server: &GlGraphicsServer,
     name: String,
     actual_type: u32,
     source: &str,
+    mut line_offset: isize,
     gl_kind: GlKind,
 ) -> Result<glow::Shader, FrameworkError> {
+    let initial_lines_count = count_lines(source);
     let merged_source = prepare_source_code(source, gl_kind);
+    line_offset -= count_lines(&merged_source) - initial_lines_count;
+
+    Log::info(&merged_source);
 
     let shader = server.gl.create_shader(actual_type)?;
     server.gl.shader_source(shader, &merged_source);
     server.gl.compile_shader(shader);
 
     let status = server.gl.get_shader_compile_status(shader);
-    let compilation_message = server.gl.get_shader_info_log(shader);
+    let mut compilation_message = server.gl.get_shader_info_log(shader);
 
     if !status {
+        patch_error_message(&mut compilation_message, line_offset);
         Log::writeln(
             MessageKind::Error,
-            format!("Failed to compile {name} shader: {compilation_message}"),
+            format!("Failed to compile {name} shader:\n{compilation_message}"),
         );
         Err(FrameworkError::ShaderCompilationFailed {
             shader_name: name,
@@ -124,7 +149,9 @@ impl GlProgram {
         server: &GlGraphicsServer,
         program_name: &str,
         vertex_source: &str,
+        vertex_source_line_offset: isize,
         fragment_source: &str,
+        fragment_source_line_offset: isize,
         resources: &[ShaderResourceDefinition],
     ) -> Result<GlProgram, FrameworkError> {
         let mut vertex_source = vertex_source.to_string();
@@ -252,7 +279,14 @@ impl GlProgram {
             initial_source.insert_str(0, &texture_bindings);
         }
 
-        let program = Self::from_source(server, program_name, &vertex_source, &fragment_source)?;
+        let program = Self::from_source(
+            server,
+            program_name,
+            &vertex_source,
+            vertex_source_line_offset,
+            &fragment_source,
+            fragment_source_line_offset,
+        )?;
 
         unsafe {
             server.set_program(Some(program.id));
@@ -296,7 +330,9 @@ impl GlProgram {
         server: &GlGraphicsServer,
         name: &str,
         vertex_source: &str,
+        vertex_source_line_offset: isize,
         fragment_source: &str,
+        fragment_source_line_offset: isize,
     ) -> Result<GlProgram, FrameworkError> {
         unsafe {
             let vertex_shader = create_shader(
@@ -304,6 +340,7 @@ impl GlProgram {
                 format!("{name}_VertexShader"),
                 glow::VERTEX_SHADER,
                 vertex_source,
+                vertex_source_line_offset,
                 server.gl_kind(),
             )?;
             let fragment_shader = create_shader(
@@ -311,6 +348,7 @@ impl GlProgram {
                 format!("{name}_FragmentShader"),
                 glow::FRAGMENT_SHADER,
                 fragment_source,
+                fragment_source_line_offset,
                 server.gl_kind(),
             )?;
             let program = server.gl.create_program()?;

@@ -571,12 +571,12 @@ pub struct RenderPassDefinition {
     pub vertex_shader: String,
     /// Vertex shader line number.
     #[serde(default)]
-    pub vertex_shader_line: usize,
+    pub vertex_shader_line: isize,
     /// A source code of fragment shader.
     pub fragment_shader: String,
     /// Fragment shader line number.
     #[serde(default)]
-    pub fragment_shader_line: usize,
+    pub fragment_shader_line: isize,
 }
 
 /// A definition of the shader.
@@ -616,7 +616,7 @@ impl ShaderDefinition {
             line_ends.push(str.len());
         }
 
-        fn find_line(line_ends: &[usize], byte_pos: usize) -> usize {
+        fn find_line(line_ends: &[usize], byte_pos: usize) -> isize {
             line_ends
                 .windows(2)
                 .enumerate()
@@ -627,7 +627,7 @@ impl ShaderDefinition {
                         None
                     }
                 })
-                .unwrap_or(0)
+                .unwrap_or(0) as isize
                 + 1
         }
 

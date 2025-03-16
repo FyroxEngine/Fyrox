@@ -211,7 +211,9 @@ impl RenderPassContainer {
             match server.create_program(
                 &program_name,
                 &render_pass.vertex_shader,
+                render_pass.vertex_shader_line,
                 &render_pass.fragment_shader,
+                render_pass.fragment_shader_line,
                 &shader.definition.resources,
             ) {
                 Ok(gpu_program) => {
@@ -225,7 +227,7 @@ impl RenderPassContainer {
                 }
                 Err(e) => {
                     return Err(FrameworkError::Custom(format!(
-                        "Failed to create {program_name} shader' GPU program. Reason: {e:?}"
+                        "Failed to create {program_name} shader' GPU program. Reason: {e}"
                     )));
                 }
             };

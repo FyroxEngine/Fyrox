@@ -21,6 +21,7 @@ strum_macros = "0.26.1"
 winit = { version = "0.29.2", features = ["serde"] }
 bytemuck = { version = "1.16.1", features = ["derive"] }
 fxhash = "0.2.1"
+regex = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 glutin = "0.31"

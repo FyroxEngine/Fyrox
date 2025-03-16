@@ -102,7 +102,9 @@ pub trait GraphicsServer: GraphicsServerAsAny {
         &self,
         name: &str,
         vertex_source: &str,
+        vertex_source_line_offset: isize,
         fragment_source: &str,
+        fragment_source_line_offset: isize,
         resources: &[ShaderResourceDefinition],
     ) -> Result<GpuProgram, FrameworkError>;
 

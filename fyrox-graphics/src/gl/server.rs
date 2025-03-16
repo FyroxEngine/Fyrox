@@ -1033,14 +1033,18 @@ impl GraphicsServer for GlGraphicsServer {
         &self,
         name: &str,
         vertex_source: &str,
+        vertex_source_line_offset: isize,
         fragment_source: &str,
+        fragment_source_line_offset: isize,
         resources: &[ShaderResourceDefinition],
     ) -> Result<GpuProgram, FrameworkError> {
         Ok(GpuProgram(Rc::new(GlProgram::from_source_and_resources(
             self,
             name,
             vertex_source,
+            vertex_source_line_offset,
             fragment_source,
+            fragment_source_line_offset,
             resources,
         )?)))
     }
