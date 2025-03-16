@@ -341,15 +341,19 @@ where
         self.untyped.set_kind(new_kind);
     }
 
-    /// Allows you to obtain reference to the resource data.
+    /// Allows you to get a reference to the resource data. The returned object implements [`Deref`]
+    /// and [`DerefMut`] traits, and basically acts like a reference to the resource value.
     ///
     /// # Panic
     ///
-    /// An attempt to use method result will panic if resource is not loaded yet, or
-    /// there was load error. Usually this is ok because normally you'd chain this call
-    /// like this `resource.await?.data_ref()`. Every resource implements Future trait
-    /// and it returns Result, so if you'll await future then you'll get Result, so
-    /// call to `data_ref` will be fine.
+    /// An attempt to dereference the returned object will result in panic if the resource is not
+    /// loaded yet, or there was a loading error. Usually this is ok because you should chain this
+    /// call like this `resource.await?.data_ref()`. Every resource implements [`Future`] trait,
+    /// and it returns Result, so if you'll await the future then you'll get Result, so call to
+    /// `data_ref` will be fine.
+    ///
+    /// You can also use [`ResourceDataRef::as_loaded_ref`] and [`ResourceDataRef::as_loaded_mut`]
+    /// methods that perform checked access to the resource internals.
     #[inline]
     pub fn data_ref(&self) -> ResourceDataRef<'_, T> {
         ResourceDataRef {
