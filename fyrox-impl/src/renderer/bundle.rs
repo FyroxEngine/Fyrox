@@ -348,12 +348,12 @@ impl RenderDataBundle {
         render_context: &mut BundleRenderContext,
     ) -> Option<BundleUniformData> {
         let mut material_state = self.material.state();
-
         let material = material_state.data()?;
 
         // Upload material property groups.
         let mut material_property_group_blocks = Vec::new();
-        let shader = material.shader().data_ref();
+        let shader_state = material.shader().state();
+        let shader = shader_state.data_ref()?;
         for resource_definition in shader.definition.resources.iter() {
             // Ignore built-in groups.
             if resource_definition.is_built_in() {
@@ -500,8 +500,7 @@ impl RenderDataBundle {
             .render_passes
             .get(render_context.render_pass_name)
         else {
-            let shader = material.shader();
-            let shader_state = shader.state();
+            let shader_state = material.shader().state();
             if let Some(shader_data) = shader_state.data_ref() {
                 if !shader_data
                     .definition
@@ -522,7 +521,10 @@ impl RenderDataBundle {
         };
 
         let mut material_bindings = ArrayVec::<ResourceBinding, 32>::new();
-        let shader = material.shader().data_ref();
+        let shader_state = material.shader().state();
+        let shader = shader_state
+            .data_ref()
+            .ok_or_else(|| FrameworkError::Custom("Invalid shader!".to_string()))?;
         for resource_definition in shader.definition.resources.iter() {
             let name = resource_definition.name.as_str();
 
