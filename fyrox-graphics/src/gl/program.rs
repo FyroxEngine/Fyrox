@@ -47,7 +47,7 @@ impl SamplerKind {
 }
 
 fn count_lines(src: &str) -> isize {
-    src.bytes().filter(|b| *b == b'\n').count() as isize + 1
+    src.bytes().filter(|b| *b == b'\n').count() as isize
 }
 
 enum Vendor {
@@ -199,9 +199,9 @@ impl GlProgram {
         server: &GlGraphicsServer,
         program_name: &str,
         vertex_source: &str,
-        vertex_source_line_offset: isize,
+        mut vertex_source_line_offset: isize,
         fragment_source: &str,
-        fragment_source_line_offset: isize,
+        mut fragment_source_line_offset: isize,
         resources: &[ShaderResourceDefinition],
     ) -> Result<GlProgram, FrameworkError> {
         let mut vertex_source = vertex_source.to_string();
@@ -237,7 +237,10 @@ impl GlProgram {
         }
 
         // Generate appropriate texture binding points and uniform blocks for the specified properties.
-        for initial_source in [&mut vertex_source, &mut fragment_source] {
+        for (offset, initial_source) in [
+            (&mut vertex_source_line_offset, &mut vertex_source),
+            (&mut fragment_source_line_offset, &mut fragment_source),
+        ] {
             let mut texture_bindings = String::new();
 
             for property in resources {
@@ -323,10 +326,12 @@ impl GlProgram {
                         block += "};\n";
                         block += &format!("layout(std140) uniform U{resource_name} {{ T{resource_name} {resource_name}; }};\n");
                         initial_source.insert_str(0, &block);
+                        *offset -= count_lines(&block);
                     }
                 }
             }
             initial_source.insert_str(0, &texture_bindings);
+            *offset -= count_lines(&texture_bindings);
         }
 
         let program = Self::from_source(
