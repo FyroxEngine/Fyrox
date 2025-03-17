@@ -28,6 +28,7 @@ use crate::{
     },
 };
 use glow::HasContext;
+use std::ops::Range;
 use std::{marker::PhantomData, rc::Weak};
 
 impl SamplerKind {
@@ -49,16 +50,65 @@ fn count_lines(src: &str) -> isize {
     src.bytes().filter(|b| *b == b'\n').count() as isize + 1
 }
 
-fn patch_error_message(src: &mut String, line_offset: isize) {
-    // TODO: This works with nvidia only for now.
-    let re = regex::Regex::new(r"\([0-9]*\)").unwrap();
+enum Vendor {
+    Nvidia,
+    Intel,
+    Amd,
+    Other,
+}
+
+impl Vendor {
+    fn from_str(str: String) -> Self {
+        if str.contains("nvidia") {
+            Self::Nvidia
+        } else if str.contains("amd") {
+            Self::Amd
+        } else if str.contains("intel") {
+            Self::Intel
+        } else {
+            Self::Other
+        }
+    }
+
+    fn regex(&self) -> regex::Regex {
+        match self {
+            Self::Nvidia => regex::Regex::new(r"\([0-9]*\)").unwrap(),
+            Self::Intel | Vendor::Amd => regex::Regex::new(r"[0-9]*:").unwrap(),
+            Self::Other => regex::Regex::new(r":[0-9]*").unwrap(),
+        }
+    }
+
+    fn line_number_range(&self, match_range: regex::Match) -> Range<usize> {
+        match self {
+            Self::Nvidia => (match_range.start() + 1)..(match_range.end() - 1),
+            Self::Intel | Vendor::Amd => match_range.start()..(match_range.end() - 1),
+            Self::Other => (match_range.start() + 1)..match_range.end(),
+        }
+    }
+
+    fn format_line(&self, new_line_number: isize) -> String {
+        match self {
+            Vendor::Nvidia => {
+                format!("({new_line_number})")
+            }
+            Vendor::Intel | Vendor::Amd => {
+                format!("{new_line_number}:")
+            }
+            Vendor::Other => format!(":{new_line_number}"),
+        }
+    }
+}
+
+fn patch_error_message(vendor: Vendor, src: &mut String, line_offset: isize) {
+    let re = vendor.regex();
     let mut offset = 0;
     while let Some(result) = re.find_at(src, offset) {
         offset += result.end();
-        let substr = &src[(result.start() + 1)..(result.end() - 1)];
+        let range = vendor.line_number_range(result);
+        let substr = &src[range];
         if let Ok(line_number) = substr.parse::<isize>() {
             let new_line_number = line_number + line_offset;
-            let new_substr = format!("({new_line_number})");
+            let new_substr = vendor.format_line(new_line_number);
             src.replace_range(result.range(), &new_substr);
         }
     }
@@ -76,8 +126,6 @@ unsafe fn create_shader(
     let merged_source = prepare_source_code(source, gl_kind);
     line_offset -= count_lines(&merged_source) - initial_lines_count;
 
-    Log::info(&merged_source);
-
     let shader = server.gl.create_shader(actual_type)?;
     server.gl.shader_source(shader, &merged_source);
     server.gl.compile_shader(shader);
@@ -86,7 +134,9 @@ unsafe fn create_shader(
     let mut compilation_message = server.gl.get_shader_info_log(shader);
 
     if !status {
-        patch_error_message(&mut compilation_message, line_offset);
+        let vendor_str = unsafe { server.gl.get_parameter_string(glow::VENDOR).to_lowercase() };
+        let vendor = Vendor::from_str(vendor_str);
+        patch_error_message(vendor, &mut compilation_message, line_offset);
         Log::writeln(
             MessageKind::Error,
             format!("Failed to compile {name} shader:\n{compilation_message}"),
@@ -399,5 +449,23 @@ impl Drop for GlProgram {
                 state.gl.delete_program(self.id);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::gl::program::{patch_error_message, Vendor};
+
+    #[test]
+    fn test_line_correction() {
+        let mut err_msg = r#"0(62) : error C0000: syntax error, unexpected identifier, expecting '{' at token "vertexPosition"
+        0(66) : error C1503: undefined variable "vertexPosition""#.to_string();
+
+        patch_error_message(Vendor::Nvidia, &mut err_msg, 10);
+
+        let expected_result = r#"0(72) : error C0000: syntax error, unexpected identifier, expecting '{' at token "vertexPosition"
+        0(76) : error C1503: undefined variable "vertexPosition""#;
+
+        assert_eq!(err_msg, expected_result);
     }
 }
