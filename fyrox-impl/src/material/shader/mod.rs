@@ -631,17 +631,21 @@ impl ShaderDefinition {
                 + 1
         }
 
+        let vertex_shader_regex = regex::Regex::new(r#"vertex_shader\s*:\s*r?#*""#).unwrap();
+        let fragment_shader_regex = regex::Regex::new(r#"fragment_shader\s*:\s*r?#*""#).unwrap();
+
         let mut substr = str;
         for pass in self.passes.iter_mut() {
             let name_location = some_or_continue!(substr.find(&format!("\"{}\"", pass.name)));
-            let vertex_shader_location = some_or_continue!(substr.find("vertex_shader:"));
-            let fragment_shader_location = some_or_continue!(substr.find("fragment_shader:"));
+            let vertex_shader_location = some_or_continue!(vertex_shader_regex.find(substr));
+            let fragment_shader_location = some_or_continue!(fragment_shader_regex.find(substr));
             let offset = str.len() - substr.len();
-            pass.vertex_shader_line = find_line(&line_ends, offset + vertex_shader_location);
-            pass.fragment_shader_line = find_line(&line_ends, offset + fragment_shader_location);
+            pass.vertex_shader_line = find_line(&line_ends, offset + vertex_shader_location.end());
+            pass.fragment_shader_line =
+                find_line(&line_ends, offset + fragment_shader_location.end());
             let max = name_location
-                .max(vertex_shader_location)
-                .max(fragment_shader_location);
+                .max(vertex_shader_location.end())
+                .max(fragment_shader_location.end());
             substr = &substr[(max + 1)..];
         }
     }
