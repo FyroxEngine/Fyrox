@@ -909,10 +909,9 @@ impl VertexBuffer {
     ///
     /// # Performance
     ///
-    /// This method returns special structure which has custom destructor that
-    /// calculates hash of the data once modification is over. You **must** hold
-    /// this structure as long as possible while modifying contents of the buffer.
-    /// Do **not** even try to do this:
+    /// This method returns a special structure which has custom destructor that increases use
+    /// counter of the data once modification is over. You **must** hold this structure as long as
+    /// possible while modifying the contents of the buffer. Do **not** even try to do this:
     ///
     /// ```no_run
     /// use fyrox_impl::{
@@ -922,7 +921,7 @@ impl VertexBuffer {
     /// fn do_something(buffer: &mut VertexBuffer) {
     ///     for i in 0..buffer.vertex_count() {
     ///         buffer
-    ///             .modify() // Doing this in a loop will cause HUGE performance issues!
+    ///             .modify() // Doing this in a loop will cause performance issues!
     ///             .get_mut(i as usize)
     ///             .unwrap()
     ///             .write_3_f32(VertexAttributeUsage::Position, Vector3::<f32>::default())
@@ -931,7 +930,7 @@ impl VertexBuffer {
     /// }
     /// ```
     ///
-    /// Instead do this:
+    /// Instead, do this:
     ///
     /// ```no_run
     /// use fyrox_impl::{
@@ -948,8 +947,8 @@ impl VertexBuffer {
     /// }
     /// ```
     ///
-    /// Why do we even need such complications? It is used for lazy hash calculation which is
-    /// used for automatic upload of contents to GPU in case if content has changed.
+    /// Why do we even need such complications? It is used to notify the GPU that the content has
+    /// changed and must be re-uploaded to the GPU.
     pub fn modify(&mut self) -> VertexBufferRefMut<'_> {
         VertexBufferRefMut {
             vertex_buffer: self,
