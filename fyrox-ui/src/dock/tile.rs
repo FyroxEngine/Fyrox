@@ -114,6 +114,81 @@ fn send_background(ui: &UserInterface, destination: Handle<UiNode>, color: Color
     ));
 }
 
+/// The window contained by the tile at the given handle, if the handle points
+/// to a tile and the tile has [`TileContent::Window`].
+fn get_tile_window(ui: &UserInterface, tile: Handle<UiNode>) -> Option<&Window> {
+    let tile = ui.node(tile).cast::<Tile>()?;
+    let TileContent::Window(handle) = &tile.content else {
+        return None;
+    };
+    ui.node(*handle).cast::<Window>()
+}
+
+/// True if the the given handle points to a tile that has been minimized.
+fn is_minimized_window(ui: &UserInterface, tile: Handle<UiNode>) -> bool {
+    let Some(window) = get_tile_window(ui, tile) else {
+        return false;
+    };
+    window.minimized()
+}
+
+/// True if the given `TileContent` contains exactly one minimized tile as one of its
+/// two members. Only [`TileContent::VerticalTiles`] or [`TileContent::HorizontalTiles`]
+/// may satisfyin this condition, and only if at least one of its two child tiles
+/// is a window tile. This serves to detect the case when a tile needs special layout
+/// calculation.
+fn has_one_minimized(ui: &UserInterface, content: &TileContent) -> bool {
+    let tiles = if let TileContent::VerticalTiles { tiles, .. } = content {
+        Some(tiles)
+    } else if let TileContent::HorizontalTiles { tiles, .. } = content {
+        Some(tiles)
+    } else {
+        None
+    };
+    if let Some(tiles) = tiles {
+        tiles
+            .iter()
+            .filter(|h| is_minimized_window(ui, **h))
+            .count()
+            == 1
+    } else {
+        false
+    }
+}
+
+/// Given two tiles and the handle of a window, check that one of the two tiles
+/// is a window tile that is holding the given window, and if so then ensure
+/// that the other tile is not a minimized window. The idea is to ensure
+/// that at most one of the two tiles is minimized at any time.
+fn deminimize_other_window(
+    this_window: Handle<UiNode>,
+    tiles: &[Handle<UiNode>; 2],
+    ui: &UserInterface,
+) {
+    let mut has_this_window = false;
+    let mut other_window: Option<Handle<UiNode>> = None;
+    for tile in tiles.iter() {
+        let Some(window) = get_tile_window(ui, *tile) else {
+            return;
+        };
+        if window.handle() == this_window {
+            has_this_window = true;
+        } else if window.minimized() {
+            other_window = Some(window.handle());
+        }
+    }
+    if !has_this_window {
+        return;
+    }
+    if let Some(handle) = other_window {
+        ui.send_message(WindowMessage::minimize(
+            handle,
+            MessageDirection::ToWidget,
+            false,
+        ));
+    }
+}
+
 #[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
 pub struct Tile {
@@ -147,6 +222,9 @@ uuid_provider!(Tile = "8ed17fa9-890e-4dd7-b4f9-a24660882234");
 
 impl Control for Tile {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
+        if has_one_minimized(ui, &self.content) {
+            return self.measure_vertical_with_minimized(ui, available_size);
+        }
         for &child_handle in self.children() {
             // Determine available size for each child by its kind:
             // - Every child not in content of tile just takes whole available size.
@@ -182,12 +260,36 @@ impl Control for Tile {
 
             ui.measure_node(child_handle, available_size);
         }
-
-        available_size
+        match self.content {
+            TileContent::Empty => Vector2::default(),
+            TileContent::Window(handle) => ui.node(handle).desired_size(),
+            TileContent::VerticalTiles { tiles, .. } => {
+                let mut w = 0.0f32;
+                let mut h = DEFAULT_SPLITTER_SIZE;
+                for size in tiles.map(|c| ui.node(c).desired_size()) {
+                    w = w.max(size.x);
+                    h += size.y;
+                }
+                Vector2::new(w, h)
+            }
+            TileContent::HorizontalTiles { tiles, .. } => {
+                let mut w = DEFAULT_SPLITTER_SIZE;
+                let mut h = 0.0f32;
+                for size in tiles.map(|c| ui.node(c).desired_size()) {
+                    w += size.x;
+                    h = h.max(size.y);
+                }
+                Vector2::new(w, h)
+            }
+        }
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let splitter_size = ui.node(self.splitter).desired_size();
+
+        if has_one_minimized(ui, &self.content) {
+            return self.arrange_vertical_with_minimized(ui, final_size);
+        }
 
         for &child_handle in self.children() {
             let full_bounds = Rect::new(0.0, 0.0, final_size.x, final_size.y);
@@ -202,21 +304,21 @@ impl Control for Tile {
                             0.0,
                             0.0,
                             final_size.x,
-                            final_size.y * splitter - splitter_size.y * 0.5,
+                            final_size.y * splitter - DEFAULT_SPLITTER_SIZE * 0.5,
                         )
                     } else if tiles[1] == child_handle {
                         Rect::new(
                             0.0,
                             final_size.y * splitter + splitter_size.y * 0.5,
                             final_size.x,
-                            final_size.y * (1.0 - splitter) - splitter_size.y * 0.5,
+                            final_size.y * (1.0 - splitter) - DEFAULT_SPLITTER_SIZE * 0.5,
                         )
                     } else if self.splitter == child_handle {
                         Rect::new(
                             0.0,
-                            final_size.y * splitter - splitter_size.y * 0.5,
+                            final_size.y * splitter - DEFAULT_SPLITTER_SIZE * 0.5,
                             final_size.x,
-                            splitter_size.y,
+                            DEFAULT_SPLITTER_SIZE,
                         )
                     } else {
                         full_bounds
@@ -230,21 +332,21 @@ impl Control for Tile {
                         Rect::new(
                             0.0,
                             0.0,
-                            final_size.x * splitter - splitter_size.x * 0.5,
+                            final_size.x * splitter - DEFAULT_SPLITTER_SIZE * 0.5,
                             final_size.y,
                         )
                     } else if tiles[1] == child_handle {
                         Rect::new(
-                            final_size.x * splitter + splitter_size.x * 0.5,
+                            final_size.x * splitter + DEFAULT_SPLITTER_SIZE * 0.5,
                             0.0,
-                            final_size.x * (1.0 - splitter) - splitter_size.x * 0.5,
+                            final_size.x * (1.0 - splitter) - DEFAULT_SPLITTER_SIZE * 0.5,
                             final_size.y,
                         )
                     } else if self.splitter == child_handle {
                         Rect::new(
-                            final_size.x * splitter - splitter_size.x * 0.5,
+                            final_size.x * splitter - DEFAULT_SPLITTER_SIZE * 0.5,
                             0.0,
-                            splitter_size.x,
+                            DEFAULT_SPLITTER_SIZE,
                             final_size.y,
                         )
                     } else {
@@ -305,12 +407,6 @@ impl Control for Tile {
                                 send_visibility(ui, self.splitter, true);
                                 match content {
                                     TileContent::HorizontalTiles { .. } => {
-                                        send_size(
-                                            ui,
-                                            self.splitter,
-                                            DEFAULT_SPLITTER_SIZE,
-                                            f32::INFINITY,
-                                        );
                                         ui.send_message(WidgetMessage::cursor(
                                             self.splitter,
                                             MessageDirection::ToWidget,
@@ -318,12 +414,6 @@ impl Control for Tile {
                                         ));
                                     }
                                     TileContent::VerticalTiles { .. } => {
-                                        send_size(
-                                            ui,
-                                            self.splitter,
-                                            f32::INFINITY,
-                                            DEFAULT_SPLITTER_SIZE,
-                                        );
                                         ui.send_message(WidgetMessage::cursor(
                                             self.splitter,
                                             MessageDirection::ToWidget,
@@ -349,7 +439,10 @@ impl Control for Tile {
         } else if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 &WidgetMessage::MouseDown { .. } => {
-                    if !message.handled() && message.destination() == self.splitter {
+                    if !message.handled()
+                        && message.destination() == self.splitter
+                        && !has_one_minimized(ui, &self.content)
+                    {
                         message.set_handled(true);
                         self.dragging_splitter = true;
                         ui.capture_mouse(self.splitter);
@@ -480,6 +573,35 @@ impl Control for Tile {
             // We can catch any message from window while it docked.
         } else if let Some(msg) = message.data::<WindowMessage>() {
             match msg {
+                WindowMessage::Maximize(true) => {
+                    // Check if we are maximizing the child window.
+                    let content_moved = match self.content {
+                        TileContent::Window(window) => window == message.destination(),
+                        _ => false,
+                    };
+                    if content_moved {
+                        // Undock the window and re-maximize it, since maximization does nothing to a docked window
+                        // because docked windows are not resizable.
+                        if let Some(window) = ui.node(message.destination()).cast::<Window>() {
+                            self.undock(window, ui);
+                            ui.send_message(WindowMessage::maximize(
+                                window.handle(),
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
+                        }
+                    }
+                }
+                WindowMessage::Minimize(true) => {
+                    let tiles = match &self.content {
+                        TileContent::VerticalTiles { tiles, .. } => Some(tiles),
+                        TileContent::HorizontalTiles { tiles, .. } => Some(tiles),
+                        _ => None,
+                    };
+                    if let Some(tiles) = tiles {
+                        deminimize_other_window(message.destination(), tiles, ui);
+                    }
+                }
                 WindowMessage::Move(_) => {
                     // Check if we dragging child window.
                     let content_moved = match self.content {
@@ -490,38 +612,7 @@ impl Control for Tile {
                     if content_moved {
                         if let Some(window) = ui.node(message.destination()).cast::<Window>() {
                             if window.drag_delta.norm() > 20.0 {
-                                ui.send_message(TileMessage::content(
-                                    self.handle,
-                                    MessageDirection::ToWidget,
-                                    TileContent::Empty,
-                                ));
-
-                                ui.send_message(WidgetMessage::unlink(
-                                    message.destination(),
-                                    MessageDirection::ToWidget,
-                                ));
-
-                                ui.send_message(WindowMessage::can_resize(
-                                    message.destination(),
-                                    MessageDirection::ToWidget,
-                                    true,
-                                ));
-
-                                send_size(
-                                    ui,
-                                    message.destination(),
-                                    self.actual_local_size().x,
-                                    self.actual_local_size().y,
-                                );
-
-                                if let Some((_, docking_manager)) =
-                                    ui.find_component_up::<DockingManager>(self.parent())
-                                {
-                                    docking_manager
-                                        .floating_windows
-                                        .borrow_mut()
-                                        .push(message.destination());
-                                }
+                                self.undock(window, ui);
                             }
                         }
                     }
@@ -751,6 +842,111 @@ pub enum SplitDirection {
 }
 
 impl Tile {
+    /// Remove window from this tile. When this is called
+    /// this tile should have [`TileContent::Window`] and the window
+    /// contained in this tile must be given window.
+    fn undock(&mut self, window: &Window, ui: &UserInterface) {
+        ui.send_message(TileMessage::content(
+            self.handle,
+            MessageDirection::ToWidget,
+            TileContent::Empty,
+        ));
+
+        ui.send_message(WidgetMessage::unlink(
+            window.handle(),
+            MessageDirection::ToWidget,
+        ));
+
+        ui.send_message(WindowMessage::can_resize(
+            window.handle(),
+            MessageDirection::ToWidget,
+            true,
+        ));
+
+        let height = if window.minimized() {
+            f32::NAN
+        } else {
+            self.actual_local_size().y
+        };
+
+        send_size(ui, window.handle(), self.actual_local_size().x, height);
+
+        if let Some((_, docking_manager)) = ui.find_component_up::<DockingManager>(self.parent()) {
+            docking_manager
+                .floating_windows
+                .borrow_mut()
+                .push(window.handle());
+        }
+    }
+    /// Measure the tile in the special case where exactly one of the two child tiles
+    /// is a minimized window. The minimized window is put at the top or bottom of the tile
+    /// at its natural size, while the unminimized child is made to fill the rest of the tile.
+    fn measure_vertical_with_minimized(
+        &self,
+        ui: &UserInterface,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
+        let tiles = match self.content {
+            TileContent::VerticalTiles { ref tiles, .. } => tiles,
+            TileContent::HorizontalTiles { ref tiles, .. } => tiles,
+            _ => return Vector2::default(),
+        };
+        let minimized_index = tiles
+            .iter()
+            .position(|h| is_minimized_window(ui, *h))
+            .unwrap();
+        let minimized_handle = tiles[minimized_index];
+        let mut size = Vector2::new(available_size.x, f32::INFINITY);
+        ui.measure_node(minimized_handle, size);
+        size.y = available_size.y;
+        let other_index = if minimized_index == 0 { 1 } else { 0 };
+        ui.measure_node(tiles[other_index], size);
+        size.y = 0.0;
+        ui.measure_node(self.splitter, size);
+        let d_1 = ui.node(minimized_handle).desired_size();
+        let d_2 = ui.node(tiles[other_index]).desired_size();
+        Vector2::new(d_1.x.max(d_2.x), d_1.y + d_2.y)
+    }
+    /// Arrange the tile in the special case where exactly one of the two child tiles
+    /// is a minimized window. The minimized window is put at the top or bottom of the tile
+    /// at its natural size, while the unminimized child is made to fill the rest of the tile.
+    fn arrange_vertical_with_minimized(
+        &self,
+        ui: &UserInterface,
+        final_size: Vector2<f32>,
+    ) -> Vector2<f32> {
+        let tiles = match self.content {
+            TileContent::VerticalTiles { ref tiles, .. } => tiles,
+            TileContent::HorizontalTiles { ref tiles, .. } => tiles,
+            _ => return final_size,
+        };
+        let minimized_index = tiles
+            .iter()
+            .position(|h| is_minimized_window(ui, *h))
+            .unwrap();
+        let minimized_handle = tiles[minimized_index];
+        let height = ui.node(minimized_handle).desired_size().y;
+        let mut bounds = if minimized_index == 0 {
+            Rect::new(0.0, 0.0, final_size.x, height)
+        } else {
+            Rect::new(0.0, final_size.y - height, final_size.x, height)
+        };
+        ui.arrange_node(minimized_handle, &bounds);
+        let remaining_height = final_size.y - height;
+        bounds.position.y = if minimized_index == 0 {
+            height
+        } else {
+            remaining_height
+        };
+        bounds.size.y = 0.0;
+        ui.arrange_node(self.splitter, &bounds);
+        bounds.position.y = if minimized_index == 0 { height } else { 0.0 };
+        bounds.size.y = remaining_height;
+        let other_index = if minimized_index == 0 { 1 } else { 0 };
+        ui.arrange_node(tiles[other_index], &bounds);
+        final_size
+    }
+
     pub fn anchors(&self) -> [Handle<UiNode>; 5] {
         [
             self.left_anchor,
@@ -883,20 +1079,6 @@ impl TileBuilder {
 
         let splitter = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_width({
-                    if let TileContent::HorizontalTiles { .. } = self.content {
-                        DEFAULT_SPLITTER_SIZE
-                    } else {
-                        f32::INFINITY
-                    }
-                })
-                .with_height({
-                    if let TileContent::VerticalTiles { .. } = self.content {
-                        DEFAULT_SPLITTER_SIZE
-                    } else {
-                        f32::INFINITY
-                    }
-                })
                 .with_visibility(matches!(
                     self.content,
                     TileContent::VerticalTiles { .. } | TileContent::HorizontalTiles { .. }
