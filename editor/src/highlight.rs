@@ -146,6 +146,7 @@ impl SceneRenderPass for HighlightRenderPass {
                 storage: &mut render_bundle_storage,
                 graph: &ctx.scene.graph,
                 render_pass_name: &render_pass_name,
+                dynamic_surface_cache: ctx.dynamic_surface_cache,
             };
 
             for &root_node_handle in self.nodes_to_highlight.iter() {

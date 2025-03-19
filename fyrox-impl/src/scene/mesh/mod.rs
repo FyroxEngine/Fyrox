@@ -24,6 +24,7 @@
 use crate::material::{
     Material, MaterialResourceBinding, MaterialResourceExtension, MaterialTextureBinding,
 };
+use crate::renderer::DynamicSurfaceCache;
 use crate::resource::texture::PLACEHOLDER;
 use crate::scene::mesh::surface::SurfaceBuilder;
 use crate::scene::node::constructor::NodeConstructor;
@@ -52,7 +53,7 @@ use crate::{
         graph::Graph,
         mesh::{
             buffer::{
-                BytesStorage, TriangleBuffer, TriangleBufferRefMut, VertexAttributeDescriptor,
+                TriangleBuffer, TriangleBufferRefMut, VertexAttributeDescriptor,
                 VertexAttributeUsage, VertexBuffer, VertexBufferRefMut, VertexReadTrait,
                 VertexViewMut, VertexWriteTrait,
             },
@@ -183,6 +184,7 @@ impl BatchContainer {
                 storage: self,
                 graph: ctx.graph,
                 render_pass_name: ctx.render_pass_name,
+                dynamic_surface_cache: ctx.dynamic_surface_cache,
             });
         }
     }
@@ -200,6 +202,7 @@ impl Clone for BatchContainerWrapper {
 impl RenderDataBundleStorageTrait for BatchContainer {
     fn push_triangles(
         &mut self,
+        dynamic_surface_cache: &mut DynamicSurfaceCache,
         layout: &[VertexAttributeDescriptor],
         material: &MaterialResource,
         _render_path: RenderPath,
@@ -213,14 +216,7 @@ impl RenderDataBundleStorageTrait for BatchContainer {
         let batch_hash = hasher.finish();
 
         let batch = self.batches.entry(batch_hash).or_insert_with(|| Batch {
-            data: SurfaceResource::new_ok(
-                ResourceKind::Embedded,
-                SurfaceData::new(
-                    VertexBuffer::new_with_layout(layout, 0, BytesStorage::with_capacity(4096))
-                        .unwrap(),
-                    TriangleBuffer::new(Vec::with_capacity(4096)),
-                ),
-            ),
+            data: dynamic_surface_cache.get_or_create(batch_hash, layout),
             material: material.clone(),
         });
 
@@ -777,6 +773,7 @@ impl NodeTrait for Mesh {
                         let surface_data_guard = surface.data_ref().data_ref();
 
                         ctx.storage.push_triangles(
+                            ctx.dynamic_surface_cache,
                             &surface_data_guard
                                 .vertex_buffer
                                 .layout_descriptor()

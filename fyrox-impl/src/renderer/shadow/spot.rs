@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::DynamicSurfaceCache;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -128,6 +129,7 @@ impl SpotShadowMapRenderer {
         texture_cache: &mut TextureCache,
         fallback_resources: &FallbackResources,
         uniform_memory_allocator: &mut UniformMemoryAllocator,
+        dynamic_surface_cache: &mut DynamicSurfaceCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 
@@ -152,6 +154,7 @@ impl SpotShadowMapRenderer {
             RenderDataBundleStorageOptions {
                 collect_lights: false,
             },
+            dynamic_surface_cache,
         );
 
         statistics += bundle_storage.render_to_frame_buffer(

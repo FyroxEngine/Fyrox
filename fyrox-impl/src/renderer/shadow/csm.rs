@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::DynamicSurfaceCache;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -107,6 +108,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub texture_cache: &'a mut TextureCache,
     pub fallback_resources: &'a FallbackResources,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
+    pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
 }
 
 impl CsmRenderer {
@@ -156,6 +158,7 @@ impl CsmRenderer {
             texture_cache,
             fallback_resources,
             uniform_memory_allocator,
+            dynamic_surface_cache,
         } = ctx;
 
         let LightSourceKind::Directional { ref csm_options } = light.kind else {
@@ -261,6 +264,7 @@ impl CsmRenderer {
                 RenderDataBundleStorageOptions {
                     collect_lights: false,
                 },
+                dynamic_surface_cache,
             );
 
             stats += bundle_storage.render_to_frame_buffer(

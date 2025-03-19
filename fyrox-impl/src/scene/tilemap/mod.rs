@@ -203,6 +203,7 @@ impl TileMapRenderContext<'_, '_> {
         let sort_index = self.context.calculate_sorting_index(self.position());
 
         self.context.storage.push_triangles(
+            self.context.dynamic_surface_cache,
             RectangleVertex::layout(),
             &STANDARD_2D.resource,
             RenderPath::Forward,
@@ -247,6 +248,7 @@ impl TileMapRenderContext<'_, '_> {
         let sort_index = self.context.calculate_sorting_index(self.position());
 
         self.context.storage.push_triangles(
+            self.context.dynamic_surface_cache,
             TileVertex::layout(),
             material,
             RenderPath::Forward,

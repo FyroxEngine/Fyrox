@@ -217,6 +217,7 @@ fn push_highlight(
         .saturating_sub(1);
 
     ctx.context.storage.push_triangles(
+        ctx.context.dynamic_surface_cache,
         StaticVertex::layout(),
         material,
         RenderPath::Forward,
@@ -249,6 +250,7 @@ fn push_cursor(
     let sort_index = ctx.context.calculate_sorting_index(ctx.position());
 
     ctx.context.storage.push_triangles(
+        ctx.context.dynamic_surface_cache,
         StaticVertex::layout(),
         material,
         RenderPath::Forward,

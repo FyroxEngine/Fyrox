@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::DynamicSurfaceCache;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -99,6 +100,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub visibility_cache: &'a mut ObserverVisibilityCache,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
+    pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
 }
 
 impl DeferredLightRenderer {
@@ -309,6 +311,7 @@ impl DeferredLightRenderer {
             uniform_buffer_cache,
             visibility_cache,
             uniform_memory_allocator,
+            dynamic_surface_cache,
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
@@ -621,6 +624,7 @@ impl DeferredLightRenderer {
                             textures,
                             fallback_resources,
                             uniform_memory_allocator,
+                            dynamic_surface_cache,
                         )?;
 
                         light_stats.spot_shadow_maps_rendered += 1;
@@ -640,6 +644,7 @@ impl DeferredLightRenderer {
                                     texture_cache: textures,
                                     fallback_resources,
                                     uniform_memory_allocator,
+                                    dynamic_surface_cache,
                                 })?;
 
                         light_stats.point_shadow_maps_rendered += 1;
@@ -657,6 +662,7 @@ impl DeferredLightRenderer {
                             texture_cache: textures,
                             fallback_resources,
                             uniform_memory_allocator,
+                            dynamic_surface_cache,
                         })?;
 
                         light_stats.csm_rendered += 1;

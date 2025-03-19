@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::DynamicSurfaceCache;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -73,6 +74,7 @@ pub(crate) struct PointShadowMapRenderContext<'a> {
     pub texture_cache: &'a mut TextureCache,
     pub fallback_resources: &'a FallbackResources,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
+    pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
 }
 
 impl PointShadowMapRenderer {
@@ -194,6 +196,7 @@ impl PointShadowMapRenderer {
             texture_cache,
             fallback_resources,
             uniform_memory_allocator,
+            dynamic_surface_cache,
         } = args;
 
         let framebuffer = &self.cascades[cascade];
@@ -231,6 +234,7 @@ impl PointShadowMapRenderer {
                 RenderDataBundleStorageOptions {
                     collect_lights: false,
                 },
+                dynamic_surface_cache,
             );
 
             statistics += bundle_storage.render_to_frame_buffer(

@@ -639,6 +639,7 @@ impl NodeTrait for ParticleSystem {
         let sort_index = ctx.calculate_sorting_index(self.global_position());
 
         ctx.storage.push_triangles(
+            ctx.dynamic_surface_cache,
             Vertex::layout(),
             &self.material,
             RenderPath::Forward,

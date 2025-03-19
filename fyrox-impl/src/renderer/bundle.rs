@@ -23,7 +23,6 @@
 #![allow(missing_docs)] // TODO
 
 use crate::{
-    asset::untyped::ResourceKind,
     core::{
         algebra::{Matrix4, Vector3, Vector4},
         arrayvec::ArrayVec,
@@ -36,8 +35,7 @@ use crate::{
         sstorage::ImmutableString,
     },
     graph::BaseSceneGraph,
-    material::MaterialPropertyRef,
-    material::{self, shader::ShaderDefinition, MaterialResource},
+    material::{self, shader::ShaderDefinition, MaterialPropertyRef, MaterialResource},
     renderer::{
         cache::{
             geometry::GeometryCache,
@@ -48,8 +46,7 @@ use crate::{
         },
         framework::{
             error::FrameworkError,
-            framebuffer::GpuFrameBuffer,
-            framebuffer::{ResourceBindGroup, ResourceBinding},
+            framebuffer::{GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
             gpu_program::{ShaderProperty, ShaderPropertyKind, ShaderResourceKind},
             gpu_texture::GpuTexture,
             server::GraphicsServer,
@@ -57,7 +54,7 @@ use crate::{
             uniform::{ByteStorage, UniformBuffer},
             ElementRange,
         },
-        FallbackResources, LightData, RenderPassStatistics,
+        DynamicSurfaceCache, FallbackResources, LightData, RenderPassStatistics,
     },
     resource::texture::TextureResource,
     scene::{
@@ -69,11 +66,8 @@ use crate::{
             BaseLight,
         },
         mesh::{
-            buffer::{
-                BytesStorage, TriangleBuffer, TriangleBufferRefMut, VertexAttributeDescriptor,
-                VertexBuffer, VertexBufferRefMut,
-            },
-            surface::{SurfaceData, SurfaceResource},
+            buffer::{TriangleBufferRefMut, VertexAttributeDescriptor, VertexBufferRefMut},
+            surface::SurfaceResource,
             RenderPath,
         },
         node::{Node, RdcControlFlow},
@@ -121,6 +115,7 @@ pub struct RenderContext<'a> {
     pub graph: &'a Graph,
     /// A name of the render pass for which the context was created for.
     pub render_pass_name: &'a ImmutableString,
+    pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
 }
 
 impl RenderContext<'_> {
@@ -170,6 +165,18 @@ pub struct SurfaceInstanceData {
     pub element_range: ElementRange,
     /// A handle of a node that emitted this surface data. Could be none, if there's no info about scene node.
     pub node_handle: Handle<Node>,
+}
+
+impl Default for SurfaceInstanceData {
+    fn default() -> Self {
+        Self {
+            world_transform: Matrix4::identity(),
+            bone_matrices: Default::default(),
+            blend_shapes_weights: Default::default(),
+            element_range: Default::default(),
+            node_handle: Default::default(),
+        }
+    }
 }
 
 /// A set of surface instances that share the same vertex/index data and a material.
@@ -713,6 +720,7 @@ pub trait RenderDataBundleStorageTrait {
     /// pre-processing them on CPU could take more time than rendering them directly on GPU one-by-one.
     fn push_triangles(
         &mut self,
+        dynamic_surface_cache: &mut DynamicSurfaceCache,
         layout: &[VertexAttributeDescriptor],
         material: &MaterialResource,
         render_path: RenderPath,
@@ -810,6 +818,7 @@ impl RenderDataBundleStorage {
         observer_info: ObserverInfo,
         render_pass_name: ImmutableString,
         options: RenderDataBundleStorageOptions,
+        dynamic_surface_cache: &mut DynamicSurfaceCache,
     ) -> Self {
         // Aim for the worst-case scenario when every node has unique render data.
         let capacity = graph.node_count() as usize;
@@ -900,6 +909,7 @@ impl RenderDataBundleStorage {
             storage: &mut storage,
             graph,
             render_pass_name: &render_pass_name,
+            dynamic_surface_cache,
         };
 
         #[inline(always)]
@@ -1092,6 +1102,7 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
     /// pre-processing them on CPU could take more time than rendering them directly on GPU one-by-one.
     fn push_triangles(
         &mut self,
+        dynamic_surface_cache: &mut DynamicSurfaceCache,
         layout: &[VertexAttributeDescriptor],
         material: &MaterialResource,
         render_path: RenderPath,
@@ -1108,43 +1119,20 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
         let bundle = if let Some(&bundle_index) = self.bundle_map.get(&key) {
             self.bundles.get_mut(bundle_index).unwrap()
         } else {
-            let default_capacity = 4096;
-
-            // Initialize empty vertex buffer.
-            let vertex_buffer = VertexBuffer::new_with_layout(
-                layout,
-                0,
-                BytesStorage::with_capacity(default_capacity),
-            )
-            .unwrap();
-
-            // Initialize empty triangle buffer.
-            let triangle_buffer = TriangleBuffer::new(Vec::with_capacity(default_capacity * 3));
-
-            // Create temporary surface data (valid for one frame).
-            let data = SurfaceResource::new_ok(
-                ResourceKind::Embedded,
-                SurfaceData::new(vertex_buffer, triangle_buffer),
-            );
-
             self.bundle_map.insert(key, self.bundles.len());
             self.bundles.push(RenderDataBundle {
-                data,
+                data: dynamic_surface_cache.get_or_create(key, layout),
                 sort_index,
                 instances: vec![
                     // Each bundle must have at least one instance to be rendered.
                     SurfaceInstanceData {
-                        world_transform: Matrix4::identity(),
-                        bone_matrices: Default::default(),
-                        blend_shapes_weights: Default::default(),
-                        element_range: Default::default(),
                         node_handle,
+                        ..Default::default()
                     },
                 ],
                 material: material.clone(),
                 render_path,
-                // Temporary buffer lives one frame.
-                time_to_live: TimeToLive(0.0),
+                time_to_live: Default::default(),
             });
             self.bundles.last_mut().unwrap()
         };

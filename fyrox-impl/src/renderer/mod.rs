@@ -98,13 +98,24 @@ use crate::{
         visibility::VisibilityCache,
     },
     resource::texture::{Texture, TextureKind, TextureResource},
-    scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
+    scene::{
+        camera::Camera,
+        mesh::{
+            buffer::{BytesStorage, TriangleBuffer, VertexAttributeDescriptor, VertexBuffer},
+            surface::{SurfaceData, SurfaceResource},
+        },
+        Scene, SceneContainer,
+    },
 };
 use fxhash::FxHashMap;
+use fyrox_resource::untyped::ResourceKind;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 pub use stats::*;
-use std::{any::TypeId, cell::RefCell, collections::hash_map::Entry, rc::Rc, sync::mpsc::Receiver};
+use std::{
+    any::TypeId, cell::RefCell, collections::hash_map::Entry, hash::Hash, rc::Rc,
+    sync::mpsc::Receiver,
+};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 use winit::window::Window;
 
@@ -651,6 +662,65 @@ impl FallbackResources {
     }
 }
 
+/// A cache for dynamic surfaces, the content of which changes every frame. The main purpose of this
+/// cache is to keep associated GPU buffers alive a long as the surfaces in the cache and thus prevent
+/// redundant resource reallocation on every frame. This is very important for dynamic drawing, such
+/// as 2D sprites, tile maps, etc.
+#[derive(Default)]
+pub struct DynamicSurfaceCache {
+    cache: FxHashMap<u64, SurfaceResource>,
+}
+
+impl DynamicSurfaceCache {
+    /// Creates a new empty cache.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Tries to get an existing surface from the cache using its unique id or creates a new one and
+    /// returns it.
+    pub fn get_or_create(
+        &mut self,
+        unique_id: u64,
+        layout: &[VertexAttributeDescriptor],
+    ) -> SurfaceResource {
+        if let Some(surface) = self.cache.get(&unique_id) {
+            surface.clone()
+        } else {
+            let default_capacity = 4096;
+
+            // Initialize empty vertex buffer.
+            let vertex_buffer = VertexBuffer::new_with_layout(
+                layout,
+                0,
+                BytesStorage::with_capacity(default_capacity),
+            )
+            .unwrap();
+
+            // Initialize empty triangle buffer.
+            let triangle_buffer = TriangleBuffer::new(Vec::with_capacity(default_capacity * 3));
+
+            let surface = SurfaceResource::new_ok(
+                ResourceKind::Embedded,
+                SurfaceData::new(vertex_buffer, triangle_buffer),
+            );
+
+            self.cache.insert(unique_id, surface.clone());
+
+            surface
+        }
+    }
+
+    /// Clears the surfaces in the cache, does **not** clear the cache itself.
+    pub fn clear(&mut self) {
+        for surface in self.cache.values_mut() {
+            let mut surface_data = surface.data_ref();
+            surface_data.vertex_buffer.modify().clear();
+            surface_data.geometry_buffer.modify().clear();
+        }
+    }
+}
+
 /// See module docs.
 pub struct Renderer {
     backbuffer: GpuFrameBuffer,
@@ -688,6 +758,8 @@ pub struct Renderer {
     // like ones used to render UI instances.
     ui_frame_buffers: FxHashMap<u64, GpuFrameBuffer>,
     uniform_memory_allocator: UniformMemoryAllocator,
+    /// Dynamic surface cache. See [`DynamicSurfaceCache`] docs for more info.
+    pub dynamic_surface_cache: DynamicSurfaceCache,
     /// Visibility cache based on occlusion query.
     pub visibility_cache: VisibilityCache,
     /// Graphics server.
@@ -808,6 +880,9 @@ pub struct SceneRenderPassContext<'a, 'b> {
     /// Memory allocator for uniform buffers that tries to pack uniforms densely into large uniform
     /// buffers, giving you offsets to the data.
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
+
+    /// Dynamic surface cache. See [`DynamicSurfaceCache`] docs for more info.
+    pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
 }
 
 /// A trait for custom scene rendering pass. It could be used to add your own rendering techniques.
@@ -1031,6 +1106,7 @@ impl Renderer {
             server,
             visibility_cache: Default::default(),
             uniform_memory_allocator,
+            dynamic_surface_cache: DynamicSurfaceCache::new(),
         })
     }
 
@@ -1366,6 +1442,7 @@ impl Renderer {
                 RenderDataBundleStorageOptions {
                     collect_lights: true,
                 },
+                &mut self.dynamic_surface_cache,
             );
 
             server.set_polygon_fill_mode(
@@ -1425,6 +1502,7 @@ impl Renderer {
                         uniform_buffer_cache: &mut self.uniform_buffer_cache,
                         visibility_cache,
                         uniform_memory_allocator: &mut self.uniform_memory_allocator,
+                        dynamic_surface_cache: &mut self.dynamic_surface_cache,
                     })?;
 
             scene_associated_data.statistics += light_stats;
@@ -1472,6 +1550,7 @@ impl Renderer {
                             ui_renderer: &mut self.ui_renderer,
                             uniform_buffer_cache: &mut self.uniform_buffer_cache,
                             uniform_memory_allocator: &mut self.uniform_memory_allocator,
+                            dynamic_surface_cache: &mut self.dynamic_surface_cache,
                         })?;
             }
 
@@ -1554,6 +1633,7 @@ impl Renderer {
                             ui_renderer: &mut self.ui_renderer,
                             uniform_buffer_cache: &mut self.uniform_buffer_cache,
                             uniform_memory_allocator: &mut self.uniform_memory_allocator,
+                            dynamic_surface_cache: &mut self.dynamic_surface_cache,
                         })?;
             }
         }
@@ -1590,6 +1670,7 @@ impl Renderer {
 
         self.uniform_buffer_cache.mark_all_unused();
         self.uniform_memory_allocator.clear();
+        self.dynamic_surface_cache.clear();
 
         // Make sure to drop associated data for destroyed scenes.
         self.scene_data_map
