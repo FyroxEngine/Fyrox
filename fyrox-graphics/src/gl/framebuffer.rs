@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::framebuffer::ReadTarget;
+use crate::gpu_texture::image_2d_size_bytes;
 use crate::{
     buffer::GpuBufferTrait,
     core::{color::Color, math::Rect},
@@ -35,7 +37,7 @@ use crate::{
     gpu_texture::{CubeMapFace, GpuTextureKind, GpuTextureTrait, PixelElementKind},
     ColorMask, DrawParameters, ElementRange,
 };
-use glow::HasContext;
+use glow::{HasContext, PixelPackData};
 use std::rc::Weak;
 
 pub struct GlFrameBuffer {
@@ -243,6 +245,50 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
                 mask,
                 glow::NEAREST,
             );
+        }
+    }
+
+    fn read_pixels(&self, read_target: ReadTarget) -> Option<Vec<u8>> {
+        let server = self.state.upgrade()?;
+        server.set_framebuffer(self.id());
+
+        unsafe {
+            server
+                .gl
+                .bind_framebuffer(glow::READ_FRAMEBUFFER, self.id());
+        }
+
+        let texture = match read_target {
+            ReadTarget::Depth | ReadTarget::Stencil => &self.depth_attachment.as_ref()?.texture,
+            ReadTarget::Color(index) => {
+                unsafe {
+                    server
+                        .gl
+                        .read_buffer(glow::COLOR_ATTACHMENT0 + index as u32);
+                }
+
+                &self.color_attachments.get(index)?.texture
+            }
+        };
+
+        if let GpuTextureKind::Rectangle { width, height } = texture.kind() {
+            let pixel_kind = texture.pixel_kind();
+            let pixel_info = pixel_kind.pixel_descriptor();
+            let mut buffer = vec![0; image_2d_size_bytes(pixel_kind, width, height)];
+            unsafe {
+                server.gl.read_pixels(
+                    0,
+                    0,
+                    width as i32,
+                    height as i32,
+                    pixel_info.format,
+                    pixel_info.data_type,
+                    PixelPackData::Slice(Some(buffer.as_mut_slice())),
+                );
+            }
+            Some(buffer)
+        } else {
+            None
         }
     }
 

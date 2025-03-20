@@ -28,7 +28,7 @@ use crate::{
         MinificationFilter, PixelKind, WrapMode,
     },
 };
-use glow::{HasContext, PixelPackData, PixelUnpackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
+use glow::{HasContext, PixelUnpackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use std::cell::Cell;
 use std::{
     marker::PhantomData,
@@ -800,67 +800,6 @@ impl GpuTextureTrait for GlTexture {
         }
 
         Ok(())
-    }
-
-    fn get_image(&self, level: usize) -> Vec<u8> {
-        let temp_binding = self.make_temp_binding();
-        unsafe {
-            let desc = self.pixel_kind.get().pixel_descriptor();
-            let (kind, buffer_size) = match self.kind.get() {
-                GpuTextureKind::Line { length } => (
-                    glow::TEXTURE_1D,
-                    image_1d_size_bytes(self.pixel_kind.get(), length),
-                ),
-                GpuTextureKind::Rectangle { width, height } => (
-                    glow::TEXTURE_2D,
-                    image_2d_size_bytes(self.pixel_kind.get(), width, height),
-                ),
-                GpuTextureKind::Cube { width, height } => (
-                    glow::TEXTURE_CUBE_MAP,
-                    6 * image_2d_size_bytes(self.pixel_kind.get(), width, height),
-                ),
-                GpuTextureKind::Volume {
-                    width,
-                    height,
-                    depth,
-                } => (
-                    glow::TEXTURE_3D,
-                    image_3d_size_bytes(self.pixel_kind.get(), width, height, depth),
-                ),
-            };
-
-            let mut bytes = vec![0; buffer_size];
-            temp_binding.server.gl.get_tex_image(
-                kind,
-                level as i32,
-                desc.format,
-                desc.data_type,
-                PixelPackData::Slice(Some(bytes.as_mut_slice())),
-            );
-            bytes
-        }
-    }
-
-    fn read_pixels(&self) -> Vec<u8> {
-        let temp_binding = self.make_temp_binding();
-        unsafe {
-            if let GpuTextureKind::Rectangle { width, height } = self.kind.get() {
-                let pixel_info = self.pixel_kind.get().pixel_descriptor();
-                let mut buffer = vec![0; image_2d_size_bytes(self.pixel_kind.get(), width, height)];
-                temp_binding.server.gl.read_pixels(
-                    0,
-                    0,
-                    width as i32,
-                    height as i32,
-                    pixel_info.format,
-                    pixel_info.data_type,
-                    PixelPackData::Slice(Some(buffer.as_mut_slice())),
-                );
-                buffer
-            } else {
-                Default::default()
-            }
-        }
     }
 
     fn kind(&self) -> GpuTextureKind {

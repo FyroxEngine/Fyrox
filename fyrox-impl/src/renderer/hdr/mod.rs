@@ -23,7 +23,7 @@ use crate::{
         algebra::{Matrix4, Vector2},
         color::Color,
         math::Rect,
-        transmute_slice, value_as_u8_slice, ImmutableString,
+        value_as_u8_slice, ImmutableString,
     },
     renderer::{
         cache::{
@@ -43,6 +43,7 @@ use crate::{
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
+use fyrox_graphics::framebuffer::ReadTarget;
 
 mod adaptation;
 mod luminance;
@@ -196,14 +197,18 @@ impl HighDynamicRangeRenderer {
                 // TODO: Cloning memory from GPU to CPU is slow, but since the engine is limited
                 // by macOS's OpenGL 4.1 support and lack of compute shaders we'll build histogram
                 // manually on CPU anyway. Replace this with compute shaders whenever possible.
-                let data = self.frame_luminance.texture().read_pixels();
-
-                let pixels = transmute_slice::<u8, f32>(&data);
+                let pixels = self
+                    .frame_luminance
+                    .framebuffer
+                    .read_pixels_of_type::<f32>(ReadTarget::Color(0))
+                    .ok_or_else(|| {
+                        FrameworkError::Custom("Unable to read luminance buffer!".to_string())
+                    })?;
 
                 let evaluator =
                     luminance::histogram_luminance_evaluator::HistogramLuminanceEvaluator::default(
                     );
-                let avg_value = evaluator.average_luminance(pixels);
+                let avg_value = evaluator.average_luminance(&pixels);
 
                 self.downscale_chain.last().unwrap().texture().set_data(
                     GpuTextureKind::Rectangle {

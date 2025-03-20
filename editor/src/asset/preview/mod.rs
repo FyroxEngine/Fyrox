@@ -62,6 +62,7 @@ use crate::{
     },
     load_image,
 };
+use fyrox::renderer::framework::framebuffer::ReadTarget;
 use image::{ColorType, GenericImage, Rgba};
 
 #[derive(Default)]
@@ -333,23 +334,21 @@ fn render_scene_to_texture(
     scene.update(rt_size, 0.016, Default::default());
 
     let temp_handle = Handle::new(u32::MAX, u32::MAX);
-    if let Some(ldr_texture) = graphics_context
-        .renderer
-        .render_scene(temp_handle, scene, elapsed_time, 0.0)
-        .ok()
-        .and_then(|data| {
-            data.ldr_scene_framebuffer
-                .color_attachments()
-                .first()
-                .map(|a| a.texture.clone())
-        })
+    if let Ok(scene_data) =
+        graphics_context
+            .renderer
+            .render_scene(temp_handle, scene, elapsed_time, 0.0)
     {
+        let ldr_texture = scene_data.ldr_scene_frame_texture();
+
         let (width, height) = match ldr_texture.kind() {
             GpuTextureKind::Rectangle { width, height } => (width, height),
             _ => unreachable!(),
         };
 
-        let pixels = ldr_texture.read_pixels();
+        let pixels = scene_data
+            .ldr_scene_framebuffer
+            .read_pixels(ReadTarget::Color(0))?;
 
         // TODO: This is a hack, refactor `render_scene` method to accept render data from
         // outside, instead of messing around with these temporary handles.

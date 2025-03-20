@@ -24,7 +24,6 @@
 #![warn(missing_docs)]
 
 use crate::{core::color::Color, define_shared_wrapper, error::FrameworkError};
-use bytemuck::Pod;
 use fyrox_core::define_as_any_trait;
 
 /// A kind of GPU texture.
@@ -650,13 +649,6 @@ pub trait GpuTextureTrait: GpuTextureAsAny {
         data: Option<&[u8]>,
     ) -> Result<(), FrameworkError>;
 
-    /// Reads the texture data at the given mip level. This method could block current thread until
-    /// the data comes from GPU to CPU side.
-    fn get_image(&self, level: usize) -> Vec<u8>;
-
-    /// Reads texture pixels.
-    fn read_pixels(&self) -> Vec<u8>;
-
     /// Returns kind of the texture.
     fn kind(&self) -> GpuTextureKind;
 
@@ -703,42 +695,6 @@ pub trait GpuTextureTrait: GpuTextureAsAny {
     /// Returns a fixed bias value that is to be added to the level-of-detail parameter for the
     /// texture before texture sampling. See [`Self::set_lod_bias`] for more info.
     fn lod_bias(&self) -> f32;
-}
-
-impl dyn GpuTextureTrait {
-    /// Reads the pixels at the given mip level and reinterprets them using the given type.
-    pub fn get_image_of_type<T: Pod>(&self, level: usize) -> Vec<T> {
-        let mut bytes = self.get_image(level);
-
-        let typed = unsafe {
-            Vec::<T>::from_raw_parts(
-                bytes.as_mut_ptr() as *mut T,
-                bytes.len() / size_of::<T>(),
-                bytes.capacity() / size_of::<T>(),
-            )
-        };
-
-        std::mem::forget(bytes);
-
-        typed
-    }
-
-    /// Reads the pixels and reinterprets them using the given type.
-    pub fn read_pixels_of_type<T>(&self) -> Vec<T>
-    where
-        T: Pod,
-    {
-        let mut bytes = self.read_pixels();
-        let typed = unsafe {
-            Vec::<T>::from_raw_parts(
-                bytes.as_mut_ptr() as *mut T,
-                bytes.len() / size_of::<T>(),
-                bytes.capacity() / size_of::<T>(),
-            )
-        };
-        std::mem::forget(bytes);
-        typed
-    }
 }
 
 define_shared_wrapper!(GpuTexture<dyn GpuTextureTrait>);
