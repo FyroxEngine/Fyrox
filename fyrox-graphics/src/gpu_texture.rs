@@ -23,7 +23,7 @@
 
 #![warn(missing_docs)]
 
-use crate::{core::color::Color, define_shared_wrapper, error::FrameworkError};
+use crate::{define_shared_wrapper, error::FrameworkError};
 use fyrox_core::define_as_any_trait;
 
 /// A kind of GPU texture.
@@ -633,11 +633,6 @@ pub trait GpuTextureTrait: GpuTextureAsAny {
 
     /// Returns current wrap mode for the given coordinate.
     fn wrap_mode(&self, coordinate: Coordinate) -> WrapMode;
-
-    /// Sets border color of the texture. Works together with [`WrapMode::ClampToBorder`] and
-    /// essentially forces the GPU to use the given color when it tries to read outside the texture
-    /// bounds.
-    fn set_border_color(&self, color: Color);
 
     /// Sets the new data of the texture. This method is also able to change the kind of the texture
     /// and its pixel kind.

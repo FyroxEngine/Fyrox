@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 use crate::{
-    core::color::Color,
     error::FrameworkError,
     gl::{server::GlGraphicsServer, ToGlConstant},
     gpu_texture::{
@@ -498,21 +497,6 @@ impl GpuTextureTrait for GlTexture {
             Coordinate::S => self.s_wrap_mode.get(),
             Coordinate::T => self.t_wrap_mode.get(),
             Coordinate::R => self.r_wrap_mode.get(),
-        }
-    }
-
-    fn set_border_color(&self, #[allow(unused_variables)] color: Color) {
-        #[cfg(not(target_arch = "wasm32"))]
-        unsafe {
-            let temp_binding = self.make_temp_binding();
-            let color = color.as_frgba();
-            let color = [color.x, color.y, color.z, color.w];
-
-            temp_binding.server.gl.tex_parameter_f32_slice(
-                self.kind.get().gl_texture_target(),
-                glow::TEXTURE_BORDER_COLOR,
-                &color,
-            );
         }
     }
 
