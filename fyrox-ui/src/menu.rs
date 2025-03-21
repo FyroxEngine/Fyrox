@@ -586,14 +586,29 @@ impl Control for MenuItem {
                 WidgetMessage::MouseDown { .. } => {
                     let menu = find_menu(self.parent(), ui);
                     if menu.is_some() {
-                        // Activate menu so it user will be able to open submenus by
-                        // mouse hover.
-                        ui.send_message(MenuMessage::activate(menu, MessageDirection::ToWidget));
+                        if self.is_opened(ui) {
+                            ui.send_message(MenuItemMessage::close(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
+                            ui.send_message(MenuMessage::deactivate(
+                                menu,
+                                MessageDirection::ToWidget,
+                            ));
+                        } else {
+                            // Activate menu so it user will be able to open submenus by
+                            // mouse hover.
+                            ui.send_message(MenuMessage::activate(
+                                menu,
+                                MessageDirection::ToWidget,
+                            ));
 
-                        ui.send_message(MenuItemMessage::open(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                        ));
+                            ui.send_message(MenuItemMessage::open(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                            ));
+                        }
                     }
                 }
                 WidgetMessage::MouseUp { .. } => {
@@ -686,7 +701,7 @@ impl Control for MenuItem {
                         }
                     }
                     MenuItemMessage::Open => {
-                        if !self.items_container.is_empty() {
+                        if !self.items_container.is_empty() && !self.is_opened(ui) {
                             let placement = match *self.placement {
                                 MenuItemPlacement::Bottom => Placement::LeftBottom(self.handle),
                                 MenuItemPlacement::Right => Placement::RightTop(self.handle),
