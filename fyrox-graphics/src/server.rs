@@ -23,20 +23,19 @@
 //! Graphics server is an abstraction layer over various graphics APIs used on different platforms
 //! supported by the engine.
 
-use crate::geometry_buffer::GpuGeometryBuffer;
-use crate::gpu_program::GpuProgram;
-use crate::query::GpuQuery;
-use crate::read_buffer::GpuAsyncReadBuffer;
 use crate::{
     buffer::{BufferKind, BufferUsage, GpuBuffer},
     error::FrameworkError,
     framebuffer::{Attachment, GpuFrameBuffer},
-    geometry_buffer::GeometryBufferDescriptor,
-    gpu_program::ShaderResourceDefinition,
+    geometry_buffer::{GeometryBufferDescriptor, GpuGeometryBuffer},
+    gpu_program::{GpuProgram, ShaderResourceDefinition},
     gpu_texture::{
         GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter, MinificationFilter,
         PixelKind, WrapMode,
     },
+    query::GpuQuery,
+    read_buffer::GpuAsyncReadBuffer,
+    sampler::{GpuSampler, GpuSamplerDescriptor},
     stats::PipelineStatistics,
     PolygonFace, PolygonFillMode,
 };
@@ -78,6 +77,9 @@ pub trait GraphicsServer: GraphicsServerAsAny {
 
     /// Creates a new GPU texture using the given descriptor.
     fn create_texture(&self, desc: GpuTextureDescriptor) -> Result<GpuTexture, FrameworkError>;
+
+    /// Creates a new GPU sampler that can be used to sample texels from a texture.
+    fn create_sampler(&self, desc: GpuSamplerDescriptor) -> Result<GpuSampler, FrameworkError>;
 
     /// Creates a new frame buffer using the given depth and color attachments. Depth attachment
     /// not exist, but there must be at least one color attachment of a format that supports rendering.

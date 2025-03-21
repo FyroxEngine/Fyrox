@@ -36,6 +36,7 @@ pub mod gpu_program;
 pub mod gpu_texture;
 pub mod query;
 pub mod read_buffer;
+pub mod sampler;
 pub mod server;
 pub mod stats;
 pub mod uniform;

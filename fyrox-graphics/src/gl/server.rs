@@ -18,24 +18,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::geometry_buffer::GpuGeometryBuffer;
-use crate::gpu_program::GpuProgram;
-use crate::query::GpuQuery;
-use crate::read_buffer::GpuAsyncReadBuffer;
 use crate::{
-    buffer::GpuBuffer,
-    buffer::{BufferKind, BufferUsage},
+    buffer::{BufferKind, BufferUsage, GpuBuffer},
     core::{color::Color, log::Log, math::Rect},
     error::FrameworkError,
-    framebuffer::Attachment,
-    framebuffer::GpuFrameBuffer,
-    geometry_buffer::GeometryBufferDescriptor,
+    framebuffer::{Attachment, GpuFrameBuffer},
+    geometry_buffer::{GeometryBufferDescriptor, GpuGeometryBuffer},
     gl::{
         self, framebuffer::GlFrameBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram,
-        query::GlQuery, read_buffer::GlAsyncReadBuffer, texture::GlTexture, ToGlConstant,
+        query::GlQuery, read_buffer::GlAsyncReadBuffer, sampler::GlSampler, texture::GlTexture,
+        ToGlConstant,
     },
-    gpu_program::ShaderResourceDefinition,
+    gpu_program::{GpuProgram, ShaderResourceDefinition},
     gpu_texture::{GpuTexture, GpuTextureDescriptor},
+    query::GpuQuery,
+    read_buffer::GpuAsyncReadBuffer,
+    sampler::{GpuSampler, GpuSamplerDescriptor},
     server::{GraphicsServer, ServerCapabilities, SharedGraphicsServer},
     stats::PipelineStatistics,
     BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, CompareFunc, CullFace,
@@ -1007,6 +1005,10 @@ impl GraphicsServer for GlGraphicsServer {
 
     fn create_texture(&self, desc: GpuTextureDescriptor) -> Result<GpuTexture, FrameworkError> {
         Ok(GpuTexture(Rc::new(GlTexture::new(self, desc)?)))
+    }
+
+    fn create_sampler(&self, desc: GpuSamplerDescriptor) -> Result<GpuSampler, FrameworkError> {
+        Ok(GpuSampler(Rc::new(GlSampler::new(self, desc)?)))
     }
 
     fn create_frame_buffer(
