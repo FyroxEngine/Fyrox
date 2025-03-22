@@ -1570,8 +1570,12 @@ impl UserInterface {
 
             size = transform_size(size, &node.layout_transform);
 
-            size.x = size.x.clamp(node.min_size().x, node.max_size().x);
-            size.y = size.y.clamp(node.min_size().y, node.max_size().y);
+            if size.x.is_finite() {
+                size.x = size.x.clamp(node.min_size().x, node.max_size().x);
+            }
+            if size.y.is_finite() {
+                size.y = size.y.clamp(node.min_size().y, node.max_size().y);
+            }
 
             let mut desired_size = node.measure_override(self, size);
 
