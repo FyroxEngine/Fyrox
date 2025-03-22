@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::FallbackResources;
 use crate::{
     core::{math::Rect, ImmutableString},
     renderer::{
@@ -81,6 +82,7 @@ impl BloomRenderer {
         quad: &GpuGeometryBuffer,
         hdr_scene_frame: &GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
+        fallback_resources: &FallbackResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -89,7 +91,10 @@ impl BloomRenderer {
         let wvp = make_viewport_matrix(viewport);
         let properties = PropertyGroup::from([property("worldViewProjection", &wvp)]);
         let material = RenderMaterial::from([
-            binding("hdrSampler", hdr_scene_frame),
+            binding(
+                "hdrSampler",
+                (hdr_scene_frame, &fallback_resources.nearest_clamp_sampler),
+            ),
             binding("properties", &properties),
         ]);
 
@@ -105,9 +110,12 @@ impl BloomRenderer {
             None,
         )?;
 
-        stats += self
-            .blur
-            .render(quad, self.glow_texture(), uniform_buffer_cache)?;
+        stats += self.blur.render(
+            quad,
+            self.glow_texture(),
+            uniform_buffer_cache,
+            fallback_resources,
+        )?;
 
         Ok(stats)
     }

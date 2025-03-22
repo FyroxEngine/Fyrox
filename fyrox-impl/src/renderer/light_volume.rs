@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::FallbackResources;
 use crate::{
     core::{
         algebra::{Isometry3, Matrix4, Point3, Translation, Vector3},
@@ -94,6 +95,7 @@ impl LightVolumeRenderer {
         graph: &Graph,
         frame_buffer: &GpuFrameBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
+        fallback_resources: &FallbackResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -161,7 +163,10 @@ impl LightVolumeRenderer {
                     property("coneAngleCos", &cone_angle_cos),
                 ]);
                 let material = RenderMaterial::from([
-                    binding("depthSampler", gbuffer.depth()),
+                    binding(
+                        "depthSampler",
+                        (gbuffer.depth(), &fallback_resources.nearest_clamp_sampler),
+                    ),
                     binding("properties", &properties),
                 ]);
 
@@ -215,7 +220,10 @@ impl LightVolumeRenderer {
                     property("lightRadius", &radius),
                 ]);
                 let material = RenderMaterial::from([
-                    binding("depthSampler", gbuffer.depth()),
+                    binding(
+                        "depthSampler",
+                        (gbuffer.depth(), &fallback_resources.nearest_clamp_sampler),
+                    ),
                     binding("properties", &properties),
                 ]);
 

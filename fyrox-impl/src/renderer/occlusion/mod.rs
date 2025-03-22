@@ -23,6 +23,7 @@
 mod grid;
 mod optimizer;
 
+use crate::renderer::FallbackResources;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -339,6 +340,7 @@ impl OcclusionTester {
         observer_position: Vector3<f32>,
         view_projection: Matrix4<f32>,
         uniform_buffer_cache: &mut UniformBufferCache,
+        fallback_resources: &FallbackResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -378,8 +380,17 @@ impl OcclusionTester {
             property("frameBufferHeight", &frame_buffer_height),
         ]);
         let material = RenderMaterial::from([
-            binding("matrices", self.matrix_storage.texture()),
-            binding("tileBuffer", &self.tile_buffer),
+            binding(
+                "matrices",
+                (
+                    self.matrix_storage.texture(),
+                    &fallback_resources.nearest_clamp_sampler,
+                ),
+            ),
+            binding(
+                "tileBuffer",
+                (&self.tile_buffer, &fallback_resources.nearest_clamp_sampler),
+            ),
             binding("properties", &properties),
         ]);
 
@@ -400,6 +411,7 @@ impl OcclusionTester {
             unit_quad,
             self.tile_size as i32,
             uniform_buffer_cache,
+            fallback_resources,
         )?;
 
         Ok(stats)

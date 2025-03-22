@@ -543,6 +543,7 @@ impl RenderDataBundle {
                         } else {
                             &render_context.fallback_resources.black_dummy
                         },
+                        &render_context.fallback_resources.nearest_clamp_sampler,
                         resource_definition.binding,
                     ));
                 }
@@ -581,15 +582,24 @@ impl RenderDataBundle {
                 _ => match resource_definition.kind {
                     ShaderResourceKind::Texture { fallback, .. } => {
                         let fallback = render_context.fallback_resources.sampler_fallback(fallback);
+                        let fallback = (
+                            fallback,
+                            &render_context.fallback_resources.linear_wrap_sampler,
+                        );
 
-                        let texture = if let Some(binding) =
+                        let texture_sampler_pair = if let Some(binding) =
                             material.binding_ref(resource_definition.name.clone())
                         {
                             if let material::MaterialResourceBinding::Texture(binding) = binding {
                                 binding
                                     .value
                                     .as_ref()
-                                    .and_then(|t| render_context.texture_cache.get(server, t))
+                                    .and_then(|t| {
+                                        render_context
+                                            .texture_cache
+                                            .get(server, t)
+                                            .map(|t| (&t.gpu_texture, &t.gpu_sampler))
+                                    })
                                     .unwrap_or(fallback)
                             } else {
                                 Log::err(format!(
@@ -605,7 +615,8 @@ impl RenderDataBundle {
                         };
 
                         material_bindings.push(ResourceBinding::texture(
-                            texture,
+                            texture_sampler_pair.0,
+                            texture_sampler_pair.1,
                             resource_definition.binding,
                         ));
                     }

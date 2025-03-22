@@ -29,7 +29,7 @@ use std::rc::Weak;
 #[derive(Debug)]
 pub struct GlSampler {
     state: Weak<GlGraphicsServer>,
-    id: glow::Sampler,
+    pub(crate) id: glow::Sampler,
 }
 
 impl GpuSamplerTrait for GlSampler {}

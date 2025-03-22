@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::FallbackResources;
 use crate::{
     core::{color::Color, math::Rect, ImmutableString},
     renderer::{
@@ -87,6 +88,7 @@ impl VisibilityBufferOptimizer {
         unit_quad: &GpuGeometryBuffer,
         tile_size: i32,
         uniform_buffer_cache: &mut UniformBufferCache,
+        fallback_resources: &FallbackResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -101,7 +103,10 @@ impl VisibilityBufferOptimizer {
             property("tileSize", &tile_size),
         ]);
         let material = RenderMaterial::from([
-            binding("visibilityBuffer", visibility_buffer),
+            binding(
+                "visibilityBuffer",
+                (visibility_buffer, &fallback_resources.nearest_clamp_sampler),
+            ),
             binding("properties", &properties),
         ]);
 

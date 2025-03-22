@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::DynamicSurfaceCache;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -34,20 +33,16 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind},
-            gpu_texture::{
-                CubeMapFace, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
-                MinificationFilter, PixelKind, WrapMode,
-            },
+            gpu_texture::{CubeMapFace, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::GraphicsServer,
         },
+        framework::{framebuffer::GpuFrameBuffer, gpu_texture::GpuTexture},
         shadow::cascade_size,
-        FallbackResources, GeometryCache, RenderPassStatistics, ShadowMapPrecision,
-        POINT_SHADOW_PASS_NAME,
+        DynamicSurfaceCache, FallbackResources, GeometryCache, RenderPassStatistics,
+        ShadowMapPrecision, POINT_SHADOW_PASS_NAME,
     },
     scene::graph::Graph,
 };
-use fyrox_graphics::framebuffer::GpuFrameBuffer;
-use fyrox_graphics::gpu_texture::GpuTexture;
 
 pub struct PointShadowMapRenderer {
     precision: ShadowMapPrecision,
@@ -103,11 +98,6 @@ impl PointShadowMapRenderer {
                     height: size,
                 },
                 pixel_kind: PixelKind::R16F,
-                min_filter: MinificationFilter::Nearest,
-                mag_filter: MagnificationFilter::Nearest,
-                s_wrap_mode: WrapMode::ClampToEdge,
-                t_wrap_mode: WrapMode::ClampToEdge,
-                r_wrap_mode: WrapMode::ClampToEdge,
                 ..Default::default()
             })?;
 

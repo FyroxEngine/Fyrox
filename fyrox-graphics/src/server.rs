@@ -29,10 +29,7 @@ use crate::{
     framebuffer::{Attachment, GpuFrameBuffer},
     geometry_buffer::{GeometryBufferDescriptor, GpuGeometryBuffer},
     gpu_program::{GpuProgram, ShaderResourceDefinition},
-    gpu_texture::{
-        GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter, MinificationFilter,
-        PixelKind, WrapMode,
-    },
+    gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
     query::GpuQuery,
     read_buffer::GpuAsyncReadBuffer,
     sampler::{GpuSampler, GpuSamplerDescriptor},
@@ -170,11 +167,7 @@ pub trait GraphicsServer: GraphicsServerAsAny {
         self.create_texture(GpuTextureDescriptor {
             kind: GpuTextureKind::Rectangle { width, height },
             pixel_kind,
-            min_filter: MinificationFilter::Nearest,
-            mag_filter: MagnificationFilter::Nearest,
-            s_wrap_mode: WrapMode::ClampToEdge,
-            t_wrap_mode: WrapMode::ClampToEdge,
-            r_wrap_mode: WrapMode::ClampToEdge,
+
             ..Default::default()
         })
     }

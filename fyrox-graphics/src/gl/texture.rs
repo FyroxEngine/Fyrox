@@ -106,18 +106,7 @@ pub struct GlTexture {
     state: Weak<GlGraphicsServer>,
     texture: glow::Texture,
     kind: Cell<GpuTextureKind>,
-    min_filter: Cell<MinificationFilter>,
-    mag_filter: Cell<MagnificationFilter>,
-    s_wrap_mode: Cell<WrapMode>,
-    t_wrap_mode: Cell<WrapMode>,
-    r_wrap_mode: Cell<WrapMode>,
-    anisotropy: Cell<f32>,
     pixel_kind: Cell<PixelKind>,
-    base_level: Cell<usize>,
-    max_level: Cell<usize>,
-    min_lod: Cell<f32>,
-    max_lod: Cell<f32>,
-    lod_bias: Cell<f32>,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
 }
@@ -263,50 +252,6 @@ impl TempBinding {
         }
     }
 
-    fn set_minification_filter(&mut self, min_filter: MinificationFilter) {
-        unsafe {
-            self.server.gl.tex_parameter_i32(
-                self.target,
-                glow::TEXTURE_MIN_FILTER,
-                min_filter.into_gl() as i32,
-            );
-        }
-    }
-
-    fn set_magnification_filter(&mut self, mag_filter: MagnificationFilter) {
-        unsafe {
-            self.server.gl.tex_parameter_i32(
-                self.target,
-                glow::TEXTURE_MAG_FILTER,
-                mag_filter.into_gl() as i32,
-            );
-        }
-    }
-
-    fn set_anisotropy(&mut self, anisotropy: f32) {
-        unsafe {
-            let max = self
-                .server
-                .gl
-                .get_parameter_f32(glow::MAX_TEXTURE_MAX_ANISOTROPY_EXT);
-            self.server.gl.tex_parameter_f32(
-                self.target,
-                glow::TEXTURE_MAX_ANISOTROPY_EXT,
-                anisotropy.clamp(1.0, max),
-            );
-        }
-    }
-
-    fn set_wrap(&mut self, coordinate: Coordinate, wrap: WrapMode) {
-        unsafe {
-            self.server.gl.tex_parameter_i32(
-                self.target,
-                coordinate.into_gl(),
-                wrap.into_gl() as i32,
-            );
-        }
-    }
-
     fn set_base_level(&mut self, level: usize) {
         unsafe {
             self.server
@@ -320,30 +265,6 @@ impl TempBinding {
             self.server
                 .gl
                 .tex_parameter_i32(self.target, glow::TEXTURE_MAX_LEVEL, level as i32);
-        }
-    }
-
-    fn set_min_lod(&mut self, min_lod: f32) {
-        unsafe {
-            self.server
-                .gl
-                .tex_parameter_f32(self.target, glow::TEXTURE_MIN_LOD, min_lod);
-        }
-    }
-
-    fn set_max_lod(&mut self, max_lod: f32) {
-        unsafe {
-            self.server
-                .gl
-                .tex_parameter_f32(self.target, glow::TEXTURE_MAX_LOD, max_lod);
-        }
-    }
-
-    fn set_lod_bias(&mut self, bias: f32) {
-        unsafe {
-            self.server
-                .gl
-                .tex_parameter_f32(self.target, glow::TEXTURE_LOD_BIAS, bias);
         }
     }
 }
@@ -393,35 +314,15 @@ impl GlTexture {
                 state: server.weak(),
                 texture,
                 kind: desc.kind.into(),
-                min_filter: desc.min_filter.into(),
-                mag_filter: desc.mag_filter.into(),
-                s_wrap_mode: desc.s_wrap_mode.into(),
-                t_wrap_mode: desc.t_wrap_mode.into(),
-                r_wrap_mode: desc.r_wrap_mode.into(),
-                anisotropy: desc.anisotropy.into(),
                 pixel_kind: desc.pixel_kind.into(),
-                base_level: desc.base_level.into(),
-                max_level: desc.max_level.into(),
-                min_lod: desc.min_lod.into(),
-                max_lod: desc.max_lod.into(),
-                lod_bias: desc.lod_bias.into(),
                 thread_mark: PhantomData,
             };
 
             result.set_data(desc.kind, desc.pixel_kind, desc.mip_count, desc.data)?;
 
             let mut binding = result.make_temp_binding();
-            binding.set_magnification_filter(desc.mag_filter);
-            binding.set_minification_filter(desc.min_filter);
-            binding.set_wrap(Coordinate::S, desc.s_wrap_mode);
-            binding.set_wrap(Coordinate::T, desc.t_wrap_mode);
-            binding.set_wrap(Coordinate::R, desc.r_wrap_mode);
-            binding.set_anisotropy(desc.anisotropy);
             binding.set_base_level(desc.base_level);
             binding.set_max_level(desc.max_level);
-            binding.set_min_lod(desc.min_lod);
-            binding.set_max_lod(desc.max_lod);
-            binding.set_lod_bias(desc.lod_bias);
 
             Ok(result)
         }
@@ -456,50 +357,6 @@ impl Drop for GlTexture {
 }
 
 impl GpuTextureTrait for GlTexture {
-    fn set_anisotropy(&self, anisotropy: f32) {
-        self.make_temp_binding().set_anisotropy(anisotropy);
-        self.anisotropy.set(anisotropy);
-    }
-
-    fn anisotropy(&self) -> f32 {
-        self.anisotropy.get()
-    }
-
-    fn set_minification_filter(&self, filter: MinificationFilter) {
-        self.make_temp_binding().set_minification_filter(filter);
-        self.min_filter.set(filter);
-    }
-
-    fn minification_filter(&self) -> MinificationFilter {
-        self.min_filter.get()
-    }
-
-    fn set_magnification_filter(&self, filter: MagnificationFilter) {
-        self.make_temp_binding().set_magnification_filter(filter);
-        self.mag_filter.set(filter);
-    }
-
-    fn magnification_filter(&self) -> MagnificationFilter {
-        self.mag_filter.get()
-    }
-
-    fn set_wrap(&self, coordinate: Coordinate, wrap: WrapMode) {
-        self.make_temp_binding().set_wrap(coordinate, wrap);
-        match coordinate {
-            Coordinate::S => self.s_wrap_mode.set(wrap),
-            Coordinate::T => self.t_wrap_mode.set(wrap),
-            Coordinate::R => self.r_wrap_mode.set(wrap),
-        }
-    }
-
-    fn wrap_mode(&self, coordinate: Coordinate) -> WrapMode {
-        match coordinate {
-            Coordinate::S => self.s_wrap_mode.get(),
-            Coordinate::T => self.t_wrap_mode.get(),
-            Coordinate::R => self.r_wrap_mode.get(),
-        }
-    }
-
     fn set_data(
         &self,
         kind: GpuTextureKind,
@@ -792,50 +649,5 @@ impl GpuTextureTrait for GlTexture {
 
     fn pixel_kind(&self) -> PixelKind {
         self.pixel_kind.get()
-    }
-
-    fn set_base_level(&self, level: usize) {
-        self.make_temp_binding().set_base_level(level);
-        self.base_level.set(level);
-    }
-
-    fn base_level(&self) -> usize {
-        self.base_level.get()
-    }
-
-    fn set_max_level(&self, level: usize) {
-        self.make_temp_binding().set_max_level(level);
-        self.max_level.set(level);
-    }
-
-    fn max_level(&self) -> usize {
-        self.max_level.get()
-    }
-
-    fn set_min_lod(&self, min_lod: f32) {
-        self.make_temp_binding().set_min_lod(min_lod);
-        self.min_lod.set(min_lod);
-    }
-
-    fn min_lod(&self) -> f32 {
-        self.min_lod.get()
-    }
-
-    fn set_max_lod(&self, max_lod: f32) {
-        self.make_temp_binding().set_max_lod(max_lod);
-        self.max_lod.set(max_lod);
-    }
-
-    fn max_lod(&self) -> f32 {
-        self.max_lod.get()
-    }
-
-    fn set_lod_bias(&self, bias: f32) {
-        self.make_temp_binding().set_lod_bias(bias);
-        self.lod_bias.set(bias);
-    }
-
-    fn lod_bias(&self) -> f32 {
-        self.lod_bias.get()
     }
 }

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::FallbackResources;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
@@ -36,10 +37,7 @@ use crate::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, GpuFrameBuffer},
             geometry_buffer::GpuGeometryBuffer,
-            gpu_texture::{
-                GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
-                MinificationFilter, PixelKind,
-            },
+            gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::GraphicsServer,
             GeometryBufferExt,
         },
@@ -135,8 +133,6 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                         height: NOISE_SIZE,
                     },
                     pixel_kind: PixelKind::RGB8,
-                    min_filter: MinificationFilter::Nearest,
-                    mag_filter: MagnificationFilter::Nearest,
                     data: Some(&pixels),
                     ..Default::default()
                 })?
@@ -163,6 +159,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         projection_matrix: Matrix4<f32>,
         view_matrix: Matrix3<f32>,
         uniform_buffer_cache: &mut UniformBufferCache,
+        fallback_resources: &FallbackResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -195,9 +192,21 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         ]);
 
         let material = RenderMaterial::from([
-            binding("depthSampler", gbuffer.depth()),
-            binding("normalSampler", gbuffer.normal_texture()),
-            binding("noiseSampler", &self.noise),
+            binding(
+                "depthSampler",
+                (gbuffer.depth(), &fallback_resources.nearest_clamp_sampler),
+            ),
+            binding(
+                "normalSampler",
+                (
+                    gbuffer.normal_texture(),
+                    &fallback_resources.nearest_clamp_sampler,
+                ),
+            ),
+            binding(
+                "noiseSampler",
+                (&self.noise, &fallback_resources.nearest_wrap_sampler),
+            ),
             binding("properties", &properties),
         ]);
 
@@ -213,7 +222,9 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             None,
         )?;
 
-        stats += self.blur.render(self.raw_ao_map(), uniform_buffer_cache)?;
+        stats += self
+            .blur
+            .render(self.raw_ao_map(), uniform_buffer_cache, fallback_resources)?;
 
         Ok(stats)
     }

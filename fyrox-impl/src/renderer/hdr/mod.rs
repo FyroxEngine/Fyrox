@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::FallbackResources;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -152,6 +153,7 @@ impl HighDynamicRangeRenderer {
         scene_frame: &GpuTexture,
         quad: &GpuGeometryBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
+        fallback_resources: &FallbackResources,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         self.frame_luminance.clear();
 
@@ -163,7 +165,10 @@ impl HighDynamicRangeRenderer {
             property("invSize", &inv_size),
         ]);
         let material = RenderMaterial::from([
-            binding("frameSampler", scene_frame),
+            binding(
+                "frameSampler",
+                (scene_frame, &fallback_resources.nearest_clamp_sampler),
+            ),
             binding("properties", &properties),
         ]);
 
@@ -189,6 +194,7 @@ impl HighDynamicRangeRenderer {
         &self,
         quad: &GpuGeometryBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
+        fallback_resources: &FallbackResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -232,7 +238,10 @@ impl HighDynamicRangeRenderer {
                         property("invSize", &inv_size),
                     ]);
                     let material = RenderMaterial::from([
-                        binding("lumSampler", prev_luminance),
+                        binding(
+                            "lumSampler",
+                            (prev_luminance, &fallback_resources.nearest_clamp_sampler),
+                        ),
                         binding("properties", &properties),
                     ]);
 
@@ -261,6 +270,7 @@ impl HighDynamicRangeRenderer {
         quad: &GpuGeometryBuffer,
         dt: f32,
         uniform_buffer_cache: &mut UniformBufferCache,
+        fallback_resources: &FallbackResources,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let ctx = self.adaptation_chain.begin();
         let viewport = Rect::new(0, 0, ctx.lum_buffer.size as i32, ctx.lum_buffer.size as i32);
@@ -272,10 +282,16 @@ impl HighDynamicRangeRenderer {
             property("speed", &speed),
         ]);
         let material = RenderMaterial::from([
-            binding("oldLumSampler", &ctx.prev_lum),
+            binding(
+                "oldLumSampler",
+                (&ctx.prev_lum, &fallback_resources.nearest_clamp_sampler),
+            ),
             binding(
                 "newLumSampler",
-                self.downscale_chain.last().unwrap().texture(),
+                (
+                    self.downscale_chain.last().unwrap().texture(),
+                    &fallback_resources.nearest_clamp_sampler,
+                ),
             ),
             binding("properties", &properties),
         ]);
@@ -306,12 +322,17 @@ impl HighDynamicRangeRenderer {
         use_color_grading: bool,
         texture_cache: &mut TextureCache,
         uniform_buffer_cache: &mut UniformBufferCache,
+        fallback_resources: &FallbackResources,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let frame_matrix = make_viewport_matrix(viewport);
 
         let color_grading_lut_tex = color_grading_lut
-            .and_then(|l| texture_cache.get(server, l.lut_ref()))
-            .unwrap_or(&self.stub_lut);
+            .and_then(|l| {
+                texture_cache
+                    .get(server, l.lut_ref())
+                    .map(|t| (&t.gpu_texture, &t.gpu_sampler))
+            })
+            .unwrap_or((&self.stub_lut, &fallback_resources.nearest_clamp_sampler));
 
         let (is_auto, key_value, min_luminance, max_luminance, fixed_exposure) = match exposure {
             Exposure::Auto {
@@ -333,9 +354,21 @@ impl HighDynamicRangeRenderer {
             property("fixedExposure", &fixed_exposure),
         ]);
         let material = RenderMaterial::from([
-            binding("hdrSampler", hdr_scene_frame),
-            binding("lumSampler", self.adaptation_chain.avg_lum_texture()),
-            binding("bloomSampler", bloom_texture),
+            binding(
+                "hdrSampler",
+                (hdr_scene_frame, &fallback_resources.nearest_clamp_sampler),
+            ),
+            binding(
+                "lumSampler",
+                (
+                    self.adaptation_chain.avg_lum_texture(),
+                    &fallback_resources.nearest_clamp_sampler,
+                ),
+            ),
+            binding(
+                "bloomSampler",
+                (bloom_texture, &fallback_resources.linear_clamp_sampler),
+            ),
             binding("colorMapSampler", color_grading_lut_tex),
             binding("properties", &properties),
         ]);
@@ -367,11 +400,18 @@ impl HighDynamicRangeRenderer {
         use_color_grading: bool,
         texture_cache: &mut TextureCache,
         uniform_buffer_cache: &mut UniformBufferCache,
+        fallback_resources: &FallbackResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
-        stats += self.calculate_frame_luminance(hdr_scene_frame, quad, uniform_buffer_cache)?;
-        stats += self.calculate_avg_frame_luminance(quad, uniform_buffer_cache)?;
-        stats += self.adaptation(quad, dt, uniform_buffer_cache)?;
+        stats += self.calculate_frame_luminance(
+            hdr_scene_frame,
+            quad,
+            uniform_buffer_cache,
+            fallback_resources,
+        )?;
+        stats +=
+            self.calculate_avg_frame_luminance(quad, uniform_buffer_cache, fallback_resources)?;
+        stats += self.adaptation(quad, dt, uniform_buffer_cache, fallback_resources)?;
         stats += self.map_hdr_to_ldr(
             server,
             hdr_scene_frame,
@@ -384,6 +424,7 @@ impl HighDynamicRangeRenderer {
             use_color_grading,
             texture_cache,
             uniform_buffer_cache,
+            fallback_resources,
         )?;
         Ok(stats)
     }

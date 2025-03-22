@@ -39,6 +39,7 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::sampler::GpuSampler;
 use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::ops::Deref;
 
@@ -124,9 +125,12 @@ pub fn binding<'a, 'b>(
     NamedValue::new(name, value.into())
 }
 
-impl<'a> From<&'a GpuTexture> for GpuResourceBinding<'a, '_> {
-    fn from(value: &'a GpuTexture) -> Self {
-        GpuResourceBinding::Texture(value)
+impl<'a> From<(&'a GpuTexture, &'a GpuSampler)> for GpuResourceBinding<'a, '_> {
+    fn from(value: (&'a GpuTexture, &'a GpuSampler)) -> Self {
+        GpuResourceBinding::Texture {
+            texture: value.0,
+            sampler: value.1,
+        }
     }
 }
 
@@ -155,15 +159,18 @@ impl<'a, const N: usize> Deref for PropertyGroup<'a, N> {
 }
 
 pub enum GpuResourceBinding<'a, 'b> {
-    Texture(&'a GpuTexture),
+    Texture {
+        texture: &'a GpuTexture,
+        sampler: &'a GpuSampler,
+    },
     PropertyGroup {
         properties: NamedValuesContainerRef<'a, MaterialPropertyRef<'b>>,
     },
 }
 
 impl<'a, 'b> GpuResourceBinding<'a, 'b> {
-    pub fn texture(texture: &'a GpuTexture) -> Self {
-        Self::Texture(texture)
+    pub fn texture(texture: &'a GpuTexture, sampler: &'a GpuSampler) -> Self {
+        Self::Texture { texture, sampler }
     }
 
     pub fn property_group<const N: usize>(properties: &'a PropertyGroup<'b, N>) -> Self {
@@ -276,19 +283,22 @@ impl RenderPassContainer {
 
             match resource.kind {
                 ShaderResourceKind::Texture { .. } => {
-                    if let Some(tex) =
-                        material
-                            .bindings
-                            .property_ref(&resource.name)
-                            .and_then(|p| {
-                                if let GpuResourceBinding::Texture(texture) = p.value {
-                                    Some(texture)
-                                } else {
-                                    None
-                                }
-                            })
+                    if let Some((tex, sampler)) = material
+                        .bindings
+                        .property_ref(&resource.name)
+                        .and_then(|p| {
+                            if let GpuResourceBinding::Texture { texture, sampler } = p.value {
+                                Some((texture, sampler))
+                            } else {
+                                None
+                            }
+                        })
                     {
-                        resource_bindings.push(ResourceBinding::texture(tex, resource.binding));
+                        resource_bindings.push(ResourceBinding::texture(
+                            tex,
+                            sampler,
+                            resource.binding,
+                        ));
                     } else {
                         return Err(FrameworkError::Custom(format!(
                             "No texture bound to {} resource binding!",

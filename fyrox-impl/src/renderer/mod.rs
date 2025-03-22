@@ -108,6 +108,8 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::gpu_texture::{MagnificationFilter, MinificationFilter, WrapMode};
+use fyrox_graphics::sampler::{GpuSampler, GpuSamplerDescriptor};
 use fyrox_resource::untyped::ResourceKind;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
@@ -648,6 +650,10 @@ pub struct FallbackResources {
     pub volume_dummy: GpuTexture,
     /// A stub uniform buffer for situation when there's no actual bone matrices.
     pub bone_matrices_stub_uniform_buffer: GpuBuffer,
+    pub linear_clamp_sampler: GpuSampler,
+    pub linear_wrap_sampler: GpuSampler,
+    pub nearest_clamp_sampler: GpuSampler,
+    pub nearest_wrap_sampler: GpuSampler,
 }
 
 impl FallbackResources {
@@ -918,11 +924,15 @@ fn blit_pixels(
     blit_shader: &RenderPassContainer,
     viewport: Rect<i32>,
     quad: &GpuGeometryBuffer,
+    fallback_resources: &FallbackResources,
 ) -> Result<DrawCallStatistics, FrameworkError> {
     let wvp = make_viewport_matrix(viewport);
     let properties = PropertyGroup::from([property("worldViewProjection", &wvp)]);
     let material = RenderMaterial::from([
-        binding("diffuseTexture", texture),
+        binding(
+            "diffuseTexture",
+            (texture, &fallback_resources.linear_clamp_sampler),
+        ),
         binding("properties", &properties),
     ]);
     blit_shader.run_pass(
@@ -1070,6 +1080,32 @@ impl Renderer {
                 buffer.write_data(array_as_u8_slice(&zeros))?;
                 buffer
             },
+            linear_clamp_sampler: server.create_sampler(GpuSamplerDescriptor {
+                min_filter: MinificationFilter::Linear,
+                mag_filter: MagnificationFilter::Linear,
+                s_wrap_mode: WrapMode::ClampToEdge,
+                t_wrap_mode: WrapMode::ClampToEdge,
+                r_wrap_mode: WrapMode::ClampToEdge,
+                ..Default::default()
+            })?,
+            linear_wrap_sampler: server.create_sampler(GpuSamplerDescriptor {
+                min_filter: MinificationFilter::Linear,
+                mag_filter: MagnificationFilter::Linear,
+                ..Default::default()
+            })?,
+            nearest_clamp_sampler: server.create_sampler(GpuSamplerDescriptor {
+                min_filter: MinificationFilter::Nearest,
+                mag_filter: MagnificationFilter::Nearest,
+                s_wrap_mode: WrapMode::ClampToEdge,
+                t_wrap_mode: WrapMode::ClampToEdge,
+                r_wrap_mode: WrapMode::ClampToEdge,
+                ..Default::default()
+            })?,
+            nearest_wrap_sampler: server.create_sampler(GpuSamplerDescriptor {
+                min_filter: MinificationFilter::Nearest,
+                mag_filter: MagnificationFilter::Nearest,
+                ..Default::default()
+            })?,
         };
 
         Ok(Self {
@@ -1269,6 +1305,7 @@ impl Renderer {
         // Finally register texture in the cache so it will become available as texture in deferred/forward
         // renderer.
         self.texture_cache.try_register(
+            &*self.server,
             &render_target,
             frame_buffer
                 .color_attachments()
@@ -1276,9 +1313,7 @@ impl Renderer {
                 .unwrap()
                 .texture
                 .clone(),
-        );
-
-        Ok(())
+        )
     }
 
     fn update_texture_cache(&mut self, dt: f32) {
@@ -1410,8 +1445,11 @@ impl Renderer {
         // so it can be used in later on as texture. This is useful in case if you need
         // to draw something on offscreen and then draw it on some mesh.
         if let Some(rt) = scene.rendering_options.render_target.clone() {
-            self.texture_cache
-                .try_register(&rt, scene_associated_data.ldr_scene_frame_texture().clone());
+            self.texture_cache.try_register(
+                server,
+                &rt,
+                scene_associated_data.ldr_scene_frame_texture().clone(),
+            )?;
         }
 
         for (camera_handle, camera) in graph.pair_iter().filter_map(|(handle, node)| {
@@ -1561,6 +1599,7 @@ impl Renderer {
                 quad,
                 scene_associated_data.hdr_scene_frame_texture(),
                 &mut self.uniform_buffer_cache,
+                &self.fallback_resources,
             )?;
 
             // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
@@ -1577,6 +1616,7 @@ impl Renderer {
                 camera.color_grading_enabled(),
                 &mut self.texture_cache,
                 &mut self.uniform_buffer_cache,
+                &self.fallback_resources,
             )?;
 
             // Apply FXAA if needed.
@@ -1586,6 +1626,7 @@ impl Renderer {
                     scene_associated_data.ldr_scene_frame_texture(),
                     &scene_associated_data.ldr_temp_framebuffer,
                     &mut self.uniform_buffer_cache,
+                    &self.fallback_resources,
                 )?;
 
                 let quad = &self.quad;
@@ -1597,6 +1638,7 @@ impl Renderer {
                     &self.blit_shader,
                     viewport,
                     quad,
+                    &self.fallback_resources,
                 )?;
             }
 
@@ -1649,6 +1691,7 @@ impl Renderer {
                 &self.blit_shader,
                 window_viewport,
                 &self.quad,
+                &self.fallback_resources,
             )?;
         }
 

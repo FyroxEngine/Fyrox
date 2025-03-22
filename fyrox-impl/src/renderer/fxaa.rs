@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::FallbackResources;
 use crate::{
     core::{algebra::Vector2, math::Rect, sstorage::ImmutableString},
     renderer::{
@@ -58,6 +59,7 @@ impl FxaaRenderer {
         frame_texture: &GpuTexture,
         frame_buffer: &GpuFrameBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
+        fallback_resources: &FallbackResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 
@@ -69,7 +71,10 @@ impl FxaaRenderer {
             property("inverseScreenSize", &inv_screen_size),
         ]);
         let material = RenderMaterial::from([
-            binding("screenTexture", frame_texture),
+            binding(
+                "screenTexture",
+                (frame_texture, &fallback_resources.nearest_clamp_sampler),
+            ),
             binding("properties", &properties),
         ]);
 

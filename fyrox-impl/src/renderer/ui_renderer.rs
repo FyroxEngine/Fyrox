@@ -175,7 +175,10 @@ impl UiRenderer {
         let resolution = Vector2::new(frame_width, frame_height);
 
         for cmd in drawing_context.get_commands() {
-            let mut diffuse_texture = &fallback_resources.white_dummy;
+            let mut diffuse_texture = (
+                &fallback_resources.white_dummy,
+                &fallback_resources.linear_wrap_sampler,
+            );
             let mut is_font_texture = false;
 
             let mut clip_bounds = cmd.clip_bounds;
@@ -265,7 +268,7 @@ impl UiRenderer {
                                     .try_cast::<Texture>()
                                     .unwrap(),
                             ) {
-                                diffuse_texture = texture;
+                                diffuse_texture = (&texture.gpu_texture, &texture.gpu_sampler);
                             }
                             is_font_texture = true;
                         }
@@ -273,7 +276,7 @@ impl UiRenderer {
                 }
                 CommandTexture::Texture(texture) => {
                     if let Some(texture) = texture_cache.get(server, texture) {
-                        diffuse_texture = texture;
+                        diffuse_texture = (&texture.gpu_texture, &texture.gpu_sampler);
                     }
                 }
                 _ => (),

@@ -24,10 +24,7 @@ use crate::{
     core::algebra::Matrix4,
     renderer::framework::{
         error::FrameworkError,
-        gpu_texture::{
-            GpuTextureDescriptor, GpuTextureKind, MagnificationFilter, MinificationFilter,
-            PixelKind, WrapMode,
-        },
+        gpu_texture::{GpuTextureDescriptor, GpuTextureKind, PixelKind},
         server::GraphicsServer,
     },
 };
@@ -55,11 +52,6 @@ impl MatrixStorage {
                     height: 1,
                 },
                 pixel_kind: PixelKind::RGBA32F,
-                min_filter: MinificationFilter::Nearest,
-                mag_filter: MagnificationFilter::Nearest,
-                s_wrap_mode: WrapMode::ClampToEdge,
-                t_wrap_mode: WrapMode::ClampToEdge,
-                r_wrap_mode: WrapMode::ClampToEdge,
                 data: Some(crate::core::array_as_u8_slice(&identity)),
                 ..Default::default()
             })?,

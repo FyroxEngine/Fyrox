@@ -194,7 +194,10 @@ impl SceneRenderPass for HighlightRenderPass {
                 property("color", &color),
             ]);
             let material = RenderMaterial::from([
-                binding("frameTexture", frame_texture),
+                binding(
+                    "frameTexture",
+                    (frame_texture, &ctx.fallback_resources.nearest_clamp_sampler),
+                ),
                 binding("properties", &properties),
             ]);
 

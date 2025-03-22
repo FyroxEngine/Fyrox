@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::FallbackResources;
 use crate::{
     core::{algebra::Vector2, math::Rect, sstorage::ImmutableString},
     renderer::{
@@ -93,6 +94,7 @@ impl GaussianBlur {
         quad: &GpuGeometryBuffer,
         input: &GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
+        fallback_resources: &FallbackResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -109,8 +111,10 @@ impl GaussianBlur {
                 property("pixelSize", &inv_size),
                 property("horizontal", &horizontal),
             ]);
-            let material =
-                RenderMaterial::from([binding("image", image), binding("properties", &properties)]);
+            let material = RenderMaterial::from([
+                binding("image", (image, &fallback_resources.nearest_clamp_sampler)),
+                binding("properties", &properties),
+            ]);
 
             stats += self.shader.run_pass(
                 1,

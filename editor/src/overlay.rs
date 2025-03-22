@@ -122,7 +122,7 @@ impl SceneRenderPass for OverlayRenderPass {
                 property("size", &self.pictogram_size),
             ]);
             let material = RenderMaterial::from([
-                binding("diffuseTexture", &icon),
+                binding("diffuseTexture", (&icon.gpu_texture, &icon.gpu_sampler)),
                 binding("properties", &properties),
             ]);
 

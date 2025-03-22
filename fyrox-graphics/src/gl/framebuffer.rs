@@ -18,22 +18,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::framebuffer::ReadTarget;
-use crate::gpu_texture::image_2d_size_bytes;
 use crate::{
     buffer::GpuBufferTrait,
     core::{color::Color, math::Rect},
     error::FrameworkError,
+    framebuffer::ReadTarget,
     framebuffer::{
         Attachment, AttachmentKind, BufferDataUsage, DrawCallStatistics, GpuFrameBuffer,
         GpuFrameBufferTrait, ResourceBindGroup, ResourceBinding,
     },
     geometry_buffer::GpuGeometryBuffer,
+    gl::sampler::GlSampler,
     gl::{
         buffer::GlBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram,
         server::GlGraphicsServer, texture::GlTexture, ToGlConstant,
     },
     gpu_program::GpuProgram,
+    gpu_texture::image_2d_size_bytes,
     gpu_texture::{CubeMapFace, GpuTextureKind, GpuTextureTrait, PixelElementKind},
     ColorMask, DrawParameters, ElementRange,
 };
@@ -538,10 +539,17 @@ fn pre_draw(
             match binding {
                 ResourceBinding::Texture {
                     texture,
+                    sampler,
                     binding: shader_location,
                 } => {
                     let texture = texture.as_any().downcast_ref::<GlTexture>().unwrap();
                     texture.bind(server, *shader_location as u32);
+                    let sampler = sampler.as_any().downcast_ref::<GlSampler>().unwrap();
+                    unsafe {
+                        server
+                            .gl
+                            .bind_sampler(*shader_location as u32, Some(sampler.id))
+                    };
                 }
                 ResourceBinding::Buffer {
                     buffer,

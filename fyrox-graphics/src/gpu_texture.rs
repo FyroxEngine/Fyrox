@@ -493,22 +493,9 @@ pub struct GpuTextureDescriptor<'a> {
     pub kind: GpuTextureKind,
     /// Pixel kind of the texture. See [`PixelKind`] docs for more info.
     pub pixel_kind: PixelKind,
-    /// Minification filter of the texture. See [`MinificationFilter`] docs for more info.
-    pub min_filter: MinificationFilter,
-    /// Magnification filter of the texture. See [`MagnificationFilter`] docs for more info.
-    pub mag_filter: MagnificationFilter,
     /// Total number of mips in the texture. Texture data must contain at least this number of
     /// mips.
     pub mip_count: usize,
-    /// S coordinate wrap mode. See [`WrapMode`] docs for more info.
-    pub s_wrap_mode: WrapMode,
-    /// T coordinate wrap mode. See [`WrapMode`] docs for more info.
-    pub t_wrap_mode: WrapMode,
-    /// R coordinate wrap mode. See [`WrapMode`] docs for more info.
-    pub r_wrap_mode: WrapMode,
-    /// Anisotropy level of the texture. Default is 1.0. Max number is usually depends on the
-    /// GPU, but the cap is 16.0 on pretty much any platform. This number should be a power of two.
-    pub anisotropy: f32,
     /// Optional data of the texture. If present, then the total number of bytes must match the
     /// required number of bytes defined by the texture kind, pixel kind, mip count.
     pub data: Option<&'a [u8]>,
@@ -520,18 +507,6 @@ pub struct GpuTextureDescriptor<'a> {
     /// should provide the actual mip map level defined by the provided value, otherwise the
     /// rendering will be incorrect (probably just black on majority of implementations) and glitchy.
     pub max_level: usize,
-    /// Sets the minimum level-of-detail parameter. This floating-point value limits the selection
-    /// of highest resolution mipmap (lowest mipmap level). The initial value is -1000.0.
-    pub min_lod: f32,
-    /// Sets the maximum level-of-detail parameter. This floating-point value limits the selection
-    /// of the lowest resolution mipmap (highest mipmap level). The initial value is 1000.0.
-    pub max_lod: f32,
-    /// Specifies a fixed bias value that is to be added to the level-of-detail parameter for the
-    /// texture before texture sampling. The specified value is added to the shader-supplied bias
-    /// value (if any) and subsequently clamped into the implementation-defined range
-    /// `−bias_max..bias_max`, where `bias_max` is the value that can be fetched from the current
-    /// graphics server. The initial value is 0.0.
-    pub lod_bias: f32,
 }
 
 impl Default for GpuTextureDescriptor<'_> {
@@ -544,19 +519,10 @@ impl Default for GpuTextureDescriptor<'_> {
                 height: 1,
             },
             pixel_kind: PixelKind::RGBA8,
-            min_filter: Default::default(),
-            mag_filter: Default::default(),
             mip_count: 1,
-            s_wrap_mode: Default::default(),
-            t_wrap_mode: Default::default(),
-            r_wrap_mode: Default::default(),
-            anisotropy: 1.0,
             data: None,
             base_level: 0,
             max_level: 1000,
-            min_lod: -1000.0,
-            max_lod: 1000.0,
-            lod_bias: 0.0,
         }
     }
 }
@@ -591,13 +557,7 @@ define_as_any_trait!(GpuTextureAsAny => GpuTextureTrait);
 ///             height: 1,
 ///         },
 ///         pixel_kind: PixelKind::RGBA8,
-///         min_filter: MinificationFilter::Nearest,
-///         mag_filter: MagnificationFilter::Nearest,
 ///         mip_count: 1,
-///         s_wrap_mode: WrapMode::Repeat,
-///         t_wrap_mode: WrapMode::Repeat,
-///         r_wrap_mode: WrapMode::Repeat,
-///         anisotropy: 1.0,
 ///         // Opaque red pixel.
 ///         data: Some(&[255, 0, 0, 255]),
 ///         // Take the defaults for the rest of parameters.
@@ -606,34 +566,6 @@ define_as_any_trait!(GpuTextureAsAny => GpuTextureTrait);
 /// }
 /// ```
 pub trait GpuTextureTrait: GpuTextureAsAny {
-    /// Max samples for anisotropic filtering. Default value is 16.0 (max). However, real value passed
-    /// to GPU will be clamped to maximum supported by current GPU. To disable anisotropic filtering
-    /// set this to 1.0. Typical values are 2.0, 4.0, 8.0, 16.0.
-    fn set_anisotropy(&self, anisotropy: f32);
-
-    /// Returns current anisotropy level.
-    fn anisotropy(&self) -> f32;
-
-    /// Sets new minification filter. It is used when texture becomes smaller. See [`MinificationFilter`]
-    /// docs for more info.
-    fn set_minification_filter(&self, min_filter: MinificationFilter);
-
-    /// Returns current minification filter.
-    fn minification_filter(&self) -> MinificationFilter;
-
-    /// Sets new magnification filter. It is used when texture is "stretching". See [`MagnificationFilter`]
-    /// docs for more info.
-    fn set_magnification_filter(&self, mag_filter: MagnificationFilter);
-
-    /// Returns current magnification filter.
-    fn magnification_filter(&self) -> MagnificationFilter;
-
-    /// Sets new wrap mode for the given coordinate. See [`WrapMode`] for more info.
-    fn set_wrap(&self, coordinate: Coordinate, wrap: WrapMode);
-
-    /// Returns current wrap mode for the given coordinate.
-    fn wrap_mode(&self, coordinate: Coordinate) -> WrapMode;
-
     /// Sets the new data of the texture. This method is also able to change the kind of the texture
     /// and its pixel kind.
     fn set_data(
@@ -649,47 +581,6 @@ pub trait GpuTextureTrait: GpuTextureAsAny {
 
     /// Returns pixel kind of the texture.
     fn pixel_kind(&self) -> PixelKind;
-
-    /// Specifies the index of the lowest defined mipmap level. Keep in mind, that the texture data
-    /// should provide the actual mip map level defined by the provided value, otherwise the
-    /// rendering will be incorrect (probably just black on majority of implementations) and glitchy.
-    fn set_base_level(&self, level: usize);
-
-    /// Returns the index of the lowest defined mipmap level.
-    fn base_level(&self) -> usize;
-
-    /// Sets the index of the highest defined mipmap level. Keep in mind, that the texture data
-    /// should provide the actual mip map level defined by the provided value, otherwise the
-    /// rendering will be incorrect (probably just black on majority of implementations) and glitchy.
-    fn set_max_level(&self, level: usize);
-
-    /// Returns the index of the highest defined mipmap level.
-    fn max_level(&self) -> usize;
-
-    /// Sets the minimum level-of-detail parameter. This floating-point value limits the selection
-    /// of highest resolution mipmap (lowest mipmap level). The initial value is -1000.0.
-    fn set_min_lod(&self, min_lod: f32);
-
-    /// Returns the minimum level-of-detail parameter. See [`Self::set_min_lod`] for more info.
-    fn min_lod(&self) -> f32;
-
-    /// Sets the maximum level-of-detail parameter. This floating-point value limits the selection
-    /// of the lowest resolution mipmap (highest mipmap level). The initial value is 1000.
-    fn set_max_lod(&self, max_lod: f32);
-
-    /// Returns the maximum level-of-detail parameter. See [`Self::set_max_lod`] for more info.
-    fn max_lod(&self) -> f32;
-
-    /// Specifies a fixed bias value that is to be added to the level-of-detail parameter for the
-    /// texture before texture sampling. The specified value is added to the shader-supplied bias
-    /// value (if any) and subsequently clamped into the implementation-defined range
-    /// `−bias_max..bias_max`, where `bias_max` is the value that can be fetched from the current
-    /// graphics server. The initial value is 0.0.
-    fn set_lod_bias(&self, bias: f32);
-
-    /// Returns a fixed bias value that is to be added to the level-of-detail parameter for the
-    /// texture before texture sampling. See [`Self::set_lod_bias`] for more info.
-    fn lod_bias(&self) -> f32;
 }
 
 define_shared_wrapper!(GpuTexture<dyn GpuTextureTrait>);

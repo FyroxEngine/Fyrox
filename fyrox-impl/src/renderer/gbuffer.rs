@@ -275,6 +275,7 @@ impl GBuffer {
                 camera.global_position(),
                 view_projection,
                 uniform_buffer_cache,
+                fallback_resources,
             )?;
         }
 
@@ -292,14 +293,28 @@ impl GBuffer {
 
             let diffuse_texture = decal
                 .diffuse_texture()
-                .and_then(|t| texture_cache.get(server, t))
-                .unwrap_or(&fallback_resources.white_dummy)
+                .and_then(|t| {
+                    texture_cache
+                        .get(server, t)
+                        .map(|t| (t.gpu_texture.clone(), t.gpu_sampler.clone()))
+                })
+                .unwrap_or((
+                    fallback_resources.white_dummy.clone(),
+                    fallback_resources.linear_clamp_sampler.clone(),
+                ))
                 .clone();
 
             let normal_texture = decal
                 .normal_texture()
-                .and_then(|t| texture_cache.get(server, t))
-                .unwrap_or(&fallback_resources.normal_dummy)
+                .and_then(|t| {
+                    texture_cache
+                        .get(server, t)
+                        .map(|t| (t.gpu_texture.clone(), t.gpu_sampler.clone()))
+                })
+                .unwrap_or((
+                    fallback_resources.normal_dummy.clone(),
+                    fallback_resources.linear_clamp_sampler.clone(),
+                ))
                 .clone();
 
             let inv_world_decal = decal.global_transform().try_inverse().unwrap_or_default();
@@ -314,10 +329,16 @@ impl GBuffer {
                 property("layerIndex", &layer_index),
             ]);
             let material = RenderMaterial::from([
-                binding("sceneDepth", depth),
-                binding("diffuseTexture", &diffuse_texture),
-                binding("normalTexture", &normal_texture),
-                binding("decalMask", decal_mask),
+                binding(
+                    "sceneDepth",
+                    (depth, &fallback_resources.nearest_clamp_sampler),
+                ),
+                binding("diffuseTexture", (&diffuse_texture.0, &diffuse_texture.1)),
+                binding("normalTexture", (&normal_texture.0, &normal_texture.1)),
+                binding(
+                    "decalMask",
+                    (decal_mask, &fallback_resources.nearest_clamp_sampler),
+                ),
                 binding("properties", &properties),
             ]);
 

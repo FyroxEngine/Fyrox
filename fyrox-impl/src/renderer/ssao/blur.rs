@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::FallbackResources;
 use crate::{
     core::{math::Rect, ImmutableString},
     renderer::{
@@ -77,13 +78,17 @@ impl Blur {
         &mut self,
         input: GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
+        fallback_resources: &FallbackResources,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
 
         let wvp = make_viewport_matrix(viewport);
         let properties = PropertyGroup::from([property("worldViewProjection", &wvp)]);
         let material = RenderMaterial::from([
-            binding("inputTexture", &input),
+            binding(
+                "inputTexture",
+                (&input, &fallback_resources.nearest_clamp_sampler),
+            ),
             binding("properties", &properties),
         ]);
 

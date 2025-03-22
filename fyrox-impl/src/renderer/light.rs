@@ -333,12 +333,13 @@ impl DeferredLightRenderer {
                 projection_matrix,
                 camera.view_matrix().basis(),
                 uniform_buffer_cache,
+                fallback_resources,
             )?;
         }
 
         // Render skybox (if any).
         if let Some(skybox) = camera.skybox_ref() {
-            if let Some(gpu_texture) = skybox
+            if let Some(texture_sampler_pair) = skybox
                 .cubemap_ref()
                 .and_then(|cube_map| textures.get(server, cube_map))
             {
@@ -348,7 +349,13 @@ impl DeferredLightRenderer {
                 let wvp = view_projection * wvp;
                 let properties = PropertyGroup::from([property("worldViewProjection", &wvp)]);
                 let material = RenderMaterial::from([
-                    binding("cubemapTexture", gpu_texture),
+                    binding(
+                        "cubemapTexture",
+                        (
+                            &texture_sampler_pair.gpu_texture,
+                            &texture_sampler_pair.gpu_sampler,
+                        ),
+                    ),
                     binding("properties", &properties),
                 ]);
 
@@ -383,16 +390,31 @@ impl DeferredLightRenderer {
             property("ambientColor", &ambient_color),
         ]);
         let material = RenderMaterial::from([
-            binding("diffuseTexture", gbuffer_diffuse_map),
+            binding(
+                "diffuseTexture",
+                (
+                    gbuffer_diffuse_map,
+                    &fallback_resources.nearest_clamp_sampler,
+                ),
+            ),
             binding(
                 "aoSampler",
                 if settings.use_ssao {
-                    &ao_map
+                    (&ao_map, &fallback_resources.linear_clamp_sampler)
                 } else {
-                    &fallback_resources.white_dummy
+                    (
+                        &fallback_resources.white_dummy,
+                        &fallback_resources.linear_clamp_sampler,
+                    )
                 },
             ),
-            binding("ambientTexture", gbuffer_ambient_map),
+            binding(
+                "ambientTexture",
+                (
+                    gbuffer_ambient_map,
+                    &fallback_resources.nearest_clamp_sampler,
+                ),
+            ),
             binding("properties", &properties),
         ]);
 
@@ -686,12 +708,24 @@ impl DeferredLightRenderer {
                         let (cookie_enabled, cookie_texture) =
                             if let Some(texture) = cookie_texture.as_ref() {
                                 if let Some(cookie) = textures.get(server, texture) {
-                                    (true, cookie)
+                                    (true, (&cookie.gpu_texture, &cookie.gpu_sampler))
                                 } else {
-                                    (false, &fallback_resources.white_dummy)
+                                    (
+                                        false,
+                                        (
+                                            &fallback_resources.white_dummy,
+                                            &fallback_resources.linear_wrap_sampler,
+                                        ),
+                                    )
                                 }
                             } else {
-                                (false, &fallback_resources.white_dummy)
+                                (
+                                    false,
+                                    (
+                                        &fallback_resources.white_dummy,
+                                        &fallback_resources.linear_wrap_sampler,
+                                    ),
+                                )
                             };
 
                         light_stats.spot_lights_rendered += 1;
@@ -721,13 +755,37 @@ impl DeferredLightRenderer {
                             property("softShadows", &settings.spot_soft_shadows),
                         ]);
                         let material = RenderMaterial::from([
-                            binding("depthTexture", gbuffer_depth_map),
-                            binding("colorTexture", gbuffer_diffuse_map),
-                            binding("normalTexture", gbuffer_normal_map),
-                            binding("materialTexture", gbuffer_material_map),
+                            binding(
+                                "depthTexture",
+                                (gbuffer_depth_map, &fallback_resources.nearest_clamp_sampler),
+                            ),
+                            binding(
+                                "colorTexture",
+                                (
+                                    gbuffer_diffuse_map,
+                                    &fallback_resources.nearest_clamp_sampler,
+                                ),
+                            ),
+                            binding(
+                                "normalTexture",
+                                (
+                                    gbuffer_normal_map,
+                                    &fallback_resources.nearest_clamp_sampler,
+                                ),
+                            ),
+                            binding(
+                                "materialTexture",
+                                (
+                                    gbuffer_material_map,
+                                    &fallback_resources.nearest_clamp_sampler,
+                                ),
+                            ),
                             binding(
                                 "spotShadowTexture",
-                                self.spot_shadow_map_renderer.cascade_texture(cascade_index),
+                                (
+                                    self.spot_shadow_map_renderer.cascade_texture(cascade_index),
+                                    &fallback_resources.nearest_clamp_sampler,
+                                ),
                             ),
                             binding("cookieTexture", cookie_texture),
                             binding("properties", &properties),
@@ -762,14 +820,38 @@ impl DeferredLightRenderer {
                             property("softShadows", &settings.point_soft_shadows),
                         ]);
                         let material = RenderMaterial::from([
-                            binding("depthTexture", gbuffer_depth_map),
-                            binding("colorTexture", gbuffer_diffuse_map),
-                            binding("normalTexture", gbuffer_normal_map),
-                            binding("materialTexture", gbuffer_material_map),
+                            binding(
+                                "depthTexture",
+                                (gbuffer_depth_map, &fallback_resources.nearest_clamp_sampler),
+                            ),
+                            binding(
+                                "colorTexture",
+                                (
+                                    gbuffer_diffuse_map,
+                                    &fallback_resources.nearest_clamp_sampler,
+                                ),
+                            ),
+                            binding(
+                                "normalTexture",
+                                (
+                                    gbuffer_normal_map,
+                                    &fallback_resources.nearest_clamp_sampler,
+                                ),
+                            ),
+                            binding(
+                                "materialTexture",
+                                (
+                                    gbuffer_material_map,
+                                    &fallback_resources.nearest_clamp_sampler,
+                                ),
+                            ),
                             binding(
                                 "pointShadowTexture",
-                                self.point_shadow_map_renderer
-                                    .cascade_texture(cascade_index),
+                                (
+                                    self.point_shadow_map_renderer
+                                        .cascade_texture(cascade_index),
+                                    &fallback_resources.nearest_clamp_sampler,
+                                ),
                             ),
                             binding("properties", &properties),
                         ]);
@@ -819,13 +901,52 @@ impl DeferredLightRenderer {
                         ]);
                         let cascades = self.csm_renderer.cascades();
                         let material = RenderMaterial::from([
-                            binding("depthTexture", gbuffer_depth_map),
-                            binding("colorTexture", gbuffer_diffuse_map),
-                            binding("normalTexture", gbuffer_normal_map),
-                            binding("materialTexture", gbuffer_material_map),
-                            binding("shadowCascade0", cascades[0].texture()),
-                            binding("shadowCascade1", cascades[1].texture()),
-                            binding("shadowCascade2", cascades[2].texture()),
+                            binding(
+                                "depthTexture",
+                                (gbuffer_depth_map, &fallback_resources.nearest_clamp_sampler),
+                            ),
+                            binding(
+                                "colorTexture",
+                                (
+                                    gbuffer_diffuse_map,
+                                    &fallback_resources.nearest_clamp_sampler,
+                                ),
+                            ),
+                            binding(
+                                "normalTexture",
+                                (
+                                    gbuffer_normal_map,
+                                    &fallback_resources.nearest_clamp_sampler,
+                                ),
+                            ),
+                            binding(
+                                "materialTexture",
+                                (
+                                    gbuffer_material_map,
+                                    &fallback_resources.nearest_clamp_sampler,
+                                ),
+                            ),
+                            binding(
+                                "shadowCascade0",
+                                (
+                                    cascades[0].texture(),
+                                    &fallback_resources.nearest_clamp_sampler,
+                                ),
+                            ),
+                            binding(
+                                "shadowCascade1",
+                                (
+                                    cascades[1].texture(),
+                                    &fallback_resources.nearest_clamp_sampler,
+                                ),
+                            ),
+                            binding(
+                                "shadowCascade2",
+                                (
+                                    cascades[2].texture(),
+                                    &fallback_resources.nearest_clamp_sampler,
+                                ),
+                            ),
                             binding("properties", &properties),
                         ]);
 
@@ -859,6 +980,7 @@ impl DeferredLightRenderer {
                     &scene.graph,
                     frame_buffer,
                     uniform_buffer_cache,
+                    fallback_resources,
                 )?;
             }
         }

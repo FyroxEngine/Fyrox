@@ -24,6 +24,7 @@
 //! It consists of one or more color buffers and an optional depth/stencil buffer. See [`GpuFrameBufferTrait`]
 //! docs for more info.
 
+use crate::sampler::GpuSampler;
 use crate::{
     buffer::GpuBuffer,
     core::{color::Color, math::Rect},
@@ -108,6 +109,7 @@ pub enum ResourceBinding {
     Texture {
         /// A shared reference to a texture.
         texture: GpuTexture,
+        sampler: GpuSampler,
         /// Binding mode for the texture.
         binding: usize,
     },
@@ -124,9 +126,10 @@ pub enum ResourceBinding {
 
 impl ResourceBinding {
     /// Creates a new explicit texture binding.
-    pub fn texture(texture: &GpuTexture, binding: usize) -> Self {
+    pub fn texture(texture: &GpuTexture, sampler: &GpuSampler, binding: usize) -> Self {
         Self::Texture {
             texture: texture.clone(),
+            sampler: sampler.clone(),
             binding,
         }
     }

@@ -280,6 +280,7 @@ pub struct Texture {
     mip_count: u32,
     anisotropy: f32,
     modifications_counter: u64,
+    sampler_properties_modifications: u64,
     is_render_target: bool,
     #[doc(hidden)]
     #[reflect(hidden)]
@@ -401,6 +402,7 @@ impl Default for Texture {
             mip_count: 1,
             anisotropy: 16.0,
             modifications_counter: 0,
+            sampler_properties_modifications: 1,
             is_render_target: false,
             cache_index: Default::default(),
         }
@@ -748,6 +750,7 @@ impl TextureResourceExtension for TextureResource {
                 mip_count: 1,
                 anisotropy: 1.0,
                 modifications_counter: 0,
+                sampler_properties_modifications: 1,
                 is_render_target: true,
                 cache_index: Default::default(),
             },
@@ -1519,6 +1522,7 @@ impl Texture {
                 is_render_target: false,
                 cache_index: Default::default(),
                 lod_bias: import_options.lod_bias,
+                sampler_properties_modifications: 1,
             })
         } else {
             // Commonly used formats are all rectangle textures.
@@ -1657,6 +1661,7 @@ impl Texture {
                 is_render_target: false,
                 cache_index: Default::default(),
                 lod_bias: import_options.lod_bias,
+                sampler_properties_modifications: 1,
             })
         }
     }
@@ -1703,6 +1708,7 @@ impl Texture {
     #[inline]
     pub fn set_minification_filter(&mut self, filter: TextureMinificationFilter) {
         self.minification_filter = filter;
+        self.sampler_properties_modifications += 1;
     }
 
     /// Returns current minification filter.
@@ -1715,6 +1721,7 @@ impl Texture {
     #[inline]
     pub fn set_magnification_filter(&mut self, filter: TextureMagnificationFilter) {
         self.magnification_filter = filter;
+        self.sampler_properties_modifications += 1;
     }
 
     /// Returns current magnification filter.
@@ -1727,6 +1734,7 @@ impl Texture {
     #[inline]
     pub fn set_s_wrap_mode(&mut self, s_wrap_mode: TextureWrapMode) {
         self.s_wrap_mode = s_wrap_mode;
+        self.sampler_properties_modifications += 1;
     }
 
     /// Returns current S coordinate wrap mode.
@@ -1739,6 +1747,7 @@ impl Texture {
     #[inline]
     pub fn set_t_wrap_mode(&mut self, t_wrap_mode: TextureWrapMode) {
         self.t_wrap_mode = t_wrap_mode;
+        self.sampler_properties_modifications += 1;
     }
 
     /// Returns current T coordinate wrap mode.
@@ -1751,6 +1760,11 @@ impl Texture {
     #[inline]
     pub fn set_r_wrap_mode(&mut self, r_wrap_mode: TextureWrapMode) {
         self.r_wrap_mode = r_wrap_mode;
+        self.sampler_properties_modifications += 1;
+    }
+
+    pub fn sampler_modifications_count(&self) -> u64 {
+        self.sampler_properties_modifications
     }
 
     /// Returns current T coordinate wrap mode.
@@ -1827,6 +1841,7 @@ impl Texture {
     /// of highest resolution mipmap (lowest mipmap level). The initial value is -1000.0.
     #[inline]
     pub fn set_min_lod(&mut self, min_lod: f32) {
+        self.sampler_properties_modifications += 1;
         self.min_lod = min_lod;
     }
 
@@ -1840,6 +1855,7 @@ impl Texture {
     /// of the lowest resolution mipmap (highest mipmap level). The initial value is 1000.
     #[inline]
     pub fn set_max_lod(&mut self, max_lod: f32) {
+        self.sampler_properties_modifications += 1;
         self.max_lod = max_lod;
     }
 
@@ -1857,6 +1873,7 @@ impl Texture {
     /// graphics server. The initial value is 0.0.
     #[inline]
     pub fn set_lod_bias(&mut self, lod_bias: f32) {
+        self.sampler_properties_modifications += 1;
         self.lod_bias = lod_bias;
     }
 
@@ -1929,6 +1946,7 @@ impl Texture {
     /// Typical values are 2.0, 4.0, 8.0, 16.0.
     #[inline]
     pub fn set_anisotropy_level(&mut self, anisotropy: f32) {
+        self.sampler_properties_modifications += 1;
         self.anisotropy = anisotropy.max(1.0);
     }
 
