@@ -56,6 +56,35 @@ pub struct GpuSamplerDescriptor {
     pub lod_bias: f32,
 }
 
+impl Default for GpuSamplerDescriptor {
+    fn default() -> Self {
+        Self {
+            min_filter: Default::default(),
+            mag_filter: Default::default(),
+            s_wrap_mode: Default::default(),
+            t_wrap_mode: Default::default(),
+            r_wrap_mode: Default::default(),
+            anisotropy: 1.0,
+            min_lod: -1000.0,
+            max_lod: 1000.0,
+            lod_bias: 0.0,
+        }
+    }
+}
+
+impl GpuSamplerDescriptor {
+    pub fn new_rt_sampler() -> Self {
+        Self {
+            min_filter: MinificationFilter::Nearest,
+            mag_filter: MagnificationFilter::Nearest,
+            s_wrap_mode: WrapMode::ClampToEdge,
+            t_wrap_mode: WrapMode::ClampToEdge,
+            r_wrap_mode: WrapMode::ClampToEdge,
+            ..Default::default()
+        }
+    }
+}
+
 /// Sampler is a GPU entity that defines how texels will be fetched from a texture. See [`GpuSamplerDescriptor`]
 /// docs for more info.
 pub trait GpuSamplerTrait: GpuSamplerAsAny + Debug {}
