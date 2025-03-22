@@ -22,9 +22,8 @@ use crate::{
     error::FrameworkError,
     gl::{server::GlGraphicsServer, ToGlConstant},
     gpu_texture::{
-        image_1d_size_bytes, image_2d_size_bytes, image_3d_size_bytes, Coordinate, CubeMapFace,
-        GpuTextureDescriptor, GpuTextureKind, GpuTextureTrait, MagnificationFilter,
-        MinificationFilter, PixelKind, WrapMode,
+        image_1d_size_bytes, image_2d_size_bytes, image_3d_size_bytes, CubeMapFace,
+        GpuTextureDescriptor, GpuTextureKind, GpuTextureTrait, PixelKind,
     },
 };
 use glow::{HasContext, PixelUnpackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
@@ -41,50 +40,6 @@ impl GpuTextureKind {
             Self::Rectangle { .. } => glow::TEXTURE_2D,
             Self::Cube { .. } => glow::TEXTURE_CUBE_MAP,
             Self::Volume { .. } => glow::TEXTURE_3D,
-        }
-    }
-}
-
-impl ToGlConstant for MinificationFilter {
-    fn into_gl(self) -> u32 {
-        match self {
-            Self::Nearest => glow::NEAREST,
-            Self::NearestMipMapNearest => glow::NEAREST_MIPMAP_NEAREST,
-            Self::NearestMipMapLinear => glow::NEAREST_MIPMAP_LINEAR,
-            Self::Linear => glow::LINEAR,
-            Self::LinearMipMapNearest => glow::LINEAR_MIPMAP_NEAREST,
-            Self::LinearMipMapLinear => glow::LINEAR_MIPMAP_LINEAR,
-        }
-    }
-}
-
-impl ToGlConstant for MagnificationFilter {
-    fn into_gl(self) -> u32 {
-        match self {
-            Self::Nearest => glow::NEAREST,
-            Self::Linear => glow::LINEAR,
-        }
-    }
-}
-
-impl ToGlConstant for WrapMode {
-    fn into_gl(self) -> u32 {
-        match self {
-            Self::Repeat => glow::REPEAT,
-            Self::ClampToEdge => glow::CLAMP_TO_EDGE,
-            Self::ClampToBorder => glow::CLAMP_TO_BORDER,
-            Self::MirroredRepeat => glow::MIRRORED_REPEAT,
-            Self::MirrorClampToEdge => glow::MIRROR_CLAMP_TO_EDGE,
-        }
-    }
-}
-
-impl ToGlConstant for Coordinate {
-    fn into_gl(self) -> u32 {
-        match self {
-            Self::S => glow::TEXTURE_WRAP_S,
-            Self::T => glow::TEXTURE_WRAP_T,
-            Self::R => glow::TEXTURE_WRAP_R,
         }
     }
 }

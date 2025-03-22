@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::sampler::{Coordinate, MagnificationFilter, MinificationFilter, WrapMode};
 use crate::{
     error::FrameworkError,
     gl::{server::GlGraphicsServer, ToGlConstant},
@@ -25,6 +26,50 @@ use crate::{
 };
 use glow::HasContext;
 use std::rc::Weak;
+
+impl ToGlConstant for MinificationFilter {
+    fn into_gl(self) -> u32 {
+        match self {
+            Self::Nearest => glow::NEAREST,
+            Self::NearestMipMapNearest => glow::NEAREST_MIPMAP_NEAREST,
+            Self::NearestMipMapLinear => glow::NEAREST_MIPMAP_LINEAR,
+            Self::Linear => glow::LINEAR,
+            Self::LinearMipMapNearest => glow::LINEAR_MIPMAP_NEAREST,
+            Self::LinearMipMapLinear => glow::LINEAR_MIPMAP_LINEAR,
+        }
+    }
+}
+
+impl ToGlConstant for MagnificationFilter {
+    fn into_gl(self) -> u32 {
+        match self {
+            Self::Nearest => glow::NEAREST,
+            Self::Linear => glow::LINEAR,
+        }
+    }
+}
+
+impl ToGlConstant for WrapMode {
+    fn into_gl(self) -> u32 {
+        match self {
+            Self::Repeat => glow::REPEAT,
+            Self::ClampToEdge => glow::CLAMP_TO_EDGE,
+            Self::ClampToBorder => glow::CLAMP_TO_BORDER,
+            Self::MirroredRepeat => glow::MIRRORED_REPEAT,
+            Self::MirrorClampToEdge => glow::MIRROR_CLAMP_TO_EDGE,
+        }
+    }
+}
+
+impl ToGlConstant for Coordinate {
+    fn into_gl(self) -> u32 {
+        match self {
+            Self::S => glow::TEXTURE_WRAP_S,
+            Self::T => glow::TEXTURE_WRAP_T,
+            Self::R => glow::TEXTURE_WRAP_R,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct GlSampler {

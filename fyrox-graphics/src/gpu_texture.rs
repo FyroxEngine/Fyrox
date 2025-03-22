@@ -391,85 +391,6 @@ pub fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
     }
 }
 
-/// The texture magnification function is used when the pixel being textured maps to an area
-/// less than or equal to one texture element.
-#[derive(Default, Copy, Clone, PartialOrd, PartialEq, Eq, Hash, Debug)]
-#[repr(u32)]
-pub enum MagnificationFilter {
-    /// Returns the value of the texture element that is nearest to the center of the pixel
-    /// being textured.
-    Nearest,
-    /// Returns the weighted average of the four texture elements that are closest to the
-    /// center of the pixel being textured.
-    #[default]
-    Linear,
-}
-
-/// The texture minifying function is used whenever the pixel being textured maps to an area
-/// greater than one texture element.
-#[derive(Default, Copy, Clone, PartialOrd, PartialEq, Eq, Hash, Debug)]
-pub enum MinificationFilter {
-    /// Returns the value of the texture element that is nearest to the center of the pixel
-    /// being textured.
-    Nearest,
-    /// Chooses the mipmap that most closely matches the size of the pixel being textured and
-    /// uses the Nearest criterion (the texture element nearest to the center of the pixel)
-    /// to produce a texture value.
-    NearestMipMapNearest,
-    /// Chooses the two mipmaps that most closely match the size of the pixel being textured
-    /// and uses the Nearest criterion (the texture element nearest to the center of the pixel)
-    /// to produce a texture value from each mipmap. The final texture value is a weighted average
-    /// of those two values.
-    NearestMipMapLinear,
-    /// Returns the weighted average of the four texture elements that are closest to the
-    /// center of the pixel being textured.
-    #[default]
-    Linear,
-    /// Chooses the mipmap that most closely matches the size of the pixel being textured and
-    /// uses the Linear criterion (a weighted average of the four texture elements that are
-    /// closest to the center of the pixel) to produce a texture value.
-    LinearMipMapNearest,
-    /// Chooses the two mipmaps that most closely match the size of the pixel being textured
-    /// and uses the Linear criterion (a weighted average of the four texture elements that
-    /// are closest to the center of the pixel) to produce a texture value from each mipmap.
-    /// The final texture value is a weighted average of those two values.
-    LinearMipMapLinear,
-}
-
-/// Defines a law of texture coordinate modification.
-#[derive(Default, Copy, Clone, Eq, PartialEq, Debug)]
-pub enum WrapMode {
-    /// Causes the integer part of a coordinate to be ignored; GPU uses only the fractional part,
-    /// thereby creating a repeating pattern.
-    #[default]
-    Repeat,
-    /// Causes a coordinates to be clamped to the range, where N is the size of the texture
-    /// in the direction of clamping
-    ClampToEdge,
-    /// Evaluates a coordinates in a similar manner to ClampToEdge. However, in cases where clamping
-    /// would have occurred in ClampToEdge mode, the fetched texel data is substituted with the values
-    /// specified by border color.
-    ClampToBorder,
-    /// Causes the coordinate to be set to the fractional part of the texture coordinate if the integer
-    /// part of coordinate is even; if the integer part of coordinate is odd, then the coordinate texture
-    /// coordinate is set to 1-frac, where frac represents the fractional part of coordinate.
-    MirroredRepeat,
-    /// Causes a coordinate to be repeated as for MirroredRepeat for one repetition of the texture, at
-    /// which point the coordinate to be clamped as in ClampToEdge.
-    MirrorClampToEdge,
-}
-
-/// Texture coordinate.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum Coordinate {
-    /// S coordinate, similar to X axis.
-    S,
-    /// T coordinate, similar to Y axis.
-    T,
-    /// R coordinate, similar to Z axis.
-    R,
-}
-
 /// Face of a cube map.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum CubeMapFace {
@@ -541,7 +462,7 @@ define_as_any_trait!(GpuTextureAsAny => GpuTextureTrait);
 /// use fyrox_graphics::{
 ///     error::FrameworkError,
 ///     gpu_texture::{
-///         GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
+///         GpuTexture, GpuTextureDescriptor, GpuTextureKind,
 ///         MinificationFilter, PixelKind, WrapMode,
 ///     },
 ///     server::GraphicsServer,

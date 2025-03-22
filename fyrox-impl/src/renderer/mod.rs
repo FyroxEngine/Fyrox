@@ -108,8 +108,10 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::gpu_texture::{MagnificationFilter, MinificationFilter, WrapMode};
-use fyrox_graphics::sampler::{GpuSampler, GpuSamplerDescriptor};
+use fyrox_graphics::{
+    sampler::{GpuSampler, GpuSamplerDescriptor},
+    sampler::{MagnificationFilter, MinificationFilter, WrapMode},
+};
 use fyrox_resource::untyped::ResourceKind;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};

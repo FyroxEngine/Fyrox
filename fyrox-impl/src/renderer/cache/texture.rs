@@ -26,11 +26,10 @@ use crate::{
     },
     resource::texture::{Texture, TextureResource},
 };
-use fyrox_graphics::gpu_texture::{
-    GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter, MinificationFilter,
-    WrapMode,
+use fyrox_graphics::gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind};
+use fyrox_graphics::sampler::{
+    GpuSampler, GpuSamplerDescriptor, MagnificationFilter, MinificationFilter, WrapMode,
 };
-use fyrox_graphics::sampler::{GpuSampler, GpuSamplerDescriptor};
 use fyrox_texture::{
     TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
     TextureWrapMode,
