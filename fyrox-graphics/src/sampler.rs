@@ -42,14 +42,6 @@ pub struct GpuSamplerDescriptor {
     /// Anisotropy level of the texture. Default is 1.0. Max number is usually depends on the
     /// GPU, but the cap is 16.0 on pretty much any platform. This number should be a power of two.
     pub anisotropy: f32,
-    /// Specifies the index of the lowest defined mipmap level. Keep in mind, that the texture data
-    /// should provide the actual mip map level defined by the provided value, otherwise the
-    /// rendering will be incorrect (probably just black on majority of implementations) and glitchy.
-    pub base_level: usize,
-    /// Sets the index of the highest defined mipmap level. Keep in mind, that the texture data
-    /// should provide the actual mip map level defined by the provided value, otherwise the
-    /// rendering will be incorrect (probably just black on majority of implementations) and glitchy.
-    pub max_level: usize,
     /// Sets the minimum level-of-detail parameter. This floating-point value limits the selection
     /// of highest resolution mipmap (lowest mipmap level). The initial value is -1000.0.
     pub min_lod: f32,
