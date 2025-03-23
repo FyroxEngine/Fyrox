@@ -37,8 +37,7 @@
 use std::{collections::hash_map::Entry, fmt::Debug, hash::Hash};
 
 use fxhash::FxHashMap;
-use fyrox_core::algebra::{Vector2, Vector3};
-use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
+use nalgebra::{Vector2, Vector3};
 use rand::Rng;
 
 mod auto;

@@ -119,7 +119,7 @@ pub trait PatternSource {
 /// to fit with the new terrain of this cell. This object specifies whether that should
 /// be done. Cells that are added this way keep their current terrain, but their pattern
 /// may change.
-#[derive(Debug, Default, Clone, Copy, Visit, Reflect)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct ConstraintFillRules {
     /// True if adjacent cells should be automatically added to the autotiling constraint
     /// so that they may be modified.
