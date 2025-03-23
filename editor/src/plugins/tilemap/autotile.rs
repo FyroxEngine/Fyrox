@@ -67,10 +67,25 @@ pub struct AutoTileMacro {
     autotiler: TileSetAutoTiler,
 }
 
-#[derive(Default, Debug, Clone, Visit, Reflect)]
+#[derive(Default, Debug, Clone, Reflect)]
 struct CellData {
     terrain_id: TileTerrainId,
+    #[reflect(hidden)]
     fill: ConstraintFillRules,
+}
+
+impl Visit for CellData {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+        self.terrain_id.visit("TerrainId", &mut region)?;
+        let mut region = region.enter_region("Fill")?;
+        self.fill
+            .include_adjacent
+            .visit("IncludeAdjacent", &mut region)?;
+        self.fill
+            .include_diagonal
+            .visit("IncludeDiagonal", &mut region)
+    }
 }
 
 #[derive(Debug, Default, Clone, Visit, Reflect, TypeUuidProvider)]
