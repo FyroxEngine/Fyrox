@@ -462,8 +462,7 @@ define_as_any_trait!(GpuTextureAsAny => GpuTextureTrait);
 /// use fyrox_graphics::{
 ///     error::FrameworkError,
 ///     gpu_texture::{
-///         GpuTexture, GpuTextureDescriptor, GpuTextureKind,
-///         MinificationFilter, PixelKind, WrapMode,
+///         GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind,
 ///     },
 ///     server::GraphicsServer,
 /// };
