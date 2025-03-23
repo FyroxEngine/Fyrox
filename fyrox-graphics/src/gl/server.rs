@@ -25,11 +25,17 @@ use crate::{
     framebuffer::{Attachment, GpuFrameBuffer},
     geometry_buffer::{GeometryBufferDescriptor, GpuGeometryBuffer},
     gl::{
-        self, framebuffer::GlFrameBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram,
-        query::GlQuery, read_buffer::GlAsyncReadBuffer, sampler::GlSampler, texture::GlTexture,
+        self,
+        framebuffer::GlFrameBuffer,
+        geometry_buffer::GlGeometryBuffer,
+        program::{GlProgram, GlShader},
+        query::GlQuery,
+        read_buffer::GlAsyncReadBuffer,
+        sampler::GlSampler,
+        texture::GlTexture,
         ToGlConstant,
     },
-    gpu_program::{GpuProgram, ShaderResourceDefinition},
+    gpu_program::{GpuProgram, GpuShader, ShaderKind, ShaderResourceDefinition},
     gpu_texture::{GpuTexture, GpuTextureDescriptor},
     query::GpuQuery,
     read_buffer::GpuAsyncReadBuffer,
@@ -1031,12 +1037,30 @@ impl GraphicsServer for GlGraphicsServer {
         Ok(GpuQuery(Rc::new(GlQuery::new(self)?)))
     }
 
+    fn create_shader(
+        &self,
+        name: String,
+        kind: ShaderKind,
+        source: String,
+        resources: &[ShaderResourceDefinition],
+        line_offset: isize,
+    ) -> Result<GpuShader, FrameworkError> {
+        Ok(GpuShader(Rc::new(GlShader::new(
+            self,
+            name,
+            kind,
+            source,
+            resources,
+            line_offset,
+        )?)))
+    }
+
     fn create_program(
         &self,
         name: &str,
-        vertex_source: &str,
+        vertex_source: String,
         vertex_source_line_offset: isize,
-        fragment_source: &str,
+        fragment_source: String,
         fragment_source_line_offset: isize,
         resources: &[ShaderResourceDefinition],
     ) -> Result<GpuProgram, FrameworkError> {

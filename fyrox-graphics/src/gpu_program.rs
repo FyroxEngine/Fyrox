@@ -33,8 +33,17 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 define_as_any_trait!(GpuProgramAsAny => GpuProgramTrait);
-
 pub trait GpuProgramTrait: GpuProgramAsAny {}
+define_shared_wrapper!(GpuProgram<dyn GpuProgramTrait>);
+
+pub enum ShaderKind {
+    Vertex,
+    Fragment,
+}
+
+define_as_any_trait!(GpuShaderAsAny => GpuShaderTrait);
+pub trait GpuShaderTrait: GpuShaderAsAny {}
+define_shared_wrapper!(GpuShader<dyn GpuShaderTrait>);
 
 /// A fallback value for the sampler.
 ///
@@ -310,5 +319,3 @@ impl ShaderResourceDefinition {
         self.name.starts_with("fyrox_")
     }
 }
-
-define_shared_wrapper!(GpuProgram<dyn GpuProgramTrait>);

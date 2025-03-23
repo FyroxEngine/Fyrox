@@ -217,9 +217,9 @@ impl RenderPassContainer {
             let program_name = format!("{}_{}", shader.definition.name, render_pass.name);
             match server.create_program(
                 &program_name,
-                &render_pass.vertex_shader,
+                render_pass.vertex_shader.clone(),
                 render_pass.vertex_shader_line,
-                &render_pass.fragment_shader,
+                render_pass.fragment_shader.clone(),
                 render_pass.fragment_shader_line,
                 &shader.definition.resources,
             ) {

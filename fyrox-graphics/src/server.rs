@@ -28,7 +28,7 @@ use crate::{
     error::FrameworkError,
     framebuffer::{Attachment, GpuFrameBuffer},
     geometry_buffer::{GeometryBufferDescriptor, GpuGeometryBuffer},
-    gpu_program::{GpuProgram, ShaderResourceDefinition},
+    gpu_program::{GpuProgram, GpuShader, ShaderKind, ShaderResourceDefinition},
     gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
     query::GpuQuery,
     read_buffer::GpuAsyncReadBuffer,
@@ -94,15 +94,27 @@ pub trait GraphicsServer: GraphicsServerAsAny {
     /// is used to create occlusion queries.
     fn create_query(&self) -> Result<GpuQuery, FrameworkError>;
 
+    /// Creates a new named GPU shader. The name could be used for debugging purposes. The
+    /// implementation of graphics server will generate proper resource bindings in the shader code
+    /// for you.
+    fn create_shader(
+        &self,
+        name: String,
+        kind: ShaderKind,
+        source: String,
+        resources: &[ShaderResourceDefinition],
+        line_offset: isize,
+    ) -> Result<GpuShader, FrameworkError>;
+
     /// Creates a new named GPU program using a pair of vertex and fragment shaders. The name could
     /// be used for debugging purposes. The implementation of graphics server will generate proper
     /// resource bindings in the shader code for you.
     fn create_program(
         &self,
         name: &str,
-        vertex_source: &str,
+        vertex_source: String,
         vertex_source_line_offset: isize,
-        fragment_source: &str,
+        fragment_source: String,
         fragment_source_line_offset: isize,
         resources: &[ShaderResourceDefinition],
     ) -> Result<GpuProgram, FrameworkError>;
