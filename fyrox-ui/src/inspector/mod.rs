@@ -536,11 +536,11 @@ impl From<CastError> for InspectorError {
 /// Stores the association between a field in an object and an editor widget in an [Inspector].
 #[derive(Clone, Debug)]
 pub struct ContextEntry {
-    /// The name of the field being edited, as found in [FieldRef::name].
+    /// The name of the field being edited, as found in [FieldMetadata::name].
     pub property_name: String,
-    /// The name of the field being edited, as found in [FieldRef::display_name].
+    /// The name of the field being edited, as found in [FieldMetadata::display_name].
     pub property_display_name: String,
-    /// The name of the field being edited, as found in [FieldRef::tag].
+    /// The name of the field being edited, as found in [FieldMetadata::tag].
     pub property_tag: String,
     /// The type of the property being edited, as found in [PropertyEditorDefinition::value_type_id](editors::PropertyEditorDefinition::value_type_id).
     pub property_value_type_id: TypeId,
