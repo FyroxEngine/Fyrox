@@ -109,6 +109,7 @@ pub enum ResourceBinding {
     Texture {
         /// A shared reference to a texture.
         texture: GpuTexture,
+        /// A sampler that will be used to fetch the data from the texture.
         sampler: GpuSampler,
         /// Binding mode for the texture.
         binding: usize,

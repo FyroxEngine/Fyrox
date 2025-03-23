@@ -652,9 +652,13 @@ pub struct FallbackResources {
     pub volume_dummy: GpuTexture,
     /// A stub uniform buffer for situation when there's no actual bone matrices.
     pub bone_matrices_stub_uniform_buffer: GpuBuffer,
+    /// A sampler with the linear filtration that clamps incoming UVs to `[0;1]` range.
     pub linear_clamp_sampler: GpuSampler,
+    /// A sampler with the linear filtration.
     pub linear_wrap_sampler: GpuSampler,
+    /// A sampler with the nearest filtration that clamps incoming UVs to `[0;1]` range.
     pub nearest_clamp_sampler: GpuSampler,
+    /// A sampler with the nearest filtration.
     pub nearest_wrap_sampler: GpuSampler,
 }
 
