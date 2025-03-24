@@ -555,6 +555,7 @@ pub struct AssetBrowser {
     preview_cache: AssetPreviewCache,
     preview_sender: Sender<IconRequest>,
     need_refresh: Arc<AtomicBool>,
+    main_window: Handle<UiNode>,
     pub preview_generators: AssetPreviewGeneratorsCollection,
 }
 
@@ -783,6 +784,7 @@ impl AssetBrowser {
             preview_cache: AssetPreviewCache::new(preview_receiver, 4),
             preview_sender,
             need_refresh,
+            main_window,
             preview_generators: AssetPreviewGeneratorsCollection::new(),
             refresh,
             watcher,
@@ -919,6 +921,11 @@ impl AssetBrowser {
         }
 
         self.current_path = path.to_path_buf();
+        ui.send_message(WindowMessage::title(
+            self.main_window,
+            MessageDirection::ToWidget,
+            WindowTitle::text(format!("Folder Content - {}", self.current_path.display())),
+        ));
         self.refresh(ui, resource_manager, message_sender);
     }
 
