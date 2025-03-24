@@ -24,10 +24,11 @@ use fyrox::{
         Resource, ResourceData,
     },
     autotile::{ConstraintFillRules, NeededTerrain, TerrainSource},
-    core::swap_hash_map_entry,
+    core::{log::MessageKind, swap_hash_map_entry},
     fxhash::FxHashMap,
     gui::{
         check_box::{CheckBoxBuilder, CheckBoxMessage},
+        dropdown_list::{DropdownListBuilder, DropdownListMessage},
         formatted_text::WrapMode,
         stack_panel::StackPanelBuilder,
     },
@@ -58,10 +59,63 @@ const FREQUENCY_PROP_DESC: &str = concat!("Choose a float property from the tile
     "This property will provide the frequency that the autotiler uses to know know often to choose a tile when there is more than one ",
     "tile with the same pattern.");
 
+const PROPERTY_LABEL_WIDTH: f32 = 150.0;
+
+fn log_kind_to_index(log_kind: Option<MessageKind>) -> usize {
+    match log_kind {
+        None => 0,
+        Some(MessageKind::Information) => 1,
+        Some(MessageKind::Warning) => 2,
+        Some(MessageKind::Error) => 3,
+    }
+}
+
+fn index_to_log_kind(index: usize) -> Option<MessageKind> {
+    match index {
+        0 => None,
+        1 => Some(MessageKind::Information),
+        2 => Some(MessageKind::Warning),
+        3 => Some(MessageKind::Error),
+        _ => None,
+    }
+}
+
+fn make_failure_log_list(
+    widget_builder: WidgetBuilder,
+    log_kind: Option<MessageKind>,
+    ctx: &mut BuildContext,
+) -> Handle<UiNode> {
+    let items = vec![
+        make_list_item("None", ctx),
+        make_list_item("Info", ctx),
+        make_list_item("Warn", ctx),
+        make_list_item("Error", ctx),
+    ];
+    DropdownListBuilder::new(widget_builder)
+        .with_selected(log_kind_to_index(log_kind))
+        .with_items(items)
+        .build(ctx)
+}
+
+fn make_list_item(text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
+    let content = TextBuilder::new(WidgetBuilder::new().on_column(1))
+        .with_vertical_text_alignment(VerticalAlignment::Center)
+        .with_horizontal_text_alignment(HorizontalAlignment::Left)
+        .with_text(text)
+        .build(ctx);
+    DecoratorBuilder::new(
+        BorderBuilder::new(WidgetBuilder::new().with_child(content))
+            .with_corner_radius(4.0.into())
+            .with_pad_by_corner_radius(false),
+    )
+    .build(ctx)
+}
+
 #[derive(Default)]
 pub struct AutoTileMacro {
     pattern_list: MacroPropertyField,
     frequency_list: MacroPropertyField,
+    failure_log_list: Handle<UiNode>,
     context: TileSetAutoTileContext,
     constraints: TileSetConstraintMap,
     autotiler: TileSetAutoTiler,
@@ -94,6 +148,8 @@ pub(super) struct AutoTileInstance {
     frequency_property: Option<TileSetPropertyF32>,
     pattern_property: Option<TileSetPropertyNine>,
     cells: FxHashMap<TileDefinitionHandle, CellData>,
+    #[visit(optional)]
+    failure_log_kind: Option<MessageKind>,
     #[reflect(hidden)]
     #[visit(skip)]
     widgets: InstanceCellWidgets,
@@ -186,6 +242,17 @@ impl BrushMacro for AutoTileMacro {
                 });
             }
         } else {
+            if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
+                if message.destination() == self.failure_log_list
+                    && message.direction() == MessageDirection::FromWidget
+                {
+                    editor.message_sender.do_command(SetFailureKindCommand {
+                        brush: context.brush.clone(),
+                        instance: context.settings().unwrap(),
+                        data: index_to_log_kind(*index),
+                    });
+                }
+            }
             self.pattern_list
                 .on_ui_message(&tile_set.data_ref(), message, ui);
             self.frequency_list
@@ -433,6 +500,24 @@ impl BrushMacro for AutoTileMacro {
             tile_set,
             ctx,
         );
+        let failure_log_label = TextBuilder::new(WidgetBuilder::new())
+            .with_text("Failure Log Level")
+            .build(ctx);
+        self.failure_log_list = make_failure_log_list(
+            WidgetBuilder::new().on_column(1),
+            instance.failure_log_kind,
+            ctx,
+        );
+        let failure_log_field = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(5.0))
+                .with_child(failure_log_label)
+                .with_child(self.failure_log_list),
+        )
+        .add_row(Column::auto())
+        .add_column(Row::strict(PROPERTY_LABEL_WIDTH))
+        .add_column(Row::stretch())
+        .build(ctx);
         let pattern_prop_help_text =
             TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(5.0)))
                 .with_wrap(WrapMode::Word)
@@ -449,7 +534,8 @@ impl BrushMacro for AutoTileMacro {
                 .with_child(pattern_prop_help_text)
                 .with_child(self.pattern_list.handle())
                 .with_child(freq_prop_help_text)
-                .with_child(self.frequency_list.handle()),
+                .with_child(self.frequency_list.handle())
+                .with_child(failure_log_field),
         )
         .build(ctx);
         Some(handle)
@@ -670,6 +756,14 @@ impl BrushMacro for AutoTileMacro {
         });
         self.autotiler
             .apply_autotile_to_update(&mut thread_rng(), &self.context.values, update);
+        if let Some(kind) = instance.failure_log_kind {
+            for pos in self.constraints.all_positions() {
+                if !self.autotiler.contains_key(pos) {
+                    Log::writeln(kind, "Autotile failed to find a tile.");
+                    break;
+                }
+            }
+        }
     }
 
     fn create_command(
@@ -882,6 +976,35 @@ impl SetFrequencyPropCommand {
 impl CommandTrait for SetFrequencyPropCommand {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Update Autotile Property".into()
+    }
+
+    fn execute(&mut self, _context: &mut dyn CommandContext) {
+        self.swap();
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        self.swap();
+    }
+}
+
+#[derive(Debug)]
+struct SetFailureKindCommand {
+    pub brush: TileMapBrushResource,
+    pub instance: Resource<AutoTileInstance>,
+    pub data: Option<MessageKind>,
+}
+
+impl SetFailureKindCommand {
+    fn swap(&mut self) {
+        let mut instance = self.instance.data_ref();
+        std::mem::swap(&mut instance.failure_log_kind, &mut self.data);
+        self.brush.data_ref().change_flag.set();
+    }
+}
+
+impl CommandTrait for SetFailureKindCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Update Autotile Failure Level".into()
     }
 
     fn execute(&mut self, _context: &mut dyn CommandContext) {

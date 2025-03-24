@@ -25,6 +25,7 @@ use crate::instant::Instant;
 use crate::parking_lot::Mutex;
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_bindgen::{self, prelude::*};
+use crate::{reflect::prelude::*, visitor::prelude::*};
 use fxhash::FxHashMap;
 use std::collections::hash_map::Entry;
 use std::fmt::{Debug, Display};
@@ -67,10 +68,11 @@ static LOG: LazyLock<Mutex<Log>> = LazyLock::new(|| {
 });
 
 /// A kind of message.
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Reflect)]
 #[repr(u32)]
 pub enum MessageKind {
     /// Some useful information.
+    #[default]
     Information = 0,
     /// A warning.
     Warning = 1,
