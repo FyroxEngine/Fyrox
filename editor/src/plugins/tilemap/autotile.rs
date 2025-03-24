@@ -635,6 +635,14 @@ impl BrushMacro for AutoTileMacro {
         let tile_set = tile_set.as_deref();
         self.pattern_list.sync(pattern_id, tile_set, ui);
         self.frequency_list.sync(frequency_id, tile_set, ui);
+        send_sync_message(
+            ui,
+            DropdownListMessage::selection(
+                self.failure_log_list,
+                MessageDirection::ToWidget,
+                Some(log_kind_to_index(instance.failure_log_kind)),
+            ),
+        );
     }
 
     fn sync_cell_editors(&mut self, context: &MacroMessageContext, ui: &mut UserInterface) {
