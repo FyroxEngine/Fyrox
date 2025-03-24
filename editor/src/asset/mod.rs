@@ -41,9 +41,9 @@ use crate::{
         engine::Engine,
         graph::BaseSceneGraph,
         gui::{
-            border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},
             copypasta::ClipboardProvider,
+            dock::{DockingManagerBuilder, TileBuilder, TileContent},
             file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
             grid::{Column, GridBuilder, Row},
             list_view::{ListViewBuilder, ListViewMessage},
@@ -53,7 +53,6 @@ use crate::{
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
-            style::{resource::StyleResourceExt, Style},
             text::TextMessage,
             text_box::TextBoxBuilder,
             utils::{
@@ -536,6 +535,7 @@ impl ResourceCreator {
 
 pub struct AssetBrowser {
     pub window: Handle<UiNode>,
+    pub docking_manager: Handle<UiNode>,
     content_panel: Handle<UiNode>,
     folder_browser: Handle<UiNode>,
     scroll_panel: Handle<UiNode>,
@@ -652,88 +652,106 @@ impl AssetBrowser {
         let content_panel;
         let folder_browser;
         let scroll_panel;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_name("AssetBrowser"))
+        let folder_browser_window = WindowBuilder::new(WidgetBuilder::new())
+            .with_title(WindowTitle::text("Folders"))
+            .can_close(false)
             .can_minimize(false)
-            .with_title(WindowTitle::text("Asset Browser"))
+            .can_maximize(false)
+            .with_content({
+                folder_browser = FileBrowserBuilder::new(
+                    WidgetBuilder::new().on_column(0).with_tab_index(Some(0)),
+                )
+                .with_show_path(false)
+                .with_filter(Filter::new(|p: &Path| p.is_dir()))
+                .build(ctx);
+                folder_browser
+            })
+            .build(ctx);
+
+        let main_window = WindowBuilder::new(WidgetBuilder::new())
+            .with_title(WindowTitle::text("Folder Content"))
+            .can_close(false)
+            .can_minimize(false)
+            .can_maximize(false)
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
-                        .with_child(
-                            BorderBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_background(ctx.style.property(Style::BRUSH_DARK))
-                                    .with_child({
-                                        folder_browser = FileBrowserBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_column(0)
-                                                .with_tab_index(Some(0)),
-                                        )
-                                        .with_show_path(false)
-                                        .with_filter(Filter::new(|p: &Path| p.is_dir()))
-                                        .build(ctx);
-                                        folder_browser
-                                    }),
-                            )
-                            .build(ctx),
-                        )
-                        .with_child(
-                            GridBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_column(1)
-                                    .with_child(toolbar)
-                                    .with_child({
-                                        scroll_panel = ScrollViewerBuilder::new(
-                                            WidgetBuilder::new().on_row(1),
-                                        )
-                                        .with_content({
-                                            content_panel = WrapPanelBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_horizontal_alignment(
-                                                        HorizontalAlignment::Left,
-                                                    )
-                                                    .with_vertical_alignment(
-                                                        VerticalAlignment::Top,
-                                                    ),
-                                            )
-                                            .with_orientation(Orientation::Horizontal)
-                                            .build(ctx);
-                                            content_panel
-                                        })
-                                        .build(ctx);
-                                        scroll_panel
-                                    }),
-                            )
-                            .add_row(Row::auto())
-                            .add_row(Row::stretch())
-                            .add_column(Column::stretch())
-                            .build(ctx),
-                        )
-                        .with_child(
-                            BorderBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_column(2)
-                                    .with_foreground(ctx.style.property(Style::BRUSH_LIGHTER))
-                                    .with_child(
-                                        GridBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_child(preview.root)
-                                                .with_child(inspector.container),
-                                        )
-                                        .add_column(Column::stretch())
-                                        .add_row(Row::stretch())
-                                        .add_row(Row::stretch())
-                                        .build(ctx),
-                                    ),
-                            )
-                            .build(ctx),
-                        ),
+                        .on_column(1)
+                        .with_child(toolbar)
+                        .with_child({
+                            scroll_panel = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
+                                .with_content({
+                                    content_panel = WrapPanelBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_horizontal_alignment(HorizontalAlignment::Left)
+                                            .with_vertical_alignment(VerticalAlignment::Top),
+                                    )
+                                    .with_orientation(Orientation::Horizontal)
+                                    .build(ctx);
+                                    content_panel
+                                })
+                                .build(ctx);
+                            scroll_panel
+                        }),
                 )
-                .add_column(Column::strict(250.0))
+                .add_row(Row::auto())
+                .add_row(Row::stretch())
                 .add_column(Column::stretch())
-                .add_column(Column::strict(250.0))
+                .build(ctx),
+            )
+            .build(ctx);
+
+        let preview_window = WindowBuilder::new(WidgetBuilder::new())
+            .with_title(WindowTitle::text("Asset Preview"))
+            .can_close(false)
+            .can_minimize(false)
+            .can_maximize(false)
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(preview.root)
+                        .with_child(inspector.container),
+                )
+                .add_column(Column::stretch())
+                .add_row(Row::stretch())
                 .add_row(Row::stretch())
                 .build(ctx),
             )
+            .build(ctx);
+
+        let docking_manager = DockingManagerBuilder::new(
+            WidgetBuilder::new().with_child(
+                TileBuilder::new(WidgetBuilder::new())
+                    .with_content(TileContent::HorizontalTiles {
+                        splitter: 0.25,
+                        tiles: [
+                            TileBuilder::new(WidgetBuilder::new())
+                                .with_content(TileContent::Window(folder_browser_window))
+                                .build(ctx),
+                            TileBuilder::new(WidgetBuilder::new())
+                                .with_content(TileContent::HorizontalTiles {
+                                    splitter: 0.75,
+                                    tiles: [
+                                        TileBuilder::new(WidgetBuilder::new())
+                                            .with_content(TileContent::Window(main_window))
+                                            .build(ctx),
+                                        TileBuilder::new(WidgetBuilder::new())
+                                            .with_content(TileContent::Window(preview_window))
+                                            .build(ctx),
+                                    ],
+                                })
+                                .build(ctx),
+                        ],
+                    })
+                    .build(ctx),
+            ),
+        )
+        .build(ctx);
+
+        let window = WindowBuilder::new(WidgetBuilder::new().with_name("AssetBrowser"))
+            .can_minimize(false)
+            .with_title(WindowTitle::text("Asset Browser"))
+            .with_content(docking_manager)
             .build(ctx);
 
         let context_menu = ContextMenu::new(ctx);
@@ -749,6 +767,7 @@ impl AssetBrowser {
         Self {
             dependency_viewer,
             window,
+            docking_manager,
             content_panel,
             folder_browser,
             preview,
