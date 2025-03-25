@@ -25,6 +25,7 @@ use crate::{
 };
 
 use fyrox_core::define_as_any_trait;
+use std::path::Path;
 use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc};
 
 #[cfg(target_arch = "wasm32")]
@@ -178,6 +179,18 @@ impl ResourceLoadersContainer {
     /// Returns an iterator yielding mutable references to "untyped" resource loaders.
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut dyn ResourceLoader> {
         self.loaders.iter_mut().map(|boxed| &mut **boxed)
+    }
+
+    /// Returns `true` if there's at least one resource loader, that supports the extension of the
+    /// file at the given path.
+    pub fn is_supported_resource(&self, path: &Path) -> bool {
+        if let Some(extension) = path.extension().and_then(|ext| ext.to_str()) {
+            self.loaders
+                .iter()
+                .any(|loader| loader.supports_extension(extension))
+        } else {
+            false
+        }
     }
 }
 
