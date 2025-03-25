@@ -1105,6 +1105,11 @@ impl AssetBrowser {
                         &engine.resource_manager,
                         preview_scene,
                     );
+                    ui.send_message(WidgetMessage::visibility(
+                        self.preview.root,
+                        MessageDirection::ToWidget,
+                        preview.is_some(),
+                    ));
                     self.preview.set_model(preview, engine);
                 }
             }
