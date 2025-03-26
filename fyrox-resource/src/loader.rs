@@ -192,6 +192,15 @@ impl ResourceLoadersContainer {
             false
         }
     }
+
+    pub fn loader_for(&self, path: &Path) -> Option<&dyn ResourceLoader> {
+        path.extension().and_then(|extension| {
+            self.loaders
+                .iter()
+                .find(|loader| loader.supports_extension(&extension.to_string_lossy()))
+                .map(|l| &**l)
+        })
+    }
 }
 
 #[cfg(test)]

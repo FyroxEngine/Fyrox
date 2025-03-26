@@ -40,17 +40,19 @@ use crate::{
     io::{FsResourceIo, ResourceIo},
     loader::{ResourceLoader, ResourceLoadersContainer},
     options::OPTIONS_EXTENSION,
+    registry::ResourceRegistry,
     state::{LoadError, ResourceState},
     untyped::ResourceKind,
     Resource, ResourceData, TypedResourceData, UntypedResource,
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_core::err;
 use rayon::prelude::*;
-use std::borrow::Cow;
-use std::ops::{Deref, DerefMut};
 use std::{
+    borrow::Cow,
     fmt::{Debug, Display, Formatter},
     marker::PhantomData,
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -202,7 +204,7 @@ impl DerefMut for BuiltInResourcesContainer {
 /// Internal state of the resource manager.
 pub struct ResourceManagerState {
     /// A set of resource loaders. Use this field to register your own resource loader.
-    pub loaders: ResourceLoadersContainer,
+    pub loaders: Arc<Mutex<ResourceLoadersContainer>>,
     /// Event broadcaster can be used to "subscribe" for events happening inside the container.
     pub event_broadcaster: ResourceEventBroadcaster,
     /// A container for resource constructors.
@@ -211,6 +213,7 @@ pub struct ResourceManagerState {
     pub built_in_resources: BuiltInResourcesContainer,
     /// File system abstraction interface. Could be used to support virtual file systems.
     pub resource_io: Arc<dyn ResourceIo>,
+    pub resource_registry: Arc<Mutex<ResourceRegistry>>,
 
     resources: Vec<TimedEntry<UntypedResource>>,
     task_pool: Arc<TaskPool>,
@@ -520,6 +523,33 @@ impl ResourceManager {
 
 impl ResourceManagerState {
     pub(crate) fn new(task_pool: Arc<TaskPool>) -> Self {
+        let resource_io = Arc::new(FsResourceIo);
+        let resource_registry = Arc::new(Mutex::new(ResourceRegistry::default()));
+
+        // This is suboptimal, because it relies on async access of the registry. It is especially
+        // dangerous on WASM where all the accesses performed using fetch API.
+        let task_resource_io = resource_io.clone();
+        let task_resource_registry = resource_registry.clone();
+        task_pool.spawn_task(async move {
+            match ResourceRegistry::load_from_file(
+                Path::new(ResourceRegistry::DEFAULT_PATH),
+                &*task_resource_io,
+            )
+            .await
+            {
+                Ok(registry) => {
+                    *task_resource_registry.lock() = registry;
+                }
+                Err(error) => {
+                    err!(
+                        "Unable to load resource registry! Reason: {:?}. \
+                    Run ResourceRegistry::scan_and_update to update the registry!",
+                        error
+                    )
+                }
+            };
+        });
+
         Self {
             resources: Default::default(),
             task_pool,
@@ -529,7 +559,8 @@ impl ResourceManagerState {
             watcher: None,
             built_in_resources: Default::default(),
             // Use the file system resource io by default
-            resource_io: Arc::new(FsResourceIo),
+            resource_io,
+            resource_registry,
         }
     }
 
@@ -718,10 +749,11 @@ impl ResourceManagerState {
             None => {
                 let path = path.as_ref().to_owned();
                 let kind = ResourceKind::External(path.clone());
-
-                if let Some(loader) = self.find_loader(path.as_ref()) {
+                let loaders = self.loaders.lock();
+                if let Some(loader) = loaders.loader_for(path.as_ref()) {
                     let resource = UntypedResource::new_pending(kind, loader.data_type_uuid());
                     self.spawn_loading_task(path, resource.clone(), loader, false);
+                    drop(loaders);
                     self.push(resource.clone());
                     resource
                 } else {
@@ -731,14 +763,6 @@ impl ResourceManagerState {
                 }
             }
         }
-    }
-
-    fn find_loader(&self, path: &Path) -> Option<&dyn ResourceLoader> {
-        path.extension().and_then(|extension| {
-            self.loaders
-                .iter()
-                .find(|loader| loader.supports_extension(&extension.to_string_lossy()))
-        })
     }
 
     fn spawn_loading_task(
@@ -789,7 +813,8 @@ impl ResourceManagerState {
 
         if !header.state.is_loading() {
             if let Some(path) = header.kind.path_owned() {
-                if let Some(loader) = self.find_loader(&path) {
+                let loaders = self.loaders.lock();
+                if let Some(loader) = loaders.loader_for(&path) {
                     header.state.switch_to_pending_state();
                     drop(header);
 
@@ -936,7 +961,7 @@ mod test {
         let state = new_resource_manager();
 
         assert!(state.resources.is_empty());
-        assert!(state.loaders.is_empty());
+        assert!(state.loaders.lock().is_empty());
         assert!(state.built_in_resources.is_empty());
         assert!(state.constructors_container.is_empty());
         assert!(state.watcher.is_none());
@@ -1072,7 +1097,7 @@ mod test {
     #[test]
     fn resource_manager_state_try_reload_resource_from_path() {
         let mut state = new_resource_manager();
-        state.loaders.set(Stub {});
+        state.loaders.lock().set(Stub {});
 
         let resource = UntypedResource::new_load_error(
             PathBuf::from("test.txt").into(),

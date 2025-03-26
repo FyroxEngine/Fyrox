@@ -61,7 +61,9 @@ pub mod graph;
 pub mod io;
 pub mod loader;
 pub mod manager;
+pub mod metadata;
 pub mod options;
+pub mod registry;
 pub mod state;
 pub mod untyped;
 

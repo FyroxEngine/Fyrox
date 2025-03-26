@@ -1231,12 +1231,6 @@ pub(crate) fn initialize_resource_manager_loaders(
 
     let mut state = resource_manager.state();
 
-    let gltf_loader = super::resource::gltf::GltfLoader {
-        resource_manager: resource_manager.clone(),
-        default_import_options: Default::default(),
-    };
-    state.loaders.set(gltf_loader);
-
     for shader in ShaderResource::standard_shaders() {
         state.built_in_resources.add((*shader).clone());
     }
@@ -1289,7 +1283,12 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.constructors_container.add::<AnimationTracksData>();
     state.constructors_container.add::<Style>();
 
-    let loaders = &mut state.loaders;
+    let mut loaders = state.loaders.lock();
+    let gltf_loader = super::resource::gltf::GltfLoader {
+        resource_manager: resource_manager.clone(),
+        default_import_options: Default::default(),
+    };
+    loaders.set(gltf_loader);
     loaders.set(model_loader);
     loaders.set(TextureLoader {
         default_import_options: Default::default(),
@@ -1311,10 +1310,10 @@ pub(crate) fn initialize_resource_manager_loaders(
     loaders.set(TileSetLoader {
         resource_manager: resource_manager.clone(),
     });
-    state.loaders.set(TileMapBrushLoader {
+    loaders.set(TileMapBrushLoader {
         resource_manager: resource_manager.clone(),
     });
-    state.loaders.set(StyleLoader {
+    loaders.set(StyleLoader {
         resource_manager: resource_manager.clone(),
     });
 }

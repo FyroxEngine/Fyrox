@@ -451,8 +451,8 @@ impl ResourceCreator {
                     .supported_resource_data_uuids
                     .get(self.selected.unwrap_or_default())
                 {
-                    if let Some(loader) = resource_manager_state
-                        .loaders
+                    let loaders = resource_manager_state.loaders.lock();
+                    if let Some(loader) = loaders
                         .iter()
                         .find(|loader| &loader.data_type_uuid() == data_type_uuid)
                     {
@@ -471,7 +471,7 @@ impl ResourceCreator {
                                     self.name_str.clone(),
                                 ));
                         }
-                    }
+                    };
                 }
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
@@ -567,6 +567,7 @@ fn is_supported_resource(ext: &OsStr, resource_manager: &ResourceManager) -> boo
     resource_manager
         .state()
         .loaders
+        .lock()
         .iter()
         .any(|loader| loader.supports_extension(ext))
 }
