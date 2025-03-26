@@ -22,7 +22,7 @@
 
 use crate::style::{IntoPrimitive, Style, StyleProperty, StyledProperty};
 use fyrox_core::{
-    io::FileLoadError,
+    io::FileError,
     log::Log,
     type_traits::prelude::*,
     visitor::{prelude::*, VisitError, Visitor},
@@ -46,7 +46,7 @@ use std::{
 #[derive(Debug)]
 pub enum StyleResourceError {
     /// An i/o error has occurred.
-    Io(FileLoadError),
+    Io(FileError),
 
     /// An error that may occur due to version incompatibilities.
     Visit(VisitError),
@@ -68,8 +68,8 @@ impl Display for StyleResourceError {
     }
 }
 
-impl From<FileLoadError> for StyleResourceError {
-    fn from(e: FileLoadError) -> Self {
+impl From<FileError> for StyleResourceError {
+    fn from(e: FileError) -> Self {
         Self::Io(e)
     }
 }

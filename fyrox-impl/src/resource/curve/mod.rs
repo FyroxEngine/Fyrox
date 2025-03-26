@@ -23,8 +23,8 @@
 use crate::{
     asset::{io::ResourceIo, Resource, ResourceData, CURVE_RESOURCE_UUID},
     core::{
-        io::FileLoadError, math::curve::Curve, reflect::prelude::*, uuid::Uuid,
-        visitor::prelude::*, TypeUuidProvider,
+        io::FileError, math::curve::Curve, reflect::prelude::*, uuid::Uuid, visitor::prelude::*,
+        TypeUuidProvider,
     },
 };
 use std::error::Error;
@@ -39,7 +39,7 @@ pub mod loader;
 #[derive(Debug)]
 pub enum CurveResourceError {
     /// An i/o error has occurred.
-    Io(FileLoadError),
+    Io(FileError),
 
     /// An error that may occur due to version incompatibilities.
     Visit(VisitError),
@@ -61,8 +61,8 @@ impl Display for CurveResourceError {
     }
 }
 
-impl From<FileLoadError> for CurveResourceError {
-    fn from(e: FileLoadError) -> Self {
+impl From<FileError> for CurveResourceError {
+    fn from(e: FileError) -> Self {
         Self::Io(e)
     }
 }

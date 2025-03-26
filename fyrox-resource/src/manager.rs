@@ -27,7 +27,7 @@ use crate::{
     core::{
         append_extension,
         futures::future::join_all,
-        io::FileLoadError,
+        io::FileError,
         log::Log,
         make_relative_path, notify,
         parking_lot::{Mutex, MutexGuard},
@@ -412,13 +412,13 @@ impl ResourceManager {
         new_path: impl AsRef<Path>,
         working_directory: impl AsRef<Path>,
         mut filter: impl FnMut(&UntypedResource) -> bool,
-    ) -> Result<(), FileLoadError> {
+    ) -> Result<(), FileError> {
         let new_path = new_path.as_ref().to_owned();
         let io = self.state().resource_io.clone();
         let existing_path = resource
             .kind()
             .into_path()
-            .ok_or_else(|| FileLoadError::Custom("Cannot move embedded resource!".to_string()))?;
+            .ok_or_else(|| FileError::Custom("Cannot move embedded resource!".to_string()))?;
 
         let canonical_existing_path = io.canonicalize_path(&existing_path).await?;
 

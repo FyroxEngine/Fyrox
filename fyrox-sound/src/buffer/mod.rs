@@ -33,7 +33,7 @@ use crate::{
     error::SoundError,
 };
 use fyrox_core::{
-    io::FileLoadError, reflect::prelude::*, uuid::Uuid, visitor::prelude::*, TypeUuidProvider,
+    io::FileError, reflect::prelude::*, uuid::Uuid, visitor::prelude::*, TypeUuidProvider,
 };
 use fyrox_resource::{
     io::{FileReader, ResourceIo},
@@ -127,7 +127,7 @@ pub trait RawStreamingDataSource: Iterator<Item = f32> + Send + Sync + Debug {
 
 impl DataSource {
     /// Tries to create new `File` data source from given path. May fail if file does not exists.
-    pub async fn from_file<P>(path: P, io: &dyn ResourceIo) -> Result<Self, FileLoadError>
+    pub async fn from_file<P>(path: P, io: &dyn ResourceIo) -> Result<Self, FileError>
     where
         P: AsRef<Path>,
     {
@@ -209,7 +209,7 @@ pub enum SoundBufferResourceLoadError {
     /// A format is not supported.
     UnsupportedFormat,
     /// File load error.
-    Io(FileLoadError),
+    Io(FileError),
     /// Errors involving the data source
     ///
     /// This could be, e.g., wrong number of channels, or attempting to use a

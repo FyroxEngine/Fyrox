@@ -41,7 +41,7 @@ use crate::{
         SVector, Scalar, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4, U1,
     },
     array_as_u8_slice_mut,
-    io::{self, FileLoadError},
+    io::{self, FileError},
     pool::{Handle, Pool},
     replace_slashes,
 };
@@ -646,7 +646,7 @@ pub enum VisitError {
     /// A poison error occurred while trying to visit a mutex.
     PoisonedMutex,
     /// A FileLoadError was encountered while trying to decode Visitor data from a file.
-    FileLoadError(FileLoadError),
+    FileLoadError(FileError),
 }
 
 impl Error for VisitError {}
@@ -711,8 +711,8 @@ impl From<String> for VisitError {
     }
 }
 
-impl From<FileLoadError> for VisitError {
-    fn from(e: FileLoadError) -> Self {
+impl From<FileError> for VisitError {
+    fn from(e: FileError) -> Self {
         Self::FileLoadError(e)
     }
 }

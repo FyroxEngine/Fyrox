@@ -37,7 +37,7 @@ use crate::{
         Resource, ResourceData, ResourceDataRef,
     },
     core::{
-        algebra::Vector2, color::Color, io::FileLoadError, log::Log, reflect::prelude::*,
+        algebra::Vector2, color::Color, io::FileError, log::Log, reflect::prelude::*,
         type_traits::prelude::*, visitor::prelude::*, ImmutableString,
     },
     fxhash::{FxHashMap, FxHashSet},
@@ -68,7 +68,7 @@ pub const ELEMENT_MATCH_HIGHLIGHT_COLOR: Color = Color::from_rgba(255, 255, 0, 2
 #[derive(Debug)]
 pub enum TileSetResourceError {
     /// An i/o error has occurred.
-    Io(FileLoadError),
+    Io(FileError),
 
     /// An error that may occur due to version incompatibilities.
     Visit(VisitError),
@@ -90,8 +90,8 @@ impl Display for TileSetResourceError {
     }
 }
 
-impl From<FileLoadError> for TileSetResourceError {
-    fn from(e: FileLoadError) -> Self {
+impl From<FileError> for TileSetResourceError {
+    fn from(e: FileError) -> Self {
         Self::Io(e)
     }
 }

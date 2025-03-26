@@ -35,7 +35,7 @@ use crate::{
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
-        io::FileLoadError,
+        io::FileError,
         parking_lot::Mutex,
         reflect::prelude::*,
         sstorage::ImmutableString,
@@ -780,8 +780,8 @@ impl From<VisitError> for MaterialError {
     }
 }
 
-impl From<FileLoadError> for MaterialError {
-    fn from(value: FileLoadError) -> Self {
+impl From<FileError> for MaterialError {
+    fn from(value: FileError) -> Self {
         Self::Visit(VisitError::FileLoadError(value))
     }
 }

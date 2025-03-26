@@ -37,7 +37,7 @@ use crate::core::pool::Handle;
 use crate::core::TypeUuidProvider;
 use crate::graph::BaseSceneGraph;
 use crate::graph::NodeMapping;
-use crate::gui::core::io::FileLoadError;
+use crate::gui::core::io::FileError;
 use crate::material::MaterialResource;
 use crate::resource::model::{MaterialSearchOptions, Model, ModelImportOptions};
 use crate::resource::texture::{TextureError, TextureResource};
@@ -79,7 +79,7 @@ enum GltfLoadError {
     MissingEmbeddedBin,
     Gltf(gltf::Error),
     Texture(TextureError),
-    File(FileLoadError),
+    File(FileError),
     Base64(base64::DecodeError),
     Load(LoadError),
     Material(GltfMaterialError),
@@ -105,8 +105,8 @@ impl From<TextureError> for GltfLoadError {
     }
 }
 
-impl From<FileLoadError> for GltfLoadError {
-    fn from(error: FileLoadError) -> Self {
+impl From<FileError> for GltfLoadError {
+    fn from(error: FileError) -> Self {
         GltfLoadError::File(error)
     }
 }

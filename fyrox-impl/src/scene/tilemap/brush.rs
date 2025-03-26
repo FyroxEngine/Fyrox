@@ -41,7 +41,7 @@ use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
-        io::FileLoadError,
+        io::FileError,
         reflect::prelude::*,
         type_traits::prelude::*,
         visitor::prelude::*,
@@ -61,7 +61,7 @@ use super::*;
 #[derive(Debug)]
 pub enum TileMapBrushResourceError {
     /// An i/o error has occurred.
-    Io(FileLoadError),
+    Io(FileError),
 
     /// An error that may occur due to version incompatibilities.
     Visit(VisitError),
@@ -83,8 +83,8 @@ impl Display for TileMapBrushResourceError {
     }
 }
 
-impl From<FileLoadError> for TileMapBrushResourceError {
-    fn from(e: FileLoadError) -> Self {
+impl From<FileError> for TileMapBrushResourceError {
+    fn from(e: FileError) -> Self {
         Self::Io(e)
     }
 }

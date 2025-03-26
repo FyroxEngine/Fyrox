@@ -47,7 +47,7 @@ use fxhash::FxHasher;
 use fyrox_core::{
     algebra::{Vector2, Vector3},
     futures::io::Error,
-    io::FileLoadError,
+    io::FileError,
     num_traits::Bounded,
     reflect::prelude::*,
     sparse::AtomicIndex,
@@ -1118,7 +1118,7 @@ pub enum TextureError {
     /// Internal image crate error.
     Image(image::ImageError),
     /// An error occurred during file loading.
-    FileLoadError(FileLoadError),
+    FileLoadError(FileError),
 }
 
 impl Display for TextureError {
@@ -1142,8 +1142,8 @@ impl Display for TextureError {
 
 impl std::error::Error for TextureError {}
 
-impl From<FileLoadError> for TextureError {
-    fn from(v: FileLoadError) -> Self {
+impl From<FileError> for TextureError {
+    fn from(v: FileError) -> Self {
         Self::FileLoadError(v)
     }
 }

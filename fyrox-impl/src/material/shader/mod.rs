@@ -450,8 +450,8 @@ use crate::{
         Resource, ResourceData, SHADER_RESOURCE_UUID,
     },
     core::{
-        io::FileLoadError, reflect::prelude::*, sparse::AtomicIndex, uuid::Uuid,
-        visitor::prelude::*, TypeUuidProvider,
+        io::FileError, reflect::prelude::*, sparse::AtomicIndex, uuid::Uuid, visitor::prelude::*,
+        TypeUuidProvider,
     },
     lazy_static::lazy_static,
     renderer::framework::{
@@ -850,7 +850,7 @@ impl ResourceData for Shader {
 #[derive(Debug)]
 pub enum ShaderError {
     /// An i/o error has occurred.
-    Io(FileLoadError),
+    Io(FileError),
 
     /// A parsing error has occurred.
     ParseError(ron::error::SpannedError),
@@ -881,8 +881,8 @@ impl From<ron::error::SpannedError> for ShaderError {
     }
 }
 
-impl From<FileLoadError> for ShaderError {
-    fn from(e: FileLoadError) -> Self {
+impl From<FileError> for ShaderError {
+    fn from(e: FileError) -> Self {
         Self::Io(e)
     }
 }

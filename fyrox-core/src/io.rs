@@ -21,12 +21,12 @@
 use std::{io::Error, path::Path};
 
 #[derive(Debug)]
-pub enum FileLoadError {
+pub enum FileError {
     Io(std::io::Error),
     Custom(String),
 }
 
-impl From<std::io::Error> for FileLoadError {
+impl From<std::io::Error> for FileError {
     fn from(e: Error) -> Self {
         Self::Io(e)
     }
@@ -37,7 +37,7 @@ pub static ANDROID_APP: once_cell::sync::OnceCell<android_activity::AndroidApp> 
     once_cell::sync::OnceCell::new();
 
 #[cfg(target_arch = "wasm32")]
-impl From<wasm_bindgen::JsValue> for FileLoadError {
+impl From<wasm_bindgen::JsValue> for FileError {
     fn from(value: wasm_bindgen::JsValue) -> Self {
         let string = match js_sys::JSON::stringify(&value) {
             Ok(string) => String::from(string),
@@ -47,7 +47,7 @@ impl From<wasm_bindgen::JsValue> for FileLoadError {
     }
 }
 
-pub async fn load_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, FileLoadError> {
+pub async fn load_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, FileError> {
     #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
     {
         use std::fs::File;
@@ -63,11 +63,11 @@ pub async fn load_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, FileLoadError
     {
         let asset_manager = ANDROID_APP
             .get()
-            .ok_or_else(|| FileLoadError::Custom("ANDROID_APP is not set".to_string()))?
+            .ok_or_else(|| FileError::Custom("ANDROID_APP is not set".to_string()))?
             .asset_manager();
         let mut opened_asset = asset_manager
             .open(&std::ffi::CString::new(path.as_ref().to_str().unwrap()).unwrap())
-            .ok_or_else(|| FileLoadError::Custom(format!("File {:?} not found!", path.as_ref())))?;
+            .ok_or_else(|| FileError::Custom(format!("File {:?} not found!", path.as_ref())))?;
         let bytes = opened_asset.buffer()?;
         Ok(bytes.to_vec())
     }
@@ -88,7 +88,7 @@ pub async fn load_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, FileLoadError
                 let bytes = Uint8Array::new(&data).to_vec();
                 Ok(bytes)
             }
-            None => Err(FileLoadError::Custom("Window not found!".to_owned())),
+            None => Err(FileError::Custom("Window not found!".to_owned())),
         }
     }
 }

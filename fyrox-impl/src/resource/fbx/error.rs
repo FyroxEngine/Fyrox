@@ -20,7 +20,7 @@
 
 //! Contains all possible errors that can occur during FBX parsing and conversion.
 
-use crate::core::io::FileLoadError;
+use crate::core::io::FileError;
 use std::fmt::{Display, Formatter};
 
 /// See module docs.
@@ -66,7 +66,7 @@ pub enum FbxError {
     InvalidReference,
 
     /// An error occurred during file loading.
-    FileLoadError(FileLoadError),
+    FileLoadError(FileError),
 }
 
 impl Display for FbxError {
@@ -121,8 +121,8 @@ impl Display for FbxError {
     }
 }
 
-impl From<FileLoadError> for FbxError {
-    fn from(err: FileLoadError) -> Self {
+impl From<FileError> for FbxError {
+    fn from(err: FileError) -> Self {
         FbxError::FileLoadError(err)
     }
 }
