@@ -19,9 +19,11 @@
 // SOFTWARE.
 
 use crate::{io::ResourceIo, loader::ResourceLoadersContainer, metadata::ResourceMetadata};
+use fyrox_core::parking_lot::Mutex;
 use fyrox_core::{append_extension, err, io::FileError, ok_or_return, warn, Uuid};
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -69,12 +71,11 @@ impl ResourceRegistry {
     /// given directory, and if there's a loader for it, "remember" the resource.
     pub async fn scan_and_update(
         &mut self,
-        resource_io: &dyn ResourceIo,
-        loaders: &ResourceLoadersContainer,
+        resource_io: Arc<dyn ResourceIo>,
+        loaders: Arc<Mutex<ResourceLoadersContainer>>,
         root: impl AsRef<Path>,
     ) {
         let registry_path = root.as_ref();
-        assert!(resource_io.is_file(registry_path).await);
         let registry_folder = registry_path
             .parent()
             .map(|path| path.to_path_buf())
@@ -82,33 +83,33 @@ impl ResourceRegistry {
 
         let file_iterator = ok_or_return!(resource_io.walk_directory(&registry_folder).await);
         for path in file_iterator {
-            if !loaders.is_supported_resource(&path) {
+            if !loaders.lock().is_supported_resource(&path) {
                 continue;
             }
 
             let metadata_path = append_extension(&path, ResourceMetadata::EXTENSION);
-            let metadata = match ResourceMetadata::load_from_file(&metadata_path, resource_io).await
-            {
-                Ok(metadata) => metadata,
-                Err(err) => {
-                    warn!(
-                        "Unable to load metadata for {} resource. Reason: {:?}, The metadata \
+            let metadata =
+                match ResourceMetadata::load_from_file(&metadata_path, &*resource_io).await {
+                    Ok(metadata) => metadata,
+                    Err(err) => {
+                        warn!(
+                            "Unable to load metadata for {} resource. Reason: {:?}, The metadata \
                             file will be added/recreated, do **NOT** delete it! Add it to the \
                             version control!",
-                        path.display(),
-                        err
-                    );
-                    let new_metadata = ResourceMetadata::new_with_random_id();
-                    if let Err(err) = new_metadata.save(&metadata_path, resource_io).await {
-                        warn!(
-                            "Unable to save resource {} metadata. Reason: {:?}",
                             path.display(),
                             err
                         );
+                        let new_metadata = ResourceMetadata::new_with_random_id();
+                        if let Err(err) = new_metadata.save(&metadata_path, &*resource_io).await {
+                            warn!(
+                                "Unable to save resource {} metadata. Reason: {:?}",
+                                path.display(),
+                                err
+                            );
+                        }
+                        new_metadata
                     }
-                    new_metadata
-                }
-            };
+                };
 
             if self
                 .paths
@@ -122,7 +123,7 @@ impl ResourceRegistry {
             }
         }
 
-        if let Err(error) = self.save(registry_path, resource_io).await {
+        if let Err(error) = self.save(registry_path, &*resource_io).await {
             err!(
                 "Unable to write the resource registry at the {} path! Reason: {:?}",
                 registry_path.display(),
