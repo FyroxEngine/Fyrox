@@ -24,6 +24,7 @@
 
 pub mod dylib;
 
+use crate::engine::ApplicationLoopController;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -48,7 +49,6 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use winit::event_loop::EventLoopWindowTarget;
 
 /// A wrapper for various plugin types.
 pub enum PluginContainer {
@@ -179,9 +179,10 @@ pub struct PluginContext<'a, 'b> {
     /// for usage example.
     pub async_scene_loader: &'a mut AsyncSceneLoader,
 
-    /// Special field that associates main application event loop (not game loop) with OS-specific
-    /// windows. It also can be used to alternate control flow of the application.
-    pub window_target: Option<&'b EventLoopWindowTarget<()>>,
+    /// Special field that associates the main application event loop (not game loop) with OS-specific
+    /// windows. It also can be used to alternate control flow of the application. `None` if the
+    /// engine is running in headless mode.
+    pub loop_controller: ApplicationLoopController<'b>,
 
     /// Task pool for asynchronous task management.
     pub task_pool: &'a mut TaskPoolHandler,

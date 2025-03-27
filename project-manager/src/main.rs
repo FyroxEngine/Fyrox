@@ -27,6 +27,7 @@ mod upgrade;
 mod utils;
 
 use crate::{manager::ProjectManager, settings::DATA_DIR, utils::make_button};
+use fyrox::engine::ApplicationLoopController;
 use fyrox::{
     asset::{manager::ResourceManager, untyped::ResourceKind},
     core::{
@@ -161,7 +162,12 @@ fn main() {
                                 .request_update_in_next_frame();
                         }
 
-                        engine.update(time_step, window_target, &mut 0.0, Default::default());
+                        engine.update(
+                            time_step,
+                            ApplicationLoopController::WindowTarget(window_target),
+                            &mut 0.0,
+                            Default::default(),
+                        );
 
                         project_manager.update(engine.user_interfaces.first_mut(), time_step);
 

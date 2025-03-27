@@ -262,12 +262,13 @@ dylib = ["fyrox/dylib"]
         format!(
             r#"//! Executor with your game connected to it as a plugin.
 use fyrox::engine::executor::Executor;
+use fyrox::event_loop::EventLoop;
 use fyrox::core::log::Log;
 
 fn main() {{
     Log::set_file_name("{name}.log");
 
-    let mut executor = Executor::new();
+    let mut executor = Executor::new(Some(EventLoop::new().unwrap()));
 
     // Dynamic linking with hot reloading.
     #[cfg(feature = "dylib")]
@@ -326,6 +327,7 @@ fyrox = {{workspace = true}}
         format!(
             r#"//! Executor with your game connected to it as a plugin.
 use fyrox::engine::executor::Executor;
+use fyrox::event_loop::EventLoop;
 use {name}::Game;
 use fyrox::core::wasm_bindgen::{{self, prelude::*}};
 
@@ -365,7 +367,7 @@ pub fn set_panic_hook() {{
 #[wasm_bindgen]
 pub fn main() {{
     set_panic_hook();
-    let mut executor = Executor::new();
+    let mut executor = Executor::new(Some(EventLoop::new().unwrap()));
     executor.add_plugin(Game::default());
     executor.run()
 }}"#,
@@ -574,7 +576,7 @@ fn android_main(app: fyrox::platform::android::activity::AndroidApp) {{
         .set(app.clone())
         .expect("ANDROID_APP cannot be set twice.");
     let event_loop = EventLoopBuilder::new().with_android_app(app).build().unwrap();
-    let mut executor = Executor::from_params(event_loop, Default::default());
+    let mut executor = Executor::from_params(Some(event_loop), Default::default());
     executor.add_plugin(Game::default());
     executor.run()
 }}"#,

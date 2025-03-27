@@ -164,6 +164,7 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
+use fyrox::engine::ApplicationLoopController;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
@@ -2925,7 +2926,7 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
 
         editor.engine.pre_update(
             FIXED_TIMESTEP,
-            window_target,
+            ApplicationLoopController::WindowTarget(window_target),
             &mut editor.game_loop_data.lag,
             switches,
         );
@@ -2984,7 +2985,7 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
             FIXED_TIMESTEP,
             &Default::default(),
             &mut editor.game_loop_data.lag,
-            window_target,
+            ApplicationLoopController::WindowTarget(window_target),
         );
 
         if need_reload_plugins {
@@ -2998,7 +2999,7 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
 
             editor.engine.handle_plugins_hot_reloading(
                 FIXED_TIMESTEP,
-                window_target,
+                ApplicationLoopController::WindowTarget(window_target),
                 &mut editor.game_loop_data.lag,
                 on_plugin_reloaded,
             );
