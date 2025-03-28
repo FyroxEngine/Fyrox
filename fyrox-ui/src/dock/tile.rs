@@ -594,7 +594,7 @@ impl Control for Tile {
         } else if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 &WidgetMessage::Topmost => {
-                    if let TileContent::MultiWindow { index, ref windows } = self.content {
+                    if let TileContent::MultiWindow { ref windows, .. } = self.content {
                         if windows.contains(&message.destination()) {
                             let id = ui.node(message.destination()).id;
                             self.change_active_tab(&id, ui);
