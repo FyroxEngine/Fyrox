@@ -793,6 +793,7 @@ impl BlendSpaceEditor {
             .open(false)
             .with_content(content)
             .with_title(WindowTitle::text("Blend Space Editor"))
+            .with_tab_label("Blend Space")
             .build(ctx);
 
         Self {

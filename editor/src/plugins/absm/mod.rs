@@ -261,6 +261,7 @@ impl AbsmEditor {
         .open(false)
         .with_content(content)
         .with_title(WindowTitle::text("ABSM Editor"))
+        .with_tab_label("ABSM")
         .build(ctx);
 
         Self {

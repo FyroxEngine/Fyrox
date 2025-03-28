@@ -178,11 +178,20 @@ impl DockingManager {
                                 windows.push(window);
                             }
                         }
+                        TileContent::MultiWindow {
+                            windows: ref tile_windows,
+                            ..
+                        } => {
+                            for w in tile_windows.clone() {
+                                ui.unlink_node(w);
+                                windows.push(w);
+                            }
+                        }
                         TileContent::VerticalTiles { tiles, .. }
                         | TileContent::HorizontalTiles { tiles, .. } => {
                             stack.extend_from_slice(&tiles);
                         }
-                        _ => (),
+                        TileContent::Empty => (),
                     }
                 }
             }

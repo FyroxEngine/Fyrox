@@ -283,6 +283,7 @@ impl CurveEditorWindow {
             )
             .with_remove_on_close(true)
             .with_title(WindowTitle::text("Curve Editor"))
+            .with_tab_label("Curve")
             .build(ctx);
 
         Self {

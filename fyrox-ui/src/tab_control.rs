@@ -66,7 +66,7 @@ pub enum TabControlMessage {
     ActiveTab(Option<usize>),
     /// Used to change the active tab of a [`TabControl`] widget (with [`MessageDirection::ToWidget`]) or to fetch if the active
     /// tab has changed (with [`MessageDirection::FromWidget`]).
-    /// When teh active tab changes, `ActiveTab` will also be sent from the widget.
+    /// When the active tab changes, `ActiveTab` will also be sent from the widget.
     ActiveTabUuid(Option<Uuid>),
     /// Emitted by a tab that needs to be closed (and removed). Does **not** remove the tab, its main usage is to catch the moment
     /// when the tab wants to be closed. To remove the tab use [`TabControlMessage::RemoveTab`] message.
@@ -535,6 +535,17 @@ impl Control for TabControl {
                         }
                     }
                     TabControlMessage::AddTab { uuid, definition } => {
+                        if self.tabs.iter().any(|t| &t.uuid == uuid) {
+                            ui.send_message(WidgetMessage::remove(
+                                definition.header,
+                                MessageDirection::ToWidget,
+                            ));
+                            ui.send_message(WidgetMessage::remove(
+                                definition.content,
+                                MessageDirection::ToWidget,
+                            ));
+                            return;
+                        }
                         let header = Header::build(
                             definition,
                             false,
@@ -566,8 +577,6 @@ impl Control for TabControl {
                             decorator: header.decorator,
                             header_content: header.content,
                         });
-
-                        self.set_active_tab(Some(self.tabs.len() - 1), ui, 0);
                     }
                 }
             }
@@ -579,7 +588,7 @@ impl Control for TabControl {
 pub struct TabControlBuilder {
     widget_builder: WidgetBuilder,
     is_tab_drag_allowed: bool,
-    tabs: Vec<TabDefinition>,
+    tabs: Vec<(Uuid, TabDefinition)>,
     active_tab_brush: Option<StyledProperty<Brush>>,
     initial_tab: usize,
 }
@@ -702,6 +711,12 @@ impl TabControlBuilder {
         }
     }
 
+    /// Controls the initially selected tab. The default is 0, the first tab on the left.
+    pub fn with_initial_tab(mut self, tab_index: usize) -> Self {
+        self.initial_tab = tab_index;
+        self
+    }
+
     /// Controls whether tabs may be dragged. The default is false.
     pub fn with_tab_drag(mut self, is_tab_drag_allowed: bool) -> Self {
         self.is_tab_drag_allowed = is_tab_drag_allowed;
@@ -710,7 +725,13 @@ impl TabControlBuilder {
 
     /// Adds a new tab to the builder.
     pub fn with_tab(mut self, tab: TabDefinition) -> Self {
-        self.tabs.push(tab);
+        self.tabs.push((Uuid::new_v4(), tab));
+        self
+    }
+
+    /// Adds a new tab to the builder, using the given UUID for the tab.
+    pub fn with_tab_uuid(mut self, uuid: Uuid, tab: TabDefinition) -> Self {
+        self.tabs.push((uuid, tab));
         self
     }
 
@@ -723,10 +744,10 @@ impl TabControlBuilder {
     /// Finishes [`TabControl`] building and adds it to the user interface and returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let tab_count = self.tabs.len();
-        // Hide everything but first tab content.
-        for tab in self.tabs.iter().skip(1) {
+        // Hide everything but initial tab content.
+        for (i, (_, tab)) in self.tabs.iter().enumerate() {
             if let Some(content) = ctx.try_get_node_mut(tab.content) {
-                content.set_visibility(false);
+                content.set_visibility(i == self.initial_tab);
             }
         }
 
@@ -738,7 +759,7 @@ impl TabControlBuilder {
             .tabs
             .iter()
             .enumerate()
-            .map(|(i, tab_definition)| {
+            .map(|(i, (_, tab_definition))| {
                 Header::build(
                     tab_definition,
                     i == self.initial_tab,
@@ -758,7 +779,7 @@ impl TabControlBuilder {
 
         let content_container = GridBuilder::new(
             WidgetBuilder::new()
-                .with_children(self.tabs.iter().map(|t| t.content))
+                .with_children(self.tabs.iter().map(|(_, t)| t.content))
                 .on_row(1),
         )
         .add_row(Row::stretch())
@@ -791,10 +812,10 @@ impl TabControlBuilder {
                 Some(self.initial_tab)
             },
             tabs: tab_headers
-                .iter()
+                .into_iter()
                 .zip(self.tabs)
-                .map(|(header, tab)| Tab {
-                    uuid: Uuid::new_v4(),
+                .map(|(header, (uuid, tab))| Tab {
+                    uuid,
                     header_button: header.button,
                     content: tab.content,
                     close_button: header.close_button,

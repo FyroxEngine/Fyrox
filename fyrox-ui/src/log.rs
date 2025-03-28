@@ -128,6 +128,7 @@ impl LogPanel {
         .can_minimize(false)
         .open(open)
         .with_title(WindowTitle::text("Message Log"))
+        .with_tab_label("Log")
         .with_content(
             GridBuilder::new(
                 WidgetBuilder::new()

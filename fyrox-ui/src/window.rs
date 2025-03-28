@@ -45,6 +45,7 @@ use crate::{
     VerticalAlignment,
 };
 
+use fyrox_core::log::Log;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::{
@@ -301,6 +302,8 @@ pub enum WindowSizeState {
 pub struct Window {
     /// Base widget of the window.
     pub widget: Widget,
+    /// The text to put in the tab for this window.
+    tab_label: String,
     /// Mouse click position.
     pub mouse_click_pos: Vector2<f32>,
     /// Initial mouse position.
@@ -660,28 +663,41 @@ impl Control for Window {
                         center,
                         focus_content,
                     } => {
-                        if !self.visibility() {
+                        // Only manage this window's visibility if it is at the root.
+                        // Otherwise it is part of something like a tile, and that parent should decide
+                        // whether the window is visible.
+                        if !self.visibility() && self.parent() == ui.root() {
                             ui.send_message(WidgetMessage::visibility(
                                 self.handle(),
                                 MessageDirection::ToWidget,
                                 true,
                             ));
-                            ui.send_message(WidgetMessage::topmost(
+                            // If we are opening the window with non-finite width and height, something
+                            // has gone wrong, so correct it.
+                            if !self.width().is_finite() {
+                                Log::err(format!("Window width was {}", self.width()));
+                                self.set_width(200.0);
+                            }
+                            if !self.height().is_finite() {
+                                Log::err(format!("Window height was {}", self.height()));
+                                self.set_height(200.0);
+                            }
+                        }
+                        ui.send_message(WidgetMessage::topmost(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                        ));
+                        if focus_content {
+                            ui.send_message(WidgetMessage::focus(
+                                self.content_to_focus(),
+                                MessageDirection::ToWidget,
+                            ));
+                        }
+                        if center && self.parent() == ui.root() {
+                            ui.send_message(WidgetMessage::center(
                                 self.handle(),
                                 MessageDirection::ToWidget,
                             ));
-                            if center {
-                                ui.send_message(WidgetMessage::center(
-                                    self.handle(),
-                                    MessageDirection::ToWidget,
-                                ));
-                            }
-                            if focus_content {
-                                ui.send_message(WidgetMessage::focus(
-                                    self.content_to_focus(),
-                                    MessageDirection::ToWidget,
-                                ));
-                            }
                         }
                     }
                     &WindowMessage::OpenAt {
@@ -987,6 +1003,9 @@ impl Control for Window {
 }
 
 impl Window {
+    pub fn tab_label(&self) -> &str {
+        &self.tab_label
+    }
     pub fn minimized(&self) -> bool {
         self.size_state == WindowSizeState::Minimized
     }
@@ -1105,6 +1124,8 @@ pub struct WindowBuilder {
     pub content: Handle<UiNode>,
     /// Optional title of the window.
     pub title: Option<WindowTitle>,
+    /// Label for the window's tab.
+    pub tab_label: String,
     /// Whether the window can be closed or not.
     pub can_close: bool,
     /// Whether the window can be minimized or not.
@@ -1313,6 +1334,7 @@ impl WindowBuilder {
             widget_builder,
             content: Handle::NONE,
             title: None,
+            tab_label: String::default(),
             can_close: true,
             can_minimize: true,
             can_maximize: true,
@@ -1337,6 +1359,11 @@ impl WindowBuilder {
     /// Sets a desired window title.
     pub fn with_title(mut self, title: WindowTitle) -> Self {
         self.title = Some(title);
+        self
+    }
+
+    pub fn with_tab_label<S: Into<String>>(mut self, label: S) -> Self {
+        self.tab_label = label.into();
         self
     }
 
@@ -1539,6 +1566,7 @@ impl WindowBuilder {
             can_close: self.can_close,
             can_resize: self.can_resize,
             header,
+            tab_label: self.tab_label,
             minimize_button,
             maximize_button,
             close_button,

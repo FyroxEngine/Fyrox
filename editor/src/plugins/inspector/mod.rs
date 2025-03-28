@@ -191,6 +191,7 @@ impl InspectorPlugin {
         let docs_button;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("Inspector"))
             .with_title(WindowTitle::text("Inspector"))
+            .with_tab_label("Inspector")
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()

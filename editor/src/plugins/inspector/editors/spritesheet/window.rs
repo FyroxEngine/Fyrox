@@ -409,6 +409,7 @@ impl SpriteSheetFramesEditorWindow {
             .open(false)
             .can_minimize(false)
             .with_title(WindowTitle::text("Sprite Sheet Frames Editor"))
+            .with_tab_label("Sprite Sheet Frames")
             .build_window(ctx),
             animation: SpriteSheetAnimation::with_container(container),
             editor,

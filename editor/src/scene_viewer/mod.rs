@@ -581,6 +581,7 @@ impl SceneViewer {
                 .build(ctx),
             )
             .with_title(WindowTitle::text("Scene Preview"))
+            .with_tab_label("Scene")
             .build(ctx);
         Self {
             sender,
