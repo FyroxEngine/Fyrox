@@ -21,6 +21,7 @@
 //! Resource manager controls loading and lifetime of resource in the engine. See [`ResourceManager`]
 //! docs for more info.
 
+use crate::registry::{RegistryContainer, RegistryContainerExt};
 use crate::{
     collect_used_resources,
     constructor::ResourceConstructorContainer,
@@ -46,7 +47,7 @@ use crate::{
     Resource, ResourceData, TypedResourceData, UntypedResource,
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::{err, futures};
+use fyrox_core::err;
 use rayon::prelude::*;
 use std::{
     borrow::Cow,
@@ -213,7 +214,7 @@ pub struct ResourceManagerState {
     pub built_in_resources: BuiltInResourcesContainer,
     /// File system abstraction interface. Could be used to support virtual file systems.
     pub resource_io: Arc<dyn ResourceIo>,
-    pub resource_registry: Arc<futures::lock::Mutex<ResourceRegistry>>,
+    pub resource_registry: Arc<Mutex<ResourceRegistry>>,
 
     resources: Vec<TimedEntry<UntypedResource>>,
     task_pool: Arc<TaskPool>,
@@ -524,21 +525,21 @@ impl ResourceManager {
 impl ResourceManagerState {
     pub(crate) fn new(task_pool: Arc<TaskPool>) -> Self {
         let resource_io = Arc::new(FsResourceIo);
-        let resource_registry = Arc::new(futures::lock::Mutex::new(ResourceRegistry::default()));
+        let resource_registry = Arc::new(Mutex::new(ResourceRegistry::default()));
 
         // This is suboptimal, because it relies on async access of the registry. It is especially
         // dangerous on WASM where all the accesses performed using fetch API.
         let task_resource_io = resource_io.clone();
         let task_resource_registry = resource_registry.clone();
         task_pool.spawn_task(async move {
-            match ResourceRegistry::load_from_file(
+            match RegistryContainer::load_from_file(
                 Path::new(ResourceRegistry::DEFAULT_PATH),
                 &*task_resource_io,
             )
             .await
             {
                 Ok(registry) => {
-                    *task_resource_registry.lock().await = registry;
+                    task_resource_registry.lock().set_container(registry);
                 }
                 Err(error) => {
                     err!(
@@ -789,7 +790,6 @@ impl ResourceManagerState {
                     {
                         let resource_uuid = resource_registry
                             .lock()
-                            .await
                             .path_to_uuid_or_random(path.as_ref());
                         let mut mutex_guard = resource.0.lock();
                         mutex_guard.resource_uuid = resource_uuid;

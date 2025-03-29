@@ -20,29 +20,24 @@
 
 use crate::{io::ResourceIo, loader::ResourceLoadersContainer, metadata::ResourceMetadata};
 use fyrox_core::parking_lot::Mutex;
-use fyrox_core::{append_extension, err, io::FileError, ok_or_return, warn, Uuid};
+use fyrox_core::{append_extension, io::FileError, ok_or_return, warn, Uuid};
 use ron::ser::PrettyConfig;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
 };
 
-/// Resource registry is responsible for UUID mapping of resource files. It maintains a map of
-/// `UUID -> Resource Path`.
-#[derive(Serialize, Deserialize, Default, Clone)]
-pub struct ResourceRegistry {
-    paths: BTreeMap<Uuid, PathBuf>,
+pub type RegistryContainer = BTreeMap<Uuid, PathBuf>;
+
+#[allow(async_fn_in_trait)]
+pub trait RegistryContainerExt: Sized {
+    async fn load_from_file(path: &Path, resource_io: &dyn ResourceIo) -> Result<Self, FileError>;
+    async fn save(&self, path: &Path, resource_io: &dyn ResourceIo) -> Result<(), FileError>;
 }
 
-impl ResourceRegistry {
-    pub const DEFAULT_PATH: &'static str = "./resources.registry";
-
-    pub async fn load_from_file(
-        path: &Path,
-        resource_io: &dyn ResourceIo,
-    ) -> Result<Self, FileError> {
+impl RegistryContainerExt for RegistryContainer {
+    async fn load_from_file(path: &Path, resource_io: &dyn ResourceIo) -> Result<Self, FileError> {
         resource_io.load_file(path).await.and_then(|metadata| {
             ron::de::from_bytes::<Self>(&metadata).map_err(|err| {
                 FileError::Custom(format!(
@@ -53,7 +48,7 @@ impl ResourceRegistry {
         })
     }
 
-    pub async fn save(&self, path: &Path, resource_io: &dyn ResourceIo) -> Result<(), FileError> {
+    async fn save(&self, path: &Path, resource_io: &dyn ResourceIo) -> Result<(), FileError> {
         let string = ron::ser::to_string_pretty(self, PrettyConfig::default()).map_err(|err| {
             FileError::Custom(format!(
                 "Unable to serialize resource registry! Reason: {}",
@@ -62,9 +57,24 @@ impl ResourceRegistry {
         })?;
         resource_io.write_file(path, string.into_bytes()).await
     }
+}
+
+/// Resource registry is responsible for UUID mapping of resource files. It maintains a map of
+/// `UUID -> Resource Path`.
+#[derive(Default, Clone)]
+pub struct ResourceRegistry {
+    paths: RegistryContainer,
+}
+
+impl ResourceRegistry {
+    pub const DEFAULT_PATH: &'static str = "./resources.registry";
 
     pub fn register(&mut self, uuid: Uuid, path: PathBuf) -> Option<PathBuf> {
         self.paths.insert(uuid, path)
+    }
+
+    pub fn set_container(&mut self, registry_container: RegistryContainer) {
+        self.paths = registry_container;
     }
 
     pub fn uuid_to_path(&self, uuid: Uuid) -> Option<&Path> {
@@ -95,21 +105,23 @@ impl ResourceRegistry {
     ///
     /// This method does **not** load any resource, instead it checks extension of every file in the
     /// given directory, and if there's a loader for it, "remember" the resource.
-    pub async fn scan_and_update(
-        &mut self,
+    pub async fn scan(
         resource_io: Arc<dyn ResourceIo>,
         loaders: Arc<Mutex<ResourceLoadersContainer>>,
         root: impl AsRef<Path>,
-    ) {
+    ) -> RegistryContainer {
         let registry_path = root.as_ref();
         let registry_folder = registry_path
             .parent()
             .map(|path| path.to_path_buf())
             .unwrap_or_else(|| PathBuf::from("."));
 
-        self.paths.clear();
+        let mut container = RegistryContainer::default();
 
-        let file_iterator = ok_or_return!(resource_io.walk_directory(&registry_folder).await);
+        let file_iterator = ok_or_return!(
+            resource_io.walk_directory(&registry_folder).await,
+            container
+        );
         for path in file_iterator {
             if !loaders.lock().is_supported_resource(&path) {
                 continue;
@@ -139,8 +151,7 @@ impl ResourceRegistry {
                     }
                 };
 
-            if self
-                .paths
+            if container
                 .insert(metadata.resource_id, path.clone())
                 .is_some()
             {
@@ -151,12 +162,6 @@ impl ResourceRegistry {
             }
         }
 
-        if let Err(error) = self.save(registry_path, &*resource_io).await {
-            err!(
-                "Unable to write the resource registry at the {} path! Reason: {:?}",
-                registry_path.display(),
-                error
-            )
-        }
+        container
     }
 }
