@@ -522,8 +522,8 @@ impl TextBuilder {
     }
 
     /// Sets the desired text of the widget.
-    pub fn with_text<P: AsRef<str>>(mut self, text: P) -> Self {
-        self.text = Some(text.as_ref().to_owned());
+    pub fn with_text<P: Into<String>>(mut self, text: P) -> Self {
+        self.text = Some(text.into());
         self
     }
 

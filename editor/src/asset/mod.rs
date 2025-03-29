@@ -656,6 +656,7 @@ impl AssetBrowser {
         let scroll_panel;
         let folder_browser_window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::text("Folders"))
+            .with_tab_label("Folders")
             .can_close(false)
             .can_minimize(false)
             .can_maximize(false)
@@ -672,6 +673,7 @@ impl AssetBrowser {
 
         let main_window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::text("Folder Content"))
+            .with_tab_label("Content")
             .can_close(false)
             .can_minimize(false)
             .can_maximize(false)
@@ -705,6 +707,7 @@ impl AssetBrowser {
 
         let preview_window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::text("Asset Preview"))
+            .with_tab_label("Preview")
             .can_close(false)
             .can_minimize(false)
             .can_maximize(false)
@@ -753,6 +756,7 @@ impl AssetBrowser {
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("AssetBrowser"))
             .can_minimize(false)
             .with_title(WindowTitle::text("Asset Browser"))
+            .with_tab_label("Asset Browser")
             .with_content(docking_manager)
             .build(ctx);
 

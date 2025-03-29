@@ -97,6 +97,9 @@ impl Atlas {
                 // it in the inner font and render/pack it.
 
                 if let Some(char_index) = font.chars().get(&unicode) {
+                    if !height.0.is_finite() || height.0 <= f32::EPSILON {
+                        return None;
+                    }
                     let (metrics, glyph_raster) =
                         font.rasterize_indexed(char_index.get(), height.0);
 

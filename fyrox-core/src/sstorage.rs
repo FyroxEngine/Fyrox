@@ -72,6 +72,12 @@ impl Debug for ImmutableString {
     }
 }
 
+impl From<ImmutableString> for String {
+    fn from(value: ImmutableString) -> Self {
+        value.0.string.clone()
+    }
+}
+
 impl Visit for ImmutableString {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         // Serialize/deserialize as ordinary string.

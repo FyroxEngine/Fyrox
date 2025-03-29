@@ -319,6 +319,7 @@ impl WorldViewer {
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("WorldOutliner"))
             .can_minimize(false)
             .with_title(WindowTitle::text("World Viewer"))
+            .with_tab_label("World")
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()

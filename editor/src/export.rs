@@ -776,7 +776,7 @@ impl ExportWindow {
                                                 .with_horizontal_text_alignment(
                                                     HorizontalAlignment::Center,
                                                 )
-                                                .with_text(p)
+                                                .with_text(*p)
                                                 .build(ctx),
                                         ),
                                 ))

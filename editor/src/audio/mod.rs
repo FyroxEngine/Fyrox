@@ -250,6 +250,7 @@ impl AudioPanel {
                 .build(ctx),
             )
             .with_title(WindowTitle::text("Audio Context"))
+            .with_tab_label("Audio")
             .build(ctx);
 
         Self {

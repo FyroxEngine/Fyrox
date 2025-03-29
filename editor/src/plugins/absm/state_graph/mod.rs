@@ -91,6 +91,7 @@ impl StateGraphViewer {
 
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::text("State Graph"))
+            .with_tab_label("State Graph")
             .can_close(false)
             .can_minimize(false)
             .with_content(

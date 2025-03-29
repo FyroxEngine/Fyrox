@@ -118,7 +118,7 @@ pub fn make_list_item(ctx: &mut BuildContext, collider: &TileSetColliderLayer) -
                 )
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .with_horizontal_text_alignment(HorizontalAlignment::Left)
-                .with_text(&collider.name)
+                .with_text(collider.name.clone())
                 .build(ctx),
             ),
     )

@@ -283,6 +283,7 @@ impl AnimationEditor {
         .with_content(content)
         .open(false)
         .with_title(WindowTitle::text("Animation Editor"))
+        .with_tab_label("Animation")
         .build(ctx);
 
         Self {

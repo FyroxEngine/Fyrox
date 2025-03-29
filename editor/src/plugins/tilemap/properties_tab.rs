@@ -140,7 +140,7 @@ fn make_list_item(ctx: &mut BuildContext, property: &TileSetPropertyLayer) -> Ha
                 )
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .with_horizontal_text_alignment(HorizontalAlignment::Left)
-                .with_text(&property.name)
+                .with_text(property.name.clone())
                 .build(ctx),
             ),
     )
