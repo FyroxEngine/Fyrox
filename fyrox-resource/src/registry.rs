@@ -63,6 +63,14 @@ impl ResourceRegistry {
         resource_io.write_file(path, string.into_bytes()).await
     }
 
+    pub fn register(&mut self, uuid: Uuid, path: PathBuf) -> Option<PathBuf> {
+        self.paths.insert(uuid, path)
+    }
+
+    pub fn uuid_to_path(&self, uuid: Uuid) -> Option<&Path> {
+        self.paths.get(&uuid).map(|path| path.as_path())
+    }
+
     pub fn path_to_uuid(&self, path: &Path) -> Option<Uuid> {
         self.paths
             .iter()
