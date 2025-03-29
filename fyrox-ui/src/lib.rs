@@ -2077,7 +2077,7 @@ impl UserInterface {
                             }
                         }
                         WidgetMessage::MouseDown { button, .. } => {
-                            if *button == MouseButton::Right {
+                            if *button == MouseButton::Right && !message.handled() {
                                 if let Some(picked) = self.nodes.try_borrow(self.picked_node) {
                                     // Get the context menu from the current node or a parent node
                                     let (context_menu, target) = if picked.context_menu().is_some()
