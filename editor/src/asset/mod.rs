@@ -489,6 +489,8 @@ impl ResourceCreator {
                     match instance.save(&path) {
                         Ok(_) => {
                             let resource = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
+                                // The id will be assigned automatically by the resource manager.
+                                resource_uuid: Default::default(),
                                 kind: ResourceKind::External(path.clone()),
                                 type_uuid: instance.type_uuid(),
                                 state: ResourceState::Ok(instance),

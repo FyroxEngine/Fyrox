@@ -774,6 +774,7 @@ impl ResourceManagerState {
     ) {
         let event_broadcaster = self.event_broadcaster.clone();
         let loader_future = loader.load(path.clone(), self.resource_io.clone());
+        let resource_registry = self.resource_registry.clone();
         self.task_pool.spawn_task(async move {
             match loader_future.await {
                 Ok(data) => {
@@ -786,7 +787,12 @@ impl ResourceManagerState {
 
                     // Separate scope to keep mutex locking time at minimum.
                     {
+                        let resource_uuid = resource_registry
+                            .lock()
+                            .await
+                            .path_to_uuid_or_random(path.as_ref());
                         let mut mutex_guard = resource.0.lock();
+                        mutex_guard.resource_uuid = resource_uuid;
                         assert_eq!(mutex_guard.type_uuid, data.type_uuid());
                         assert!(mutex_guard.kind.is_external());
                         mutex_guard.state.commit(ResourceState::Ok(data));

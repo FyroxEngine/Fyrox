@@ -107,6 +107,7 @@ use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
 use fyrox_graphics::gl::server::GlGraphicsServer;
 use fyrox_graphics::server::SharedGraphicsServer;
+use fyrox_resource::registry::ResourceRegistry;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -1408,7 +1409,6 @@ impl Engine {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            use fyrox_resource::registry::ResourceRegistry;
             let rm_state = resource_manager.state();
             let io = rm_state.resource_io.clone();
             let loaders = rm_state.loaders.clone();

@@ -193,6 +193,8 @@ impl Display for ResourceKind {
 /// its kind, etc.
 #[derive(Reflect, Debug)]
 pub struct ResourceHeader {
+    /// Unique id of a resource. It is controlled strictly by a [`ResourceManager`] instance.
+    pub resource_uuid: Uuid,
     /// UUID of the internal data type.
     pub type_uuid: Uuid,
     /// Kind of the resource. See [`ResourceKind`] for more info.
@@ -341,6 +343,7 @@ impl Visit for UntypedResource {
 impl Default for UntypedResource {
     fn default() -> Self {
         Self(Arc::new(Mutex::new(ResourceHeader {
+            resource_uuid: Default::default(),
             kind: Default::default(),
             type_uuid: Default::default(),
             state: ResourceState::new_load_error(LoadError::new(
@@ -374,6 +377,7 @@ impl UntypedResource {
     /// Creates new untyped resource in pending state using the given path and type uuid.
     pub fn new_pending(kind: ResourceKind, type_uuid: Uuid) -> Self {
         Self(Arc::new(Mutex::new(ResourceHeader {
+            resource_uuid: Default::default(),
             kind,
             type_uuid,
             state: ResourceState::new_pending(),
@@ -387,6 +391,7 @@ impl UntypedResource {
         T: ResourceData,
     {
         Self(Arc::new(Mutex::new(ResourceHeader {
+            resource_uuid: Default::default(),
             kind,
             type_uuid: data.type_uuid(),
             state: ResourceState::new_ok(data),
@@ -396,6 +401,7 @@ impl UntypedResource {
     /// Creates new untyped resource in error state.
     pub fn new_load_error(kind: ResourceKind, error: LoadError, type_uuid: Uuid) -> Self {
         Self(Arc::new(Mutex::new(ResourceHeader {
+            resource_uuid: Default::default(),
             kind,
             type_uuid,
             state: ResourceState::new_load_error(error),
@@ -656,6 +662,7 @@ mod test {
         let mut cx = task::Context::from_waker(&waker);
 
         let mut r = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
+            resource_uuid: Default::default(),
             kind: path.clone().into(),
             type_uuid: Uuid::default(),
             state: ResourceState::Ok(Box::new(stub)),
@@ -663,6 +670,7 @@ mod test {
         assert!(Pin::new(&mut r).poll(&mut cx).is_ready());
 
         let mut r = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
+            resource_uuid: Default::default(),
             kind: path.clone().into(),
             type_uuid: Uuid::default(),
             state: ResourceState::LoadError {

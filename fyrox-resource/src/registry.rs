@@ -63,6 +63,24 @@ impl ResourceRegistry {
         resource_io.write_file(path, string.into_bytes()).await
     }
 
+    pub fn path_to_uuid(&self, path: &Path) -> Option<Uuid> {
+        self.paths
+            .iter()
+            .find_map(|(k, v)| if v == path { Some(*k) } else { None })
+    }
+
+    pub fn path_to_uuid_or_random(&self, path: &Path) -> Uuid {
+        self.path_to_uuid(path).unwrap_or_else(|| {
+            warn!(
+                "There's no UUID for {} resource! Random UUID will be used, run \
+                    ResourceRegistry::scan_and_update to generate resource ids!",
+                path.display()
+            );
+
+            Uuid::new_v4()
+        })
+    }
+
     /// Searches for supported resources starting from the given path and builds a mapping `UUID -> Path`.
     /// If a supported resource does not have a metadata file besides it, this method will automatically
     /// add it with a new UUID and add the resource to the registry.
@@ -80,6 +98,8 @@ impl ResourceRegistry {
             .parent()
             .map(|path| path.to_path_buf())
             .unwrap_or_else(|| PathBuf::from("."));
+
+        self.paths.clear();
 
         let file_iterator = ok_or_return!(resource_io.walk_directory(&registry_folder).await);
         for path in file_iterator {
