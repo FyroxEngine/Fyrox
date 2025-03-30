@@ -272,6 +272,7 @@ pub trait HrirSphereResourceExt {
 impl HrirSphereResourceExt for HrirSphereResource {
     fn from_hrir_sphere(hrir_sphere: HrirSphere, kind: ResourceKind) -> Self {
         Resource::new_ok(
+            Uuid::new_v4(),
             kind,
             HrirSphereResourceData {
                 hrir_sphere: Some(hrir_sphere),

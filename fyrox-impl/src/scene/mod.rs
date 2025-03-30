@@ -287,6 +287,7 @@ impl Display for PerformanceStatistics {
 pub struct SceneLoader {
     scene: Scene,
     path: Option<PathBuf>,
+    resource_manager: ResourceManager,
 }
 
 impl SceneLoader {
@@ -325,12 +326,18 @@ impl SceneLoader {
         }
 
         visitor.blackboard.register(serialization_context);
-        visitor.blackboard.register(Arc::new(resource_manager));
+        visitor
+            .blackboard
+            .register(Arc::new(resource_manager.clone()));
 
         let mut scene = Scene::default();
         scene.visit(region_name, visitor)?;
 
-        Ok(Self { scene, path })
+        Ok(Self {
+            scene,
+            path,
+            resource_manager,
+        })
     }
 
     /// Finishes scene loading.
@@ -345,7 +352,11 @@ impl SceneLoader {
         if let Some(path) = self.path {
             let exclusion_list = used_resources
                 .iter()
-                .filter(|res| res.kind().path() == Some(&path))
+                .filter(|res| {
+                    let state = self.resource_manager.state();
+                    let registry = state.resource_registry.lock();
+                    registry.uuid_to_path(res.resource_uuid()) == Some(&path)
+                })
                 .cloned()
                 .collect::<Vec<_>>();
 

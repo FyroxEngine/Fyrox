@@ -73,12 +73,26 @@ impl ResourceRegistry {
         self.paths.insert(uuid, path)
     }
 
+    pub fn unregister(&mut self, uuid: Uuid) -> Option<PathBuf> {
+        self.paths.remove(&uuid)
+    }
+
+    pub fn unregister_path(&mut self, path: &Path) -> Option<Uuid> {
+        let uuid = self.path_to_uuid(path)?;
+        self.paths.remove(&uuid);
+        Some(uuid)
+    }
+
     pub fn set_container(&mut self, registry_container: RegistryContainer) {
         self.paths = registry_container;
     }
 
     pub fn uuid_to_path(&self, uuid: Uuid) -> Option<&Path> {
         self.paths.get(&uuid).map(|path| path.as_path())
+    }
+
+    pub fn uuid_to_path_buf(&self, uuid: Uuid) -> Option<PathBuf> {
+        self.uuid_to_path(uuid).map(|path| path.to_path_buf())
     }
 
     pub fn path_to_uuid(&self, path: &Path) -> Option<Uuid> {

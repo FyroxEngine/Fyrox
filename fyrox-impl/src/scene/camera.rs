@@ -925,6 +925,7 @@ impl ColorGradingLut {
                 }
 
                 let lut = TextureResource::from_bytes(
+                    Uuid::new_v4(),
                     TextureKind::Volume {
                         width: 16,
                         height: 16,
@@ -982,9 +983,10 @@ pub enum SkyBoxKind {
     Specific(SkyBox),
 }
 
-fn load_texture(data: &[u8], id: &str) -> TextureResource {
+fn load_texture(id: Uuid, data: &[u8]) -> TextureResource {
     TextureResource::load_from_memory(
-        ResourceKind::External(id.into()),
+        id,
+        ResourceKind::External,
         data,
         TextureImportOptions::default()
             .with_compression(CompressionOptions::NoCompression)
@@ -995,30 +997,36 @@ fn load_texture(data: &[u8], id: &str) -> TextureResource {
 }
 
 lazy_static! {
-    static ref BUILT_IN_SKYBOX_FRONT: BuiltInResource<Texture> =
-        BuiltInResource::new(embedded_data_source!("skybox/front.png"), |data| {
-            load_texture(data, "__BUILT_IN_SKYBOX_FRONT")
-        });
-    static ref BUILT_IN_SKYBOX_BACK: BuiltInResource<Texture> =
-        BuiltInResource::new(embedded_data_source!("skybox/back.png"), |data| {
-            load_texture(data, "__BUILT_IN_SKYBOX_BACK")
-        });
-    static ref BUILT_IN_SKYBOX_TOP: BuiltInResource<Texture> =
-        BuiltInResource::new(embedded_data_source!("skybox/top.png"), |data| {
-            load_texture(data, "__BUILT_IN_SKYBOX_TOP")
-        });
-    static ref BUILT_IN_SKYBOX_BOTTOM: BuiltInResource<Texture> =
-        BuiltInResource::new(embedded_data_source!("skybox/bottom.png"), |data| {
-            load_texture(data, "__BUILT_IN_SKYBOX_BOTTOM")
-        });
-    static ref BUILT_IN_SKYBOX_LEFT: BuiltInResource<Texture> =
-        BuiltInResource::new(embedded_data_source!("skybox/left.png"), |data| {
-            load_texture(data, "__BUILT_IN_SKYBOX_LEFT")
-        });
-    static ref BUILT_IN_SKYBOX_RIGHT: BuiltInResource<Texture> =
-        BuiltInResource::new(embedded_data_source!("skybox/right.png"), |data| {
-            load_texture(data, "__BUILT_IN_SKYBOX_RIGHT")
-        });
+    static ref BUILT_IN_SKYBOX_FRONT: BuiltInResource<Texture> = BuiltInResource::new(
+        "__BUILT_IN_SKYBOX_FRONT",
+        embedded_data_source!("skybox/front.png"),
+        |data| { load_texture(uuid!("f8d4519b-2947-4c83-9aa5-800a70ae918e"), data) }
+    );
+    static ref BUILT_IN_SKYBOX_BACK: BuiltInResource<Texture> = BuiltInResource::new(
+        "__BUILT_IN_SKYBOX_BACK",
+        embedded_data_source!("skybox/back.png"),
+        |data| { load_texture(uuid!("28676705-58bd-440f-b0aa-ce42cf95be79"), data) }
+    );
+    static ref BUILT_IN_SKYBOX_TOP: BuiltInResource<Texture> = BuiltInResource::new(
+        "__BUILT_IN_SKYBOX_TOP",
+        embedded_data_source!("skybox/top.png"),
+        |data| { load_texture(uuid!("03e38da7-53d1-48c0-87f8-2baf9869d61d"), data) }
+    );
+    static ref BUILT_IN_SKYBOX_BOTTOM: BuiltInResource<Texture> = BuiltInResource::new(
+        "__BUILT_IN_SKYBOX_BOTTOM",
+        embedded_data_source!("skybox/bottom.png"),
+        |data| { load_texture(uuid!("01684dc1-34b2-48b3-b8c2-30a7718cb9e7"), data) }
+    );
+    static ref BUILT_IN_SKYBOX_LEFT: BuiltInResource<Texture> = BuiltInResource::new(
+        "__BUILT_IN_SKYBOX_LEFT",
+        embedded_data_source!("skybox/left.png"),
+        |data| { load_texture(uuid!("1725b779-7633-477a-a7b0-995c079c3202"), data) }
+    );
+    static ref BUILT_IN_SKYBOX_RIGHT: BuiltInResource<Texture> = BuiltInResource::new(
+        "__BUILT_IN_SKYBOX_RIGHT",
+        embedded_data_source!("skybox/right.png"),
+        |data| { load_texture(uuid!("5f74865a-3eae-4bff-8743-b9d1f7bb3c59"), data) }
+    );
     static ref BUILT_IN_SKYBOX: SkyBox = SkyBoxKind::make_built_in_skybox();
 }
 
@@ -1464,6 +1472,7 @@ impl SkyBox {
         }
 
         let cubemap = TextureResource::from_bytes(
+            Uuid::new_v4(),
             TextureKind::Cube { width, height },
             pixel_kind,
             data,

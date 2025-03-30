@@ -128,6 +128,7 @@ use std::{
     },
     time::Duration,
 };
+use uuid::Uuid;
 use winit::window::Icon;
 use winit::{
     dpi::{Position, Size},
@@ -200,6 +201,7 @@ impl InitializedGraphicsContext {
     /// with [`include_bytes`] macro to pass file's data directly.
     pub fn set_window_icon_from_memory(&mut self, data: &[u8]) {
         if let Ok(texture) = TextureResource::load_from_memory(
+            Uuid::new_v4(),
             ResourceKind::Embedded,
             data,
             TextureImportOptions::default()
@@ -1721,7 +1723,8 @@ impl Engine {
                             // Create a resource, that will point to the scene we've loaded the
                             // scene from and force scene nodes to inherit data from them.
                             let model = Resource::new_ok(
-                                ResourceKind::External(request.path.clone()),
+                                Uuid::new_v4(),
+                                ResourceKind::External,
                                 Model {
                                     mapping: NodeMapping::UseHandles,
                                     // We have to create a full copy of the scene, because otherwise

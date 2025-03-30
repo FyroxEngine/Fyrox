@@ -40,6 +40,7 @@ use crate::{
     Thickness,
 };
 use fxhash::FxHashMap;
+use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{
     io::ResourceIo,
     manager::{BuiltInResource, ResourceManager},
@@ -108,8 +109,8 @@ impl_casts!(TextureResource => Texture);
 
 lazy_static! {
     /// Default style of the library.
-    pub static ref DEFAULT_STYLE: BuiltInResource<Style> = BuiltInResource::new_no_source(
-        StyleResource::new_ok("__DEFAULT_STYLE__".into(), Style::dark_style())
+    pub static ref DEFAULT_STYLE: BuiltInResource<Style> = BuiltInResource::new_no_source("__DEFAULT_STYLE__",
+        StyleResource::new_ok(uuid!("1e0716e8-e728-491c-a65b-ca11b15048be"), ResourceKind::External, Style::dark_style())
     );
 }
 

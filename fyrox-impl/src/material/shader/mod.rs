@@ -473,6 +473,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
+use uuid::uuid;
 
 pub mod loader;
 
@@ -894,7 +895,7 @@ pub type ShaderResource = Resource<Shader>;
 pub trait ShaderResourceExtension: Sized {
     /// Creates new shader from given string. Input string must have the format defined in
     /// examples for [`ShaderResource`].
-    fn from_str(str: &str, kind: ResourceKind) -> Result<Self, ShaderError>;
+    fn from_str(id: Uuid, str: &str, kind: ResourceKind) -> Result<Self, ShaderError>;
 
     /// Returns an instance of standard shader.
     fn standard() -> Self;
@@ -922,8 +923,8 @@ pub trait ShaderResourceExtension: Sized {
 }
 
 impl ShaderResourceExtension for ShaderResource {
-    fn from_str(str: &str, kind: ResourceKind) -> Result<Self, ShaderError> {
-        Ok(Resource::new_ok(kind, Shader::from_string(str)?))
+    fn from_str(id: Uuid, str: &str, kind: ResourceKind) -> Result<Self, ShaderError> {
+        Ok(Resource::new_ok(id, kind, Shader::from_string(str)?))
     }
 
     fn standard() -> Self {
@@ -968,52 +969,72 @@ impl ShaderResourceExtension for ShaderResource {
 }
 
 lazy_static! {
-    static ref STANDARD: BuiltInResource<Shader> =
-        BuiltInResource::new(embedded_data_source!("standard/standard.shader"), |data| {
+    static ref STANDARD: BuiltInResource<Shader> = BuiltInResource::new(
+        STANDARD_SHADER_NAME,
+        embedded_data_source!("standard/standard.shader"),
+        |data| {
             ShaderResource::new_ok(
-                STANDARD_SHADER_NAME.into(),
+                uuid!("87195f6e-cba4-4c27-9f89-d0bf726db965"),
+                ResourceKind::External,
                 Shader::from_string_bytes(data).unwrap(),
             )
-        });
+        }
+    );
     static ref STANDARD_2D: BuiltInResource<Shader> = BuiltInResource::new(
+        STANDARD_2D_SHADER_NAME,
         embedded_data_source!("standard/standard2d.shader"),
         |data| ShaderResource::new_ok(
-            STANDARD_2D_SHADER_NAME.into(),
+            uuid!("55fa05b0-3c25-4e46-bae7-65f093185b75"),
+            ResourceKind::External,
             Shader::from_string_bytes(data).unwrap(),
         )
     );
     static ref STANDARD_PARTICLE_SYSTEM: BuiltInResource<Shader> = BuiltInResource::new(
+        STANDARD_PARTICLE_SYSTEM_SHADER_NAME,
         embedded_data_source!("standard/standard_particle_system.shader"),
         |data| ShaderResource::new_ok(
-            STANDARD_PARTICLE_SYSTEM_SHADER_NAME.into(),
+            uuid!("eb474445-6a25-4481-bca9-f919699c300f"),
+            ResourceKind::External,
             Shader::from_string_bytes(data).unwrap(),
         )
     );
     static ref STANDARD_SPRITE: BuiltInResource<Shader> = BuiltInResource::new(
+        STANDARD_SPRITE_SHADER_NAME,
         embedded_data_source!("standard/standard_sprite.shader"),
         |data| ShaderResource::new_ok(
-            STANDARD_SPRITE_SHADER_NAME.into(),
+            uuid!("a135826a-4c1b-46d5-ba1f-0c9a226aa52c"),
+            ResourceKind::External,
             Shader::from_string_bytes(data).unwrap(),
         )
     );
-    static ref STANDARD_TERRAIN: BuiltInResource<Shader> =
-        BuiltInResource::new(embedded_data_source!("standard/terrain.shader"), |data| {
+    static ref STANDARD_TERRAIN: BuiltInResource<Shader> = BuiltInResource::new(
+        STANDARD_TERRAIN_SHADER_NAME,
+        embedded_data_source!("standard/terrain.shader"),
+        |data| {
             ShaderResource::new_ok(
-                STANDARD_TERRAIN_SHADER_NAME.into(),
+                uuid!("4911aafe-9bb1-4115-a958-25b57b87b51e"),
+                ResourceKind::External,
                 Shader::from_string_bytes(data).unwrap(),
             )
-        });
-    static ref STANDARD_TILE: BuiltInResource<Shader> =
-        BuiltInResource::new(embedded_data_source!("standard/tile.shader"), |data| {
+        }
+    );
+    static ref STANDARD_TILE: BuiltInResource<Shader> = BuiltInResource::new(
+        STANDARD_TILE_SHADER_NAME,
+        embedded_data_source!("standard/tile.shader"),
+        |data| {
             ShaderResource::new_ok(
-                STANDARD_TILE_SHADER_NAME.into(),
+                uuid!("5f29dd3a-ea99-480c-bb02-d2c6420843b1"),
+                ResourceKind::External,
                 Shader::from_string_bytes(data).unwrap(),
             )
-        });
+        }
+    );
     static ref STANDARD_TWOSIDES: BuiltInResource<Shader> = BuiltInResource::new(
+        STANDARD_TWOSIDES_SHADER_NAME,
         embedded_data_source!("standard/standard-two-sides.shader"),
         |data| ShaderResource::new_ok(
-            STANDARD_TWOSIDES_SHADER_NAME.into(),
+            uuid!("f7979409-5185-4e1c-a644-d53cea64af8f"),
+            ResourceKind::External,
             Shader::from_string_bytes(data).unwrap(),
         )
     );

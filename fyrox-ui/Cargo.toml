@@ -29,6 +29,7 @@ strum = "0.26.1"
 strum_macros = "0.26.1"
 serde = { version = "1", features = ["derive"] }
 bytemuck = { version = "1.16.1", features = ["derive"] }
+uuid = { version = "1.7.0", features = ["v4"] }
 
 [features]
 enable_profiler = ["fyrox-core/enable_profiler"]

@@ -799,18 +799,20 @@ impl Display for MaterialError {
 lazy_static! {
     /// Standard PBR material. Keep in mind that this material is global, any modification
     /// of it will reflect on every other usage of it.
-    pub static ref STANDARD: BuiltInResource<Material> = BuiltInResource::new_no_source(
+    pub static ref STANDARD: BuiltInResource<Material> = BuiltInResource::new_no_source("__StandardMaterial",
         MaterialResource::new_ok(
-            "__StandardMaterial".into(),
+            uuid!("fac37721-d1b8-422e-ae0c-83196ecd0a26"),
+            ResourceKind::External,
             Material::from_shader(ShaderResource::standard()),
         )
     );
 
     /// Standard 2D material. Keep in mind that this material is global, any modification
     /// of it will reflect on every other usage of it.
-    pub static ref STANDARD_2D: BuiltInResource<Material> = BuiltInResource::new_no_source(
+    pub static ref STANDARD_2D: BuiltInResource<Material> = BuiltInResource::new_no_source("__Standard2DMaterial",
         MaterialResource::new_ok(
-            "__Standard2DMaterial".into(),
+            uuid!("fe78a0d0-d059-4156-bc63-c3d2e36ad4b6"),
+            ResourceKind::External,
             Material::from_shader(ShaderResource::standard_2d()),
         )
     );
@@ -818,8 +820,10 @@ lazy_static! {
     /// Standard particle system material. Keep in mind that this material is global, any modification
     /// of it will reflect on every other usage of it.
     pub static ref STANDARD_PARTICLE_SYSTEM: BuiltInResource<Material> = BuiltInResource::new_no_source(
+        "__StandardParticleSystemMaterial",
         MaterialResource::new_ok(
-            "__StandardParticleSystemMaterial".into(),
+            uuid!("5bebe6e5-4aeb-496f-88f6-abe2b1ac798b"),
+            ResourceKind::External,
             Material::from_shader(ShaderResource::standard_particle_system(),),
         )
     );
@@ -827,8 +831,10 @@ lazy_static! {
     /// Standard sprite material. Keep in mind that this material is global, any modification
     /// of it will reflect on every other usage of it.
     pub static ref STANDARD_SPRITE: BuiltInResource<Material> = BuiltInResource::new_no_source(
+        "__StandardSpriteMaterial",
         MaterialResource::new_ok(
-            "__StandardSpriteMaterial".into(),
+            uuid!("3e331786-baae-412b-9d99-7370174bca43"),
+            ResourceKind::External,
             Material::from_shader(ShaderResource::standard_sprite()),
         )
     );
@@ -836,18 +842,22 @@ lazy_static! {
     /// Standard terrain material. Keep in mind that this material is global, any modification
     /// of it will reflect on every other usage of it.
     pub static ref STANDARD_TERRAIN: BuiltInResource<Material> = BuiltInResource::new_no_source(
+        "__StandardTerrainMaterial",
         MaterialResource::new_ok(
-            "__StandardTerrainMaterial".into(),
-           Material::from_shader(ShaderResource::standard_terrain()),
+            uuid!("0e407e22-41ad-4763-9adb-9d2e86351ece"),
+            ResourceKind::External,
+            Material::from_shader(ShaderResource::standard_terrain()),
         )
     );
 
     /// Standard two-sided material. Keep in mind that this material is global, any modification
     /// of it will reflect on every other usage of it.
     pub static ref STANDARD_TWOSIDES: BuiltInResource<Material> = BuiltInResource::new_no_source(
+        "__StandardTwoSidesMaterial",
         MaterialResource::new_ok(
-            "__StandardTwoSidesMaterial".into(),
-          Material::from_shader(ShaderResource::standard_twosides()),
+            uuid!("24115321-7766-495c-bc3a-75db2f73d26d"),
+            ResourceKind::External,
+           Material::from_shader(ShaderResource::standard_twosides()),
         )
     );
 }
@@ -1215,18 +1225,19 @@ pub trait MaterialResourceExtension {
 impl MaterialResourceExtension for MaterialResource {
     #[inline(never)] // Prevents vtable mismatch when doing hot reloading.
     fn new(material: Material) -> Self {
-        Self::new_ok(ResourceKind::Embedded, material)
+        Self::new_ok(Uuid::new_v4(), ResourceKind::Embedded, material)
     }
 
     fn deep_copy(&self) -> MaterialResource {
         let material_state = self.header();
         let kind = material_state.kind.clone();
         match material_state.state {
-            ResourceState::Pending { .. } => MaterialResource::new_pending(kind),
+            ResourceState::Pending { .. } => MaterialResource::new_pending(Uuid::new_v4(), kind),
             ResourceState::LoadError { ref error } => {
-                MaterialResource::new_load_error(kind.clone(), error.clone())
+                MaterialResource::new_load_error(Uuid::new_v4(), kind.clone(), error.clone())
             }
             ResourceState::Ok(ref material) => MaterialResource::new_ok(
+                Uuid::new_v4(),
                 kind,
                 ResourceDataAsAny::as_any(&**material)
                     .downcast_ref::<Material>()
@@ -1242,6 +1253,7 @@ pub(crate) fn visit_old_material(region: &mut RegionGuard) -> Option<MaterialRes
     if let Ok(mut inner) = region.enter_region("Material") {
         if old_material.visit("Value", &mut inner).is_ok() {
             return Some(MaterialResource::new_ok(
+                Uuid::new_v4(),
                 Default::default(),
                 old_material.lock().clone(),
             ));
@@ -1262,7 +1274,11 @@ where
         if old_texture.visit("Value", &mut inner).is_ok() {
             let mut material = make_default_material();
             material.bind("diffuseTexture", old_texture);
-            return Some(MaterialResource::new_ok(Default::default(), material));
+            return Some(MaterialResource::new_ok(
+                Uuid::new_v4(),
+                Default::default(),
+                material,
+            ));
         }
     }
     None

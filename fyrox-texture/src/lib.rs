@@ -51,6 +51,7 @@ use fyrox_core::{
     num_traits::Bounded,
     reflect::prelude::*,
     sparse::AtomicIndex,
+    uuid,
     uuid::Uuid,
     uuid_provider,
     visitor::{PodVecView, Visit, VisitError, VisitResult, Visitor},
@@ -670,10 +671,11 @@ impl TextureImportOptions {
 
 lazy_static! {
     /// Placeholder texture.
-    pub static ref PLACEHOLDER: BuiltInResource<Texture> = BuiltInResource::new(embedded_data_source!("default.png"),
+    pub static ref PLACEHOLDER: BuiltInResource<Texture> = BuiltInResource::new("__PlaceholderTexture", embedded_data_source!("default.png"),
         |data| {
             TextureResource::load_from_memory(
-                ResourceKind::External("__PlaceholderTexture".into()),
+                uuid!("58b0e112-a21a-481f-b305-a2dc5a8bea1f"),
+                ResourceKind::External,
                 data,
                 Default::default()
             )
@@ -709,6 +711,7 @@ pub trait TextureResourceExtension: Sized {
     ///
     /// Main use cases for this method are: procedural textures, icons for GUI.
     fn load_from_memory(
+        resource_uuid: Uuid,
         kind: ResourceKind,
         data: &[u8],
         import_options: TextureImportOptions,
@@ -717,6 +720,7 @@ pub trait TextureResourceExtension: Sized {
     /// Tries to create new texture from given parameters, it may fail only if size of data passed
     /// in does not match with required.
     fn from_bytes(
+        resource_uuid: Uuid,
         kind: TextureKind,
         pixel_kind: TexturePixelKind,
         bytes: Vec<u8>,
@@ -731,6 +735,7 @@ pub trait TextureResourceExtension: Sized {
 impl TextureResourceExtension for TextureResource {
     fn new_render_target(width: u32, height: u32) -> Self {
         Resource::new_ok(
+            Default::default(),
             Default::default(),
             Texture {
                 // Render target will automatically set width and height before rendering.
@@ -758,23 +763,27 @@ impl TextureResourceExtension for TextureResource {
     }
 
     fn load_from_memory(
+        resource_uuid: Uuid,
         kind: ResourceKind,
         data: &[u8],
         import_options: TextureImportOptions,
     ) -> Result<Self, TextureError> {
         Ok(Resource::new_ok(
+            resource_uuid,
             kind,
             Texture::load_from_memory(data, import_options)?,
         ))
     }
 
     fn from_bytes(
+        resource_uuid: Uuid,
         kind: TextureKind,
         pixel_kind: TexturePixelKind,
         bytes: Vec<u8>,
         resource_kind: ResourceKind,
     ) -> Option<Self> {
         Some(Resource::new_ok(
+            resource_uuid,
             resource_kind,
             Texture::from_bytes(kind, pixel_kind, bytes)?,
         ))
@@ -783,7 +792,7 @@ impl TextureResourceExtension for TextureResource {
     fn deep_clone(&self) -> Self {
         let kind = self.header().kind.clone();
         let data = self.data_ref().clone();
-        Resource::new_ok(kind, data)
+        Resource::new_ok(Uuid::new_v4(), kind, data)
     }
 }
 

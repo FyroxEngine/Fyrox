@@ -242,27 +242,32 @@ where
 {
     /// Creates new resource in pending state.
     #[inline]
-    pub fn new_pending(kind: ResourceKind) -> Self {
+    pub fn new_pending(resource_uuid: Uuid, kind: ResourceKind) -> Self {
         Self {
-            untyped: UntypedResource::new_pending(kind, <T as TypeUuidProvider>::type_uuid()),
+            untyped: UntypedResource::new_pending(
+                resource_uuid,
+                kind,
+                <T as TypeUuidProvider>::type_uuid(),
+            ),
             phantom: PhantomData,
         }
     }
 
     /// Creates new resource in ok state (fully loaded).
     #[inline]
-    pub fn new_ok(kind: ResourceKind, data: T) -> Self {
+    pub fn new_ok(resource_uuid: Uuid, kind: ResourceKind, data: T) -> Self {
         Self {
-            untyped: UntypedResource::new_ok(kind, data),
+            untyped: UntypedResource::new_ok(resource_uuid, kind, data),
             phantom: PhantomData,
         }
     }
 
     /// Creates new resource in error state.
     #[inline]
-    pub fn new_load_error(kind: ResourceKind, error: LoadError) -> Self {
+    pub fn new_load_error(resource_uuid: Uuid, kind: ResourceKind, error: LoadError) -> Self {
         Self {
             untyped: UntypedResource::new_load_error(
+                resource_uuid,
                 kind,
                 error,
                 <T as TypeUuidProvider>::type_uuid(),
@@ -368,12 +373,6 @@ where
     pub fn save(&self, path: &Path) -> Result<(), Box<dyn Error>> {
         self.untyped.save(path)
     }
-
-    /// Tries to save the resource back to its external location. This method will fail on attempt
-    /// to save embedded resource, because embedded resources does not have external location.
-    pub fn save_back(&self) -> Result<(), Box<dyn Error>> {
-        self.untyped.save_back()
-    }
 }
 
 impl<T> Default for Resource<T>
@@ -383,7 +382,7 @@ where
     #[inline]
     fn default() -> Self {
         Self {
-            untyped: UntypedResource::new_ok(Default::default(), T::default()),
+            untyped: UntypedResource::new_ok(Default::default(), Default::default(), T::default()),
             phantom: Default::default(),
         }
     }

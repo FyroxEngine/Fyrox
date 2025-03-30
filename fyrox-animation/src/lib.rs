@@ -319,8 +319,11 @@ impl<T: EntityId> Visit for Animation<T> {
                         id: old_track.id,
                     });
                 }
-                self.tracks_data =
-                    AnimationTracksDataResource::new_ok(ResourceKind::Embedded, tracks_data);
+                self.tracks_data = AnimationTracksDataResource::new_ok(
+                    Uuid::new_v4(),
+                    ResourceKind::Embedded,
+                    tracks_data,
+                );
             } else {
                 self.tracks_data.visit("TracksData", &mut region)?;
                 self.track_bindings.visit("TrackBindings", &mut region)?;
@@ -985,7 +988,11 @@ impl<T: EntityId> Default for Animation<T> {
     fn default() -> Self {
         Self {
             name: Default::default(),
-            tracks_data: Resource::new_ok(ResourceKind::Embedded, AnimationTracksData::default()),
+            tracks_data: Resource::new_ok(
+                Uuid::default(),
+                ResourceKind::Embedded,
+                AnimationTracksData::default(),
+            ),
             speed: 1.0,
             time_position: 0.0,
             enabled: true,

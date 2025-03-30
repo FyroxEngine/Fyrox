@@ -101,35 +101,21 @@ pub enum ResourceKind {
     /// create a static resource variable and register it in built-in resources of the resource manager.
     /// In this case, the path becomes an identifier and it must be unique. See [`ResourceManager`] docs
     /// for more info about built-in resources.
+    External,
+}
+
+#[derive(Default, Debug, Visit, Clone, PartialEq, Eq, Hash)]
+enum OldResourceKind {
+    #[default]
+    Embedded,
     External(PathBuf),
-}
-
-impl From<Option<PathBuf>> for ResourceKind {
-    fn from(value: Option<PathBuf>) -> Self {
-        match value {
-            None => Self::Embedded,
-            Some(path) => Self::External(path),
-        }
-    }
-}
-
-impl From<PathBuf> for ResourceKind {
-    fn from(value: PathBuf) -> Self {
-        Self::External(value)
-    }
-}
-
-impl<'a> From<&'a str> for ResourceKind {
-    fn from(value: &'a str) -> Self {
-        Self::External(value.into())
-    }
 }
 
 impl ResourceKind {
     /// Switches the resource kind to [`Self::External`].
     #[inline]
-    pub fn make_external(&mut self, path: PathBuf) {
-        *self = ResourceKind::External(path);
+    pub fn make_external(&mut self) {
+        *self = ResourceKind::External;
     }
 
     /// Switches the resource kind to [`Self::Embedded`]
@@ -149,31 +135,6 @@ impl ResourceKind {
     pub fn is_external(&self) -> bool {
         !self.is_embedded()
     }
-
-    /// Tries to fetch a resource path, returns [`None`] for [`Self::Embedded`] resources.
-    #[inline]
-    pub fn path(&self) -> Option<&Path> {
-        match self {
-            ResourceKind::Embedded => None,
-            ResourceKind::External(path) => Some(path),
-        }
-    }
-
-    /// Tries to fetch a resource path, returns [`None`] for [`Self::Embedded`] resources.
-    #[inline]
-    pub fn path_owned(&self) -> Option<PathBuf> {
-        self.path().map(|p| p.to_path_buf())
-    }
-
-    /// Tries to convert the resource kind into its path, returns [`None`] for [`Self::Embedded`]
-    /// resources.
-    #[inline]
-    pub fn into_path(self) -> Option<PathBuf> {
-        match self {
-            ResourceKind::Embedded => None,
-            ResourceKind::External(path) => Some(path),
-        }
-    }
 }
 
 impl Display for ResourceKind {
@@ -182,8 +143,8 @@ impl Display for ResourceKind {
             ResourceKind::Embedded => {
                 write!(f, "Embedded")
             }
-            ResourceKind::External(path) => {
-                write!(f, "External ({})", path.display())
+            ResourceKind::External => {
+                write!(f, "External")
             }
         }
     }
@@ -193,7 +154,7 @@ impl Display for ResourceKind {
 /// its kind, etc.
 #[derive(Reflect, Debug)]
 pub struct ResourceHeader {
-    /// Unique id of a resource. It is controlled strictly by a [`ResourceManager`] instance.
+    /// Unique id of a resource.
     pub resource_uuid: Uuid,
     /// UUID of the internal data type.
     pub type_uuid: Uuid,
@@ -201,6 +162,9 @@ pub struct ResourceHeader {
     pub kind: ResourceKind,
     /// Actual state of the resource. See [`ResourceState`] for more info.
     pub state: ResourceState,
+
+    // TODO: Remove in Fyrox 1.0
+    old_format_path: Option<PathBuf>,
 }
 
 impl Visit for ResourceHeader {
@@ -239,11 +203,13 @@ impl Visit for ResourceHeader {
                                 let mut sound_region = details_region.enter_region("0")?;
                                 let mut path = PathBuf::new();
                                 path.visit("Path", &mut sound_region).unwrap();
-                                self.kind.make_external(path);
+                                self.kind.make_external();
+                                self.old_format_path = Some(path);
                             } else {
                                 let mut path = PathBuf::new();
                                 path.visit("Path", &mut details_region).unwrap();
-                                self.kind.make_external(path);
+                                self.kind.make_external();
+                                self.old_format_path = Some(path);
                             }
                         }
 
@@ -264,6 +230,15 @@ impl Visit for ResourceHeader {
                 }
 
                 return Ok(());
+            }
+        }
+
+        if region.is_reading() {
+            let mut old_kind = OldResourceKind::Embedded;
+            if old_kind.visit("Kind", &mut region).is_ok() {
+                if let OldResourceKind::External(path) = old_kind {
+                    self.old_format_path = Some(path);
+                }
             }
         }
 
@@ -332,8 +307,15 @@ impl Visit for UntypedResource {
                 .get::<ResourceManager>()
                 .expect("Resource manager must be available when deserializing resources!");
 
-            let path = self.kind().path_owned().unwrap();
-            self.0 = resource_manager.request_untyped(path).0;
+            let inner_lock = self.0.lock();
+            let resource_uuid = inner_lock.resource_uuid;
+            if let Some(old_format_path) = inner_lock.old_format_path.clone() {
+                drop(inner_lock);
+                self.0 = resource_manager.request_untyped(old_format_path).0;
+            } else {
+                drop(inner_lock);
+                self.0 = resource_manager.request_by_uuid(resource_uuid).0;
+            }
         }
 
         Ok(())
@@ -349,6 +331,7 @@ impl Default for UntypedResource {
             state: ResourceState::new_load_error(LoadError::new(
                 "Default resource state of unknown type.",
             )),
+            old_format_path: None,
         })))
     }
 }
@@ -375,37 +358,49 @@ impl Hash for UntypedResource {
 
 impl UntypedResource {
     /// Creates new untyped resource in pending state using the given path and type uuid.
-    pub fn new_pending(kind: ResourceKind, type_uuid: Uuid) -> Self {
+    pub fn new_pending(resource_uuid: Uuid, kind: ResourceKind, type_uuid: Uuid) -> Self {
         Self(Arc::new(Mutex::new(ResourceHeader {
-            resource_uuid: Default::default(),
+            resource_uuid,
             kind,
             type_uuid,
             state: ResourceState::new_pending(),
+            old_format_path: None,
         })))
     }
 
     /// Creates new untyped resource in ok (fully loaded) state using the given data of any type, that
     /// implements [`ResourceData`] trait.
-    pub fn new_ok<T>(kind: ResourceKind, data: T) -> Self
+    pub fn new_ok<T>(resource_uuid: Uuid, kind: ResourceKind, data: T) -> Self
     where
         T: ResourceData,
     {
         Self(Arc::new(Mutex::new(ResourceHeader {
-            resource_uuid: Default::default(),
+            resource_uuid,
             kind,
             type_uuid: data.type_uuid(),
             state: ResourceState::new_ok(data),
+            old_format_path: None,
         })))
     }
 
     /// Creates new untyped resource in error state.
-    pub fn new_load_error(kind: ResourceKind, error: LoadError, type_uuid: Uuid) -> Self {
+    pub fn new_load_error(
+        resource_uuid: Uuid,
+        kind: ResourceKind,
+        error: LoadError,
+        type_uuid: Uuid,
+    ) -> Self {
         Self(Arc::new(Mutex::new(ResourceHeader {
-            resource_uuid: Default::default(),
+            resource_uuid,
             kind,
             type_uuid,
             state: ResourceState::new_load_error(error),
+            old_format_path: None,
         })))
+    }
+
+    pub fn resource_uuid(&self) -> Uuid {
+        self.0.lock().resource_uuid
     }
 
     /// Returns actual unique type id of underlying resource data.
@@ -454,15 +449,6 @@ impl UntypedResource {
                 Err("Unable to save unloaded resource!".into())
             }
             ResourceState::Ok(ref mut data) => data.save(path),
-        }
-    }
-
-    /// Tries to save the resource back to its external location. This method will fail on attempt
-    /// to save embedded resource, because embedded resources does not have external location.
-    pub fn save_back(&self) -> Result<(), Box<dyn Error>> {
-        match self.kind() {
-            ResourceKind::Embedded => Err("Embedded resource cannot be saved!".into()),
-            ResourceKind::External(path) => self.save(&path),
         }
     }
 

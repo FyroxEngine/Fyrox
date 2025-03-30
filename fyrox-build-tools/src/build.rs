@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use fyrox_core::algebra::{Matrix3, Vector2};
+use fyrox_core::Uuid;
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_ui::{
     border::BorderBuilder,
@@ -70,6 +71,7 @@ impl Drop for BuildWindow {
 impl BuildWindow {
     pub fn new(project_name: &str, ctx: &mut BuildContext) -> Self {
         let progress_image = TextureResource::load_from_memory(
+            Uuid::new_v4(),
             ResourceKind::Embedded,
             include_bytes!("resources/progress.png"),
             TextureImportOptions::default()

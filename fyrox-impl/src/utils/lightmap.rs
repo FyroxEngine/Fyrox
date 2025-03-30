@@ -54,6 +54,7 @@ use crate::{
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
 use fxhash::FxHashMap;
+use fyrox_core::Uuid;
 use lightmap::light::{
     DirectionalLightDefinition, LightDefinition, PointLightDefinition, SpotLightDefinition,
 };
@@ -630,7 +631,11 @@ impl Lightmap {
 
             let lightmap = generate_lightmap(mesh, &meshes, &light_definitions, texels_per_unit);
             map.entry(instance.owner).or_default().push(LightmapEntry {
-                texture: Some(TextureResource::new_ok(Default::default(), lightmap)),
+                texture: Some(TextureResource::new_ok(
+                    Uuid::new_v4(),
+                    Default::default(),
+                    lightmap,
+                )),
                 lights: lights.keys().cloned().collect(),
             });
 

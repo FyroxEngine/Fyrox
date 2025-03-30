@@ -744,6 +744,7 @@ impl ParticleSystemBuilder {
             base_builder,
             emitters: Default::default(),
             material: MaterialResource::new_ok(
+                Uuid::new_v4(),
                 Default::default(),
                 Material::standard_particle_system(),
             ),

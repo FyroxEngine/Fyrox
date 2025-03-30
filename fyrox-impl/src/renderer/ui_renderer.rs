@@ -53,6 +53,7 @@ use crate::{
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
+use uuid::Uuid;
 
 /// User interface renderer allows you to render drawing context in specified render target.
 pub struct UiRenderer {
@@ -253,8 +254,12 @@ impl UiRenderer {
                                     page.pixels.clone(),
                                 ) {
                                     page.texture = Some(
-                                        TextureResource::new_ok(ResourceKind::Embedded, details)
-                                            .into(),
+                                        TextureResource::new_ok(
+                                            Uuid::new_v4(),
+                                            ResourceKind::Embedded,
+                                            details,
+                                        )
+                                        .into(),
                                     );
                                     page.modified = false;
                                 }

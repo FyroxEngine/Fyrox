@@ -93,6 +93,7 @@ impl OrthoTransform for TileCollider {
         if let Self::Custom(collider) = self {
             let collider = collider.data_ref().clone();
             Self::Custom(Resource::new_ok(
+                Uuid::new_v4(),
                 ResourceKind::Embedded,
                 collider.x_flipped(),
             ))
@@ -104,6 +105,7 @@ impl OrthoTransform for TileCollider {
         if let Self::Custom(collider) = self {
             let collider = collider.data_ref().clone();
             Self::Custom(Resource::new_ok(
+                Uuid::new_v4(),
                 ResourceKind::Embedded,
                 collider.rotated(amount),
             ))
