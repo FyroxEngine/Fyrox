@@ -561,32 +561,6 @@ mod test {
     }
 
     #[test]
-    fn untyped_resource_new_pending() {
-        let r = UntypedResource::new_pending(PathBuf::from("/foo").into(), Uuid::default());
-
-        assert_eq!(r.0.lock().type_uuid, Uuid::default());
-        assert_eq!(
-            r.0.lock().kind,
-            ResourceKind::External(PathBuf::from("/foo"))
-        );
-    }
-
-    #[test]
-    fn untyped_resource_new_load_error() {
-        let r = UntypedResource::new_load_error(
-            PathBuf::from("/foo").into(),
-            Default::default(),
-            Uuid::default(),
-        );
-
-        assert_eq!(r.0.lock().type_uuid, Uuid::default());
-        assert_eq!(
-            r.0.lock().kind,
-            ResourceKind::External(PathBuf::from("/foo"))
-        );
-    }
-
-    #[test]
     fn untyped_resource_use_count() {
         let r = UntypedResource::default();
 
@@ -597,7 +571,8 @@ mod test {
     fn untyped_resource_try_cast() {
         let r = UntypedResource::default();
         let r2 = UntypedResource::new_pending(
-            PathBuf::from("/foo").into(),
+            Uuid::new_v4(),
+            ResourceKind::External,
             Uuid::from_u128(0xa1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8u128),
         );
 
@@ -606,42 +581,7 @@ mod test {
     }
 
     #[test]
-    fn untyped_resource_commit() {
-        let path = PathBuf::from("/foo");
-        let stub = Stub {};
-
-        let r = UntypedResource::new_pending(path.clone().into(), Default::default());
-        assert_eq!(r.0.lock().kind, ResourceKind::External(path.clone()));
-
-        r.commit(ResourceState::Ok(Box::new(stub)));
-        assert_eq!(r.0.lock().kind, ResourceKind::External(path));
-    }
-
-    #[test]
-    fn untyped_resource_commit_ok() {
-        let path = PathBuf::from("/foo");
-        let stub = Stub {};
-
-        let r = UntypedResource::new_pending(path.clone().into(), Default::default());
-        assert_eq!(r.0.lock().kind, ResourceKind::External(path.clone()));
-
-        r.commit_ok(stub);
-        assert_eq!(r.0.lock().kind, ResourceKind::External(path));
-    }
-
-    #[test]
-    fn untyped_resource_commit_error() {
-        let path = PathBuf::from("/foo");
-        let path2 = PathBuf::from("/bar");
-
-        let r = UntypedResource::new_pending(path.clone().into(), Default::default());
-        assert_eq!(r.0.lock().kind, ResourceKind::External(path));
-        assert_ne!(r.0.lock().kind, ResourceKind::External(path2));
-    }
-
-    #[test]
     fn untyped_resource_poll() {
-        let path = PathBuf::from("/foo");
         let stub = Stub {};
 
         let waker = noop_waker();
@@ -649,19 +589,21 @@ mod test {
 
         let mut r = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
             resource_uuid: Default::default(),
-            kind: path.clone().into(),
+            kind: ResourceKind::External,
             type_uuid: Uuid::default(),
             state: ResourceState::Ok(Box::new(stub)),
+            old_format_path: None,
         })));
         assert!(Pin::new(&mut r).poll(&mut cx).is_ready());
 
         let mut r = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
             resource_uuid: Default::default(),
-            kind: path.clone().into(),
+            kind: ResourceKind::External,
             type_uuid: Uuid::default(),
             state: ResourceState::LoadError {
                 error: Default::default(),
             },
+            old_format_path: None,
         })));
         assert!(Pin::new(&mut r).poll(&mut cx).is_ready());
     }

@@ -1047,6 +1047,8 @@ mod test {
         ShaderResourceDefinition, ShaderResourceExtension, ShaderResourceKind,
     };
     use fyrox_graphics::gpu_program::SamplerKind;
+    use fyrox_resource::untyped::ResourceKind;
+    use uuid::Uuid;
 
     #[test]
     fn test_shader_load() {
@@ -1092,7 +1094,8 @@ mod test {
             )
             "#;
 
-        let shader = ShaderResource::from_str(code, "test".into()).unwrap();
+        let shader =
+            ShaderResource::from_str(Uuid::new_v4(), code, ResourceKind::External).unwrap();
         let data = shader.data_ref();
 
         let reference_definition = ShaderDefinition {

@@ -1901,6 +1901,7 @@ mod test {
         script::ScriptTrait,
     };
     use fyrox_core::algebra::Vector2;
+    use fyrox_core::append_extension;
     use fyrox_resource::untyped::ResourceKind;
     use std::{fs, path::Path, sync::Arc};
 
@@ -2094,6 +2095,7 @@ mod test {
                 ),
             )
             .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                Uuid::new_v4(),
                 ResourceKind::Embedded,
                 SurfaceData::make_cone(16, 1.0, 1.0, &Matrix4::identity()),
             ))
@@ -2109,6 +2111,9 @@ mod test {
         let mut visitor = Visitor::new();
         scene.save("Scene", &mut visitor).unwrap();
         visitor.save_binary(path).unwrap();
+        visitor
+            .save_text_to_file(append_extension(path, "txt"))
+            .unwrap();
     }
 
     fn make_resource_manager() -> ResourceManager {
@@ -2117,6 +2122,7 @@ mod test {
             &resource_manager,
             Arc::new(SerializationContext::new()),
         );
+        resource_manager.state().scan_and_update_registry();
         resource_manager
     }
 

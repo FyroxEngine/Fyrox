@@ -105,10 +105,8 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
-use fyrox_core::err;
 use fyrox_graphics::gl::server::GlGraphicsServer;
 use fyrox_graphics::server::SharedGraphicsServer;
-use fyrox_resource::registry::{RegistryContainerExt, ResourceRegistry};
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -1411,27 +1409,7 @@ impl Engine {
             UiContainer::new_with_ui(UserInterface::new(Vector2::new(100.0, 100.0)));
 
         #[cfg(not(target_arch = "wasm32"))]
-        {
-            let rm_state = resource_manager.state();
-            let io = rm_state.resource_io.clone();
-            let loaders = rm_state.loaders.clone();
-            let registry = rm_state.resource_registry.clone();
-
-            // TODO: This still must lock any potential use of non-updated registry. Add a "wait-object"
-            // that can be shared and polled in resource loaders.
-            task_pool.spawn_task(async move {
-                let path = ResourceRegistry::DEFAULT_PATH;
-                let new_data = ResourceRegistry::scan(io.clone(), loaders, path).await;
-                if let Err(error) = new_data.save(Path::new(path), &*io).await {
-                    err!(
-                        "Unable to write the resource registry at the {} path! Reason: {:?}",
-                        path,
-                        error
-                    )
-                }
-                registry.lock().set_container(new_data);
-            });
-        }
+        resource_manager.state().scan_and_update_registry();
 
         Ok(Self {
             graphics_context: GraphicsContext::Uninitialized(graphics_context_params),

@@ -1498,6 +1498,13 @@ impl Visitor {
         self.save_binary_to_memory(writer)
     }
 
+    pub fn save_text_to_file<P: AsRef<Path>>(&self, path: P) -> VisitResult {
+        let mut writer = BufWriter::new(File::create(path)?);
+        let text = self.save_text();
+        writer.write_all(text.as_bytes())?;
+        Ok(())
+    }
+
     fn load_node_binary(&mut self, file: &mut dyn Read) -> Result<Handle<VisitorNode>, VisitError> {
         let name_len = file.read_u32::<LittleEndian>()? as usize;
         let mut raw_name = vec![Default::default(); name_len];

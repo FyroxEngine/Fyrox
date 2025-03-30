@@ -675,6 +675,7 @@ mod test {
                         ),
                     )
                     .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                        Uuid::new_v4(),
                         ResourceKind::Embedded,
                         SurfaceData::make_cone(16, 1.0, 1.0, &Matrix4::identity()),
                     ))

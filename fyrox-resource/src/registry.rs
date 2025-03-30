@@ -63,7 +63,8 @@ impl RegistryContainerExt for RegistryContainer {
 /// `UUID -> Resource Path`.
 #[derive(Default, Clone)]
 pub struct ResourceRegistry {
-    paths: RegistryContainer,
+    pub paths: RegistryContainer,
+    pub is_ready: bool,
 }
 
 impl ResourceRegistry {

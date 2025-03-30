@@ -718,6 +718,7 @@ mod test {
     };
     use fyrox_resource::untyped::ResourceKind;
     use std::path::Path;
+    use uuid::Uuid;
 
     #[test]
     fn test_generate_lightmap() {
@@ -732,6 +733,7 @@ mod test {
 
         MeshBuilder::new(BaseBuilder::new())
             .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                Uuid::new_v4(),
                 ResourceKind::Embedded,
                 data,
             ))

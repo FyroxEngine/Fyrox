@@ -115,11 +115,9 @@ impl ResourceDependencyGraph {
 }
 #[cfg(test)]
 mod test {
-    use std::path::PathBuf;
-
-    use fyrox_core::uuid::Uuid;
-
     use super::*;
+    use crate::untyped::ResourceKind;
+    use fyrox_core::uuid::Uuid;
 
     #[test]
     fn resource_graph_node_new() {
@@ -134,17 +132,19 @@ mod test {
     fn resource_graph_node_pretty_print() {
         let mut s = String::new();
         let mut node = ResourceGraphNode::new(&UntypedResource::new_pending(
-            PathBuf::from("/foo").into(),
+            Uuid::new_v4(),
+            ResourceKind::External,
             Uuid::default(),
         ));
         let node2 = ResourceGraphNode::new(&UntypedResource::new_pending(
-            PathBuf::from("/bar").into(),
+            Uuid::new_v4(),
+            ResourceKind::External,
             Uuid::default(),
         ));
         node.children.push(node2);
         node.pretty_print(1, &mut s);
 
-        assert_eq!(s, "\tExternal (/foo)\n\t\tExternal (/bar)\n".to_string());
+        assert_eq!(s, "\tExternal\n\t\tExternal\n".to_string());
     }
 
     #[test]
@@ -170,14 +170,16 @@ mod test {
     #[test]
     fn resource_dependency_pretty_print() {
         let mut graph = ResourceDependencyGraph::new(&UntypedResource::new_pending(
-            PathBuf::from("/foo").into(),
+            Uuid::new_v4(),
+            ResourceKind::External,
             Uuid::default(),
         ));
         graph
             .root
             .children
             .push(ResourceGraphNode::new(&UntypedResource::new_pending(
-                PathBuf::from("/bar").into(),
+                Uuid::new_v4(),
+                ResourceKind::External,
                 Uuid::default(),
             )));
 
@@ -188,14 +190,16 @@ mod test {
     #[test]
     fn resource_dependency_for_each() {
         let mut graph = ResourceDependencyGraph::new(&UntypedResource::new_pending(
-            PathBuf::from("/foo").into(),
+            Uuid::new_v4(),
+            ResourceKind::External,
             Uuid::default(),
         ));
         graph
             .root
             .children
             .push(ResourceGraphNode::new(&UntypedResource::new_pending(
-                PathBuf::from("/bar").into(),
+                Uuid::new_v4(),
+                ResourceKind::External,
                 Uuid::default(),
             )));
 

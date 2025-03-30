@@ -221,7 +221,7 @@ pub struct ResourceManagerState {
     /// must be async, use task pool for this.
     pub resource_registry: Arc<Mutex<ResourceRegistry>>,
 
-    resources: Vec<TimedEntry<UntypedResource>>,
+    resources: FxHashMap<Uuid, TimedEntry<UntypedResource>>,
     task_pool: Arc<TaskPool>,
     watcher: Option<FileSystemWatcher>,
 }
@@ -412,10 +412,8 @@ impl ResourceManager {
             if !on_register(&mut **data, path.as_ref()) {
                 Err(ResourceRegistrationError::UnableToRegister)
             } else {
-                let resource_uuid = header.resource_uuid;
                 drop(header);
-                state.resource_registry.lock().register(resource_uuid, path);
-                state.push(resource);
+                state.push(resource, path);
                 Ok(())
             }
         } else {
@@ -468,10 +466,12 @@ impl ResourceManager {
 impl ResourceManagerState {
     pub(crate) fn new(task_pool: Arc<TaskPool>) -> Self {
         let resource_io = Arc::new(FsResourceIo);
-        let resource_registry = Arc::new(Mutex::new(ResourceRegistry::default()));
 
-        // This is suboptimal, because it relies on async access of the registry. It is especially
-        // dangerous on WASM where all the accesses performed using fetch API.
+        let resource_registry = Arc::new(Mutex::new(ResourceRegistry {
+            paths: Default::default(),
+            is_ready: false,
+        }));
+
         let task_resource_io = resource_io.clone();
         let task_resource_registry = resource_registry.clone();
         task_pool.spawn_task(async move {
@@ -482,7 +482,9 @@ impl ResourceManagerState {
             .await
             {
                 Ok(registry) => {
-                    task_resource_registry.lock().set_container(registry);
+                    let mut lock = task_resource_registry.lock();
+                    lock.set_container(registry);
+                    lock.is_ready = true;
                 }
                 Err(error) => {
                     err!(
@@ -545,6 +547,30 @@ impl ResourceManagerState {
         }
     }
 
+    pub fn scan_and_update_registry(&mut self) {
+        let io = self.resource_io.clone();
+        let loaders = self.loaders.clone();
+        let registry = self.resource_registry.clone();
+        registry.lock().is_ready = false;
+
+        // TODO: This still must lock any potential use of non-updated registry. Add a "wait-object"
+        // that can be shared and polled in resource loaders.
+        self.task_pool.spawn_task(async move {
+            let path = ResourceRegistry::DEFAULT_PATH;
+            let new_data = ResourceRegistry::scan(io.clone(), loaders, path).await;
+            if let Err(error) = new_data.save(Path::new(path), &*io).await {
+                err!(
+                    "Unable to write the resource registry at the {} path! Reason: {:?}",
+                    path,
+                    error
+                )
+            }
+            let mut lock = registry.lock();
+            lock.set_container(new_data);
+            lock.is_ready = true;
+        });
+    }
+
     /// Update resource containers and do hot-reloading.
     ///
     /// Resources are removed if they're not used
@@ -553,7 +579,7 @@ impl ResourceManagerState {
     /// Normally, this is called from `Engine::update()`.
     /// You should only call this manually if you don't use that method.
     pub fn update(&mut self, dt: f32) {
-        self.resources.retain_mut(|resource| {
+        self.resources.retain(|_, resource| {
             // One usage means that the resource has single owner, and that owner
             // is this container. Such resources have limited life time, if the time
             // runs out before it gets shared again, the resource will be deleted.
@@ -609,28 +635,44 @@ impl ResourceManagerState {
     }
 
     /// Adds a new resource in the container.
-    pub fn push(&mut self, resource: UntypedResource) {
+    pub fn push(&mut self, resource: UntypedResource, path: PathBuf) {
+        let resource_uuid = resource.resource_uuid();
+
+        let previous = self.resource_registry.lock().register(resource_uuid, path);
+
+        assert!(previous.is_none());
+
         self.event_broadcaster
             .broadcast(ResourceEvent::Added(resource.clone()));
 
-        self.resources.push(TimedEntry {
-            value: resource,
-            time_to_live: DEFAULT_RESOURCE_LIFETIME,
-        });
+        self.resources.insert(
+            resource_uuid,
+            TimedEntry {
+                value: resource,
+                time_to_live: DEFAULT_RESOURCE_LIFETIME,
+            },
+        );
     }
 
     /// Tries to find a resources by its path. Returns None if no resource was found.
     ///
     /// # Complexity
     ///
-    /// O(n)
+    /// O(1)
     pub fn find(&self, uuid: Uuid) -> Option<&UntypedResource> {
-        for resource in self.resources.iter() {
-            if resource.resource_uuid() == uuid {
-                return Some(&resource.value);
-            }
-        }
-        None
+        self.resources.get(&uuid).map(|entry| &entry.value)
+    }
+
+    pub fn find_by_path(&self, path: &Path) -> Option<&UntypedResource> {
+        self.resources
+            .values()
+            .find(|entry| {
+                self.resource_registry
+                    .lock()
+                    .uuid_to_path(entry.value.resource_uuid())
+                    == Some(path)
+            })
+            .map(|entry| &entry.value)
     }
 
     /// Returns total amount of resources in the container.
@@ -645,18 +687,18 @@ impl ResourceManagerState {
 
     /// Creates an iterator over resources in the manager.
     pub fn iter(&self) -> impl Iterator<Item = &UntypedResource> {
-        self.resources.iter().map(|entry| &entry.value)
+        self.resources.values().map(|entry| &entry.value)
     }
 
     /// Immediately destroys all resources in the manager that are not used anywhere else.
     pub fn destroy_unused_resources(&mut self) {
         self.resources
-            .retain(|resource| resource.value.use_count() > 1);
+            .retain(|_, resource| resource.value.use_count() > 1);
     }
 
     /// Returns total amount of resources that still loading.
     pub fn count_pending_resources(&self) -> usize {
-        self.resources.iter().fold(0, |counter, resource| {
+        self.resources.values().fold(0, |counter, resource| {
             if let ResourceState::Pending { .. } = resource.0.lock().state {
                 counter + 1
             } else {
@@ -667,7 +709,7 @@ impl ResourceManagerState {
 
     /// Returns total amount of completely loaded resources.
     pub fn count_loaded_resources(&self) -> usize {
-        self.resources.iter().fold(0, |counter, resource| {
+        self.resources.values().fold(0, |counter, resource| {
             if let ResourceState::Ok(_) = resource.0.lock().state {
                 counter + 1
             } else {
@@ -678,7 +720,7 @@ impl ResourceManagerState {
 
     /// Returns a set of resource handled by this container.
     pub fn resources(&self) -> Vec<UntypedResource> {
-        self.resources.iter().map(|t| t.value.clone()).collect()
+        self.resources.values().map(|t| t.value.clone()).collect()
     }
 
     /// Tries to load a resources at a given path.
@@ -726,19 +768,28 @@ impl ResourceManagerState {
         match self.find(resource_uuid) {
             Some(existing) => existing.clone(),
             None => {
-                let kind = ResourceKind::External;
                 let loaders = self.loaders.lock();
                 if let Some(loader) = loaders.loader_for(path.as_ref()) {
-                    let resource =
-                        UntypedResource::new_pending(resource_uuid, kind, loader.data_type_uuid());
-                    self.spawn_loading_task(path, resource.clone(), loader, false);
+                    let resource = UntypedResource::new_pending(
+                        resource_uuid,
+                        ResourceKind::External,
+                        loader.data_type_uuid(),
+                    );
+                    self.spawn_loading_task(path.clone(), resource.clone(), loader, false);
                     drop(loaders);
-                    self.push(resource.clone());
+                    self.push(resource.clone(), path);
                     resource
                 } else {
-                    let err =
-                        LoadError::new(format!("There's no resource loader for {kind} resource!",));
-                    UntypedResource::new_load_error(resource_uuid, kind, err, Default::default())
+                    let err = LoadError::new(format!(
+                        "There's no resource loader for {} resource!",
+                        path.display()
+                    ));
+                    UntypedResource::new_load_error(
+                        resource_uuid,
+                        ResourceKind::External,
+                        err,
+                        Default::default(),
+                    )
                 }
             }
         }
@@ -797,7 +848,7 @@ impl ResourceManagerState {
                 .uuid_to_path(header.resource_uuid)
             {
                 let loaders = self.loaders.lock();
-                if let Some(loader) = loaders.loader_for(&path) {
+                if let Some(loader) = loaders.loader_for(path) {
                     header.state.switch_to_pending_state();
                     drop(header);
 
@@ -821,7 +872,7 @@ impl ResourceManagerState {
     pub fn reload_resources(&mut self) -> Vec<UntypedResource> {
         let resources = self
             .resources
-            .iter()
+            .values()
             .map(|r| r.value.clone())
             .collect::<Vec<_>>();
 
@@ -837,7 +888,7 @@ impl ResourceManagerState {
         ResourceWaitContext {
             resources: self
                 .resources
-                .iter()
+                .values()
                 .map(|e| e.value.clone())
                 .collect::<Vec<_>>(),
         }
@@ -860,13 +911,7 @@ impl ResourceManagerState {
     /// again as a new instance.
     pub fn unregister(&mut self, path: &Path) {
         if let Some(uuid) = self.resource_registry.lock().unregister_path(path) {
-            if let Some(position) = self
-                .resources
-                .iter()
-                .position(|r| r.resource_uuid() == uuid)
-            {
-                self.resources.remove(position);
-            }
+            self.resources.remove(&uuid);
         }
     }
 }
@@ -932,13 +977,19 @@ mod test {
     fn resource_wait_context_is_all_loaded() {
         assert!(ResourceWaitContext::default().is_all_loaded());
 
-        let path = PathBuf::from("test.txt");
-        let type_uuid = Uuid::default();
-
         let cx = ResourceWaitContext {
             resources: vec![
-                UntypedResource::new_pending(path.clone().into(), type_uuid),
-                UntypedResource::new_load_error(path.clone().into(), Default::default(), type_uuid),
+                UntypedResource::new_pending(
+                    Uuid::new_v4(),
+                    ResourceKind::External,
+                    Uuid::default(),
+                ),
+                UntypedResource::new_load_error(
+                    Uuid::new_v4(),
+                    ResourceKind::External,
+                    Default::default(),
+                    Uuid::default(),
+                ),
             ],
         };
         assert!(!cx.is_all_loaded());
@@ -978,15 +1029,23 @@ mod test {
         assert_eq!(state.count_registered_resources(), 0);
         assert_eq!(state.len(), 0);
 
-        let path = PathBuf::from("test.txt");
-        let type_uuid = Uuid::default();
-        state.push(UntypedResource::new_pending(path.clone().into(), type_uuid));
-        state.push(UntypedResource::new_load_error(
-            path.clone().into(),
-            Default::default(),
-            type_uuid,
-        ));
-        state.push(UntypedResource::new_ok(Default::default(), Stub {}));
+        state.push(
+            UntypedResource::new_pending(Uuid::new_v4(), ResourceKind::External, Uuid::default()),
+            PathBuf::from("test1.txt"),
+        );
+        state.push(
+            UntypedResource::new_load_error(
+                Uuid::new_v4(),
+                ResourceKind::External,
+                Default::default(),
+                Uuid::default(),
+            ),
+            PathBuf::from("test2.txt"),
+        );
+        state.push(
+            UntypedResource::new_ok(Uuid::new_v4(), Default::default(), Stub {}),
+            PathBuf::from("test3.txt"),
+        );
 
         assert_eq!(state.count_loaded_resources(), 1);
         assert_eq!(state.count_pending_resources(), 1);
@@ -1000,15 +1059,23 @@ mod test {
 
         assert_eq!(state.loading_progress(), 100);
 
-        let path = PathBuf::from("test.txt");
-        let type_uuid = Uuid::default();
-        state.push(UntypedResource::new_pending(path.clone().into(), type_uuid));
-        state.push(UntypedResource::new_load_error(
-            path.clone().into(),
-            Default::default(),
-            type_uuid,
-        ));
-        state.push(UntypedResource::new_ok(Default::default(), Stub {}));
+        state.push(
+            UntypedResource::new_pending(Uuid::new_v4(), ResourceKind::External, Uuid::default()),
+            PathBuf::from("test1.txt"),
+        );
+        state.push(
+            UntypedResource::new_load_error(
+                Uuid::new_v4(),
+                ResourceKind::External,
+                Default::default(),
+                Uuid::default(),
+            ),
+            PathBuf::from("test2.txt"),
+        );
+        state.push(
+            UntypedResource::new_ok(Uuid::new_v4(), Default::default(), Stub {}),
+            PathBuf::from("test3.txt"),
+        );
 
         assert_eq!(state.loading_progress(), 33);
     }
@@ -1017,14 +1084,15 @@ mod test {
     fn resource_manager_state_find() {
         let mut state = new_resource_manager();
 
-        assert!(state.find(Path::new("foo.txt")).is_none());
+        assert!(state.find_by_path(Path::new("foo.txt")).is_none());
 
         let path = PathBuf::from("test.txt");
         let type_uuid = Uuid::default();
-        let resource = UntypedResource::new_pending(path.clone().into(), type_uuid);
-        state.push(resource.clone());
+        let resource =
+            UntypedResource::new_pending(Uuid::new_v4(), ResourceKind::External, type_uuid);
+        state.push(resource.clone(), path.clone());
 
-        assert_eq!(state.find(path), Some(&resource));
+        assert_eq!(state.find_by_path(&path), Some(&resource));
     }
 
     #[test]
@@ -1033,15 +1101,18 @@ mod test {
 
         assert_eq!(state.resources(), Vec::new());
 
-        let path = PathBuf::from("test.txt");
-        let type_uuid = Uuid::default();
-        let r1 = UntypedResource::new_pending(path.clone().into(), type_uuid);
-        let r2 =
-            UntypedResource::new_load_error(path.clone().into(), Default::default(), type_uuid);
-        let r3 = UntypedResource::new_ok(Default::default(), Stub {});
-        state.push(r1.clone());
-        state.push(r2.clone());
-        state.push(r3.clone());
+        let r1 =
+            UntypedResource::new_pending(Uuid::new_v4(), ResourceKind::External, Uuid::default());
+        let r2 = UntypedResource::new_load_error(
+            Uuid::new_v4(),
+            ResourceKind::External,
+            Default::default(),
+            Uuid::default(),
+        );
+        let r3 = UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::Embedded, Stub {});
+        state.push(r1.clone(), PathBuf::from("test1.txt"));
+        state.push(r2.clone(), PathBuf::from("test2.txt"));
+        state.push(r3.clone(), PathBuf::from("test3.txt"));
 
         assert_eq!(state.resources(), vec![r1.clone(), r2.clone(), r3.clone()]);
         assert!(state.iter().eq([&r1, &r2, &r3]));
@@ -1051,10 +1122,10 @@ mod test {
     fn resource_manager_state_destroy_unused_resources() {
         let mut state = new_resource_manager();
 
-        state.push(UntypedResource::new_pending(
-            PathBuf::from("test.txt").into(),
-            Uuid::default(),
-        ));
+        state.push(
+            UntypedResource::new_pending(Uuid::new_v4(), ResourceKind::External, Uuid::default()),
+            PathBuf::from("test.txt"),
+        );
         assert_eq!(state.len(), 1);
 
         state.destroy_unused_resources();
@@ -1067,9 +1138,13 @@ mod test {
         let path = PathBuf::from("test.txt");
         let type_uuid = Uuid::default();
 
-        let resource =
-            UntypedResource::new_load_error(path.clone().into(), Default::default(), type_uuid);
-        state.push(resource.clone());
+        let resource = UntypedResource::new_load_error(
+            Uuid::new_v4(),
+            ResourceKind::External,
+            Default::default(),
+            type_uuid,
+        );
+        state.push(resource.clone(), path.clone());
 
         let res = state.request(path);
         assert_eq!(res, resource);
@@ -1077,7 +1152,7 @@ mod test {
         let path = PathBuf::from("foo.txt");
         let res = state.request(path.clone());
 
-        assert_eq!(res.kind(), ResourceKind::External(path.clone()));
+        assert_eq!(res.kind(), ResourceKind::External);
         assert_eq!(res.type_uuid(), type_uuid);
         assert!(!res.is_loading());
     }
@@ -1088,11 +1163,12 @@ mod test {
         state.loaders.lock().set(Stub {});
 
         let resource = UntypedResource::new_load_error(
-            PathBuf::from("test.txt").into(),
+            Uuid::new_v4(),
+            ResourceKind::External,
             Default::default(),
             Uuid::default(),
         );
-        state.push(resource.clone());
+        state.push(resource.clone(), PathBuf::from("test.txt"));
 
         assert!(!state.try_reload_resource_from_path(Path::new("foo.txt")));
 
@@ -1104,8 +1180,8 @@ mod test {
     fn resource_manager_state_get_wait_context() {
         let mut state = new_resource_manager();
 
-        let resource = UntypedResource::new_ok(Default::default(), Stub {});
-        state.push(resource.clone());
+        let resource = UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::External, Stub {});
+        state.push(resource.clone(), PathBuf::from("test.txt"));
         let cx = state.get_wait_context();
 
         assert!(cx.resources.eq(&vec![resource]));
@@ -1125,20 +1201,21 @@ mod test {
         let path = PathBuf::from("test.txt");
         let type_uuid = Uuid::default();
 
-        let resource = UntypedResource::new_pending(path.clone().into(), type_uuid);
-        let res = manager.register(resource.clone(), path.clone(), |_, __| true);
+        let resource =
+            UntypedResource::new_pending(Uuid::new_v4(), ResourceKind::External, type_uuid);
+        let res = manager.register(resource.clone(), path.clone(), |_, _| true);
         assert!(res.is_err());
 
-        let resource = UntypedResource::new_ok(Default::default(), Stub {});
-        let res = manager.register(resource.clone(), path.clone(), |_, __| true);
+        let resource = UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::External, Stub {});
+        let res = manager.register(resource.clone(), path.clone(), |_, _| true);
         assert!(res.is_ok());
     }
 
     #[test]
     fn resource_manager_request() {
         let manager = ResourceManager::new(Arc::new(Default::default()));
-        let untyped = UntypedResource::new_ok(Default::default(), Stub {});
-        let res = manager.register(untyped.clone(), PathBuf::from("foo.txt"), |_, __| true);
+        let untyped = UntypedResource::new_ok(Uuid::new_v4(), Default::default(), Stub {});
+        let res = manager.register(untyped.clone(), PathBuf::from("foo.txt"), |_, _| true);
         assert!(res.is_ok());
 
         let res: Resource<Stub> = manager.request(Path::new("foo.txt"));
@@ -1154,7 +1231,7 @@ mod test {
     #[test]
     fn resource_manager_request_untyped() {
         let manager = ResourceManager::new(Arc::new(Default::default()));
-        let resource = UntypedResource::new_ok(Default::default(), Stub {});
+        let resource = UntypedResource::new_ok(Uuid::new_v4(), Default::default(), Stub {});
         let res = manager.register(resource.clone(), PathBuf::from("foo.txt"), |_, __| true);
         assert!(res.is_ok());
 
