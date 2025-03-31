@@ -20,6 +20,7 @@
 
 //! A module for untyped resources. See [`UntypedResource`] docs for more info.
 
+use crate::state::ResourcePath;
 use crate::{
     core::{
         math::curve::Curve, parking_lot::Mutex, reflect::prelude::*, uuid, uuid::Uuid,
@@ -225,6 +226,7 @@ impl Visit for ResourceHeader {
                     }
                 } else {
                     self.state = ResourceState::LoadError {
+                        path: Default::default(),
                         error: LoadError::new("Old resource"),
                     };
                 }
@@ -328,9 +330,10 @@ impl Default for UntypedResource {
             resource_uuid: Default::default(),
             kind: Default::default(),
             type_uuid: Default::default(),
-            state: ResourceState::new_load_error(LoadError::new(
-                "Default resource state of unknown type.",
-            )),
+            state: ResourceState::new_load_error(
+                Default::default(),
+                LoadError::new("Default resource state of unknown type."),
+            ),
             old_format_path: None,
         })))
     }
@@ -394,7 +397,7 @@ impl UntypedResource {
             resource_uuid,
             kind,
             type_uuid,
-            state: ResourceState::new_load_error(error),
+            state: ResourceState::new_load_error(Default::default(), error),
             old_format_path: None,
         })))
     }
@@ -482,8 +485,8 @@ impl UntypedResource {
     }
 
     /// Changes internal state to [`ResourceState::LoadError`].
-    pub fn commit_error<E: ResourceLoadError>(&self, error: E) {
-        self.0.lock().state.commit_error(error);
+    pub fn commit_error<E: ResourceLoadError>(&self, path: ResourcePath, error: E) {
+        self.0.lock().state.commit_error(path, error);
     }
 }
 
@@ -495,14 +498,7 @@ impl Future for UntypedResource {
         let mut guard = state.lock();
         match guard.state {
             ResourceState::Pending { ref mut wakers, .. } => {
-                // Collect wakers, so we'll be able to wake task when worker thread finish loading.
-                let cx_waker = cx.waker();
-                if let Some(pos) = wakers.iter().position(|waker| waker.will_wake(cx_waker)) {
-                    wakers[pos].clone_from(cx_waker);
-                } else {
-                    wakers.push(cx_waker.clone())
-                }
-
+                wakers.add_waker(cx.waker());
                 Poll::Pending
             }
             ResourceState::LoadError { ref error, .. } => Poll::Ready(Err(error.clone())),

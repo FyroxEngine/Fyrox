@@ -25,6 +25,7 @@ use crate::{
     manager::ResourceManager,
     ResourceData, ResourceLoadError,
 };
+use std::path::PathBuf;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -32,7 +33,7 @@ use std::{
 };
 
 #[doc(hidden)]
-#[derive(Reflect, Debug, Default)]
+#[derive(Reflect, Debug, Default, Clone)]
 #[reflect(hide_all)]
 pub struct WakersList(Vec<Waker>);
 
@@ -41,6 +42,16 @@ impl Deref for WakersList {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl WakersList {
+    pub fn add_waker(&mut self, cx_waker: &Waker) {
+        if let Some(pos) = self.iter().position(|waker| waker.will_wake(cx_waker)) {
+            self[pos].clone_from(cx_waker);
+        } else {
+            self.push(cx_waker.clone())
+        }
     }
 }
 
@@ -62,26 +73,59 @@ impl LoadError {
     }
 }
 
-/// Resource could be in three possible states:
-/// 1. Pending - it is loading.
+/// A source of a resource uuid.
+#[derive(Debug, Reflect, Clone, PartialEq, Eq)]
+pub enum ResourcePath {
+    /// Explicit path to a file in the file system.
+    Explicit(PathBuf),
+    /// Implicit path, uses the resource registry to obtain the explicit path in the file system,
+    /// that is associated with the given uuid.
+    Implicit(Uuid),
+}
+
+impl Default for ResourcePath {
+    fn default() -> Self {
+        Self::Explicit(Default::default())
+    }
+}
+
+/// Resource could be in three possible states (a small state machine):
+///
+/// 1. Pending - it is loading or queued for loading.
 /// 2. LoadError - an error has occurred during the load.
 /// 3. Ok - resource is fully loaded and ready to use.
 ///
-/// Why it is so complex?
+/// ## Why is it so complex?
+///
 /// Short answer: asynchronous loading.
-/// Long answer: when you loading a scene you expect it to be loaded as fast as
-/// possible, use all available power of the CPU. To achieve that each resource
-/// ideally should be loaded on separate core of the CPU, but since this is
-/// asynchronous, we must have the ability to track the state of the resource.
+/// Long answer: when you're loading a scene, you expect it to be loaded as fast as possible, use
+/// all available power of the CPU. To achieve that, each resource ideally should be loaded on
+/// separate core of the CPU, but since this is asynchronous, we must be able to track the state
+/// of the resource.
+///
+/// ## Path
+///
+/// Resources do not store their paths to respective files in the file system, instead resource only
+/// stores their unique identifiers (UUID). Use [`crate::registry::ResourceRegistry`] to get a path
+/// associated with the resource uuid.
 #[derive(Debug, Reflect)]
 pub enum ResourceState {
     /// Resource is loading from external resource or in the queue to load.
     Pending {
         /// List of wakers to wake future when resource is fully loaded.
         wakers: WakersList,
+        /// A resource path (explicit or implicit). It is used at the loading stage to get a
+        /// real path in the file system. Since resource registry loading is async (especially
+        /// on WASM), it is impossible to fetch the uuid by path immediately. Instead, the resource
+        /// system offloads this task to resource loading tasks, which are able to wait until the
+        /// registry is fully loaded.
+        path: ResourcePath,
     },
     /// An error has occurred during the load.
     LoadError {
+        /// A resource path, it is stored only to be able to reload the resources that failed to
+        /// load previously.
+        path: ResourcePath,
         /// An error. This wrapped in Option only to be Default_ed.
         error: LoadError,
     },
@@ -92,6 +136,7 @@ pub enum ResourceState {
 impl Default for ResourceState {
     fn default() -> Self {
         Self::LoadError {
+            path: Default::default(),
             error: Default::default(),
         }
     }
@@ -146,13 +191,14 @@ impl ResourceState {
     pub fn new_pending() -> Self {
         Self::Pending {
             wakers: Default::default(),
+            path: Default::default(),
         }
     }
 
     /// Creates new resource in error state.
     #[inline]
-    pub fn new_load_error(error: LoadError) -> Self {
-        Self::LoadError { error }
+    pub fn new_load_error(path: ResourcePath, error: LoadError) -> Self {
+        Self::LoadError { path, error }
     }
 
     /// Creates new resource in ok (resource with data) state.
@@ -170,6 +216,7 @@ impl ResourceState {
     pub fn switch_to_pending_state(&mut self) {
         *self = ResourceState::Pending {
             wakers: Default::default(),
+            path: Default::default(),
         };
     }
 
@@ -179,7 +226,7 @@ impl ResourceState {
     pub fn commit(&mut self, state: ResourceState) {
         assert!(!matches!(state, ResourceState::Pending { .. }));
 
-        let wakers = if let ResourceState::Pending { ref mut wakers } = self {
+        let wakers = if let ResourceState::Pending { ref mut wakers, .. } = self {
             std::mem::take(wakers)
         } else {
             unreachable!()
@@ -198,8 +245,9 @@ impl ResourceState {
     }
 
     /// Changes internal state to [`ResourceState::LoadError`].
-    pub fn commit_error<E: ResourceLoadError>(&mut self, error: E) {
+    pub fn commit_error<E: ResourceLoadError>(&mut self, path: ResourcePath, error: E) {
         self.commit(ResourceState::LoadError {
+            path,
             error: LoadError::new(error),
         })
     }

@@ -1233,7 +1233,7 @@ impl MaterialResourceExtension for MaterialResource {
         let kind = material_state.kind.clone();
         match material_state.state {
             ResourceState::Pending { .. } => MaterialResource::new_pending(Uuid::new_v4(), kind),
-            ResourceState::LoadError { ref error } => {
+            ResourceState::LoadError { ref error, .. } => {
                 MaterialResource::new_load_error(Uuid::new_v4(), kind.clone(), error.clone())
             }
             ResourceState::Ok(ref material) => MaterialResource::new_ok(

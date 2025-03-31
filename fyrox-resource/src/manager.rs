@@ -22,7 +22,8 @@
 //! docs for more info.
 
 use crate::metadata::ResourceMetadata;
-use crate::registry::{RegistryContainer, RegistryContainerExt};
+use crate::registry::{AsyncReadyFlag, RegistryContainer, RegistryContainerExt};
+use crate::state::ResourcePath;
 use crate::{
     constructor::ResourceConstructorContainer,
     core::{
@@ -39,7 +40,7 @@ use crate::{
     entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
     event::{ResourceEvent, ResourceEventBroadcaster},
     io::{FsResourceIo, ResourceIo},
-    loader::{ResourceLoader, ResourceLoadersContainer},
+    loader::ResourceLoadersContainer,
     options::OPTIONS_EXTENSION,
     registry::ResourceRegistry,
     state::{LoadError, ResourceState},
@@ -221,7 +222,7 @@ pub struct ResourceManagerState {
     /// must be async, use task pool for this.
     pub resource_registry: Arc<Mutex<ResourceRegistry>>,
 
-    resources: FxHashMap<Uuid, TimedEntry<UntypedResource>>,
+    resources: Vec<TimedEntry<UntypedResource>>,
     task_pool: Arc<TaskPool>,
     watcher: Option<FileSystemWatcher>,
 }
@@ -280,9 +281,9 @@ impl Display for ResourceRegistrationError {
 
 impl ResourceManager {
     /// Creates a resource manager with default settings and loaders.
-    pub fn new(task_pool: Arc<TaskPool>) -> Self {
+    pub fn new(loaders: Arc<Mutex<ResourceLoadersContainer>>, task_pool: Arc<TaskPool>) -> Self {
         Self {
-            state: Arc::new(Mutex::new(ResourceManagerState::new(task_pool))),
+            state: Arc::new(Mutex::new(ResourceManagerState::new(loaders, task_pool))),
         }
     }
 
@@ -412,8 +413,12 @@ impl ResourceManager {
             if !on_register(&mut **data, path.as_ref()) {
                 Err(ResourceRegistrationError::UnableToRegister)
             } else {
+                state
+                    .resource_registry
+                    .lock()
+                    .register(header.resource_uuid, path);
                 drop(header);
-                state.push(resource, path);
+                state.push(resource);
                 Ok(())
             }
         } else {
@@ -464,16 +469,21 @@ impl ResourceManager {
 }
 
 impl ResourceManagerState {
-    pub(crate) fn new(task_pool: Arc<TaskPool>) -> Self {
+    pub(crate) fn new(
+        loaders: Arc<Mutex<ResourceLoadersContainer>>,
+        task_pool: Arc<TaskPool>,
+    ) -> Self {
         let resource_io = Arc::new(FsResourceIo);
 
+        let is_ready_flag = AsyncReadyFlag::new_not_ready();
         let resource_registry = Arc::new(Mutex::new(ResourceRegistry {
             paths: Default::default(),
-            is_ready: false,
+            is_ready: is_ready_flag.clone(),
         }));
 
         let task_resource_io = resource_io.clone();
         let task_resource_registry = resource_registry.clone();
+        let task_loaders = loaders.clone();
         task_pool.spawn_task(async move {
             match RegistryContainer::load_from_file(
                 Path::new(ResourceRegistry::DEFAULT_PATH),
@@ -484,14 +494,28 @@ impl ResourceManagerState {
                 Ok(registry) => {
                     let mut lock = task_resource_registry.lock();
                     lock.set_container(registry);
-                    lock.is_ready = true;
+                    is_ready_flag.mark_as_ready();
                 }
                 Err(error) => {
                     err!(
                         "Unable to load resource registry! Reason: {:?}. \
                     Run ResourceRegistry::scan_and_update to update the registry!",
                         error
-                    )
+                    );
+
+                    let path = ResourceRegistry::DEFAULT_PATH;
+                    let new_data =
+                        ResourceRegistry::scan(task_resource_io.clone(), task_loaders, path).await;
+                    if let Err(error) = new_data.save(Path::new(path), &*task_resource_io).await {
+                        err!(
+                            "Unable to write the resource registry at the {} path! Reason: {:?}",
+                            path,
+                            error
+                        )
+                    }
+                    let mut lock = task_resource_registry.lock();
+                    lock.set_container(new_data);
+                    lock.is_ready.mark_as_ready();
                 }
             };
         });
@@ -499,7 +523,7 @@ impl ResourceManagerState {
         Self {
             resources: Default::default(),
             task_pool,
-            loaders: Default::default(),
+            loaders,
             event_broadcaster: Default::default(),
             constructors_container: Default::default(),
             watcher: None,
@@ -547,14 +571,11 @@ impl ResourceManagerState {
         }
     }
 
-    pub fn scan_and_update_registry(&mut self) {
+    pub fn update_registry(&mut self) {
         let io = self.resource_io.clone();
         let loaders = self.loaders.clone();
         let registry = self.resource_registry.clone();
-        registry.lock().is_ready = false;
-
-        // TODO: This still must lock any potential use of non-updated registry. Add a "wait-object"
-        // that can be shared and polled in resource loaders.
+        registry.lock().is_ready.mark_as_not_ready();
         self.task_pool.spawn_task(async move {
             let path = ResourceRegistry::DEFAULT_PATH;
             let new_data = ResourceRegistry::scan(io.clone(), loaders, path).await;
@@ -567,7 +588,7 @@ impl ResourceManagerState {
             }
             let mut lock = registry.lock();
             lock.set_container(new_data);
-            lock.is_ready = true;
+            lock.is_ready.mark_as_ready();
         });
     }
 
@@ -579,7 +600,7 @@ impl ResourceManagerState {
     /// Normally, this is called from `Engine::update()`.
     /// You should only call this manually if you don't use that method.
     pub fn update(&mut self, dt: f32) {
-        self.resources.retain(|_, resource| {
+        self.resources.retain_mut(|resource| {
             // One usage means that the resource has single owner, and that owner
             // is this container. Such resources have limited life time, if the time
             // runs out before it gets shared again, the resource will be deleted.
@@ -621,9 +642,9 @@ impl ResourceManagerState {
                         if let Ok(relative_path) = make_relative_path(path) {
                             if self.try_reload_resource_from_path(&relative_path) {
                                 Log::info(format!(
-                                        "File {} was changed, trying to reload a respective resource...",
-                                        relative_path.display()
-                                    ));
+                                    "File {} was changed, trying to reload a respective resource...",
+                                    relative_path.display()
+                                ));
 
                                 break;
                             }
@@ -635,43 +656,33 @@ impl ResourceManagerState {
     }
 
     /// Adds a new resource in the container.
-    pub fn push(&mut self, resource: UntypedResource, path: PathBuf) {
-        let resource_uuid = resource.resource_uuid();
-
-        let previous = self.resource_registry.lock().register(resource_uuid, path);
-
-        assert!(previous.is_none());
-
+    pub fn push(&mut self, resource: UntypedResource) {
         self.event_broadcaster
             .broadcast(ResourceEvent::Added(resource.clone()));
 
-        self.resources.insert(
-            resource_uuid,
-            TimedEntry {
-                value: resource,
-                time_to_live: DEFAULT_RESOURCE_LIFETIME,
-            },
-        );
+        self.resources.push(TimedEntry {
+            value: resource,
+            time_to_live: DEFAULT_RESOURCE_LIFETIME,
+        });
     }
 
-    /// Tries to find a resources by its path. Returns None if no resource was found.
+    /// Tries to find a resource by its path. Returns None if no resource was found.
     ///
     /// # Complexity
     ///
-    /// O(1)
+    /// O(n)
     pub fn find(&self, uuid: Uuid) -> Option<&UntypedResource> {
-        self.resources.get(&uuid).map(|entry| &entry.value)
+        self.resources
+            .iter()
+            .find(|entry| entry.value.resource_uuid() == uuid)
+            .map(|entry| &entry.value)
     }
 
     pub fn find_by_path(&self, path: &Path) -> Option<&UntypedResource> {
+        let registry = self.resource_registry.lock();
         self.resources
-            .values()
-            .find(|entry| {
-                self.resource_registry
-                    .lock()
-                    .uuid_to_path(entry.value.resource_uuid())
-                    == Some(path)
-            })
+            .iter()
+            .find(|entry| registry.uuid_to_path(entry.value.resource_uuid()) == Some(path))
             .map(|entry| &entry.value)
     }
 
@@ -687,18 +698,18 @@ impl ResourceManagerState {
 
     /// Creates an iterator over resources in the manager.
     pub fn iter(&self) -> impl Iterator<Item = &UntypedResource> {
-        self.resources.values().map(|entry| &entry.value)
+        self.resources.iter().map(|entry| &entry.value)
     }
 
     /// Immediately destroys all resources in the manager that are not used anywhere else.
     pub fn destroy_unused_resources(&mut self) {
         self.resources
-            .retain(|_, resource| resource.value.use_count() > 1);
+            .retain(|resource| resource.value.use_count() > 1);
     }
 
     /// Returns total amount of resources that still loading.
     pub fn count_pending_resources(&self) -> usize {
-        self.resources.values().fold(0, |counter, resource| {
+        self.resources.iter().fold(0, |counter, resource| {
             if let ResourceState::Pending { .. } = resource.0.lock().state {
                 counter + 1
             } else {
@@ -709,7 +720,7 @@ impl ResourceManagerState {
 
     /// Returns total amount of completely loaded resources.
     pub fn count_loaded_resources(&self) -> usize {
-        self.resources.values().fold(0, |counter, resource| {
+        self.resources.iter().fold(0, |counter, resource| {
             if let ResourceState::Ok(_) = resource.0.lock().state {
                 counter + 1
             } else {
@@ -720,7 +731,7 @@ impl ResourceManagerState {
 
     /// Returns a set of resource handled by this container.
     pub fn resources(&self) -> Vec<UntypedResource> {
-        self.resources.values().map(|t| t.value.clone()).collect()
+        self.resources.iter().map(|t| t.value.clone()).collect()
     }
 
     /// Tries to load a resources at a given path.
@@ -732,11 +743,7 @@ impl ResourceManagerState {
             return built_in_resource.resource.clone();
         }
 
-        let registry = self.resource_registry.lock();
-        let resource_uuid = registry.path_to_uuid_or_random(path.as_ref());
-        drop(registry);
-
-        self.find_or_load(resource_uuid, path.as_ref().to_path_buf())
+        self.find_or_load(ResourcePath::Explicit(path.as_ref().to_path_buf()))
     }
 
     pub fn request_by_uuid(&mut self, resource_uuid: Uuid) -> UntypedResource {
@@ -748,121 +755,144 @@ impl ResourceManagerState {
             return built_in_resource.resource.clone();
         }
 
-        let kind = ResourceKind::External;
-        let registry = self.resource_registry.lock();
-        let path = if let Some(path) = registry.uuid_to_path_buf(resource_uuid) {
-            path
-        } else {
-            let err = LoadError::new(format!(
-                "There's no associated path for \
-            {resource_uuid} resource! The registry may be outdated! ",
-            ));
-            return UntypedResource::new_load_error(resource_uuid, kind, err, Default::default());
-        };
-        drop(registry);
-
-        self.find_or_load(resource_uuid, path)
+        self.find_or_load(ResourcePath::Implicit(resource_uuid))
     }
 
-    fn find_or_load(&mut self, resource_uuid: Uuid, path: PathBuf) -> UntypedResource {
-        match self.find(resource_uuid) {
+    fn find_by_resource_path(&self, path_to_search: &ResourcePath) -> Option<&UntypedResource> {
+        self.resources
+            .iter()
+            .find(|entry| {
+                let header = entry.value.0.lock();
+                match header.state {
+                    ResourceState::Pending { ref path, .. }
+                    | ResourceState::LoadError { ref path, .. } => path == path_to_search,
+                    ResourceState::Ok(_) => match path_to_search {
+                        ResourcePath::Explicit(fs_path) => {
+                            self.resource_registry
+                                .lock()
+                                .uuid_to_path(header.resource_uuid)
+                                == Some(fs_path)
+                        }
+                        ResourcePath::Implicit(uuid) => &header.resource_uuid == uuid,
+                    },
+                }
+            })
+            .map(|entry| &entry.value)
+    }
+
+    fn find_or_load(&mut self, path: ResourcePath) -> UntypedResource {
+        match self.find_by_resource_path(&path) {
             Some(existing) => existing.clone(),
             None => {
-                let loaders = self.loaders.lock();
-                if let Some(loader) = loaders.loader_for(path.as_ref()) {
-                    let resource = UntypedResource::new_pending(
-                        resource_uuid,
-                        ResourceKind::External,
-                        loader.data_type_uuid(),
-                    );
-                    self.spawn_loading_task(path.clone(), resource.clone(), loader, false);
-                    drop(loaders);
-                    self.push(resource.clone(), path);
-                    resource
-                } else {
-                    let err = LoadError::new(format!(
-                        "There's no resource loader for {} resource!",
-                        path.display()
-                    ));
-                    UntypedResource::new_load_error(
-                        resource_uuid,
-                        ResourceKind::External,
-                        err,
-                        Default::default(),
-                    )
-                }
+                let resource =
+                    UntypedResource::new_pending(Uuid::nil(), ResourceKind::External, Uuid::nil());
+                self.spawn_loading_task(path, resource.clone(), false);
+                self.push(resource.clone());
+                resource
             }
         }
     }
 
-    fn spawn_loading_task(
-        &self,
-        path: PathBuf,
-        resource: UntypedResource,
-        loader: &dyn ResourceLoader,
-        reload: bool,
-    ) {
+    fn spawn_loading_task(&self, path: ResourcePath, resource: UntypedResource, reload: bool) {
         let event_broadcaster = self.event_broadcaster.clone();
-        let loader_future = loader.load(path.clone(), self.resource_io.clone());
+        let loaders = self.loaders.clone();
+        let registry = self.resource_registry.clone();
+        let io = self.resource_io.clone();
+        let is_registry_ready = registry.lock().is_ready.clone();
+
         self.task_pool.spawn_task(async move {
-            match loader_future.await {
-                Ok(data) => {
-                    let data = data.0;
+            // Wait until the registry is fully loaded.
+            is_registry_ready.await;
 
-                    Log::info(format!(
-                        "Resource {} was loaded successfully!",
-                        path.display()
-                    ));
-
-                    // Separate scope to keep mutex locking time at minimum.
+            // A resource can be requested either by a path or an uuid. We need the registry
+            // to find a respective path for an uuid.
+            let fs_path = match path {
+                ResourcePath::Explicit(ref path) => path.clone(),
+                ResourcePath::Implicit(uuid) => {
+                    if let Some(path) = registry.lock().uuid_to_path(uuid).map(|p| p.to_path_buf())
                     {
-                        let mut mutex_guard = resource.0.lock();
-                        assert_eq!(mutex_guard.type_uuid, data.type_uuid());
-                        assert!(mutex_guard.kind.is_external());
-                        mutex_guard.state.commit(ResourceState::Ok(data));
+                        path
+                    } else {
+                        resource.commit_error(
+                            path,
+                            LoadError::new(format!(
+                                "Unable to load a resource by {uuid} id! There's no matching \
+                            path to it in the resource registry. A resource might be deleted \
+                            or the registry is outdated.",
+                            )),
+                        );
+
+                        return;
                     }
-
-                    event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
                 }
-                Err(error) => {
-                    Log::info(format!(
-                        "Resource {} failed to load. Reason: {:?}",
-                        path.display(),
-                        error
-                    ));
+            };
 
-                    resource.commit_error(error);
+            // Try to find a loader for the resource.
+            let loader_future = loaders
+                .lock()
+                .loader_for(&fs_path)
+                .map(|loader| loader.load(fs_path.clone(), io));
+
+            if let Some(loader_future) = loader_future {
+                match loader_future.await {
+                    Ok(data) => {
+                        let data = data.0;
+
+                        Log::info(format!(
+                            "Resource {} was loaded successfully!",
+                            fs_path.display()
+                        ));
+
+                        // Separate scope to keep mutex locking time at minimum.
+                        {
+                            let mut mutex_guard = resource.0.lock();
+                            mutex_guard.resource_uuid =
+                                registry.lock().path_to_uuid(&fs_path).unwrap();
+                            mutex_guard.type_uuid = data.type_uuid();
+                            assert!(mutex_guard.kind.is_external());
+                            mutex_guard.state.commit(ResourceState::Ok(data));
+                        }
+
+                        event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
+                    }
+                    Err(error) => {
+                        Log::info(format!(
+                            "Resource {} failed to load. Reason: {:?}",
+                            fs_path.display(),
+                            error
+                        ));
+
+                        resource.commit_error(path, error);
+                    }
                 }
+            } else {
+                resource.commit_error(
+                    path,
+                    LoadError::new(format!(
+                        "There's no resource loader for {} resource!",
+                        fs_path.display()
+                    )),
+                )
             }
         });
     }
 
     /// Reloads a single resource.
     pub fn reload_resource(&mut self, resource: UntypedResource) {
-        let mut header = resource.0.lock();
-
-        if !header.state.is_loading() {
-            if let Some(path) = self
-                .resource_registry
-                .lock()
-                .uuid_to_path(header.resource_uuid)
-            {
-                let loaders = self.loaders.lock();
-                if let Some(loader) = loaders.loader_for(path) {
-                    header.state.switch_to_pending_state();
-                    drop(header);
-
-                    self.spawn_loading_task(path.to_path_buf(), resource, loader, true);
-                } else {
-                    let msg = format!(
-                        "There's no resource loader for {} resource!",
-                        path.display()
-                    );
-                    Log::err(&msg);
-                    resource.commit_error(msg)
-                }
-            } else {
-                Log::err("Cannot reload embedded resource.")
+        let header = resource.0.lock();
+        match header.state {
+            ResourceState::Pending { .. } => {
+                return;
+            }
+            ResourceState::LoadError { ref path, .. } => {
+                let path = path.clone();
+                drop(header);
+                self.spawn_loading_task(path, resource, true)
+            }
+            ResourceState::Ok(_) => {
+                let path = ResourcePath::Implicit(header.resource_uuid);
+                drop(header);
+                self.spawn_loading_task(path, resource, true)
             }
         }
     }
@@ -872,7 +902,7 @@ impl ResourceManagerState {
     pub fn reload_resources(&mut self) -> Vec<UntypedResource> {
         let resources = self
             .resources
-            .values()
+            .iter()
             .map(|r| r.value.clone())
             .collect::<Vec<_>>();
 
@@ -888,7 +918,7 @@ impl ResourceManagerState {
         ResourceWaitContext {
             resources: self
                 .resources
-                .values()
+                .iter()
                 .map(|e| e.value.clone())
                 .collect::<Vec<_>>(),
         }
@@ -911,7 +941,13 @@ impl ResourceManagerState {
     /// again as a new instance.
     pub fn unregister(&mut self, path: &Path) {
         if let Some(uuid) = self.resource_registry.lock().unregister_path(path) {
-            self.resources.remove(&uuid);
+            if let Some(position) = self
+                .resources
+                .iter()
+                .position(|entry| entry.value.resource_uuid() == uuid)
+            {
+                self.resources.remove(position);
+            }
         }
     }
 }

@@ -18,14 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{io::ResourceIo, loader::ResourceLoadersContainer, metadata::ResourceMetadata};
-use fyrox_core::parking_lot::Mutex;
-use fyrox_core::{append_extension, io::FileError, ok_or_return, warn, Uuid};
+use crate::{
+    io::ResourceIo, loader::ResourceLoadersContainer, metadata::ResourceMetadata, state::WakersList,
+};
+use fyrox_core::{append_extension, io::FileError, ok_or_return, parking_lot::Mutex, warn, Uuid};
 use ron::ser::PrettyConfig;
-use std::sync::Arc;
 use std::{
     collections::BTreeMap,
+    future::Future,
     path::{Path, PathBuf},
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
 };
 
 pub type RegistryContainer = BTreeMap<Uuid, PathBuf>;
@@ -59,12 +63,57 @@ impl RegistryContainerExt for RegistryContainer {
     }
 }
 
+#[derive(Clone, Default)]
+pub struct RegistryReadyFlagData {
+    is_ready: bool,
+    wakers: WakersList,
+}
+
+#[derive(Default, Clone)]
+pub struct AsyncReadyFlag(Arc<Mutex<RegistryReadyFlagData>>);
+
+impl AsyncReadyFlag {
+    pub fn new_not_ready() -> Self {
+        Self::default()
+    }
+
+    pub fn mark_as_ready(&self) {
+        let mut lock = self.0.lock();
+
+        lock.is_ready = true;
+
+        for waker in lock.wakers.drain(..) {
+            waker.wake();
+        }
+    }
+
+    pub fn mark_as_not_ready(&self) {
+        self.0.lock().is_ready = false;
+    }
+}
+
+impl Future for AsyncReadyFlag {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut lock = self.0.lock();
+
+        if lock.is_ready {
+            return Poll::Ready(());
+        }
+
+        lock.wakers.add_waker(cx.waker());
+
+        Poll::Pending
+    }
+}
+
 /// Resource registry is responsible for UUID mapping of resource files. It maintains a map of
 /// `UUID -> Resource Path`.
 #[derive(Default, Clone)]
 pub struct ResourceRegistry {
     pub paths: RegistryContainer,
-    pub is_ready: bool,
+    pub is_ready: AsyncReadyFlag,
 }
 
 impl ResourceRegistry {
