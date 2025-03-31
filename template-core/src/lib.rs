@@ -326,6 +326,7 @@ fyrox = {{workspace = true}}
         base_path.join("executor-wasm/src/lib.rs"),
         format!(
             r#"//! Executor with your game connected to it as a plugin.
+#![cfg(target_arch = "wasm32")]
 use fyrox::engine::executor::Executor;
 use fyrox::event_loop::EventLoop;
 use {name}::Game;
@@ -564,6 +565,7 @@ fyrox = {{ workspace = true }}
         base_path.join("executor-android/src/lib.rs"),
         format!(
             r#"//! Android executor with your game connected to it as a plugin.
+#![cfg(target_os = "android")]
 use fyrox::{{
     core::io, engine::executor::Executor, event_loop::EventLoopBuilder,
     platform::android::EventLoopBuilderExtAndroid,
