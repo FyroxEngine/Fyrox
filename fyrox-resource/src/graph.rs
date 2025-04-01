@@ -41,8 +41,8 @@ impl ResourceGraphNode {
         let mut dependent_resources = FxHashSet::default();
 
         let header = resource.0.lock();
-        if let ResourceState::Ok(ref resource_data) = header.state {
-            (**resource_data).as_reflect(&mut |entity| {
+        if let ResourceState::Ok { ref data, .. } = header.state {
+            (**data).as_reflect(&mut |entity| {
                 collect_used_resources(entity, &mut dependent_resources);
             });
         }
@@ -131,16 +131,9 @@ mod test {
     #[test]
     fn resource_graph_node_pretty_print() {
         let mut s = String::new();
-        let mut node = ResourceGraphNode::new(&UntypedResource::new_pending(
-            Uuid::new_v4(),
-            ResourceKind::External,
-            Uuid::default(),
-        ));
-        let node2 = ResourceGraphNode::new(&UntypedResource::new_pending(
-            Uuid::new_v4(),
-            ResourceKind::External,
-            Uuid::default(),
-        ));
+        let mut node =
+            ResourceGraphNode::new(&UntypedResource::new_pending(ResourceKind::External));
+        let node2 = ResourceGraphNode::new(&UntypedResource::new_pending(ResourceKind::External));
         node.children.push(node2);
         node.pretty_print(1, &mut s);
 
@@ -169,18 +162,13 @@ mod test {
 
     #[test]
     fn resource_dependency_pretty_print() {
-        let mut graph = ResourceDependencyGraph::new(&UntypedResource::new_pending(
-            Uuid::new_v4(),
-            ResourceKind::External,
-            Uuid::default(),
-        ));
+        let mut graph =
+            ResourceDependencyGraph::new(&UntypedResource::new_pending(ResourceKind::External));
         graph
             .root
             .children
             .push(ResourceGraphNode::new(&UntypedResource::new_pending(
-                Uuid::new_v4(),
                 ResourceKind::External,
-                Uuid::default(),
             )));
 
         let s = graph.pretty_print();
@@ -189,18 +177,13 @@ mod test {
 
     #[test]
     fn resource_dependency_for_each() {
-        let mut graph = ResourceDependencyGraph::new(&UntypedResource::new_pending(
-            Uuid::new_v4(),
-            ResourceKind::External,
-            Uuid::default(),
-        ));
+        let mut graph =
+            ResourceDependencyGraph::new(&UntypedResource::new_pending(ResourceKind::External));
         graph
             .root
             .children
             .push(ResourceGraphNode::new(&UntypedResource::new_pending(
-                Uuid::new_v4(),
                 ResourceKind::External,
-                Uuid::default(),
             )));
 
         let mut uuids = Vec::new();

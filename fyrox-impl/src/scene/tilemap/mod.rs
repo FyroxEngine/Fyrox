@@ -562,8 +562,12 @@ impl TileBook {
     pub fn path(&self, registry: &ResourceRegistry) -> Option<PathBuf> {
         match self {
             TileBook::Empty => None,
-            TileBook::TileSet(r) => registry.uuid_to_path_buf(r.header().resource_uuid),
-            TileBook::Brush(r) => registry.uuid_to_path_buf(r.header().resource_uuid),
+            TileBook::TileSet(r) => r
+                .resource_uuid()
+                .and_then(|uuid| registry.uuid_to_path_buf(uuid)),
+            TileBook::Brush(r) => r
+                .resource_uuid()
+                .and_then(|uuid| registry.uuid_to_path_buf(uuid)),
         }
     }
     /// True if the resource is external and its `change_count` is not zero.
@@ -585,8 +589,11 @@ impl TileBook {
             TileBook::Empty => Ok(()),
             TileBook::TileSet(r) => {
                 if r.header().kind.is_external() && r.data_ref().change_flag.needs_save() {
-                    let result =
-                        r.save(&registry.uuid_to_path_buf(r.header().resource_uuid).unwrap());
+                    let result = r.save(
+                        &registry
+                            .uuid_to_path_buf(r.resource_uuid().unwrap())
+                            .unwrap(),
+                    );
                     if result.is_ok() {
                         r.data_ref().change_flag.reset();
                     }
@@ -597,8 +604,11 @@ impl TileBook {
             }
             TileBook::Brush(r) => {
                 if r.header().kind.is_external() && r.data_ref().change_flag.needs_save() {
-                    let result =
-                        r.save(&registry.uuid_to_path_buf(r.header().resource_uuid).unwrap());
+                    let result = r.save(
+                        &registry
+                            .uuid_to_path_buf(r.resource_uuid().unwrap())
+                            .unwrap(),
+                    );
                     if result.is_ok() {
                         r.data_ref().change_flag.reset();
                     }

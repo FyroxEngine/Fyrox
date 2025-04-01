@@ -125,12 +125,12 @@ impl<T> ResourceHeaderGuard<'_, T>
 where
     T: TypedResourceData,
 {
-    pub fn kind(&self) -> &ResourceKind {
-        &self.guard.kind
+    pub fn kind(&self) -> ResourceKind {
+        self.guard.kind
     }
 
     pub fn data(&mut self) -> Option<&mut T> {
-        if let ResourceState::Ok(ref mut data) = self.guard.state {
+        if let ResourceState::Ok { ref mut data, .. } = self.guard.state {
             ResourceDataAsAny::as_any_mut(&mut **data).downcast_mut::<T>()
         } else {
             None
@@ -138,7 +138,7 @@ where
     }
 
     pub fn data_ref(&self) -> Option<&T> {
-        if let ResourceState::Ok(ref data) = self.guard.state {
+        if let ResourceState::Ok { ref data, .. } = self.guard.state {
             ResourceDataAsAny::as_any(&**data).downcast_ref::<T>()
         } else {
             None
@@ -184,14 +184,15 @@ where
             let mut untyped = UntypedResource::default();
             if untyped.visit(name, visitor).is_ok() {
                 let untyped_data_type = untyped.type_uuid();
-                if untyped_data_type == <T as TypeUuidProvider>::type_uuid() {
+                if untyped_data_type == Some(<T as TypeUuidProvider>::type_uuid()) {
                     self.untyped = untyped;
                     return Ok(());
                 } else {
                     Log::err(format!(
                         "Unable to deserialize untyped resource into its typed \
                      version, because types do not match! Untyped resource has \
-                     {untyped_data_type} type, but the required type is {}",
+                     {:?} type, but the required type is {}",
+                        untyped_data_type,
                         <T as TypeUuidProvider>::type_uuid(),
                     ))
                 }
@@ -242,13 +243,9 @@ where
 {
     /// Creates new resource in pending state.
     #[inline]
-    pub fn new_pending(resource_uuid: Uuid, kind: ResourceKind) -> Self {
+    pub fn new_pending(kind: ResourceKind) -> Self {
         Self {
-            untyped: UntypedResource::new_pending(
-                resource_uuid,
-                kind,
-                <T as TypeUuidProvider>::type_uuid(),
-            ),
+            untyped: UntypedResource::new_pending(kind),
             phantom: PhantomData,
         }
     }
@@ -264,14 +261,9 @@ where
 
     /// Creates new resource in error state.
     #[inline]
-    pub fn new_load_error(resource_uuid: Uuid, kind: ResourceKind, error: LoadError) -> Self {
+    pub fn new_load_error(kind: ResourceKind, error: LoadError) -> Self {
         Self {
-            untyped: UntypedResource::new_load_error(
-                resource_uuid,
-                kind,
-                error,
-                <T as TypeUuidProvider>::type_uuid(),
-            ),
+            untyped: UntypedResource::new_load_error(kind, error),
             phantom: PhantomData,
         }
     }
@@ -315,7 +307,7 @@ where
     /// Returns true if the resource is fully loaded and ready for use.
     #[inline]
     pub fn is_ok(&self) -> bool {
-        matches!(self.untyped.0.lock().state, ResourceState::Ok(_))
+        matches!(self.untyped.0.lock().state, ResourceState::Ok { .. })
     }
 
     /// Returns true if the resource is failed to load.
@@ -340,6 +332,11 @@ where
     #[inline]
     pub fn kind(&self) -> ResourceKind {
         self.untyped.kind()
+    }
+
+    #[inline]
+    pub fn resource_uuid(&self) -> Option<Uuid> {
+        self.untyped.resource_uuid()
     }
 
     /// Sets a new kind of the resource.
@@ -407,7 +404,10 @@ where
 {
     #[inline]
     fn from(untyped: UntypedResource) -> Self {
-        assert_eq!(untyped.type_uuid(), <T as TypeUuidProvider>::type_uuid());
+        assert_eq!(
+            untyped.type_uuid(),
+            Some(<T as TypeUuidProvider>::type_uuid())
+        );
         Self {
             untyped,
             phantom: Default::default(),
@@ -456,7 +456,7 @@ where
     #[inline]
     pub fn as_loaded_ref(&self) -> Option<&T> {
         match self.guard.state {
-            ResourceState::Ok(ref data) => ResourceDataAsAny::as_any(&**data).downcast_ref(),
+            ResourceState::Ok { ref data, .. } => ResourceDataAsAny::as_any(&**data).downcast_ref(),
             _ => None,
         }
     }
@@ -464,7 +464,7 @@ where
     #[inline]
     pub fn as_loaded_mut(&mut self) -> Option<&mut T> {
         match self.guard.state {
-            ResourceState::Ok(ref mut data) => {
+            ResourceState::Ok { ref mut data, .. } => {
                 ResourceDataAsAny::as_any_mut(&mut **data).downcast_mut()
             }
             _ => None,
@@ -492,7 +492,7 @@ where
                     self.guard.kind
                 )
             }
-            ResourceState::Ok(ref data) => data.fmt(f),
+            ResourceState::Ok { ref data, .. } => data.fmt(f),
         }
     }
 }
@@ -517,7 +517,7 @@ where
                     self.guard.kind
                 )
             }
-            ResourceState::Ok(ref data) => ResourceDataAsAny::as_any(&**data)
+            ResourceState::Ok { ref data, .. } => ResourceDataAsAny::as_any(&**data)
                 .downcast_ref()
                 .expect("Type mismatch!"),
         }
@@ -543,7 +543,7 @@ where
                     header.kind
                 )
             }
-            ResourceState::Ok(ref mut data) => ResourceDataAsAny::as_any_mut(&mut **data)
+            ResourceState::Ok { ref mut data, .. } => ResourceDataAsAny::as_any_mut(&mut **data)
                 .downcast_mut()
                 .expect("Type mismatch!"),
         }

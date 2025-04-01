@@ -2563,7 +2563,7 @@ impl Engine {
             let mut state = self.resource_manager.state();
             for resource in state.resources().iter() {
                 let data = resource.0.lock();
-                if let ResourceState::Ok(ref data) = data.state {
+                if let ResourceState::Ok { ref data, .. } = data.state {
                     data.as_reflect(&mut |reflect| {
                         if reflect.assembly_name() == plugin_assembly_name {
                             resources_to_reload.insert(resource.clone());

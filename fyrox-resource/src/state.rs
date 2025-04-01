@@ -20,11 +20,13 @@
 
 //! A module that handles resource states.
 
+use crate::untyped::ResourceKind;
 use crate::{
     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
     manager::ResourceManager,
     ResourceData, ResourceLoadError,
 };
+use fyrox_core::warn;
 use std::path::PathBuf;
 use std::{
     ops::{Deref, DerefMut},
@@ -108,6 +110,13 @@ impl Default for ResourcePath {
 /// Resources do not store their paths to respective files in the file system, instead resource only
 /// stores their unique identifiers (UUID). Use [`crate::registry::ResourceRegistry`] to get a path
 /// associated with the resource uuid.
+///
+/// ## UUID
+///
+/// Resource UUID is available only if the resource is fully loaded. This is because there's no way
+/// to get the UUID earlier: the UUID is stored in a metadata file which exists only if the resource
+/// is present. It is somewhat possible to get a UUID when a resource is failed to load, but not in
+/// 100% cases.
 #[derive(Debug, Reflect)]
 pub enum ResourceState {
     /// Resource is loading from external resource or in the queue to load.
@@ -130,7 +139,12 @@ pub enum ResourceState {
         error: LoadError,
     },
     /// Actual resource data when it is fully loaded.
-    Ok(Box<dyn ResourceData>),
+    Ok {
+        /// Unique id of the resource.
+        resource_uuid: Uuid,
+        /// Actual data of the resource.
+        data: Box<dyn ResourceData>,
+    },
 }
 
 impl Default for ResourceState {
@@ -150,11 +164,19 @@ impl Drop for ResourceState {
     }
 }
 
-impl Visit for ResourceState {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+impl ResourceState {
+    pub fn visit(&mut self, kind: ResourceKind, name: &str, visitor: &mut Visitor) -> VisitResult {
         if visitor.is_reading() {
             let mut type_uuid = Uuid::default();
             type_uuid.visit("TypeUuid", visitor)?;
+
+            let mut resource_uuid = Uuid::default();
+            if resource_uuid.visit("ResourceUuid", visitor).is_err() {
+                warn!(
+                    "A resource of type {type_uuid} has no uuid! It looks like a resource in \
+              the old format; trying to read it..."
+                );
+            }
 
             let resource_manager = visitor.blackboard.get::<ResourceManager>().expect(
                 "Resource data constructor container must be \
@@ -167,25 +189,43 @@ impl Visit for ResourceState {
                 .try_create(&type_uuid)
             {
                 drop(resource_manager_state);
-                instance.visit(name, visitor)?;
-                *self = Self::Ok(instance);
-                Ok(())
+
+                if kind == ResourceKind::Embedded {
+                    instance.visit(name, visitor)?;
+                }
+
+                *self = Self::Ok {
+                    resource_uuid,
+                    data: instance,
+                };
             } else {
-                Err(VisitError::User(format!(
+                return Err(VisitError::User(format!(
                     "There's no constructor registered for type {type_uuid}!"
-                )))
+                )));
             }
-        } else if let Self::Ok(instance) = self {
-            instance.visit(name, visitor)?;
+
+            Ok(())
+        } else if let Self::Ok {
+            resource_uuid,
+            data,
+        } = self
+        {
+            resource_uuid.visit("ResourceUuid", visitor)?;
+
+            let mut type_uuid = data.type_uuid();
+            type_uuid.visit("TypeUuid", visitor)?;
+
+            if kind == ResourceKind::Embedded {
+                data.visit(name, visitor)?;
+            }
+
             Ok(())
         } else {
             // Do not save other variants, because they're needed only for runtime purposes.
             Ok(())
         }
     }
-}
 
-impl ResourceState {
     /// Creates new resource in pending state.
     #[inline]
     pub fn new_pending() -> Self {
@@ -203,8 +243,11 @@ impl ResourceState {
 
     /// Creates new resource in ok (resource with data) state.
     #[inline]
-    pub fn new_ok<T: ResourceData>(data: T) -> Self {
-        Self::Ok(Box::new(data))
+    pub fn new_ok<T: ResourceData>(resource_uuid: Uuid, data: T) -> Self {
+        Self::Ok {
+            resource_uuid,
+            data: Box::new(data),
+        }
     }
 
     /// Checks whether the resource is still loading or not.
@@ -240,8 +283,11 @@ impl ResourceState {
     }
 
     /// Changes internal state to [`ResourceState::Ok`]
-    pub fn commit_ok<T: ResourceData>(&mut self, data: T) {
-        self.commit(ResourceState::Ok(Box::new(data)))
+    pub fn commit_ok<T: ResourceData>(&mut self, resource_uuid: Uuid, data: T) {
+        self.commit(ResourceState::Ok {
+            resource_uuid,
+            data: Box::new(data),
+        })
     }
 
     /// Changes internal state to [`ResourceState::LoadError`].

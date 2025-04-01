@@ -457,7 +457,7 @@ impl NodeTrait for Sound {
             Some(buffer) => {
                 let header = buffer.header();
                 match header.state {
-                    ResourceState::Pending { .. } | ResourceState::Ok(_) => Ok(()),
+                    ResourceState::Pending { .. } | ResourceState::Ok { .. } => Ok(()),
                     ResourceState::LoadError { ref error, .. } => {
                         match &error.0 {
                             None => Err("Sound buffer is failed to load, the reason is unknown!"

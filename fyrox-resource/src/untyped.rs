@@ -87,7 +87,7 @@ fn guess_uuid(region: &mut RegionGuard) -> Uuid {
 }
 
 /// Kind of a resource. It defines how the resource manager will treat a resource content on serialization.
-#[derive(Default, Reflect, Debug, Visit, Clone, PartialEq, Eq, Hash)]
+#[derive(Default, Reflect, Debug, Visit, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ResourceKind {
     /// The content of embedded resources will be fully serialized.
     #[default]
@@ -155,10 +155,6 @@ impl Display for ResourceKind {
 /// its kind, etc.
 #[derive(Reflect, Debug)]
 pub struct ResourceHeader {
-    /// Unique id of a resource.
-    pub resource_uuid: Uuid,
-    /// UUID of the internal data type.
-    pub type_uuid: Uuid,
     /// Kind of the resource. See [`ResourceKind`] for more info.
     pub kind: ResourceKind,
     /// Actual state of the resource. See [`ResourceState`] for more info.
@@ -216,7 +212,11 @@ impl Visit for ResourceHeader {
 
                         instance.visit("Details", &mut region)?;
 
-                        self.state = ResourceState::Ok(instance);
+                        self.state = ResourceState::Ok {
+                            data: instance,
+                            // The old format does not contain an uuid.
+                            resource_uuid: Uuid::nil(),
+                        };
 
                         return Ok(());
                     } else {
@@ -232,27 +232,18 @@ impl Visit for ResourceHeader {
                 }
 
                 return Ok(());
-            }
-        }
-
-        if region.is_reading() {
-            let mut old_kind = OldResourceKind::Embedded;
-            if old_kind.visit("Kind", &mut region).is_ok() {
-                if let OldResourceKind::External(path) = old_kind {
-                    self.old_format_path = Some(path);
+            } else {
+                let mut old_kind = OldResourceKind::Embedded;
+                if old_kind.visit("Kind", &mut region).is_ok() {
+                    if let OldResourceKind::External(path) = old_kind {
+                        self.old_format_path = Some(path);
+                    }
                 }
             }
         }
 
         self.kind.visit("Kind", &mut region)?;
-        self.type_uuid.visit("TypeUuid", &mut region)?;
-
-        // Backward compatibility.
-        let _ = self.resource_uuid.visit("ResourceUuid", &mut region);
-
-        if self.kind == ResourceKind::Embedded {
-            self.state.visit("State", &mut region)?;
-        }
+        self.state.visit(self.kind, "State", &mut region)?;
 
         Ok(())
     }
@@ -306,20 +297,21 @@ impl Visit for UntypedResource {
         self.0.visit(name, visitor)?;
 
         // Try to restore the shallow handle on deserialization for external resources.
-        if visitor.is_reading() && !self.is_embedded() {
-            let resource_manager = visitor
-                .blackboard
-                .get::<ResourceManager>()
-                .expect("Resource manager must be available when deserializing resources!");
-
+        if visitor.is_reading() {
             let inner_lock = self.0.lock();
-            let resource_uuid = inner_lock.resource_uuid;
-            if let Some(old_format_path) = inner_lock.old_format_path.clone() {
-                drop(inner_lock);
-                self.0 = resource_manager.request_untyped(old_format_path).0;
-            } else {
-                drop(inner_lock);
-                self.0 = resource_manager.request_by_uuid(resource_uuid).0;
+            if inner_lock.kind == ResourceKind::External {
+                let resource_manager = visitor
+                    .blackboard
+                    .get::<ResourceManager>()
+                    .expect("Resource manager must be available when deserializing resources!");
+
+                if let Some(old_format_path) = inner_lock.old_format_path.clone() {
+                    drop(inner_lock);
+                    self.0 = resource_manager.request_untyped(old_format_path).0;
+                } else if let ResourceState::Ok { resource_uuid, .. } = inner_lock.state {
+                    drop(inner_lock);
+                    self.0 = resource_manager.request_by_uuid(resource_uuid).0;
+                }
             }
         }
 
@@ -330,9 +322,7 @@ impl Visit for UntypedResource {
 impl Default for UntypedResource {
     fn default() -> Self {
         Self(Arc::new(Mutex::new(ResourceHeader {
-            resource_uuid: Default::default(),
             kind: Default::default(),
-            type_uuid: Default::default(),
             state: ResourceState::new_load_error(
                 Default::default(),
                 LoadError::new("Default resource state of unknown type."),
@@ -364,11 +354,9 @@ impl Hash for UntypedResource {
 
 impl UntypedResource {
     /// Creates new untyped resource in pending state using the given path and type uuid.
-    pub fn new_pending(resource_uuid: Uuid, kind: ResourceKind, type_uuid: Uuid) -> Self {
+    pub fn new_pending(kind: ResourceKind) -> Self {
         Self(Arc::new(Mutex::new(ResourceHeader {
-            resource_uuid,
             kind,
-            type_uuid,
             state: ResourceState::new_pending(),
             old_format_path: None,
         })))
@@ -381,37 +369,36 @@ impl UntypedResource {
         T: ResourceData,
     {
         Self(Arc::new(Mutex::new(ResourceHeader {
-            resource_uuid,
             kind,
-            type_uuid: data.type_uuid(),
-            state: ResourceState::new_ok(data),
+            state: ResourceState::new_ok(resource_uuid, data),
             old_format_path: None,
         })))
     }
 
     /// Creates new untyped resource in error state.
-    pub fn new_load_error(
-        resource_uuid: Uuid,
-        kind: ResourceKind,
-        error: LoadError,
-        type_uuid: Uuid,
-    ) -> Self {
+    pub fn new_load_error(kind: ResourceKind, error: LoadError) -> Self {
         Self(Arc::new(Mutex::new(ResourceHeader {
-            resource_uuid,
             kind,
-            type_uuid,
             state: ResourceState::new_load_error(Default::default(), error),
             old_format_path: None,
         })))
     }
 
-    pub fn resource_uuid(&self) -> Uuid {
-        self.0.lock().resource_uuid
+    pub fn resource_uuid(&self) -> Option<Uuid> {
+        let header = self.0.lock();
+        match header.state {
+            ResourceState::Ok { resource_uuid, .. } => Some(resource_uuid),
+            _ => None,
+        }
     }
 
     /// Returns actual unique type id of underlying resource data.
-    pub fn type_uuid(&self) -> Uuid {
-        self.0.lock().type_uuid
+    pub fn type_uuid(&self) -> Option<Uuid> {
+        let header = self.0.lock();
+        match header.state {
+            ResourceState::Ok { ref data, .. } => Some(data.type_uuid()),
+            _ => None,
+        }
     }
 
     /// Returns true if the resource is still loading.
@@ -439,7 +426,7 @@ impl UntypedResource {
 
     /// Returns path of the untyped resource.
     pub fn kind(&self) -> ResourceKind {
-        self.0.lock().kind.clone()
+        self.0.lock().kind
     }
 
     /// Set a new path for the untyped resource.
@@ -454,7 +441,7 @@ impl UntypedResource {
             ResourceState::Pending { .. } | ResourceState::LoadError { .. } => {
                 Err("Unable to save unloaded resource!".into())
             }
-            ResourceState::Ok(ref mut data) => data.save(path),
+            ResourceState::Ok { ref mut data, .. } => data.save(path),
         }
     }
 
@@ -463,7 +450,7 @@ impl UntypedResource {
     where
         T: TypedResourceData,
     {
-        if self.type_uuid() == <T as TypeUuidProvider>::type_uuid() {
+        if self.type_uuid() == Some(<T as TypeUuidProvider>::type_uuid()) {
             Some(Resource {
                 untyped: self.clone(),
                 phantom: PhantomData::<T>,
@@ -481,10 +468,9 @@ impl UntypedResource {
     }
 
     /// Changes internal state to [`ResourceState::Ok`]
-    pub fn commit_ok<T: ResourceData>(&self, data: T) {
+    pub fn commit_ok<T: ResourceData>(&self, resource_uuid: Uuid, data: T) {
         let mut guard = self.0.lock();
-        guard.type_uuid = data.type_uuid();
-        guard.state.commit_ok(data);
+        guard.state.commit_ok(resource_uuid, data);
     }
 
     /// Changes internal state to [`ResourceState::LoadError`].
@@ -505,7 +491,7 @@ impl Future for UntypedResource {
                 Poll::Pending
             }
             ResourceState::LoadError { ref error, .. } => Poll::Ready(Err(error.clone())),
-            ResourceState::Ok(_) => Poll::Ready(Ok(self.clone())),
+            ResourceState::Ok { .. } => Poll::Ready(Ok(self.clone())),
         }
     }
 }
@@ -569,11 +555,7 @@ mod test {
     #[test]
     fn untyped_resource_try_cast() {
         let r = UntypedResource::default();
-        let r2 = UntypedResource::new_pending(
-            Uuid::new_v4(),
-            ResourceKind::External,
-            Uuid::from_u128(0xa1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8u128),
-        );
+        let r2 = UntypedResource::new_pending(ResourceKind::External);
 
         assert!(r.try_cast::<Stub>().is_some());
         assert!(r2.try_cast::<Stub>().is_none());
@@ -587,18 +569,17 @@ mod test {
         let mut cx = task::Context::from_waker(&waker);
 
         let mut r = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
-            resource_uuid: Default::default(),
             kind: ResourceKind::External,
-            type_uuid: Uuid::default(),
-            state: ResourceState::Ok(Box::new(stub)),
+            state: ResourceState::Ok {
+                data: Box::new(stub),
+                resource_uuid: Uuid::new_v4(),
+            },
             old_format_path: None,
         })));
         assert!(Pin::new(&mut r).poll(&mut cx).is_ready());
 
         let mut r = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
-            resource_uuid: Default::default(),
             kind: ResourceKind::External,
-            type_uuid: Uuid::default(),
             state: ResourceState::LoadError {
                 path: Default::default(),
                 error: Default::default(),

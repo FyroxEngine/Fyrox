@@ -355,7 +355,9 @@ impl SceneLoader {
                 .filter(|res| {
                     let state = self.resource_manager.state();
                     let registry = state.resource_registry.lock();
-                    registry.uuid_to_path(res.resource_uuid()) == Some(&path)
+                    res.resource_uuid()
+                        .and_then(|uuid| registry.uuid_to_path(uuid))
+                        == Some(&path)
                 })
                 .cloned()
                 .collect::<Vec<_>>();

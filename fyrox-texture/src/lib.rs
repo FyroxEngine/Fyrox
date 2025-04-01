@@ -790,7 +790,7 @@ impl TextureResourceExtension for TextureResource {
     }
 
     fn deep_clone(&self) -> Self {
-        let kind = self.header().kind.clone();
+        let kind = self.header().kind;
         let data = self.data_ref().clone();
         Resource::new_ok(Uuid::new_v4(), kind, data)
     }

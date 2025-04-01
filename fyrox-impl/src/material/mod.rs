@@ -1232,14 +1232,14 @@ impl MaterialResourceExtension for MaterialResource {
         let material_state = self.header();
         let kind = material_state.kind.clone();
         match material_state.state {
-            ResourceState::Pending { .. } => MaterialResource::new_pending(Uuid::new_v4(), kind),
+            ResourceState::Pending { .. } => MaterialResource::new_pending(kind),
             ResourceState::LoadError { ref error, .. } => {
-                MaterialResource::new_load_error(Uuid::new_v4(), kind.clone(), error.clone())
+                MaterialResource::new_load_error(kind.clone(), error.clone())
             }
-            ResourceState::Ok(ref material) => MaterialResource::new_ok(
+            ResourceState::Ok { ref data, .. } => MaterialResource::new_ok(
                 Uuid::new_v4(),
                 kind,
-                ResourceDataAsAny::as_any(&**material)
+                ResourceDataAsAny::as_any(&**data)
                     .downcast_ref::<Material>()
                     .unwrap()
                     .clone(),
