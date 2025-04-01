@@ -1416,7 +1416,7 @@ impl PhysicsWorld {
     ) {
         if *self.enabled {
             if let Some(native) = self.bodies.get(rigid_body.native.get()) {
-                if native.body_type() == RigidBodyType::Dynamic {
+                if native.body_type() != RigidBodyType::Fixed {
                     let local_transform: Matrix4<f32> = parent_transform
                         .try_inverse()
                         .unwrap_or_else(Matrix4::identity)
@@ -1613,6 +1613,15 @@ impl PhysicsWorld {
                                 native.apply_impulse_at_point(impulse, Point3::from(point), false)
                             }
                             ApplyAction::WakeUp => native.wake_up(true),
+                            ApplyAction::NextTranslation(position) => {
+                                native.set_next_kinematic_translation(position)
+                            }
+                            ApplyAction::NextRotation(rotation) => {
+                                native.set_next_kinematic_rotation(rotation)
+                            }
+                            ApplyAction::NextPosition(position) => {
+                                native.set_next_kinematic_position(position)
+                            }
                         }
                     }
                 }

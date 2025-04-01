@@ -31,7 +31,7 @@
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
-        algebra::{Matrix4, Vector3},
+        algebra::{Isometry3, Matrix4, UnitQuaternion, Vector3},
         log::Log,
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         parking_lot::Mutex,
@@ -144,6 +144,9 @@ pub(crate) enum ApplyAction {
         point: Vector3<f32>,
     },
     WakeUp,
+    NextTranslation(Vector3<f32>),
+    NextRotation(UnitQuaternion<f32>),
+    NextPosition(Isometry3<f32>),
 }
 
 #[derive(Copy, Clone, Debug, Reflect, Visit, PartialEq, AsRefStr, EnumString, VariantNames)]
@@ -529,6 +532,30 @@ impl RigidBody {
         self.actions
             .get_mut()
             .push_back(ApplyAction::ImpulseAtPoint { impulse, point })
+    }
+
+    /// If this rigid body is kinematic, sets its future translation after
+    /// the next timestep integration.
+    pub fn set_next_kinematic_translation(&mut self, translation: Vector3<f32>) {
+        self.actions
+            .get_mut()
+            .push_back(ApplyAction::NextTranslation(translation));
+    }
+
+    /// If this rigid body is kinematic, sets its future orientation after
+    /// the next timestep integration.
+    pub fn set_next_kinematic_rotation(&mut self, rotation: UnitQuaternion<f32>) {
+        self.actions
+            .get_mut()
+            .push_back(ApplyAction::NextRotation(rotation));
+    }
+
+    /// If this rigid body is kinematic, sets its future position (translation and orientation) after
+    /// the next timestep integration.
+    pub fn set_next_kinematic_position(&mut self, position: Isometry3<f32>) {
+        self.actions
+            .get_mut()
+            .push_back(ApplyAction::NextPosition(position));
     }
 
     /// Sets whether the rigid body can sleep or not. If `false` is passed, it _automatically_ wake

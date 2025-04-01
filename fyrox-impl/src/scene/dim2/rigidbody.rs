@@ -31,7 +31,7 @@
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
-        algebra::{Matrix4, Vector2},
+        algebra::{Isometry2, Matrix4, UnitComplex, Vector2},
         log::Log,
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         parking_lot::Mutex,
@@ -77,6 +77,9 @@ pub(crate) enum ApplyAction {
         point: Vector2<f32>,
     },
     WakeUp,
+    NextTranslation(Vector2<f32>),
+    NextRotation(UnitComplex<f32>),
+    NextPosition(Isometry2<f32>),
 }
 
 /// Rigid body is a physics entity that responsible for the dynamics and kinematics of the solid.
@@ -291,7 +294,7 @@ impl RigidBody {
         self.translation_locked.set_value_and_mark_modified(state)
     }
 
-    /// Returns true if translation is locked, false - otherwise.    
+    /// Returns true if translation is locked, false - otherwise.
     pub fn is_translation_locked(&self) -> bool {
         *self.translation_locked
     }
@@ -391,6 +394,30 @@ impl RigidBody {
         self.actions
             .get_mut()
             .push_back(ApplyAction::ImpulseAtPoint { impulse, point })
+    }
+
+    /// If this rigid body is kinematic, sets its future translation after
+    /// the next timestep integration.
+    pub fn set_next_kinematic_translation(&mut self, translation: Vector2<f32>) {
+        self.actions
+            .get_mut()
+            .push_back(ApplyAction::NextTranslation(translation));
+    }
+
+    /// If this rigid body is kinematic, sets its future orientation after
+    /// the next timestep integration.
+    pub fn set_next_kinematic_rotation(&mut self, rotation: UnitComplex<f32>) {
+        self.actions
+            .get_mut()
+            .push_back(ApplyAction::NextRotation(rotation));
+    }
+
+    /// If this rigid body is kinematic, sets its future position (translation and orientation) after
+    /// the next timestep integration.
+    pub fn set_next_kinematic_position(&mut self, position: Isometry2<f32>) {
+        self.actions
+            .get_mut()
+            .push_back(ApplyAction::NextPosition(position));
     }
 
     /// Sets whether the rigid body can sleep or not. If `false` is passed, it _automatically_ wake
