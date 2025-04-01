@@ -291,15 +291,15 @@ mod test {
     fn resource_state_new_pending() {
         let state = ResourceState::new_pending();
 
-        assert!(matches!(state, ResourceState::Pending { wakers: _ }));
+        assert!(matches!(state, ResourceState::Pending { .. }));
         assert!(state.is_loading());
     }
 
     #[test]
     fn resource_state_new_load_error() {
-        let state = ResourceState::new_load_error(Default::default());
+        let state = ResourceState::new_load_error(Default::default(), Default::default());
 
-        assert!(matches!(state, ResourceState::LoadError { error: _ }));
+        assert!(matches!(state, ResourceState::LoadError { .. }));
         assert!(!state.is_loading());
     }
 
@@ -316,19 +316,19 @@ mod test {
         let mut state = ResourceState::new_ok(Stub {});
         state.switch_to_pending_state();
 
-        assert!(matches!(state, ResourceState::Pending { wakers: _ }));
+        assert!(matches!(state, ResourceState::Pending { .. }));
 
         // from LoadError
-        let mut state = ResourceState::new_load_error(Default::default());
+        let mut state = ResourceState::new_load_error(Default::default(), Default::default());
         state.switch_to_pending_state();
 
-        assert!(matches!(state, ResourceState::Pending { wakers: _ }));
+        assert!(matches!(state, ResourceState::Pending { .. }));
 
         // from Pending
         let mut state = ResourceState::new_pending();
         state.switch_to_pending_state();
 
-        assert!(matches!(state, ResourceState::Pending { wakers: _ }));
+        assert!(matches!(state, ResourceState::Pending { .. }));
     }
 
     #[test]
@@ -340,7 +340,7 @@ mod test {
         assert!(state.visit("name", &mut visitor).is_ok());
 
         // Visit LoadError
-        let mut state = ResourceState::new_load_error(Default::default());
+        let mut state = ResourceState::new_load_error(Default::default(), Default::default());
         let mut visitor = Visitor::default();
 
         assert!(state.visit("name", &mut visitor).is_ok());

@@ -247,6 +247,9 @@ impl Visit for ResourceHeader {
         self.kind.visit("Kind", &mut region)?;
         self.type_uuid.visit("TypeUuid", &mut region)?;
 
+        // Backward compatibility.
+        let _ = self.resource_uuid.visit("ResourceUuid", &mut region);
+
         if self.kind == ResourceKind::Embedded {
             self.state.visit("State", &mut region)?;
         }
@@ -597,6 +600,7 @@ mod test {
             kind: ResourceKind::External,
             type_uuid: Uuid::default(),
             state: ResourceState::LoadError {
+                path: Default::default(),
                 error: Default::default(),
             },
             old_format_path: None,
