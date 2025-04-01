@@ -107,6 +107,7 @@ use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
 use fyrox_graphics::gl::server::GlGraphicsServer;
 use fyrox_graphics::server::SharedGraphicsServer;
+use fyrox_resource::registry::ResourceRegistry;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -1408,8 +1409,9 @@ impl Engine {
         let user_interfaces =
             UiContainer::new_with_ui(UserInterface::new(Vector2::new(100.0, 100.0)));
 
-        #[cfg(not(target_arch = "wasm32"))]
-        resource_manager.state().scan_and_update_registry();
+        resource_manager
+            .state()
+            .request_load_registry(PathBuf::from(ResourceRegistry::DEFAULT_PATH));
 
         Ok(Self {
             graphics_context: GraphicsContext::Uninitialized(graphics_context_params),

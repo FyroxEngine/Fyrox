@@ -21,9 +21,6 @@
 //! Resource manager controls loading and lifetime of resource in the engine. See [`ResourceManager`]
 //! docs for more info.
 
-use crate::metadata::ResourceMetadata;
-use crate::registry::{AsyncReadyFlag, RegistryContainer, RegistryContainerExt};
-use crate::state::ResourcePath;
 use crate::{
     constructor::ResourceConstructorContainer,
     core::{
@@ -41,15 +38,15 @@ use crate::{
     event::{ResourceEvent, ResourceEventBroadcaster},
     io::{FsResourceIo, ResourceIo},
     loader::ResourceLoadersContainer,
+    metadata::ResourceMetadata,
     options::OPTIONS_EXTENSION,
-    registry::ResourceRegistry,
-    state::{LoadError, ResourceState},
+    registry::{RegistryContainer, RegistryContainerExt, ResourceRegistry},
+    state::{LoadError, ResourcePath, ResourceState},
     untyped::ResourceKind,
     Resource, ResourceData, TypedResourceData, UntypedResource,
 };
 use fxhash::FxHashMap;
-use fyrox_core::err;
-use fyrox_core::Uuid;
+use fyrox_core::{err, Uuid};
 use std::{
     borrow::Cow,
     fmt::{Debug, Display, Formatter},
@@ -281,9 +278,9 @@ impl Display for ResourceRegistrationError {
 
 impl ResourceManager {
     /// Creates a resource manager with default settings and loaders.
-    pub fn new(loaders: Arc<Mutex<ResourceLoadersContainer>>, task_pool: Arc<TaskPool>) -> Self {
+    pub fn new(task_pool: Arc<TaskPool>) -> Self {
         Self {
-            state: Arc::new(Mutex::new(ResourceManagerState::new(loaders, task_pool))),
+            state: Arc::new(Mutex::new(ResourceManagerState::new(task_pool))),
         }
     }
 
@@ -469,28 +466,29 @@ impl ResourceManager {
 }
 
 impl ResourceManagerState {
-    pub(crate) fn new(
-        loaders: Arc<Mutex<ResourceLoadersContainer>>,
-        task_pool: Arc<TaskPool>,
-    ) -> Self {
-        let resource_io = Arc::new(FsResourceIo);
+    pub(crate) fn new(task_pool: Arc<TaskPool>) -> Self {
+        Self {
+            resources: Default::default(),
+            task_pool,
+            loaders: Default::default(),
+            event_broadcaster: Default::default(),
+            constructors_container: Default::default(),
+            watcher: None,
+            built_in_resources: Default::default(),
+            // Use the file system resource io by default
+            resource_io: Arc::new(FsResourceIo),
+            resource_registry: Arc::new(Mutex::new(ResourceRegistry::default())),
+        }
+    }
 
-        let is_ready_flag = AsyncReadyFlag::new_not_ready();
-        let resource_registry = Arc::new(Mutex::new(ResourceRegistry {
-            paths: Default::default(),
-            is_ready: is_ready_flag.clone(),
-        }));
-
-        let task_resource_io = resource_io.clone();
-        let task_resource_registry = resource_registry.clone();
-        let task_loaders = loaders.clone();
-        task_pool.spawn_task(async move {
-            match RegistryContainer::load_from_file(
-                Path::new(ResourceRegistry::DEFAULT_PATH),
-                &*task_resource_io,
-            )
-            .await
-            {
+    pub fn request_load_registry(&self, path: PathBuf) {
+        let task_resource_io = self.resource_io.clone();
+        let task_resource_registry = self.resource_registry.clone();
+        let is_ready_flag = task_resource_registry.lock().is_ready.clone();
+        is_ready_flag.mark_as_not_ready();
+        let task_loaders = self.loaders.clone();
+        self.task_pool.spawn_task(async move {
+            match RegistryContainer::load_from_file(&path, &*task_resource_io).await {
                 Ok(registry) => {
                     let mut lock = task_resource_registry.lock();
                     lock.set_container(registry);
@@ -499,17 +497,16 @@ impl ResourceManagerState {
                 Err(error) => {
                     err!(
                         "Unable to load resource registry! Reason: {:?}. \
-                    Run ResourceRegistry::scan_and_update to update the registry!",
+                    Trying to update the registry!",
                         error
                     );
 
-                    let path = ResourceRegistry::DEFAULT_PATH;
                     let new_data =
-                        ResourceRegistry::scan(task_resource_io.clone(), task_loaders, path).await;
-                    if let Err(error) = new_data.save(Path::new(path), &*task_resource_io).await {
+                        ResourceRegistry::scan(task_resource_io.clone(), task_loaders, &path).await;
+                    if let Err(error) = new_data.save(&path, &*task_resource_io).await {
                         err!(
                             "Unable to write the resource registry at the {} path! Reason: {:?}",
-                            path,
+                            path.display(),
                             error
                         )
                     }
@@ -519,19 +516,6 @@ impl ResourceManagerState {
                 }
             };
         });
-
-        Self {
-            resources: Default::default(),
-            task_pool,
-            loaders,
-            event_broadcaster: Default::default(),
-            constructors_container: Default::default(),
-            watcher: None,
-            built_in_resources: Default::default(),
-            // Use the file system resource io by default
-            resource_io,
-            resource_registry,
-        }
     }
 
     /// Returns the task pool used by this resource manager.
