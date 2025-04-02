@@ -22,9 +22,10 @@
 
 use crate::{
     core::uuid::Uuid, io::ResourceIo, options::BaseImportOptions, state::LoadError, ResourceData,
+    TypedResourceData,
 };
 
-use fyrox_core::define_as_any_trait;
+use fyrox_core::{define_as_any_trait, TypeUuidProvider};
 use std::path::Path;
 use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc};
 
@@ -191,6 +192,20 @@ impl ResourceLoadersContainer {
         } else {
             false
         }
+    }
+
+    pub fn is_extension_matches_type<T>(&self, path: &Path) -> bool
+    where
+        T: TypedResourceData,
+    {
+        path.extension().is_some_and(|extension| {
+            self.loaders
+                .iter()
+                .find(|loader| loader.supports_extension(&extension.to_string_lossy()))
+                .is_some_and(|loader| {
+                    loader.data_type_uuid() == <T as TypeUuidProvider>::type_uuid()
+                })
+        })
     }
 
     pub fn loader_for(&self, path: &Path) -> Option<&dyn ResourceLoader> {

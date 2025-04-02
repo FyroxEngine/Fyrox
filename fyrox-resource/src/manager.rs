@@ -304,6 +304,13 @@ impl ResourceManager {
     /// it immediately returns the typed resource wrapper. Loading of the resource is managed automatically in
     /// a separate thread (or thread pool) on PC, and JS micro-task (the same thread) on WebAssembly.
     ///
+    /// ## Type Guarantees
+    ///
+    /// There's no strict guarantees that the requested resource will be of the requested type. This
+    /// is because the resource system is fully async and does not have access to type information in
+    /// most cases. Initial type checking is not very reliable and can be "fooled" pretty easily,
+    /// simply because it just checks if there's a registered loader for a specific extension.
+    ///
     /// ## Sharing
     ///
     /// If the resource at the given path is already was requested (no matter in which state the actual resource
@@ -326,13 +333,51 @@ impl ResourceManager {
     /// Actual resource state can be fetched by [`Resource::state`] method. If you know for sure that the resource
     /// is already loaded, then you can use [`Resource::data_ref`] to obtain a reference to the actual resource data.
     /// Keep in mind, that this method will panic if the resource non in `Ok` state.
+    ///
+    /// ## Panic
+    ///
+    /// This method will panic, if type UUID of `T` does not match the actual type UUID of the resource. If this
+    /// is undesirable, use [`Self::try_request`] instead.
     pub fn request<T>(&self, path: impl AsRef<Path>) -> Resource<T>
     where
         T: TypedResourceData,
     {
+        let mut state = self.state();
+
+        assert!(state
+            .loaders
+            .lock()
+            .is_extension_matches_type::<T>(path.as_ref()));
+
         Resource {
-            untyped: self.state().request(path),
+            untyped: state.request(path),
             phantom: PhantomData::<T>,
+        }
+    }
+
+    /// The same as [`Self::request`], but returns [`None`] if type UUID of `T` does not match the actual type UUID
+    /// of the resource.
+    ///
+    /// ## Panic
+    ///
+    /// This method does not panic.
+    pub fn try_request<T>(&self, path: impl AsRef<Path>) -> Option<Resource<T>>
+    where
+        T: TypedResourceData,
+    {
+        let mut state = self.state();
+        let untyped = state.request(path.as_ref());
+        if state
+            .loaders
+            .lock()
+            .is_extension_matches_type::<T>(path.as_ref())
+        {
+            Some(Resource {
+                untyped,
+                phantom: PhantomData::<T>,
+            })
+        } else {
+            None
         }
     }
 

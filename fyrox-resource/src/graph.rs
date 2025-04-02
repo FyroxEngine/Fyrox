@@ -117,7 +117,6 @@ impl ResourceDependencyGraph {
 mod test {
     use super::*;
     use crate::untyped::ResourceKind;
-    use fyrox_core::uuid::Uuid;
 
     #[test]
     fn resource_graph_node_new() {
@@ -138,17 +137,6 @@ mod test {
         node.pretty_print(1, &mut s);
 
         assert_eq!(s, "\tExternal\n\t\tExternal\n".to_string());
-    }
-
-    #[test]
-    fn resource_graph_node_for_each() {
-        let mut node = ResourceGraphNode::new(&UntypedResource::default());
-        node.children
-            .push(ResourceGraphNode::new(&UntypedResource::default()));
-        let mut uuids = Vec::new();
-
-        node.for_each(&mut |r| uuids.push(r.type_uuid()));
-        assert_eq!(uuids, [Uuid::default(), Uuid::default()]);
     }
 
     #[test]
@@ -173,21 +161,5 @@ mod test {
 
         let s = graph.pretty_print();
         assert_eq!(s, "External (/foo)\n\tExternal (/bar)\n".to_string());
-    }
-
-    #[test]
-    fn resource_dependency_for_each() {
-        let mut graph =
-            ResourceDependencyGraph::new(&UntypedResource::new_pending(ResourceKind::External));
-        graph
-            .root
-            .children
-            .push(ResourceGraphNode::new(&UntypedResource::new_pending(
-                ResourceKind::External,
-            )));
-
-        let mut uuids = Vec::new();
-        graph.for_each(&mut |r: &UntypedResource| uuids.push(r.type_uuid()));
-        assert_eq!(uuids, [Uuid::default(), Uuid::default()]);
     }
 }

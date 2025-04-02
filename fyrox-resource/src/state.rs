@@ -351,15 +351,16 @@ mod test {
 
     #[test]
     fn resource_state_new_ok() {
-        let state = ResourceState::new_ok(Stub {});
-        assert!(matches!(state, ResourceState::Ok(_)));
+        let uuid = Uuid::new_v4();
+        let state = ResourceState::new_ok(uuid, Stub {});
+        assert!(matches!(state, ResourceState::Ok { .. }));
         assert!(!state.is_loading());
     }
 
     #[test]
     fn resource_state_switch_to_pending_state() {
         // from Ok
-        let mut state = ResourceState::new_ok(Stub {});
+        let mut state = ResourceState::new_ok(Uuid::new_v4(), Stub {});
         state.switch_to_pending_state();
 
         assert!(matches!(state, ResourceState::Pending { .. }));
@@ -383,18 +384,24 @@ mod test {
         let mut state = ResourceState::new_pending();
         let mut visitor = Visitor::default();
 
-        assert!(state.visit("name", &mut visitor).is_ok());
+        assert!(state
+            .visit(ResourceKind::External, "name", &mut visitor)
+            .is_ok());
 
         // Visit LoadError
         let mut state = ResourceState::new_load_error(Default::default(), Default::default());
         let mut visitor = Visitor::default();
 
-        assert!(state.visit("name", &mut visitor).is_ok());
+        assert!(state
+            .visit(ResourceKind::External, "name", &mut visitor)
+            .is_ok());
 
         // Visit Ok
-        let mut state = ResourceState::new_ok(Stub {});
+        let mut state = ResourceState::new_ok(Uuid::new_v4(), Stub {});
         let mut visitor = Visitor::default();
 
-        assert!(state.visit("name", &mut visitor).is_ok());
+        assert!(state
+            .visit(ResourceKind::External, "name", &mut visitor)
+            .is_ok());
     }
 }

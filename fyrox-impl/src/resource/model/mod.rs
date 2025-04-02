@@ -553,7 +553,7 @@ impl ModelResourceExtension for ModelResource {
 
     fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation> {
         let mut header = self.state();
-        let self_kind = header.kind().clone();
+        let self_kind = header.kind();
         if let Some(model) = header.data() {
             model.retarget_animations_directly(root, graph, self_kind)
         } else {
@@ -568,7 +568,7 @@ impl ModelResourceExtension for ModelResource {
         graph: &mut Graph,
     ) -> Vec<Handle<Animation>> {
         let mut header = self.state();
-        let self_kind = header.kind().clone();
+        let self_kind = header.kind();
         if let Some(model) = header.data() {
             model.retarget_animations_to_player(root, dest_animation_player, graph, self_kind)
         } else {
@@ -578,7 +578,7 @@ impl ModelResourceExtension for ModelResource {
 
     fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>> {
         let mut header = self.state();
-        let self_kind = header.kind().clone();
+        let self_kind = header.kind();
         if let Some(model) = header.data() {
             model.retarget_animations(root, graph, self_kind)
         } else {

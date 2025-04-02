@@ -1230,11 +1230,11 @@ impl MaterialResourceExtension for MaterialResource {
 
     fn deep_copy(&self) -> MaterialResource {
         let material_state = self.header();
-        let kind = material_state.kind.clone();
+        let kind = material_state.kind;
         match material_state.state {
             ResourceState::Pending { .. } => MaterialResource::new_pending(kind),
             ResourceState::LoadError { ref error, .. } => {
-                MaterialResource::new_load_error(kind.clone(), error.clone())
+                MaterialResource::new_load_error(kind, error.clone())
             }
             ResourceState::Ok { ref data, .. } => MaterialResource::new_ok(
                 Uuid::new_v4(),
