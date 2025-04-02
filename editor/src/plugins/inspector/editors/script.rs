@@ -326,33 +326,6 @@ fn selected_script(
         })
 }
 
-fn fetch_script_definitions(
-    instance: Handle<UiNode>,
-    ui: &mut UserInterface,
-) -> Result<Vec<Handle<UiNode>>, InspectorError> {
-    let instance_ref =
-        ui.node(instance)
-            .cast::<ScriptPropertyEditor>()
-            .ok_or(InspectorError::Custom(
-                "Must be ScriptPropertyEditor!".into(),
-            ))?;
-
-    let environment = ui
-        .node(instance_ref.inspector)
-        .cast::<Inspector>()
-        .ok_or(InspectorError::Custom("Must be Inspector!".into()))?
-        .context()
-        .environment
-        .clone();
-
-    let editor_environment = EditorEnvironment::try_get_from(&environment)?;
-
-    Ok(create_items(
-        editor_environment.serialization_context.clone(),
-        &mut ui.build_ctx(),
-    ))
-}
-
 #[derive(Debug)]
 pub struct ScriptPropertyEditorDefinition {}
 
@@ -435,15 +408,18 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Option<Script>>()?;
 
-        let new_script_definitions_items = fetch_script_definitions(ctx.instance, ctx.ui)?;
+        let editor_environment = EditorEnvironment::try_get_from(&ctx.environment)?;
+
+        let new_script_definitions_items = create_items(
+            editor_environment.serialization_context.clone(),
+            &mut ctx.ui.build_ctx(),
+        );
 
         let instance_ref = ctx
             .ui
             .node(ctx.instance)
             .cast::<ScriptPropertyEditor>()
             .ok_or(InspectorError::Custom("Must be EnumPropertyEditor!".into()))?;
-
-        let editor_environment = EditorEnvironment::try_get_from(&ctx.environment)?;
 
         let variant_selector_ref = ctx
             .ui
