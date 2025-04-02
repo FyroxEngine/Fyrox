@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::asset::state::ResourceState;
 use crate::fyrox::{
     asset::{
         graph::{ResourceDependencyGraph, ResourceGraphNode},
@@ -56,11 +55,7 @@ fn build_tree_recursively(node: &ResourceGraphNode, ctx: &mut BuildContext) -> H
         .map(|c| build_tree_recursively(c, ctx))
         .collect();
 
-    let data_type = if let ResourceState::Ok(ref data) = node.resource.0.lock().state {
-        data.type_name().to_string()
-    } else {
-        "Unknown".to_string()
-    };
+    let data_type = node.resource.data_type_name_or_unknown();
 
     let name = node.resource.kind().to_string();
 

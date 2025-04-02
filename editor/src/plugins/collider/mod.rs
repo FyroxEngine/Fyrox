@@ -41,7 +41,6 @@ use crate::{
     camera::PickingOptions,
     command::SetPropertyCommand,
     fyrox::{
-        asset::untyped::ResourceKind,
         core::{
             algebra::{UnitQuaternion, Vector2, Vector3},
             color::Color,
@@ -273,6 +272,7 @@ fn make_shape_gizmo(
 lazy_static! {
     static ref GIZMO_SHADER: ShaderResource = {
         ShaderResource::from_str(
+            Uuid::new_v4(),
             include_str!("../../../resources/shaders/sprite_gizmo.shader",),
             Default::default(),
         )
@@ -289,7 +289,7 @@ fn make_handle(scene: &mut Scene, root: Handle<Node>, visible: bool) -> Handle<N
     );
 
     let handle = SpriteBuilder::new(BaseBuilder::new().with_visibility(visible))
-        .with_material(MaterialResource::new_ok(ResourceKind::Embedded, material))
+        .with_material(MaterialResource::new_embedded(material))
         .with_size(0.05)
         .with_color(Color::MAROON)
         .build(&mut scene.graph);

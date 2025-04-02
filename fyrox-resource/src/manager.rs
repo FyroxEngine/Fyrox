@@ -381,6 +381,10 @@ impl ResourceManager {
         }
     }
 
+    pub fn resource_path(&self, resource: &UntypedResource) -> Option<PathBuf> {
+        self.state().resource_path(resource)
+    }
+
     /// Same as [`Self::request`], but returns untyped resource.
     pub fn request_untyped<P>(&self, path: P) -> UntypedResource
     where
@@ -906,6 +910,16 @@ impl ResourceManagerState {
                 )
             }
         });
+    }
+
+    pub fn resource_path(&self, resource: &UntypedResource) -> Option<PathBuf> {
+        let header = resource.0.lock();
+        if let ResourceState::Ok { resource_uuid, .. } = header.state {
+            let registry = self.resource_registry.lock();
+            registry.uuid_to_path_buf(resource_uuid)
+        } else {
+            None
+        }
     }
 
     /// Reloads a single resource.

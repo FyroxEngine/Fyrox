@@ -36,7 +36,7 @@ use crate::{
         },
         core::{
             futures::executor::block_on, log::Log, make_relative_path,
-            parking_lot::lock_api::Mutex, pool::Handle, TypeUuidProvider, Uuid,
+            parking_lot::lock_api::Mutex, pool::Handle, Uuid,
         },
         engine::Engine,
         graph::BaseSceneGraph,
@@ -64,8 +64,6 @@ use crate::{
             BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
             UserInterface, VerticalAlignment,
         },
-        resource::{model::Model, texture::Texture},
-        scene::sound::SoundBuffer,
         walkdir,
     },
     load_image,
@@ -492,7 +490,6 @@ impl ResourceCreator {
                                 // The id will be assigned automatically by the resource manager.
                                 resource_uuid: Default::default(),
                                 kind: ResourceKind::External(path.clone()),
-                                type_uuid: instance.type_uuid(),
                                 state: ResourceState::Ok(instance),
                             })));
 
@@ -1103,8 +1100,9 @@ impl AssetBrowser {
             );
 
             if let Ok(resource) = block_on(engine.resource_manager.request_untyped(asset_path)) {
-                if let Some(preview_generator) =
-                    self.preview_generators.map.get_mut(&resource.type_uuid())
+                if let Some(preview_generator) = resource
+                    .type_uuid()
+                    .and_then(|type_uuid| self.preview_generators.map.get_mut(&type_uuid))
                 {
                     let preview_scene = &mut engine.scenes[self.preview.scene()];
                     let preview = preview_generator.generate_scene(
@@ -1299,44 +1297,15 @@ impl AssetBrowser {
         resource_manager: &ResourceManager,
         message_sender: &MessageSender,
     ) {
-        fn filter(res: &UntypedResource) -> bool {
-            if [Texture::type_uuid(), SoundBuffer::type_uuid()].contains(&res.type_uuid()) {
-                return false;
-            };
-
-            // The engine cannot write FBX resources, so we must filter out these and warn the user
-            // that resource references cannot be automatically fixed.
-            if let Some(model) = res.try_cast::<Model>() {
-                let kind = model.kind();
-                if let Some(ext) = kind.path().and_then(|path| {
-                    path.extension()
-                        .map(|ext| ext.to_string_lossy().to_lowercase())
-                }) {
-                    if ext == "fbx" || ext == "gltf" || ext == "glb" {
-                        Log::warn(format!(
-                            "Resource {kind} cannot be scanned for \
-                        references, because FBX/GLTF cannot be exported."
-                        ));
-                        return false;
-                    }
-                }
-            }
-
-            true
-        }
-
         if let Some(item) = ui.try_get(dropped).and_then(|n| n.cast::<AssetItem>()) {
             if let Ok(relative_path) = make_relative_path(target_dir) {
                 if let Ok(resource) = block_on(resource_manager.request_untyped(&item.path)) {
-                    if let Some(path) = resource.kind().path_owned() {
+                    if let Some(path) = resource_manager.resource_path(&resource) {
                         if let Some(file_name) = path.file_name() {
                             let new_full_path = relative_path.join(file_name);
-                            Log::verify(block_on(resource_manager.move_resource(
-                                resource,
-                                new_full_path,
-                                "./",
-                                filter,
-                            )));
+                            Log::verify(block_on(
+                                resource_manager.move_resource(resource, new_full_path),
+                            ));
 
                             self.refresh(ui, resource_manager, message_sender);
                         }
@@ -1373,17 +1342,15 @@ impl AssetBrowser {
                                     if let Ok(resource) =
                                         block_on(resource_manager.request_untyped(entry.path()))
                                     {
-                                        if let Some(path) = resource.kind().path_owned() {
+                                        if let Some(path) =
+                                            resource_manager.resource_path(&resource)
+                                        {
                                             if let Some(file_name) = path.file_name() {
                                                 let new_full_path =
                                                     target_sub_dir_normalized.join(file_name);
                                                 Log::verify(block_on(
-                                                    resource_manager.move_resource(
-                                                        resource,
-                                                        new_full_path,
-                                                        "./",
-                                                        filter,
-                                                    ),
+                                                    resource_manager
+                                                        .move_resource(resource, new_full_path),
                                                 ));
                                             }
                                         }

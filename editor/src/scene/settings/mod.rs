@@ -52,6 +52,7 @@ use crate::{
     scene::commands::GameSceneContext,
     GameScene, Message, MessageDirection, MSG_SYNC_FLAG,
 };
+use fyrox::asset::manager::ResourceManager;
 use fyrox::{graph::SceneGraph, gui::window::Window};
 use std::sync::Arc;
 
@@ -62,7 +63,11 @@ pub struct SceneSettingsWindow {
 }
 
 impl SceneSettingsWindow {
-    pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
+    pub fn new(
+        ctx: &mut BuildContext,
+        sender: MessageSender,
+        resource_manager: ResourceManager,
+    ) -> Self {
         let inspector;
         let window = WindowBuilder::new(
             WidgetBuilder::new()
@@ -83,7 +88,7 @@ impl SceneSettingsWindow {
         .with_title(WindowTitle::text("Scene Settings"))
         .build(ctx);
 
-        let container = make_property_editors_container(sender);
+        let container = make_property_editors_container(sender, resource_manager);
 
         container.register_inheritable_inspectable::<Graph>();
         container.register_inheritable_inspectable::<IntegrationParameters>();

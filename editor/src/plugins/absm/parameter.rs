@@ -44,6 +44,7 @@ use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{
     command::make_command, message::MessageSender, Message, MessageDirection, MSG_SYNC_FLAG,
 };
+use fyrox::asset::manager::ResourceManager;
 use std::sync::Arc;
 
 pub struct ParameterPanel {
@@ -53,8 +54,12 @@ pub struct ParameterPanel {
 }
 
 impl ParameterPanel {
-    pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
-        let property_editors = make_property_editors_container(sender);
+    pub fn new(
+        ctx: &mut BuildContext,
+        sender: MessageSender,
+        resource_manager: ResourceManager,
+    ) -> Self {
+        let property_editors = make_property_editors_container(sender, resource_manager);
         property_editors
             .insert(VecCollectionPropertyEditorDefinition::<ParameterDefinition>::new());
         property_editors.insert(EnumPropertyEditorDefinition::<Parameter>::new());

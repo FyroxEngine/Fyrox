@@ -66,7 +66,7 @@ use crate::{
     configurator::Configurator,
     export::ExportWindow,
     fyrox::{
-        asset::{io::FsResourceIo, manager::ResourceManager, untyped::ResourceKind},
+        asset::{io::FsResourceIo, manager::ResourceManager},
         core::{
             algebra::{Matrix3, Vector2},
             color::Color,
@@ -142,8 +142,8 @@ use crate::{
     plugins::{
         absm::AbsmEditor, absm::AbsmEditorPlugin, animation::AnimationEditorPlugin,
         collider::ColliderPlugin, curve_editor::CurveEditorPlugin, material::MaterialPlugin,
-        path_fixer::PathFixerPlugin, ragdoll::RagdollPlugin, settings::SettingsPlugin,
-        stats::UiStatisticsPlugin, tilemap::TileMapEditorPlugin,
+        ragdoll::RagdollPlugin, settings::SettingsPlugin, stats::UiStatisticsPlugin,
+        tilemap::TileMapEditorPlugin,
     },
     scene::{
         commands::{
@@ -164,6 +164,7 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
+use fyrox::asset::untyped::ResourceKind;
 use fyrox::engine::ApplicationLoopController;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
@@ -225,7 +226,8 @@ pub fn load_texture_internal(data: &[u8]) -> Option<TextureResource> {
         Some(existing.clone())
     } else {
         let texture = TextureResource::load_from_memory(
-            Default::default(),
+            Uuid::new_v4(),
+            ResourceKind::Embedded,
             data,
             TextureImportOptions::default()
                 .with_compression(CompressionOptions::NoCompression)
@@ -261,6 +263,7 @@ macro_rules! load_image {
 lazy_static! {
     static ref GIZMO_SHADER: ShaderResource = {
         ShaderResource::from_str(
+            Uuid::new_v4(),
             include_str!("../resources/shaders/gizmo.shader",),
             Default::default(),
         )
@@ -271,7 +274,7 @@ lazy_static! {
 pub fn make_color_material(color: Color) -> MaterialResource {
     let mut material = Material::from_shader(GIZMO_SHADER.clone());
     material.set_property("diffuseColor", color);
-    MaterialResource::new_ok(Default::default(), material)
+    MaterialResource::new_embedded(material)
 }
 
 pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
@@ -286,7 +289,7 @@ pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
 pub fn create_terrain_layer_material() -> MaterialResource {
     let mut material = Material::standard_terrain();
     material.set_property("texCoordScale", Vector2::new(10.0, 10.0));
-    MaterialResource::new_ok(Default::default(), material)
+    MaterialResource::new_embedded(material)
 }
 
 pub fn make_scene_file_filter() -> Filter {
@@ -617,7 +620,7 @@ impl Editor {
                 Brush::Solid(Color::opaque(60, 100, 0)),
             );
 
-        let dark_style = StyleResource::new_ok(ResourceKind::Embedded, dark_style);
+        let dark_style = StyleResource::new_embedded(dark_style);
         let mut light_style = Style::light_style();
         light_style
             .set(
@@ -646,7 +649,7 @@ impl Editor {
                 Brush::Solid(Color::opaque(60, 100, 0)),
             );
 
-        let light_style = StyleResource::new_ok(ResourceKind::Embedded, light_style);
+        let light_style = StyleResource::new_embedded(light_style);
         let styles = [
             (EditorStyle::Dark, dark_style),
             (EditorStyle::Light, light_style),
@@ -746,7 +749,8 @@ impl Editor {
             load_image!("../resources/clear.png"),
             true,
         );
-        let inspector_plugin = InspectorPlugin::new(ctx, message_sender.clone());
+        let inspector_plugin =
+            InspectorPlugin::new(ctx, message_sender.clone(), engine.resource_manager.clone());
         let particle_system_control_panel =
             ParticleSystemPreviewControlPanel::new(inspector_plugin.head, ctx);
         let camera_control_panel = CameraPreviewControlPanel::new(inspector_plugin.head, ctx);
@@ -970,7 +974,6 @@ impl Editor {
                 .with(AbsmEditorPlugin::default())
                 .with(UiStatisticsPlugin::default())
                 .with(CurveEditorPlugin::default())
-                .with(PathFixerPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread

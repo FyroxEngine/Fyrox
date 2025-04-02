@@ -65,6 +65,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     Editor, MSG_SYNC_FLAG,
 };
+use fyrox::asset::manager::ResourceManager;
 use std::{ops::Range, sync::Arc};
 
 #[derive(Reflect, Debug)]
@@ -1021,9 +1022,13 @@ pub struct RagdollWizard {
 }
 
 impl RagdollWizard {
-    pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
+    pub fn new(
+        ctx: &mut BuildContext,
+        sender: MessageSender,
+        resource_manager: ResourceManager,
+    ) -> Self {
         let preset = RagdollPreset::default();
-        let container = Arc::new(make_property_editors_container(sender));
+        let container = Arc::new(make_property_editors_container(sender, resource_manager));
 
         let inspector;
         let ok;
@@ -1233,9 +1238,13 @@ impl RagdollPlugin {
     fn on_open_ragdoll_wizard_clicked(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
         let ctx = &mut ui.build_ctx();
-        let wizard = self
-            .ragdoll_wizard
-            .get_or_insert_with(|| RagdollWizard::new(ctx, editor.message_sender.clone()));
+        let wizard = self.ragdoll_wizard.get_or_insert_with(|| {
+            RagdollWizard::new(
+                ctx,
+                editor.message_sender.clone(),
+                editor.engine.resource_manager.clone(),
+            )
+        });
         wizard.open(ui);
     }
 }

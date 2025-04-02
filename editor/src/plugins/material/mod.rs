@@ -25,7 +25,6 @@ use crate::plugins::inspector::{
 use crate::{
     asset::item::AssetItem,
     fyrox::{
-        asset::untyped::ResourceKind,
         core::{
             algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
             color::Color,
@@ -285,8 +284,7 @@ impl MaterialEditor {
 
         let graph = &mut engine.scenes[preview.scene()].graph;
         let sphere = MeshBuilder::new(BaseBuilder::new())
-            .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-                ResourceKind::Embedded,
+            .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
                 SurfaceData::make_sphere(30, 30, 1.0, &Matrix4::identity()),
             ))
             .build()])

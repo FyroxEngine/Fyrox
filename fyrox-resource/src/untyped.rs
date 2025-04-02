@@ -375,6 +375,10 @@ impl UntypedResource {
         })))
     }
 
+    pub fn new_embedded<T: ResourceData>(data: T) -> Self {
+        Self::new_ok(Uuid::new_v4(), ResourceKind::Embedded, data)
+    }
+
     /// Creates new untyped resource in error state.
     pub fn new_load_error(kind: ResourceKind, error: LoadError) -> Self {
         Self(Arc::new(Mutex::new(ResourceHeader {
@@ -399,6 +403,19 @@ impl UntypedResource {
             ResourceState::Ok { ref data, .. } => Some(data.type_uuid()),
             _ => None,
         }
+    }
+
+    pub fn data_type_name(&self) -> Option<String> {
+        let header = self.0.lock();
+        match header.state {
+            ResourceState::Ok { ref data, .. } => Some(Reflect::type_name(&**data).to_string()),
+            _ => None,
+        }
+    }
+
+    pub fn data_type_name_or_unknown(&self) -> String {
+        self.data_type_name()
+            .unwrap_or_else(|| "Unknown".to_string())
     }
 
     /// Returns true if the resource is still loading.

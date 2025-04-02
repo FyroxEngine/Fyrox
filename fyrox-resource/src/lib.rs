@@ -162,6 +162,12 @@ where
     phantom: PhantomData<T>,
 }
 
+impl<T: TypedResourceData> AsRef<UntypedResource> for Resource<T> {
+    fn as_ref(&self) -> &UntypedResource {
+        &self.untyped
+    }
+}
+
 impl<T: TypedResourceData> TypeUuidProvider for Resource<T> {
     fn type_uuid() -> Uuid {
         combine_uuids(
@@ -255,6 +261,14 @@ where
     pub fn new_ok(resource_uuid: Uuid, kind: ResourceKind, data: T) -> Self {
         Self {
             untyped: UntypedResource::new_ok(resource_uuid, kind, data),
+            phantom: PhantomData,
+        }
+    }
+
+    #[inline]
+    pub fn new_embedded(data: T) -> Self {
+        Self {
+            untyped: UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::Embedded, data),
             phantom: PhantomData,
         }
     }

@@ -165,6 +165,7 @@ use crate::{
         },
     },
 };
+use fyrox::asset::manager::ResourceManager;
 use fyrox::core::reflect::Reflect;
 
 pub mod animation;
@@ -271,7 +272,10 @@ macro_rules! reg_node_handle_editors {
     };
 }
 
-pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorDefinitionContainer {
+pub fn make_property_editors_container(
+    sender: MessageSender,
+    resource_manager: ResourceManager,
+) -> PropertyEditorDefinitionContainer {
     let container = PropertyEditorDefinitionContainer::with_default_editors();
 
     container.insert(TileDefinitionHandlePropertyEditorDefinition);
@@ -281,7 +285,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.insert(TexturePropertyEditorDefinition { untyped: false });
     container.insert(TexturePropertyEditorDefinition { untyped: true });
-    container.insert(FontPropertyEditorDefinition);
+    container.insert(FontPropertyEditorDefinition { resource_manager });
     container.insert(InheritablePropertyEditorDefinition::<FontResource>::new());
     container.insert(InheritablePropertyEditorDefinition::<Option<TextureResource>>::new());
     container.insert(InheritablePropertyEditorDefinition::<Option<UntypedResource>>::new());
