@@ -104,12 +104,8 @@ impl From<RigidBodyType> for rapier3d::dynamics::RigidBodyType {
         match v {
             RigidBodyType::Dynamic => Self::Dynamic,
             RigidBodyType::Static => Self::Fixed,
-            RigidBodyType::KinematicPositionBased => {
-                Self::KinematicPositionBased
-            }
-            RigidBodyType::KinematicVelocityBased => {
-                Self::KinematicVelocityBased
-            }
+            RigidBodyType::KinematicPositionBased => Self::KinematicPositionBased,
+            RigidBodyType::KinematicVelocityBased => Self::KinematicVelocityBased,
         }
     }
 }
@@ -119,12 +115,8 @@ impl From<RigidBodyType> for rapier2d::dynamics::RigidBodyType {
         match v {
             RigidBodyType::Dynamic => Self::Dynamic,
             RigidBodyType::Static => Self::Fixed,
-            RigidBodyType::KinematicPositionBased => {
-                Self::KinematicPositionBased
-            }
-            RigidBodyType::KinematicVelocityBased => {
-                Self::KinematicVelocityBased
-            }
+            RigidBodyType::KinematicPositionBased => Self::KinematicPositionBased,
+            RigidBodyType::KinematicVelocityBased => Self::KinematicVelocityBased,
         }
     }
 }

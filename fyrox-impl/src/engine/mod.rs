@@ -2769,7 +2769,7 @@ impl Drop for Engine {
 
 #[cfg(test)]
 mod test {
-    
+
     use crate::{
         asset::manager::ResourceManager,
         core::{
@@ -2785,7 +2785,7 @@ mod test {
         },
     };
     use fyrox_ui::UiContainer;
-    
+
     use std::sync::{
         mpsc::{self, Sender, TryRecvError},
         Arc,

@@ -220,12 +220,8 @@ impl TileDataUpdate {
     pub fn get_tile_collider(&self, uuid: &Uuid) -> Option<&TileCollider> {
         match self {
             Self::Erase => Some(&TileCollider::None),
-            Self::MaterialTile(data) => {
-                data.colliders.get(uuid).or(Some(&TileCollider::None))
-            }
-            Self::FreeformTile(def) => {
-                def.data.colliders.get(uuid).or(Some(&TileCollider::None))
-            }
+            Self::MaterialTile(data) => data.colliders.get(uuid).or(Some(&TileCollider::None)),
+            Self::FreeformTile(def) => def.data.colliders.get(uuid).or(Some(&TileCollider::None)),
             Self::Collider(map) => map.get(uuid),
             _ => None,
         }
@@ -292,9 +288,7 @@ impl TileDataUpdate {
                 *self = Self::DoNothing;
             }
             Self::MaterialTile(tile_data) => std::mem::swap(tile_data, data),
-            Self::FreeformTile(tile_definition) => {
-                std::mem::swap(&mut tile_definition.data, data)
-            }
+            Self::FreeformTile(tile_definition) => std::mem::swap(&mut tile_definition.data, data),
             Self::Color(color) => std::mem::swap(color, &mut data.color),
             Self::Collider(colliders) => {
                 for (uuid, value) in colliders.iter_mut() {
@@ -313,9 +307,7 @@ impl TileDataUpdate {
                     }
                 }
             }
-            Self::Property(uuid, value) => {
-                swap_hash_map_entry(data.properties.entry(*uuid), value)
-            }
+            Self::Property(uuid, value) => swap_hash_map_entry(data.properties.entry(*uuid), value),
             Self::PropertySlice(uuid, value) => match data.properties.entry(*uuid) {
                 Entry::Occupied(mut e) => {
                     if let TileSetPropertyValue::NineSlice(v0) = e.get_mut() {

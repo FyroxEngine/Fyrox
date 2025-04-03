@@ -278,12 +278,7 @@ impl PartialPath {
     }
 
     /// Returns a clone with the new vertex added to the end and updates scores to given new scores
-    pub fn clone_and_add(
-        &self,
-        new_vertex: usize,
-        new_g_score: f32,
-        new_f_score: f32,
-    ) -> Self {
+    pub fn clone_and_add(&self, new_vertex: usize, new_g_score: f32, new_f_score: f32) -> Self {
         let mut clone = self.clone();
         clone.vertices.push(new_vertex);
         clone.g_score = new_g_score;

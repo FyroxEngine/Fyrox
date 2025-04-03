@@ -47,11 +47,7 @@ impl ResourceGraphNode {
             });
         }
 
-        children.extend(
-            dependent_resources
-                .into_iter()
-                .map(|r| Self::new(&r)),
-        );
+        children.extend(dependent_resources.into_iter().map(|r| Self::new(&r)));
 
         Self {
             resource: resource.clone(),

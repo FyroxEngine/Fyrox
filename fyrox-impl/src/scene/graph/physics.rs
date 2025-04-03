@@ -146,9 +146,7 @@ impl From<rapier3d::dynamics::CoefficientCombineRule> for CoefficientCombineRule
         match v {
             rapier3d::dynamics::CoefficientCombineRule::Average => Self::Average,
             rapier3d::dynamics::CoefficientCombineRule::Min => Self::Min,
-            rapier3d::dynamics::CoefficientCombineRule::Multiply => {
-                Self::Multiply
-            }
+            rapier3d::dynamics::CoefficientCombineRule::Multiply => Self::Multiply,
             rapier3d::dynamics::CoefficientCombineRule::Max => Self::Max,
         }
     }
@@ -159,9 +157,7 @@ impl Into<rapier3d::dynamics::CoefficientCombineRule> for CoefficientCombineRule
         match self {
             Self::Average => rapier3d::dynamics::CoefficientCombineRule::Average,
             Self::Min => rapier3d::dynamics::CoefficientCombineRule::Min,
-            Self::Multiply => {
-                rapier3d::dynamics::CoefficientCombineRule::Multiply
-            }
+            Self::Multiply => rapier3d::dynamics::CoefficientCombineRule::Multiply,
             Self::Max => rapier3d::dynamics::CoefficientCombineRule::Max,
         }
     }
@@ -172,9 +168,7 @@ impl Into<rapier2d::dynamics::CoefficientCombineRule> for CoefficientCombineRule
         match self {
             Self::Average => rapier2d::dynamics::CoefficientCombineRule::Average,
             Self::Min => rapier2d::dynamics::CoefficientCombineRule::Min,
-            Self::Multiply => {
-                rapier2d::dynamics::CoefficientCombineRule::Multiply
-            }
+            Self::Multiply => rapier2d::dynamics::CoefficientCombineRule::Multiply,
             Self::Max => rapier2d::dynamics::CoefficientCombineRule::Max,
         }
     }

@@ -89,9 +89,7 @@ where
 {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Value(left), Self::Value(right)) => {
-                left == right
-            }
+            (Self::Value(left), Self::Value(right)) => left == right,
         }
     }
 }

@@ -317,7 +317,6 @@ pub enum TileSetPropertyType {
 impl TileSetPropertyType {
     /// The default value for properties of the given type.
     pub fn default_value(&self) -> TileSetPropertyValue {
-        
         use TileSetPropertyValue as PropValue;
         match self {
             Self::I32 => PropValue::I32(0),
@@ -329,7 +328,7 @@ impl TileSetPropertyType {
     /// The none value when no value is available.
     pub fn default_option_value(&self) -> TileSetPropertyOptionValue {
         use TileSetPropertyOptionValue as PropValue;
-        
+
         match self {
             Self::I32 => PropValue::I32(None),
             Self::F32 => PropValue::F32(None),
@@ -519,12 +518,8 @@ impl TileSetPropertyValue {
         match self {
             Self::I32(_) => Self::I32(0),
             Self::F32(_) => Self::F32(0.0),
-            Self::String(_) => {
-                Self::String(ImmutableString::default())
-            }
-            Self::NineSlice(_) => {
-                Self::NineSlice(Default::default())
-            }
+            Self::String(_) => Self::String(ImmutableString::default()),
+            Self::NineSlice(_) => Self::NineSlice(Default::default()),
         }
     }
     /// The type of the data in this value.
@@ -554,7 +549,7 @@ impl TileSetPropertyValue {
     /// Wherever the given value is None, no change is made to this value.
     pub fn set_from(&mut self, value: &TileSetPropertyOptionValue) {
         use TileSetPropertyOptionValue as OptValue;
-        
+
         match (self, value) {
             (Self::I32(x0), OptValue::I32(Some(x1))) => *x0 = *x1,
             (Self::F32(x0), OptValue::F32(Some(x1))) => *x0 = *x1,
@@ -654,7 +649,6 @@ impl TryFrom<TileSetPropertyValue> for NineI8 {
 
 impl From<TileSetPropertyValue> for TileSetPropertyOptionValue {
     fn from(value: TileSetPropertyValue) -> Self {
-        
         use TileSetPropertyValue as Value;
         match value {
             Value::I32(x) => Self::I32(Some(x)),
@@ -668,7 +662,7 @@ impl From<TileSetPropertyValue> for TileSetPropertyOptionValue {
 impl From<TileSetPropertyOptionValue> for TileSetPropertyValue {
     fn from(value: TileSetPropertyOptionValue) -> Self {
         use TileSetPropertyOptionValue as OValue;
-        
+
         match value {
             OValue::I32(x) => Self::I32(x.unwrap_or_default()),
             OValue::F32(x) => Self::F32(x.unwrap_or_default()),
@@ -682,7 +676,6 @@ impl TileSetPropertyOptionValue {
     /// Combines this value with the given value, replacing the content of this value with None
     /// wherever it differs from the given value.
     pub fn intersect(&mut self, value: &TileSetPropertyValue) {
-        
         use TileSetPropertyValue as PropValue;
         match self {
             Self::I32(x0) => {
