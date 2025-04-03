@@ -11,6 +11,7 @@
 /fyrox-core/test.txt
 /fyrox-resource/test.txt
 /fyrox-core-derive/test_output
+/fyrox-resource/test_output
 /fyrox-impl/test_output
 history.bin
 settings.ron
