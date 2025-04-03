@@ -194,7 +194,7 @@ fn count_ancestor_depth(mut handle: Handle<Node>, list: &[Handle<Node>], graph: 
     let mut count: usize = 0;
     while let Some(node) = graph.try_get(handle) {
         handle = node.parent();
-        if list.iter().any(|h| *h == handle) {
+        if list.contains(&handle) {
             count += 1;
         } else {
             break;

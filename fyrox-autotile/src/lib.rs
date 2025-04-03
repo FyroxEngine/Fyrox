@@ -88,13 +88,13 @@ pub struct Vector2Diagonal(usize);
 
 impl Vector2Diagonal {
     /// Diagonal (-1, -1)
-    pub const LEFT_DOWN: Vector2Diagonal = Vector2Diagonal(0);
+    pub const LEFT_DOWN: Self = Self(0);
     /// Diagonal (1, -1)
-    pub const RIGHT_DOWN: Vector2Diagonal = Vector2Diagonal(1);
+    pub const RIGHT_DOWN: Self = Self(1);
     /// Diagonal (-1, 1)
-    pub const LEFT_UP: Vector2Diagonal = Vector2Diagonal(2);
+    pub const LEFT_UP: Self = Self(2);
     /// Diagonal (1, 1)
-    pub const RIGHT_UP: Vector2Diagonal = Vector2Diagonal(3);
+    pub const RIGHT_UP: Self = Self(3);
     /// The bit in a `PatternBits` object that corresponds to this diagonal.
     /// The returned bit is the peer that must match against the diagonal pattern
     /// in this direction.
@@ -121,7 +121,7 @@ impl Debug for Vector2Diagonal {
 }
 
 impl std::ops::Add<Vector2Diagonal> for Vector2<i32> {
-    type Output = Vector2<i32>;
+    type Output = Self;
 
     fn add(self, rhs: Vector2Diagonal) -> Self::Output {
         self + DIAG2[rhs.0]
@@ -132,7 +132,7 @@ impl std::ops::Neg for Vector2Diagonal {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        Vector2Diagonal(3 - self.0)
+        Self(3 - self.0)
     }
 }
 
@@ -171,13 +171,13 @@ const DIAGONAL_PEERING_BITS: [usize; 4] =
 
 impl Vector2Offset {
     /// Offset (0, 1)
-    pub const UP: Vector2Offset = Vector2Offset(2);
+    pub const UP: Self = Self(2);
     /// Offset (0, -1)
-    pub const DOWN: Vector2Offset = Vector2Offset(1);
+    pub const DOWN: Self = Self(1);
     /// Offset (-1, 0)
-    pub const LEFT: Vector2Offset = Vector2Offset(0);
+    pub const LEFT: Self = Self(0);
     /// Offset (1, 0)
-    pub const RIGHT: Vector2Offset = Vector2Offset(3);
+    pub const RIGHT: Self = Self(3);
     /// Iterator over the three peering bits that are along the edge
     /// of a 3x3 pattern grid in the direction of this offset.
     fn peering_bits(&self) -> impl Iterator<Item = usize> {
@@ -209,7 +209,7 @@ impl From<Vector2Offset> for Vector2<i32> {
 }
 
 impl std::ops::Add<Vector2Offset> for Vector2<i32> {
-    type Output = Vector2<i32>;
+    type Output = Self;
 
     fn add(self, rhs: Vector2Offset) -> Self::Output {
         self + OFFSETS2[rhs.0]
@@ -220,7 +220,7 @@ impl std::ops::Neg for Vector2Offset {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        Vector2Offset(3 - self.0)
+        Self(3 - self.0)
     }
 }
 
@@ -263,7 +263,7 @@ const DIAG3: [Vector3<i32>; 20] = [
 ];
 
 impl std::ops::Add<Vector3Diagonal> for Vector3<i32> {
-    type Output = Vector3<i32>;
+    type Output = Self;
 
     fn add(self, rhs: Vector3Diagonal) -> Self::Output {
         self + rhs.0
@@ -274,7 +274,7 @@ impl std::ops::Neg for Vector3Diagonal {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        Vector3Diagonal(-self.0)
+        Self(-self.0)
     }
 }
 
@@ -314,7 +314,7 @@ impl From<Vector3Offset> for Vector3<i32> {
 }
 
 impl std::ops::Add<Vector3Offset> for Vector3<i32> {
-    type Output = Vector3<i32>;
+    type Output = Self;
 
     fn add(self, rhs: Vector3Offset) -> Self::Output {
         self + OFFSETS3[rhs.0]
@@ -325,7 +325,7 @@ impl std::ops::Neg for Vector3Offset {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        Vector3Offset(5 - self.0)
+        Self(5 - self.0)
     }
 }
 

@@ -187,8 +187,8 @@ impl Visit for Reverb {
         self.fc.visit("Fc", &mut region)?;
 
         if region.is_reading() {
-            self.left = ChannelReverb::new(0, self.fc, Reverb::FEEDBACK, self.decay_time);
-            self.right = ChannelReverb::new(23, self.fc, Reverb::FEEDBACK, self.decay_time);
+            self.left = ChannelReverb::new(0, self.fc, Self::FEEDBACK, self.decay_time);
+            self.right = ChannelReverb::new(23, self.fc, Self::FEEDBACK, self.decay_time);
         }
 
         Ok(())
@@ -216,8 +216,8 @@ impl Reverb {
             wet: 1.0,
             decay_time: 2.0,
             fc,
-            left: ChannelReverb::new(0, fc, Reverb::FEEDBACK, decay_time),
-            right: ChannelReverb::new(23, fc, Reverb::FEEDBACK, decay_time),
+            left: ChannelReverb::new(0, fc, Self::FEEDBACK, decay_time),
+            right: ChannelReverb::new(23, fc, Self::FEEDBACK, decay_time),
         }
     }
 

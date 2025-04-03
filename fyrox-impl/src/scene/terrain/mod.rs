@@ -106,11 +106,11 @@ pub struct TerrainRect {
 impl TerrainRect {
     /// Calculate the cell which contains the given local 2D coordinates when cells have the given size.
     /// It is assumed that the (0,0) cell has its origin at local 2D point (0.0, 0.0).
-    pub fn from_local(position: Vector2<f32>, cell_size: Vector2<f32>) -> TerrainRect {
+    pub fn from_local(position: Vector2<f32>, cell_size: Vector2<f32>) -> Self {
         let cell_pos = Vector2::new(position.x / cell_size.x, position.y / cell_size.y);
         let cell_pos = cell_pos.map(f32::floor);
         let min = Vector2::new(cell_pos.x * cell_size.x, cell_pos.y * cell_size.y);
-        TerrainRect {
+        Self {
             grid_position: cell_pos.map(|x| x as i32),
             bounds: Rect::new(min.x, min.y, cell_size.x, cell_size.y),
         }
@@ -723,7 +723,7 @@ impl Chunk {
                                 make_height_map_texture_internal(pixels, self.height_map_size)
                             {
                                 let prev_texture =
-                                    std::mem::replace(&mut self.heightmap, Some(texture));
+                                    self.heightmap.replace(texture);
                                 self.update_quad_tree();
                                 return prev_texture;
                             }
@@ -901,7 +901,7 @@ impl BrushContext {
     /// texture-space coordinates. This should be the same terrain as was given to [BrushContext::start_stroke].
     /// - `position`: The position of the brush in world coordinates.
     pub fn stamp(&mut self, terrain: &Terrain, position: Vector3<f32>) {
-        let value = if matches!(self.stroke.brush().mode, BrushMode::Flatten { .. }) {
+        let value = if matches!(self.stroke.brush().mode, BrushMode::Flatten) {
             self.interpolate_value(terrain, position)
         } else {
             0.0
@@ -916,7 +916,7 @@ impl BrushContext {
     /// - `start`: The start of the brush in world coordinates.
     /// - `end`: The end of the brush in world coordinates.
     pub fn smear(&mut self, terrain: &Terrain, start: Vector3<f32>, end: Vector3<f32>) {
-        let value = if matches!(self.stroke.brush().mode, BrushMode::Flatten { .. }) {
+        let value = if matches!(self.stroke.brush().mode, BrushMode::Flatten) {
             self.interpolate_value(terrain, start)
         } else {
             0.0

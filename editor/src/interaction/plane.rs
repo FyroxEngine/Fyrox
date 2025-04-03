@@ -35,8 +35,8 @@ pub enum PlaneKind {
 impl PlaneKind {
     pub fn make_plane_from_view(self, look_direction: Vector3<f32>) -> Option<Plane> {
         let normal = match self {
-            PlaneKind::SMART => return None,
-            PlaneKind::X => {
+            Self::SMART => return None,
+            Self::X => {
                 let r = Vector3::new(0.0, look_direction.y, look_direction.z);
                 if !r.is_zero() {
                     r
@@ -44,7 +44,7 @@ impl PlaneKind {
                     Vector3::new(0.0, 1.0, 1.0)
                 }
             }
-            PlaneKind::Y => {
+            Self::Y => {
                 let r = Vector3::new(look_direction.x, 0.0, look_direction.z);
                 if !r.is_zero() {
                     r
@@ -52,7 +52,7 @@ impl PlaneKind {
                     Vector3::new(1.0, 0.0, 1.0)
                 }
             }
-            PlaneKind::Z => {
+            Self::Z => {
                 let r = Vector3::new(look_direction.x, look_direction.y, 0.0);
                 if !r.is_zero() {
                     r
@@ -60,21 +60,21 @@ impl PlaneKind {
                     Vector3::new(1.0, 1.0, 0.0)
                 }
             }
-            PlaneKind::YZ => Vector3::x(),
-            PlaneKind::ZX => Vector3::y(),
-            PlaneKind::XY => Vector3::z(),
+            Self::YZ => Vector3::x(),
+            Self::ZX => Vector3::y(),
+            Self::XY => Vector3::z(),
         };
         Plane::from_normal_and_point(&normal, &Default::default())
     }
 
     pub fn project_point(self, point: Vector3<f32>) -> Vector3<f32> {
         match self {
-            PlaneKind::SMART | PlaneKind::X => Vector3::new(point.x, 0.0, 0.0),
-            PlaneKind::Y => Vector3::new(0.0, point.y, 0.0),
-            PlaneKind::Z => Vector3::new(0.0, 0.0, point.z),
-            PlaneKind::XY => Vector3::new(point.x, point.y, 0.0),
-            PlaneKind::YZ => Vector3::new(0.0, point.y, point.z),
-            PlaneKind::ZX => Vector3::new(point.x, 0.0, point.z),
+            Self::SMART | Self::X => Vector3::new(point.x, 0.0, 0.0),
+            Self::Y => Vector3::new(0.0, point.y, 0.0),
+            Self::Z => Vector3::new(0.0, 0.0, point.z),
+            Self::XY => Vector3::new(point.x, point.y, 0.0),
+            Self::YZ => Vector3::new(0.0, point.y, point.z),
+            Self::ZX => Vector3::new(point.x, 0.0, point.z),
         }
     }
 }

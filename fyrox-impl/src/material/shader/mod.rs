@@ -651,7 +651,7 @@ impl ShaderDefinition {
     }
 
     fn from_str(str: &str) -> Result<Self, ShaderError> {
-        let mut definition: ShaderDefinition = ron::de::from_str(str)?;
+        let mut definition: Self = ron::de::from_str(str)?;
         definition.generate_built_in_resources();
         definition.find_shader_line_locations(str);
         Ok(definition)
@@ -862,13 +862,13 @@ pub enum ShaderError {
 impl Display for ShaderError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ShaderError::Io(v) => {
+            Self::Io(v) => {
                 write!(f, "A file load error has occurred {v:?}")
             }
-            ShaderError::ParseError(v) => {
+            Self::ParseError(v) => {
                 write!(f, "A parsing error has occurred {v:?}")
             }
-            ShaderError::NotUtf8Source => {
+            Self::NotUtf8Source => {
                 write!(f, "Bytes does not represent Utf8-encoded string.")
             }
         }
@@ -923,7 +923,7 @@ pub trait ShaderResourceExtension: Sized {
 
 impl ShaderResourceExtension for ShaderResource {
     fn from_str(str: &str, kind: ResourceKind) -> Result<Self, ShaderError> {
-        Ok(Resource::new_ok(kind, Shader::from_string(str)?))
+        Ok(Self::new_ok(kind, Shader::from_string(str)?))
     }
 
     fn standard() -> Self {

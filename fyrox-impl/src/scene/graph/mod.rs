@@ -587,7 +587,7 @@ impl Graph {
     pub fn copy_node<F, Pre, Post>(
         &self,
         node_handle: Handle<Node>,
-        dest_graph: &mut Graph,
+        dest_graph: &mut Self,
         filter: &mut F,
         pre_process_callback: &mut Pre,
         post_process_callback: &mut Post,
@@ -690,7 +690,7 @@ impl Graph {
     fn copy_node_raw<F, Pre, Post>(
         &self,
         root_handle: Handle<Node>,
-        dest_graph: &mut Graph,
+        dest_graph: &mut Self,
         old_new_mapping: &mut NodeHandleMap<Node>,
         filter: &mut F,
         pre_process_callback: &mut Pre,
@@ -805,7 +805,7 @@ impl Graph {
                 }
             }
         }
-        Ok(std::mem::replace(&mut self.lightmap, Some(lightmap)))
+        Ok(self.lightmap.replace(lightmap))
     }
 
     /// Returns current lightmap.

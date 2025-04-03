@@ -38,9 +38,9 @@ pub enum EngineError {
 impl Display for EngineError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            EngineError::Sound(v) => Display::fmt(v, f),
-            EngineError::Renderer(v) => Display::fmt(v, f),
-            EngineError::Custom(v) => {
+            Self::Sound(v) => Display::fmt(v, f),
+            Self::Renderer(v) => Display::fmt(v, f),
+            Self::Custom(v) => {
                 write!(f, "Custom error: {v}")
             }
         }

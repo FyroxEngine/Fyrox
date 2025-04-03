@@ -477,7 +477,7 @@ impl Node {
 
     pub(crate) fn set_inheritance_data(
         &mut self,
-        original_handle: Handle<Node>,
+        original_handle: Handle<Self>,
         model: ModelResource,
     ) {
         // Notify instantiated node about resource it was created from.

@@ -297,7 +297,7 @@ where
 
 impl<T> Clone for Handle<T> {
     #[inline]
-    fn clone(&self) -> Handle<T> {
+    fn clone(&self) -> Self {
         *self
     }
 }
@@ -370,7 +370,7 @@ where
 {
     #[inline]
     pub fn new() -> Self {
-        Pool {
+        Self {
             records: Vec::new(),
             free_stack: Vec::new(),
         }
@@ -379,7 +379,7 @@ where
     #[inline]
     pub fn with_capacity(capacity: u32) -> Self {
         let capacity = usize::try_from(capacity).expect("capacity overflowed usize");
-        Pool {
+        Self {
             records: Vec::with_capacity(capacity),
             free_stack: Vec::new(),
         }
@@ -877,7 +877,7 @@ where
     where
         F: FnOnce(&T) -> Handle<T>,
     {
-        let this = unsafe { &mut *(self as *mut Pool<T, P>) };
+        let this = unsafe { &mut *(self as *mut Self) };
         let first = self.try_borrow_mut(handle);
         if let Some(first_object) = first.as_ref() {
             let second_handle = func(first_object);
@@ -1422,7 +1422,7 @@ where
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {
-            while self.ptr != self.end {
+            while !std::ptr::eq(self.ptr, self.end) {
                 let current = &*self.ptr;
                 if let Some(payload) = current.payload.as_ref() {
                     self.ptr = self.ptr.offset(1);
@@ -1483,7 +1483,7 @@ where
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {
-            while self.ptr != self.end {
+            while !std::ptr::eq(self.ptr, self.end) {
                 let current = &mut *self.ptr;
                 if let Some(payload) = current.payload.as_mut() {
                     self.ptr = self.ptr.offset(1);
@@ -1516,7 +1516,7 @@ where
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {
-            while self.ptr != self.end {
+            while !std::ptr::eq(self.ptr, self.end) {
                 let current = &mut *self.ptr;
                 if let Some(payload) = current.payload.as_mut() {
                     let handle = Handle::new(self.current as u32, current.generation);

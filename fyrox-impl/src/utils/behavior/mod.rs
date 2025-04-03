@@ -417,11 +417,11 @@ mod test {
 
         fn tick(&mut self, context: &mut Self::Context) -> Status {
             match self {
-                BotBehavior::None => unreachable!(),
-                BotBehavior::Walk(v) => v.tick(context),
-                BotBehavior::OpenDoor(v) => v.tick(context),
-                BotBehavior::StepThrough(v) => v.tick(context),
-                BotBehavior::CloseDoor(v) => v.tick(context),
+                Self::None => unreachable!(),
+                Self::Walk(v) => v.tick(context),
+                Self::OpenDoor(v) => v.tick(context),
+                Self::StepThrough(v) => v.tick(context),
+                Self::CloseDoor(v) => v.tick(context),
             }
         }
     }

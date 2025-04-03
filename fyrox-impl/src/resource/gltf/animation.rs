@@ -52,42 +52,42 @@ pub enum ImportedBinding {
 impl ImportedBinding {
     fn epsilon(&self) -> f32 {
         match self {
-            ImportedBinding::Position => 0.001,
-            ImportedBinding::Rotation => std::f32::consts::PI / 180.0,
-            ImportedBinding::Scale => 0.1,
-            ImportedBinding::Weight(_) => 0.001,
+            Self::Position => 0.001,
+            Self::Rotation => std::f32::consts::PI / 180.0,
+            Self::Scale => 0.1,
+            Self::Weight(_) => 0.001,
         }
     }
     fn max_step(&self) -> f32 {
         match self {
-            ImportedBinding::Position => f32::INFINITY,
-            ImportedBinding::Rotation => std::f32::consts::PI / 4.0,
-            ImportedBinding::Scale => f32::INFINITY,
-            ImportedBinding::Weight(_) => f32::INFINITY,
+            Self::Position => f32::INFINITY,
+            Self::Rotation => std::f32::consts::PI / 4.0,
+            Self::Scale => f32::INFINITY,
+            Self::Weight(_) => f32::INFINITY,
         }
     }
     fn morph_index(&self) -> Result<usize> {
         match self {
-            ImportedBinding::Position => Err(()),
-            ImportedBinding::Rotation => Err(()),
-            ImportedBinding::Scale => Err(()),
-            ImportedBinding::Weight(i) => Ok(*i),
+            Self::Position => Err(()),
+            Self::Rotation => Err(()),
+            Self::Scale => Err(()),
+            Self::Weight(i) => Ok(*i),
         }
     }
     fn kind(&self) -> TrackValueKind {
         match self {
-            ImportedBinding::Position => TrackValueKind::Vector3,
-            ImportedBinding::Rotation => TrackValueKind::UnitQuaternion,
-            ImportedBinding::Scale => TrackValueKind::Vector3,
-            ImportedBinding::Weight(_) => TrackValueKind::Real,
+            Self::Position => TrackValueKind::Vector3,
+            Self::Rotation => TrackValueKind::UnitQuaternion,
+            Self::Scale => TrackValueKind::Vector3,
+            Self::Weight(_) => TrackValueKind::Real,
         }
     }
     fn value_binding(&self) -> ValueBinding {
         match self {
-            ImportedBinding::Position => ValueBinding::Position,
-            ImportedBinding::Rotation => ValueBinding::Rotation,
-            ImportedBinding::Scale => ValueBinding::Scale,
-            ImportedBinding::Weight(i) => ValueBinding::Property {
+            Self::Position => ValueBinding::Position,
+            Self::Rotation => ValueBinding::Rotation,
+            Self::Scale => ValueBinding::Scale,
+            Self::Weight(i) => ValueBinding::Property {
                 name: format!("blend_shapes[{}].weight", i).into(),
                 value_type: ValueType::F32,
             },

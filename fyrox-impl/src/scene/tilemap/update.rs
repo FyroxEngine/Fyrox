@@ -60,7 +60,7 @@ struct BresenhamLineIter {
 }
 
 impl BresenhamLineIter {
-    fn new(start: Vector2<i32>, end: Vector2<i32>) -> BresenhamLineIter {
+    fn new(start: Vector2<i32>, end: Vector2<i32>) -> Self {
         let (mut x0, mut y0) = (start.x, start.y);
         let (mut x1, mut y1) = (end.x, end.y);
 
@@ -77,7 +77,7 @@ impl BresenhamLineIter {
 
         let dx = x1 - x0;
 
-        BresenhamLineIter {
+        Self {
             dx,
             dy: (y1 - y0).abs(),
             x: x0,
@@ -177,29 +177,29 @@ impl TileDataUpdate {
         value: TileSetPropertyValue,
     ) -> TileSetPropertyValue {
         match self {
-            TileDataUpdate::Erase => value.make_default(),
-            TileDataUpdate::DoNothing => value,
-            TileDataUpdate::MaterialTile(tile_data) => tile_data
+            Self::Erase => value.make_default(),
+            Self::DoNothing => value,
+            Self::MaterialTile(tile_data) => tile_data
                 .properties
                 .get(&property_id)
                 .cloned()
                 .unwrap_or(value.make_default()),
-            TileDataUpdate::FreeformTile(tile_definition) => tile_definition
+            Self::FreeformTile(tile_definition) => tile_definition
                 .data
                 .properties
                 .get(&property_id)
                 .cloned()
                 .unwrap_or(value.make_default()),
-            TileDataUpdate::TransformSet(_) => value,
-            TileDataUpdate::Color(_) => value,
-            TileDataUpdate::Property(uuid, new_value) => {
+            Self::TransformSet(_) => value,
+            Self::Color(_) => value,
+            Self::Property(uuid, new_value) => {
                 if *uuid == property_id {
                     new_value.as_ref().cloned().unwrap_or(value.make_default())
                 } else {
                     value
                 }
             }
-            TileDataUpdate::PropertySlice(uuid, data) => match value {
+            Self::PropertySlice(uuid, data) => match value {
                 TileSetPropertyValue::NineSlice(mut old_data) if property_id == *uuid => {
                     for (i, v) in data.iter().enumerate() {
                         old_data.0[i] = v.unwrap_or(old_data.0[i]);
@@ -211,22 +211,22 @@ impl TileDataUpdate {
                 }
                 _ => value,
             },
-            TileDataUpdate::Collider(_) => value,
-            TileDataUpdate::Material(_) => value,
+            Self::Collider(_) => value,
+            Self::Material(_) => value,
         }
     }
     /// The tile collider for the given id, if the collider is being replaced by this update.
     /// None if the collider is not changed by this update.
     pub fn get_tile_collider(&self, uuid: &Uuid) -> Option<&TileCollider> {
         match self {
-            TileDataUpdate::Erase => Some(&TileCollider::None),
-            TileDataUpdate::MaterialTile(data) => {
+            Self::Erase => Some(&TileCollider::None),
+            Self::MaterialTile(data) => {
                 data.colliders.get(uuid).or(Some(&TileCollider::None))
             }
-            TileDataUpdate::FreeformTile(def) => {
+            Self::FreeformTile(def) => {
                 def.data.colliders.get(uuid).or(Some(&TileCollider::None))
             }
-            TileDataUpdate::Collider(map) => map.get(uuid),
+            Self::Collider(map) => map.get(uuid),
             _ => None,
         }
     }
@@ -238,7 +238,7 @@ impl TileDataUpdate {
         &self,
         source: TileDefinitionHandle,
     ) -> Option<TileDefinitionHandle> {
-        if let TileDataUpdate::TransformSet(new_source) = self {
+        if let Self::TransformSet(new_source) = self {
             *new_source
         } else {
             Some(source)
@@ -248,20 +248,20 @@ impl TileDataUpdate {
     /// None is returned if no tile should be rendered.
     pub fn modify_render<'a>(&self, source: &'a TileRenderData) -> Option<Cow<'a, TileRenderData>> {
         match self {
-            TileDataUpdate::Erase => None,
-            TileDataUpdate::MaterialTile(tile_data) => Some(Cow::Owned(TileRenderData::new(
+            Self::Erase => None,
+            Self::MaterialTile(tile_data) => Some(Cow::Owned(TileRenderData::new(
                 source.material_bounds.clone(),
                 tile_data.color,
             ))),
-            TileDataUpdate::FreeformTile(def) => Some(Cow::Owned(TileRenderData::new(
+            Self::FreeformTile(def) => Some(Cow::Owned(TileRenderData::new(
                 Some(def.material_bounds.clone()),
                 def.data.color,
             ))),
-            TileDataUpdate::Color(color) => Some(Cow::Owned(TileRenderData::new(
+            Self::Color(color) => Some(Cow::Owned(TileRenderData::new(
                 source.material_bounds.clone(),
                 *color,
             ))),
-            TileDataUpdate::Material(material_bounds) => Some(Cow::Owned(TileRenderData::new(
+            Self::Material(material_bounds) => Some(Cow::Owned(TileRenderData::new(
                 Some(material_bounds.clone()),
                 source.color,
             ))),
@@ -271,14 +271,14 @@ impl TileDataUpdate {
     /// Remove `TileData` and turn this object into `Erase`, if this is a MaterialTile. Otherwise, panic.
     pub fn take_data(&mut self) -> TileData {
         match std::mem::take(self) {
-            TileDataUpdate::MaterialTile(d) => d,
+            Self::MaterialTile(d) => d,
             _ => panic!(),
         }
     }
     /// Remove `TileDefinition` and turn this object into `Erase`, if this is a FreeformTile. Otherwise, panic.
     pub fn take_definition(&mut self) -> TileDefinition {
         match std::mem::take(self) {
-            TileDataUpdate::FreeformTile(d) => d,
+            Self::FreeformTile(d) => d,
             _ => panic!(),
         }
     }
@@ -286,17 +286,17 @@ impl TileDataUpdate {
     /// If this update has no data to swap, then do nothing and set this update to `DoNothing`.
     pub fn swap_with_data(&mut self, data: &mut TileData) {
         match self {
-            TileDataUpdate::DoNothing => (),
-            TileDataUpdate::Erase => {
+            Self::DoNothing => (),
+            Self::Erase => {
                 Log::err("Tile data swap error");
                 *self = Self::DoNothing;
             }
-            TileDataUpdate::MaterialTile(tile_data) => std::mem::swap(tile_data, data),
-            TileDataUpdate::FreeformTile(tile_definition) => {
+            Self::MaterialTile(tile_data) => std::mem::swap(tile_data, data),
+            Self::FreeformTile(tile_definition) => {
                 std::mem::swap(&mut tile_definition.data, data)
             }
-            TileDataUpdate::Color(color) => std::mem::swap(color, &mut data.color),
-            TileDataUpdate::Collider(colliders) => {
+            Self::Color(color) => std::mem::swap(color, &mut data.color),
+            Self::Collider(colliders) => {
                 for (uuid, value) in colliders.iter_mut() {
                     match data.colliders.entry(*uuid) {
                         Entry::Occupied(mut e) => {
@@ -313,10 +313,10 @@ impl TileDataUpdate {
                     }
                 }
             }
-            TileDataUpdate::Property(uuid, value) => {
+            Self::Property(uuid, value) => {
                 swap_hash_map_entry(data.properties.entry(*uuid), value)
             }
-            TileDataUpdate::PropertySlice(uuid, value) => match data.properties.entry(*uuid) {
+            Self::PropertySlice(uuid, value) => match data.properties.entry(*uuid) {
                 Entry::Occupied(mut e) => {
                     if let TileSetPropertyValue::NineSlice(v0) = e.get_mut() {
                         for (v0, v1) in v0.0.iter_mut().zip(value.iter_mut()) {
@@ -330,14 +330,14 @@ impl TileDataUpdate {
                     let _ = e.insert(TileSetPropertyValue::NineSlice(NineI8(
                         value.map(|v| v.unwrap_or_default()),
                     )));
-                    *self = TileDataUpdate::Property(*uuid, None);
+                    *self = Self::Property(*uuid, None);
                 }
             },
-            TileDataUpdate::TransformSet(_) => {
+            Self::TransformSet(_) => {
                 Log::err("Tile data swap error");
                 *self = Self::DoNothing;
             }
-            TileDataUpdate::Material(_) => {
+            Self::Material(_) => {
                 Log::err("Tile data swap error");
                 *self = Self::DoNothing;
             }
@@ -884,7 +884,7 @@ impl TransTilesUpdate {
         stamp: &Stamp,
         fill: F,
     ) where
-        F: Fn(&mut TransTilesUpdate, TileRegion, &Stamp, TileRegion),
+        F: Fn(&mut Self, TileRegion, &Stamp, TileRegion),
     {
         let Some(stamp_rect) = *stamp.bounding_rect() else {
             return;

@@ -99,7 +99,7 @@ impl Default for ResourceState {
 
 impl Drop for ResourceState {
     fn drop(&mut self) {
-        if let ResourceState::Pending { wakers, .. } = self {
+        if let Self::Pending { wakers, .. } = self {
             assert_eq!(wakers.len(), 0);
         }
     }
@@ -163,12 +163,12 @@ impl ResourceState {
 
     /// Checks whether the resource is still loading or not.
     pub fn is_loading(&self) -> bool {
-        matches!(self, ResourceState::Pending { .. })
+        matches!(self, Self::Pending { .. })
     }
 
     /// Switches the internal state of the resource to [`ResourceState::Pending`].
     pub fn switch_to_pending_state(&mut self) {
-        *self = ResourceState::Pending {
+        *self = Self::Pending {
             wakers: Default::default(),
         };
     }
@@ -176,10 +176,10 @@ impl ResourceState {
     /// Changes ResourceState::Pending state to ResourceState::Ok(data) with given `data`.
     /// Additionally it wakes all futures.
     #[inline]
-    pub fn commit(&mut self, state: ResourceState) {
-        assert!(!matches!(state, ResourceState::Pending { .. }));
+    pub fn commit(&mut self, state: Self) {
+        assert!(!matches!(state, Self::Pending { .. }));
 
-        let wakers = if let ResourceState::Pending { ref mut wakers } = self {
+        let wakers = if let Self::Pending { ref mut wakers } = self {
             std::mem::take(wakers)
         } else {
             unreachable!()
@@ -194,12 +194,12 @@ impl ResourceState {
 
     /// Changes internal state to [`ResourceState::Ok`]
     pub fn commit_ok<T: ResourceData>(&mut self, data: T) {
-        self.commit(ResourceState::Ok(Box::new(data)))
+        self.commit(Self::Ok(Box::new(data)))
     }
 
     /// Changes internal state to [`ResourceState::LoadError`].
     pub fn commit_error<E: ResourceLoadError>(&mut self, error: E) {
-        self.commit(ResourceState::LoadError {
+        self.commit(Self::LoadError {
             error: LoadError::new(error),
         })
     }

@@ -1720,7 +1720,7 @@ mod test {
 
     impl ResourceData for Graph {
         fn type_uuid(&self) -> Uuid {
-            <Graph as TypeUuidProvider>::type_uuid()
+            <Self as TypeUuidProvider>::type_uuid()
         }
 
         fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
@@ -1733,7 +1733,7 @@ mod test {
     }
 
     impl PrefabData for Graph {
-        type Graph = Graph;
+        type Graph = Self;
 
         fn graph(&self) -> &Self::Graph {
             self
@@ -1778,7 +1778,7 @@ mod test {
     }
 
     impl BaseSceneGraph for Graph {
-        type Prefab = Graph;
+        type Prefab = Self;
         type NodeContainer = NodeContainer;
         type Node = Node;
 
@@ -1921,7 +1921,7 @@ mod test {
         pub fn copy_node(
             &self,
             node_handle: Handle<Node>,
-            dest_graph: &mut Graph,
+            dest_graph: &mut Self,
         ) -> (Handle<Node>, NodeHandleMap<Node>) {
             let mut old_new_mapping = NodeHandleMap::default();
             let root_handle = self.copy_node_raw(node_handle, dest_graph, &mut old_new_mapping);
@@ -1933,7 +1933,7 @@ mod test {
         fn copy_node_raw(
             &self,
             root_handle: Handle<Node>,
-            dest_graph: &mut Graph,
+            dest_graph: &mut Self,
             old_new_mapping: &mut NodeHandleMap<Node>,
         ) -> Handle<Node> {
             let src_node = &self.nodes[root_handle];

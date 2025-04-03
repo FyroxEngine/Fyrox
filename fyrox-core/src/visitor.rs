@@ -421,7 +421,7 @@ impl FieldKind {
             Self::UnitComplex(data) => {
                 format!("<complex = {}; {}>, ", data.re, data.im)
             }
-            FieldKind::PodArray {
+            Self::PodArray {
                 type_id,
                 element_size,
                 bytes,
@@ -760,7 +760,7 @@ impl Field {
         }
     }
 
-    fn save(field: &Field, file: &mut dyn Write) -> VisitResult {
+    fn save(field: &Self, file: &mut dyn Write) -> VisitResult {
         fn write_vec_n<T, const N: usize>(
             file: &mut dyn Write,
             type_id: u8,
@@ -976,7 +976,7 @@ impl Field {
         Ok(())
     }
 
-    fn load(file: &mut dyn Read) -> Result<Field, VisitError> {
+    fn load(file: &mut dyn Read) -> Result<Self, VisitError> {
         fn read_vec_n<T, S, const N: usize>(
             file: &mut dyn Read,
         ) -> Result<Matrix<T, Const<N>, U1, S>, VisitError>
@@ -995,7 +995,7 @@ impl Field {
         let mut raw_name = vec![Default::default(); name_len];
         file.read_exact(raw_name.as_mut_slice())?;
         let id = file.read_u8()?;
-        Ok(Field::new(
+        Ok(Self::new(
             String::from_utf8(raw_name)?.as_str(),
             match id {
                 1 => FieldKind::U8(file.read_u8()?),
@@ -1140,7 +1140,7 @@ pub struct VisitorNode {
 }
 
 impl VisitorNode {
-    fn new(name: &str, parent: Handle<VisitorNode>) -> Self {
+    fn new(name: &str, parent: Handle<Self>) -> Self {
         Self {
             name: name.to_owned(),
             fields: Vec::new(),
@@ -1650,7 +1650,7 @@ impl Visit for String {
         proxy.visit("Data", &mut region)?;
 
         if region.reading {
-            *self = String::from_utf8(data)?;
+            *self = Self::from_utf8(data)?;
         }
         Ok(())
     }
@@ -1684,7 +1684,7 @@ impl Visit for PathBuf {
         proxy.visit("Data", &mut region)?;
 
         if region.reading {
-            *self = PathBuf::from(String::from_utf8(data)?);
+            *self = Self::from(String::from_utf8(data)?);
         }
 
         Ok(())
@@ -1866,7 +1866,7 @@ where
                     *self = Rc::downgrade(&rc);
                 }
             }
-        } else if let Some(rc) = std::rc::Weak::upgrade(self) {
+        } else if let Some(rc) = Self::upgrade(self) {
             // Take raw pointer to inner data.
             let raw = rc_to_raw(&rc);
 
@@ -1916,7 +1916,7 @@ where
                     *self = Arc::downgrade(&arc);
                 }
             }
-        } else if let Some(arc) = std::sync::Weak::upgrade(self) {
+        } else if let Some(arc) = Self::upgrade(self) {
             // Take raw pointer to inner data.
             let raw = arc_to_raw(&arc);
 
@@ -2062,7 +2062,7 @@ impl Visit for Duration {
         nanos.visit("Nanos", &mut region)?;
 
         if region.is_reading() {
-            *self = Duration::new(secs, nanos);
+            *self = Self::new(secs, nanos);
         }
 
         Ok(())
@@ -2074,7 +2074,7 @@ impl Visit for char {
         let mut bytes = *self as u32;
         bytes.visit(name, visitor)?;
         if visitor.is_reading() {
-            *self = char::from_u32(bytes).unwrap();
+            *self = Self::from_u32(bytes).unwrap();
         }
         Ok(())
     }
@@ -2096,7 +2096,7 @@ impl Visit for usize {
         let mut this = *self as u64;
         this.visit(name, visitor)?;
         if visitor.is_reading() {
-            *self = this as usize;
+            *self = this as Self;
         }
         Ok(())
     }
@@ -2107,7 +2107,7 @@ impl Visit for isize {
         let mut this = *self as i64;
         this.visit(name, visitor)?;
         if visitor.is_reading() {
-            *self = this as isize;
+            *self = this as Self;
         }
         Ok(())
     }

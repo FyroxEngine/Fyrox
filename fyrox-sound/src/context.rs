@@ -374,8 +374,8 @@ impl SoundContext {
     }
 
     /// Creates deep copy instead of shallow which is done by clone().
-    pub fn deep_clone(&self) -> SoundContext {
-        SoundContext {
+    pub fn deep_clone(&self) -> Self {
+        Self {
             state: Some(Arc::new(Mutex::new(self.state().clone()))),
         }
     }

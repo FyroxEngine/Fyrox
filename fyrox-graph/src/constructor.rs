@@ -38,13 +38,13 @@ pub enum VariantResult<Node> {
 
 impl<Node> From<Node> for VariantResult<Node> {
     fn from(node: Node) -> Self {
-        VariantResult::Owned(node)
+        Self::Owned(node)
     }
 }
 
 impl<Node> From<Handle<Node>> for VariantResult<Node> {
     fn from(value: Handle<Node>) -> Self {
-        VariantResult::Handle(value)
+        Self::Handle(value)
     }
 }
 

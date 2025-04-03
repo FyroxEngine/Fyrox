@@ -1950,7 +1950,7 @@ impl Control for PaletteWidget {
             self.slice_position = mouse_pos.subgrid;
             self.set_cursor_position(Some(mouse_pos.grid));
             self.continue_motion(self.drawing_mode(), mouse_pos, ui);
-        } else if let Some(WidgetMessage::MouseLeave { .. }) = message.data() {
+        } else if let Some(WidgetMessage::MouseLeave) = message.data() {
             self.set_cursor_position(None);
         } else if let Some(WidgetMessage::MouseWheel { amount, pos }) = message.data() {
             let tile_pos = self.screen_point_to_tile_point(*pos);

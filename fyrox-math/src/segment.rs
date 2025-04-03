@@ -128,7 +128,7 @@ where
         v.x.clone() * u.y.clone() - u.x.clone() * v.y.clone()
     }
     /// True if this segment intersects the given segment based on collinearity.
-    pub fn intersects(&self, other: &LineSegment2<T>) -> bool {
+    pub fn intersects(&self, other: &Self) -> bool {
         fn pos<T>(t: &T) -> bool
         where
             T: Zero + Signed,

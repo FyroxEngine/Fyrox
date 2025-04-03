@@ -328,7 +328,7 @@ pub enum Mode {
 
 impl Mode {
     pub fn is_edit(&self) -> bool {
-        matches!(self, Mode::Edit { .. })
+        matches!(self, Self::Edit)
     }
 }
 

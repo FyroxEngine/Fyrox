@@ -39,7 +39,7 @@ impl FbxTexture {
         texture_node_handle: Handle<FbxNode>,
         nodes: &FbxNodeContainer,
     ) -> Result<Self, String> {
-        let mut texture = FbxTexture {
+        let mut texture = Self {
             filename: PathBuf::new(),
             content: Default::default(),
             ancestor: Default::default(),

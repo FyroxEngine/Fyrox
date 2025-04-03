@@ -36,14 +36,14 @@ use std::{marker::PhantomData, ops::Range, rc::Weak};
 impl SamplerKind {
     pub fn glsl_name(&self) -> &str {
         match self {
-            SamplerKind::Sampler1D => "sampler1D",
-            SamplerKind::Sampler2D => "sampler2D",
-            SamplerKind::Sampler3D => "sampler3D",
-            SamplerKind::SamplerCube => "samplerCube",
-            SamplerKind::USampler1D => "usampler1D",
-            SamplerKind::USampler2D => "usampler2D",
-            SamplerKind::USampler3D => "usampler3D",
-            SamplerKind::USamplerCube => "usamplerCube",
+            Self::Sampler1D => "sampler1D",
+            Self::Sampler2D => "sampler2D",
+            Self::Sampler3D => "sampler3D",
+            Self::SamplerCube => "samplerCube",
+            Self::USampler1D => "usampler1D",
+            Self::USampler2D => "usampler2D",
+            Self::USampler3D => "usampler3D",
+            Self::USamplerCube => "usamplerCube",
         }
     }
 }
@@ -75,7 +75,7 @@ impl Vendor {
     fn regex(&self) -> regex::Regex {
         match self {
             Self::Nvidia => regex::Regex::new(r"\([0-9]*\)").unwrap(),
-            Self::Intel | Vendor::Amd => regex::Regex::new(r"[0-9]*:").unwrap(),
+            Self::Intel | Self::Amd => regex::Regex::new(r"[0-9]*:").unwrap(),
             Self::Other => regex::Regex::new(r":[0-9]*").unwrap(),
         }
     }
@@ -83,20 +83,20 @@ impl Vendor {
     fn line_number_range(&self, match_range: regex::Match) -> Range<usize> {
         match self {
             Self::Nvidia => (match_range.start() + 1)..(match_range.end() - 1),
-            Self::Intel | Vendor::Amd => match_range.start()..(match_range.end() - 1),
+            Self::Intel | Self::Amd => match_range.start()..(match_range.end() - 1),
             Self::Other => (match_range.start() + 1)..match_range.end(),
         }
     }
 
     fn format_line(&self, new_line_number: isize) -> String {
         match self {
-            Vendor::Nvidia => {
+            Self::Nvidia => {
                 format!("({new_line_number})")
             }
-            Vendor::Intel | Vendor::Amd => {
+            Self::Intel | Self::Amd => {
                 format!("{new_line_number}:")
             }
-            Vendor::Other => format!(":{new_line_number}"),
+            Self::Other => format!(":{new_line_number}"),
         }
     }
 }
@@ -124,8 +124,8 @@ pub struct GlShader {
 impl ToGlConstant for ShaderKind {
     fn into_gl(self) -> u32 {
         match self {
-            ShaderKind::Vertex => glow::VERTEX_SHADER,
-            ShaderKind::Fragment => glow::FRAGMENT_SHADER,
+            Self::Vertex => glow::VERTEX_SHADER,
+            Self::Fragment => glow::FRAGMENT_SHADER,
         }
     }
 }
@@ -362,7 +362,7 @@ impl GlProgram {
         fragment_source: String,
         fragment_source_line_offset: isize,
         resources: &[ShaderResourceDefinition],
-    ) -> Result<GlProgram, FrameworkError> {
+    ) -> Result<Self, FrameworkError> {
         let program = Self::from_source(
             server,
             program_name,
@@ -419,7 +419,7 @@ impl GlProgram {
         fragment_source: String,
         fragment_source_line_offset: isize,
         resources: &[ShaderResourceDefinition],
-    ) -> Result<GlProgram, FrameworkError> {
+    ) -> Result<Self, FrameworkError> {
         unsafe {
             let vertex_shader = GlShader::new(
                 server,

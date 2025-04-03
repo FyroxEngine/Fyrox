@@ -317,24 +317,24 @@ pub enum TileSetPropertyType {
 impl TileSetPropertyType {
     /// The default value for properties of the given type.
     pub fn default_value(&self) -> TileSetPropertyValue {
-        use TileSetPropertyType as PropType;
+        
         use TileSetPropertyValue as PropValue;
         match self {
-            PropType::I32 => PropValue::I32(0),
-            PropType::F32 => PropValue::F32(0.0),
-            PropType::String => PropValue::String(ImmutableString::default()),
-            PropType::NineSlice => PropValue::NineSlice(NineI8::default()),
+            Self::I32 => PropValue::I32(0),
+            Self::F32 => PropValue::F32(0.0),
+            Self::String => PropValue::String(ImmutableString::default()),
+            Self::NineSlice => PropValue::NineSlice(NineI8::default()),
         }
     }
     /// The none value when no value is available.
     pub fn default_option_value(&self) -> TileSetPropertyOptionValue {
         use TileSetPropertyOptionValue as PropValue;
-        use TileSetPropertyType as PropType;
+        
         match self {
-            PropType::I32 => PropValue::I32(None),
-            PropType::F32 => PropValue::F32(None),
-            PropType::String => PropValue::String(None),
-            PropType::NineSlice => PropValue::NineSlice([None; 9]),
+            Self::I32 => PropValue::I32(None),
+            Self::F32 => PropValue::F32(None),
+            Self::String => PropValue::String(None),
+            Self::NineSlice => PropValue::NineSlice([None; 9]),
         }
     }
 }
@@ -383,7 +383,7 @@ impl Display for NineI8 {
 
 impl From<[i8; 9]> for NineI8 {
     fn from(value: [i8; 9]) -> Self {
-        NineI8(value)
+        Self(value)
     }
 }
 
@@ -453,10 +453,10 @@ impl TileSetPropertyValueElement {
     /// The type of the data in this element.
     pub fn prop_type(&self) -> TileSetPropertyType {
         match self {
-            TileSetPropertyValueElement::I32(_) => TileSetPropertyType::I32,
-            TileSetPropertyValueElement::F32(_) => TileSetPropertyType::F32,
-            TileSetPropertyValueElement::String(_) => TileSetPropertyType::String,
-            TileSetPropertyValueElement::I8(_) => TileSetPropertyType::NineSlice,
+            Self::I32(_) => TileSetPropertyType::I32,
+            Self::F32(_) => TileSetPropertyType::F32,
+            Self::String(_) => TileSetPropertyType::String,
+            Self::I8(_) => TileSetPropertyType::NineSlice,
         }
     }
 }
@@ -515,25 +515,25 @@ fn nine_rotate(nine: &mut NineI8, amount: usize) {
 
 impl TileSetPropertyValue {
     /// The default value for property values of this one's type.
-    pub fn make_default(&self) -> TileSetPropertyValue {
+    pub fn make_default(&self) -> Self {
         match self {
-            TileSetPropertyValue::I32(_) => TileSetPropertyValue::I32(0),
-            TileSetPropertyValue::F32(_) => TileSetPropertyValue::F32(0.0),
-            TileSetPropertyValue::String(_) => {
-                TileSetPropertyValue::String(ImmutableString::default())
+            Self::I32(_) => Self::I32(0),
+            Self::F32(_) => Self::F32(0.0),
+            Self::String(_) => {
+                Self::String(ImmutableString::default())
             }
-            TileSetPropertyValue::NineSlice(_) => {
-                TileSetPropertyValue::NineSlice(Default::default())
+            Self::NineSlice(_) => {
+                Self::NineSlice(Default::default())
             }
         }
     }
     /// The type of the data in this value.
     pub fn prop_type(&self) -> TileSetPropertyType {
         match self {
-            TileSetPropertyValue::I32(_) => TileSetPropertyType::I32,
-            TileSetPropertyValue::F32(_) => TileSetPropertyType::F32,
-            TileSetPropertyValue::String(_) => TileSetPropertyType::String,
-            TileSetPropertyValue::NineSlice(_) => TileSetPropertyType::NineSlice,
+            Self::I32(_) => TileSetPropertyType::I32,
+            Self::F32(_) => TileSetPropertyType::F32,
+            Self::String(_) => TileSetPropertyType::String,
+            Self::NineSlice(_) => TileSetPropertyType::NineSlice,
         }
     }
     /// Converts an x,y position into index in 0..9. Both x and y must be within 0..3.
@@ -554,12 +554,12 @@ impl TileSetPropertyValue {
     /// Wherever the given value is None, no change is made to this value.
     pub fn set_from(&mut self, value: &TileSetPropertyOptionValue) {
         use TileSetPropertyOptionValue as OptValue;
-        use TileSetPropertyValue as PropValue;
+        
         match (self, value) {
-            (PropValue::I32(x0), OptValue::I32(Some(x1))) => *x0 = *x1,
-            (PropValue::F32(x0), OptValue::F32(Some(x1))) => *x0 = *x1,
-            (PropValue::String(x0), OptValue::String(Some(x1))) => *x0 = x1.clone(),
-            (PropValue::NineSlice(arr0), OptValue::NineSlice(arr1)) => {
+            (Self::I32(x0), OptValue::I32(Some(x1))) => *x0 = *x1,
+            (Self::F32(x0), OptValue::F32(Some(x1))) => *x0 = *x1,
+            (Self::String(x0), OptValue::String(Some(x1))) => *x0 = x1.clone(),
+            (Self::NineSlice(arr0), OptValue::NineSlice(arr1)) => {
                 for (x0, x1) in arr0.0.iter_mut().zip(arr1.iter()) {
                     if let Some(v) = x1 {
                         *x0 = *v;
@@ -654,13 +654,13 @@ impl TryFrom<TileSetPropertyValue> for NineI8 {
 
 impl From<TileSetPropertyValue> for TileSetPropertyOptionValue {
     fn from(value: TileSetPropertyValue) -> Self {
-        use TileSetPropertyOptionValue as OValue;
+        
         use TileSetPropertyValue as Value;
         match value {
-            Value::I32(x) => OValue::I32(Some(x)),
-            Value::F32(x) => OValue::F32(Some(x)),
-            Value::String(x) => OValue::String(Some(x)),
-            Value::NineSlice(arr) => OValue::NineSlice(arr.0.map(Some)),
+            Value::I32(x) => Self::I32(Some(x)),
+            Value::F32(x) => Self::F32(Some(x)),
+            Value::String(x) => Self::String(Some(x)),
+            Value::NineSlice(arr) => Self::NineSlice(arr.0.map(Some)),
         }
     }
 }
@@ -668,12 +668,12 @@ impl From<TileSetPropertyValue> for TileSetPropertyOptionValue {
 impl From<TileSetPropertyOptionValue> for TileSetPropertyValue {
     fn from(value: TileSetPropertyOptionValue) -> Self {
         use TileSetPropertyOptionValue as OValue;
-        use TileSetPropertyValue as Value;
+        
         match value {
-            OValue::I32(x) => Value::I32(x.unwrap_or_default()),
-            OValue::F32(x) => Value::F32(x.unwrap_or_default()),
-            OValue::String(x) => Value::String(x.unwrap_or_default()),
-            OValue::NineSlice(arr) => Value::NineSlice(NineI8(arr.map(Option::unwrap_or_default))),
+            OValue::I32(x) => Self::I32(x.unwrap_or_default()),
+            OValue::F32(x) => Self::F32(x.unwrap_or_default()),
+            OValue::String(x) => Self::String(x.unwrap_or_default()),
+            OValue::NineSlice(arr) => Self::NineSlice(NineI8(arr.map(Option::unwrap_or_default))),
         }
     }
 }
@@ -682,24 +682,24 @@ impl TileSetPropertyOptionValue {
     /// Combines this value with the given value, replacing the content of this value with None
     /// wherever it differs from the given value.
     pub fn intersect(&mut self, value: &TileSetPropertyValue) {
-        use TileSetPropertyOptionValue as OptValue;
+        
         use TileSetPropertyValue as PropValue;
         match self {
-            OptValue::I32(x0) => {
+            Self::I32(x0) => {
                 if let Some(x) = x0 {
                     if *value != PropValue::I32(*x) {
                         *x0 = None
                     }
                 }
             }
-            OptValue::F32(x0) => {
+            Self::F32(x0) => {
                 if let Some(x) = x0 {
                     if *value != PropValue::F32(*x) {
                         *x0 = None
                     }
                 }
             }
-            OptValue::String(x0) => {
+            Self::String(x0) => {
                 if let Some(x) = x0 {
                     if let PropValue::String(x1) = value {
                         if *x != *x1 {
@@ -710,7 +710,7 @@ impl TileSetPropertyOptionValue {
                     }
                 }
             }
-            OptValue::NineSlice(arr0) => {
+            Self::NineSlice(arr0) => {
                 if let PropValue::NineSlice(arr1) = value {
                     for (x0, x1) in arr0.iter_mut().zip(arr1.0.iter()) {
                         if let Some(x) = x0 {

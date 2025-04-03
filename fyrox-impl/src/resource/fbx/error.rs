@@ -72,49 +72,49 @@ pub enum FbxError {
 impl Display for FbxError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            FbxError::Io(v) => {
+            Self::Io(v) => {
                 write!(f, "FBX: Io error: {v}")
             }
-            FbxError::UnknownAttributeType(v) => {
+            Self::UnknownAttributeType(v) => {
                 write!(f, "FBX: Unknown or unsupported attribute type {v}")
             }
-            FbxError::InvalidNullRecord => {
+            Self::InvalidNullRecord => {
                 write!(f, "FBX: Corrupted null record of binary FBX")
             }
-            FbxError::InvalidString => {
+            Self::InvalidString => {
                 write!(f, "FBX: A string has invalid content (non UTF8-compliant)")
             }
-            FbxError::Custom(v) => {
+            Self::Custom(v) => {
                 write!(f, "FBX: An error has occurred: {v}")
             }
-            FbxError::UnsupportedVersion(v) => {
+            Self::UnsupportedVersion(v) => {
                 write!(f, "FBX: Version is not supported: {v}")
             }
-            FbxError::InvalidPoolHandle => {
+            Self::InvalidPoolHandle => {
                 write!(f, "FBX: Internal handle is invalid.")
             }
-            FbxError::UnexpectedType => {
+            Self::UnexpectedType => {
                 write!(f, "FBX: Internal invalid cast.")
             }
-            FbxError::IndexOutOfBounds => {
+            Self::IndexOutOfBounds => {
                 write!(f, "FBX: Index is out-of-bounds.")
             }
-            FbxError::UnableToFindBone => {
+            Self::UnableToFindBone => {
                 write!(f, "FBX: Vertex references non existing bone.")
             }
-            FbxError::UnableToRemapModelToNode => {
+            Self::UnableToRemapModelToNode => {
                 write!(
                     f,
                     "FBX: There is no corresponding scene node for a FBX model."
                 )
             }
-            FbxError::InvalidMapping => {
+            Self::InvalidMapping => {
                 write!(f, "FBX: Unknown or unsupported mapping.")
             }
-            FbxError::InvalidReference => {
+            Self::InvalidReference => {
                 write!(f, "FBX: Unknown or unsupported reference.")
             }
-            FbxError::FileLoadError(v) => {
+            Self::FileLoadError(v) => {
                 write!(f, "FBX: File load error {v:?}.")
             }
         }
@@ -123,24 +123,24 @@ impl Display for FbxError {
 
 impl From<FileError> for FbxError {
     fn from(err: FileError) -> Self {
-        FbxError::FileLoadError(err)
+        Self::FileLoadError(err)
     }
 }
 
 impl From<std::io::Error> for FbxError {
     fn from(err: std::io::Error) -> Self {
-        FbxError::Io(err)
+        Self::Io(err)
     }
 }
 
 impl From<String> for FbxError {
     fn from(err: String) -> Self {
-        FbxError::Custom(Box::new(err))
+        Self::Custom(Box::new(err))
     }
 }
 
 impl From<std::string::FromUtf8Error> for FbxError {
     fn from(_: std::string::FromUtf8Error) -> Self {
-        FbxError::InvalidString
+        Self::InvalidString
     }
 }

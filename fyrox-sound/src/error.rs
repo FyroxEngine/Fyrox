@@ -73,42 +73,42 @@ pub enum SoundError {
 
 impl From<std::io::Error> for SoundError {
     fn from(e: std::io::Error) -> Self {
-        SoundError::Io(e)
+        Self::Io(e)
     }
 }
 
 impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for SoundError {
     fn from(_: std::sync::PoisonError<std::sync::MutexGuard<'a, T>>) -> Self {
-        SoundError::PoisonedMutex
+        Self::PoisonedMutex
     }
 }
 
 impl From<symphonia::core::errors::Error> for SoundError {
     fn from(e: symphonia::core::errors::Error) -> Self {
-        SoundError::DecoderError(DecoderError::SymphoniaError(e))
+        Self::DecoderError(DecoderError::SymphoniaError(e))
     }
 }
 
 impl Display for SoundError {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
-            SoundError::Io(io) => write!(f, "io error: {io}"),
-            SoundError::NoBackend => write!(f, "no backend implemented for current platform"),
-            SoundError::FailedToInitializeDevice(reason) => {
+            Self::Io(io) => write!(f, "io error: {io}"),
+            Self::NoBackend => write!(f, "no backend implemented for current platform"),
+            Self::FailedToInitializeDevice(reason) => {
                 write!(f, "failed to initialize device. reason: {reason}")
             }
-            SoundError::InvalidHeader => write!(f, "invalid header of sound file"),
-            SoundError::UnsupportedFormat => write!(f, "unsupported format of sound file"),
-            SoundError::PoisonedMutex => write!(f, "attempt to use poisoned mutex"),
-            SoundError::MathError(reason) => {
+            Self::InvalidHeader => write!(f, "invalid header of sound file"),
+            Self::UnsupportedFormat => write!(f, "unsupported format of sound file"),
+            Self::PoisonedMutex => write!(f, "attempt to use poisoned mutex"),
+            Self::MathError(reason) => {
                 write!(f, "math error has occurred. reason: {reason}")
             }
-            SoundError::StreamingBufferAlreadyInUse => {
+            Self::StreamingBufferAlreadyInUse => {
                 write!(f, "streaming buffer in already in use")
             }
-            SoundError::DecoderError(de) => write!(f, "internal decoder error: {de:?}"),
-            SoundError::BufferFailedToLoad => write!(f, "a buffer failed to load"),
-            SoundError::BufferIsNotLoaded => write!(f, "a buffer is not loaded yet"),
+            Self::DecoderError(de) => write!(f, "internal decoder error: {de:?}"),
+            Self::BufferFailedToLoad => write!(f, "a buffer failed to load"),
+            Self::BufferIsNotLoaded => write!(f, "a buffer is not loaded yet"),
         }
     }
 }

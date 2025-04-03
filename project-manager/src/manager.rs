@@ -73,7 +73,7 @@ pub enum Mode {
 
 impl Mode {
     pub fn is_build(&self) -> bool {
-        matches!(self, Mode::CommandExecution { .. })
+        matches!(self, Self::CommandExecution { .. })
     }
 }
 

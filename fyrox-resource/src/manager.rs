@@ -260,13 +260,13 @@ pub enum ResourceRegistrationError {
 impl Display for ResourceRegistrationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ResourceRegistrationError::UnableToRegister => {
+            Self::UnableToRegister => {
                 write!(f, "Unable to register the resource!")
             }
-            ResourceRegistrationError::InvalidState => {
+            Self::InvalidState => {
                 write!(f, "A resource was in invalid state!")
             }
-            ResourceRegistrationError::AlreadyRegistered => {
+            Self::AlreadyRegistered => {
                 write!(f, "A resource is already registered!")
             }
         }
@@ -934,11 +934,11 @@ mod test {
         }
 
         fn data_type_uuid(&self) -> Uuid {
-            <Stub as TypeUuidProvider>::type_uuid()
+            <Self as TypeUuidProvider>::type_uuid()
         }
 
         fn load(&self, _path: PathBuf, _io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
-            Box::pin(async move { Ok(LoaderPayload::new(Stub::default())) })
+            Box::pin(async move { Ok(LoaderPayload::new(Self::default())) })
         }
     }
 

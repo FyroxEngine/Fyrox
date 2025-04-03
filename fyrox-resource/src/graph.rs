@@ -50,7 +50,7 @@ impl ResourceGraphNode {
         children.extend(
             dependent_resources
                 .into_iter()
-                .map(|r| ResourceGraphNode::new(&r)),
+                .map(|r| Self::new(&r)),
         );
 
         Self {

@@ -38,7 +38,7 @@ pub struct NodePose<T: EntityId> {
 impl<T: EntityId> NodePose<T> {
     /// Performs a blending of the current with some other pose. See [`super::value::TrackValue::blend_with`] docs for more
     /// info.
-    pub fn blend_with(&mut self, other: &NodePose<T>, weight: f32) {
+    pub fn blend_with(&mut self, other: &Self, weight: f32) {
         self.values.blend_with(&other.values, weight)
     }
 }
@@ -52,7 +52,7 @@ pub struct AnimationPose<T: EntityId> {
 
 impl<T: EntityId> AnimationPose<T> {
     /// Clears the set of node poses in the given animation pose and clones poses from the current animation pose to the given.
-    pub fn clone_into(&self, dest: &mut AnimationPose<T>) {
+    pub fn clone_into(&self, dest: &mut Self) {
         dest.reset();
         for (handle, local_pose) in self.poses.iter() {
             dest.poses.insert(*handle, local_pose.clone());
@@ -73,7 +73,7 @@ impl<T: EntityId> AnimationPose<T> {
 
     /// Blends current animation pose with another using a weight coefficient. Missing node poses (from either animation poses)
     /// will become a simple copies of a respective node pose.
-    pub fn blend_with(&mut self, other: &AnimationPose<T>, weight: f32) {
+    pub fn blend_with(&mut self, other: &Self, weight: f32) {
         for (handle, other_pose) in other.poses.iter() {
             if let Some(current_pose) = self.poses.get_mut(handle) {
                 current_pose.blend_with(other_pose, weight);

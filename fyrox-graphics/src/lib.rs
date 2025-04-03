@@ -571,9 +571,9 @@ pub enum ElementKind {
 impl ElementKind {
     fn index_per_element(self) -> usize {
         match self {
-            ElementKind::Triangle => 3,
-            ElementKind::Line => 2,
-            ElementKind::Point => 1,
+            Self::Triangle => 3,
+            Self::Line => 2,
+            Self::Point => 1,
         }
     }
 }

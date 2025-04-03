@@ -267,7 +267,7 @@ impl PixelKind {
 }
 
 fn ceil_div_4(x: usize) -> usize {
-    (x + 3) / 4
+    x.div_ceil(4)
 }
 
 /// Calculates size in bytes of a volume texture using the given size of the texture and its pixel

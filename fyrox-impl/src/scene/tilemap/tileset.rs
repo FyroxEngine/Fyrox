@@ -587,19 +587,19 @@ impl TileSetPageSource {
     /// The type of this page.
     pub fn page_type(&self) -> PageType {
         match self {
-            TileSetPageSource::Atlas(_) => PageType::Atlas,
-            TileSetPageSource::Freeform(_) => PageType::Freeform,
-            TileSetPageSource::Transform(_) => PageType::Transform,
-            TileSetPageSource::Animation(_) => PageType::Animation,
+            Self::Atlas(_) => PageType::Atlas,
+            Self::Freeform(_) => PageType::Freeform,
+            Self::Transform(_) => PageType::Transform,
+            Self::Animation(_) => PageType::Animation,
         }
     }
     /// True if this page contains some tile at the given position.
     pub fn contains_tile_at(&self, position: Vector2<i32>) -> bool {
         match self {
-            TileSetPageSource::Atlas(map) => map.contains_key(&position),
-            TileSetPageSource::Freeform(map) => map.contains_key(&position),
-            TileSetPageSource::Transform(map) => map.contains_key(&position),
-            TileSetPageSource::Animation(map) => map.contains_key(&position),
+            Self::Atlas(map) => map.contains_key(&position),
+            Self::Freeform(map) => map.contains_key(&position),
+            Self::Transform(map) => map.contains_key(&position),
+            Self::Animation(map) => map.contains_key(&position),
         }
     }
 }
@@ -2027,7 +2027,7 @@ impl TileSet {
         let bytes = io.load_file(path).await?;
         let mut visitor = Visitor::load_from_memory(&bytes)?;
         visitor.blackboard.register(Arc::new(resource_manager));
-        let mut tile_set = TileSet::default();
+        let mut tile_set = Self::default();
         tile_set.visit("TileSet", &mut visitor)?;
         Ok(tile_set)
     }

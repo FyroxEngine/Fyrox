@@ -66,10 +66,10 @@ impl AttributeKind {
     /// Returns attribute size in bytes.
     pub fn size(self) -> usize {
         match self {
-            AttributeKind::Float => size_of::<f32>(),
-            AttributeKind::UnsignedByte => size_of::<u8>(),
-            AttributeKind::UnsignedShort => size_of::<u16>(),
-            AttributeKind::UnsignedInt => size_of::<u32>(),
+            Self::Float => size_of::<f32>(),
+            Self::UnsignedByte => size_of::<u8>(),
+            Self::UnsignedShort => size_of::<u16>(),
+            Self::UnsignedInt => size_of::<u32>(),
         }
     }
 }

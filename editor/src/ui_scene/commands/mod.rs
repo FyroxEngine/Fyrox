@@ -45,7 +45,7 @@ impl UiSceneContext {
         clipboard: &'a mut Clipboard,
         func: F,
     ) where
-        F: FnOnce(&mut UiSceneContext),
+        F: FnOnce(&mut Self),
     {
         // SAFETY: Temporarily extend lifetime to 'static and execute external closure with it.
         // The closure accepts this extended context by reference, so there's no way it escapes to
