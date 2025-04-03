@@ -139,12 +139,12 @@ impl<'a> TileResourceData<'a> {
     /// The type of the page at the given position, such as atlas, freeform, transform, brush, etc.
     fn page_type(&self, position: Vector2<i32>) -> Option<PageType> {
         match self {
-            TileResourceData::Empty => None,
-            TileResourceData::TileSet(tile_set) => tile_set
+            Self::Empty => None,
+            Self::TileSet(tile_set) => tile_set
                 .as_loaded_ref()
                 .and_then(|t| t.get_page(position))
                 .map(|p| p.page_type()),
-            TileResourceData::Brush(brush) => brush.as_loaded_ref().and_then(|t| {
+            Self::Brush(brush) => brush.as_loaded_ref().and_then(|t| {
                 if t.has_page_at(position) {
                     Some(PageType::Brush)
                 } else {

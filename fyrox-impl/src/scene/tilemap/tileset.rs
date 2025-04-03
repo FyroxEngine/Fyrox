@@ -779,9 +779,9 @@ impl Iterator for TileSetPageHandleIterator<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            TileSetPageHandleIterator::Empty => None,
-            TileSetPageHandleIterator::Atlas(keys) => keys.next().cloned(),
-            TileSetPageHandleIterator::Freeform(keys) => keys.next().cloned(),
+            Self::Empty => None,
+            Self::Atlas(keys) => keys.next().cloned(),
+            Self::Freeform(keys) => keys.next().cloned(),
         }
     }
 }

@@ -118,9 +118,9 @@ impl ElementsDescriptor<'_> {
     /// Returns element kind of the elements' descriptor.
     pub fn element_kind(&self) -> ElementKind {
         match self {
-            ElementsDescriptor::Triangles(_) => ElementKind::Triangle,
-            ElementsDescriptor::Lines(_) => ElementKind::Line,
-            ElementsDescriptor::Points(_) => ElementKind::Point,
+            Self::Triangles(_) => ElementKind::Triangle,
+            Self::Lines(_) => ElementKind::Line,
+            Self::Points(_) => ElementKind::Point,
         }
     }
 }

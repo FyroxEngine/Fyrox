@@ -140,13 +140,13 @@ impl Placement {
     /// Returns a handle of the node to which this placement corresponds to.
     pub fn target(&self) -> Handle<UiNode> {
         match self {
-            Placement::LeftTop(target)
-            | Placement::RightTop(target)
-            | Placement::Center(target)
-            | Placement::LeftBottom(target)
-            | Placement::RightBottom(target)
-            | Placement::Cursor(target)
-            | Placement::Position { target, .. } => *target,
+            Self::LeftTop(target)
+            | Self::RightTop(target)
+            | Self::Center(target)
+            | Self::LeftBottom(target)
+            | Self::RightBottom(target)
+            | Self::Cursor(target)
+            | Self::Position { target, .. } => *target,
         }
     }
 }

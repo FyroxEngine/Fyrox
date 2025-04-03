@@ -488,25 +488,25 @@ pub enum ReflectPathError<'a> {
 impl Display for ReflectPathError<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ReflectPathError::UnclosedBrackets { s } => {
+            Self::UnclosedBrackets { s } => {
                 write!(f, "unclosed brackets: `{s}`")
             }
-            ReflectPathError::InvalidIndexSyntax { s } => {
+            Self::InvalidIndexSyntax { s } => {
                 write!(f, "not index syntax: `{s}`")
             }
-            ReflectPathError::UnknownField { s } => {
+            Self::UnknownField { s } => {
                 write!(f, "given unknown field: `{s}`")
             }
-            ReflectPathError::NoItemForIndex { s } => {
+            Self::NoItemForIndex { s } => {
                 write!(f, "no item for index: `{s}`")
             }
-            ReflectPathError::InvalidDowncast => {
+            Self::InvalidDowncast => {
                 write!(
                     f,
                     "failed to downcast to the target type after path resolution"
                 )
             }
-            ReflectPathError::NotAnArray => {
+            Self::NotAnArray => {
                 write!(f, "tried to resolve index access, but the reflect type does not implement list API")
             }
         }

@@ -283,8 +283,7 @@ impl Default for PropertyEditorInstance {
 impl PropertyEditorInstance {
     pub fn editor(&self) -> Handle<UiNode> {
         match self {
-            PropertyEditorInstance::Simple { editor }
-            | PropertyEditorInstance::Custom { editor, .. } => *editor,
+            Self::Simple { editor } | Self::Custom { editor, .. } => *editor,
         }
     }
 }

@@ -1339,8 +1339,8 @@ impl ApplicationLoopController<'_> {
     /// Asks the loop controller to end the application execution.
     pub fn exit(&self) {
         match self {
-            ApplicationLoopController::Headless { running } => running.set(false),
-            ApplicationLoopController::WindowTarget(window_target) => window_target.exit(),
+            Self::Headless { running } => running.set(false),
+            Self::WindowTarget(window_target) => window_target.exit(),
         }
     }
 }
