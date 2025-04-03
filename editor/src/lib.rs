@@ -758,7 +758,8 @@ impl Editor {
         let audio_preview_panel = AudioPreviewPanel::new(inspector_plugin.head, ctx);
         let doc_window = DocWindow::new(ctx);
         let node_removal_dialog = NodeRemovalDialog::new(ctx);
-        let scene_settings = SceneSettingsWindow::new(ctx, message_sender.clone());
+        let scene_settings =
+            SceneSettingsWindow::new(ctx, message_sender.clone(), engine.resource_manager.clone());
 
         let docking_manager;
         let root_grid = GridBuilder::new(

@@ -230,7 +230,7 @@ where
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.locate {
                 if let Some(resource) = self.resource.as_ref() {
-                    if let Some(path) = resource.kind().into_path() {
+                    if let Some(path) = self.resource_manager.resource_path(resource.as_ref()) {
                         self.sender.send(Message::ShowInAssetBrowser(path));
                     }
                 }

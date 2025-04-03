@@ -375,6 +375,18 @@ impl UntypedResource {
         })))
     }
 
+    pub fn new_ok_untyped(
+        resource_uuid: Uuid,
+        kind: ResourceKind,
+        data: Box<dyn ResourceData>,
+    ) -> Self {
+        Self(Arc::new(Mutex::new(ResourceHeader {
+            kind,
+            state: ResourceState::new_ok_untyped(resource_uuid, data),
+            old_format_path: None,
+        })))
+    }
+
     pub fn new_embedded<T: ResourceData>(data: T) -> Self {
         Self::new_ok(Uuid::new_v4(), ResourceKind::Embedded, data)
     }

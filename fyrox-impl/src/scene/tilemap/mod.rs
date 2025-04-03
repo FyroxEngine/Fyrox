@@ -51,6 +51,7 @@ pub use transform::*;
 pub use update::*;
 
 use super::{dim2::rectangle::RectangleVertex, node::constructor::NodeConstructor};
+use crate::lazy_static::*;
 use crate::{
     asset::{untyped::ResourceKind, ResourceDataRef},
     core::{
@@ -82,15 +83,13 @@ use crate::{
     },
 };
 use bytemuck::{Pod, Zeroable};
-use fyrox_resource::registry::ResourceRegistry;
+use fyrox_resource::manager::ResourceManager;
 use std::{
     error::Error,
     fmt::Display,
     ops::{Deref, DerefMut},
     path::PathBuf,
 };
-
-use crate::lazy_static::*;
 
 /// Current implementation version marker.
 pub const VERSION: u8 = 1;
@@ -553,21 +552,17 @@ impl TileBook {
         matches!(self, TileBook::Empty)
     }
     /// Return the path of the resource as a String.
-    pub fn name(&self, registry: &ResourceRegistry) -> String {
-        self.path(registry)
+    pub fn name(&self, resource_manager: &ResourceManager) -> String {
+        self.path(resource_manager)
             .map(|x| x.to_string_lossy().into_owned())
             .unwrap_or_else(|| "Error".into())
     }
     /// Return the path of the resource.
-    pub fn path(&self, registry: &ResourceRegistry) -> Option<PathBuf> {
+    pub fn path(&self, resource_manager: &ResourceManager) -> Option<PathBuf> {
         match self {
             TileBook::Empty => None,
-            TileBook::TileSet(r) => r
-                .resource_uuid()
-                .and_then(|uuid| registry.uuid_to_path_buf(uuid)),
-            TileBook::Brush(r) => r
-                .resource_uuid()
-                .and_then(|uuid| registry.uuid_to_path_buf(uuid)),
+            TileBook::TileSet(r) => resource_manager.resource_path(r.as_ref()),
+            TileBook::Brush(r) => resource_manager.resource_path(r.as_ref()),
         }
     }
     /// True if the resource is external and its `change_count` is not zero.
@@ -584,16 +579,12 @@ impl TileBook {
     }
     /// Attempt to save the resource to its file, if it has one and if `change_flag` is set.
     /// Otherwise do nothing and return Ok to indicate success.
-    pub fn save(&self, registry: &ResourceRegistry) -> Result<(), Box<dyn Error>> {
+    pub fn save(&self, resource_manager: &ResourceManager) -> Result<(), Box<dyn Error>> {
         match self {
             TileBook::Empty => Ok(()),
             TileBook::TileSet(r) => {
                 if r.header().kind.is_external() && r.data_ref().change_flag.needs_save() {
-                    let result = r.save(
-                        &registry
-                            .uuid_to_path_buf(r.resource_uuid().unwrap())
-                            .unwrap(),
-                    );
+                    let result = r.save(&resource_manager.resource_path(r.as_ref()).unwrap());
                     if result.is_ok() {
                         r.data_ref().change_flag.reset();
                     }
@@ -604,11 +595,7 @@ impl TileBook {
             }
             TileBook::Brush(r) => {
                 if r.header().kind.is_external() && r.data_ref().change_flag.needs_save() {
-                    let result = r.save(
-                        &registry
-                            .uuid_to_path_buf(r.resource_uuid().unwrap())
-                            .unwrap(),
-                    );
+                    let result = r.save(&resource_manager.resource_path(r.as_ref()).unwrap());
                     if result.is_ok() {
                         r.data_ref().change_flag.reset();
                     }

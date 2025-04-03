@@ -620,6 +620,7 @@ impl MaterialEditor {
                     sender.do_command(SetMaterialShaderCommand::new(
                         material.clone(),
                         value.clone(),
+                        engine.resource_manager.resource_path(material.as_ref()),
                     ));
                 }
             }
@@ -631,17 +632,18 @@ impl MaterialEditor {
             if message.destination() == self.texture_context_menu.show_in_asset_browser
                 && self.texture_context_menu.target.is_some()
             {
-                let path = (*engine
+                let texture = (*engine
                     .user_interfaces
                     .first_mut()
                     .node(self.texture_context_menu.target)
                     .cast::<Image>()
                     .unwrap()
                     .texture)
-                    .clone()
-                    .and_then(|t| t.kind().into_path());
+                    .clone();
 
-                if let Some(path) = path {
+                if let Some(path) =
+                    texture.and_then(|t| engine.resource_manager.resource_path(t.as_ref()))
+                {
                     sender.send(Message::ShowInAssetBrowser(path));
                 }
             } else if message.destination() == self.texture_context_menu.unassign
@@ -657,6 +659,7 @@ impl MaterialEditor {
                         material.clone(),
                         binding_name.clone(),
                         MaterialResourceBinding::Texture(MaterialTextureBinding { value: None }),
+                        engine.resource_manager.resource_path(material.as_ref()),
                     ));
                 }
             }
@@ -689,6 +692,7 @@ impl MaterialEditor {
                                     MaterialResourceBinding::Texture(MaterialTextureBinding {
                                         value: texture,
                                     }),
+                                    engine.resource_manager.resource_path(material.as_ref()),
                                 ));
                             }
                         }
@@ -708,6 +712,7 @@ impl MaterialEditor {
                                         resource_view.name.clone(),
                                         property_name.clone(),
                                         property_value,
+                                        engine.resource_manager.resource_path(material.as_ref()),
                                     ),
                                 );
                             }
@@ -761,6 +766,7 @@ impl EditorPlugin for MaterialPlugin {
         let container = &editor.plugins.get_mut::<InspectorPlugin>().property_editors;
         container.insert(MaterialPropertyEditorDefinition {
             sender: Mutex::new(editor.message_sender.clone()),
+            resource_manager: editor.engine.resource_manager.clone(),
         });
         container.insert(InheritablePropertyEditorDefinition::<MaterialResource>::new());
     }

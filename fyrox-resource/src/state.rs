@@ -250,6 +250,14 @@ impl ResourceState {
         }
     }
 
+    #[inline]
+    pub fn new_ok_untyped(resource_uuid: Uuid, data: Box<dyn ResourceData>) -> Self {
+        Self::Ok {
+            resource_uuid,
+            data,
+        }
+    }
+
     /// Checks whether the resource is still loading or not.
     pub fn is_loading(&self) -> bool {
         matches!(self, ResourceState::Pending { .. })
