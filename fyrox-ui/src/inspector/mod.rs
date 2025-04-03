@@ -164,7 +164,7 @@ impl PropertyAction {
         result_callback: &mut dyn FnMut(Result<Option<Box<dyn Reflect>>, Self>),
     ) {
         match self {
-            PropertyAction::Modify { value } => {
+            Self::Modify { value } => {
                 let mut value = Some(value);
                 target.resolve_path_mut(path, &mut |result| {
                     if let Ok(field) = result {
@@ -180,7 +180,7 @@ impl PropertyAction {
                     }
                 });
             }
-            PropertyAction::AddItem { value } => {
+            Self::AddItem { value } => {
                 let mut value = Some(value);
                 target.resolve_path_mut(path, &mut |result| {
                     if let Ok(field) = result {
@@ -204,7 +204,7 @@ impl PropertyAction {
                     }
                 })
             }
-            PropertyAction::RemoveItem { index } => target.resolve_path_mut(path, &mut |result| {
+            Self::RemoveItem { index } => target.resolve_path_mut(path, &mut |result| {
                 if let Ok(field) = result {
                     field.as_list_mut(&mut |result| {
                         if let Some(list) = result {
@@ -221,7 +221,7 @@ impl PropertyAction {
                     result_callback(Err(Self::RemoveItem { index }))
                 }
             }),
-            PropertyAction::Revert => {
+            Self::Revert => {
                 // Unsupported due to lack of context (a reference to parent entity).
                 result_callback(Err(Self::Revert))
             }

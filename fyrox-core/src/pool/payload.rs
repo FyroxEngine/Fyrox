@@ -53,27 +53,27 @@ impl<T> PayloadContainer for Option<T> {
 
     #[inline]
     fn is_some(&self) -> bool {
-        Option::is_some(self)
+        Self::is_some(self)
     }
 
     #[inline]
     fn as_ref(&self) -> Option<&Self::Element> {
-        Option::as_ref(self)
+        Self::as_ref(self)
     }
 
     #[inline]
     fn as_mut(&mut self) -> Option<&mut Self::Element> {
-        Option::as_mut(self)
+        Self::as_mut(self)
     }
 
     #[inline]
     fn replace(&mut self, element: Self::Element) -> Option<Self::Element> {
-        Option::replace(self, element)
+        Self::replace(self, element)
     }
 
     #[inline]
     fn take(&mut self) -> Option<Self::Element> {
-        Option::take(self)
+        Self::take(self)
     }
 }
 

@@ -53,7 +53,7 @@ pub struct ResourceConstructorContainer {
 impl ResourceConstructorContainer {
     /// Creates default resource data constructor container.
     pub fn new() -> Self {
-        ResourceConstructorContainer::default()
+        Self::default()
     }
 
     /// Adds new type constructor for a given type and return previous constructor for the type

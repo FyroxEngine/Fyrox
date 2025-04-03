@@ -83,9 +83,9 @@ pub enum MessageKind {
 impl MessageKind {
     fn as_str(self) -> &'static str {
         match self {
-            MessageKind::Information => "[INFO]: ",
-            MessageKind::Warning => "[WARNING]: ",
-            MessageKind::Error => "[ERROR]: ",
+            Self::Information => "[INFO]: ",
+            Self::Warning => "[WARNING]: ",
+            Self::Error => "[ERROR]: ",
         }
     }
 }

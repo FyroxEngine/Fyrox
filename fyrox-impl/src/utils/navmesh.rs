@@ -435,7 +435,7 @@ impl Navmesh {
 
         let mesh = builder.build();
 
-        Navmesh::new(
+        Self::new(
             mesh.triangles,
             mesh.vertices
                 .into_iter()

@@ -153,12 +153,12 @@ impl AudioBus {
     }
 
     /// Returns a handle of the parent audio bus. Primary audio bus has no parent and will return ([`Handle::NONE`]).
-    pub fn parent(&self) -> Handle<AudioBus> {
+    pub fn parent(&self) -> Handle<Self> {
         self.parent_bus
     }
 
     /// Returns a list of handle to children audio buses.
-    pub fn children(&self) -> &[Handle<AudioBus>] {
+    pub fn children(&self) -> &[Handle<Self>] {
         &self.child_buses
     }
 

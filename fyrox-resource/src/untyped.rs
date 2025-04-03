@@ -129,13 +129,13 @@ impl ResourceKind {
     /// Switches the resource kind to [`Self::External`].
     #[inline]
     pub fn make_external(&mut self, path: PathBuf) {
-        *self = ResourceKind::External(path);
+        *self = Self::External(path);
     }
 
     /// Switches the resource kind to [`Self::Embedded`]
     #[inline]
     pub fn make_embedded(&mut self) {
-        *self = ResourceKind::Embedded;
+        *self = Self::Embedded;
     }
 
     /// Checks, if the resource kind is [`Self::Embedded`]
@@ -154,8 +154,8 @@ impl ResourceKind {
     #[inline]
     pub fn path(&self) -> Option<&Path> {
         match self {
-            ResourceKind::Embedded => None,
-            ResourceKind::External(path) => Some(path),
+            Self::Embedded => None,
+            Self::External(path) => Some(path),
         }
     }
 
@@ -170,8 +170,8 @@ impl ResourceKind {
     #[inline]
     pub fn into_path(self) -> Option<PathBuf> {
         match self {
-            ResourceKind::Embedded => None,
-            ResourceKind::External(path) => Some(path),
+            Self::Embedded => None,
+            Self::External(path) => Some(path),
         }
     }
 }
@@ -179,10 +179,10 @@ impl ResourceKind {
 impl Display for ResourceKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ResourceKind::Embedded => {
+            Self::Embedded => {
                 write!(f, "Embedded")
             }
-            ResourceKind::External(path) => {
+            Self::External(path) => {
                 write!(f, "External ({})", path.display())
             }
         }

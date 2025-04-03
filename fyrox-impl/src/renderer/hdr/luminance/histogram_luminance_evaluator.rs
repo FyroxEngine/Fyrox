@@ -66,7 +66,7 @@ impl LuminanceHistogram {
             bins.push(Vec::<f32>::new());
         }
 
-        LuminanceHistogram { bins, bin_width }
+        Self { bins, bin_width }
     }
 
     pub(crate) fn push_value(&mut self, value: f32) {

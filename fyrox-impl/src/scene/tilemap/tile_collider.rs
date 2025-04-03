@@ -116,15 +116,15 @@ impl OrthoTransform for TileCollider {
 impl TileCollider {
     /// This collider is empty.
     pub fn is_none(&self) -> bool {
-        matches!(self, TileCollider::None)
+        matches!(self, Self::None)
     }
     /// This collider is a full rectangle.
     pub fn is_rectangle(&self) -> bool {
-        matches!(self, TileCollider::Rectangle)
+        matches!(self, Self::Rectangle)
     }
     /// This collider is a custom mesh.
     pub fn is_custom(&self) -> bool {
-        matches!(self, TileCollider::Custom(_))
+        matches!(self, Self::Custom(_))
     }
 
     /// Generate the mesh for this collider.
@@ -136,8 +136,8 @@ impl TileCollider {
         triangles: &mut Vec<[u32; 3]>,
     ) {
         match self {
-            TileCollider::None => (),
-            TileCollider::Rectangle => {
+            Self::None => (),
+            Self::Rectangle => {
                 let origin = vertices.len() as u32;
                 for (dx, dy) in [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)] {
                     let offset = Vector3::new(dx, dy, 0.0);
@@ -148,12 +148,12 @@ impl TileCollider {
                 triangles.push([origin, origin + 1, origin + 2]);
                 triangles.push([origin, origin + 2, origin + 3]);
             }
-            TileCollider::Custom(resource) => {
+            Self::Custom(resource) => {
                 resource
                     .data_ref()
                     .build_collider_shape(transform, position, vertices, triangles);
             }
-            TileCollider::Mesh => (), // TODO: Add image-to-mesh conversion
+            Self::Mesh => (), // TODO: Add image-to-mesh conversion
         }
     }
 }
@@ -298,25 +298,25 @@ impl Error for CustomTileColliderStrError {}
 impl Display for CustomTileColliderStrError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            CustomTileColliderStrError::GroupTooShort => {
+            Self::GroupTooShort => {
                 write!(f, "Each group must have at least 2 numbers.")
             }
-            CustomTileColliderStrError::GroupTooLong(n) => {
+            Self::GroupTooLong(n) => {
                 write!(f, "A group has {n} numbers. No group may be longer than 3.")
             }
-            CustomTileColliderStrError::IndexOutOfBounds(n) => {
+            Self::IndexOutOfBounds(n) => {
                 write!(
                     f,
                     "Triangle index {n} does not match any of the given vertices."
                 )
             }
-            CustomTileColliderStrError::MissingNumber => {
+            Self::MissingNumber => {
                 write!(f, "Numbers in a group must be separated by commas.")
             }
-            CustomTileColliderStrError::IndexParseError(parse_int_error) => {
+            Self::IndexParseError(parse_int_error) => {
                 write!(f, "Index parse failure: {parse_int_error}")
             }
-            CustomTileColliderStrError::CoordinateParseError(parse_float_error) => {
+            Self::CoordinateParseError(parse_float_error) => {
                 write!(f, "Coordinate parse failure: {parse_float_error}")
             }
         }

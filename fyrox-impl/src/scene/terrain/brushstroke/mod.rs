@@ -704,7 +704,7 @@ uuid_provider!(BrushShape = "a4dbfba0-077c-4658-9972-38384a8432f9");
 
 impl Default for BrushShape {
     fn default() -> Self {
-        BrushShape::Circle { radius: 1.0 }
+        Self::Circle { radius: 1.0 }
     }
 }
 
@@ -712,8 +712,8 @@ impl BrushShape {
     /// Return true if the given point is within the shape when positioned at the given center point.
     pub fn contains(&self, brush_center: Vector2<f32>, pixel_position: Vector2<f32>) -> bool {
         match *self {
-            BrushShape::Circle { radius } => (brush_center - pixel_position).norm() < radius,
-            BrushShape::Rectangle { width, length } => Rect::new(
+            Self::Circle { radius } => (brush_center - pixel_position).norm() < radius,
+            Self::Rectangle { width, length } => Rect::new(
                 brush_center.x - width * 0.5,
                 brush_center.y - length * 0.5,
                 width,
@@ -754,7 +754,7 @@ uuid_provider!(BrushMode = "48ad4cac-05f3-485a-b2a3-66812713841f");
 
 impl Default for BrushMode {
     fn default() -> Self {
-        BrushMode::Raise { amount: 1.0 }
+        Self::Raise { amount: 1.0 }
     }
 }
 

@@ -124,7 +124,7 @@ impl Visit for AnimationTracksData {
 
 impl ResourceData for AnimationTracksData {
     fn type_uuid(&self) -> Uuid {
-        <AnimationTracksData as TypeUuidProvider>::type_uuid()
+        <Self as TypeUuidProvider>::type_uuid()
     }
 
     fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
@@ -400,7 +400,7 @@ pub struct RootMotion {
 
 impl RootMotion {
     /// Blend this motion with some other using `weight` as a proportion.
-    pub fn blend_with(&mut self, other: &RootMotion, weight: f32) {
+    pub fn blend_with(&mut self, other: &Self, weight: f32) {
         self.delta_position = self.delta_position.lerp(&other.delta_position, weight);
         self.delta_rotation = nlerp(self.delta_rotation, &other.delta_rotation, weight);
     }

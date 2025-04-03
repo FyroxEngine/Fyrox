@@ -119,17 +119,13 @@ pub struct TileDescriptor {
 impl TileContentDescriptor {
     pub fn has_window(&self, window: &str) -> bool {
         match self {
-            TileContentDescriptor::Empty => false,
-            TileContentDescriptor::Window(window_name) => window_name.as_str() == window,
-            TileContentDescriptor::MultiWindow(windows) => windows.has_window(window),
-            TileContentDescriptor::SplitTiles(tiles) => {
-                for tile in tiles.children.iter() {
-                    if tile.content.has_window(window) {
-                        return true;
-                    }
-                }
-                false
-            }
+            Self::Empty => false,
+            Self::Window(window_name) => window_name.as_str() == window,
+            Self::MultiWindow(windows) => windows.has_window(window),
+            Self::SplitTiles(tiles) => tiles
+                .children
+                .iter()
+                .any(|tile| tile.content.has_window(window)),
         }
     }
 }

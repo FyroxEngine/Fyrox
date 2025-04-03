@@ -95,7 +95,7 @@ impl Visit for Emitter {
         let mut kind_id: i32 = self.id();
         kind_id.visit("KindId", visitor)?;
         if visitor.is_reading() {
-            *self = Emitter::new(kind_id)?;
+            *self = Self::new(kind_id)?;
         }
 
         static_dispatch!(self, visit, name, visitor)

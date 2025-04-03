@@ -61,8 +61,8 @@ impl Style {
 
     fn as_str(&self) -> &'static str {
         match self {
-            Style::TwoD => "2d",
-            Style::ThreeD => "3d",
+            Self::TwoD => "2d",
+            Self::ThreeD => "3d",
         }
     }
 }
@@ -89,11 +89,11 @@ impl Vcs {
 
     fn as_str(&self) -> &'static str {
         match self {
-            Vcs::None => "none",
-            Vcs::Git => "git",
-            Vcs::Mercurial => "hg",
-            Vcs::Pijul => "pijul",
-            Vcs::Fossil => "fossil",
+            Self::None => "none",
+            Self::Git => "git",
+            Self::Mercurial => "hg",
+            Self::Pijul => "pijul",
+            Self::Fossil => "fossil",
         }
     }
 }

@@ -90,7 +90,7 @@ impl OrthoTransformation {
         Self(if flipped { -rotation - 1 } else { rotation + 1 })
     }
     /// An iterator over all 8 possible OrthoTransformations.
-    pub fn all() -> impl Iterator<Item = OrthoTransformation> {
+    pub fn all() -> impl Iterator<Item = Self> {
         [-4i8, -3, -2, -1, 1, 2, 3, 4]
             .into_iter()
             .map(OrthoTransformation)
@@ -235,14 +235,14 @@ impl<V: Number + SimdPartialOrd + Add + AddAssign + Neg<Output = V> + Scalar> Or
     for Rect<V>
 {
     fn x_flipped(self) -> Self {
-        Rect::from_points(
+        Self::from_points(
             self.position.x_flipped(),
             (self.position + self.size).x_flipped(),
         )
     }
 
     fn rotated(self, amount: i8) -> Self {
-        Rect::from_points(
+        Self::from_points(
             self.position.rotated(amount),
             (self.position + self.size).rotated(amount),
         )
@@ -412,7 +412,7 @@ impl TransformSetCell {
     pub fn from_position(position: Vector2<i32>) -> Self {
         let rem = Vector2::new(position.x.rem_euclid(4), position.y.rem_euclid(2));
         let pos = Vector2::new(position.x - rem.x, position.y - rem.y);
-        TransformSetCell(pos, OrthoTransformation(cell_position_to_transform(rem)))
+        Self(pos, OrthoTransformation(cell_position_to_transform(rem)))
     }
     /// Replace the transformation of this cell with a different transformation.
     /// This is part of the process of rotating a tile:
@@ -422,7 +422,7 @@ impl TransformSetCell {
     /// 4. Convert the updated `TransformSetCell` into a tile position using [TransformSetCell::into_position].
     /// 5. Get the `TileDefinitionHandle` from the transform set page at that position.
     pub fn with_transformation(self, trans: OrthoTransformation) -> Self {
-        TransformSetCell(self.0, trans)
+        Self(self.0, trans)
     }
 }
 

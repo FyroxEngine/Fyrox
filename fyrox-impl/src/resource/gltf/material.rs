@@ -96,19 +96,19 @@ pub enum GltfMaterialError {
 
 impl From<LoadError> for GltfMaterialError {
     fn from(error: LoadError) -> Self {
-        GltfMaterialError::Load(error)
+        Self::Load(error)
     }
 }
 
 impl From<base64::DecodeError> for GltfMaterialError {
     fn from(error: base64::DecodeError) -> Self {
-        GltfMaterialError::Base64(error)
+        Self::Base64(error)
     }
 }
 
 impl From<TextureError> for GltfMaterialError {
     fn from(error: TextureError) -> Self {
-        GltfMaterialError::Texture(error)
+        Self::Texture(error)
     }
 }
 

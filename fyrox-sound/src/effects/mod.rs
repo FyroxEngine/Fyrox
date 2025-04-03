@@ -92,7 +92,7 @@ uuid_provider!(Effect = "fc52e441-d1ec-4881-937c-9e2e53a6d621");
 
 impl Default for Effect {
     fn default() -> Self {
-        Effect::Attenuate(Default::default())
+        Self::Attenuate(Default::default())
     }
 }
 

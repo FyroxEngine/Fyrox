@@ -66,10 +66,10 @@ impl AttributeKind {
     /// Returns attribute size in bytes.
     pub fn size(self) -> usize {
         match self {
-            AttributeKind::Float => size_of::<f32>(),
-            AttributeKind::UnsignedByte => size_of::<u8>(),
-            AttributeKind::UnsignedShort => size_of::<u16>(),
-            AttributeKind::UnsignedInt => size_of::<u32>(),
+            Self::Float => size_of::<f32>(),
+            Self::UnsignedByte => size_of::<u8>(),
+            Self::UnsignedShort => size_of::<u16>(),
+            Self::UnsignedInt => size_of::<u32>(),
         }
     }
 }
@@ -118,9 +118,9 @@ impl ElementsDescriptor<'_> {
     /// Returns element kind of the elements' descriptor.
     pub fn element_kind(&self) -> ElementKind {
         match self {
-            ElementsDescriptor::Triangles(_) => ElementKind::Triangle,
-            ElementsDescriptor::Lines(_) => ElementKind::Line,
-            ElementsDescriptor::Points(_) => ElementKind::Point,
+            Self::Triangles(_) => ElementKind::Triangle,
+            Self::Lines(_) => ElementKind::Line,
+            Self::Points(_) => ElementKind::Point,
         }
     }
 }

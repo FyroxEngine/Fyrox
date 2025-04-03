@@ -98,23 +98,23 @@ impl<T: EntityId> StateAction<T> {
     /// Applies the action to the given animation container.
     pub fn apply(&self, animations: &mut AnimationContainer<T>) {
         match self {
-            StateAction::None => {}
-            StateAction::RewindAnimation(animation) => {
+            Self::None => {}
+            Self::RewindAnimation(animation) => {
                 if let Some(animation) = animations.try_get_mut(*animation) {
                     animation.rewind();
                 }
             }
-            StateAction::EnableAnimation(animation) => {
+            Self::EnableAnimation(animation) => {
                 if let Some(animation) = animations.try_get_mut(*animation) {
                     animation.set_enabled(true);
                 }
             }
-            StateAction::DisableAnimation(animation) => {
+            Self::DisableAnimation(animation) => {
                 if let Some(animation) = animations.try_get_mut(*animation) {
                     animation.set_enabled(false);
                 }
             }
-            StateAction::EnableRandomAnimation(animation_handles) => {
+            Self::EnableRandomAnimation(animation_handles) => {
                 if let Some(animation) = animation_handles.iter().choose(&mut rand::thread_rng()) {
                     if let Some(animation) = animations.try_get_mut(*animation) {
                         animation.set_enabled(true);

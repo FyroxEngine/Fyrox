@@ -98,7 +98,7 @@ impl<T: EntityId> PoseNode<T> {
     }
 
     /// Returns a set of handles to children pose nodes.
-    pub fn children(&self) -> Vec<Handle<PoseNode<T>>> {
+    pub fn children(&self) -> Vec<Handle<Self>> {
         match self {
             Self::PlayAnimation(_) => {
                 // No children nodes.
@@ -113,28 +113,28 @@ impl<T: EntityId> PoseNode<T> {
     /// Collects all animation handles used by this node and its descendants.
     pub fn collect_animations(
         &self,
-        nodes: &Pool<PoseNode<T>>,
+        nodes: &Pool<Self>,
         animations: &mut FxHashSet<Handle<Animation<T>>>,
     ) {
         match self {
-            PoseNode::PlayAnimation(play_animation) => {
+            Self::PlayAnimation(play_animation) => {
                 animations.insert(play_animation.animation);
             }
-            PoseNode::BlendAnimations(blend_animations) => {
+            Self::BlendAnimations(blend_animations) => {
                 for input in blend_animations.pose_sources.iter() {
                     if let Some(source) = nodes.try_borrow(input.pose_source) {
                         source.collect_animations(nodes, animations)
                     }
                 }
             }
-            PoseNode::BlendAnimationsByIndex(blend_animations_by_index) => {
+            Self::BlendAnimationsByIndex(blend_animations_by_index) => {
                 for input in blend_animations_by_index.inputs.iter() {
                     if let Some(source) = nodes.try_borrow(input.pose_source) {
                         source.collect_animations(nodes, animations)
                     }
                 }
             }
-            PoseNode::BlendSpace(blend_space) => {
+            Self::BlendSpace(blend_space) => {
                 for point in blend_space.points() {
                     if let Some(source) = nodes.try_borrow(point.pose_source) {
                         source.collect_animations(nodes, animations)
@@ -208,7 +208,7 @@ pub trait AnimationPoseSource<T: EntityId> {
 impl<T: EntityId> AnimationPoseSource<T> for PoseNode<T> {
     fn eval_pose(
         &self,
-        nodes: &Pool<PoseNode<T>>,
+        nodes: &Pool<Self>,
         params: &ParameterContainer,
         animations: &AnimationContainer<T>,
         dt: f32,
@@ -222,7 +222,7 @@ impl<T: EntityId> AnimationPoseSource<T> for PoseNode<T> {
 
     fn collect_animation_events(
         &self,
-        nodes: &Pool<PoseNode<T>>,
+        nodes: &Pool<Self>,
         params: &ParameterContainer,
         animations: &AnimationContainer<T>,
         strategy: AnimationEventCollectionStrategy,

@@ -81,7 +81,7 @@ impl Display for NameError {
             characters! It can start from most letters or '_' symbol and the rest of the name \
             must be letters, '-', '_', numbers."
             ),
-            NameError::Empty => {
+            Self::Empty => {
                 write!(f, "The project name cannot be empty!")
             }
         }

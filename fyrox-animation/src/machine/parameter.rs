@@ -71,8 +71,8 @@ impl PoseWeight {
     /// Calculates the actual pose weight value.
     pub fn value(&self, params: &ParameterContainer) -> Option<f32> {
         match self {
-            PoseWeight::Constant(val) => Some(*val),
-            PoseWeight::Parameter(name) => params.get(name).and_then(|p| {
+            Self::Constant(val) => Some(*val),
+            Self::Parameter(name) => params.get(name).and_then(|p| {
                 if let Parameter::Weight(weight) = p {
                     Some(*weight)
                 } else {

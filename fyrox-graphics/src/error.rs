@@ -88,7 +88,7 @@ pub enum FrameworkError {
 impl Display for FrameworkError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameworkError::ShaderCompilationFailed {
+            Self::ShaderCompilationFailed {
                 shader_name,
                 error_message,
             } => {
@@ -97,7 +97,7 @@ impl Display for FrameworkError {
                     "Compilation of \"{shader_name}\" shader has failed: {error_message}",
                 )
             }
-            FrameworkError::ShaderLinkingFailed {
+            Self::ShaderLinkingFailed {
                 shader_name,
                 error_message,
             } => {
@@ -106,16 +106,16 @@ impl Display for FrameworkError {
                     "Linking shader \"{shader_name}\" failed: {error_message}",
                 )
             }
-            FrameworkError::FaultyShaderSource => {
+            Self::FaultyShaderSource => {
                 write!(f, "Shader source contains invalid characters")
             }
-            FrameworkError::UnableToFindShaderUniform(v) => {
+            Self::UnableToFindShaderUniform(v) => {
                 write!(f, "There is no such shader uniform: {v}")
             }
-            FrameworkError::UnableToFindShaderUniformBlock(v) => {
+            Self::UnableToFindShaderUniformBlock(v) => {
                 write!(f, "There is no such shader uniform block: {v}")
             }
-            FrameworkError::InvalidTextureData {
+            Self::InvalidTextureData {
                 expected_data_size,
                 actual_data_size,
             } => {
@@ -125,36 +125,36 @@ impl Display for FrameworkError {
                 expected {expected_data_size}, actual: {actual_data_size}",
                 )
             }
-            FrameworkError::EmptyTextureData => {
+            Self::EmptyTextureData => {
                 write!(
                     f,
                     "None variant was passed as texture data, but engine does not support it."
                 )
             }
-            FrameworkError::InvalidElementRange { start, end, total } => {
+            Self::InvalidElementRange { start, end, total } => {
                 write!(
                     f,
                     "Tried to draw element from GeometryBuffer that does not have enough \
                     elements: start: {start}, end: {end}, total: {total}",
                 )
             }
-            FrameworkError::InvalidAttributeDescriptor => {
+            Self::InvalidAttributeDescriptor => {
                 write!(
                     f,
                     "An attribute descriptor tried to define an attribute that \
                 does not exist in vertex or doesn't match size."
                 )
             }
-            FrameworkError::InvalidFrameBuffer => {
+            Self::InvalidFrameBuffer => {
                 write!(f, "Framebuffer is invalid")
             }
-            FrameworkError::FailedToConstructFBO => {
+            Self::FailedToConstructFBO => {
                 write!(f, "OpenGL failed to construct framebuffer.")
             }
-            FrameworkError::Custom(v) => {
+            Self::Custom(v) => {
                 write!(f, "Custom error: {v}")
             }
-            FrameworkError::GraphicsServerUnavailable => {
+            Self::GraphicsServerUnavailable => {
                 write!(f, "Graphics server disconnected.")
             }
         }

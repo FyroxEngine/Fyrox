@@ -219,7 +219,7 @@ impl GameScene {
         scene.graph.physics.integration_parameters.dt = Some(0.0);
         scene.graph.physics2d.integration_parameters.dt = Some(0.0);
 
-        GameScene {
+        Self {
             editor_objects_root,
             scene_content_root,
             camera_controller,

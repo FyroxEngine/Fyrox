@@ -205,12 +205,12 @@ impl TerrainInteractionMode {
         let position = match self.brush.target {
             BrushTarget::HeightMap => terrain.local_to_height_pixel(position),
             BrushTarget::LayerMask { .. } => terrain.local_to_mask_pixel(position),
-            BrushTarget::HoleMask { .. } => terrain.local_to_hole_pixel(position),
+            BrushTarget::HoleMask => terrain.local_to_hole_pixel(position),
         };
         let scale = match self.brush.target {
             BrushTarget::HeightMap => terrain.height_grid_scale(),
             BrushTarget::LayerMask { .. } => terrain.mask_grid_scale(),
-            BrushTarget::HoleMask { .. } => terrain.hole_grid_scale(),
+            BrushTarget::HoleMask => terrain.hole_grid_scale(),
         };
         if let Some(sender) = &self.brush_sender {
             if let Some(start) = self.prev_brush_position.take() {
@@ -295,7 +295,7 @@ impl InteractionMode for TerrainInteractionMode {
                     .map(|cam| cam.make_ray(mouse_pos, frame_size));
                 if let Some(terrain) = graph[handle].cast_mut::<Terrain>() {
                     // Pick height value at the point of interaction.
-                    if let BrushMode::Flatten { .. } = &mut self.brush.mode {
+                    if let BrushMode::Flatten = &mut self.brush.mode {
                         if let Some(ray) = ray {
                             let mut intersections = ArrayVec::<TerrainRayCastResult, 128>::new();
                             terrain.raycast(ray, &mut intersections, true);
@@ -577,7 +577,7 @@ fn make_brush_mode_enum_property_editor_definition() -> EnumPropertyEditorDefini
         index_generator: |v| match v {
             BrushMode::Raise { .. } => 0,
             BrushMode::Assign { .. } => 1,
-            BrushMode::Flatten { .. } => 2,
+            BrushMode::Flatten => 2,
             BrushMode::Smooth { .. } => 3,
         },
         names_generator: || {

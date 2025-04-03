@@ -626,7 +626,7 @@ impl TileSetPropertyValueMessage {
         direction: MessageDirection,
         value: TileSetPropertyValueElement,
     ) -> UiMessage {
-        UiMessage::with_data(TileSetPropertyValueMessage(value))
+        UiMessage::with_data(Self(value))
             .with_destination(destination)
             .with_direction(direction)
     }
@@ -643,7 +643,7 @@ impl TileSetPropertyMessage {
         direction: MessageDirection,
         value: Option<Uuid>,
     ) -> UiMessage {
-        UiMessage::with_data(TileSetPropertyMessage(value))
+        UiMessage::with_data(Self(value))
             .with_destination(destination)
             .with_direction(direction)
     }

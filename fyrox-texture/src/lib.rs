@@ -169,24 +169,24 @@ impl Visit for TextureKind {
         let mut region = visitor.enter_region(name)?;
 
         let mut id = match self {
-            TextureKind::Line { .. } => 0,
-            TextureKind::Rectangle { .. } => 1,
-            TextureKind::Cube { .. } => 2,
-            TextureKind::Volume { .. } => 3,
+            Self::Line { .. } => 0,
+            Self::Rectangle { .. } => 1,
+            Self::Cube { .. } => 2,
+            Self::Volume { .. } => 3,
         };
         id.visit("Id", &mut region)?;
         if region.is_reading() {
             *self = match id {
-                0 => TextureKind::Line { length: 0 },
-                1 => TextureKind::Rectangle {
+                0 => Self::Line { length: 0 },
+                1 => Self::Rectangle {
                     width: 0,
                     height: 0,
                 },
-                2 => TextureKind::Cube {
+                2 => Self::Cube {
                     width: 0,
                     height: 0,
                 },
-                3 => TextureKind::Volume {
+                3 => Self::Volume {
                     width: 0,
                     height: 0,
                     depth: 0,
@@ -199,18 +199,18 @@ impl Visit for TextureKind {
             };
         }
         match self {
-            TextureKind::Line { length } => {
+            Self::Line { length } => {
                 length.visit("Length", &mut region)?;
             }
-            TextureKind::Rectangle { width, height } => {
+            Self::Rectangle { width, height } => {
                 width.visit("Width", &mut region)?;
                 height.visit("Height", &mut region)?;
             }
-            TextureKind::Cube { width, height } => {
+            Self::Cube { width, height } => {
                 width.visit("Width", &mut region)?;
                 height.visit("Height", &mut region)?;
             }
-            TextureKind::Volume {
+            Self::Volume {
                 width,
                 height,
                 depth,
@@ -436,11 +436,11 @@ uuid_provider!(MipFilter = "8fa17c0e-6889-4540-b396-97db4dc952aa");
 impl MipFilter {
     fn into_filter_type(self) -> fr::FilterType {
         match self {
-            MipFilter::Nearest => fr::FilterType::Box,
-            MipFilter::Bilinear => fr::FilterType::Bilinear,
-            MipFilter::CatmullRom => fr::FilterType::CatmullRom,
-            MipFilter::Hamming => fr::FilterType::Hamming,
-            MipFilter::Lanczos => fr::FilterType::Lanczos3,
+            Self::Nearest => fr::FilterType::Box,
+            Self::Bilinear => fr::FilterType::Bilinear,
+            Self::CatmullRom => fr::FilterType::CatmullRom,
+            Self::Hamming => fr::FilterType::Hamming,
+            Self::Lanczos => fr::FilterType::Lanczos3,
         }
     }
 }
@@ -730,7 +730,7 @@ pub trait TextureResourceExtension: Sized {
 
 impl TextureResourceExtension for TextureResource {
     fn new_render_target(width: u32, height: u32) -> Self {
-        Resource::new_ok(
+        Self::new_ok(
             Default::default(),
             Texture {
                 // Render target will automatically set width and height before rendering.
@@ -762,7 +762,7 @@ impl TextureResourceExtension for TextureResource {
         data: &[u8],
         import_options: TextureImportOptions,
     ) -> Result<Self, TextureError> {
-        Ok(Resource::new_ok(
+        Ok(Self::new_ok(
             kind,
             Texture::load_from_memory(data, import_options)?,
         ))
@@ -774,7 +774,7 @@ impl TextureResourceExtension for TextureResource {
         bytes: Vec<u8>,
         resource_kind: ResourceKind,
     ) -> Option<Self> {
-        Some(Resource::new_ok(
+        Some(Self::new_ok(
             resource_kind,
             Texture::from_bytes(kind, pixel_kind, bytes)?,
         ))
@@ -783,7 +783,7 @@ impl TextureResourceExtension for TextureResource {
     fn deep_clone(&self) -> Self {
         let kind = self.header().kind.clone();
         let data = self.data_ref().clone();
-        Resource::new_ok(kind, data)
+        Self::new_ok(kind, data)
     }
 }
 
@@ -881,11 +881,11 @@ impl TextureMinificationFilter {
     /// Returns true if minification filter is using mip mapping, false - otherwise.
     pub fn is_using_mip_mapping(self) -> bool {
         match self {
-            TextureMinificationFilter::Nearest | TextureMinificationFilter::Linear => false,
-            TextureMinificationFilter::NearestMipMapNearest
-            | TextureMinificationFilter::LinearMipMapLinear
-            | TextureMinificationFilter::NearestMipMapLinear
-            | TextureMinificationFilter::LinearMipMapNearest => true,
+            Self::Nearest | Self::Linear => false,
+            Self::NearestMipMapNearest
+            | Self::LinearMipMapLinear
+            | Self::NearestMipMapLinear
+            | Self::LinearMipMapNearest => true,
         }
     }
 }
@@ -1124,16 +1124,16 @@ pub enum TextureError {
 impl Display for TextureError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TextureError::UnsupportedFormat => {
+            Self::UnsupportedFormat => {
                 write!(f, "Unsupported format!")
             }
-            TextureError::Io(v) => {
+            Self::Io(v) => {
                 write!(f, "An i/o error has occurred: {v}")
             }
-            TextureError::Image(v) => {
+            Self::Image(v) => {
                 write!(f, "Image loading error {v}")
             }
-            TextureError::FileLoadError(v) => {
+            Self::FileLoadError(v) => {
                 write!(f, "A file load error has occurred {v:?}")
             }
         }
@@ -1161,7 +1161,7 @@ impl From<std::io::Error> for TextureError {
 }
 
 fn ceil_div_4(x: u32) -> u32 {
-    (x + 3) / 4
+    x.div_ceil(4)
 }
 
 /// Texture compression options.

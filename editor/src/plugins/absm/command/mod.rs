@@ -218,8 +218,8 @@ impl<N: Reflect> CommandTrait for AddStateCommand<N> {
     }
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
-        match std::mem::replace(self, AddStateCommand::Unknown) {
-            AddStateCommand::NonExecuted {
+        match std::mem::replace(self, Self::Unknown) {
+            Self::NonExecuted {
                 node_handle,
                 layer_index,
                 state,
@@ -236,14 +236,14 @@ impl<N: Reflect> CommandTrait for AddStateCommand<N> {
                     layer.set_entry_state(handle);
                 }
 
-                *self = AddStateCommand::Executed {
+                *self = Self::Executed {
                     node_handle,
                     layer_index,
                     handle,
                     prev_entry_state,
                 };
             }
-            AddStateCommand::Reverted {
+            Self::Reverted {
                 node_handle,
                 layer_index,
                 ticket,
@@ -261,7 +261,7 @@ impl<N: Reflect> CommandTrait for AddStateCommand<N> {
                     layer.set_entry_state(handle);
                 }
 
-                *self = AddStateCommand::Executed {
+                *self = Self::Executed {
                     node_handle,
                     layer_index,
                     handle,
@@ -273,8 +273,8 @@ impl<N: Reflect> CommandTrait for AddStateCommand<N> {
     }
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
-        match std::mem::replace(self, AddStateCommand::Unknown) {
-            AddStateCommand::Executed {
+        match std::mem::replace(self, Self::Unknown) {
+            Self::Executed {
                 node_handle,
                 layer_index,
                 handle,
@@ -288,7 +288,7 @@ impl<N: Reflect> CommandTrait for AddStateCommand<N> {
 
                 let (ticket, state) = layer.states_mut().take_reserve(handle);
 
-                *self = AddStateCommand::Reverted {
+                *self = Self::Reverted {
                     node_handle,
                     layer_index,
                     ticket,
@@ -300,12 +300,12 @@ impl<N: Reflect> CommandTrait for AddStateCommand<N> {
     }
 
     fn finalize(&mut self, context: &mut dyn CommandContext) {
-        if let AddStateCommand::Reverted {
+        if let Self::Reverted {
             node_handle,
             layer_index,
             ticket,
             ..
-        } = std::mem::replace(self, AddStateCommand::Unknown)
+        } = std::mem::replace(self, Self::Unknown)
         {
             let machine = fetch_machine(context, node_handle);
             machine.layers_mut()[layer_index]
@@ -353,8 +353,8 @@ impl<N: Reflect> CommandTrait for AddPoseNodeCommand<N> {
     }
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
-        match std::mem::replace(self, AddPoseNodeCommand::Unknown) {
-            AddPoseNodeCommand::NonExecuted {
+        match std::mem::replace(self, Self::Unknown) {
+            Self::NonExecuted {
                 node_handle,
                 layer_index,
                 node,
@@ -372,14 +372,14 @@ impl<N: Reflect> CommandTrait for AddPoseNodeCommand<N> {
                     parent_state_ref.root = handle;
                 }
 
-                *self = AddPoseNodeCommand::Executed {
+                *self = Self::Executed {
                     node_handle,
                     layer_index,
                     handle,
                     prev_root_node,
                 };
             }
-            AddPoseNodeCommand::Reverted {
+            Self::Reverted {
                 node_handle,
                 layer_index,
                 ticket,
@@ -397,7 +397,7 @@ impl<N: Reflect> CommandTrait for AddPoseNodeCommand<N> {
                     parent_state_ref.root = handle;
                 }
 
-                *self = AddPoseNodeCommand::Executed {
+                *self = Self::Executed {
                     node_handle,
                     layer_index,
                     handle,
@@ -409,8 +409,8 @@ impl<N: Reflect> CommandTrait for AddPoseNodeCommand<N> {
     }
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
-        match std::mem::replace(self, AddPoseNodeCommand::Unknown) {
-            AddPoseNodeCommand::Executed {
+        match std::mem::replace(self, Self::Unknown) {
+            Self::Executed {
                 node_handle,
                 layer_index,
                 handle,
@@ -422,7 +422,7 @@ impl<N: Reflect> CommandTrait for AddPoseNodeCommand<N> {
 
                 layer.states_mut()[node.parent_state].root = prev_root_node;
 
-                *self = AddPoseNodeCommand::Reverted {
+                *self = Self::Reverted {
                     node_handle,
                     layer_index,
                     ticket,
@@ -434,12 +434,12 @@ impl<N: Reflect> CommandTrait for AddPoseNodeCommand<N> {
     }
 
     fn finalize(&mut self, context: &mut dyn CommandContext) {
-        if let AddPoseNodeCommand::Reverted {
+        if let Self::Reverted {
             node_handle,
             layer_index,
             ticket,
             ..
-        } = std::mem::replace(self, AddPoseNodeCommand::Unknown)
+        } = std::mem::replace(self, Self::Unknown)
         {
             let machine = fetch_machine(context, node_handle);
             let layer = &mut machine.layers_mut()[layer_index];

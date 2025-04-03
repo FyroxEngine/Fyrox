@@ -41,7 +41,7 @@ impl<T: EntityId> From<Vec<T>> for LayerMask<T> {
 
 impl<T: EntityId> LayerMask<T> {
     /// Merges a given layer mask in the current mask, handles will be automatically de-duplicated.
-    pub fn merge(&mut self, other: LayerMask<T>) {
+    pub fn merge(&mut self, other: Self) {
         for handle in other.into_inner() {
             if !self.contains(handle) {
                 self.add(handle);

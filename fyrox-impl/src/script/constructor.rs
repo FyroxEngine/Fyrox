@@ -56,7 +56,7 @@ pub struct ScriptConstructorContainer {
 impl ScriptConstructorContainer {
     /// Creates default node constructor container with constructors for built-in engine nodes.
     pub fn new() -> Self {
-        ScriptConstructorContainer::default()
+        Self::default()
     }
 
     /// Adds new type constructor for a given type.

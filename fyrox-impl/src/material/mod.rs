@@ -353,26 +353,26 @@ impl MaterialProperty {
     /// Maps the inner value of the property to its respective reference.
     pub fn as_ref(&self) -> MaterialPropertyRef<'_> {
         match self {
-            MaterialProperty::Float(v) => MaterialPropertyRef::Float(v),
-            MaterialProperty::FloatArray(v) => MaterialPropertyRef::FloatArray(v),
-            MaterialProperty::Int(v) => MaterialPropertyRef::Int(v),
-            MaterialProperty::IntArray(v) => MaterialPropertyRef::IntArray(v),
-            MaterialProperty::UInt(v) => MaterialPropertyRef::UInt(v),
-            MaterialProperty::UIntArray(v) => MaterialPropertyRef::UIntArray(v),
-            MaterialProperty::Vector2(v) => MaterialPropertyRef::Vector2(v),
-            MaterialProperty::Vector2Array(v) => MaterialPropertyRef::Vector2Array(v),
-            MaterialProperty::Vector3(v) => MaterialPropertyRef::Vector3(v),
-            MaterialProperty::Vector3Array(v) => MaterialPropertyRef::Vector3Array(v),
-            MaterialProperty::Vector4(v) => MaterialPropertyRef::Vector4(v),
-            MaterialProperty::Vector4Array(v) => MaterialPropertyRef::Vector4Array(v),
-            MaterialProperty::Matrix2(v) => MaterialPropertyRef::Matrix2(v),
-            MaterialProperty::Matrix2Array(v) => MaterialPropertyRef::Matrix2Array(v),
-            MaterialProperty::Matrix3(v) => MaterialPropertyRef::Matrix3(v),
-            MaterialProperty::Matrix3Array(v) => MaterialPropertyRef::Matrix3Array(v),
-            MaterialProperty::Matrix4(v) => MaterialPropertyRef::Matrix4(v),
-            MaterialProperty::Matrix4Array(v) => MaterialPropertyRef::Matrix4Array(v),
-            MaterialProperty::Bool(v) => MaterialPropertyRef::Bool(v),
-            MaterialProperty::Color(v) => MaterialPropertyRef::Color(v),
+            Self::Float(v) => MaterialPropertyRef::Float(v),
+            Self::FloatArray(v) => MaterialPropertyRef::FloatArray(v),
+            Self::Int(v) => MaterialPropertyRef::Int(v),
+            Self::IntArray(v) => MaterialPropertyRef::IntArray(v),
+            Self::UInt(v) => MaterialPropertyRef::UInt(v),
+            Self::UIntArray(v) => MaterialPropertyRef::UIntArray(v),
+            Self::Vector2(v) => MaterialPropertyRef::Vector2(v),
+            Self::Vector2Array(v) => MaterialPropertyRef::Vector2Array(v),
+            Self::Vector3(v) => MaterialPropertyRef::Vector3(v),
+            Self::Vector3Array(v) => MaterialPropertyRef::Vector3Array(v),
+            Self::Vector4(v) => MaterialPropertyRef::Vector4(v),
+            Self::Vector4Array(v) => MaterialPropertyRef::Vector4Array(v),
+            Self::Matrix2(v) => MaterialPropertyRef::Matrix2(v),
+            Self::Matrix2Array(v) => MaterialPropertyRef::Matrix2Array(v),
+            Self::Matrix3(v) => MaterialPropertyRef::Matrix3(v),
+            Self::Matrix3Array(v) => MaterialPropertyRef::Matrix3Array(v),
+            Self::Matrix4(v) => MaterialPropertyRef::Matrix4(v),
+            Self::Matrix4Array(v) => MaterialPropertyRef::Matrix4Array(v),
+            Self::Bool(v) => MaterialPropertyRef::Bool(v),
+            Self::Color(v) => MaterialPropertyRef::Color(v),
         }
     }
 }
@@ -740,7 +740,7 @@ impl Visit for Material {
 
 impl Default for Material {
     fn default() -> Self {
-        Material::standard()
+        Self::standard()
     }
 }
 
@@ -789,7 +789,7 @@ impl From<FileError> for MaterialError {
 impl Display for MaterialError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            MaterialError::Visit(e) => {
+            Self::Visit(e) => {
                 write!(f, "Failed to visit data source. Reason: {e:?}")
             }
         }
@@ -953,7 +953,7 @@ impl Material {
         P: AsRef<Path>,
     {
         let content = io.load_file(path.as_ref()).await?;
-        let mut material = Material {
+        let mut material = Self {
             shader: Default::default(),
             resource_bindings: Default::default(),
         };
@@ -1222,11 +1222,11 @@ impl MaterialResourceExtension for MaterialResource {
         let material_state = self.header();
         let kind = material_state.kind.clone();
         match material_state.state {
-            ResourceState::Pending { .. } => MaterialResource::new_pending(kind),
+            ResourceState::Pending { .. } => Self::new_pending(kind),
             ResourceState::LoadError { ref error } => {
-                MaterialResource::new_load_error(kind.clone(), error.clone())
+                Self::new_load_error(kind.clone(), error.clone())
             }
-            ResourceState::Ok(ref material) => MaterialResource::new_ok(
+            ResourceState::Ok(ref material) => Self::new_ok(
                 kind,
                 ResourceDataAsAny::as_any(&**material)
                     .downcast_ref::<Material>()

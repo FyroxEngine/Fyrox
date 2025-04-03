@@ -121,7 +121,7 @@ impl DerefMut for Settings {
 
 impl Settings {
     pub fn load() -> Result<Self, SettingsError> {
-        Ok(Settings {
+        Ok(Self {
             settings: SettingsData::load()?,
             need_save: false,
             subscribers: Default::default(),

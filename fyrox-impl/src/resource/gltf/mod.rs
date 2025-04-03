@@ -89,49 +89,49 @@ enum GltfLoadError {
 
 impl From<json::Error> for GltfLoadError {
     fn from(error: json::Error) -> Self {
-        GltfLoadError::JSON(error)
+        Self::JSON(error)
     }
 }
 
 impl From<gltf::Error> for GltfLoadError {
     fn from(error: gltf::Error) -> Self {
-        GltfLoadError::Gltf(error)
+        Self::Gltf(error)
     }
 }
 
 impl From<TextureError> for GltfLoadError {
     fn from(error: TextureError) -> Self {
-        GltfLoadError::Texture(error)
+        Self::Texture(error)
     }
 }
 
 impl From<FileError> for GltfLoadError {
     fn from(error: FileError) -> Self {
-        GltfLoadError::File(error)
+        Self::File(error)
     }
 }
 
 impl From<LoadError> for GltfLoadError {
     fn from(error: LoadError) -> Self {
-        GltfLoadError::Load(error)
+        Self::Load(error)
     }
 }
 
 impl From<base64::DecodeError> for GltfLoadError {
     fn from(error: base64::DecodeError) -> Self {
-        GltfLoadError::Base64(error)
+        Self::Base64(error)
     }
 }
 
 impl From<GltfMaterialError> for GltfLoadError {
     fn from(error: GltfMaterialError) -> Self {
-        GltfLoadError::Material(error)
+        Self::Material(error)
     }
 }
 
 impl From<SurfaceDataError> for GltfLoadError {
     fn from(error: SurfaceDataError) -> Self {
-        GltfLoadError::Surface(error)
+        Self::Surface(error)
     }
 }
 
@@ -165,7 +165,7 @@ struct SkinBone {
 impl From<(usize, Matrix4<f32>)> for SkinBone {
     fn from(pair: (usize, Matrix4<f32>)) -> Self {
         let (node_index, inv_bind_pose) = pair;
-        SkinBone {
+        Self {
             node_index,
             inv_bind_pose,
         }
@@ -185,7 +185,7 @@ struct SkinBoneIter<'a> {
 }
 
 impl<'a> SkinBoneIter<'a> {
-    fn new(skin_list: &'a [SkinData]) -> SkinBoneIter<'a> {
+    fn new(skin_list: &'a [SkinData]) -> Self {
         SkinBoneIter {
             skin_index: 0,
             bone_index: 0,

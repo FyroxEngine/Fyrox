@@ -120,9 +120,9 @@ impl Display for TargetPlatform {
             f,
             "{}",
             match self {
-                TargetPlatform::PC => "PC",
-                TargetPlatform::WebAssembly => "WASM",
-                TargetPlatform::Android => "Android",
+                Self::PC => "PC",
+                Self::WebAssembly => "WASM",
+                Self::Android => "Android",
             }
         )
     }

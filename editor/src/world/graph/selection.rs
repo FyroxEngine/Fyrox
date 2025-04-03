@@ -72,14 +72,14 @@ impl GraphSelection {
     }
 
     pub fn contains(&self, handle: Handle<Node>) -> bool {
-        self.nodes.iter().any(|&h| h == handle)
+        self.nodes.contains(&handle)
     }
 
     pub fn nodes(&self) -> &[Handle<Node>] {
         &self.nodes
     }
 
-    pub fn extend(&mut self, other: &GraphSelection) {
+    pub fn extend(&mut self, other: &Self) {
         self.nodes.extend_from_slice(&other.nodes)
     }
 

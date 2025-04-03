@@ -173,7 +173,7 @@ impl QuadTreeNode {
             let next_level = level + 1;
             QuadTreeNodeKind::Branch {
                 leafs: [
-                    Box::new(QuadTreeNode::new(
+                    Box::new(Self::new(
                         height_map,
                         height_map_size,
                         position,
@@ -181,7 +181,7 @@ impl QuadTreeNode {
                         max_size,
                         next_level,
                     )),
-                    Box::new(QuadTreeNode::new(
+                    Box::new(Self::new(
                         height_map,
                         height_map_size,
                         position + Vector2::new(center_pos.x, 0),
@@ -189,7 +189,7 @@ impl QuadTreeNode {
                         max_size,
                         next_level,
                     )),
-                    Box::new(QuadTreeNode::new(
+                    Box::new(Self::new(
                         height_map,
                         height_map_size,
                         position + center_pos,
@@ -197,7 +197,7 @@ impl QuadTreeNode {
                         max_size,
                         next_level,
                     )),
-                    Box::new(QuadTreeNode::new(
+                    Box::new(Self::new(
                         height_map,
                         height_map_size,
                         position + Vector2::new(0, center_pos.y),

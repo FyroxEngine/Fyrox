@@ -57,7 +57,7 @@ impl FbxModel {
     pub fn read(
         model_node_handle: Handle<FbxNode>,
         nodes: &FbxNodeContainer,
-    ) -> Result<FbxModel, String> {
+    ) -> Result<Self, String> {
         let mut name = String::from("Unnamed");
 
         let model_node = nodes.get(model_node_handle);
@@ -70,7 +70,7 @@ impl FbxModel {
             name = name.chars().skip(7).collect();
         }
 
-        let mut model = FbxModel {
+        let mut model = Self {
             name,
             pre_rotation: Vector3::default(),
             post_rotation: Vector3::default(),

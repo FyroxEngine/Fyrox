@@ -205,18 +205,18 @@ impl Error for FillPatternMapError {}
 impl Display for FillPatternMapError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FillPatternMapError::FrequencyInvalidId => write!(
+            Self::FrequencyInvalidId => write!(
                 f,
                 "The property UUID for the frequency does not match any property in the tile set."
             ),
-            FillPatternMapError::FrequencyWrongType => {
+            Self::FrequencyWrongType => {
                 write!(f, "The frequency property should be an f32.")
             }
-            FillPatternMapError::PatternInvalidId => write!(
+            Self::PatternInvalidId => write!(
                 f,
                 "The property UUID for the pattern does not match any property in the tile set."
             ),
-            FillPatternMapError::PatternWrongType => {
+            Self::PatternWrongType => {
                 write!(f, "The pattern property should be a nine-slice property.")
             }
         }

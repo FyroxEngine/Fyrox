@@ -142,52 +142,52 @@ impl ValueType {
     /// Converts the value type into its respective type id.
     pub fn into_type_id(self) -> TypeId {
         match self {
-            ValueType::Bool => TypeId::of::<bool>(),
-            ValueType::F32 => TypeId::of::<f32>(),
-            ValueType::F64 => TypeId::of::<f64>(),
-            ValueType::U64 => TypeId::of::<u64>(),
-            ValueType::I64 => TypeId::of::<i64>(),
-            ValueType::U32 => TypeId::of::<u32>(),
-            ValueType::I32 => TypeId::of::<i32>(),
-            ValueType::U16 => TypeId::of::<u16>(),
-            ValueType::I16 => TypeId::of::<i16>(),
-            ValueType::U8 => TypeId::of::<u8>(),
-            ValueType::I8 => TypeId::of::<i8>(),
-            ValueType::Vector2Bool => TypeId::of::<Vector2<bool>>(),
-            ValueType::Vector2F32 => TypeId::of::<Vector2<f32>>(),
-            ValueType::Vector2F64 => TypeId::of::<Vector2<f64>>(),
-            ValueType::Vector2U64 => TypeId::of::<Vector2<u64>>(),
-            ValueType::Vector2I64 => TypeId::of::<Vector2<i64>>(),
-            ValueType::Vector2U32 => TypeId::of::<Vector2<u32>>(),
-            ValueType::Vector2I32 => TypeId::of::<Vector2<i32>>(),
-            ValueType::Vector2U16 => TypeId::of::<Vector2<u16>>(),
-            ValueType::Vector2I16 => TypeId::of::<Vector2<i16>>(),
-            ValueType::Vector2U8 => TypeId::of::<Vector2<u8>>(),
-            ValueType::Vector2I8 => TypeId::of::<Vector2<i8>>(),
-            ValueType::Vector3Bool => TypeId::of::<Vector3<bool>>(),
-            ValueType::Vector3F32 => TypeId::of::<Vector3<f32>>(),
-            ValueType::Vector3F64 => TypeId::of::<Vector3<f64>>(),
-            ValueType::Vector3U64 => TypeId::of::<Vector3<u64>>(),
-            ValueType::Vector3I64 => TypeId::of::<Vector3<i64>>(),
-            ValueType::Vector3U32 => TypeId::of::<Vector3<u32>>(),
-            ValueType::Vector3I32 => TypeId::of::<Vector3<i32>>(),
-            ValueType::Vector3U16 => TypeId::of::<Vector3<u16>>(),
-            ValueType::Vector3I16 => TypeId::of::<Vector3<i16>>(),
-            ValueType::Vector3U8 => TypeId::of::<Vector3<u8>>(),
-            ValueType::Vector3I8 => TypeId::of::<Vector3<i8>>(),
-            ValueType::Vector4Bool => TypeId::of::<Vector4<bool>>(),
-            ValueType::Vector4F32 => TypeId::of::<Vector4<f32>>(),
-            ValueType::Vector4F64 => TypeId::of::<Vector4<f64>>(),
-            ValueType::Vector4U64 => TypeId::of::<Vector4<u64>>(),
-            ValueType::Vector4I64 => TypeId::of::<Vector4<i64>>(),
-            ValueType::Vector4U32 => TypeId::of::<Vector4<u32>>(),
-            ValueType::Vector4I32 => TypeId::of::<Vector4<i32>>(),
-            ValueType::Vector4U16 => TypeId::of::<Vector4<u16>>(),
-            ValueType::Vector4I16 => TypeId::of::<Vector4<i16>>(),
-            ValueType::Vector4U8 => TypeId::of::<Vector4<u8>>(),
-            ValueType::Vector4I8 => TypeId::of::<Vector4<i8>>(),
-            ValueType::UnitQuaternionF32 => TypeId::of::<UnitQuaternion<f32>>(),
-            ValueType::UnitQuaternionF64 => TypeId::of::<UnitQuaternion<f64>>(),
+            Self::Bool => TypeId::of::<bool>(),
+            Self::F32 => TypeId::of::<f32>(),
+            Self::F64 => TypeId::of::<f64>(),
+            Self::U64 => TypeId::of::<u64>(),
+            Self::I64 => TypeId::of::<i64>(),
+            Self::U32 => TypeId::of::<u32>(),
+            Self::I32 => TypeId::of::<i32>(),
+            Self::U16 => TypeId::of::<u16>(),
+            Self::I16 => TypeId::of::<i16>(),
+            Self::U8 => TypeId::of::<u8>(),
+            Self::I8 => TypeId::of::<i8>(),
+            Self::Vector2Bool => TypeId::of::<Vector2<bool>>(),
+            Self::Vector2F32 => TypeId::of::<Vector2<f32>>(),
+            Self::Vector2F64 => TypeId::of::<Vector2<f64>>(),
+            Self::Vector2U64 => TypeId::of::<Vector2<u64>>(),
+            Self::Vector2I64 => TypeId::of::<Vector2<i64>>(),
+            Self::Vector2U32 => TypeId::of::<Vector2<u32>>(),
+            Self::Vector2I32 => TypeId::of::<Vector2<i32>>(),
+            Self::Vector2U16 => TypeId::of::<Vector2<u16>>(),
+            Self::Vector2I16 => TypeId::of::<Vector2<i16>>(),
+            Self::Vector2U8 => TypeId::of::<Vector2<u8>>(),
+            Self::Vector2I8 => TypeId::of::<Vector2<i8>>(),
+            Self::Vector3Bool => TypeId::of::<Vector3<bool>>(),
+            Self::Vector3F32 => TypeId::of::<Vector3<f32>>(),
+            Self::Vector3F64 => TypeId::of::<Vector3<f64>>(),
+            Self::Vector3U64 => TypeId::of::<Vector3<u64>>(),
+            Self::Vector3I64 => TypeId::of::<Vector3<i64>>(),
+            Self::Vector3U32 => TypeId::of::<Vector3<u32>>(),
+            Self::Vector3I32 => TypeId::of::<Vector3<i32>>(),
+            Self::Vector3U16 => TypeId::of::<Vector3<u16>>(),
+            Self::Vector3I16 => TypeId::of::<Vector3<i16>>(),
+            Self::Vector3U8 => TypeId::of::<Vector3<u8>>(),
+            Self::Vector3I8 => TypeId::of::<Vector3<i8>>(),
+            Self::Vector4Bool => TypeId::of::<Vector4<bool>>(),
+            Self::Vector4F32 => TypeId::of::<Vector4<f32>>(),
+            Self::Vector4F64 => TypeId::of::<Vector4<f64>>(),
+            Self::Vector4U64 => TypeId::of::<Vector4<u64>>(),
+            Self::Vector4I64 => TypeId::of::<Vector4<i64>>(),
+            Self::Vector4U32 => TypeId::of::<Vector4<u32>>(),
+            Self::Vector4I32 => TypeId::of::<Vector4<i32>>(),
+            Self::Vector4U16 => TypeId::of::<Vector4<u16>>(),
+            Self::Vector4I16 => TypeId::of::<Vector4<i16>>(),
+            Self::Vector4U8 => TypeId::of::<Vector4<u8>>(),
+            Self::Vector4I8 => TypeId::of::<Vector4<i8>>(),
+            Self::UnitQuaternionF32 => TypeId::of::<UnitQuaternion<f32>>(),
+            Self::UnitQuaternionF64 => TypeId::of::<UnitQuaternion<f64>>(),
         }
     }
 }
@@ -277,7 +277,7 @@ impl TrackValue {
         }
 
         match self {
-            TrackValue::Real(real) => match value_type {
+            Self::Real(real) => match value_type {
                 ValueType::Bool => set(any, real.ne(&0.0)),
                 ValueType::F32 => set(any, *real),
                 ValueType::F64 => set(any, *real as f64),
@@ -291,7 +291,7 @@ impl TrackValue {
                 ValueType::I8 => set(any, *real as i8),
                 _ => false,
             },
-            TrackValue::Vector2(vec2) => match value_type {
+            Self::Vector2(vec2) => match value_type {
                 ValueType::Vector2Bool => set(any, Vector2::new(vec2.x.ne(&0.0), vec2.y.ne(&0.0))),
                 ValueType::Vector2F32 => set(any, *vec2),
                 ValueType::Vector2F64 => set(any, convert_vec2::<f64>(vec2)),
@@ -305,7 +305,7 @@ impl TrackValue {
                 ValueType::Vector2I8 => set(any, convert_vec2::<i8>(vec2)),
                 _ => false,
             },
-            TrackValue::Vector3(vec3) => match value_type {
+            Self::Vector3(vec3) => match value_type {
                 ValueType::Vector3Bool => set(
                     any,
                     Vector3::new(vec3.x.ne(&0.0), vec3.y.ne(&0.0), vec3.z.ne(&0.0)),
@@ -322,7 +322,7 @@ impl TrackValue {
                 ValueType::Vector3I8 => set(any, convert_vec3::<i8>(vec3)),
                 _ => false,
             },
-            TrackValue::Vector4(vec4) => match value_type {
+            Self::Vector4(vec4) => match value_type {
                 ValueType::Vector4Bool => set(
                     any,
                     Vector4::new(
@@ -344,7 +344,7 @@ impl TrackValue {
                 ValueType::Vector4I8 => set(any, convert_vec4::<i8>(vec4)),
                 _ => false,
             },
-            TrackValue::UnitQuaternion(quat) => match value_type {
+            Self::UnitQuaternion(quat) => match value_type {
                 ValueType::UnitQuaternionF32 => set(any, *quat),
                 ValueType::UnitQuaternionF64 => set(any, quat.cast::<f64>()),
                 _ => false,
@@ -378,10 +378,10 @@ pub enum ValueBinding {
 impl Display for ValueBinding {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ValueBinding::Position => write!(f, "Position"),
-            ValueBinding::Scale => write!(f, "Scale"),
-            ValueBinding::Rotation => write!(f, "Rotation"),
-            ValueBinding::Property { name, .. } => write!(f, "{name}"),
+            Self::Position => write!(f, "Position"),
+            Self::Scale => write!(f, "Scale"),
+            Self::Rotation => write!(f, "Rotation"),
+            Self::Property { name, .. } => write!(f, "{name}"),
         }
     }
 }

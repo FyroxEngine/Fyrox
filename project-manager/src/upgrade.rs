@@ -46,17 +46,17 @@ enum Version {
 impl Version {
     fn index(&self) -> usize {
         match self {
-            Version::Specific(_) => 0,
-            Version::Local => 1,
-            Version::Nightly => 2,
+            Self::Specific(_) => 0,
+            Self::Local => 1,
+            Self::Nightly => 2,
         }
     }
 
     fn as_string_version(&self) -> String {
         match self {
-            Version::Specific(ver) => ver.clone(),
-            Version::Local => "latest".to_string(),
-            Version::Nightly => "nightly".to_string(),
+            Self::Specific(ver) => ver.clone(),
+            Self::Local => "latest".to_string(),
+            Self::Nightly => "nightly".to_string(),
         }
     }
 }

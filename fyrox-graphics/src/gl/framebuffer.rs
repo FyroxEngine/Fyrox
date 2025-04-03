@@ -214,7 +214,7 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
         let server = self.state.upgrade().unwrap();
 
         let source = self;
-        let dest = dest.as_any().downcast_ref::<GlFrameBuffer>().unwrap();
+        let dest = dest.as_any().downcast_ref::<Self>().unwrap();
 
         let mut mask = 0;
         if copy_color {
