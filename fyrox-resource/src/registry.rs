@@ -21,7 +21,9 @@
 use crate::{
     io::ResourceIo, loader::ResourceLoadersContainer, metadata::ResourceMetadata, state::WakersList,
 };
-use fyrox_core::{append_extension, io::FileError, ok_or_return, parking_lot::Mutex, warn, Uuid};
+use fyrox_core::{
+    append_extension, io::FileError, ok_or_return, parking_lot::Mutex, replace_slashes, warn, Uuid,
+};
 use ron::ser::PrettyConfig;
 use std::{
     collections::BTreeMap,
@@ -108,6 +110,47 @@ impl Future for AsyncReadyFlag {
     }
 }
 
+async fn make_relative_path_async<P: AsRef<Path>>(
+    path: P,
+    io: &dyn ResourceIo,
+) -> Result<PathBuf, FileError> {
+    let path = path.as_ref();
+    // Canonicalization requires the full path to exist, so remove the file name before
+    // calling canonicalize.
+    let file_name = path.file_name().ok_or(std::io::Error::new(
+        std::io::ErrorKind::InvalidData,
+        format!("Invalid path: {}", path.display()),
+    ))?;
+    let dir = path.parent();
+    let dir = if let Some(dir) = dir {
+        if dir.as_os_str().is_empty() {
+            Path::new(".")
+        } else {
+            dir
+        }
+    } else {
+        Path::new(".")
+    };
+    let canon_path = io
+        .canonicalize_path(dir)
+        .await
+        .map_err(|err| {
+            FileError::Custom(format!(
+                "Unable to canonicalize '{}'. Reason: {err:?}",
+                dir.display()
+            ))
+        })?
+        .join(file_name);
+    let current_dir = io.canonicalize_path(&std::env::current_dir()?).await?;
+    match canon_path.strip_prefix(current_dir) {
+        Ok(relative_path) => Ok(replace_slashes(relative_path)),
+        Err(err) => Err(FileError::Custom(format!(
+            "unable to strip prefix from '{}'! Reason: {err}",
+            canon_path.display()
+        ))),
+    }
+}
+
 /// Resource registry is responsible for UUID mapping of resource files. It maintains a map of
 /// `UUID -> Resource Path`.
 #[derive(Default, Clone)]
@@ -186,7 +229,20 @@ impl ResourceRegistry {
             resource_io.walk_directory(&registry_folder).await,
             container
         );
-        for path in file_iterator {
+        for fs_path in file_iterator {
+            let path = match make_relative_path_async(&fs_path, &*resource_io).await {
+                Ok(path) => path,
+                Err(err) => {
+                    warn!(
+                        "Unable to make relative path from {} path! The resource won't be \
+                    included in the registry! Reason: {:?}",
+                        fs_path.display(),
+                        err
+                    );
+                    continue;
+                }
+            };
+
             if !loaders.lock().is_supported_resource(&path) {
                 continue;
             }
