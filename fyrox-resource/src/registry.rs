@@ -65,48 +65,53 @@ impl RegistryContainerExt for RegistryContainer {
     }
 }
 
+#[derive(Default, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum ResourceRegistryStatus {
+    #[default]
+    Unknown,
+    Loaded,
+    Loading,
+}
+
 #[derive(Clone, Default)]
 pub struct RegistryReadyFlagData {
-    is_ready: bool,
+    status: ResourceRegistryStatus,
     wakers: WakersList,
 }
 
 #[derive(Default, Clone)]
-pub struct AsyncReadyFlag(Arc<Mutex<RegistryReadyFlagData>>);
+pub struct ResourceRegistryStatusFlag(Arc<Mutex<RegistryReadyFlagData>>);
 
-impl AsyncReadyFlag {
-    pub fn new_not_ready() -> Self {
-        Self::default()
-    }
-
-    pub fn mark_as_ready(&self) {
+impl ResourceRegistryStatusFlag {
+    pub fn mark_as_loaded(&self) {
         let mut lock = self.0.lock();
 
-        lock.is_ready = true;
+        lock.status = ResourceRegistryStatus::Loaded;
 
         for waker in lock.wakers.drain(..) {
             waker.wake();
         }
     }
 
-    pub fn mark_as_not_ready(&self) {
-        self.0.lock().is_ready = false;
+    pub fn mark_as_loading(&self) {
+        self.0.lock().status = ResourceRegistryStatus::Loading;
     }
 }
 
-impl Future for AsyncReadyFlag {
-    type Output = ();
+impl Future for ResourceRegistryStatusFlag {
+    type Output = ResourceRegistryStatus;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut lock = self.0.lock();
 
-        if lock.is_ready {
-            return Poll::Ready(());
+        match lock.status {
+            ResourceRegistryStatus::Unknown => Poll::Ready(ResourceRegistryStatus::Unknown),
+            ResourceRegistryStatus::Loaded => Poll::Ready(ResourceRegistryStatus::Loaded),
+            ResourceRegistryStatus::Loading => {
+                lock.wakers.add_waker(cx.waker());
+                Poll::Pending
+            }
         }
-
-        lock.wakers.add_waker(cx.waker());
-
-        Poll::Pending
     }
 }
 
@@ -156,7 +161,7 @@ async fn make_relative_path_async<P: AsRef<Path>>(
 #[derive(Default, Clone)]
 pub struct ResourceRegistry {
     pub paths: RegistryContainer,
-    pub is_ready: AsyncReadyFlag,
+    pub is_ready: ResourceRegistryStatusFlag,
 }
 
 impl ResourceRegistry {

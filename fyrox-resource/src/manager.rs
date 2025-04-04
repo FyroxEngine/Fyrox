@@ -21,6 +21,7 @@
 //! Resource manager controls loading and lifetime of resource in the engine. See [`ResourceManager`]
 //! docs for more info.
 
+use crate::registry::ResourceRegistryStatus;
 use crate::{
     constructor::ResourceConstructorContainer,
     core::{
@@ -516,7 +517,7 @@ impl ResourceManagerState {
         let task_resource_io = self.resource_io.clone();
         let task_resource_registry = self.resource_registry.clone();
         let is_ready_flag = task_resource_registry.lock().is_ready.clone();
-        is_ready_flag.mark_as_not_ready();
+        is_ready_flag.mark_as_loading();
         let task_loaders = self.loaders.clone();
         self.task_pool.spawn_task(async move {
             match RegistryContainer::load_from_file(&path, &*task_resource_io).await {
@@ -524,7 +525,7 @@ impl ResourceManagerState {
                     let mut lock = task_resource_registry.lock();
                     lock.set_container(registry);
 
-                    is_ready_flag.mark_as_ready();
+                    is_ready_flag.mark_as_loaded();
 
                     info!(
                         "Resource registry was loaded from {} successfully!",
@@ -549,7 +550,7 @@ impl ResourceManagerState {
                     }
                     let mut lock = task_resource_registry.lock();
                     lock.set_container(new_data);
-                    lock.is_ready.mark_as_ready();
+                    lock.is_ready.mark_as_loaded();
 
                     info!(
                         "Resource registry was updated and written to {} successfully!",
@@ -601,7 +602,7 @@ impl ResourceManagerState {
         let io = self.resource_io.clone();
         let loaders = self.loaders.clone();
         let registry = self.resource_registry.clone();
-        registry.lock().is_ready.mark_as_not_ready();
+        registry.lock().is_ready.mark_as_loading();
         self.task_pool.spawn_task(async move {
             let path = ResourceRegistry::DEFAULT_PATH;
             let new_data = ResourceRegistry::scan(io.clone(), loaders, path).await;
@@ -614,7 +615,7 @@ impl ResourceManagerState {
             }
             let mut lock = registry.lock();
             lock.set_container(new_data);
-            lock.is_ready.mark_as_ready();
+            lock.is_ready.mark_as_loaded();
         });
     }
 
@@ -836,7 +837,13 @@ impl ResourceManagerState {
 
         self.task_pool.spawn_task(async move {
             // Wait until the registry is fully loaded.
-            is_registry_ready.await;
+            let registry_status = is_registry_ready.await;
+            if registry_status == ResourceRegistryStatus::Unknown {
+                resource.commit_error(
+                    path.clone(),
+                    LoadError::new("The resource registry is unavailable!".to_string()),
+                );
+            }
 
             // A resource can be requested either by a path or an uuid. We need the registry
             // to find a respective path for an uuid.
