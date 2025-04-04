@@ -1721,11 +1721,10 @@ impl Engine {
                                 },
                             );
 
-                            Log::verify(self.resource_manager.register(
-                                model.clone().into_untyped(),
-                                request.path.clone(),
-                                |_, _| true,
-                            ));
+                            Log::verify(
+                                self.resource_manager
+                                    .register(model.clone().into_untyped(), request.path.clone()),
+                            );
 
                             for (handle, node) in scene.graph.pair_iter_mut() {
                                 node.set_inheritance_data(handle, model.clone());

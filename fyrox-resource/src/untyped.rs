@@ -584,10 +584,10 @@ mod test {
     #[test]
     fn untyped_resource_try_cast() {
         let r = UntypedResource::default();
-        let r2 = UntypedResource::new_pending(ResourceKind::External);
+        let r2 = UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::External, Stub {});
 
-        assert!(r.try_cast::<Stub>().is_some());
-        assert!(r2.try_cast::<Stub>().is_none());
+        assert!(r.try_cast::<Stub>().is_none());
+        assert!(r2.try_cast::<Stub>().is_some());
     }
 
     #[test]

@@ -486,11 +486,7 @@ impl ResourceCreator {
                             drop(constructors);
                             drop(resource_manager_state);
 
-                            Log::verify(engine.resource_manager.register(
-                                resource,
-                                path,
-                                |_, _| true,
-                            ));
+                            Log::verify(engine.resource_manager.register(resource, path));
 
                             sender.send(Message::ForceSync);
 

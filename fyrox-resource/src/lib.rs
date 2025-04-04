@@ -661,3 +661,162 @@ pub fn collect_used_resources(
         }
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        io::{FsResourceIo, ResourceIo},
+        loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader, ResourceLoadersContainer},
+        manager::ResourceManager,
+        metadata::ResourceMetadata,
+        registry::ResourceRegistry,
+        state::LoadError,
+        ResourceData,
+    };
+    use fyrox_core::{
+        futures::executor::block_on, io::FileError, parking_lot::Mutex, reflect::prelude::*,
+        task::TaskPool, uuid, visitor::prelude::*, TypeUuidProvider, Uuid,
+    };
+    use ron::ser::PrettyConfig;
+    use serde::{Deserialize, Serialize};
+    use std::{
+        error::Error,
+        fs::File,
+        io::Write,
+        ops::Range,
+        path::{Path, PathBuf},
+        sync::Arc,
+    };
+
+    #[derive(Serialize, Deserialize, Default, Debug, Visit, Reflect, TypeUuidProvider)]
+    #[type_uuid(id = "241d14c7-079e-4395-a63c-364f0fc3e6ea")]
+    struct MyData {
+        data: u32,
+    }
+
+    impl MyData {
+        pub async fn load_from_file(
+            path: &Path,
+            resource_io: &dyn ResourceIo,
+        ) -> Result<Self, FileError> {
+            resource_io.load_file(path).await.and_then(|metadata| {
+                ron::de::from_bytes::<Self>(&metadata).map_err(|err| {
+                    FileError::Custom(format!(
+                        "Unable to deserialize the resource metadata. Reason: {:?}",
+                        err
+                    ))
+                })
+            })
+        }
+    }
+
+    impl ResourceData for MyData {
+        fn type_uuid(&self) -> Uuid {
+            <Self as TypeUuidProvider>::type_uuid()
+        }
+
+        fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
+            let string = ron::ser::to_string_pretty(self, PrettyConfig::default())
+                .map_err(|err| {
+                    FileError::Custom(format!(
+                        "Unable to serialize resource metadata for {} resource! Reason: {}",
+                        path.display(),
+                        err
+                    ))
+                })
+                .map_err(|_| "error".to_string())?;
+            let mut file = File::create(path)?;
+            file.write_all(string.as_bytes())?;
+            Ok(())
+        }
+
+        fn can_be_saved(&self) -> bool {
+            true
+        }
+    }
+
+    struct MyDataLoader {}
+
+    impl MyDataLoader {
+        const EXT: &'static str = "my_data";
+    }
+
+    impl ResourceLoader for MyDataLoader {
+        fn extensions(&self) -> &[&str] {
+            &[Self::EXT]
+        }
+
+        fn data_type_uuid(&self) -> Uuid {
+            <MyData as TypeUuidProvider>::type_uuid()
+        }
+
+        fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
+            Box::pin(async move {
+                let my_data = MyData::load_from_file(&path, io.as_ref())
+                    .await
+                    .map_err(LoadError::new)?;
+                Ok(LoaderPayload::new(my_data))
+            })
+        }
+    }
+
+    const TEST_FOLDER: &'static str = "./test_output";
+
+    fn make_file_path(n: usize) -> PathBuf {
+        Path::new(TEST_FOLDER).join(format!("test{n}.{}", MyDataLoader::EXT))
+    }
+
+    fn make_metadata_file_path(n: usize) -> PathBuf {
+        Path::new(TEST_FOLDER).join(format!(
+            "test{n}.{}.{}",
+            MyDataLoader::EXT,
+            ResourceMetadata::EXTENSION
+        ))
+    }
+
+    fn write_test_resources(indices: Range<usize>) {
+        let path = Path::new(TEST_FOLDER);
+        if !std::fs::exists(path).unwrap() {
+            std::fs::create_dir_all(path).unwrap();
+        }
+
+        for i in indices {
+            MyData { data: i as u32 }.save(&make_file_path(i)).unwrap();
+        }
+    }
+
+    #[test]
+    fn test_registry_scan() {
+        write_test_resources(0..2);
+
+        assert!(std::fs::exists(make_file_path(0)).unwrap());
+        assert!(std::fs::exists(make_file_path(1)).unwrap());
+
+        let io = Arc::new(FsResourceIo);
+
+        let mut loaders = ResourceLoadersContainer::new();
+        loaders.set(MyDataLoader {});
+        let loaders = Arc::new(Mutex::new(loaders));
+
+        let registry = block_on(ResourceRegistry::scan(io, loaders, TEST_FOLDER));
+
+        assert!(std::fs::exists(make_metadata_file_path(0)).unwrap());
+        assert!(std::fs::exists(make_metadata_file_path(1)).unwrap());
+
+        assert_eq!(registry.len(), 2);
+    }
+
+    #[test]
+    fn test_resource_manager_request_simple() {
+        write_test_resources(2..4);
+        let resource_manager = ResourceManager::new(Arc::new(TaskPool::new()));
+        resource_manager.add_loader(MyDataLoader {});
+        resource_manager.update_registry();
+        let path1 = make_file_path(2);
+        let path2 = make_file_path(3);
+        let res1 = resource_manager.request::<MyData>(path1);
+        let res2 = resource_manager.request::<MyData>(path2);
+        assert_eq!(block_on(res1).unwrap().data_ref().data, 2);
+        assert_eq!(block_on(res2).unwrap().data_ref().data, 3);
+    }
+}

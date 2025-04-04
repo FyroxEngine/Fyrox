@@ -160,6 +160,6 @@ mod test {
             )));
 
         let s = graph.pretty_print();
-        assert_eq!(s, "External (/foo)\n\tExternal (/bar)\n".to_string());
+        assert_eq!(s, "External\n\tExternal\n".to_string());
     }
 }

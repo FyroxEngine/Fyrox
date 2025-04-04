@@ -21,7 +21,6 @@
 //! Resource manager controls loading and lifetime of resource in the engine. See [`ResourceManager`]
 //! docs for more info.
 
-use crate::registry::ResourceRegistryStatus;
 use crate::{
     constructor::ResourceConstructorContainer,
     core::{
@@ -37,13 +36,13 @@ use crate::{
     entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
     event::{ResourceEvent, ResourceEventBroadcaster},
     io::{FsResourceIo, ResourceIo},
-    loader::ResourceLoadersContainer,
+    loader::{ResourceLoader, ResourceLoadersContainer},
     metadata::ResourceMetadata,
     options::OPTIONS_EXTENSION,
-    registry::{RegistryContainer, RegistryContainerExt, ResourceRegistry},
+    registry::{RegistryContainer, RegistryContainerExt, ResourceRegistry, ResourceRegistryStatus},
     state::{LoadError, ResourcePath, ResourceState},
     untyped::ResourceKind,
-    Resource, ResourceData, TypedResourceData, UntypedResource,
+    Resource, TypedResourceData, UntypedResource,
 };
 use fxhash::FxHashMap;
 use fyrox_core::{err, info, Uuid};
@@ -250,7 +249,7 @@ impl Debug for ResourceManager {
 }
 
 /// An error that may occur during texture registration.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ResourceRegistrationError {
     /// Resource saving has failed.
     UnableToRegister,
@@ -398,52 +397,22 @@ impl ResourceManager {
         self.state().request_by_uuid(resource_uuid)
     }
 
+    pub fn update_registry(&self) {
+        self.state().update_registry();
+    }
+
+    pub fn add_loader<T: ResourceLoader>(&self, loader: T) -> Option<T> {
+        self.state().add_loader(loader)
+    }
+
     /// Saves given resources in the specified path and registers it in resource manager, so
     /// it will be accessible through it later.
-    pub fn register<P, F>(
+    pub fn register(
         &self,
         resource: UntypedResource,
-        path: P,
-        mut on_register: F,
-    ) -> Result<(), ResourceRegistrationError>
-    where
-        P: AsRef<Path>,
-        F: FnMut(&mut dyn ResourceData, &Path) -> bool,
-    {
-        let path = path.as_ref().to_owned();
-        let resource_uuid = resource
-            .resource_uuid()
-            .ok_or(ResourceRegistrationError::InvalidState)?;
-
-        let mut state = self.state();
-        if let Some(resource) = state.find(resource_uuid) {
-            let resource_state = resource.0.lock();
-            if let ResourceState::Ok { .. } = resource_state.state {
-                return Err(ResourceRegistrationError::AlreadyRegistered);
-            }
-        }
-
-        state.unregister(&path);
-
-        let mut header = resource.0.lock();
-        header.kind.make_external();
-        if let ResourceState::Ok {
-            ref mut data,
-            resource_uuid,
-            ..
-        } = header.state
-        {
-            if !on_register(&mut **data, path.as_ref()) {
-                Err(ResourceRegistrationError::UnableToRegister)
-            } else {
-                state.resource_registry.lock().register(resource_uuid, path);
-                drop(header);
-                state.push(resource);
-                Ok(())
-            }
-        } else {
-            Err(ResourceRegistrationError::InvalidState)
-        }
+        path: impl AsRef<Path>,
+    ) -> Result<(), ResourceRegistrationError> {
+        self.state().register(resource, path)
     }
 
     /// Attempts to move a resource from its current location to the new path.
@@ -682,8 +651,7 @@ impl ResourceManagerState {
         }
     }
 
-    /// Adds a new resource in the container.
-    pub fn push(&mut self, resource: UntypedResource) {
+    fn add_resource_and_notify(&mut self, resource: UntypedResource) {
         self.event_broadcaster
             .broadcast(ResourceEvent::Added(resource.clone()));
 
@@ -698,7 +666,7 @@ impl ResourceManagerState {
     /// # Complexity
     ///
     /// O(n)
-    pub fn find(&self, uuid: Uuid) -> Option<&UntypedResource> {
+    pub fn find_by_uuid(&self, uuid: Uuid) -> Option<&UntypedResource> {
         self.resources
             .iter()
             .find(|entry| entry.value.resource_uuid() == Some(uuid))
@@ -818,7 +786,7 @@ impl ResourceManagerState {
             None => {
                 let resource = UntypedResource::new_pending(ResourceKind::External);
                 self.spawn_loading_task(path, resource.clone(), false);
-                self.push(resource.clone());
+                self.add_resource_and_notify(resource.clone());
                 resource
             }
         }
@@ -843,6 +811,7 @@ impl ResourceManagerState {
                     path.clone(),
                     LoadError::new("The resource registry is unavailable!".to_string()),
                 );
+                return;
             }
 
             // A resource can be requested either by a path or an uuid. We need the registry
@@ -879,23 +848,36 @@ impl ResourceManagerState {
                     Ok(data) => {
                         let data = data.0;
 
-                        Log::info(format!(
-                            "Resource {} was loaded successfully!",
-                            fs_path.display()
-                        ));
+                        match registry.lock().path_to_uuid(&fs_path) {
+                            Some(resource_uuid) => {
+                                let mut mutex_guard = resource.0.lock();
 
-                        // Separate scope to keep mutex locking time at minimum.
-                        {
-                            let mut mutex_guard = resource.0.lock();
-                            let resource_uuid = registry.lock().path_to_uuid(&fs_path).unwrap();
-                            assert!(mutex_guard.kind.is_external());
-                            mutex_guard.state.commit(ResourceState::Ok {
-                                data,
-                                resource_uuid,
-                            });
+                                assert!(mutex_guard.kind.is_external());
+
+                                mutex_guard.state.commit(ResourceState::Ok {
+                                    data,
+                                    resource_uuid,
+                                });
+
+                                drop(mutex_guard);
+
+                                event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
+
+                                Log::info(format!(
+                                    "Resource {} was loaded successfully!",
+                                    fs_path.display()
+                                ));
+                            }
+                            None => {
+                                let error = format!(
+                                    "Resource {} failed to load. Path does not found \
+                                        in the registry!",
+                                    fs_path.display(),
+                                );
+
+                                resource.commit_error(path, error);
+                            }
                         }
-
-                        event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
                     }
                     Err(error) => {
                         Log::info(format!(
@@ -926,6 +908,39 @@ impl ResourceManagerState {
             registry.uuid_to_path_buf(resource_uuid)
         } else {
             None
+        }
+    }
+
+    pub fn add_loader<T: ResourceLoader>(&self, loader: T) -> Option<T> {
+        self.loaders.lock().set(loader)
+    }
+
+    /// Saves given resources in the specified path and registers it in resource manager, so
+    /// it will be accessible through it later.
+    pub fn register(
+        &mut self,
+        resource: UntypedResource,
+        path: impl AsRef<Path>,
+    ) -> Result<(), ResourceRegistrationError> {
+        let path = path.as_ref().to_owned();
+
+        let resource_uuid = resource
+            .resource_uuid()
+            .ok_or(ResourceRegistrationError::InvalidState)?;
+
+        if self.find_by_uuid(resource_uuid).is_some() {
+            return Err(ResourceRegistrationError::AlreadyRegistered);
+        }
+
+        let mut resource_header = resource.0.lock();
+        resource_header.kind.make_external();
+        if let ResourceState::Ok { resource_uuid, .. } = resource_header.state {
+            self.resource_registry.lock().register(resource_uuid, path);
+            drop(resource_header);
+            self.add_resource_and_notify(resource);
+            Ok(())
+        } else {
+            Err(ResourceRegistrationError::InvalidState)
         }
     }
 
@@ -981,7 +996,7 @@ impl ResourceManagerState {
         let mut registry = self.resource_registry.lock();
         if let Some(uuid) = registry.unregister_path(path) {
             drop(registry);
-            if let Some(resource) = self.find(uuid).cloned() {
+            if let Some(resource) = self.find_by_uuid(uuid).cloned() {
                 self.reload_resource(resource);
                 return true;
             }
@@ -1013,6 +1028,7 @@ mod test {
 
     use super::*;
 
+    use crate::ResourceData;
     use fyrox_core::uuid::{uuid, Uuid};
     use fyrox_core::{
         reflect::prelude::*,
@@ -1108,21 +1124,30 @@ mod test {
         assert_eq!(state.count_registered_resources(), 0);
         assert_eq!(state.len(), 0);
 
-        state.push(UntypedResource::new_pending(ResourceKind::External));
-        state.push(UntypedResource::new_load_error(
-            ResourceKind::External,
-            Default::default(),
-        ));
-        state.push(UntypedResource::new_ok(
-            Uuid::new_v4(),
-            Default::default(),
-            Stub {},
-        ));
+        assert_eq!(
+            state.register(
+                UntypedResource::new_pending(ResourceKind::External),
+                "foo.bar",
+            ),
+            Err(ResourceRegistrationError::InvalidState)
+        );
+        assert_eq!(
+            state.register(
+                UntypedResource::new_load_error(ResourceKind::External, Default::default()),
+                "foo.bar",
+            ),
+            Err(ResourceRegistrationError::InvalidState)
+        );
+        assert_eq!(
+            state.register(
+                UntypedResource::new_ok(Uuid::new_v4(), Default::default(), Stub {}),
+                "foo.bar",
+            ),
+            Ok(())
+        );
 
-        assert_eq!(state.count_loaded_resources(), 1);
-        assert_eq!(state.count_pending_resources(), 1);
-        assert_eq!(state.count_registered_resources(), 3);
-        assert_eq!(state.len(), 3);
+        assert_eq!(state.count_registered_resources(), 1);
+        assert_eq!(state.len(), 1);
     }
 
     #[test]
@@ -1131,29 +1156,26 @@ mod test {
 
         assert_eq!(state.loading_progress(), 100);
 
-        state.push(UntypedResource::new_pending(ResourceKind::External));
-        state.push(UntypedResource::new_load_error(
-            ResourceKind::External,
-            Default::default(),
-        ));
-        state.push(UntypedResource::new_ok(
-            Uuid::new_v4(),
-            Default::default(),
-            Stub {},
-        ));
+        state
+            .register(
+                UntypedResource::new_ok(Uuid::new_v4(), Default::default(), Stub {}),
+                "foo.bar",
+            )
+            .unwrap();
 
-        assert_eq!(state.loading_progress(), 33);
+        assert_eq!(state.loading_progress(), 100);
     }
 
     #[test]
     fn resource_manager_state_find() {
         let mut state = new_resource_manager();
 
-        assert!(state.find_by_path(Path::new("foo.txt")).is_none());
+        let path = Path::new("foo.txt");
 
-        let path = PathBuf::from("test.txt");
-        let resource = UntypedResource::new_pending(ResourceKind::External);
-        state.push(resource.clone());
+        assert!(state.find_by_path(path).is_none());
+
+        let resource = UntypedResource::new_ok(Uuid::new_v4(), Default::default(), Stub {});
+        state.register(resource.clone(), path).unwrap();
 
         assert_eq!(state.find_by_path(&path), Some(&resource));
     }
@@ -1164,12 +1186,12 @@ mod test {
 
         assert_eq!(state.resources(), Vec::new());
 
-        let r1 = UntypedResource::new_pending(ResourceKind::External);
-        let r2 = UntypedResource::new_load_error(ResourceKind::External, Default::default());
-        let r3 = UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::Embedded, Stub {});
-        state.push(r1.clone());
-        state.push(r2.clone());
-        state.push(r3.clone());
+        let r1 = UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::External, Stub {});
+        let r2 = UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::External, Stub {});
+        let r3 = UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::External, Stub {});
+        state.register(r1.clone(), "foo1.txt").unwrap();
+        state.register(r2.clone(), "foo2.txt").unwrap();
+        state.register(r3.clone(), "foo3.txt").unwrap();
 
         assert_eq!(state.resources(), vec![r1.clone(), r2.clone(), r3.clone()]);
         assert!(state.iter().eq([&r1, &r2, &r3]));
@@ -1179,7 +1201,12 @@ mod test {
     fn resource_manager_state_destroy_unused_resources() {
         let mut state = new_resource_manager();
 
-        state.push(UntypedResource::new_pending(ResourceKind::External));
+        state
+            .register(
+                UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::External, Stub {}),
+                "foo1.txt",
+            )
+            .unwrap();
         assert_eq!(state.len(), 1);
 
         state.destroy_unused_resources();
@@ -1191,31 +1218,16 @@ mod test {
         let mut state = new_resource_manager();
         let path = PathBuf::from("test.txt");
 
-        let resource = UntypedResource::new_load_error(ResourceKind::External, Default::default());
-        state.push(resource.clone());
+        let resource = UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::External, Stub {});
+        state.register(resource.clone(), &path).unwrap();
 
-        let res = state.request(path);
+        let res = state.request(&path);
         assert_eq!(res, resource);
 
-        let path = PathBuf::from("foo.txt");
-        let res = state.request(path.clone());
+        let res = state.request(path);
 
         assert_eq!(res.kind(), ResourceKind::External);
         assert!(!res.is_loading());
-    }
-
-    #[test]
-    fn resource_manager_state_try_reload_resource_from_path() {
-        let mut state = new_resource_manager();
-        state.loaders.lock().set(Stub {});
-
-        let resource = UntypedResource::new_load_error(ResourceKind::External, Default::default());
-        state.push(resource.clone());
-
-        assert!(!state.try_reload_resource_from_path(Path::new("foo.txt")));
-
-        assert!(state.try_reload_resource_from_path(Path::new("test.txt")));
-        assert!(resource.is_loading());
     }
 
     #[test]
@@ -1223,7 +1235,7 @@ mod test {
         let mut state = new_resource_manager();
 
         let resource = UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::External, Stub {});
-        state.push(resource.clone());
+        state.add_resource_and_notify(resource.clone());
         let cx = state.get_wait_context();
 
         assert!(cx.resources.eq(&vec![resource]));
@@ -1243,36 +1255,19 @@ mod test {
         let path = PathBuf::from("test.txt");
 
         let resource = UntypedResource::new_pending(ResourceKind::External);
-        let res = manager.register(resource.clone(), path.clone(), |_, _| true);
+        let res = manager.register(resource.clone(), path.clone());
         assert!(res.is_err());
 
         let resource = UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::External, Stub {});
-        let res = manager.register(resource.clone(), path.clone(), |_, _| true);
+        let res = manager.register(resource.clone(), path.clone());
         assert!(res.is_ok());
-    }
-
-    #[test]
-    fn resource_manager_request() {
-        let manager = ResourceManager::new(Arc::new(Default::default()));
-        let untyped = UntypedResource::new_ok(Uuid::new_v4(), Default::default(), Stub {});
-        let res = manager.register(untyped.clone(), PathBuf::from("foo.txt"), |_, _| true);
-        assert!(res.is_ok());
-
-        let res: Resource<Stub> = manager.request(Path::new("foo.txt"));
-        assert_eq!(
-            res,
-            Resource {
-                untyped,
-                phantom: PhantomData::<Stub>
-            }
-        );
     }
 
     #[test]
     fn resource_manager_request_untyped() {
         let manager = ResourceManager::new(Arc::new(Default::default()));
         let resource = UntypedResource::new_ok(Uuid::new_v4(), Default::default(), Stub {});
-        let res = manager.register(resource.clone(), PathBuf::from("foo.txt"), |_, __| true);
+        let res = manager.register(resource.clone(), PathBuf::from("foo.txt"));
         assert!(res.is_ok());
 
         let res = manager.request_untyped(Path::new("foo.txt"));

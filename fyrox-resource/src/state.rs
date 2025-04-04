@@ -258,6 +258,14 @@ impl ResourceState {
         }
     }
 
+    #[inline]
+    pub fn resource_uuid(&self) -> Option<Uuid> {
+        match self {
+            ResourceState::Ok { resource_uuid, .. } => Some(*resource_uuid),
+            _ => None,
+        }
+    }
+
     /// Checks whether the resource is still loading or not.
     pub fn is_loading(&self) -> bool {
         matches!(self, ResourceState::Pending { .. })

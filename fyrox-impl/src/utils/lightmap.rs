@@ -55,6 +55,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_core::Uuid;
+use fyrox_resource::ResourceData;
 use lightmap::light::{
     DirectionalLightDefinition, LightDefinition, PointLightDefinition, SpotLightDefinition,
 };
@@ -661,11 +662,10 @@ impl Lightmap {
             for (i, entry) in entries.iter().enumerate() {
                 let file_path = handle_path.clone() + "_" + i.to_string().as_str() + ".png";
                 let texture = entry.texture.clone().unwrap();
-                resource_manager.register(
-                    texture.into_untyped(),
-                    base_path.as_ref().join(file_path),
-                    |texture, path| texture.save(path).is_ok(),
-                )?;
+                let full_path = base_path.as_ref().join(file_path);
+                if texture.data_ref().save(&full_path).is_ok() {
+                    resource_manager.register(texture.into_untyped(), full_path)?;
+                }
             }
         }
         Ok(())
