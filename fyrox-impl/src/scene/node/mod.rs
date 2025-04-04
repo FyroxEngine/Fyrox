@@ -637,7 +637,6 @@ mod test {
     };
     use fyrox_graph::SceneGraph;
     use fyrox_resource::untyped::ResourceKind;
-    use std::path::PathBuf;
     use std::{fs, path::Path, sync::Arc};
 
     #[derive(Debug, Clone, Reflect, Visit, Default)]
@@ -719,11 +718,7 @@ mod test {
 
         // Initialize resource manager and re-load the scene.
         let resource_manager = ResourceManager::new(Arc::new(Default::default()));
-
-        resource_manager
-            .state()
-            .request_load_registry(PathBuf::from("test_output/resources.registry"));
-
+        resource_manager.update_and_load_registry("test_output/resources.registry");
         let serialization_context = SerializationContext::new();
         serialization_context
             .script_constructors

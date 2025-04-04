@@ -22,7 +22,8 @@ use crate::{
     io::ResourceIo, loader::ResourceLoadersContainer, metadata::ResourceMetadata, state::WakersList,
 };
 use fyrox_core::{
-    append_extension, io::FileError, ok_or_return, parking_lot::Mutex, replace_slashes, warn, Uuid,
+    append_extension, info, io::FileError, ok_or_return, parking_lot::Mutex, replace_slashes, warn,
+    Uuid,
 };
 use ron::ser::PrettyConfig;
 use std::{
@@ -161,7 +162,7 @@ async fn make_relative_path_async<P: AsRef<Path>>(
 #[derive(Default, Clone)]
 pub struct ResourceRegistry {
     pub paths: RegistryContainer,
-    pub is_ready: ResourceRegistryStatusFlag,
+    pub status: ResourceRegistryStatusFlag,
 }
 
 impl ResourceRegistry {
@@ -285,6 +286,12 @@ impl ResourceRegistry {
                     path.display()
                 );
             }
+
+            info!(
+                "Resource {} was registered with {} UUID.",
+                path.display(),
+                metadata.resource_id
+            );
         }
 
         container

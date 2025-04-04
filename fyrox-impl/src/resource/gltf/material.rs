@@ -44,7 +44,6 @@ use crate::resource::texture::TextureMinificationFilter as FyroxMinFilter;
 use gltf::texture::MagFilter as GltfMagFilter;
 use gltf::texture::MinFilter as GltfMinFilter;
 
-pub const SHADER_NAME: &str = "glTF Shader";
 pub const SHADER_SRC: &str = include_str!("gltf_standard.shader");
 
 lazy_static! {

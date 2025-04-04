@@ -1903,7 +1903,6 @@ mod test {
     use fyrox_core::algebra::Vector2;
     use fyrox_core::append_extension;
     use fyrox_resource::untyped::ResourceKind;
-    use std::path::PathBuf;
     use std::{fs, path::Path, sync::Arc};
 
     #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
@@ -2123,9 +2122,7 @@ mod test {
             &resource_manager,
             Arc::new(SerializationContext::new()),
         );
-        resource_manager
-            .state()
-            .request_load_registry(PathBuf::from("test_output/resources.registry"));
+        resource_manager.update_and_load_registry("test_output/resources.registry");
         resource_manager
     }
 

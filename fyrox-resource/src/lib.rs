@@ -811,7 +811,7 @@ mod tests {
         write_test_resources(2..4);
         let resource_manager = ResourceManager::new(Arc::new(TaskPool::new()));
         resource_manager.add_loader(MyDataLoader {});
-        resource_manager.update_registry();
+        resource_manager.update_and_load_registry(ResourceRegistry::DEFAULT_PATH);
         let path1 = make_file_path(2);
         let path2 = make_file_path(3);
         let res1 = resource_manager.request::<MyData>(path1);

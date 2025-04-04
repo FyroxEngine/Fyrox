@@ -39,7 +39,7 @@ use crate::{
     loader::{ResourceLoader, ResourceLoadersContainer},
     metadata::ResourceMetadata,
     options::OPTIONS_EXTENSION,
-    registry::{RegistryContainer, RegistryContainerExt, ResourceRegistry, ResourceRegistryStatus},
+    registry::{RegistryContainerExt, ResourceRegistry, ResourceRegistryStatus},
     state::{LoadError, ResourcePath, ResourceState},
     untyped::ResourceKind,
     Resource, TypedResourceData, UntypedResource,
@@ -397,8 +397,8 @@ impl ResourceManager {
         self.state().request_by_uuid(resource_uuid)
     }
 
-    pub fn update_registry(&self) {
-        self.state().update_registry();
+    pub fn update_and_load_registry(&self, path: impl AsRef<Path>) {
+        self.state().update_and_load_registry(path);
     }
 
     pub fn add_loader<T: ResourceLoader>(&self, loader: T) -> Option<T> {
@@ -477,7 +477,9 @@ impl ResourceManagerState {
         }
     }
 
-    pub fn request_load_registry(&self, path: PathBuf) {
+    pub fn update_and_load_registry(&self, path: impl AsRef<Path>) {
+        let path = path.as_ref().to_path_buf();
+
         info!(
             "Trying to load or update the registry at {}...",
             path.display()
@@ -485,48 +487,54 @@ impl ResourceManagerState {
 
         let task_resource_io = self.resource_io.clone();
         let task_resource_registry = self.resource_registry.clone();
-        let is_ready_flag = task_resource_registry.lock().is_ready.clone();
-        is_ready_flag.mark_as_loading();
+        let registry_status = task_resource_registry.lock().status.clone();
+        registry_status.mark_as_loading();
         let task_loaders = self.loaders.clone();
         self.task_pool.spawn_task(async move {
-            match RegistryContainer::load_from_file(&path, &*task_resource_io).await {
-                Ok(registry) => {
-                    let mut lock = task_resource_registry.lock();
-                    lock.set_container(registry);
-
-                    is_ready_flag.mark_as_loaded();
-
-                    info!(
-                        "Resource registry was loaded from {} successfully!",
-                        path.display()
-                    );
-                }
-                Err(error) => {
+            // Try to update the registry first.
+            // Wasm is an exception, because it does not have a file system.
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let new_data =
+                    ResourceRegistry::scan(task_resource_io.clone(), task_loaders, &path).await;
+                if let Err(error) = new_data.save(&path, &*task_resource_io).await {
                     err!(
-                        "Unable to load resource registry! Reason: {:?}. \
-                    Trying to update the registry!",
+                        "Unable to write the resource registry at the {} path! Reason: {:?}",
+                        path.display(),
                         error
-                    );
-
-                    let new_data =
-                        ResourceRegistry::scan(task_resource_io.clone(), task_loaders, &path).await;
-                    if let Err(error) = new_data.save(&path, &*task_resource_io).await {
-                        err!(
-                            "Unable to write the resource registry at the {} path! Reason: {:?}",
-                            path.display(),
-                            error
-                        )
-                    }
-                    let mut lock = task_resource_registry.lock();
-                    lock.set_container(new_data);
-                    lock.is_ready.mark_as_loaded();
-
-                    info!(
-                        "Resource registry was updated and written to {} successfully!",
-                        path.display()
-                    );
+                    )
                 }
-            };
+                let mut lock = task_resource_registry.lock();
+                lock.set_container(new_data);
+                registry_status.mark_as_loaded();
+
+                info!(
+                    "Resource registry was updated and written to {} successfully!",
+                    path.display()
+                );
+            }
+
+            // WASM can only try to load the existing registry.
+            #[cfg(target_arch = "wasm32")]
+            {
+                // Then load the registry.
+                match registry::RegistryContainer::load_from_file(&path, &*task_resource_io).await {
+                    Ok(registry) => {
+                        let mut lock = task_resource_registry.lock();
+                        lock.set_container(registry);
+
+                        registry_status.mark_as_loaded();
+
+                        info!(
+                            "Resource registry was loaded from {} successfully!",
+                            path.display()
+                        );
+                    }
+                    Err(error) => {
+                        err!("Unable to load resource registry! Reason: {:?}.", error);
+                    }
+                };
+            }
         });
     }
 
@@ -565,27 +573,6 @@ impl ResourceManagerState {
         } else {
             100
         }
-    }
-
-    pub fn update_registry(&mut self) {
-        let io = self.resource_io.clone();
-        let loaders = self.loaders.clone();
-        let registry = self.resource_registry.clone();
-        registry.lock().is_ready.mark_as_loading();
-        self.task_pool.spawn_task(async move {
-            let path = ResourceRegistry::DEFAULT_PATH;
-            let new_data = ResourceRegistry::scan(io.clone(), loaders, path).await;
-            if let Err(error) = new_data.save(Path::new(path), &*io).await {
-                err!(
-                    "Unable to write the resource registry at the {} path! Reason: {:?}",
-                    path,
-                    error
-                )
-            }
-            let mut lock = registry.lock();
-            lock.set_container(new_data);
-            lock.is_ready.mark_as_loaded();
-        });
     }
 
     /// Update resource containers and do hot-reloading.
@@ -801,11 +788,11 @@ impl ResourceManagerState {
         let loaders = self.loaders.clone();
         let registry = self.resource_registry.clone();
         let io = self.resource_io.clone();
-        let is_registry_ready = registry.lock().is_ready.clone();
+        let registry_status = registry.lock().status.clone();
 
         self.task_pool.spawn_task(async move {
             // Wait until the registry is fully loaded.
-            let registry_status = is_registry_ready.await;
+            let registry_status = registry_status.await;
             if registry_status == ResourceRegistryStatus::Unknown {
                 resource.commit_error(
                     path.clone(),
@@ -870,7 +857,7 @@ impl ResourceManagerState {
                             }
                             None => {
                                 let error = format!(
-                                    "Resource {} failed to load. Path does not found \
+                                    "Resource {} failed to load. The path was not found \
                                         in the registry!",
                                     fs_path.display(),
                                 );

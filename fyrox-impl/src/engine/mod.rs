@@ -1409,9 +1409,7 @@ impl Engine {
         let user_interfaces =
             UiContainer::new_with_ui(UserInterface::new(Vector2::new(100.0, 100.0)));
 
-        resource_manager
-            .state()
-            .request_load_registry(PathBuf::from(ResourceRegistry::DEFAULT_PATH));
+        resource_manager.update_and_load_registry(ResourceRegistry::DEFAULT_PATH);
 
         Ok(Self {
             graphics_context: GraphicsContext::Uninitialized(graphics_context_params),
