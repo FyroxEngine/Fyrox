@@ -26,6 +26,7 @@ use fyrox_core::{
     Uuid,
 };
 use ron::ser::PrettyConfig;
+use std::path::Component;
 use std::{
     collections::BTreeMap,
     future::Future,
@@ -168,6 +169,36 @@ pub struct ResourceRegistry {
 impl ResourceRegistry {
     pub const DEFAULT_PATH: &'static str = "./resources.registry";
 
+    pub fn prepare_path(path: impl AsRef<Path>) -> PathBuf {
+        let mut components = path.as_ref().components().peekable();
+        let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+            components.next();
+            PathBuf::from(c.as_os_str())
+        } else {
+            PathBuf::new()
+        };
+
+        for component in components {
+            match component {
+                Component::Prefix(..) => unreachable!(),
+                Component::RootDir => {
+                    ret.push(component.as_os_str());
+                }
+                Component::CurDir => {}
+                Component::ParentDir => {
+                    ret.pop();
+                }
+                Component::Normal(c) => {
+                    ret.push(c);
+                }
+            }
+        }
+
+        // The resource registry uses normalized paths with `/` slashes, and this step is needed
+        // mostly on Windows which uses `\` slashes.
+        replace_slashes(ret)
+    }
+
     pub fn register(&mut self, uuid: Uuid, path: PathBuf) -> Option<PathBuf> {
         self.paths.insert(uuid, path)
     }
@@ -229,6 +260,11 @@ impl ResourceRegistry {
             .map(|path| path.to_path_buf())
             .unwrap_or_else(|| PathBuf::from("."));
 
+        info!(
+            "Scanning {} folder for supported resources...",
+            registry_folder.display()
+        );
+
         let mut container = RegistryContainer::default();
 
         let file_iterator = ok_or_return!(
@@ -250,6 +286,16 @@ impl ResourceRegistry {
             };
 
             if !loaders.lock().is_supported_resource(&path) {
+                if path
+                    .extension()
+                    .is_some_and(|ext| ext != "meta" && ext != "registry")
+                {
+                    info!(
+                        "Skipping {} file, because there's no loader for it.",
+                        path.display()
+                    );
+                }
+
                 continue;
             }
 

@@ -718,6 +718,10 @@ mod test {
 
         // Initialize resource manager and re-load the scene.
         let resource_manager = ResourceManager::new(Arc::new(Default::default()));
+        engine::initialize_resource_manager_loaders(
+            &resource_manager,
+            Arc::new(SerializationContext::new()),
+        );
         resource_manager.update_and_load_registry("test_output/resources.registry");
         let serialization_context = SerializationContext::new();
         serialization_context
@@ -729,11 +733,6 @@ mod test {
             .map()
             .iter()
             .any(|s| s.1.source_path == file!()));
-
-        engine::initialize_resource_manager_loaders(
-            &resource_manager,
-            Arc::new(serialization_context),
-        );
 
         let root_asset = block_on(resource_manager.request::<Model>(root_asset_path)).unwrap();
 

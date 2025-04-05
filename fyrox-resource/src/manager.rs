@@ -730,7 +730,9 @@ impl ResourceManagerState {
             return built_in_resource.resource.clone();
         }
 
-        self.find_or_load(ResourcePath::Explicit(path.as_ref().to_path_buf()))
+        let path = ResourceRegistry::prepare_path(path);
+
+        self.find_or_load(ResourcePath::Explicit(path))
     }
 
     /// Tries to load a resource by a unique identifier. The identifier must not be a zero-uuid,
