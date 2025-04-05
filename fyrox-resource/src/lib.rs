@@ -674,8 +674,8 @@ mod tests {
         ResourceData,
     };
     use fyrox_core::{
-        futures::executor::block_on, io::FileError, parking_lot::Mutex, reflect::prelude::*,
-        task::TaskPool, uuid, visitor::prelude::*, TypeUuidProvider, Uuid,
+        append_extension, futures::executor::block_on, io::FileError, parking_lot::Mutex,
+        reflect::prelude::*, task::TaskPool, uuid, visitor::prelude::*, TypeUuidProvider, Uuid,
     };
     use ron::ser::PrettyConfig;
     use serde::{Deserialize, Serialize};
@@ -762,6 +762,7 @@ mod tests {
 
     const TEST_FOLDER1: &'static str = "./test_output1";
     const TEST_FOLDER2: &'static str = "./test_output2";
+    const TEST_FOLDER3: &'static str = "./test_output3";
 
     fn make_file_path(root: &str, n: usize) -> PathBuf {
         Path::new(root).join(format!("test{n}.{}", MyDataLoader::EXT))
@@ -827,5 +828,38 @@ mod tests {
         let res2 = resource_manager.request::<MyData>(path2);
         assert_eq!(block_on(res1).unwrap().data_ref().data, 2);
         assert_eq!(block_on(res2).unwrap().data_ref().data, 3);
+    }
+
+    #[test]
+    fn test_move_resource() {
+        write_test_resources(TEST_FOLDER3, 0..2);
+        let resource_manager = ResourceManager::new(Arc::new(TaskPool::new()));
+        resource_manager.add_loader(MyDataLoader {});
+        resource_manager
+            .update_and_load_registry(Path::new(TEST_FOLDER3).join("resources.registry"));
+        let path1 = make_file_path(TEST_FOLDER3, 0);
+        let path2 = make_file_path(TEST_FOLDER3, 1);
+        let res1 = resource_manager.request::<MyData>(path1);
+        let res2 = resource_manager.request::<MyData>(path2);
+        assert_eq!(block_on(res1.clone()).unwrap().data_ref().data, 0);
+        assert_eq!(block_on(res2.clone()).unwrap().data_ref().data, 1);
+        let new_res1_path = ResourceRegistry::prepare_path(make_file_path(TEST_FOLDER3, 3));
+        let new_res2_path = ResourceRegistry::prepare_path(make_file_path(TEST_FOLDER3, 4));
+        block_on(resource_manager.move_resource(res1.as_ref(), &new_res1_path)).unwrap();
+        block_on(resource_manager.move_resource(res2.as_ref(), &new_res2_path)).unwrap();
+        assert_eq!(
+            resource_manager.resource_path(res1.as_ref()).unwrap(),
+            new_res1_path
+        );
+        assert!(
+            std::fs::exists(append_extension(new_res1_path, ResourceMetadata::EXTENSION)).unwrap()
+        );
+        assert_eq!(
+            resource_manager.resource_path(res2.as_ref()).unwrap(),
+            new_res2_path
+        );
+        assert!(
+            std::fs::exists(append_extension(new_res2_path, ResourceMetadata::EXTENSION)).unwrap()
+        );
     }
 }

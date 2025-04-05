@@ -418,7 +418,7 @@ impl ResourceManager {
     /// Attempts to move a resource from its current location to the new path.
     pub async fn move_resource(
         &self,
-        resource: UntypedResource,
+        resource: &UntypedResource,
         new_path: impl AsRef<Path>,
     ) -> Result<(), FileError> {
         let resource_uuid = resource
@@ -436,6 +436,14 @@ impl ResourceManager {
 
         // Move the file with its optional import options and mandatory metadata.
         io.move_file(&existing_path, &new_path).await?;
+
+        assert_eq!(
+            registry
+                .lock()
+                .register(resource_uuid, new_path.clone())
+                .as_ref(),
+            Some(&existing_path)
+        );
 
         let options_path = append_extension(&existing_path, OPTIONS_EXTENSION);
         if io.exists(&options_path).await {
@@ -487,9 +495,11 @@ impl ResourceManagerState {
 
         let resource_io = self.resource_io.clone();
         let resource_registry = self.resource_registry.clone();
+        #[allow(unused_variables)]
         let excluded_folders = resource_registry.lock().excluded_folders.clone();
         let registry_status = resource_registry.lock().status.clone();
         registry_status.mark_as_loading();
+        #[allow(unused_variables)]
         let task_loaders = self.loaders.clone();
         self.task_pool.spawn_task(async move {
             // Try to update the registry first.
