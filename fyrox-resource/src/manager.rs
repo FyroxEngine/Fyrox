@@ -485,9 +485,10 @@ impl ResourceManagerState {
             path.display()
         );
 
-        let task_resource_io = self.resource_io.clone();
-        let task_resource_registry = self.resource_registry.clone();
-        let registry_status = task_resource_registry.lock().status.clone();
+        let resource_io = self.resource_io.clone();
+        let resource_registry = self.resource_registry.clone();
+        let excluded_folders = resource_registry.lock().excluded_folders.clone();
+        let registry_status = resource_registry.lock().status.clone();
         registry_status.mark_as_loading();
         let task_loaders = self.loaders.clone();
         self.task_pool.spawn_task(async move {
@@ -495,16 +496,21 @@ impl ResourceManagerState {
             // Wasm is an exception, because it does not have a file system.
             #[cfg(not(target_arch = "wasm32"))]
             {
-                let new_data =
-                    ResourceRegistry::scan(task_resource_io.clone(), task_loaders, &path).await;
-                if let Err(error) = new_data.save(&path, &*task_resource_io).await {
+                let new_data = ResourceRegistry::scan(
+                    resource_io.clone(),
+                    task_loaders,
+                    &path,
+                    excluded_folders,
+                )
+                .await;
+                if let Err(error) = new_data.save(&path, &*resource_io).await {
                     err!(
                         "Unable to write the resource registry at the {} path! Reason: {:?}",
                         path.display(),
                         error
                     )
                 }
-                let mut lock = task_resource_registry.lock();
+                let mut lock = resource_registry.lock();
                 lock.set_container(new_data);
                 registry_status.mark_as_loaded();
 
@@ -518,9 +524,10 @@ impl ResourceManagerState {
             #[cfg(target_arch = "wasm32")]
             {
                 // Then load the registry.
-                match registry::RegistryContainer::load_from_file(&path, &*task_resource_io).await {
+                match crate::registry::RegistryContainer::load_from_file(&path, &*resource_io).await
+                {
                     Ok(registry) => {
-                        let mut lock = task_resource_registry.lock();
+                        let mut lock = resource_registry.lock();
                         lock.set_container(registry);
 
                         registry_status.mark_as_loaded();

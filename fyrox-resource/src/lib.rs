@@ -805,6 +805,7 @@ mod tests {
             io,
             loaders,
             Path::new(TEST_FOLDER1).join("resources.registry"),
+            Default::default(),
         ));
 
         assert!(std::fs::exists(make_metadata_file_path(TEST_FOLDER1, 0)).unwrap());

@@ -21,6 +21,7 @@
 use crate::{
     io::ResourceIo, loader::ResourceLoadersContainer, metadata::ResourceMetadata, state::WakersList,
 };
+use fxhash::FxHashSet;
 use fyrox_core::{
     append_extension, info, io::FileError, ok_or_return, parking_lot::Mutex, replace_slashes, warn,
     Uuid,
@@ -160,10 +161,26 @@ async fn make_relative_path_async<P: AsRef<Path>>(
 
 /// Resource registry is responsible for UUID mapping of resource files. It maintains a map of
 /// `UUID -> Resource Path`.
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct ResourceRegistry {
     pub paths: RegistryContainer,
     pub status: ResourceRegistryStatusFlag,
+    pub excluded_folders: FxHashSet<PathBuf>,
+}
+
+impl Default for ResourceRegistry {
+    fn default() -> Self {
+        let mut excluded_folders = FxHashSet::default();
+
+        // Exclude build artifacts folder by default.
+        excluded_folders.insert(PathBuf::from("target"));
+
+        Self {
+            paths: Default::default(),
+            status: Default::default(),
+            excluded_folders,
+        }
+    }
 }
 
 impl ResourceRegistry {
@@ -262,6 +279,7 @@ impl ResourceRegistry {
         resource_io: Arc<dyn ResourceIo>,
         loaders: Arc<Mutex<ResourceLoadersContainer>>,
         root: impl AsRef<Path>,
+        excluded_folders: FxHashSet<PathBuf>,
     ) -> RegistryContainer {
         let registry_path = root.as_ref();
         let registry_folder = registry_path
@@ -276,11 +294,13 @@ impl ResourceRegistry {
 
         let mut container = RegistryContainer::default();
 
-        let file_iterator = ok_or_return!(
-            resource_io.walk_directory(&registry_folder).await,
+        let mut paths_to_visit = ok_or_return!(
+            resource_io.read_directory(&registry_folder).await,
             container
-        );
-        for fs_path in file_iterator {
+        )
+        .collect::<Vec<_>>();
+
+        while let Some(fs_path) = paths_to_visit.pop() {
             let path = match make_relative_path_async(&fs_path, &*resource_io).await {
                 Ok(path) => path,
                 Err(err) => {
@@ -293,6 +313,24 @@ impl ResourceRegistry {
                     continue;
                 }
             };
+
+            if excluded_folders.contains(&path) {
+                warn!(
+                    "Skipping {} folder, because it is in the excluded folders list!",
+                    path.display()
+                );
+
+                continue;
+            }
+
+            if resource_io.is_dir(&path).await {
+                // Continue iterating on subfolders.
+                if let Ok(iter) = resource_io.read_directory(&path).await {
+                    paths_to_visit.extend(iter);
+                }
+
+                continue;
+            }
 
             if !loaders.lock().is_supported_resource(&path) {
                 if path
