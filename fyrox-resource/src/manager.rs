@@ -40,7 +40,7 @@ use crate::{
     metadata::ResourceMetadata,
     options::OPTIONS_EXTENSION,
     registry::{RegistryContainerExt, ResourceRegistry, ResourceRegistryStatus},
-    state::{LoadError, ResourcePath, ResourceState},
+    state::{LoadError, ResourceState},
     untyped::ResourceKind,
     Resource, TypedResourceData, UntypedResource,
 };
@@ -391,10 +391,6 @@ impl ResourceManager {
         P: AsRef<Path>,
     {
         self.state().request(path)
-    }
-
-    pub fn request_by_uuid(&self, resource_uuid: Uuid) -> UntypedResource {
-        self.state().request_by_uuid(resource_uuid)
     }
 
     pub fn update_and_load_registry(&self, path: impl AsRef<Path>) {
@@ -749,24 +745,10 @@ impl ResourceManagerState {
 
         let path = ResourceRegistry::prepare_path(path);
 
-        self.find_or_load(ResourcePath::Explicit(path))
+        self.find_or_load(path)
     }
 
-    /// Tries to load a resource by a unique identifier. The identifier must not be a zero-uuid,
-    /// otherwise this method will panic!
-    pub fn request_by_uuid(&mut self, resource_uuid: Uuid) -> UntypedResource {
-        if let Some(built_in_resource) = self
-            .built_in_resources
-            .values()
-            .find(|r| r.resource.resource_uuid() == Some(resource_uuid))
-        {
-            return built_in_resource.resource.clone();
-        }
-
-        self.find_or_load(ResourcePath::Implicit(resource_uuid))
-    }
-
-    fn find_by_resource_path(&self, path_to_search: &ResourcePath) -> Option<&UntypedResource> {
+    fn find_by_resource_path(&self, path_to_search: &PathBuf) -> Option<&UntypedResource> {
         self.resources
             .iter()
             .find(|entry| {
@@ -774,19 +756,16 @@ impl ResourceManagerState {
                 match header.state {
                     ResourceState::Pending { ref path, .. }
                     | ResourceState::LoadError { ref path, .. } => path == path_to_search,
-                    ResourceState::Ok { resource_uuid, .. } => match path_to_search {
-                        ResourcePath::Explicit(fs_path) => {
-                            self.resource_registry.lock().uuid_to_path(resource_uuid)
-                                == Some(fs_path)
-                        }
-                        ResourcePath::Implicit(uuid) => &resource_uuid == uuid,
-                    },
+                    ResourceState::Ok { resource_uuid, .. } => {
+                        self.resource_registry.lock().uuid_to_path(resource_uuid)
+                            == Some(path_to_search)
+                    }
                 }
             })
             .map(|entry| &entry.value)
     }
 
-    fn find_or_load(&mut self, path: ResourcePath) -> UntypedResource {
+    fn find_or_load(&mut self, path: PathBuf) -> UntypedResource {
         match self.find_by_resource_path(&path) {
             Some(existing) => existing.clone(),
             None => {
@@ -798,11 +777,7 @@ impl ResourceManagerState {
         }
     }
 
-    fn spawn_loading_task(&self, path: ResourcePath, resource: UntypedResource, reload: bool) {
-        if let ResourcePath::Implicit(ref uuid) = path {
-            assert_ne!(*uuid, Uuid::nil());
-        }
-
+    fn spawn_loading_task(&self, path: PathBuf, resource: UntypedResource, reload: bool) {
         let event_broadcaster = self.event_broadcaster.clone();
         let loaders = self.loaders.clone();
         let registry = self.resource_registry.clone();
@@ -820,41 +795,18 @@ impl ResourceManagerState {
                 return;
             }
 
-            // A resource can be requested either by a path or an uuid. We need the registry
-            // to find a respective path for an uuid.
-            let fs_path = match path {
-                ResourcePath::Explicit(ref path) => path.clone(),
-                ResourcePath::Implicit(uuid) => {
-                    if let Some(path) = registry.lock().uuid_to_path(uuid).map(|p| p.to_path_buf())
-                    {
-                        path
-                    } else {
-                        resource.commit_error(
-                            path,
-                            LoadError::new(format!(
-                                "Unable to load a resource by {uuid} id! There's no matching \
-                            path to it in the resource registry. A resource might be deleted \
-                            or the registry is outdated.",
-                            )),
-                        );
-
-                        return;
-                    }
-                }
-            };
-
             // Try to find a loader for the resource.
             let loader_future = loaders
                 .lock()
-                .loader_for(&fs_path)
-                .map(|loader| loader.load(fs_path.clone(), io));
+                .loader_for(&path)
+                .map(|loader| loader.load(path.clone(), io));
 
             if let Some(loader_future) = loader_future {
                 match loader_future.await {
                     Ok(data) => {
                         let data = data.0;
 
-                        match registry.lock().path_to_uuid(&fs_path) {
+                        match registry.lock().path_to_uuid(&path) {
                             Some(resource_uuid) => {
                                 let mut mutex_guard = resource.0.lock();
 
@@ -871,14 +823,14 @@ impl ResourceManagerState {
 
                                 Log::info(format!(
                                     "Resource {} was loaded successfully!",
-                                    fs_path.display()
+                                    path.display()
                                 ));
                             }
                             None => {
                                 let error = format!(
                                     "Resource {} failed to load. The path was not found \
                                         in the registry!",
-                                    fs_path.display(),
+                                    path.display(),
                                 );
 
                                 resource.commit_error(path, error);
@@ -888,7 +840,7 @@ impl ResourceManagerState {
                     Err(error) => {
                         Log::info(format!(
                             "Resource {} failed to load. Reason: {:?}",
-                            fs_path.display(),
+                            path.display(),
                             error
                         ));
 
@@ -897,10 +849,10 @@ impl ResourceManagerState {
                 }
             } else {
                 resource.commit_error(
-                    path,
+                    path.clone(),
                     LoadError::new(format!(
                         "There's no resource loader for {} resource!",
-                        fs_path.display()
+                        path.display()
                     )),
                 )
             }
@@ -963,9 +915,19 @@ impl ResourceManagerState {
                 self.spawn_loading_task(path, resource, true)
             }
             ResourceState::Ok { resource_uuid, .. } => {
-                let path = ResourcePath::Implicit(resource_uuid);
+                let path = self
+                    .resource_registry
+                    .lock()
+                    .uuid_to_path_buf(resource_uuid);
                 drop(header);
-                self.spawn_loading_task(path, resource, true)
+                if let Some(path) = path {
+                    self.spawn_loading_task(path, resource, true);
+                } else {
+                    err!(
+                        "Unable to reload a {resource_uuid} resource, because it is not \
+                    registered in the resource registry and its path is unknown! "
+                    );
+                }
             }
         }
     }

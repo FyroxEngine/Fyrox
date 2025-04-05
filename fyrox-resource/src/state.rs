@@ -75,22 +75,6 @@ impl LoadError {
     }
 }
 
-/// A source of a resource uuid.
-#[derive(Debug, Reflect, Clone, PartialEq, Eq)]
-pub enum ResourcePath {
-    /// Explicit path to a file in the file system.
-    Explicit(PathBuf),
-    /// Implicit path, uses the resource registry to obtain the explicit path in the file system,
-    /// that is associated with the given uuid.
-    Implicit(Uuid),
-}
-
-impl Default for ResourcePath {
-    fn default() -> Self {
-        Self::Explicit(Default::default())
-    }
-}
-
 /// Resource could be in three possible states (a small state machine):
 ///
 /// 1. Pending - it is loading or queued for loading.
@@ -128,13 +112,13 @@ pub enum ResourceState {
         /// on WASM), it is impossible to fetch the uuid by path immediately. Instead, the resource
         /// system offloads this task to resource loading tasks, which are able to wait until the
         /// registry is fully loaded.
-        path: ResourcePath,
+        path: PathBuf,
     },
     /// An error has occurred during the load.
     LoadError {
         /// A resource path, it is stored only to be able to reload the resources that failed to
         /// load previously.
-        path: ResourcePath,
+        path: PathBuf,
         /// An error. This wrapped in Option only to be Default_ed.
         error: LoadError,
     },
@@ -228,7 +212,7 @@ impl ResourceState {
 
     /// Creates new resource in pending state.
     #[inline]
-    pub fn new_pending(path: ResourcePath) -> Self {
+    pub fn new_pending(path: PathBuf) -> Self {
         Self::Pending {
             wakers: Default::default(),
             path,
@@ -237,7 +221,7 @@ impl ResourceState {
 
     /// Creates new resource in error state.
     #[inline]
-    pub fn new_load_error(path: ResourcePath, error: LoadError) -> Self {
+    pub fn new_load_error(path: PathBuf, error: LoadError) -> Self {
         Self::LoadError { path, error }
     }
 
@@ -307,7 +291,7 @@ impl ResourceState {
     }
 
     /// Changes internal state to [`ResourceState::LoadError`].
-    pub fn commit_error<E: ResourceLoadError>(&mut self, path: ResourcePath, error: E) {
+    pub fn commit_error<E: ResourceLoadError>(&mut self, path: PathBuf, error: E) {
         self.commit(ResourceState::LoadError {
             path,
             error: LoadError::new(error),

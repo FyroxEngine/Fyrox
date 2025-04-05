@@ -68,7 +68,7 @@ impl RegistryContainerExt for RegistryContainer {
     }
 }
 
-#[derive(Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Default, Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum ResourceRegistryStatus {
     #[default]
     Unknown,
@@ -86,6 +86,10 @@ pub struct RegistryReadyFlagData {
 pub struct ResourceRegistryStatusFlag(Arc<Mutex<RegistryReadyFlagData>>);
 
 impl ResourceRegistryStatusFlag {
+    pub fn status(&self) -> ResourceRegistryStatus {
+        self.0.lock().status
+    }
+
     pub fn mark_as_loaded(&self) {
         let mut lock = self.0.lock();
 

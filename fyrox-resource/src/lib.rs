@@ -33,12 +33,13 @@ use crate::{
         visitor::prelude::*,
         TypeUuidProvider,
     },
-    state::{LoadError, ResourcePath, ResourceState},
+    state::{LoadError, ResourceState},
     untyped::{ResourceHeader, ResourceKind, UntypedResource},
 };
 use fxhash::FxHashSet;
 pub use fyrox_core as core;
 use fyrox_core::{combine_uuids, define_as_any_trait, log::Log};
+use std::path::PathBuf;
 use std::{
     error::Error,
     fmt::{Debug, Formatter},
@@ -246,7 +247,7 @@ where
 {
     /// Creates new resource in pending state.
     #[inline]
-    pub fn new_pending(path: ResourcePath, kind: ResourceKind) -> Self {
+    pub fn new_pending(path: PathBuf, kind: ResourceKind) -> Self {
         Self {
             untyped: UntypedResource::new_pending(path, kind),
             phantom: PhantomData,

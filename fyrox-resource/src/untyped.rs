@@ -20,13 +20,13 @@
 
 //! A module for untyped resources. See [`UntypedResource`] docs for more info.
 
-use crate::state::ResourcePath;
 use crate::{
     core::{
         math::curve::Curve, parking_lot::Mutex, reflect::prelude::*, uuid, uuid::Uuid,
         visitor::prelude::*, visitor::RegionGuard, TypeUuidProvider,
     },
     manager::ResourceManager,
+    registry::ResourceRegistryStatus,
     state::{LoadError, ResourceState},
     Resource, ResourceData, ResourceLoadError, TypedResourceData, CURVE_RESOURCE_UUID,
     MODEL_RESOURCE_UUID, SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
@@ -299,18 +299,51 @@ impl Visit for UntypedResource {
         // Try to restore the shallow handle on deserialization for external resources.
         if visitor.is_reading() {
             let inner_lock = self.0.lock();
-            if inner_lock.kind == ResourceKind::External {
+            if let (ResourceKind::External, &ResourceState::Ok { resource_uuid, .. }) =
+                (inner_lock.kind, &inner_lock.state)
+            {
                 let resource_manager = visitor
                     .blackboard
                     .get::<ResourceManager>()
                     .expect("Resource manager must be available when deserializing resources!");
 
-                if let Some(old_format_path) = inner_lock.old_format_path.clone() {
+                let registry = resource_manager.state().resource_registry.clone();
+                let registry_lock = registry.lock();
+
+                // The resource registry **MUST** be loaded at this stage. This assertion should never
+                // trigger in normal circumstances, because resource references normally stored inside
+                // some other resources and resource loading is guarded with `registry.await` that
+                // waits until the registry is fully loaded.
+                //
+                // There are two major ways that will trigger this assertion:
+                // 1) The registry is not loaded.
+                // 2) You're trying to deserialize the resource handle manually without a proper
+                // environment.
+                assert_eq!(
+                    registry_lock.status.status(),
+                    ResourceRegistryStatus::Loaded
+                );
+
+                let path = match inner_lock.old_format_path {
+                    None => registry_lock.uuid_to_path_buf(resource_uuid),
+                    Some(ref path) => Some(path.clone()),
+                };
+
+                drop(registry_lock);
+
+                if let Some(path) = path {
                     drop(inner_lock);
-                    self.0 = resource_manager.request_untyped(old_format_path).0;
-                } else if let ResourceState::Ok { resource_uuid, .. } = inner_lock.state {
+                    self.0 = resource_manager.request_untyped(path).0;
+                } else {
+                    let kind = inner_lock.kind;
                     drop(inner_lock);
-                    self.0 = resource_manager.request_by_uuid(resource_uuid).0;
+                    *self = UntypedResource::new_load_error(
+                        kind,
+                        LoadError::new(format!(
+                            "Unable to restore resource handle of {resource_uuid} uuid!\
+                        The uuid wasn't found in the resource registry!"
+                        )),
+                    );
                 }
             }
         }
@@ -354,7 +387,7 @@ impl Hash for UntypedResource {
 
 impl UntypedResource {
     /// Creates new untyped resource in pending state using the given path and type uuid.
-    pub fn new_pending(path: ResourcePath, kind: ResourceKind) -> Self {
+    pub fn new_pending(path: PathBuf, kind: ResourceKind) -> Self {
         Self(Arc::new(Mutex::new(ResourceHeader {
             kind,
             state: ResourceState::new_pending(path),
@@ -503,7 +536,7 @@ impl UntypedResource {
     }
 
     /// Changes internal state to [`ResourceState::LoadError`].
-    pub fn commit_error<E: ResourceLoadError>(&self, path: ResourcePath, error: E) {
+    pub fn commit_error<E: ResourceLoadError>(&self, path: PathBuf, error: E) {
         self.0.lock().state.commit_error(path, error);
     }
 }

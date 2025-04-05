@@ -78,6 +78,7 @@ use asset::io::ResourceIo;
 use fxhash::FxHashSet;
 
 use fyrox_core::variable::InheritableVariable;
+use fyrox_resource::registry::ResourceRegistryStatus;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
@@ -299,6 +300,22 @@ impl SceneLoader {
         serialization_context: Arc<SerializationContext>,
         resource_manager: ResourceManager,
     ) -> Result<(Self, Vec<u8>), VisitError> {
+        let registry_status = resource_manager
+            .state()
+            .resource_registry
+            .lock()
+            .status
+            .clone();
+        // Wait until the registry is fully loaded.
+        let registry_status = registry_status.await;
+        if registry_status == ResourceRegistryStatus::Unknown {
+            return Err(VisitError::User(format!(
+                "Unable to load a scene from {} path, because the \
+            resource registry isn't loaded!",
+                path.as_ref().display()
+            )));
+        }
+
         let data = io.load_file(path.as_ref()).await?;
         let mut visitor = Visitor::load_from_memory(&data)?;
         let loader = Self::load(
