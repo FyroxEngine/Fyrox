@@ -354,10 +354,10 @@ impl Hash for UntypedResource {
 
 impl UntypedResource {
     /// Creates new untyped resource in pending state using the given path and type uuid.
-    pub fn new_pending(kind: ResourceKind) -> Self {
+    pub fn new_pending(path: ResourcePath, kind: ResourceKind) -> Self {
         Self(Arc::new(Mutex::new(ResourceHeader {
             kind,
-            state: ResourceState::new_pending(),
+            state: ResourceState::new_pending(path),
             old_format_path: None,
         })))
     }

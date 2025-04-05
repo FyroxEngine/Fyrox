@@ -790,9 +790,9 @@ impl ResourceManagerState {
         match self.find_by_resource_path(&path) {
             Some(existing) => existing.clone(),
             None => {
-                let resource = UntypedResource::new_pending(ResourceKind::External);
-                self.spawn_loading_task(path, resource.clone(), false);
+                let resource = UntypedResource::new_pending(path.clone(), ResourceKind::External);
                 self.add_resource_and_notify(resource.clone());
+                self.spawn_loading_task(path, resource.clone(), false);
                 resource
             }
         }
@@ -1027,20 +1027,18 @@ impl ResourceManagerState {
 
 #[cfg(test)]
 mod test {
-    use std::error::Error;
-    use std::{fs::File, time::Duration};
-
-    use crate::loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader};
-
     use super::*;
-
-    use crate::ResourceData;
-    use fyrox_core::uuid::{uuid, Uuid};
+    use crate::{
+        loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
+        ResourceData,
+    };
     use fyrox_core::{
         reflect::prelude::*,
+        uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
         TypeUuidProvider,
     };
+    use std::{error::Error, fs::File, time::Duration};
 
     #[derive(Debug, Default, Reflect, Visit)]
     struct Stub {}
@@ -1089,7 +1087,7 @@ mod test {
 
         let cx = ResourceWaitContext {
             resources: vec![
-                UntypedResource::new_pending(ResourceKind::External),
+                UntypedResource::new_pending(Default::default(), ResourceKind::External),
                 UntypedResource::new_load_error(ResourceKind::External, Default::default()),
             ],
         };
@@ -1132,7 +1130,7 @@ mod test {
 
         assert_eq!(
             state.register(
-                UntypedResource::new_pending(ResourceKind::External),
+                UntypedResource::new_pending(Default::default(), ResourceKind::External),
                 "foo.bar",
             ),
             Err(ResourceRegistrationError::InvalidState)
@@ -1260,7 +1258,7 @@ mod test {
         let manager = ResourceManager::new(Arc::new(Default::default()));
         let path = PathBuf::from("test.txt");
 
-        let resource = UntypedResource::new_pending(ResourceKind::External);
+        let resource = UntypedResource::new_pending(Default::default(), ResourceKind::External);
         let res = manager.register(resource.clone(), path.clone());
         assert!(res.is_err());
 

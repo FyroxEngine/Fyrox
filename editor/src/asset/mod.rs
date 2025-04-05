@@ -1290,7 +1290,7 @@ impl AssetBrowser {
                         if let Some(file_name) = path.file_name() {
                             let new_full_path = relative_path.join(file_name);
                             Log::verify(block_on(
-                                resource_manager.move_resource(resource, new_full_path),
+                                resource_manager.move_resource(&resource, new_full_path),
                             ));
 
                             self.refresh(ui, resource_manager, message_sender);
@@ -1336,7 +1336,7 @@ impl AssetBrowser {
                                                     target_sub_dir_normalized.join(file_name);
                                                 Log::verify(block_on(
                                                     resource_manager
-                                                        .move_resource(resource, new_full_path),
+                                                        .move_resource(&resource, new_full_path),
                                                 ));
                                             }
                                         }

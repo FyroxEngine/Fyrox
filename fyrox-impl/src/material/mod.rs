@@ -1232,7 +1232,9 @@ impl MaterialResourceExtension for MaterialResource {
         let material_state = self.header();
         let kind = material_state.kind;
         match material_state.state {
-            ResourceState::Pending { .. } => MaterialResource::new_pending(kind),
+            ResourceState::Pending { ref path, .. } => {
+                MaterialResource::new_pending(path.clone(), kind)
+            }
             ResourceState::LoadError { ref error, .. } => {
                 MaterialResource::new_load_error(kind, error.clone())
             }

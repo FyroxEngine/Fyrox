@@ -228,10 +228,10 @@ impl ResourceState {
 
     /// Creates new resource in pending state.
     #[inline]
-    pub fn new_pending() -> Self {
+    pub fn new_pending(path: ResourcePath) -> Self {
         Self::Pending {
             wakers: Default::default(),
-            path: Default::default(),
+            path,
         }
     }
 
@@ -351,7 +351,7 @@ mod test {
 
     #[test]
     fn resource_state_new_pending() {
-        let state = ResourceState::new_pending();
+        let state = ResourceState::new_pending(Default::default());
 
         assert!(matches!(state, ResourceState::Pending { .. }));
         assert!(state.is_loading());
@@ -388,7 +388,7 @@ mod test {
         assert!(matches!(state, ResourceState::Pending { .. }));
 
         // from Pending
-        let mut state = ResourceState::new_pending();
+        let mut state = ResourceState::new_pending(Default::default());
         state.switch_to_pending_state();
 
         assert!(matches!(state, ResourceState::Pending { .. }));
@@ -397,7 +397,7 @@ mod test {
     #[test]
     fn visit_for_resource_state() {
         // Visit Pending
-        let mut state = ResourceState::new_pending();
+        let mut state = ResourceState::new_pending(Default::default());
         let mut visitor = Visitor::default();
 
         assert!(state

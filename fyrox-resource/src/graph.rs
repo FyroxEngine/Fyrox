@@ -130,9 +130,14 @@ mod test {
     #[test]
     fn resource_graph_node_pretty_print() {
         let mut s = String::new();
-        let mut node =
-            ResourceGraphNode::new(&UntypedResource::new_pending(ResourceKind::External));
-        let node2 = ResourceGraphNode::new(&UntypedResource::new_pending(ResourceKind::External));
+        let mut node = ResourceGraphNode::new(&UntypedResource::new_pending(
+            Default::default(),
+            ResourceKind::External,
+        ));
+        let node2 = ResourceGraphNode::new(&UntypedResource::new_pending(
+            Default::default(),
+            ResourceKind::External,
+        ));
         node.children.push(node2);
         node.pretty_print(1, &mut s);
 
@@ -150,12 +155,15 @@ mod test {
 
     #[test]
     fn resource_dependency_pretty_print() {
-        let mut graph =
-            ResourceDependencyGraph::new(&UntypedResource::new_pending(ResourceKind::External));
+        let mut graph = ResourceDependencyGraph::new(&UntypedResource::new_pending(
+            Default::default(),
+            ResourceKind::External,
+        ));
         graph
             .root
             .children
             .push(ResourceGraphNode::new(&UntypedResource::new_pending(
+                Default::default(),
                 ResourceKind::External,
             )));
 

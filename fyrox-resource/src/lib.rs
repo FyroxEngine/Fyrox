@@ -25,8 +25,6 @@
 #![allow(clippy::doc_lazy_continuation)]
 #![allow(clippy::mutable_key_type)]
 
-use crate::state::LoadError;
-use crate::untyped::{ResourceHeader, ResourceKind};
 use crate::{
     core::{
         parking_lot::MutexGuard,
@@ -35,13 +33,12 @@ use crate::{
         visitor::prelude::*,
         TypeUuidProvider,
     },
-    state::ResourceState,
-    untyped::UntypedResource,
+    state::{LoadError, ResourcePath, ResourceState},
+    untyped::{ResourceHeader, ResourceKind, UntypedResource},
 };
 use fxhash::FxHashSet;
 pub use fyrox_core as core;
-use fyrox_core::log::Log;
-use fyrox_core::{combine_uuids, define_as_any_trait};
+use fyrox_core::{combine_uuids, define_as_any_trait, log::Log};
 use std::{
     error::Error,
     fmt::{Debug, Formatter},
@@ -249,9 +246,9 @@ where
 {
     /// Creates new resource in pending state.
     #[inline]
-    pub fn new_pending(kind: ResourceKind) -> Self {
+    pub fn new_pending(path: ResourcePath, kind: ResourceKind) -> Self {
         Self {
-            untyped: UntypedResource::new_pending(kind),
+            untyped: UntypedResource::new_pending(path, kind),
             phantom: PhantomData,
         }
     }
@@ -824,8 +821,11 @@ mod tests {
             .update_and_load_registry(Path::new(TEST_FOLDER2).join("resources.registry"));
         let path1 = make_file_path(TEST_FOLDER2, 2);
         let path2 = make_file_path(TEST_FOLDER2, 3);
-        let res1 = resource_manager.request::<MyData>(path1);
+        let res1 = resource_manager.request::<MyData>(&path1);
+        let res1_2 = resource_manager.request::<MyData>(&path1);
+        assert_eq!(res1.key(), res1_2.key());
         let res2 = resource_manager.request::<MyData>(path2);
+        assert_ne!(res1.key(), res2.key());
         assert_eq!(block_on(res1).unwrap().data_ref().data, 2);
         assert_eq!(block_on(res2).unwrap().data_ref().data, 3);
     }
