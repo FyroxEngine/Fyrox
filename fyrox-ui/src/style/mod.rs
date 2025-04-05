@@ -40,6 +40,7 @@ use crate::{
     Thickness,
 };
 use fxhash::FxHashMap;
+use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{
     io::ResourceIo,
     manager::{BuiltInResource, ResourceManager},
@@ -108,8 +109,8 @@ impl_casts!(TextureResource => Texture);
 
 lazy_static! {
     /// Default style of the library.
-    pub static ref DEFAULT_STYLE: BuiltInResource<Style> = BuiltInResource::new_no_source(
-        StyleResource::new_ok("__DEFAULT_STYLE__".into(), Style::dark_style())
+    pub static ref DEFAULT_STYLE: BuiltInResource<Style> = BuiltInResource::new_no_source("__DEFAULT_STYLE__",
+        StyleResource::new_ok(uuid!("1e0716e8-e728-491c-a65b-ca11b15048be"), ResourceKind::External, Style::dark_style())
     );
 }
 
@@ -215,7 +216,6 @@ impl<T: Visit> Visit for StyledProperty<T> {
 /// #     widget::WidgetBuilder,
 /// #     Thickness, UserInterface,
 /// # };
-/// # use fyrox_resource::untyped::ResourceKind;
 /// #
 /// fn build_with_style(ui: &mut UserInterface) {
 ///     // The context will use UI style by default. You can override it using `ui.set_style(..)`.
@@ -227,7 +227,7 @@ impl<T: Visit> Visit for StyledProperty<T> {
 ///         .with(Button::CORNER_RADIUS, 6.0f32)
 ///         .with(Button::BORDER_THICKNESS, Thickness::uniform(3.0));
 ///
-///     ctx.style = StyleResource::new_ok(ResourceKind::Embedded, style);
+///     ctx.style = StyleResource::new_embedded(style);
 ///
 ///     // The button will have corner radius of 6.0 points and border thickness of 3.0 points on
 ///     // each side.
@@ -243,14 +243,13 @@ impl<T: Visit> Visit for StyledProperty<T> {
 ///     style::{resource::StyleResource, Style},
 ///     Thickness, UserInterface,
 /// };
-/// use fyrox_resource::untyped::ResourceKind;
 ///
 /// fn apply_style(ui: &mut UserInterface) {
 ///     let style = Style::light_style()
 ///         .with(Button::CORNER_RADIUS, 3.0f32)
 ///         .with(Button::BORDER_THICKNESS, Thickness::uniform(1.0));
 ///
-///     ui.set_style(StyleResource::new_ok(ResourceKind::Embedded, style));
+///     ui.set_style(StyleResource::new_embedded(style));
 /// }
 /// ```
 #[derive(Visit, Reflect, Default, Debug, TypeUuidProvider)]

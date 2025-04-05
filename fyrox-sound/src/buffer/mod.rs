@@ -35,6 +35,7 @@ use crate::{
 use fyrox_core::{
     io::FileError, reflect::prelude::*, uuid::Uuid, visitor::prelude::*, TypeUuidProvider,
 };
+use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{
     io::{FileReader, ResourceIo},
     Resource, ResourceData, SOUND_BUFFER_RESOURCE_UUID,
@@ -276,9 +277,9 @@ impl SoundBufferResourceExtension for SoundBufferResource {
     fn new_streaming(
         data_source: DataSource,
     ) -> Result<Resource<SoundBuffer>, SoundBufferResourceLoadError> {
-        let path = data_source.path_owned();
         Ok(Resource::new_ok(
-            path.into(),
+            Uuid::new_v4(),
+            ResourceKind::External,
             SoundBuffer::Streaming(StreamingBuffer::new(data_source)?),
         ))
     }
@@ -286,9 +287,9 @@ impl SoundBufferResourceExtension for SoundBufferResource {
     fn new_generic(
         data_source: DataSource,
     ) -> Result<Resource<SoundBuffer>, SoundBufferResourceLoadError> {
-        let path = data_source.path_owned();
         Ok(Resource::new_ok(
-            path.into(),
+            Uuid::new_v4(),
+            ResourceKind::External,
             SoundBuffer::Generic(GenericBuffer::new(data_source)?),
         ))
     }

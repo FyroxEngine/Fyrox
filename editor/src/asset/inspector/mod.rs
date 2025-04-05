@@ -130,7 +130,10 @@ impl AssetInspector {
                 let context = InspectorContext::from_object(
                     reflect,
                     &mut ui.build_ctx(),
-                    Arc::new(make_property_editors_container(sender.clone())),
+                    Arc::new(make_property_editors_container(
+                        sender.clone(),
+                        resource_manager.clone(),
+                    )),
                     None,
                     MSG_SYNC_FLAG,
                     0,

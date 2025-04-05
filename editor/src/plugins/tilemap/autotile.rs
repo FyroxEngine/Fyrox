@@ -19,10 +19,7 @@
 // SOFTWARE.
 
 use fyrox::{
-    asset::{
-        untyped::{ResourceKind, UntypedResource},
-        Resource, ResourceData,
-    },
+    asset::{untyped::UntypedResource, Resource, ResourceData},
     autotile::{ConstraintFillRules, NeededTerrain, TerrainSource},
     core::{log::MessageKind, swap_hash_map_entry},
     fxhash::FxHashMap,
@@ -336,10 +333,7 @@ impl BrushMacro for AutoTileMacro {
     }
 
     fn create_instance(&self, _brush: &TileMapBrushResource) -> Option<UntypedResource> {
-        Some(UntypedResource::new_ok(
-            ResourceKind::Embedded,
-            AutoTileInstance::default(),
-        ))
+        Some(UntypedResource::new_embedded(AutoTileInstance::default()))
     }
 
     fn can_create_cell(&self) -> bool {

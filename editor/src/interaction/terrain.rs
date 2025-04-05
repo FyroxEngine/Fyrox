@@ -76,7 +76,7 @@ use crate::{
     settings::Settings,
     MSG_SYNC_FLAG,
 };
-use fyrox::asset::untyped::ResourceKind;
+
 use std::sync::mpsc::channel;
 use std::sync::Arc;
 
@@ -243,8 +243,7 @@ impl BrushGizmo {
                 .with_visibility(false),
         )
         .with_render_path(RenderPath::Forward)
-        .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-            ResourceKind::Embedded,
+        .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
             SurfaceData::make_quad(&Matrix4::identity()),
         ))
         .with_material(make_color_material(Color::from_rgba(0, 255, 0, 130)))

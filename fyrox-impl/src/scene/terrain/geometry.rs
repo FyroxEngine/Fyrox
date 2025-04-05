@@ -30,6 +30,7 @@ use crate::{
         vertex::StaticVertex,
     },
 };
+use fyrox_core::Uuid;
 use fyrox_resource::untyped::ResourceKind;
 
 /// The [SurfaceSharedData](crate::scene::mesh::surface::SurfaceResource) of a grid mesh for use
@@ -129,7 +130,7 @@ impl TerrainGeometry {
         //surface_data.calculate_tangents().unwrap();
 
         Self {
-            data: SurfaceResource::new_ok(ResourceKind::Embedded, surface_data),
+            data: SurfaceResource::new_ok(Uuid::new_v4(), ResourceKind::Embedded, surface_data),
             quadrants,
         }
     }

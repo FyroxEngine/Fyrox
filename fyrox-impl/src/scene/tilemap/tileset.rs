@@ -147,7 +147,11 @@ pub struct TileMaterialBounds {
 impl Default for TileMaterialBounds {
     fn default() -> Self {
         Self {
-            material: Resource::new_ok(ResourceKind::Embedded, Material::standard_tile()),
+            material: Resource::new_ok(
+                Uuid::new_v4(),
+                ResourceKind::Embedded,
+                Material::standard_tile(),
+            ),
             bounds: Default::default(),
         }
     }

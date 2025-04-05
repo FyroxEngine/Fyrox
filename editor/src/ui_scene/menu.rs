@@ -42,6 +42,7 @@ use crate::{
     world::WorldViewerItemContextMenu,
     Engine, Message, MessageDirection,
 };
+use fyrox::asset::manager::ResourceManager;
 use fyrox::gui::constructor::WidgetConstructorContainer;
 use fyrox::gui::menu::ContextMenuBuilder;
 use std::path::PathBuf;
@@ -66,11 +67,12 @@ impl WorldViewerItemContextMenu for WidgetContextMenu {
 fn resource_path_of_first_selected_node(
     editor_selection: &Selection,
     ui_scene: &UiScene,
+    resource_manager: &ResourceManager,
 ) -> Option<PathBuf> {
     if let Some(ui_selection) = editor_selection.as_ui() {
         if let Some(first) = ui_selection.widgets.first() {
             if let Some(resource) = ui_scene.ui.try_get(*first).and_then(|n| n.resource()) {
-                return resource.kind().into_path();
+                return resource_manager.resource_path(resource.as_ref());
             }
         }
     }
@@ -179,9 +181,11 @@ impl WidgetContextMenu {
                         }
                     }
                 } else if message.destination() == self.open_asset {
-                    if let Some(path) =
-                        resource_path_of_first_selected_node(editor_selection, ui_scene)
-                    {
+                    if let Some(path) = resource_path_of_first_selected_node(
+                        editor_selection,
+                        ui_scene,
+                        &engine.resource_manager,
+                    ) {
                         if utils::is_native_scene(&path) {
                             sender.send(Message::LoadScene(path));
                         }

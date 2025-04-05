@@ -21,7 +21,6 @@
 use crate::{
     asset::item::AssetItem,
     fyrox::{
-        asset::untyped::ResourceKind,
         core::{
             algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*,
             type_traits::prelude::*, uuid_provider, visitor::prelude::*,
@@ -48,6 +47,7 @@ use crate::{
     },
 };
 
+use fyrox::asset::manager::ResourceManager;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -60,6 +60,9 @@ pub struct FontField {
     widget: Widget,
     text_preview: Handle<UiNode>,
     font: FontResource,
+    #[reflect(hidden)]
+    #[visit(skip)]
+    resource_manager: ResourceManager,
 }
 
 impl Debug for FontField {
@@ -133,7 +136,7 @@ impl Control for FontField {
                 ui.send_message(TextMessage::text(
                     self.text_preview,
                     MessageDirection::ToWidget,
-                    make_name(&self.font),
+                    make_name(&self.resource_manager, &self.font),
                 ));
 
                 ui.send_message(message.reverse());
@@ -147,16 +150,16 @@ pub struct FontFieldBuilder {
     font: FontResource,
 }
 
-fn make_name(font: &FontResource) -> String {
-    match font.kind() {
-        ResourceKind::Embedded => "Embedded - AaBbCcDd1234567890".to_string(),
-        ResourceKind::External(path) => {
+fn make_name(resource_manager: &ResourceManager, font: &FontResource) -> String {
+    match resource_manager.resource_path(font.as_ref()) {
+        Some(path) => {
             if font == &BUILT_IN_FONT.resource.clone() {
                 "BuiltIn - AaBbCcDd1234567890".to_string()
             } else {
                 format!("{} - AaBbCcDd1234567890", path.display())
             }
         }
+        None => "Embedded - AaBbCcDd1234567890".to_string(),
     }
 }
 
@@ -173,7 +176,11 @@ impl FontFieldBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(
+        self,
+        resource_manager: ResourceManager,
+        ctx: &mut BuildContext,
+    ) -> Handle<UiNode> {
         let text_preview;
         let widget = self
             .widget_builder
@@ -181,7 +188,7 @@ impl FontFieldBuilder {
             .with_child({
                 text_preview = TextBuilder::new(WidgetBuilder::new())
                     .with_wrap(WrapMode::Word)
-                    .with_text(make_name(&self.font))
+                    .with_text(make_name(&resource_manager, &self.font))
                     .with_font(self.font.clone())
                     .build(ctx);
                 text_preview
@@ -192,6 +199,7 @@ impl FontFieldBuilder {
             widget,
             text_preview,
             font: self.font,
+            resource_manager,
         };
 
         ctx.add_node(UiNode::new(editor))
@@ -199,7 +207,9 @@ impl FontFieldBuilder {
 }
 
 #[derive(Debug)]
-pub struct FontPropertyEditorDefinition;
+pub struct FontPropertyEditorDefinition {
+    pub resource_manager: ResourceManager,
+}
 
 impl PropertyEditorDefinition for FontPropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
@@ -217,7 +227,7 @@ impl PropertyEditorDefinition for FontPropertyEditorDefinition {
                 WidgetBuilder::new().with_min_size(Vector2::new(0.0, 17.0)),
             )
             .with_font(value.clone())
-            .build(ctx.build_context),
+            .build(self.resource_manager.clone(), ctx.build_context),
         })
     }
 
@@ -250,10 +260,16 @@ impl PropertyEditorDefinition for FontPropertyEditorDefinition {
 #[cfg(test)]
 mod test {
     use crate::plugins::inspector::editors::font::FontFieldBuilder;
+    use fyrox::asset::manager::ResourceManager;
+    use fyrox::core::task::TaskPool;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+    use std::sync::Arc;
 
     #[test]
     fn test_deletion() {
-        test_widget_deletion(|ctx| FontFieldBuilder::new(WidgetBuilder::new()).build(ctx));
+        let resource_manager = ResourceManager::new(Arc::new(TaskPool::new()));
+        test_widget_deletion(|ctx| {
+            FontFieldBuilder::new(WidgetBuilder::new()).build(resource_manager, ctx)
+        });
     }
 }

@@ -21,10 +21,7 @@
 use std::hash::Hash;
 
 use fyrox::{
-    asset::{
-        untyped::{ResourceKind, UntypedResource},
-        Resource, ResourceData,
-    },
+    asset::{untyped::UntypedResource, Resource, ResourceData},
     core::swap_hash_map_entry,
     fxhash::FxHashMap,
     gui::{
@@ -375,10 +372,7 @@ impl BrushMacro for WfcMacro {
     }
 
     fn create_instance(&self, _brush: &TileMapBrushResource) -> Option<UntypedResource> {
-        Some(UntypedResource::new_ok(
-            ResourceKind::Embedded,
-            WfcInstance::default(),
-        ))
+        Some(UntypedResource::new_embedded(WfcInstance::default()))
     }
 
     fn can_create_cell(&self) -> bool {

@@ -67,7 +67,10 @@ impl AssetPreviewCache {
             let resource_kind = resource.kind();
             let preview = if let Some(cached_preview) = self.container.get(&resource_kind) {
                 Some(cached_preview.clone())
-            } else if let Some(generator) = generators.map.get_mut(&resource.type_uuid()) {
+            } else if let Some(generator) = resource
+                .type_uuid()
+                .and_then(|type_uuid| generators.map.get_mut(&type_uuid))
+            {
                 if let Some(preview) = generator.generate_preview(&resource, engine) {
                     self.container.insert(resource_kind, preview.clone());
                     Some(preview)

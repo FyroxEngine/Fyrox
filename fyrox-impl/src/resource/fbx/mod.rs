@@ -79,6 +79,7 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::track::TrackBinding;
+use fyrox_core::Uuid;
 use fyrox_resource::io::ResourceIo;
 use fyrox_resource::untyped::ResourceKind;
 use std::{cmp::Ordering, path::Path};
@@ -299,7 +300,8 @@ async fn create_surfaces(
         surface_data.blend_shapes_container =
             make_blend_shapes_container(&surface_data.vertex_buffer, data.blend_shapes);
         let mut surface = Surface::new(SurfaceResource::new_ok(
-            ResourceKind::External(model_path.to_path_buf()),
+            Uuid::new_v4(),
+            ResourceKind::External,
             surface_data,
         ));
         surface.vertex_weights = data.skin_data;
@@ -311,7 +313,8 @@ async fn create_surfaces(
             surface_data.blend_shapes_container =
                 make_blend_shapes_container(&surface_data.vertex_buffer, data.blend_shapes);
             let mut surface = Surface::new(SurfaceResource::new_ok(
-                ResourceKind::External(model_path.to_path_buf()),
+                Uuid::new_v4(),
+                ResourceKind::External,
                 surface_data,
             ));
             surface.vertex_weights = data.skin_data;
@@ -376,7 +379,8 @@ async fn create_surfaces(
                             resource_manager.request::<Texture>(texture_path.as_path())
                         } else {
                             TextureResource::load_from_memory(
-                                ResourceKind::External(texture_path.clone()),
+                                Uuid::new_v4(),
+                                ResourceKind::External,
                                 &texture.content,
                                 TextureImportOptions::default(),
                             )

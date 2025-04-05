@@ -26,6 +26,8 @@ use crate::core::{
 };
 use fxhash::FxHashMap;
 use fyrox_core::math::Rect;
+use fyrox_core::uuid;
+use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{
     embedded_data_source, io::ResourceIo, manager::BuiltInResource, untyped::UntypedResource,
     Resource, ResourceData,
@@ -263,13 +265,17 @@ impl Hash for FontHeight {
 pub type FontResource = Resource<Font>;
 
 lazy_static! {
-    pub static ref BUILT_IN_FONT: BuiltInResource<Font> =
-        BuiltInResource::new(embedded_data_source!("./built_in_font.ttf"), |data| {
+    pub static ref BUILT_IN_FONT: BuiltInResource<Font> = BuiltInResource::new(
+        "__BUILT_IN_FONT__",
+        embedded_data_source!("./built_in_font.ttf"),
+        |data| {
             FontResource::new_ok(
-                "__BUILT_IN_FONT__".into(),
+                uuid!("77260e8e-f6fa-429c-8009-13dda2673925"),
+                ResourceKind::External,
                 Font::from_memory(data.to_vec(), 1024).unwrap(),
             )
-        });
+        }
+    );
 }
 
 impl Font {

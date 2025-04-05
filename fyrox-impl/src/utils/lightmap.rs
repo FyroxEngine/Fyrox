@@ -54,6 +54,8 @@ use crate::{
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
 use fxhash::FxHashMap;
+use fyrox_core::Uuid;
+use fyrox_resource::ResourceData;
 use lightmap::light::{
     DirectionalLightDefinition, LightDefinition, PointLightDefinition, SpotLightDefinition,
 };
@@ -630,7 +632,11 @@ impl Lightmap {
 
             let lightmap = generate_lightmap(mesh, &meshes, &light_definitions, texels_per_unit);
             map.entry(instance.owner).or_default().push(LightmapEntry {
-                texture: Some(TextureResource::new_ok(Default::default(), lightmap)),
+                texture: Some(TextureResource::new_ok(
+                    Uuid::new_v4(),
+                    Default::default(),
+                    lightmap,
+                )),
                 lights: lights.keys().cloned().collect(),
             });
 
@@ -656,11 +662,10 @@ impl Lightmap {
             for (i, entry) in entries.iter().enumerate() {
                 let file_path = handle_path.clone() + "_" + i.to_string().as_str() + ".png";
                 let texture = entry.texture.clone().unwrap();
-                resource_manager.register(
-                    texture.into_untyped(),
-                    base_path.as_ref().join(file_path),
-                    |texture, path| texture.save(path).is_ok(),
-                )?;
+                let full_path = base_path.as_ref().join(file_path);
+                if texture.data_ref().save(&full_path).is_ok() {
+                    resource_manager.register(texture.into_untyped(), full_path)?;
+                }
             }
         }
         Ok(())
@@ -713,6 +718,7 @@ mod test {
     };
     use fyrox_resource::untyped::ResourceKind;
     use std::path::Path;
+    use uuid::Uuid;
 
     #[test]
     fn test_generate_lightmap() {
@@ -727,6 +733,7 @@ mod test {
 
         MeshBuilder::new(BaseBuilder::new())
             .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                Uuid::new_v4(),
                 ResourceKind::Embedded,
                 data,
             ))

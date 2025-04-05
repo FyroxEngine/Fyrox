@@ -58,6 +58,7 @@ use crate::{
         DrawingMode,
     },
 };
+use fyrox::asset::manager::ResourceManager;
 
 use super::*;
 
@@ -473,7 +474,12 @@ impl TileMapPanel {
     }
 
     /// Set the source for the control panel's tiles.
-    pub fn set_resource(&mut self, resource: TileBook, ui: &mut UserInterface) {
+    pub fn set_resource(
+        &mut self,
+        resource: TileBook,
+        ui: &mut UserInterface,
+        resource_manager: &ResourceManager,
+    ) {
         // Update the current brush based upon the new resource.
         match &resource {
             // An empty resource has no brush.
@@ -493,16 +499,16 @@ impl TileMapPanel {
             }
         }
         self.tile_book = resource.clone();
-        self.sync_to_model(ui);
+        self.sync_to_model(ui, resource_manager);
         self.send_tile_resource(ui);
     }
 
     /// Switch the control panel to using the current brush as the source for its tiles,
     /// if there is a current brush.
-    pub fn switch_to_brush(&mut self, ui: &mut UserInterface) {
+    pub fn switch_to_brush(&mut self, ui: &mut UserInterface, resource_manager: &ResourceManager) {
         if let Some(brush) = &self.brush {
             self.tile_book = TileBook::Brush(brush.clone());
-            self.sync_to_model(ui);
+            self.sync_to_model(ui, resource_manager);
             self.send_tile_resource(ui);
         }
     }
@@ -510,7 +516,11 @@ impl TileMapPanel {
     /// Switch the control panel to using the current tile set as the source for its tiles.
     /// Brushes naturally have tile sets, so if the current resource is a brush, then this
     /// will switch to that brush's tile set.
-    pub fn switch_to_tile_set(&mut self, ui: &mut UserInterface) {
+    pub fn switch_to_tile_set(
+        &mut self,
+        ui: &mut UserInterface,
+        resource_manager: &ResourceManager,
+    ) {
         let Some(brush) = &self.brush else {
             return;
         };
@@ -519,7 +529,7 @@ impl TileMapPanel {
             return;
         };
         self.tile_book = TileBook::TileSet(tile_set);
-        self.sync_to_model(ui);
+        self.sync_to_model(ui, resource_manager);
         self.send_tile_resource(ui);
     }
 
@@ -590,7 +600,12 @@ impl TileMapPanel {
     }
 
     /// Process the effect of pressing one of the buttons.
-    fn handle_button(&mut self, button: Handle<UiNode>, ui: &mut UserInterface) {
+    fn handle_button(
+        &mut self,
+        button: Handle<UiNode>,
+        ui: &mut UserInterface,
+        resource_manager: &ResourceManager,
+    ) {
         if button == self.draw_button {
             self.state.lock_mut("tool button").drawing_mode = DrawingMode::Draw;
         } else if button == self.erase_button {
@@ -617,9 +632,9 @@ impl TileMapPanel {
         } else if button == self.flip_y_button {
             self.state.lock_mut("flip y button").stamp.y_flip();
         } else if button == self.brush_button {
-            self.switch_to_brush(ui);
+            self.switch_to_brush(ui, resource_manager);
         } else if button == self.tile_set_button {
-            self.switch_to_tile_set(ui);
+            self.switch_to_tile_set(ui, resource_manager);
         }
     }
 
@@ -628,6 +643,7 @@ impl TileMapPanel {
         mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
+        resource_manager: &ResourceManager,
     ) -> Option<Self> {
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
@@ -636,7 +652,7 @@ impl TileMapPanel {
             }
         }
         if let Some(ButtonMessage::Click) = message.data() {
-            self.handle_button(message.destination(), ui);
+            self.handle_button(message.destination(), ui, resource_manager);
         } else if let Some(PaletteMessage::SetPage { .. }) = message.data() {
             if message.destination() == self.pages
                 && message.direction() == MessageDirection::FromWidget
@@ -660,7 +676,7 @@ impl TileMapPanel {
                     None
                 };
                 if let Some(tile_book) = tile_book {
-                    self.set_resource(tile_book, ui);
+                    self.set_resource(tile_book, ui, resource_manager);
                 }
             }
         }
@@ -669,8 +685,8 @@ impl TileMapPanel {
 
     /// Use the given UI to update the panel after the data the resource may
     /// have changed.
-    pub fn sync_to_model(&self, ui: &mut UserInterface) {
-        let name = self.tile_book.name();
+    pub fn sync_to_model(&self, ui: &mut UserInterface, resource_manager: &ResourceManager) {
+        let name = self.tile_book.name(resource_manager);
         ui.send_message(TextMessage::text(
             self.tile_set_name,
             MessageDirection::ToWidget,

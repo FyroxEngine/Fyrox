@@ -21,7 +21,7 @@
 use crate::{
     command::{Command, CommandContext, CommandStack, CommandTrait},
     fyrox::{
-        asset::{untyped::ResourceKind, Resource},
+        asset::Resource,
         core::{
             futures::executor::block_on, math::curve::Curve, pool::Handle, type_traits::prelude::*,
             visitor::prelude::*,
@@ -49,6 +49,7 @@ use crate::{
     utils::create_file_selector,
     Editor, MessageBoxButtons, MessageBoxMessage, MSG_SYNC_FLAG,
 };
+use fyrox::asset::manager::ResourceManager;
 use fyrox::core::some_or_return;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -362,7 +363,12 @@ impl CurveEditorWindow {
         }
     }
 
-    fn set_curve(&mut self, curve: CurveResource, ui: &UserInterface) {
+    fn set_curve(
+        &mut self,
+        resource_manager: &ResourceManager,
+        curve: CurveResource,
+        ui: &UserInterface,
+    ) {
         self.backup = curve.data_ref().curve.clone();
         self.curve_resource = Some(curve);
 
@@ -373,22 +379,20 @@ impl CurveEditorWindow {
         ));
 
         self.sync_to_model(ui);
-        self.sync_title(ui);
+        self.sync_title(resource_manager, ui);
 
         self.modified = false;
 
         self.command_stack.clear(&mut CurveEditorContext {});
     }
 
-    fn sync_title(&self, ui: &UserInterface) {
+    fn sync_title(&self, resource_manager: &ResourceManager, ui: &UserInterface) {
         let title = if let Some(curve_resource) = self.curve_resource.as_ref() {
-            let kind = curve_resource.header().kind.clone();
-
-            match kind {
-                ResourceKind::Embedded => "Curve Editor - Unnamed Curve".to_string(),
-                ResourceKind::External(path) => {
+            match resource_manager.resource_path(curve_resource.as_ref()) {
+                Some(path) => {
                     format!("Curve Editor - {}", path.display())
                 }
+                None => "Curve Editor - Unnamed Curve".to_string(),
             }
         } else {
             "Curve Editor".to_string()
@@ -500,7 +504,8 @@ impl CurveEditorWindow {
                 self.path = Default::default();
 
                 self.set_curve(
-                    Resource::new_ok(Default::default(), CurveResourceState::default()),
+                    &engine.resource_manager,
+                    Resource::new_embedded(CurveResourceState::default()),
                     ui,
                 );
             } else if message.destination() == self.menu.file.save {
@@ -516,7 +521,7 @@ impl CurveEditorWindow {
                     block_on(engine.resource_manager.request::<CurveResourceState>(path))
                 {
                     self.path.clone_from(path);
-                    self.set_curve(curve, ui);
+                    self.set_curve(&engine.resource_manager, curve, ui);
                 }
             } else if message.destination() == self.save_file_selector {
                 self.path.clone_from(path);

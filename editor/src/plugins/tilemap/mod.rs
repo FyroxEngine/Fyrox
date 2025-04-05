@@ -123,6 +123,7 @@ use crate::{
     settings::Settings,
     Editor, Message,
 };
+use fyrox::asset::manager::ResourceManager;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -590,6 +591,7 @@ impl TileMapEditorPlugin {
         center: Option<TileDefinitionHandle>,
         ui: &mut UserInterface,
         sender: &MessageSender,
+        resource_manager: &ResourceManager,
     ) {
         if let Some(panel) = &mut self.panel {
             panel.to_top(ui);
@@ -599,7 +601,7 @@ impl TileMapEditorPlugin {
             self.panel = Some(panel);
         }
         if let Some(panel) = &mut self.panel {
-            panel.set_resource(resource, ui);
+            panel.set_resource(resource, ui, resource_manager);
             if let Some(focus) = center {
                 panel.set_focus(focus, ui);
             }
@@ -622,7 +624,7 @@ impl TileMapEditorPlugin {
 
         if let Some(panel) = &mut self.panel {
             panel.to_top(ui);
-            panel.set_resource(resource, ui);
+            panel.set_resource(resource, ui, &editor.engine.resource_manager);
         } else {
             let mut panel = TileMapPanel::new(
                 &mut ui.build_ctx(),
@@ -630,7 +632,7 @@ impl TileMapEditorPlugin {
                 editor.message_sender.clone(),
             );
             panel.align(editor.scene_viewer.frame(), ui);
-            panel.set_resource(resource, ui);
+            panel.set_resource(resource, ui, &editor.engine.resource_manager);
             self.panel = Some(panel);
         }
     }
@@ -705,17 +707,17 @@ impl EditorPlugin for TileMapEditorPlugin {
         state.constructors_container.add::<WfcInstance>();
     }
 
-    fn on_exit(&mut self, _editor: &mut Editor) {
+    fn on_exit(&mut self, editor: &mut Editor) {
         if let Some(tile_set_editor) = self.tile_set_editor.as_mut() {
-            tile_set_editor.try_save();
+            tile_set_editor.try_save(&editor.engine.resource_manager);
         }
     }
 
     fn on_suspended(&mut self, _editor: &mut Editor) {}
 
-    fn on_mode_changed(&mut self, _editor: &mut Editor) {
+    fn on_mode_changed(&mut self, editor: &mut Editor) {
         if let Some(tile_set_editor) = self.tile_set_editor.as_mut() {
-            tile_set_editor.try_save();
+            tile_set_editor.try_save(&editor.engine.resource_manager);
         }
     }
 
@@ -734,7 +736,7 @@ impl EditorPlugin for TileMapEditorPlugin {
             tile_set_editor.sync_to_model(ui);
         }
         if let Some(panel) = self.panel.as_mut() {
-            panel.sync_to_model(ui);
+            panel.sync_to_model(ui, &editor.engine.resource_manager);
         }
     }
 
@@ -751,7 +753,13 @@ impl EditorPlugin for TileMapEditorPlugin {
         let ui = editor.engine.user_interfaces.first_mut();
 
         if let Some(OpenTilePanelMessage { resource, center }) = message.data() {
-            self.open_panel_for_tile_set(resource.clone(), *center, ui, &editor.message_sender);
+            self.open_panel_for_tile_set(
+                resource.clone(),
+                *center,
+                ui,
+                &editor.message_sender,
+                &editor.engine.resource_manager,
+            );
         } else if let Some(&TileDefinitionHandleEditorMessage::Goto(handle)) = message.data() {
             if let Some(panel) = &mut self.panel {
                 panel.set_focus(handle, ui);
@@ -759,7 +767,7 @@ impl EditorPlugin for TileMapEditorPlugin {
         }
 
         if let Some(panel) = self.panel.take() {
-            self.panel = panel.handle_ui_message(message, ui);
+            self.panel = panel.handle_ui_message(message, ui, &editor.engine.resource_manager);
         }
     }
 
@@ -816,10 +824,14 @@ impl EditorPlugin for TileMapEditorPlugin {
                     editor.engine.resource_manager.clone(),
                     &mut ui.build_ctx(),
                 );
-                tile_set_editor.set_tile_resource(tile_book, ui);
+                tile_set_editor.set_tile_resource(&editor.engine.resource_manager, tile_book, ui);
                 self.tile_set_editor = Some(tile_set_editor);
-            } else if let Some(editor) = &mut self.tile_set_editor {
-                editor.set_tile_resource(tile_book.clone(), ui);
+            } else if let Some(tile_set_editor) = &mut self.tile_set_editor {
+                tile_set_editor.set_tile_resource(
+                    &editor.engine.resource_manager,
+                    tile_book.clone(),
+                    ui,
+                );
             }
         }
 

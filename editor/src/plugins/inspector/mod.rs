@@ -173,8 +173,12 @@ fn is_out_of_sync(sync_errors: &[InspectorError]) -> bool {
 }
 
 impl InspectorPlugin {
-    pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
-        let property_editors = Arc::new(make_property_editors_container(sender));
+    pub fn new(
+        ctx: &mut BuildContext,
+        sender: MessageSender,
+        resource_manager: ResourceManager,
+    ) -> Self {
+        let property_editors = Arc::new(make_property_editors_container(sender, resource_manager));
 
         let warning_text_str =
             "Multiple objects are selected, showing properties of the first object only!\

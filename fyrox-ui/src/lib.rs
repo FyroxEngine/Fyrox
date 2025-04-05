@@ -777,7 +777,11 @@ impl Clone for UserInterface {
             captured_node: self.captured_node,
             keyboard_focus_node: self.keyboard_focus_node,
             cursor_position: self.cursor_position,
-            style: StyleResource::new_ok(ResourceKind::Embedded, Style::dark_style()),
+            style: StyleResource::new_ok(
+                Uuid::new_v4(),
+                ResourceKind::Embedded,
+                Style::dark_style(),
+            ),
             receiver,
             sender,
             stack: self.stack.clone(),
@@ -1065,7 +1069,8 @@ impl UserInterface {
         screen_size: Vector2<f32>,
     ) -> UserInterface {
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
-        let style = StyleResource::new_ok(ResourceKind::Embedded, Style::dark_style());
+        let style =
+            StyleResource::new_ok(Uuid::new_v4(), ResourceKind::Embedded, Style::dark_style());
         let mut ui = UserInterface {
             screen_size,
             sender,

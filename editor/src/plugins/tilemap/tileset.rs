@@ -156,11 +156,11 @@ fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
         .build(ctx)
 }
 
-fn tile_set_to_title(tile_book: &TileBook) -> String {
+fn tile_set_to_title(resource_manager: &ResourceManager, tile_book: &TileBook) -> String {
     match tile_book {
         TileBook::Empty => "Missing Resource".into(),
-        TileBook::TileSet(_) => format!("Tile Set: {}", tile_book.name()),
-        TileBook::Brush(_) => format!("Tile Map Brush: {}", tile_book.name()),
+        TileBook::TileSet(_) => format!("Tile Set: {}", tile_book.name(resource_manager)),
+        TileBook::Brush(_) => format!("Tile Map Brush: {}", tile_book.name(resource_manager)),
     }
 }
 
@@ -318,6 +318,7 @@ impl TileSetEditor {
             tiles_palette,
             tile_book.clone(),
             sender,
+            resource_manager.clone(),
             ctx,
         );
 
@@ -411,7 +412,10 @@ impl TileSetEditor {
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(800.0).with_height(600.0))
             .open(false)
-            .with_title(WindowTitle::text(tile_set_to_title(&tile_book)))
+            .with_title(WindowTitle::text(tile_set_to_title(
+                &resource_manager,
+                &tile_book,
+            )))
             .with_content(tab_control)
             .build(ctx);
 
@@ -454,8 +458,13 @@ impl TileSetEditor {
     }
 
     /// Change the resource being edited by this window.
-    pub fn set_tile_resource(&mut self, tile_book: TileBook, ui: &mut UserInterface) {
-        self.try_save();
+    pub fn set_tile_resource(
+        &mut self,
+        resource_manager: &ResourceManager,
+        tile_book: TileBook,
+        ui: &mut UserInterface,
+    ) {
+        self.try_save(resource_manager);
         self.tile_book = tile_book.clone();
         if let Some(brush) = tile_book.brush_ref() {
             build_brush_macro_cell_sets(
@@ -470,7 +479,7 @@ impl TileSetEditor {
         ui.send_message(WindowMessage::title(
             self.window,
             MessageDirection::ToWidget,
-            WindowTitle::text(tile_set_to_title(&tile_book)),
+            WindowTitle::text(tile_set_to_title(resource_manager, &tile_book)),
         ));
         let mut state = self.state.lock_mut("set_tile_resource");
         if state.selection_palette() == self.pages_palette
@@ -632,8 +641,8 @@ impl TileSetEditor {
 
     /// Attempt to save the resource being edited, if there is a resource and it
     /// has been changed, otherwise do nothing.
-    pub fn try_save(&self) {
-        Log::verify(self.tile_book.save());
+    pub fn try_save(&self, resource_manager: &ResourceManager) {
+        Log::verify(self.tile_book.save(resource_manager));
     }
 
     /// React appropriately to any UI message that may involve the widgets of this editor.
@@ -653,7 +662,7 @@ impl TileSetEditor {
         let sender = &editor.message_sender;
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
-                self.try_save();
+                self.try_save(&editor.engine.resource_manager);
                 self.destroy(ui);
                 return None;
             }
@@ -670,7 +679,11 @@ impl TileSetEditor {
             }
         } else if let Some(TileHandleEditorMessage::Goto(handle)) = message.data() {
             if let Some(tile_set) = self.tile_book.get_tile_set() {
-                self.set_tile_resource(TileBook::TileSet(tile_set), ui);
+                self.set_tile_resource(
+                    &editor.engine.resource_manager,
+                    TileBook::TileSet(tile_set),
+                    ui,
+                );
                 self.set_position(*handle, ui);
             }
         } else if let Some(TileHandleEditorMessage::OpenPalette(handle)) = message.data() {

@@ -147,11 +147,10 @@ impl AssetPreviewGenerator for TexturePreview {
 
             let mut material = Material::standard_two_sides();
             material.bind("diffuseTexture", texture);
-            let material = MaterialResource::new_ok(Default::default(), material);
+            let material = MaterialResource::new_embedded(material);
 
             MeshBuilder::new(BaseBuilder::new())
-                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-                    ResourceKind::Embedded,
+                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
                     SurfaceData::make_quad(
                         &(UnitQuaternion::from_axis_angle(
                             &Vector3::z_axis(),
@@ -264,6 +263,7 @@ impl AssetPreviewGenerator for SoundPreview {
                 }
 
                 return TextureResource::from_bytes(
+                    Uuid::new_v4(),
                     TextureKind::Rectangle {
                         width: width as u32,
                         height: height as u32,
@@ -358,6 +358,7 @@ fn render_scene_to_texture(
             .remove(&temp_handle);
 
         TextureResource::from_bytes(
+            Uuid::new_v4(),
             TextureKind::Rectangle {
                 width: width as u32,
                 height: height as u32,
@@ -464,12 +465,10 @@ impl AssetPreviewGenerator for ShaderPreview {
         scene: &mut Scene,
     ) -> Handle<Node> {
         if let Some(shader) = resource.try_cast::<Shader>() {
-            let material =
-                MaterialResource::new_ok(Default::default(), Material::from_shader(shader));
+            let material = MaterialResource::new_embedded(Material::from_shader(shader));
 
             MeshBuilder::new(BaseBuilder::new())
-                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-                    ResourceKind::Embedded,
+                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
                     SurfaceData::make_sphere(32, 32, 1.0, &Matrix4::identity()),
                 ))
                 .with_material(material)
@@ -509,8 +508,7 @@ impl AssetPreviewGenerator for MaterialPreview {
     ) -> Handle<Node> {
         if let Some(material) = resource.try_cast::<Material>() {
             MeshBuilder::new(BaseBuilder::new())
-                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-                    ResourceKind::Embedded,
+                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
                     SurfaceData::make_sphere(32, 32, 1.0, &Matrix4::identity()),
                 ))
                 .with_material(material)

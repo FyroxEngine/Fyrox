@@ -78,6 +78,7 @@ use asset::io::ResourceIo;
 use fxhash::FxHashSet;
 
 use fyrox_core::variable::InheritableVariable;
+use fyrox_resource::registry::ResourceRegistryStatus;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
@@ -287,6 +288,7 @@ impl Display for PerformanceStatistics {
 pub struct SceneLoader {
     scene: Scene,
     path: Option<PathBuf>,
+    resource_manager: ResourceManager,
 }
 
 impl SceneLoader {
@@ -298,6 +300,22 @@ impl SceneLoader {
         serialization_context: Arc<SerializationContext>,
         resource_manager: ResourceManager,
     ) -> Result<(Self, Vec<u8>), VisitError> {
+        let registry_status = resource_manager
+            .state()
+            .resource_registry
+            .lock()
+            .status
+            .clone();
+        // Wait until the registry is fully loaded.
+        let registry_status = registry_status.await;
+        if registry_status == ResourceRegistryStatus::Unknown {
+            return Err(VisitError::User(format!(
+                "Unable to load a scene from {} path, because the \
+            resource registry isn't loaded!",
+                path.as_ref().display()
+            )));
+        }
+
         let data = io.load_file(path.as_ref()).await?;
         let mut visitor = Visitor::load_from_memory(&data)?;
         let loader = Self::load(
@@ -325,12 +343,18 @@ impl SceneLoader {
         }
 
         visitor.blackboard.register(serialization_context);
-        visitor.blackboard.register(Arc::new(resource_manager));
+        visitor
+            .blackboard
+            .register(Arc::new(resource_manager.clone()));
 
         let mut scene = Scene::default();
         scene.visit(region_name, visitor)?;
 
-        Ok(Self { scene, path })
+        Ok(Self {
+            scene,
+            path,
+            resource_manager,
+        })
     }
 
     /// Finishes scene loading.
@@ -345,7 +369,13 @@ impl SceneLoader {
         if let Some(path) = self.path {
             let exclusion_list = used_resources
                 .iter()
-                .filter(|res| res.kind().path() == Some(&path))
+                .filter(|res| {
+                    let state = self.resource_manager.state();
+                    let registry = state.resource_registry.lock();
+                    res.resource_uuid()
+                        .and_then(|uuid| registry.uuid_to_path(uuid))
+                        == Some(&path)
+                })
                 .cloned()
                 .collect::<Vec<_>>();
 
@@ -519,8 +549,7 @@ impl Scene {
     /// let mut scene = Scene::new();
     ///
     /// MeshBuilder::new(BaseBuilder::new())
-    ///     .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok( ResourceKind::Embedded,
-    ///         SurfaceData::make_cube(Default::default()),
+    ///     .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_cube(Default::default()),
     ///     ))
     ///     .build()])
     ///     .build(&mut scene.graph);

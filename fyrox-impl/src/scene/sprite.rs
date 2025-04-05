@@ -147,7 +147,7 @@ impl VertexTrait for SpriteVertex {
 ///         .bind("smoke.png", resource_manager.request::<Texture>("smoke.png"));
 ///
 ///     SpriteBuilder::new(BaseBuilder::new())
-///         .with_material(MaterialResource::new_ok(Default::default(), material))
+///         .with_material(MaterialResource::new_embedded(material))
 ///         .build(graph)
 /// }
 /// ```
@@ -404,7 +404,11 @@ impl SpriteBuilder {
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
-            material: MaterialResource::new_ok(Default::default(), Material::standard_sprite()),
+            material: MaterialResource::new_ok(
+                Uuid::new_v4(),
+                Default::default(),
+                Material::standard_sprite(),
+            ),
             uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
             color: Color::WHITE,
             size: 0.2,

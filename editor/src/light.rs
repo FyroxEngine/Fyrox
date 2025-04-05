@@ -215,7 +215,10 @@ pub struct LightPanel {
 impl LightPanel {
     pub fn new(engine: &mut Engine, sender: MessageSender) -> Self {
         let settings = LightmapperSettings::default();
-        let container = Arc::new(make_property_editors_container(sender));
+        let container = Arc::new(make_property_editors_container(
+            sender,
+            engine.resource_manager.clone(),
+        ));
 
         let generate;
         let inspector;

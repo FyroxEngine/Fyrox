@@ -14,7 +14,7 @@ repository = "https://github.com/FyroxEngine/Fyrox"
 rust-version = "1.80"
 
 [dependencies]
-fyrox-core = { path = "../fyrox-core", version = "0.36.2" }
+fyrox-core = { path = "../fyrox-core", version = "0.36.2", features = ["serde"] }
 fxhash = "0.2.1"
 ron = "0.8.0"
 serde = { version = "1", features = ["derive"] }

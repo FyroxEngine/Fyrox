@@ -246,6 +246,7 @@ impl RenderDataBundleStorageTrait for BatchContainer {
 
         let batch = self.batches.entry(batch_hash).or_insert_with(|| Batch {
             data: SurfaceResource::new_ok(
+                Uuid::new_v4(),
                 ResourceKind::Embedded,
                 SurfaceData::new(
                     src_data.vertex_buffer.clone_empty(4096),
@@ -303,7 +304,7 @@ impl RenderDataBundleStorageTrait for BatchContainer {
 /// fn create_cube_mesh(graph: &mut Graph) -> Handle<Node> {
 ///     let cube_surface_data = SurfaceData::make_cube(Matrix4::identity());
 ///
-///     let cube_surface = SurfaceBuilder::new(SurfaceResource::new_ok(ResourceKind::Embedded, cube_surface_data)).build();
+///     let cube_surface = SurfaceBuilder::new(SurfaceResource::new_embedded(cube_surface_data)).build();
 ///
 ///     MeshBuilder::new(BaseBuilder::new())
 ///         .with_surfaces(vec![cube_surface])
@@ -546,7 +547,7 @@ fn extend_aabb_from_vertex_buffer(
 fn placeholder_material() -> MaterialResource {
     let mut material = Material::standard();
     material.bind("diffuseTexture", PLACEHOLDER.resource());
-    MaterialResource::new_ok(ResourceKind::Embedded, material)
+    MaterialResource::new_ok(Uuid::new_v4(), ResourceKind::Embedded, material)
 }
 
 impl ConstructorProvider<Node, Graph> for Mesh {

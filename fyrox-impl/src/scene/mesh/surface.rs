@@ -205,6 +205,7 @@ impl BlendShapesContainer {
                 .collect(),
             blend_shape_storage: Some(
                 TextureResource::from_bytes(
+                    Uuid::new_v4(),
                     TextureKind::Volume {
                         width: width * 3,
                         height,
@@ -1157,7 +1158,7 @@ pub trait SurfaceResourceExtension {
 
 impl SurfaceResourceExtension for SurfaceResource {
     fn deep_clone(&self) -> Self {
-        Self::new_ok(self.kind(), self.data_ref().clone())
+        Self::new_ok(Uuid::new_v4(), self.kind(), self.data_ref().clone())
     }
 }
 
@@ -1212,7 +1213,7 @@ impl SurfaceResourceExtension for SurfaceResource {
 ///
 ///     let data = SurfaceData::new(vertex_buffer, triangle_buffer);
 ///
-///     SurfaceBuilder::new(SurfaceResource::new_ok(ResourceKind::Embedded, data)).build()
+///     SurfaceBuilder::new(SurfaceResource::new_embedded(data)).build()
 /// }
 /// ```
 ///
@@ -1229,7 +1230,7 @@ impl SurfaceResourceExtension for SurfaceResource {
 /// # };
 /// use fyrox_resource::untyped::ResourceKind;
 /// fn create_cone_surface() -> Surface {
-///     SurfaceBuilder::new(SurfaceResource::new_ok(ResourceKind::Embedded, SurfaceData::make_cone(
+///     SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_cone(
 ///         16,
 ///         1.0,
 ///         2.0,
@@ -1314,11 +1315,17 @@ impl Default for Surface {
     fn default() -> Self {
         Self {
             data: SurfaceResource::new_ok(
+                Uuid::new_v4(),
                 ResourceKind::Embedded,
                 SurfaceData::make_cube(Matrix4::identity()),
             )
             .into(),
-            material: MaterialResource::new_ok(Default::default(), Material::standard()).into(),
+            material: MaterialResource::new_ok(
+                Uuid::new_v4(),
+                Default::default(),
+                Material::standard(),
+            )
+            .into(),
             vertex_weights: Default::default(),
             bones: Default::default(),
             unique_material: Default::default(),
@@ -1432,7 +1439,11 @@ impl SurfaceBuilder {
             material: self
                 .material
                 .unwrap_or_else(|| {
-                    MaterialResource::new_ok(Default::default(), Material::standard())
+                    MaterialResource::new_ok(
+                        Uuid::new_v4(),
+                        Default::default(),
+                        Material::standard(),
+                    )
                 })
                 .into(),
             vertex_weights: Default::default(),
@@ -1472,48 +1483,60 @@ impl ResourceLoader for SurfaceDataLoader {
 lazy_static! {
     /// Cube surface resource.
     pub static ref CUBE: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+        "__CubeSurface",
         SurfaceResource::new_ok(
-            "__CubeSurface".into(),
+            uuid!("d3a4604a-e1c6-430b-b524-8d3213723952"),
+            ResourceKind::Embedded,
             SurfaceData::make_cube(Matrix4::identity()),
         )
     );
 
     /// Quad surface resource.
     pub static ref QUAD: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+        "__QuadSurface",
         SurfaceResource::new_ok(
-            "__QuadSurface".into(),
+            uuid!("a124317f-640b-4c1b-9fdc-af62f745eeba"),
+            ResourceKind::Embedded,
             SurfaceData::make_quad(&Matrix4::identity()),
         )
     );
 
     /// Cylinder surface resource.
     pub static ref CYLINDER: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+        "__CylinderSurface",
         SurfaceResource::new_ok(
-            "__CylinderSurface".into(),
+            uuid!("16300ec8-4446-41a7-8ad6-9b45428d0b1b"),
+            ResourceKind::Embedded,
             SurfaceData::make_cylinder(32, 1.0, 1.0, true, &Matrix4::identity()),
         )
     );
 
     /// Sphere surface resource.
     pub static ref SPHERE: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+        "__SphereSurface",
         SurfaceResource::new_ok(
-            "__SphereSurface".into(),
+            uuid!("ff1811ba-b9ad-4c37-89b8-503f79aaa4bd"),
+            ResourceKind::Embedded,
             SurfaceData::make_sphere(32, 32, 1.0, &Matrix4::identity()),
         )
     );
 
     /// Cone surface resource.
     pub static ref CONE: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+        "__ConeSurface",
         SurfaceResource::new_ok(
-            "__ConeSurface".into(),
+            uuid!("e4e79405-39c5-4fe4-ba3e-c961f3d7379e"),
+            ResourceKind::Embedded,
             SurfaceData::make_cone(32, 1.0, 1.0, &Matrix4::identity()),
         )
     );
 
     /// Torus surface resource.
     pub static ref TORUS: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+        "__TorusSurface",
         SurfaceResource::new_ok(
-            "__TorusSurface".into(),
+            uuid!("d2bb5455-c72e-475d-90da-e3a7bd5b7d07"),
+            ResourceKind::Embedded,
             SurfaceData::make_torus(1.0, 0.25,32, 32,  &Matrix4::identity()),
         )
     );

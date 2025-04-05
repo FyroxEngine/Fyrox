@@ -86,10 +86,11 @@ pub const VERSION: u8 = 2;
 lazy_static! {
     /// Solid white texture
     pub static ref WHITE_1X1: TextureResource = TextureResource::from_bytes(
+        uuid!("09a71013-ccb2-4a41-a48a-ab6c80f14f0e"),
         TextureKind::Rectangle { width: 1, height: 1 },
         TexturePixelKind::R8,
         vec![255],
-        ResourceKind::External("__White_1x1".into()),
+        ResourceKind::External,
     )
     .unwrap();
 }
@@ -261,7 +262,11 @@ uuid_provider!(Layer = "7439d5fd-43a9-45f0-bd7c-76cf4d2ec22e");
 impl Default for Layer {
     fn default() -> Self {
         Self {
-            material: MaterialResource::new_ok(Default::default(), Material::standard_terrain()),
+            material: MaterialResource::new_ok(
+                Uuid::new_v4(),
+                Default::default(),
+                Material::standard_terrain(),
+            ),
             mask_property_name: "maskTexture".to_string(),
             height_map_property_name: "heightMapTexture".to_string(),
             node_uv_offsets_property_name: "nodeUvOffsets".to_string(),
@@ -302,7 +307,7 @@ fn make_height_map_texture_internal(
     data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
     data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
 
-    Some(Resource::new_ok(Default::default(), data))
+    Some(Resource::new_ok(Uuid::new_v4(), Default::default(), data))
 }
 
 fn make_blank_hole_texture(size: Vector2<u32>) -> TextureResource {
@@ -323,7 +328,7 @@ fn make_hole_texture(mask_data: Vec<u8>, size: Vector2<u32>) -> TextureResource 
     data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
     data.set_magnification_filter(TextureMagnificationFilter::Nearest);
     data.set_minification_filter(TextureMinificationFilter::Nearest);
-    Resource::new_ok(Default::default(), data)
+    Resource::new_ok(Uuid::new_v4(), Default::default(), data)
 }
 
 /// Create an Ok texture resource of the given size from the given height values.
@@ -1161,7 +1166,11 @@ struct OldLayer {
 impl Default for OldLayer {
     fn default() -> Self {
         Self {
-            material: MaterialResource::new_ok(Default::default(), Material::standard_terrain()),
+            material: MaterialResource::new_ok(
+                Uuid::new_v4(),
+                Default::default(),
+                Material::standard_terrain(),
+            ),
             mask_property_name: "maskTexture".to_string(),
             chunk_masks: Default::default(),
         }
@@ -1241,7 +1250,11 @@ impl Visit for Terrain {
                     }*/
 
                     self.layers.push(Layer {
-                        material: MaterialResource::new_ok(Default::default(), new_material),
+                        material: MaterialResource::new_ok(
+                            Uuid::new_v4(),
+                            Default::default(),
+                            new_material,
+                        ),
                         mask_property_name: layer.mask_property_name,
                         ..Default::default()
                     });
@@ -2291,6 +2304,7 @@ impl Terrain {
                 let data = mask.data_ref();
                 let new_mask = resize_u8(data.data().to_vec(), *self.mask_size, new_size);
                 let new_mask_texture = TextureResource::from_bytes(
+                    Uuid::new_v4(),
                     TextureKind::Rectangle {
                         width: new_size.x,
                         height: new_size.y,
@@ -2513,7 +2527,7 @@ fn validate_block_size(x: u32, size: Vector2<u32>) -> Result<(), String> {
 fn create_terrain_layer_material() -> MaterialResource {
     let mut material = Material::standard_terrain();
     material.set_property("texCoordScale", Vector2::new(10.0, 10.0));
-    MaterialResource::new_ok(Default::default(), material)
+    MaterialResource::new_ok(Uuid::new_v4(), Default::default(), material)
 }
 
 impl ConstructorProvider<Node, Graph> for Terrain {
@@ -2658,7 +2672,11 @@ impl NodeTrait for Terrain {
                         MaterialProperty::Vector4(Vector4::new(kx, kz, kw, kh)),
                     );
 
-                    let material = MaterialResource::new_ok(Default::default(), material.clone());
+                    let material = MaterialResource::new_ok(
+                        Uuid::new_v4(),
+                        Default::default(),
+                        material.clone(),
+                    );
 
                     let node_transform = chunk_transform
                         * Matrix4::new_translation(&Vector3::new(
@@ -2762,6 +2780,7 @@ pub struct TerrainBuilder {
 
 fn create_layer_mask(width: u32, height: u32, value: u8) -> TextureResource {
     let mask = TextureResource::from_bytes(
+        Uuid::new_v4(),
         TextureKind::Rectangle { width, height },
         TexturePixelKind::R8,
         vec![value; (width * height) as usize],

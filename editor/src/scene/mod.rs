@@ -99,8 +99,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     Message, Settings,
 };
-use fyrox::asset::untyped::ResourceKind;
-use fyrox::core::define_as_any_trait;
+use fyrox::core::{define_as_any_trait, Uuid};
 
 use fyrox::graph::SceneGraphNode;
 use fyrox::gui::message::UiMessage;
@@ -156,6 +155,7 @@ pub struct GameScene {
 lazy_static! {
     static ref GRID_SHADER: ShaderResource = {
         ShaderResource::from_str(
+            Uuid::new_v4(),
             include_str!("../../resources/shaders/grid.shader",),
             Default::default(),
         )
@@ -165,7 +165,7 @@ lazy_static! {
 
 fn make_grid_material() -> MaterialResource {
     let material = Material::from_shader(GRID_SHADER.clone());
-    MaterialResource::new_ok(Default::default(), material)
+    MaterialResource::new_embedded(material)
 }
 
 impl GameScene {
@@ -192,8 +192,7 @@ impl GameScene {
                 .with_frustum_culling(false)
                 .with_visibility(settings.graphics.draw_grid),
         )
-        .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-            ResourceKind::Embedded,
+        .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
             SurfaceData::make_quad(&Matrix4::new_scaling(2.0)),
         ))
         .with_material(make_grid_material())

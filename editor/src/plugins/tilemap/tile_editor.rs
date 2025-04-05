@@ -187,11 +187,15 @@ pub struct TileMaterialEditor {
 }
 
 impl TileMaterialEditor {
-    pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
+    pub fn new(
+        ctx: &mut BuildContext,
+        sender: MessageSender,
+        resource_manager: ResourceManager,
+    ) -> Self {
         let draw_button = make_draw_button("Apply material to tiles", ctx, None);
         let material = DEFAULT_TILE_MATERIAL.deep_copy();
         let material_field = MaterialFieldEditorBuilder::new(WidgetBuilder::new().on_column(2))
-            .build(ctx, sender, material.clone());
+            .build(ctx, sender, material.clone(), resource_manager);
         let material_line = make_drawable_field("Material", draw_button, material_field, ctx);
         let bounds_field = TileBoundsEditorBuilder::new(WidgetBuilder::new()).build(ctx);
         Self {

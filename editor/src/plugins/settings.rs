@@ -68,14 +68,19 @@ use crate::{
     },
     Editor, MSG_SYNC_FLAG,
 };
+use fyrox::asset::manager::ResourceManager;
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 use rust_fuzzy_search::fuzzy_compare;
 use std::sync::Arc;
 
 fn make_property_editors_container(
     sender: MessageSender,
+    resource_manager: ResourceManager,
 ) -> Arc<PropertyEditorDefinitionContainer> {
-    let container = crate::plugins::inspector::editors::make_property_editors_container(sender);
+    let container = crate::plugins::inspector::editors::make_property_editors_container(
+        sender,
+        resource_manager,
+    );
 
     container.insert(InspectablePropertyEditorDefinition::<GeneralSettings>::new());
     container.insert(InspectablePropertyEditorDefinition::<GraphicsSettings>::new());
@@ -225,7 +230,13 @@ impl SettingsWindow {
         }
     }
 
-    pub fn open(&self, ui: &mut UserInterface, settings: &Settings, sender: &MessageSender) {
+    pub fn open(
+        &self,
+        ui: &mut UserInterface,
+        settings: &Settings,
+        sender: &MessageSender,
+        resource_manager: ResourceManager,
+    ) {
         ui.send_message(WindowMessage::open(
             self.window,
             MessageDirection::ToWidget,
@@ -233,15 +244,21 @@ impl SettingsWindow {
             true,
         ));
 
-        self.sync_to_model(ui, settings, sender);
+        self.sync_to_model(ui, settings, sender, resource_manager);
     }
 
-    fn sync_to_model(&self, ui: &mut UserInterface, settings: &Settings, sender: &MessageSender) {
+    fn sync_to_model(
+        &self,
+        ui: &mut UserInterface,
+        settings: &Settings,
+        sender: &MessageSender,
+        resource_manager: ResourceManager,
+    ) {
         let ctx = &mut ui.build_ctx();
         let context = InspectorContext::from_object(
             &**settings,
             ctx,
-            make_property_editors_container(sender.clone()),
+            make_property_editors_container(sender.clone(), resource_manager),
             None,
             MSG_SYNC_FLAG,
             0,
@@ -331,7 +348,7 @@ impl SettingsWindow {
             } else if message.destination() == self.default {
                 **settings = Default::default();
 
-                self.sync_to_model(ui, settings, sender);
+                self.sync_to_model(ui, settings, sender, engine.resource_manager.clone());
             }
 
             if let Some(node) = ui.try_get(message.destination()) {
@@ -409,7 +426,12 @@ impl SettingsPlugin {
             .window
             .get_or_insert_with(|| SettingsWindow::new(&mut editor.engine));
         let ui = editor.engine.user_interfaces.first_mut();
-        window.open(ui, &editor.settings, &editor.message_sender);
+        window.open(
+            ui,
+            &editor.settings,
+            &editor.message_sender,
+            editor.engine.resource_manager.clone(),
+        );
         ui.send_message(DockingManagerMessage::add_floating_window(
             editor.docking_manager,
             MessageDirection::ToWidget,

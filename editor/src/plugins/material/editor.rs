@@ -52,6 +52,7 @@ use crate::{
     Message, MessageDirection,
 };
 
+use fyrox::asset::manager::ResourceManager;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -78,6 +79,9 @@ pub struct MaterialFieldEditor {
     edit: Handle<UiNode>,
     make_unique: Handle<UiNode>,
     material: MaterialResource,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    resource_manager: ResourceManager,
 }
 
 impl Debug for MaterialFieldEditor {
@@ -139,7 +143,7 @@ impl Control for MaterialFieldEditor {
                 ui.send_message(TextMessage::text(
                     self.text,
                     MessageDirection::ToWidget,
-                    make_name(&self.material),
+                    make_name(&self.resource_manager, &self.material),
                 ));
 
                 ui.send_message(message.reverse());
@@ -162,11 +166,20 @@ pub struct MaterialFieldEditorBuilder {
     widget_builder: WidgetBuilder,
 }
 
-fn make_name(material: &MaterialResource) -> String {
+fn make_name(resource_manager: &ResourceManager, material: &MaterialResource) -> String {
     let header = material.header();
     match header.state {
-        ResourceState::Ok(_) => {
-            format!("{} - {} uses", header.kind, material.use_count())
+        ResourceState::Ok { resource_uuid, .. } => {
+            if let Some(path) = resource_manager
+                .state()
+                .resource_registry
+                .lock()
+                .uuid_to_path_buf(resource_uuid)
+            {
+                format!("{} - {} uses", path.display(), material.use_count())
+            } else {
+                format!("Embedded - {} uses", material.use_count())
+            }
         }
         ResourceState::LoadError { ref error, .. } => {
             format!("Loading failed: {error:?}")
@@ -187,6 +200,7 @@ impl MaterialFieldEditorBuilder {
         ctx: &mut BuildContext,
         sender: MessageSender,
         material: MaterialResource,
+        resource_manager: ResourceManager,
     ) -> Handle<UiNode> {
         let edit;
         let text;
@@ -205,7 +219,7 @@ impl MaterialFieldEditorBuilder {
                                 text = TextBuilder::new(
                                     WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_text(make_name(&material))
+                                .with_text(make_name(&resource_manager, &material))
                                 .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .build(ctx);
                                 text
@@ -256,6 +270,7 @@ impl MaterialFieldEditorBuilder {
             material,
             text,
             make_unique,
+            resource_manager,
         };
 
         ctx.add_node(UiNode::new(editor))
@@ -265,6 +280,7 @@ impl MaterialFieldEditorBuilder {
 #[derive(Debug)]
 pub struct MaterialPropertyEditorDefinition {
     pub sender: Mutex<MessageSender>,
+    pub resource_manager: ResourceManager,
 }
 
 impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
@@ -282,6 +298,7 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
                 ctx.build_context,
                 self.sender.lock().clone(),
                 value.clone(),
+                self.resource_manager.clone(),
             ),
         })
     }
@@ -315,15 +332,20 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
 #[cfg(test)]
 mod test {
     use crate::plugins::material::editor::MaterialFieldEditorBuilder;
+    use fyrox::asset::manager::ResourceManager;
+    use fyrox::core::task::TaskPool;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+    use std::sync::Arc;
 
     #[test]
     fn test_deletion() {
+        let resource_manager = ResourceManager::new(Arc::new(TaskPool::new()));
         test_widget_deletion(|ctx| {
             MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
                 ctx,
                 Default::default(),
                 Default::default(),
+                resource_manager,
             )
         });
     }
