@@ -718,11 +718,7 @@ mod test {
 
         // Initialize resource manager and re-load the scene.
         let resource_manager = ResourceManager::new(Arc::new(Default::default()));
-        engine::initialize_resource_manager_loaders(
-            &resource_manager,
-            Arc::new(SerializationContext::new()),
-        );
-        resource_manager.update_and_load_registry("test_output/resources.registry");
+
         let serialization_context = SerializationContext::new();
         serialization_context
             .script_constructors
@@ -733,6 +729,13 @@ mod test {
             .map()
             .iter()
             .any(|s| s.1.source_path == file!()));
+
+        engine::initialize_resource_manager_loaders(
+            &resource_manager,
+            Arc::new(serialization_context),
+        );
+
+        resource_manager.update_and_load_registry("test_output/resources.registry");
 
         let root_asset = block_on(resource_manager.request::<Model>(root_asset_path)).unwrap();
 
@@ -760,6 +763,12 @@ mod test {
             assert!(!mesh.surfaces()[0].material.is_modified());
             mesh.set_cast_shadows(false);
             save_scene(&mut derived, derived_asset_path);
+            resource_manager
+                .state()
+                .resource_registry
+                .lock()
+                .write_metadata(Uuid::new_v4(), derived_asset_path.to_path_buf())
+                .unwrap();
         }
 
         // Reload the derived asset and check its content.

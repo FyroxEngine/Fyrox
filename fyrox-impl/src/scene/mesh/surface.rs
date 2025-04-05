@@ -1213,7 +1213,7 @@ impl SurfaceResourceExtension for SurfaceResource {
 ///
 ///     let data = SurfaceData::new(vertex_buffer, triangle_buffer);
 ///
-///     SurfaceBuilder::new(SurfaceResource::new_ok(ResourceKind::Embedded, data)).build()
+///     SurfaceBuilder::new(SurfaceResource::new_embedded(data)).build()
 /// }
 /// ```
 ///
@@ -1230,7 +1230,7 @@ impl SurfaceResourceExtension for SurfaceResource {
 /// # };
 /// use fyrox_resource::untyped::ResourceKind;
 /// fn create_cone_surface() -> Surface {
-///     SurfaceBuilder::new(SurfaceResource::new_ok(ResourceKind::Embedded, SurfaceData::make_cone(
+///     SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_cone(
 ///         16,
 ///         1.0,
 ///         2.0,

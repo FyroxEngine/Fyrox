@@ -760,37 +760,40 @@ mod tests {
         }
     }
 
-    const TEST_FOLDER: &'static str = "./test_output";
+    const TEST_FOLDER1: &'static str = "./test_output1";
+    const TEST_FOLDER2: &'static str = "./test_output2";
 
-    fn make_file_path(n: usize) -> PathBuf {
-        Path::new(TEST_FOLDER).join(format!("test{n}.{}", MyDataLoader::EXT))
+    fn make_file_path(root: &str, n: usize) -> PathBuf {
+        Path::new(root).join(format!("test{n}.{}", MyDataLoader::EXT))
     }
 
-    fn make_metadata_file_path(n: usize) -> PathBuf {
-        Path::new(TEST_FOLDER).join(format!(
+    fn make_metadata_file_path(root: &str, n: usize) -> PathBuf {
+        Path::new(root).join(format!(
             "test{n}.{}.{}",
             MyDataLoader::EXT,
             ResourceMetadata::EXTENSION
         ))
     }
 
-    fn write_test_resources(indices: Range<usize>) {
-        let path = Path::new(TEST_FOLDER);
+    fn write_test_resources(root: &str, indices: Range<usize>) {
+        let path = Path::new(root);
         if !std::fs::exists(path).unwrap() {
             std::fs::create_dir_all(path).unwrap();
         }
 
         for i in indices {
-            MyData { data: i as u32 }.save(&make_file_path(i)).unwrap();
+            MyData { data: i as u32 }
+                .save(&make_file_path(root, i))
+                .unwrap();
         }
     }
 
     #[test]
     fn test_registry_scan() {
-        write_test_resources(0..2);
+        write_test_resources(TEST_FOLDER1, 0..2);
 
-        assert!(std::fs::exists(make_file_path(0)).unwrap());
-        assert!(std::fs::exists(make_file_path(1)).unwrap());
+        assert!(std::fs::exists(make_file_path(TEST_FOLDER1, 0)).unwrap());
+        assert!(std::fs::exists(make_file_path(TEST_FOLDER1, 1)).unwrap());
 
         let io = Arc::new(FsResourceIo);
 
@@ -798,22 +801,27 @@ mod tests {
         loaders.set(MyDataLoader {});
         let loaders = Arc::new(Mutex::new(loaders));
 
-        let registry = block_on(ResourceRegistry::scan(io, loaders, TEST_FOLDER));
+        let registry = block_on(ResourceRegistry::scan(
+            io,
+            loaders,
+            Path::new(TEST_FOLDER1).join("resources.registry"),
+        ));
 
-        assert!(std::fs::exists(make_metadata_file_path(0)).unwrap());
-        assert!(std::fs::exists(make_metadata_file_path(1)).unwrap());
+        assert!(std::fs::exists(make_metadata_file_path(TEST_FOLDER1, 0)).unwrap());
+        assert!(std::fs::exists(make_metadata_file_path(TEST_FOLDER1, 1)).unwrap());
 
         assert_eq!(registry.len(), 2);
     }
 
     #[test]
     fn test_resource_manager_request_simple() {
-        write_test_resources(2..4);
+        write_test_resources(TEST_FOLDER2, 2..4);
         let resource_manager = ResourceManager::new(Arc::new(TaskPool::new()));
         resource_manager.add_loader(MyDataLoader {});
-        resource_manager.update_and_load_registry(ResourceRegistry::DEFAULT_PATH);
-        let path1 = make_file_path(2);
-        let path2 = make_file_path(3);
+        resource_manager
+            .update_and_load_registry(Path::new(TEST_FOLDER2).join("resources.registry"));
+        let path1 = make_file_path(TEST_FOLDER2, 2);
+        let path2 = make_file_path(TEST_FOLDER2, 3);
         let res1 = resource_manager.request::<MyData>(path1);
         let res2 = resource_manager.request::<MyData>(path2);
         assert_eq!(block_on(res1).unwrap().data_ref().data, 2);

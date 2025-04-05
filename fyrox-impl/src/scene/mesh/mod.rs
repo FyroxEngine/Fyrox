@@ -304,7 +304,7 @@ impl RenderDataBundleStorageTrait for BatchContainer {
 /// fn create_cube_mesh(graph: &mut Graph) -> Handle<Node> {
 ///     let cube_surface_data = SurfaceData::make_cube(Matrix4::identity());
 ///
-///     let cube_surface = SurfaceBuilder::new(SurfaceResource::new_ok(ResourceKind::Embedded, cube_surface_data)).build();
+///     let cube_surface = SurfaceBuilder::new(SurfaceResource::new_embedded(cube_surface_data)).build();
 ///
 ///     MeshBuilder::new(BaseBuilder::new())
 ///         .with_surfaces(vec![cube_surface])

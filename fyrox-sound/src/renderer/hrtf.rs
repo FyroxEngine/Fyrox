@@ -44,6 +44,7 @@
 //! use fyrox_sound::renderer::Renderer;
 //! use std::path::{Path, PathBuf};
 //! use hrtf::HrirSphere;
+//! use fyrox_resource::untyped::ResourceKind;
 //!
 //! fn use_hrtf(context: &mut SoundContext) {
 //!     // IRC_1002_C.bin is HRIR sphere in binary format, can be any valid HRIR sphere
@@ -51,7 +52,7 @@
 //!     let hrir_path = PathBuf::from("examples/data/IRC_1002_C.bin");
 //!     let hrir_sphere = HrirSphere::from_file(&hrir_path, context::SAMPLE_RATE).unwrap();
 //!
-//!     context.state().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(HrirSphereResource::from_hrir_sphere(hrir_sphere, hrir_path.into()))));
+//!     context.state().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(HrirSphereResource::from_hrir_sphere(hrir_sphere, ResourceKind::Embedded))));
 //! }
 //! ```
 //!

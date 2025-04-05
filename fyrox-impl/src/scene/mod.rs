@@ -532,8 +532,7 @@ impl Scene {
     /// let mut scene = Scene::new();
     ///
     /// MeshBuilder::new(BaseBuilder::new())
-    ///     .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok( ResourceKind::Embedded,
-    ///         SurfaceData::make_cube(Default::default()),
+    ///     .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_cube(Default::default()),
     ///     ))
     ///     .build()])
     ///     .build(&mut scene.graph);

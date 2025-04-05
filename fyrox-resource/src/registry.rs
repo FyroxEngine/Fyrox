@@ -199,6 +199,15 @@ impl ResourceRegistry {
         replace_slashes(ret)
     }
 
+    pub fn write_metadata(&mut self, uuid: Uuid, path: impl AsRef<Path>) -> Result<(), FileError> {
+        ResourceMetadata::new_with_random_id().save_sync(&append_extension(
+            path.as_ref(),
+            ResourceMetadata::EXTENSION,
+        ))?;
+        self.register(uuid, path.as_ref().to_path_buf());
+        Ok(())
+    }
+
     pub fn register(&mut self, uuid: Uuid, path: PathBuf) -> Option<PathBuf> {
         self.paths.insert(uuid, path)
     }
@@ -301,7 +310,7 @@ impl ResourceRegistry {
 
             let metadata_path = append_extension(&path, ResourceMetadata::EXTENSION);
             let metadata =
-                match ResourceMetadata::load_from_file(&metadata_path, &*resource_io).await {
+                match ResourceMetadata::load_from_file_async(&metadata_path, &*resource_io).await {
                     Ok(metadata) => metadata,
                     Err(err) => {
                         warn!(
@@ -312,7 +321,9 @@ impl ResourceRegistry {
                             err
                         );
                         let new_metadata = ResourceMetadata::new_with_random_id();
-                        if let Err(err) = new_metadata.save(&metadata_path, &*resource_io).await {
+                        if let Err(err) =
+                            new_metadata.save_async(&metadata_path, &*resource_io).await
+                        {
                             warn!(
                                 "Unable to save resource {} metadata. Reason: {:?}",
                                 path.display(),

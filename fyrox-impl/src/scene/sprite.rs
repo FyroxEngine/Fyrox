@@ -147,7 +147,7 @@ impl VertexTrait for SpriteVertex {
 ///         .bind("smoke.png", resource_manager.request::<Texture>("smoke.png"));
 ///
 ///     SpriteBuilder::new(BaseBuilder::new())
-///         .with_material(MaterialResource::new_ok(Default::default(), material))
+///         .with_material(MaterialResource::new_embedded(material))
 ///         .build(graph)
 /// }
 /// ```

@@ -22,6 +22,8 @@ use crate::io::ResourceIo;
 use fyrox_core::{io::FileError, Uuid};
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
+use std::fs::File;
+use std::io::Write;
 use std::path::Path;
 
 #[derive(Serialize, Deserialize)]
@@ -38,7 +40,7 @@ impl ResourceMetadata {
         }
     }
 
-    pub async fn load_from_file(
+    pub async fn load_from_file_async(
         path: &Path,
         resource_io: &dyn ResourceIo,
     ) -> Result<Self, FileError> {
@@ -52,14 +54,29 @@ impl ResourceMetadata {
         })
     }
 
-    pub async fn save(&self, path: &Path, resource_io: &dyn ResourceIo) -> Result<(), FileError> {
-        let string = ron::ser::to_string_pretty(self, PrettyConfig::default()).map_err(|err| {
+    fn serialize(&self, path: &Path) -> Result<String, FileError> {
+        ron::ser::to_string_pretty(self, PrettyConfig::default()).map_err(|err| {
             FileError::Custom(format!(
                 "Unable to serialize resource metadata for {} resource! Reason: {}",
                 path.display(),
                 err
             ))
-        })?;
+        })
+    }
+
+    pub async fn save_async(
+        &self,
+        path: &Path,
+        resource_io: &dyn ResourceIo,
+    ) -> Result<(), FileError> {
+        let string = self.serialize(path)?;
         resource_io.write_file(path, string.into_bytes()).await
+    }
+
+    pub fn save_sync(&self, path: &Path) -> Result<(), FileError> {
+        let string = self.serialize(path)?;
+        let mut file = File::create(path)?;
+        file.write_all(string.as_bytes())?;
+        Ok(())
     }
 }
