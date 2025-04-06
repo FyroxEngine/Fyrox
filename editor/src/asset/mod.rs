@@ -1203,8 +1203,11 @@ impl AssetBrowser {
                     if let Ok(resource) =
                         block_on(engine.resource_manager.request_untyped(&item.path))
                     {
-                        self.dependency_viewer
-                            .open(&resource, engine.user_interfaces.first_mut());
+                        self.dependency_viewer.open(
+                            &resource,
+                            &engine.resource_manager,
+                            engine.user_interfaces.first_mut(),
+                        );
                     }
                 }
             }

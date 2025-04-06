@@ -24,7 +24,7 @@ use crate::{
         preview::AssetPreviewTexture,
     },
     fyrox::{
-        asset::untyped::{ResourceKind, UntypedResource},
+        asset::untyped::UntypedResource,
         core::pool::Handle,
         engine::Engine,
         fxhash::FxHashMap,

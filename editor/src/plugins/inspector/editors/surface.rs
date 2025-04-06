@@ -131,16 +131,19 @@ impl Control for SurfaceDataPropertyEditor {
                 ui.send_message(TextMessage::text(
                     self.text,
                     MessageDirection::ToWidget,
-                    surface_data_info(value),
+                    surface_data_info(&self.resource_manager, value),
                 ));
             }
         }
     }
 }
 
-fn surface_data_info(data: &SurfaceResource) -> String {
+fn surface_data_info(resource_manager: &ResourceManager, data: &SurfaceResource) -> String {
     let use_count = data.use_count();
-    let kind = data.kind();
+    let kind = resource_manager
+        .resource_path(data.as_ref())
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| "External".to_string());
     let guard = data.data_ref();
     format!(
         "{}\nVertices: {}\nTriangles: {}\nUse Count: {}",
@@ -175,7 +178,7 @@ impl SurfaceDataPropertyEditor {
                 .on_column(0)
                 .with_margin(Thickness::uniform(1.0)),
         )
-        .with_text(surface_data_info(&data))
+        .with_text(surface_data_info(&resource_manager, &data))
         .build(ctx);
 
         let widget = WidgetBuilder::new()

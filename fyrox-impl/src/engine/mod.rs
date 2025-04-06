@@ -2571,8 +2571,8 @@ impl Engine {
 
             for resource_to_reload in resources_to_reload.iter() {
                 Log::info(format!(
-                    "Reloading {} resource, because it is used in plugin {plugin_assembly_name}",
-                    resource_to_reload.kind()
+                    "Reloading {:?} resource, because it is used in plugin {plugin_assembly_name}",
+                    state.resource_path(resource_to_reload)
                 ));
 
                 state.reload_resource(resource_to_reload.clone());

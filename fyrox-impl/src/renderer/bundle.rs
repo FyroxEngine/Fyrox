@@ -497,8 +497,8 @@ impl RenderDataBundle {
         let Some(shader_set) = shader_cache.get(server, material.shader()) else {
             err_once!(
                 self.data.key() as usize,
-                "Unable to get a compiled shader set for material {}!",
-                material.shader().kind()
+                "Unable to get a compiled shader set for material {:?}!",
+                material.shader().resource_uuid()
             );
             return Ok(stats);
         };
