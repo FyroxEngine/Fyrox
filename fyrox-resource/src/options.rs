@@ -24,7 +24,6 @@ use crate::{
     core::{append_extension, log::Log},
     io::ResourceIo,
 };
-use fyrox_core::define_as_any_trait;
 use fyrox_core::reflect::Reflect;
 use ron::ser::PrettyConfig;
 use serde::{de::DeserializeOwned, Serialize};
@@ -33,11 +32,9 @@ use std::{fs::File, path::Path};
 /// Extension of import options file.
 pub const OPTIONS_EXTENSION: &str = "options";
 
-define_as_any_trait!(ImportOptionsAsAny: Reflect => ImportOptions);
-
 /// Base type-agnostic trait for resource import options. This trait has automatic implementation
 /// for everything that implements [`ImportOptions`] trait.
-pub trait BaseImportOptions: ImportOptionsAsAny {
+pub trait BaseImportOptions: Reflect {
     /// Saves the options to a file at the given path.
     fn save(&self, path: &Path) -> bool;
 }
