@@ -423,6 +423,7 @@ impl UntypedResource {
         })))
     }
 
+    /// Creates new untyped resource in ok (fully loaded) state using the given data.
     pub fn new_ok_untyped(
         resource_uuid: Uuid,
         kind: ResourceKind,
@@ -435,6 +436,8 @@ impl UntypedResource {
         })))
     }
 
+    /// Creates new untyped resource in ok (fully loaded) state using the given data of any type, that
+    /// implements [`ResourceData`] trait. The resource kind is set to [`ResourceKind::Embedded`].
     pub fn new_embedded<T: ResourceData>(data: T) -> Self {
         Self::new_ok(Uuid::new_v4(), ResourceKind::Embedded, data)
     }
@@ -448,6 +451,8 @@ impl UntypedResource {
         })))
     }
 
+    /// Tries to get a resource uuid (if any). Uuid is available only for fully loaded resources
+    /// (in [`ResourceState::Ok`] state).
     pub fn resource_uuid(&self) -> Option<Uuid> {
         let header = self.0.lock();
         match header.state {
@@ -465,6 +470,8 @@ impl UntypedResource {
         }
     }
 
+    /// Tries to get a type name of the resource data. Data type name is available only for fully
+    /// loaded resources (in [`ResourceState::Ok`] state).
     pub fn data_type_name(&self) -> Option<String> {
         let header = self.0.lock();
         match header.state {
@@ -473,6 +480,8 @@ impl UntypedResource {
         }
     }
 
+    /// Same as [`Self::data_type_name`], but returns `Unknown` string if the resource is not in
+    /// [`ResourceState::Ok`] state.
     pub fn data_type_name_or_unknown(&self) -> String {
         self.data_type_name()
             .unwrap_or_else(|| "Unknown".to_string())

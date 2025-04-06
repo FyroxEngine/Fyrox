@@ -149,7 +149,12 @@ impl Drop for ResourceState {
 }
 
 impl ResourceState {
-    pub fn visit(&mut self, kind: ResourceKind, name: &str, visitor: &mut Visitor) -> VisitResult {
+    pub(crate) fn visit(
+        &mut self,
+        kind: ResourceKind,
+        name: &str,
+        visitor: &mut Visitor,
+    ) -> VisitResult {
         if visitor.is_reading() {
             let mut type_uuid = Uuid::default();
             type_uuid.visit("TypeUuid", visitor)?;
@@ -225,7 +230,7 @@ impl ResourceState {
         Self::LoadError { path, error }
     }
 
-    /// Creates new resource in ok (resource with data) state.
+    /// Creates new resource in [`ResourceState::Ok`] state.
     #[inline]
     pub fn new_ok<T: ResourceData>(resource_uuid: Uuid, data: T) -> Self {
         Self::Ok {
@@ -234,6 +239,7 @@ impl ResourceState {
         }
     }
 
+    /// Creates a new resource in [`ResourceState::Ok`] state using arbitrary data.
     #[inline]
     pub fn new_ok_untyped(resource_uuid: Uuid, data: Box<dyn ResourceData>) -> Self {
         Self::Ok {
@@ -242,6 +248,8 @@ impl ResourceState {
         }
     }
 
+    /// Tries to get a resource uuid. The uuid is available only for resource in [`ResourceState::Ok`]
+    /// state.
     #[inline]
     pub fn resource_uuid(&self) -> Option<Uuid> {
         match self {

@@ -18,28 +18,36 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! Resource metadata. See [`ResourceMetadata`] docs for more info.
+
 use crate::io::ResourceIo;
 use fyrox_core::{io::FileError, Uuid};
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
+use std::{fs::File, io::Write, path::Path};
 
+/// Resource metadata contains additional information that cannot be stored in the resource file
+/// itself. The most important bit of information is a resource uuid, this id is used to as reference
+/// that does not change when the resource moved or renamed.
 #[derive(Serialize, Deserialize)]
 pub struct ResourceMetadata {
+    /// A resource uuid, this id is used to as reference that does not change when the resource
+    /// moved or renamed.
     pub resource_id: Uuid,
 }
 
 impl ResourceMetadata {
+    /// Standard extension of a metadata file.
     pub const EXTENSION: &'static str = "meta";
 
+    /// Creates a new metadata with random uuid.
     pub fn new_with_random_id() -> Self {
         Self {
             resource_id: Uuid::new_v4(),
         }
     }
 
+    /// Tries to load a metadata from the given path.
     pub async fn load_from_file_async(
         path: &Path,
         resource_io: &dyn ResourceIo,
@@ -64,6 +72,8 @@ impl ResourceMetadata {
         })
     }
 
+    /// Tries to write the metadata to the given path. This method is meant to be used in async
+    /// context. For sync version use [`Self::save_sync`].
     pub async fn save_async(
         &self,
         path: &Path,
@@ -73,6 +83,11 @@ impl ResourceMetadata {
         resource_io.write_file(path, string.into_bytes()).await
     }
 
+    /// Tries to write the metadata to the given path.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - WebAssembly - panics, because there's no file system on WebAssembly.
     pub fn save_sync(&self, path: &Path) -> Result<(), FileError> {
         let string = self.serialize(path)?;
         let mut file = File::create(path)?;

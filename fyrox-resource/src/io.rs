@@ -70,6 +70,7 @@ pub trait ResourceIo: Send + Sync + 'static {
     /// the entire byte contents of the file or an error
     fn load_file<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, Result<Vec<u8>, FileError>>;
 
+    /// Attempts to write the given set of bytes to the specified path.
     fn write_file<'a>(
         &'a self,
         path: &'a Path,
