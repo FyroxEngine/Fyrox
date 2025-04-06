@@ -31,6 +31,7 @@ use crate::{
     Resource, ResourceData, ResourceLoadError, TypedResourceData, CURVE_RESOURCE_UUID,
     MODEL_RESOURCE_UUID, SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
 };
+use fyrox_core::err;
 use std::{
     error::Error,
     ffi::OsStr,
@@ -349,13 +350,15 @@ impl Visit for UntypedResource {
                 } else {
                     let kind = inner_lock.kind;
                     drop(inner_lock);
-                    *self = UntypedResource::new_load_error(
-                        kind,
-                        LoadError::new(format!(
-                            "Unable to restore resource handle of {resource_uuid} uuid!\
+
+                    let message = format!(
+                        "Unable to restore resource handle of {resource_uuid} uuid!\
                         The uuid wasn't found in the resource registry!"
-                        )),
                     );
+
+                    err!("{}", message);
+
+                    *self = UntypedResource::new_load_error(kind, LoadError::new(message));
                 }
             }
         }
