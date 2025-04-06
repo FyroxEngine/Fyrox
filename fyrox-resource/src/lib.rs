@@ -38,7 +38,8 @@ use crate::{
 };
 use fxhash::FxHashSet;
 pub use fyrox_core as core;
-use fyrox_core::{combine_uuids, define_as_any_trait, log::Log};
+use fyrox_core::{combine_uuids, log::Log};
+use std::any::Any;
 use std::path::PathBuf;
 use std::{
     error::Error,
@@ -76,10 +77,8 @@ pub const SHADER_RESOURCE_UUID: Uuid = uuid!("f1346417-b726-492a-b80f-c02096c6c0
 /// Type UUID of curve resource. It is defined here to load old versions of resources.
 pub const CURVE_RESOURCE_UUID: Uuid = uuid!("f28b949f-28a2-4b68-9089-59c234f58b6b");
 
-define_as_any_trait!(ResourceDataAsAny => ResourceData);
-
 /// A trait for resource data.
-pub trait ResourceData: ResourceDataAsAny + Debug + Visit + Send + Reflect {
+pub trait ResourceData: Debug + Visit + Send + Reflect {
     /// Returns unique data type id.
     fn type_uuid(&self) -> Uuid;
 
@@ -129,7 +128,7 @@ where
 
     pub fn data(&mut self) -> Option<&mut T> {
         if let ResourceState::Ok { ref mut data, .. } = self.guard.state {
-            ResourceDataAsAny::as_any_mut(&mut **data).downcast_mut::<T>()
+            (&mut **data as &mut dyn Any).downcast_mut::<T>()
         } else {
             None
         }
@@ -137,7 +136,7 @@ where
 
     pub fn data_ref(&self) -> Option<&T> {
         if let ResourceState::Ok { ref data, .. } = self.guard.state {
-            ResourceDataAsAny::as_any(&**data).downcast_ref::<T>()
+            (&**data as &dyn Any).downcast_ref::<T>()
         } else {
             None
         }
@@ -468,7 +467,7 @@ where
     #[inline]
     pub fn as_loaded_ref(&self) -> Option<&T> {
         match self.guard.state {
-            ResourceState::Ok { ref data, .. } => ResourceDataAsAny::as_any(&**data).downcast_ref(),
+            ResourceState::Ok { ref data, .. } => (&**data as &dyn Any).downcast_ref(),
             _ => None,
         }
     }
@@ -476,9 +475,7 @@ where
     #[inline]
     pub fn as_loaded_mut(&mut self) -> Option<&mut T> {
         match self.guard.state {
-            ResourceState::Ok { ref mut data, .. } => {
-                ResourceDataAsAny::as_any_mut(&mut **data).downcast_mut()
-            }
+            ResourceState::Ok { ref mut data, .. } => (&mut **data as &mut dyn Any).downcast_mut(),
             _ => None,
         }
     }
@@ -529,7 +526,7 @@ where
                     self.guard.kind
                 )
             }
-            ResourceState::Ok { ref data, .. } => ResourceDataAsAny::as_any(&**data)
+            ResourceState::Ok { ref data, .. } => (&**data as &dyn Any)
                 .downcast_ref()
                 .expect("Type mismatch!"),
         }
@@ -555,7 +552,7 @@ where
                     header.kind
                 )
             }
-            ResourceState::Ok { ref mut data, .. } => ResourceDataAsAny::as_any_mut(&mut **data)
+            ResourceState::Ok { ref mut data, .. } => (&mut **data as &mut dyn Any)
                 .downcast_mut()
                 .expect("Type mismatch!"),
         }

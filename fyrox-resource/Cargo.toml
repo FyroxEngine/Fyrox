@@ -11,7 +11,7 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE"]
 homepage = "https://fyrox.rs"
 documentation = "https://docs.rs/fyrox-resource"
 repository = "https://github.com/FyroxEngine/Fyrox"
-rust-version = "1.80"
+rust-version = "1.86"
 
 [dependencies]
 fyrox-core = { path = "../fyrox-core", version = "0.36.2", features = ["serde"] }

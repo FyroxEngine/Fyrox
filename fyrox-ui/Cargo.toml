@@ -12,7 +12,7 @@ homepage = "https://fyrox.rs"
 documentation = "https://docs.rs/fyrox-ui"
 repository = "https://github.com/FyroxEngine/Fyrox"
 readme = "README.md"
-rust-version = "1.80"
+rust-version = "1.86"
 
 [dependencies]
 fyrox-core = { path = "../fyrox-core", version = "0.36.2", features = ["serde"] }

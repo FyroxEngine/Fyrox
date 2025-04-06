@@ -8,7 +8,7 @@ description = "Proc-macro for the Visit trait"
 repository = "https://github.com/FyroxEngine/Fyrox"
 include = ["/src/**/*", "/Cargo.toml", "/README.md"]
 readme = "README.md"
-rust-version = "1.80"
+rust-version = "1.86"
 
 [lib]
 proc-macro = true
