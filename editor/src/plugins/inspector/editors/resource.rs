@@ -18,37 +18,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    asset::{manager::ResourceManager, state::LoadError, Resource, TypedResourceData},
-    core::{
-        color::Color, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
-        type_traits::prelude::*, uuid::uuid, visitor::prelude::*,
-    },
-    gui::{
-        brush::Brush,
-        button::{ButtonBuilder, ButtonMessage},
-        define_constructor,
-        draw::{CommandTexture, Draw, DrawingContext},
-        grid::{Column, GridBuilder, Row},
-        image::ImageBuilder,
-        inspector::{
-            editors::{
-                PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-                PropertyEditorMessageContext, PropertyEditorTranslationContext,
-            },
-            FieldKind, InspectorError, PropertyChanged,
+use crate::{
+    asset::item::AssetItem,
+    fyrox::{
+        asset::{manager::ResourceManager, state::LoadError, Resource, TypedResourceData},
+        core::{
+            color::Color, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
+            type_traits::prelude::*, uuid::uuid, visitor::prelude::*, PhantomDataSendSync,
         },
-        message::{MessageDirection, UiMessage},
-        text::{TextBuilder, TextMessage},
-        widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
+        graph::BaseSceneGraph,
+        gui::{
+            brush::Brush,
+            button::{ButtonBuilder, ButtonMessage},
+            define_constructor,
+            draw::{CommandTexture, Draw, DrawingContext},
+            grid::{Column, GridBuilder, Row},
+            image::ImageBuilder,
+            inspector::{
+                editors::{
+                    PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+                    PropertyEditorMessageContext, PropertyEditorTranslationContext,
+                },
+                FieldKind, InspectorError, PropertyChanged,
+            },
+            message::{MessageDirection, UiMessage},
+            text::{TextBuilder, TextMessage},
+            widget::{Widget, WidgetBuilder, WidgetMessage},
+            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
+        },
     },
+    load_image,
+    message::MessageSender,
+    plugins::inspector::EditorEnvironment,
+    Message,
 };
-use crate::plugins::inspector::EditorEnvironment;
-use crate::{asset::item::AssetItem, load_image, message::MessageSender, Message};
-
-use fyrox::core::PhantomDataSendSync;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -57,13 +60,17 @@ use std::{
     sync::Arc,
 };
 
-fn resource_path<T>(resource: &Option<Resource<T>>) -> String
+fn resource_path<T>(resource_manager: &ResourceManager, resource: &Option<Resource<T>>) -> String
 where
     T: TypedResourceData,
 {
     resource
         .as_ref()
-        .map(|m| m.kind().to_string())
+        .and_then(|m| {
+            resource_manager
+                .resource_path(m.as_ref())
+                .map(|p| p.to_string_lossy().to_string())
+        })
         .unwrap_or_else(|| "None".to_string())
 }
 
@@ -222,7 +229,7 @@ where
                 ui.send_message(TextMessage::text(
                     self.name,
                     MessageDirection::ToWidget,
-                    resource_path(resource),
+                    resource_path(&self.resource_manager, resource),
                 ));
 
                 ui.send_message(message.reverse());
@@ -230,7 +237,7 @@ where
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.locate {
                 if let Some(resource) = self.resource.as_ref() {
-                    if let Some(path) = resource.kind().into_path() {
+                    if let Some(path) = self.resource_manager.resource_path(resource.as_ref()) {
                         self.sender.send(Message::ShowInAssetBrowser(path));
                     }
                 }
@@ -298,7 +305,7 @@ where
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_vertical_alignment(VerticalAlignment::Center),
                                 )
-                                .with_text(resource_path(&self.resource))
+                                .with_text(resource_path(&resource_manager, &self.resource))
                                 .build(ctx);
                                 name
                             })

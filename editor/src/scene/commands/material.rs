@@ -29,12 +29,13 @@ use crate::{
         },
     },
 };
+use std::path::{Path, PathBuf};
 
-fn try_save(material: &MaterialResource) {
-    let header = material.header();
-    if let Some(path) = header.kind.path_owned() {
-        drop(header);
-        Log::verify(material.data_ref().save(&path));
+fn try_save(path: Option<&Path>, material: &MaterialResource) {
+    if let Some(path) = path {
+        Log::verify(material.data_ref().save(path));
+    } else {
+        Log::warn("The edited material cannot be saved, because it does not have a path!")
     }
 }
 
@@ -43,6 +44,7 @@ pub struct SetMaterialBindingCommand {
     material: MaterialResource,
     name: ImmutableString,
     binding: Option<MaterialResourceBinding>,
+    path: Option<PathBuf>,
 }
 
 impl SetMaterialBindingCommand {
@@ -50,11 +52,13 @@ impl SetMaterialBindingCommand {
         material: MaterialResource,
         name: ImmutableString,
         binding: MaterialResourceBinding,
+        path: Option<PathBuf>,
     ) -> Self {
         Self {
             material,
             name,
             binding: Some(binding),
+            path,
         }
     }
 
@@ -70,7 +74,7 @@ impl SetMaterialBindingCommand {
         }
 
         drop(material);
-        try_save(&self.material);
+        try_save(self.path.as_deref(), &self.material);
     }
 }
 
@@ -94,6 +98,7 @@ pub struct SetMaterialPropertyGroupPropertyValueCommand {
     group_name: ImmutableString,
     property_name: ImmutableString,
     value: Option<MaterialProperty>,
+    path: Option<PathBuf>,
 }
 
 impl SetMaterialPropertyGroupPropertyValueCommand {
@@ -102,12 +107,14 @@ impl SetMaterialPropertyGroupPropertyValueCommand {
         group_name: ImmutableString,
         property_name: ImmutableString,
         value: MaterialProperty,
+        path: Option<PathBuf>,
     ) -> Self {
         Self {
             material,
             group_name,
             property_name,
             value: Some(value),
+            path,
         }
     }
 
@@ -124,7 +131,7 @@ impl SetMaterialPropertyGroupPropertyValueCommand {
         }
 
         drop(material);
-        try_save(&self.material);
+        try_save(self.path.as_deref(), &self.material);
     }
 }
 
@@ -153,14 +160,16 @@ enum SetMaterialShaderCommandState {
 #[derive(Debug)]
 pub struct SetMaterialShaderCommand {
     material: MaterialResource,
+    path: Option<PathBuf>,
     state: SetMaterialShaderCommandState,
 }
 
 impl SetMaterialShaderCommand {
-    pub fn new(material: MaterialResource, shader: ShaderResource) -> Self {
+    pub fn new(material: MaterialResource, shader: ShaderResource, path: Option<PathBuf>) -> Self {
         Self {
             material,
             state: SetMaterialShaderCommandState::NonExecuted { new_shader: shader },
+            path,
         }
     }
 
@@ -193,7 +202,7 @@ impl SetMaterialShaderCommand {
             }
         }
 
-        try_save(&self.material);
+        try_save(self.path.as_deref(), &self.material);
     }
 }
 

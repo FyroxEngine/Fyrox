@@ -25,7 +25,7 @@
 
 use commands::SetTileSetTilesCommand;
 use fyrox::{
-    asset::{untyped::ResourceKind, Resource},
+    asset::Resource,
     core::{algebra::Vector2, color::Color, pool::Handle, type_traits::prelude::*},
     gui::{
         border::BorderBuilder,
@@ -247,7 +247,7 @@ impl TileColliderEditor {
             Ok(collider) => {
                 self.has_error = false;
                 send_visibility(ui, self.error_field, false);
-                Some(Resource::new_ok(ResourceKind::Embedded, collider))
+                Some(Resource::new_embedded(collider))
             }
             Err(e) => {
                 self.has_error = true;
@@ -267,7 +267,7 @@ impl TileColliderEditor {
             ui,
             TextMessage::text(self.custom_field, MessageDirection::ToWidget, "".into()),
         );
-        Resource::new_ok(ResourceKind::Embedded, CustomTileCollider::default())
+        Resource::new_embedded(CustomTileCollider::default())
     }
     fn send_value(&self, state: &TileEditorState, sender: &MessageSender, tile_book: &TileBook) {
         let Some(tile_set) = tile_book.tile_set_ref().cloned() else {

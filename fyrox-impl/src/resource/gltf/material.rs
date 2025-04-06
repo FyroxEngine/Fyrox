@@ -44,12 +44,14 @@ use crate::resource::texture::TextureMinificationFilter as FyroxMinFilter;
 use gltf::texture::MagFilter as GltfMagFilter;
 use gltf::texture::MinFilter as GltfMinFilter;
 
-pub const SHADER_NAME: &str = "glTF Shader";
 pub const SHADER_SRC: &str = include_str!("gltf_standard.shader");
 
 lazy_static! {
-    static ref GLTF_SHADER: ShaderResource =
-        ShaderResource::new_ok(SHADER_NAME.into(), Shader::from_string(SHADER_SRC).unwrap());
+    static ref GLTF_SHADER: ShaderResource = ShaderResource::new_ok(
+        uuid!("33ee0142-f345-4c0a-9aca-d1f684a3485b"),
+        ResourceKind::External,
+        Shader::from_string(SHADER_SRC).unwrap()
+    );
 }
 
 fn convert_mini(filter: GltfMinFilter) -> FyroxMinFilter {
@@ -72,7 +74,9 @@ fn convert_mag(filter: GltfMagFilter) -> FyroxMagFilter {
 
 use crate::material::{MaterialResourceBinding, MaterialTextureBinding};
 use crate::resource::texture::TextureWrapMode as FyroxWrapMode;
+use fyrox_core::Uuid;
 use gltf::texture::WrappingMode as GltfWrapMode;
+use uuid::uuid;
 
 fn convert_wrap(mode: GltfWrapMode) -> FyroxWrapMode {
     match mode {
@@ -150,6 +154,7 @@ pub async fn import_materials(
             Err(err) => {
                 Log::err(format!("glTF material failed to import. Reason: {:?}", err));
                 result.push(MaterialResource::new_ok(
+                    Uuid::new_v4(),
                     ResourceKind::Embedded,
                     Material::default(),
                 ));
@@ -212,7 +217,11 @@ async fn import_material(
     set_material_vector3(&mut result, "emissionStrength", mat.emissive_factor());
     set_material_scalar(&mut result, "metallicFactor", pbr.metallic_factor());
     set_material_scalar(&mut result, "roughnessFactor", pbr.roughness_factor());
-    Ok(Resource::new_ok(ResourceKind::Embedded, result))
+    Ok(Resource::new_ok(
+        Uuid::new_v4(),
+        ResourceKind::Embedded,
+        result,
+    ))
 }
 
 fn set_material_scalar(material: &mut Material, name: &'static str, value: f32) {
@@ -335,7 +344,11 @@ fn import_embedded_texture(
     options.set_s_wrap_mode(convert_wrap(sampler.wrap_s()));
     options.set_t_wrap_mode(convert_wrap(sampler.wrap_t()));
     let tex = Texture::load_from_memory(data, options)?;
-    Ok(Resource::new_ok(ResourceKind::Embedded, tex))
+    Ok(Resource::new_ok(
+        Uuid::new_v4(),
+        ResourceKind::Embedded,
+        tex,
+    ))
 }
 
 async fn import_external_texture(

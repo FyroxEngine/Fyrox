@@ -42,7 +42,6 @@ use crate::{
     make_color_material, scene::GameScene, set_mesh_diffuse_color,
     world::graph::selection::GraphSelection, Engine,
 };
-use fyrox::asset::untyped::ResourceKind;
 
 pub enum RotateGizmoMode {
     Pitch,
@@ -75,8 +74,7 @@ fn make_rotation_ribbon(
             ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-        ResourceKind::Embedded,
+    .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
         SurfaceData::make_torus(0.5, 0.025, 16, 32, &Matrix4::identity()),
     ))
     .with_material(make_color_material(color))

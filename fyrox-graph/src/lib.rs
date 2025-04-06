@@ -1144,7 +1144,7 @@ pub trait SceneGraph: BaseSceneGraph {
             let mut nodes_to_delete = Vec::new();
             for (_, node) in self.traverse_iter(instance_root) {
                 if let Some(resource) = node.resource() {
-                    let kind = resource.kind().clone();
+                    let kind = resource.kind();
                     if let Some(model) = resource.state().data() {
                         if !model
                             .graph()
@@ -1182,7 +1182,7 @@ pub trait SceneGraph: BaseSceneGraph {
 
             // Step 2. Look for missing nodes and create appropriate instances for them.
             let mut model = resource.state();
-            let model_kind = model.kind().clone();
+            let model_kind = model.kind();
             if let Some(data) = model.data() {
                 let resource_graph = data.graph();
 
@@ -1279,7 +1279,7 @@ pub trait SceneGraph: BaseSceneGraph {
         for node in self.linear_iter_mut() {
             if let Some(model) = node.resource() {
                 let mut header = model.state();
-                let model_kind = header.kind().clone();
+                let model_kind = header.kind();
                 if let Some(data) = header.data() {
                     let resource_graph = data.graph();
 

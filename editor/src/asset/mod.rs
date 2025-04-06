@@ -31,13 +31,9 @@ use crate::{
     fyrox::{
         asset::{
             manager::ResourceManager,
-            state::ResourceState,
-            untyped::{ResourceHeader, ResourceKind, UntypedResource},
+            untyped::{ResourceKind, UntypedResource},
         },
-        core::{
-            futures::executor::block_on, log::Log, make_relative_path,
-            parking_lot::lock_api::Mutex, pool::Handle, TypeUuidProvider, Uuid,
-        },
+        core::{futures::executor::block_on, log::Log, make_relative_path, pool::Handle, Uuid},
         engine::Engine,
         graph::BaseSceneGraph,
         gui::{
@@ -64,8 +60,6 @@ use crate::{
             BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
             UserInterface, VerticalAlignment,
         },
-        resource::{model::Model, texture::Texture},
-        scene::sound::SoundBuffer,
         walkdir,
     },
     load_image,
@@ -242,48 +236,43 @@ impl ContextMenu {
                     item.open();
                 } else if message.destination() == self.duplicate {
                     if let Some(resource) = item.untyped_resource() {
-                        match resource.kind() {
-                            ResourceKind::External(path) => {
-                                if let Some(built_in) = engine
-                                    .resource_manager
-                                    .state()
-                                    .built_in_resources
-                                    .get(&path)
-                                {
-                                    if let Some(data_source) = built_in.data_source.as_ref() {
-                                        let final_copy_path = make_unique_path(
-                                            Path::new("."),
-                                            path.to_str().unwrap(),
-                                            &data_source.extension,
-                                        );
+                        if let Some(path) = engine.resource_manager.resource_path(&resource) {
+                            if let Some(built_in) = engine
+                                .resource_manager
+                                .state()
+                                .built_in_resources
+                                .get(&path)
+                            {
+                                if let Some(data_source) = built_in.data_source.as_ref() {
+                                    let final_copy_path = make_unique_path(
+                                        Path::new("."),
+                                        path.to_str().unwrap(),
+                                        &data_source.extension,
+                                    );
 
-                                        match File::create(&final_copy_path) {
-                                            Ok(mut file) => {
-                                                Log::verify(file.write_all(&data_source.bytes));
-                                            }
-                                            Err(err) => {
-                                                Log::err(format!(
-                                                "Failed to create a file for resource at path {}. \
-                                                Reason: {:?}", final_copy_path.display(), err
-                                            ))
-                                            }
+                                    match File::create(&final_copy_path) {
+                                        Ok(mut file) => {
+                                            Log::verify(file.write_all(&data_source.bytes));
                                         }
-                                    }
-                                } else if let Ok(canonical_path) = path.canonicalize() {
-                                    if let (Some(parent), Some(stem), Some(ext)) = (
-                                        canonical_path.parent(),
-                                        canonical_path.file_stem(),
-                                        canonical_path.extension(),
-                                    ) {
-                                        let stem = stem.to_string_lossy().to_string();
-                                        let ext = ext.to_string_lossy().to_string();
-                                        let final_copy_path = make_unique_path(parent, &stem, &ext);
-                                        Log::verify(std::fs::copy(canonical_path, final_copy_path));
+                                        Err(err) => Log::err(format!(
+                                            "Failed to create a file for resource at path {}. \
+                                                Reason: {:?}",
+                                            final_copy_path.display(),
+                                            err
+                                        )),
                                     }
                                 }
-                            }
-                            ResourceKind::Embedded => {
-                                // TODO: Support duplicating embedded resources.
+                            } else if let Ok(canonical_path) = path.canonicalize() {
+                                if let (Some(parent), Some(stem), Some(ext)) = (
+                                    canonical_path.parent(),
+                                    canonical_path.file_stem(),
+                                    canonical_path.extension(),
+                                ) {
+                                    let stem = stem.to_string_lossy().to_string();
+                                    let ext = ext.to_string_lossy().to_string();
+                                    let final_copy_path = make_unique_path(parent, &stem, &ext);
+                                    Log::verify(std::fs::copy(canonical_path, final_copy_path));
+                                }
                             }
                         }
                     }
@@ -488,22 +477,16 @@ impl ResourceCreator {
                     let path = base_path.join(&self.name_str);
                     match instance.save(&path) {
                         Ok(_) => {
-                            let resource = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
-                                // The id will be assigned automatically by the resource manager.
-                                resource_uuid: Default::default(),
-                                kind: ResourceKind::External(path.clone()),
-                                type_uuid: instance.type_uuid(),
-                                state: ResourceState::Ok(instance),
-                            })));
+                            let resource = UntypedResource::new_ok_untyped(
+                                Uuid::new_v4(),
+                                ResourceKind::External,
+                                instance,
+                            );
 
                             drop(constructors);
                             drop(resource_manager_state);
 
-                            Log::verify(engine.resource_manager.register(
-                                resource,
-                                path,
-                                |_, _| true,
-                            ));
+                            Log::verify(engine.resource_manager.register(resource, path));
 
                             sender.send(Message::ForceSync);
 
@@ -1103,8 +1086,9 @@ impl AssetBrowser {
             );
 
             if let Ok(resource) = block_on(engine.resource_manager.request_untyped(asset_path)) {
-                if let Some(preview_generator) =
-                    self.preview_generators.map.get_mut(&resource.type_uuid())
+                if let Some(preview_generator) = resource
+                    .type_uuid()
+                    .and_then(|type_uuid| self.preview_generators.map.get_mut(&type_uuid))
                 {
                     let preview_scene = &mut engine.scenes[self.preview.scene()];
                     let preview = preview_generator.generate_scene(
@@ -1219,8 +1203,11 @@ impl AssetBrowser {
                     if let Ok(resource) =
                         block_on(engine.resource_manager.request_untyped(&item.path))
                     {
-                        self.dependency_viewer
-                            .open(&resource, engine.user_interfaces.first_mut());
+                        self.dependency_viewer.open(
+                            &resource,
+                            &engine.resource_manager,
+                            engine.user_interfaces.first_mut(),
+                        );
                     }
                 }
             }
@@ -1299,44 +1286,15 @@ impl AssetBrowser {
         resource_manager: &ResourceManager,
         message_sender: &MessageSender,
     ) {
-        fn filter(res: &UntypedResource) -> bool {
-            if [Texture::type_uuid(), SoundBuffer::type_uuid()].contains(&res.type_uuid()) {
-                return false;
-            };
-
-            // The engine cannot write FBX resources, so we must filter out these and warn the user
-            // that resource references cannot be automatically fixed.
-            if let Some(model) = res.try_cast::<Model>() {
-                let kind = model.kind();
-                if let Some(ext) = kind.path().and_then(|path| {
-                    path.extension()
-                        .map(|ext| ext.to_string_lossy().to_lowercase())
-                }) {
-                    if ext == "fbx" || ext == "gltf" || ext == "glb" {
-                        Log::warn(format!(
-                            "Resource {kind} cannot be scanned for \
-                        references, because FBX/GLTF cannot be exported."
-                        ));
-                        return false;
-                    }
-                }
-            }
-
-            true
-        }
-
         if let Some(item) = ui.try_get(dropped).and_then(|n| n.cast::<AssetItem>()) {
             if let Ok(relative_path) = make_relative_path(target_dir) {
                 if let Ok(resource) = block_on(resource_manager.request_untyped(&item.path)) {
-                    if let Some(path) = resource.kind().path_owned() {
+                    if let Some(path) = resource_manager.resource_path(&resource) {
                         if let Some(file_name) = path.file_name() {
                             let new_full_path = relative_path.join(file_name);
-                            Log::verify(block_on(resource_manager.move_resource(
-                                resource,
-                                new_full_path,
-                                "./",
-                                filter,
-                            )));
+                            Log::verify(block_on(
+                                resource_manager.move_resource(&resource, new_full_path),
+                            ));
 
                             self.refresh(ui, resource_manager, message_sender);
                         }
@@ -1373,17 +1331,15 @@ impl AssetBrowser {
                                     if let Ok(resource) =
                                         block_on(resource_manager.request_untyped(entry.path()))
                                     {
-                                        if let Some(path) = resource.kind().path_owned() {
+                                        if let Some(path) =
+                                            resource_manager.resource_path(&resource)
+                                        {
                                             if let Some(file_name) = path.file_name() {
                                                 let new_full_path =
                                                     target_sub_dir_normalized.join(file_name);
                                                 Log::verify(block_on(
-                                                    resource_manager.move_resource(
-                                                        resource,
-                                                        new_full_path,
-                                                        "./",
-                                                        filter,
-                                                    ),
+                                                    resource_manager
+                                                        .move_resource(&resource, new_full_path),
                                                 ));
                                             }
                                         }

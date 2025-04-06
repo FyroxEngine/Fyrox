@@ -105,10 +105,9 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
-use fyrox_core::err;
 use fyrox_graphics::gl::server::GlGraphicsServer;
 use fyrox_graphics::server::SharedGraphicsServer;
-use fyrox_resource::registry::{RegistryContainerExt, ResourceRegistry};
+use fyrox_resource::registry::ResourceRegistry;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -128,6 +127,7 @@ use std::{
     },
     time::Duration,
 };
+use uuid::Uuid;
 use winit::window::Icon;
 use winit::{
     dpi::{Position, Size},
@@ -200,6 +200,7 @@ impl InitializedGraphicsContext {
     /// with [`include_bytes`] macro to pass file's data directly.
     pub fn set_window_icon_from_memory(&mut self, data: &[u8]) {
         if let Ok(texture) = TextureResource::load_from_memory(
+            Uuid::new_v4(),
             ResourceKind::Embedded,
             data,
             TextureImportOptions::default()
@@ -1408,28 +1409,7 @@ impl Engine {
         let user_interfaces =
             UiContainer::new_with_ui(UserInterface::new(Vector2::new(100.0, 100.0)));
 
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let rm_state = resource_manager.state();
-            let io = rm_state.resource_io.clone();
-            let loaders = rm_state.loaders.clone();
-            let registry = rm_state.resource_registry.clone();
-
-            // TODO: This still must lock any potential use of non-updated registry. Add a "wait-object"
-            // that can be shared and polled in resource loaders.
-            task_pool.spawn_task(async move {
-                let path = ResourceRegistry::DEFAULT_PATH;
-                let new_data = ResourceRegistry::scan(io.clone(), loaders, path).await;
-                if let Err(error) = new_data.save(Path::new(path), &*io).await {
-                    err!(
-                        "Unable to write the resource registry at the {} path! Reason: {:?}",
-                        path,
-                        error
-                    )
-                }
-                registry.lock().set_container(new_data);
-            });
-        }
+        resource_manager.update_and_load_registry(ResourceRegistry::DEFAULT_PATH);
 
         Ok(Self {
             graphics_context: GraphicsContext::Uninitialized(graphics_context_params),
@@ -1721,7 +1701,8 @@ impl Engine {
                             // Create a resource, that will point to the scene we've loaded the
                             // scene from and force scene nodes to inherit data from them.
                             let model = Resource::new_ok(
-                                ResourceKind::External(request.path.clone()),
+                                Uuid::new_v4(),
+                                ResourceKind::External,
                                 Model {
                                     mapping: NodeMapping::UseHandles,
                                     // We have to create a full copy of the scene, because otherwise
@@ -1738,11 +1719,10 @@ impl Engine {
                                 },
                             );
 
-                            Log::verify(self.resource_manager.register(
-                                model.clone().into_untyped(),
-                                request.path.clone(),
-                                |_, _| true,
-                            ));
+                            Log::verify(
+                                self.resource_manager
+                                    .register(model.clone().into_untyped(), request.path.clone()),
+                            );
 
                             for (handle, node) in scene.graph.pair_iter_mut() {
                                 node.set_inheritance_data(handle, model.clone());
@@ -2580,7 +2560,7 @@ impl Engine {
             let mut state = self.resource_manager.state();
             for resource in state.resources().iter() {
                 let data = resource.0.lock();
-                if let ResourceState::Ok(ref data) = data.state {
+                if let ResourceState::Ok { ref data, .. } = data.state {
                     data.as_reflect(&mut |reflect| {
                         if reflect.assembly_name() == plugin_assembly_name {
                             resources_to_reload.insert(resource.clone());
@@ -2591,8 +2571,8 @@ impl Engine {
 
             for resource_to_reload in resources_to_reload.iter() {
                 Log::info(format!(
-                    "Reloading {} resource, because it is used in plugin {plugin_assembly_name}",
-                    resource_to_reload.kind()
+                    "Reloading {:?} resource, because it is used in plugin {plugin_assembly_name}",
+                    state.resource_path(resource_to_reload)
                 ));
 
                 state.reload_resource(resource_to_reload.clone());

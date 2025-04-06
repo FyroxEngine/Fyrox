@@ -794,6 +794,7 @@ impl TileInspector {
         tiles_palette: Handle<UiNode>,
         tile_book: TileBook,
         sender: MessageSender,
+        resource_manager: ResourceManager,
         ctx: &mut BuildContext,
     ) -> Self {
         let create_page;
@@ -803,7 +804,11 @@ impl TileInspector {
         let create_animation;
 
         let tile_editors: Vec<TileEditorRef> = vec![
-            Arc::new(Mutex::new(TileMaterialEditor::new(ctx, sender.clone()))) as TileEditorRef,
+            Arc::new(Mutex::new(TileMaterialEditor::new(
+                ctx,
+                sender.clone(),
+                resource_manager.clone(),
+            ))) as TileEditorRef,
             Arc::new(Mutex::new(TileColorEditor::new(ctx))) as TileEditorRef,
             Arc::new(Mutex::new(TileHandleEditor::new(None, ctx))) as TileEditorRef,
         ];
@@ -854,10 +859,13 @@ impl TileInspector {
         .add_row(Row::auto())
         .add_row(Row::auto())
         .build(ctx);
-        let page_material_field = MaterialFieldEditorBuilder::new(
-            WidgetBuilder::new().on_column(1),
-        )
-        .build(ctx, sender.clone(), DEFAULT_TILE_MATERIAL.deep_copy());
+        let page_material_field =
+            MaterialFieldEditorBuilder::new(WidgetBuilder::new().on_column(1)).build(
+                ctx,
+                sender.clone(),
+                DEFAULT_TILE_MATERIAL.deep_copy(),
+                resource_manager,
+            );
         let page_material_inspector = InspectorField::new("Material", page_material_field, ctx);
         let tile_size_field =
             Vec2EditorBuilder::<u32>::new(WidgetBuilder::new().on_column(1)).build(ctx);

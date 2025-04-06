@@ -50,6 +50,8 @@ use tileset::*;
 pub use transform::*;
 pub use update::*;
 
+use super::{dim2::rectangle::RectangleVertex, node::constructor::NodeConstructor};
+use crate::lazy_static::*;
 use crate::{
     asset::{untyped::ResourceKind, ResourceDataRef},
     core::{
@@ -81,6 +83,7 @@ use crate::{
     },
 };
 use bytemuck::{Pod, Zeroable};
+use fyrox_resource::manager::ResourceManager;
 use std::{
     error::Error,
     fmt::Display,
@@ -88,17 +91,14 @@ use std::{
     path::PathBuf,
 };
 
-use super::{dim2::rectangle::RectangleVertex, node::constructor::NodeConstructor};
-
-use crate::lazy_static::*;
-
 /// Current implementation version marker.
 pub const VERSION: u8 = 1;
 
 lazy_static! {
     /// The default material for tiles that have no material set.
     pub static ref DEFAULT_TILE_MATERIAL: MaterialResource = MaterialResource::new_ok(
-        ResourceKind::External("__DefaultTileMaterial".into()),
+        uuid!("36bf5b66-b4fa-4bca-80eb-33a271d8f825"),
+        ResourceKind::External,
         Material::standard_tile()
     );
 }
@@ -552,17 +552,17 @@ impl TileBook {
         matches!(self, TileBook::Empty)
     }
     /// Return the path of the resource as a String.
-    pub fn name(&self) -> String {
-        self.path()
+    pub fn name(&self, resource_manager: &ResourceManager) -> String {
+        self.path(resource_manager)
             .map(|x| x.to_string_lossy().into_owned())
             .unwrap_or_else(|| "Error".into())
     }
     /// Return the path of the resource.
-    pub fn path(&self) -> Option<PathBuf> {
+    pub fn path(&self, resource_manager: &ResourceManager) -> Option<PathBuf> {
         match self {
             TileBook::Empty => None,
-            TileBook::TileSet(r) => r.kind().into_path(),
-            TileBook::Brush(r) => r.kind().into_path(),
+            TileBook::TileSet(r) => resource_manager.resource_path(r.as_ref()),
+            TileBook::Brush(r) => resource_manager.resource_path(r.as_ref()),
         }
     }
     /// True if the resource is external and its `change_count` is not zero.
@@ -579,12 +579,12 @@ impl TileBook {
     }
     /// Attempt to save the resource to its file, if it has one and if `change_flag` is set.
     /// Otherwise do nothing and return Ok to indicate success.
-    pub fn save(&self) -> Result<(), Box<dyn Error>> {
+    pub fn save(&self, resource_manager: &ResourceManager) -> Result<(), Box<dyn Error>> {
         match self {
             TileBook::Empty => Ok(()),
             TileBook::TileSet(r) => {
                 if r.header().kind.is_external() && r.data_ref().change_flag.needs_save() {
-                    let result = r.save_back();
+                    let result = r.save(&resource_manager.resource_path(r.as_ref()).unwrap());
                     if result.is_ok() {
                         r.data_ref().change_flag.reset();
                     }
@@ -595,7 +595,7 @@ impl TileBook {
             }
             TileBook::Brush(r) => {
                 if r.header().kind.is_external() && r.data_ref().change_flag.needs_save() {
-                    let result = r.save_back();
+                    let result = r.save(&resource_manager.resource_path(r.as_ref()).unwrap());
                     if result.is_ok() {
                         r.data_ref().change_flag.reset();
                     }
@@ -993,7 +993,12 @@ impl Visit for TileMap {
                 for (p, h) in tiles.iter() {
                     data.set(*p, *h);
                 }
-                self.tiles = Some(Resource::new_ok(ResourceKind::Embedded, data)).into();
+                self.tiles = Some(Resource::new_ok(
+                    Uuid::new_v4(),
+                    ResourceKind::Embedded,
+                    data,
+                ))
+                .into();
             }
             VERSION => {
                 self.tiles.visit("Tiles", &mut region)?;
@@ -1537,7 +1542,12 @@ impl TileMapBuilder {
         Node::new(TileMap {
             base: self.base_builder.build_base(),
             tile_set: self.tile_set.into(),
-            tiles: Some(Resource::new_ok(ResourceKind::Embedded, self.tiles)).into(),
+            tiles: Some(Resource::new_ok(
+                Uuid::new_v4(),
+                ResourceKind::Embedded,
+                self.tiles,
+            ))
+            .into(),
             tile_scale: self.tile_scale.into(),
             active_brush: Default::default(),
             hidden_tiles: Mutex::default(),

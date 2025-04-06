@@ -24,13 +24,14 @@ use crate::{
         preview::AssetPreviewTexture,
     },
     fyrox::{
-        asset::untyped::{ResourceKind, UntypedResource},
+        asset::untyped::UntypedResource,
         core::pool::Handle,
         engine::Engine,
         fxhash::FxHashMap,
         gui::{message::MessageDirection, UiNode},
     },
 };
+use fyrox::core::Uuid;
 use std::sync::mpsc::Receiver;
 
 pub struct IconRequest {
@@ -40,7 +41,7 @@ pub struct IconRequest {
 
 pub struct AssetPreviewCache {
     receiver: Receiver<IconRequest>,
-    container: FxHashMap<ResourceKind, AssetPreviewTexture>,
+    container: FxHashMap<Uuid, AssetPreviewTexture>,
     throughput: usize,
 }
 
@@ -64,22 +65,28 @@ impl AssetPreviewCache {
                 resource,
             } = request;
 
-            let resource_kind = resource.kind();
-            let preview = if let Some(cached_preview) = self.container.get(&resource_kind) {
-                Some(cached_preview.clone())
-            } else if let Some(generator) = generators.map.get_mut(&resource.type_uuid()) {
-                if let Some(preview) = generator.generate_preview(&resource, engine) {
-                    self.container.insert(resource_kind, preview.clone());
-                    Some(preview)
-                } else if let Some(icon) =
-                    generator.simple_icon(&resource, &engine.resource_manager)
+            let preview = if let Some(resource_uuid) = resource.resource_uuid() {
+                if let Some(cached_preview) = self.container.get(&resource_uuid) {
+                    Some(cached_preview.clone())
+                } else if let Some(generator) = resource
+                    .type_uuid()
+                    .and_then(|type_uuid| generators.map.get_mut(&type_uuid))
                 {
-                    let preview = AssetPreviewTexture {
-                        texture: icon,
-                        flip_y: false,
-                    };
-                    self.container.insert(resource_kind, preview.clone());
-                    Some(preview)
+                    if let Some(preview) = generator.generate_preview(&resource, engine) {
+                        self.container.insert(resource_uuid, preview.clone());
+                        Some(preview)
+                    } else if let Some(icon) =
+                        generator.simple_icon(&resource, &engine.resource_manager)
+                    {
+                        let preview = AssetPreviewTexture {
+                            texture: icon,
+                            flip_y: false,
+                        };
+                        self.container.insert(resource_uuid, preview.clone());
+                        Some(preview)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }

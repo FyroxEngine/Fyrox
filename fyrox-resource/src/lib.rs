@@ -25,8 +25,6 @@
 #![allow(clippy::doc_lazy_continuation)]
 #![allow(clippy::mutable_key_type)]
 
-use crate::state::LoadError;
-use crate::untyped::{ResourceHeader, ResourceKind};
 use crate::{
     core::{
         parking_lot::MutexGuard,
@@ -35,13 +33,13 @@ use crate::{
         visitor::prelude::*,
         TypeUuidProvider,
     },
-    state::ResourceState,
-    untyped::UntypedResource,
+    state::{LoadError, ResourceState},
+    untyped::{ResourceHeader, ResourceKind, UntypedResource},
 };
 use fxhash::FxHashSet;
 pub use fyrox_core as core;
-use fyrox_core::log::Log;
-use fyrox_core::{combine_uuids, define_as_any_trait};
+use fyrox_core::{combine_uuids, define_as_any_trait, log::Log};
+use std::path::PathBuf;
 use std::{
     error::Error,
     fmt::{Debug, Formatter},
@@ -125,12 +123,12 @@ impl<T> ResourceHeaderGuard<'_, T>
 where
     T: TypedResourceData,
 {
-    pub fn kind(&self) -> &ResourceKind {
-        &self.guard.kind
+    pub fn kind(&self) -> ResourceKind {
+        self.guard.kind
     }
 
     pub fn data(&mut self) -> Option<&mut T> {
-        if let ResourceState::Ok(ref mut data) = self.guard.state {
+        if let ResourceState::Ok { ref mut data, .. } = self.guard.state {
             ResourceDataAsAny::as_any_mut(&mut **data).downcast_mut::<T>()
         } else {
             None
@@ -138,7 +136,7 @@ where
     }
 
     pub fn data_ref(&self) -> Option<&T> {
-        if let ResourceState::Ok(ref data) = self.guard.state {
+        if let ResourceState::Ok { ref data, .. } = self.guard.state {
             ResourceDataAsAny::as_any(&**data).downcast_ref::<T>()
         } else {
             None
@@ -160,6 +158,12 @@ where
     untyped: UntypedResource,
     #[reflect(hidden)]
     phantom: PhantomData<T>,
+}
+
+impl<T: TypedResourceData> AsRef<UntypedResource> for Resource<T> {
+    fn as_ref(&self) -> &UntypedResource {
+        &self.untyped
+    }
 }
 
 impl<T: TypedResourceData> TypeUuidProvider for Resource<T> {
@@ -184,14 +188,15 @@ where
             let mut untyped = UntypedResource::default();
             if untyped.visit(name, visitor).is_ok() {
                 let untyped_data_type = untyped.type_uuid();
-                if untyped_data_type == <T as TypeUuidProvider>::type_uuid() {
+                if untyped_data_type == Some(<T as TypeUuidProvider>::type_uuid()) {
                     self.untyped = untyped;
                     return Ok(());
                 } else {
                     Log::err(format!(
                         "Unable to deserialize untyped resource into its typed \
                      version, because types do not match! Untyped resource has \
-                     {untyped_data_type} type, but the required type is {}",
+                     {:?} type, but the required type is {}",
+                        untyped_data_type,
                         <T as TypeUuidProvider>::type_uuid(),
                     ))
                 }
@@ -242,18 +247,26 @@ where
 {
     /// Creates new resource in pending state.
     #[inline]
-    pub fn new_pending(kind: ResourceKind) -> Self {
+    pub fn new_pending(path: PathBuf, kind: ResourceKind) -> Self {
         Self {
-            untyped: UntypedResource::new_pending(kind, <T as TypeUuidProvider>::type_uuid()),
+            untyped: UntypedResource::new_pending(path, kind),
             phantom: PhantomData,
         }
     }
 
     /// Creates new resource in ok state (fully loaded).
     #[inline]
-    pub fn new_ok(kind: ResourceKind, data: T) -> Self {
+    pub fn new_ok(resource_uuid: Uuid, kind: ResourceKind, data: T) -> Self {
         Self {
-            untyped: UntypedResource::new_ok(kind, data),
+            untyped: UntypedResource::new_ok(resource_uuid, kind, data),
+            phantom: PhantomData,
+        }
+    }
+
+    #[inline]
+    pub fn new_embedded(data: T) -> Self {
+        Self {
+            untyped: UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::Embedded, data),
             phantom: PhantomData,
         }
     }
@@ -262,11 +275,7 @@ where
     #[inline]
     pub fn new_load_error(kind: ResourceKind, error: LoadError) -> Self {
         Self {
-            untyped: UntypedResource::new_load_error(
-                kind,
-                error,
-                <T as TypeUuidProvider>::type_uuid(),
-            ),
+            untyped: UntypedResource::new_load_error(kind, error),
             phantom: PhantomData,
         }
     }
@@ -310,7 +319,7 @@ where
     /// Returns true if the resource is fully loaded and ready for use.
     #[inline]
     pub fn is_ok(&self) -> bool {
-        matches!(self.untyped.0.lock().state, ResourceState::Ok(_))
+        matches!(self.untyped.0.lock().state, ResourceState::Ok { .. })
     }
 
     /// Returns true if the resource is failed to load.
@@ -335,6 +344,11 @@ where
     #[inline]
     pub fn kind(&self) -> ResourceKind {
         self.untyped.kind()
+    }
+
+    #[inline]
+    pub fn resource_uuid(&self) -> Option<Uuid> {
+        self.untyped.resource_uuid()
     }
 
     /// Sets a new kind of the resource.
@@ -368,12 +382,6 @@ where
     pub fn save(&self, path: &Path) -> Result<(), Box<dyn Error>> {
         self.untyped.save(path)
     }
-
-    /// Tries to save the resource back to its external location. This method will fail on attempt
-    /// to save embedded resource, because embedded resources does not have external location.
-    pub fn save_back(&self) -> Result<(), Box<dyn Error>> {
-        self.untyped.save_back()
-    }
 }
 
 impl<T> Default for Resource<T>
@@ -383,7 +391,7 @@ where
     #[inline]
     fn default() -> Self {
         Self {
-            untyped: UntypedResource::new_ok(Default::default(), T::default()),
+            untyped: UntypedResource::new_ok(Default::default(), Default::default(), T::default()),
             phantom: Default::default(),
         }
     }
@@ -408,7 +416,10 @@ where
 {
     #[inline]
     fn from(untyped: UntypedResource) -> Self {
-        assert_eq!(untyped.type_uuid(), <T as TypeUuidProvider>::type_uuid());
+        assert_eq!(
+            untyped.type_uuid(),
+            Some(<T as TypeUuidProvider>::type_uuid())
+        );
         Self {
             untyped,
             phantom: Default::default(),
@@ -457,7 +468,7 @@ where
     #[inline]
     pub fn as_loaded_ref(&self) -> Option<&T> {
         match self.guard.state {
-            ResourceState::Ok(ref data) => ResourceDataAsAny::as_any(&**data).downcast_ref(),
+            ResourceState::Ok { ref data, .. } => ResourceDataAsAny::as_any(&**data).downcast_ref(),
             _ => None,
         }
     }
@@ -465,7 +476,7 @@ where
     #[inline]
     pub fn as_loaded_mut(&mut self) -> Option<&mut T> {
         match self.guard.state {
-            ResourceState::Ok(ref mut data) => {
+            ResourceState::Ok { ref mut data, .. } => {
                 ResourceDataAsAny::as_any_mut(&mut **data).downcast_mut()
             }
             _ => None,
@@ -493,7 +504,7 @@ where
                     self.guard.kind
                 )
             }
-            ResourceState::Ok(ref data) => data.fmt(f),
+            ResourceState::Ok { ref data, .. } => data.fmt(f),
         }
     }
 }
@@ -518,7 +529,7 @@ where
                     self.guard.kind
                 )
             }
-            ResourceState::Ok(ref data) => ResourceDataAsAny::as_any(&**data)
+            ResourceState::Ok { ref data, .. } => ResourceDataAsAny::as_any(&**data)
                 .downcast_ref()
                 .expect("Type mismatch!"),
         }
@@ -544,7 +555,7 @@ where
                     header.kind
                 )
             }
-            ResourceState::Ok(ref mut data) => ResourceDataAsAny::as_any_mut(&mut **data)
+            ResourceState::Ok { ref mut data, .. } => ResourceDataAsAny::as_any_mut(&mut **data)
                 .downcast_mut()
                 .expect("Type mismatch!"),
         }
@@ -647,4 +658,209 @@ pub fn collect_used_resources(
             collect_used_resources(field.value.field_value_as_reflect(), resources_collection);
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        io::{FsResourceIo, ResourceIo},
+        loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader, ResourceLoadersContainer},
+        manager::ResourceManager,
+        metadata::ResourceMetadata,
+        registry::ResourceRegistry,
+        state::LoadError,
+        ResourceData,
+    };
+    use fyrox_core::{
+        append_extension, futures::executor::block_on, io::FileError, parking_lot::Mutex,
+        reflect::prelude::*, task::TaskPool, uuid, visitor::prelude::*, TypeUuidProvider, Uuid,
+    };
+    use ron::ser::PrettyConfig;
+    use serde::{Deserialize, Serialize};
+    use std::{
+        error::Error,
+        fs::File,
+        io::Write,
+        ops::Range,
+        path::{Path, PathBuf},
+        sync::Arc,
+    };
+
+    #[derive(Serialize, Deserialize, Default, Debug, Visit, Reflect, TypeUuidProvider)]
+    #[type_uuid(id = "241d14c7-079e-4395-a63c-364f0fc3e6ea")]
+    struct MyData {
+        data: u32,
+    }
+
+    impl MyData {
+        pub async fn load_from_file(
+            path: &Path,
+            resource_io: &dyn ResourceIo,
+        ) -> Result<Self, FileError> {
+            resource_io.load_file(path).await.and_then(|metadata| {
+                ron::de::from_bytes::<Self>(&metadata).map_err(|err| {
+                    FileError::Custom(format!(
+                        "Unable to deserialize the resource metadata. Reason: {:?}",
+                        err
+                    ))
+                })
+            })
+        }
+    }
+
+    impl ResourceData for MyData {
+        fn type_uuid(&self) -> Uuid {
+            <Self as TypeUuidProvider>::type_uuid()
+        }
+
+        fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
+            let string = ron::ser::to_string_pretty(self, PrettyConfig::default())
+                .map_err(|err| {
+                    FileError::Custom(format!(
+                        "Unable to serialize resource metadata for {} resource! Reason: {}",
+                        path.display(),
+                        err
+                    ))
+                })
+                .map_err(|_| "error".to_string())?;
+            let mut file = File::create(path)?;
+            file.write_all(string.as_bytes())?;
+            Ok(())
+        }
+
+        fn can_be_saved(&self) -> bool {
+            true
+        }
+    }
+
+    struct MyDataLoader {}
+
+    impl MyDataLoader {
+        const EXT: &'static str = "my_data";
+    }
+
+    impl ResourceLoader for MyDataLoader {
+        fn extensions(&self) -> &[&str] {
+            &[Self::EXT]
+        }
+
+        fn data_type_uuid(&self) -> Uuid {
+            <MyData as TypeUuidProvider>::type_uuid()
+        }
+
+        fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
+            Box::pin(async move {
+                let my_data = MyData::load_from_file(&path, io.as_ref())
+                    .await
+                    .map_err(LoadError::new)?;
+                Ok(LoaderPayload::new(my_data))
+            })
+        }
+    }
+
+    const TEST_FOLDER1: &'static str = "./test_output1";
+    const TEST_FOLDER2: &'static str = "./test_output2";
+    const TEST_FOLDER3: &'static str = "./test_output3";
+
+    fn make_file_path(root: &str, n: usize) -> PathBuf {
+        Path::new(root).join(format!("test{n}.{}", MyDataLoader::EXT))
+    }
+
+    fn make_metadata_file_path(root: &str, n: usize) -> PathBuf {
+        Path::new(root).join(format!(
+            "test{n}.{}.{}",
+            MyDataLoader::EXT,
+            ResourceMetadata::EXTENSION
+        ))
+    }
+
+    fn write_test_resources(root: &str, indices: Range<usize>) {
+        let path = Path::new(root);
+        if !std::fs::exists(path).unwrap() {
+            std::fs::create_dir_all(path).unwrap();
+        }
+
+        for i in indices {
+            MyData { data: i as u32 }
+                .save(&make_file_path(root, i))
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn test_registry_scan() {
+        write_test_resources(TEST_FOLDER1, 0..2);
+
+        assert!(std::fs::exists(make_file_path(TEST_FOLDER1, 0)).unwrap());
+        assert!(std::fs::exists(make_file_path(TEST_FOLDER1, 1)).unwrap());
+
+        let io = Arc::new(FsResourceIo);
+
+        let mut loaders = ResourceLoadersContainer::new();
+        loaders.set(MyDataLoader {});
+        let loaders = Arc::new(Mutex::new(loaders));
+
+        let registry = block_on(ResourceRegistry::scan(
+            io,
+            loaders,
+            Path::new(TEST_FOLDER1).join("resources.registry"),
+            Default::default(),
+        ));
+
+        assert!(std::fs::exists(make_metadata_file_path(TEST_FOLDER1, 0)).unwrap());
+        assert!(std::fs::exists(make_metadata_file_path(TEST_FOLDER1, 1)).unwrap());
+
+        assert_eq!(registry.len(), 2);
+    }
+
+    #[test]
+    fn test_resource_manager_request_simple() {
+        write_test_resources(TEST_FOLDER2, 2..4);
+        let resource_manager = ResourceManager::new(Arc::new(TaskPool::new()));
+        resource_manager.add_loader(MyDataLoader {});
+        resource_manager
+            .update_and_load_registry(Path::new(TEST_FOLDER2).join("resources.registry"));
+        let path1 = make_file_path(TEST_FOLDER2, 2);
+        let path2 = make_file_path(TEST_FOLDER2, 3);
+        let res1 = resource_manager.request::<MyData>(&path1);
+        let res1_2 = resource_manager.request::<MyData>(&path1);
+        assert_eq!(res1.key(), res1_2.key());
+        let res2 = resource_manager.request::<MyData>(path2);
+        assert_ne!(res1.key(), res2.key());
+        assert_eq!(block_on(res1).unwrap().data_ref().data, 2);
+        assert_eq!(block_on(res2).unwrap().data_ref().data, 3);
+    }
+
+    #[test]
+    fn test_move_resource() {
+        write_test_resources(TEST_FOLDER3, 0..2);
+        let resource_manager = ResourceManager::new(Arc::new(TaskPool::new()));
+        resource_manager.add_loader(MyDataLoader {});
+        resource_manager
+            .update_and_load_registry(Path::new(TEST_FOLDER3).join("resources.registry"));
+        let path1 = make_file_path(TEST_FOLDER3, 0);
+        let path2 = make_file_path(TEST_FOLDER3, 1);
+        let res1 = resource_manager.request::<MyData>(path1);
+        let res2 = resource_manager.request::<MyData>(path2);
+        assert_eq!(block_on(res1.clone()).unwrap().data_ref().data, 0);
+        assert_eq!(block_on(res2.clone()).unwrap().data_ref().data, 1);
+        let new_res1_path = ResourceRegistry::prepare_path(make_file_path(TEST_FOLDER3, 3));
+        let new_res2_path = ResourceRegistry::prepare_path(make_file_path(TEST_FOLDER3, 4));
+        block_on(resource_manager.move_resource(res1.as_ref(), &new_res1_path)).unwrap();
+        block_on(resource_manager.move_resource(res2.as_ref(), &new_res2_path)).unwrap();
+        assert_eq!(
+            resource_manager.resource_path(res1.as_ref()).unwrap(),
+            new_res1_path
+        );
+        assert!(
+            std::fs::exists(append_extension(new_res1_path, ResourceMetadata::EXTENSION)).unwrap()
+        );
+        assert_eq!(
+            resource_manager.resource_path(res2.as_ref()).unwrap(),
+            new_res2_path
+        );
+        assert!(
+            std::fs::exists(append_extension(new_res2_path, ResourceMetadata::EXTENSION)).unwrap()
+        );
+    }
 }

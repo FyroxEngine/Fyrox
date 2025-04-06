@@ -20,6 +20,7 @@
 
 use fyrox_core::algebra::Point3;
 use fyrox_resource::io::FsResourceIo;
+use fyrox_resource::untyped::ResourceKind;
 use fyrox_sound::buffer::SoundBufferResourceExtension;
 use fyrox_sound::renderer::hrtf::{HrirSphereResource, HrirSphereResourceExt};
 use fyrox_sound::{
@@ -54,7 +55,7 @@ fn main() {
     context
         .state()
         .set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(
-            HrirSphereResource::from_hrir_sphere(hrir_sphere, hrir_path.into()),
+            HrirSphereResource::from_hrir_sphere(hrir_sphere, ResourceKind::External),
         )));
 
     // Create some sounds.

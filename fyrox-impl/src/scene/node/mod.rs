@@ -675,6 +675,7 @@ mod test {
                         ),
                     )
                     .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                        Uuid::new_v4(),
                         ResourceKind::Embedded,
                         SurfaceData::make_cone(16, 1.0, 1.0, &Matrix4::identity()),
                     ))
@@ -717,6 +718,7 @@ mod test {
 
         // Initialize resource manager and re-load the scene.
         let resource_manager = ResourceManager::new(Arc::new(Default::default()));
+
         let serialization_context = SerializationContext::new();
         serialization_context
             .script_constructors
@@ -732,6 +734,8 @@ mod test {
             &resource_manager,
             Arc::new(serialization_context),
         );
+
+        resource_manager.update_and_load_registry("test_output/resources.registry");
 
         let root_asset = block_on(resource_manager.request::<Model>(root_asset_path)).unwrap();
 
@@ -759,6 +763,12 @@ mod test {
             assert!(!mesh.surfaces()[0].material.is_modified());
             mesh.set_cast_shadows(false);
             save_scene(&mut derived, derived_asset_path);
+            resource_manager
+                .state()
+                .resource_registry
+                .lock()
+                .write_metadata(Uuid::new_v4(), derived_asset_path.to_path_buf())
+                .unwrap();
         }
 
         // Reload the derived asset and check its content.

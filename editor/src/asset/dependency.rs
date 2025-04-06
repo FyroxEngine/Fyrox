@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::asset::state::ResourceState;
 use crate::fyrox::{
     asset::{
         graph::{ResourceDependencyGraph, ResourceGraphNode},
@@ -40,6 +39,7 @@ use crate::fyrox::{
         VerticalAlignment,
     },
 };
+use fyrox::asset::manager::ResourceManager;
 
 pub struct DependencyViewer {
     pub window: Handle<UiNode>,
@@ -49,20 +49,23 @@ pub struct DependencyViewer {
     resource_graph: Option<ResourceDependencyGraph>,
 }
 
-fn build_tree_recursively(node: &ResourceGraphNode, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn build_tree_recursively(
+    node: &ResourceGraphNode,
+    resource_manager: &ResourceManager,
+    ctx: &mut BuildContext,
+) -> Handle<UiNode> {
     let children = node
         .children
         .iter()
-        .map(|c| build_tree_recursively(c, ctx))
+        .map(|c| build_tree_recursively(c, resource_manager, ctx))
         .collect();
 
-    let data_type = if let ResourceState::Ok(ref data) = node.resource.0.lock().state {
-        data.type_name().to_string()
-    } else {
-        "Unknown".to_string()
-    };
+    let data_type = node.resource.data_type_name_or_unknown();
 
-    let name = node.resource.kind().to_string();
+    let name = resource_manager
+        .resource_path(&node.resource)
+        .map(|path| path.to_string_lossy().to_string())
+        .unwrap_or_else(|| "Embedded".to_string());
 
     TreeBuilder::new(WidgetBuilder::new())
         .with_items(children)
@@ -145,9 +148,15 @@ impl DependencyViewer {
         }
     }
 
-    pub fn open(&mut self, resource: &UntypedResource, ui: &mut UserInterface) {
+    pub fn open(
+        &mut self,
+        resource: &UntypedResource,
+        resource_manager: &ResourceManager,
+        ui: &mut UserInterface,
+    ) {
         let resource_graph = ResourceDependencyGraph::new(resource);
-        let root = build_tree_recursively(&resource_graph.root, &mut ui.build_ctx());
+        let root =
+            build_tree_recursively(&resource_graph.root, resource_manager, &mut ui.build_ctx());
         ui.send_message(TreeRootMessage::items(
             self.tree_root,
             MessageDirection::ToWidget,

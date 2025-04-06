@@ -39,6 +39,8 @@ use crate::{
     },
     Editor,
 };
+use fyrox::asset::untyped::ResourceKind;
+use fyrox::core::Uuid;
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 pub struct OverlayRenderPass {
@@ -64,7 +66,8 @@ impl OverlayRenderPass {
             )
             .unwrap(),
             sound_icon: TextureResource::load_from_memory(
-                "../resources/sound_source.png".into(),
+                Uuid::new_v4(),
+                ResourceKind::Embedded,
                 include_bytes!("../resources/sound_source.png"),
                 TextureImportOptions::default()
                     .with_compression(CompressionOptions::NoCompression)
@@ -72,7 +75,8 @@ impl OverlayRenderPass {
             )
             .unwrap(),
             light_icon: TextureResource::load_from_memory(
-                "../resources/light_source.png".into(),
+                Uuid::new_v4(),
+                ResourceKind::Embedded,
                 include_bytes!("../resources/light_source.png"),
                 TextureImportOptions::default()
                     .with_compression(CompressionOptions::NoCompression)

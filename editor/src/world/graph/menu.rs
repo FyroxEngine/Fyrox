@@ -90,7 +90,7 @@ fn resource_path_of_first_selected_node(
         if let Some(first) = graph_selection.nodes.first() {
             let scene = &engine.scenes[game_scene.scene];
             if let Some(resource) = scene.graph.try_get(*first).and_then(|n| n.resource()) {
-                return resource.kind().into_path();
+                return engine.resource_manager.resource_path(resource.as_ref());
             }
         }
     }

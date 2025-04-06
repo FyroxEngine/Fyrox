@@ -55,6 +55,7 @@ use crate::scene::GameScene;
 use crate::ui_scene::UiScene;
 use crate::{message::MessageSender, scene::Selection, Editor, Message};
 
+use fyrox::asset::manager::ResourceManager;
 use fyrox::core::reflect::Reflect;
 use fyrox::core::some_or_return;
 use fyrox::gui::dock::DockingManagerMessage;
@@ -202,10 +203,14 @@ impl AbsmEditor {
     pub const NORMAL_ROOT_COLOR: &'static str = "AsbmEditor.NormalRootColor";
     pub const SELECTED_ROOT_COLOR: &'static str = "AsbmEditor.SelectedRootColor";
 
-    pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
+    pub fn new(
+        ctx: &mut BuildContext,
+        sender: MessageSender,
+        resource_manager: ResourceManager,
+    ) -> Self {
         let state_graph_viewer = StateGraphViewer::new(ctx);
         let state_viewer = StateViewer::new(ctx);
-        let parameter_panel = ParameterPanel::new(ctx, sender);
+        let parameter_panel = ParameterPanel::new(ctx, sender, resource_manager);
         let blend_space_editor = BlendSpaceEditor::new(ctx);
 
         let docking_manager = DockingManagerBuilder::new(
@@ -720,9 +725,11 @@ impl AbsmEditorPlugin {
         &mut self,
         ui: &mut UserInterface,
         sender: &MessageSender,
+        resource_manager: ResourceManager,
     ) -> &mut AbsmEditor {
-        self.absm_editor
-            .get_or_insert_with(|| AbsmEditor::new(&mut ui.build_ctx(), sender.clone()))
+        self.absm_editor.get_or_insert_with(|| {
+            AbsmEditor::new(&mut ui.build_ctx(), sender.clone(), resource_manager)
+        })
     }
 }
 
@@ -732,7 +739,11 @@ impl EditorPlugin for AbsmEditorPlugin {
 
         if let Some(layout) = editor.settings.windows.layout.as_ref() {
             if layout.has_window(AbsmEditor::WINDOW_NAME) {
-                self.get_or_create_absm_editor(ui, &editor.message_sender);
+                self.get_or_create_absm_editor(
+                    ui,
+                    &editor.message_sender,
+                    editor.engine.resource_manager.clone(),
+                );
             }
         }
 
@@ -859,7 +870,11 @@ impl EditorPlugin for AbsmEditorPlugin {
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
         if let Message::OpenAbsmEditor = message {
             let ui = editor.engine.user_interfaces.first_mut();
-            let absm_editor = self.get_or_create_absm_editor(ui, &editor.message_sender);
+            let absm_editor = self.get_or_create_absm_editor(
+                ui,
+                &editor.message_sender,
+                editor.engine.resource_manager.clone(),
+            );
 
             absm_editor.open(ui);
 
@@ -897,15 +912,19 @@ impl EditorPlugin for AbsmEditorPlugin {
 #[cfg(test)]
 mod test {
     use crate::plugins::absm::AbsmEditor;
+    use fyrox::asset::manager::ResourceManager;
     use fyrox::core::algebra::Vector2;
     use fyrox::core::pool::Handle;
+    use fyrox::core::task::TaskPool;
     use fyrox::gui::UserInterface;
+    use std::sync::Arc;
 
     #[test]
     fn test_deletion() {
+        let resource_manager = ResourceManager::new(Arc::new(TaskPool::new()));
         let screen_size = Vector2::new(100.0, 100.0);
         let mut ui = UserInterface::new(screen_size);
-        let editor = AbsmEditor::new(&mut ui.build_ctx(), Default::default());
+        let editor = AbsmEditor::new(&mut ui.build_ctx(), Default::default(), resource_manager);
         editor.destroy(&ui, Handle::NONE);
         ui.update(screen_size, 1.0 / 60.0, &Default::default());
         while ui.poll_message().is_some() {}

@@ -121,6 +121,7 @@ use std::{
     sync::mpsc::Receiver,
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
+use uuid::Uuid;
 use winit::window::Window;
 
 lazy_static! {
@@ -713,6 +714,7 @@ impl DynamicSurfaceCache {
             let triangle_buffer = TriangleBuffer::new(Vec::with_capacity(default_capacity * 3));
 
             let surface = SurfaceResource::new_ok(
+                Uuid::new_v4(),
                 ResourceKind::Embedded,
                 SurfaceData::new(vertex_buffer, triangle_buffer),
             );

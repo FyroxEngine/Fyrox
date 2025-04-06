@@ -20,12 +20,6 @@
 
 //! [GltfLoader] enables the importing of *.gltf and *.glb files in the glTF format.
 //! This requires the "gltf" feature.
-use gltf::json;
-use gltf::Document;
-use gltf::Gltf;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-
 use crate::asset::io::ResourceIo;
 use crate::asset::loader;
 use crate::asset::manager::ResourceManager;
@@ -50,6 +44,12 @@ use crate::scene::node::Node;
 use crate::scene::pivot::PivotBuilder;
 use crate::scene::transform::TransformBuilder;
 use crate::scene::Scene;
+use gltf::json;
+use gltf::Document;
+use gltf::Gltf;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use uuid::Uuid;
 
 mod animation;
 mod iter;
@@ -434,7 +434,7 @@ fn import_meshes(
     let mut stats = GeometryStatistics::default();
     for node in gltf.nodes() {
         if let Some(mesh) = node.mesh() {
-            result.push(import_mesh(mesh, mats, bufs, path, &mut stats)?);
+            result.push(import_mesh(mesh, mats, bufs, &mut stats)?);
         }
     }
     if cfg!(feature = "mesh_analysis") {
@@ -472,14 +472,13 @@ fn import_mesh(
     mesh: gltf::Mesh,
     mats: &[MaterialResource],
     bufs: &[Vec<u8>],
-    path: &Path,
     stats: &mut GeometryStatistics,
 ) -> Result<MeshData> {
     let morph_info = import_morph_info(&mesh)?;
     let mut surfs: Vec<Surface> = Vec::with_capacity(mesh.primitives().len());
     let mut blend_shapes: Option<Vec<BlendShape>> = None;
     for prim in mesh.primitives() {
-        if let Some((surf, shapes)) = import_surface(prim, &morph_info, mats, bufs, path, stats)? {
+        if let Some((surf, shapes)) = import_surface(prim, &morph_info, mats, bufs, stats)? {
             surfs.push(surf);
             blend_shapes.get_or_insert(shapes);
         }
@@ -540,7 +539,6 @@ fn import_surface(
     morph_info: &BlendShapeInfoContainer,
     mats: &[MaterialResource],
     bufs: &[Vec<u8>],
-    path: &Path,
     stats: &mut GeometryStatistics,
 ) -> Result<Option<(Surface, Vec<BlendShape>)>> {
     if let Some(data) = build_surface_data(&prim, morph_info, bufs, stats)? {
@@ -549,7 +547,8 @@ fn import_surface(
             blend_shapes.clone_from(&shape_con.blend_shapes)
         }
         let mut surf = Surface::new(SurfaceResource::new_ok(
-            ResourceKind::External(path.to_path_buf()),
+            Uuid::new_v4(),
+            ResourceKind::External,
             data,
         ));
         if let Some(mat_index) = prim.material().index() {

@@ -217,7 +217,7 @@ impl Visit for ParticleSystemRng {
 ///     )
 ///     .with_radius(0.01)
 ///     .build()])
-///     .with_material(MaterialResource::new_ok(Default::default(), material))
+///     .with_material(MaterialResource::new_embedded(material))
 ///     .build(graph);
 /// }
 /// ```
@@ -744,6 +744,7 @@ impl ParticleSystemBuilder {
             base_builder,
             emitters: Default::default(),
             material: MaterialResource::new_ok(
+                Uuid::new_v4(),
                 Default::default(),
                 Material::standard_particle_system(),
             ),
