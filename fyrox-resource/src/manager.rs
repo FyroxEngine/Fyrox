@@ -108,6 +108,7 @@ macro_rules! embedded_data_source {
 
 #[derive(Clone)]
 pub struct UntypedBuiltInResource {
+    pub id: PathBuf,
     /// Initial data, from which the resource is created from.
     pub data_source: Option<DataSource>,
     /// Ready-to-use ("loaded") resource.
@@ -164,6 +165,7 @@ impl<T: TypedResourceData> BuiltInResource<T> {
 impl<T: TypedResourceData> From<BuiltInResource<T>> for UntypedBuiltInResource {
     fn from(value: BuiltInResource<T>) -> Self {
         Self {
+            id: value.id,
             data_source: value.data_source,
             resource: value.resource.into(),
         }
@@ -185,6 +187,12 @@ impl BuiltInResourcesContainer {
 
     pub fn add_untyped(&mut self, id: PathBuf, resource: UntypedBuiltInResource) {
         self.inner.insert(id, resource);
+    }
+
+    pub fn find_by_uuid(&self, uuid: Uuid) -> Option<&UntypedBuiltInResource> {
+        self.inner
+            .values()
+            .find(|r| r.resource.resource_uuid() == Some(uuid))
     }
 }
 

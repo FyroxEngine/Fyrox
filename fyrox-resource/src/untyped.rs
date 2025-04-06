@@ -325,7 +325,19 @@ impl Visit for UntypedResource {
                 );
 
                 let path = match inner_lock.old_format_path {
-                    None => registry_lock.uuid_to_path_buf(resource_uuid),
+                    None => {
+                        match registry_lock.uuid_to_path_buf(resource_uuid) {
+                            Some(path) => Some(path),
+                            None => {
+                                // As a last resort - try to find a built-in resource with this id.
+                                resource_manager
+                                    .state()
+                                    .built_in_resources
+                                    .find_by_uuid(resource_uuid)
+                                    .map(|r| r.id.clone())
+                            }
+                        }
+                    }
                     Some(ref path) => Some(path.clone()),
                 };
 
