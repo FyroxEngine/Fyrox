@@ -1374,7 +1374,7 @@ fn resize_f32(mut data: Vec<f32>, data_size: Vector2<u32>, new_size: Vector2<u32
     if range == 0.0 {
         let size: usize = (new_size.x * new_size.y) as usize;
         data.clear();
-        data.extend(std::iter::repeat(min).take(size));
+        data.extend(std::iter::repeat_n(min, size));
         return data;
     }
 
@@ -1406,7 +1406,7 @@ fn create_zero_margin(mut data: Vec<f32>, data_size: Vector2<u32>) -> Vec<f32> {
     let h0 = data_size.y as usize;
     let h1 = h0 + 2;
     let new_area = w1 * h1;
-    data.extend(std::iter::repeat(0.0).take(new_area - data.len()));
+    data.extend(std::iter::repeat_n(0.0, new_area - data.len()));
     for y in (0..h0).rev() {
         let i0 = y * w0;
         let i1 = (y + 1) * w1;
@@ -2602,7 +2602,7 @@ impl NodeTrait for Terrain {
             || (self.frustum_culling()
                 && !ctx
                     .frustum
-                    .map_or(true, |f| f.is_intersects_aabb(&self.world_bounding_box())))
+                    .is_none_or(|f| f.is_intersects_aabb(&self.world_bounding_box())))
         {
             return RdcControlFlow::Continue;
         }

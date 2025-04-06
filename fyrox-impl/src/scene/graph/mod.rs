@@ -913,7 +913,7 @@ impl Graph {
 
         let parent_enabled = nodes
             .try_borrow(node.parent())
-            .map_or(true, |p| p.is_globally_enabled());
+            .is_none_or(|p| p.is_globally_enabled());
         node.global_enabled.set(parent_enabled && node.is_enabled());
 
         for &child in node.children() {
@@ -928,7 +928,7 @@ impl Graph {
 
         let parent_visibility = nodes
             .try_borrow(node.parent())
-            .map_or(true, |p| p.global_visibility());
+            .is_none_or(|p| p.global_visibility());
         node.global_visibility
             .set(parent_visibility && node.visibility());
 

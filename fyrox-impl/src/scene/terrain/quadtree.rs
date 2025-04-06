@@ -316,7 +316,7 @@ impl QuadTreeNode {
 
         let aabb = self.aabb(transform, height_map_size, physical_size);
 
-        if !frustum.map_or(true, |f| f.is_intersects_aabb(&aabb))
+        if !frustum.is_none_or(|f| f.is_intersects_aabb(&aabb))
             || !aabb.is_intersects_sphere(camera_position, radius)
         {
             // This node is out of range, so add nothing to `selection` and return.

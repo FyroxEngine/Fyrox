@@ -869,7 +869,7 @@ fn build_all(
                 #[allow(clippy::blocks_in_conditions)]
                 if filter
                     .as_mut()
-                    .map_or(true, |f| f.0.borrow_mut().deref_mut().lock()(&path))
+                    .is_none_or(|f| f.0.borrow_mut().deref_mut().lock()(&path))
                 {
                     let is_part_of_final_path = next.as_ref().is_some_and(|next| *next == path);
 

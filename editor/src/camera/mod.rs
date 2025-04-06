@@ -695,7 +695,7 @@ impl CameraController {
                 self.stack.extend_from_slice(node.children());
 
                 if !node.global_visibility()
-                    || !filter.as_mut().map_or(true, |func| func(handle, node))
+                    || !filter.as_mut().is_none_or(|func| func(handle, node))
                 {
                     continue;
                 }

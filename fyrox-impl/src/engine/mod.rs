@@ -558,7 +558,7 @@ impl ScriptMessageDispatcher {
         while let Ok(message) = self.message_receiver.try_recv() {
             let receivers = self.type_groups.get(&message.payload.deref().type_id());
 
-            if receivers.map_or(true, |r| r.is_empty()) {
+            if receivers.is_none_or(|r| r.is_empty()) {
                 Log::warn(format!(
                     "Script message {message:?} was sent, but there's no receivers. \
                     Did you forgot to subscribe your script to the message?"

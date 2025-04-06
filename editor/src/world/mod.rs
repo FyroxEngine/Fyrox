@@ -207,7 +207,7 @@ fn fetch_expanded_state(
         .as_ref()
         .and_then(|p| settings.scene_settings.get(*p))
         .and_then(|s| s.node_infos.get(&node))
-        .map_or(true, |i| i.is_expanded)
+        .is_none_or(|i| i.is_expanded)
 }
 
 impl WorldViewer {

@@ -235,7 +235,7 @@ impl GBuffer {
 
         let instance_filter = |instance: &SurfaceInstanceData| {
             !quality_settings.use_occlusion_culling
-                || grid_cell.map_or(true, |cell| cell.is_visible(instance.node_handle))
+                || grid_cell.is_none_or(|cell| cell.is_visible(instance.node_handle))
         };
 
         statistics += bundle_storage.render_to_frame_buffer(

@@ -137,7 +137,7 @@ impl PropertyDescriptor {
             allowed_types,
         );
 
-        if !items.is_empty() || allowed_types.map_or(true, |types| types.contains(&self.type_id)) {
+        if !items.is_empty() || allowed_types.is_none_or(|types| types.contains(&self.type_id)) {
             let name = format!(
                 "{} ({})",
                 self.display_name,
@@ -587,7 +587,7 @@ impl Control for PropertySelectorWindow {
                 let enabled = selection.iter().all(|d| {
                     self.allowed_types
                         .as_ref()
-                        .map_or(true, |types| types.contains(&d.type_id))
+                        .is_none_or(|types| types.contains(&d.type_id))
                 });
 
                 ui.send_message(WidgetMessage::enabled(

@@ -62,13 +62,13 @@ impl NodeVisibilityMap {
     pub fn is_visible(&self, node: Handle<Node>) -> bool {
         self.map
             .get(&node)
-            .map_or(true, |vis| vis.should_be_rendered())
+            .is_none_or(|vis| vis.should_be_rendered())
     }
 
     pub fn needs_occlusion_query(&self, node: Handle<Node>) -> bool {
         self.map
             .get(&node)
-            .map_or(true, |vis| *vis == Visibility::Invisible)
+            .is_none_or(|vis| *vis == Visibility::Invisible)
     }
 }
 
