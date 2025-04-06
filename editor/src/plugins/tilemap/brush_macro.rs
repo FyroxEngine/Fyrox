@@ -388,7 +388,7 @@ pub trait BrushMacro: 'static + Send + Sync {
     /// This is called for every macro instance whenever the user uses a brush to update a tile map.
     /// - `context`: The macro instance.
     /// - `update`: The change that the user is attempting to make to the tile map. Modify this to
-    ///    amend the change as appropriate.
+    ///   amend the change as appropriate.
     /// - `tile_map`: The tile map that is being edited.
     fn amend_update(
         &mut self,

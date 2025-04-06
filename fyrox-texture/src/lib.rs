@@ -1170,7 +1170,7 @@ impl From<std::io::Error> for TextureError {
 }
 
 fn ceil_div_4(x: u32) -> u32 {
-    (x + 3) / 4
+    x.div_ceil(4)
 }
 
 /// Texture compression options.

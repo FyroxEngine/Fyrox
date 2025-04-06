@@ -1151,7 +1151,7 @@ mod test {
         let resource = UntypedResource::new_ok(Uuid::new_v4(), Default::default(), Stub {});
         state.register(resource.clone(), path).unwrap();
 
-        assert_eq!(state.find_by_path(&path), Some(&resource));
+        assert_eq!(state.find_by_path(path), Some(&resource));
     }
 
     #[test]

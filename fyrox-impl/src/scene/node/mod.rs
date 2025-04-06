@@ -767,7 +767,7 @@ mod test {
                 .state()
                 .resource_registry
                 .lock()
-                .write_metadata(Uuid::new_v4(), derived_asset_path.to_path_buf())
+                .write_metadata(Uuid::new_v4(), derived_asset_path)
                 .unwrap();
         }
 

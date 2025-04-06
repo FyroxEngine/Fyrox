@@ -117,16 +117,16 @@ impl TileSetWfcConstraint {
     /// value as the pattern and the frequency property value as the frequency.
     /// - `tile_set`: The tile set to iterate through.
     /// - `pattern_property`: The UUID of a nine-slice property in `tile_set` that will
-    ///     be used for the pattern of each tile. The center value of the nine-slice is
-    ///     the terrain, unless the center value is 0, in which case the tile is ignored.
+    ///   be used for the pattern of each tile. The center value of the nine-slice is
+    ///   the terrain, unless the center value is 0, in which case the tile is ignored.
     /// - `frequency_property`: The UUID of a float property in `tile_set` that will be
-    ///     used for the frequency of each tile. If None, then every tile has frequency 1.0.
+    ///   used for the frequency of each tile. If None, then every tile has frequency 1.0.
     /// - `terrain_freq`: A hash map of the terrains that will be used in wave function collapse.
-    ///     Tiles whose center value are not keys in this hash map will be ignored.
-    ///     Tiles whose center value are keys in this hash map will have their frequency
-    ///     multiplied by the corresponding value in the hash map to calculate the final
-    ///     frequency of the tile. This allows terrains to have their frequency weighted,
-    ///     and allows unwanted terrains to be excluded.
+    ///   Tiles whose center value are not keys in this hash map will be ignored.
+    ///   Tiles whose center value are keys in this hash map will have their frequency
+    ///   multiplied by the corresponding value in the hash map to calculate the final
+    ///   frequency of the tile. This allows terrains to have their frequency weighted,
+    ///   and allows unwanted terrains to be excluded.
     ///
     /// *Note:* Terrain 0 is treated specially. It has one pattern, the all-zeros default
     /// [`PatternBits`], and it corresponds to the empty tile. Tiles whose pattern value

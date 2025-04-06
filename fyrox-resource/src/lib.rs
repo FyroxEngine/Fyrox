@@ -758,9 +758,9 @@ mod tests {
         }
     }
 
-    const TEST_FOLDER1: &'static str = "./test_output1";
-    const TEST_FOLDER2: &'static str = "./test_output2";
-    const TEST_FOLDER3: &'static str = "./test_output3";
+    const TEST_FOLDER1: &str = "./test_output1";
+    const TEST_FOLDER2: &str = "./test_output2";
+    const TEST_FOLDER3: &str = "./test_output3";
 
     fn make_file_path(root: &str, n: usize) -> PathBuf {
         Path::new(root).join(format!("test{n}.{}", MyDataLoader::EXT))

@@ -753,16 +753,16 @@ impl TileMapPanel {
             DrawingMode::FloodFill => {
                 highlight_all_except(self.flood_fill_button, &buttons, true, ui);
             }
-            DrawingMode::Pick { .. } => {
+            DrawingMode::Pick => {
                 highlight_all_except(self.pick_button, &buttons, true, ui);
             }
-            DrawingMode::RectFill { .. } => {
+            DrawingMode::RectFill => {
                 highlight_all_except(self.rect_fill_button, &buttons, true, ui);
             }
-            DrawingMode::NineSlice { .. } => {
+            DrawingMode::NineSlice => {
                 highlight_all_except(self.nine_slice_button, &buttons, true, ui);
             }
-            DrawingMode::Line { .. } => {
+            DrawingMode::Line => {
                 highlight_all_except(self.line_button, &buttons, true, ui);
             }
             _ => {

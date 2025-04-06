@@ -906,7 +906,7 @@ impl BrushContext {
     /// texture-space coordinates. This should be the same terrain as was given to [BrushContext::start_stroke].
     /// - `position`: The position of the brush in world coordinates.
     pub fn stamp(&mut self, terrain: &Terrain, position: Vector3<f32>) {
-        let value = if matches!(self.stroke.brush().mode, BrushMode::Flatten { .. }) {
+        let value = if matches!(self.stroke.brush().mode, BrushMode::Flatten) {
             self.interpolate_value(terrain, position)
         } else {
             0.0
@@ -921,7 +921,7 @@ impl BrushContext {
     /// - `start`: The start of the brush in world coordinates.
     /// - `end`: The end of the brush in world coordinates.
     pub fn smear(&mut self, terrain: &Terrain, start: Vector3<f32>, end: Vector3<f32>) {
-        let value = if matches!(self.stroke.brush().mode, BrushMode::Flatten { .. }) {
+        let value = if matches!(self.stroke.brush().mode, BrushMode::Flatten) {
             self.interpolate_value(terrain, start)
         } else {
             0.0
@@ -1365,6 +1365,7 @@ fn resize_u8(data: Vec<u8>, data_size: Vector2<u32>, new_size: Vector2<u32>) -> 
     resampled_image.into_raw()
 }
 
+#[allow(clippy::manual_slice_fill)] // False-positive
 fn resize_f32(mut data: Vec<f32>, data_size: Vector2<u32>, new_size: Vector2<u32>) -> Vec<f32> {
     let max = data.iter().copied().reduce(f32::max).unwrap();
     let min = data.iter().copied().reduce(f32::min).unwrap();

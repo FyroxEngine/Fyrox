@@ -140,7 +140,7 @@ impl Control for Selector {
                         ui.send_message(WidgetMessage::visibility(
                             *item,
                             MessageDirection::ToWidget,
-                            self.current.map_or(false, |current| current == i),
+                            *self.current == Some(i),
                         ));
                     }
                 }

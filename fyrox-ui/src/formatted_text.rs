@@ -333,7 +333,7 @@ impl FormattedText {
     }
 
     pub fn end_position(&self) -> Position {
-        match self.lines.iter().enumerate().last() {
+        match self.lines.iter().enumerate().next_back() {
             Some((i, line)) => Position {
                 line: i,
                 offset: line.len(),
