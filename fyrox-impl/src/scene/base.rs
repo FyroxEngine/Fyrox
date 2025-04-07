@@ -417,6 +417,38 @@ impl<T> DerefMut for TrackedProperty<T> {
     }
 }
 
+/// A measure of the the first frames of a node's life after it was added
+/// to the graph. Some nodes may not be ready to be seen by the player on
+/// the frame they are added, so we keep track of the age of new nodes to
+/// disable some features for one frame to give those nodes a chance to update
+/// themselves and process messages before they are fully enabled.
+#[derive(Default, Copy, Clone, Debug, Eq, PartialEq)]
+enum NewAge {
+    /// The node is freshly added to the graph within the current frame.
+    /// There is no way to know how old the node is.
+    FirstFrame,
+    /// The node has reached the end of the frame in which it was added and
+    /// is now into its second frame. By the end of this frame, the node will
+    /// be at least one frame old.
+    SecondFrame,
+    #[default]
+    /// The frame is more than one frame old, so it has had time to update itself
+    /// and processes whatever messages it was sent when it was added, so
+    /// this is no longer a new node and we should render it and process its
+    /// physics and treat it like any normal node.
+    Old,
+}
+
+impl NewAge {
+    fn advance(self) -> Self {
+        match self {
+            Self::FirstFrame => Self::SecondFrame,
+            Self::SecondFrame => Self::Old,
+            Self::Old => Self::Old,
+        }
+    }
+}
+
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
 /// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
 /// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
@@ -441,6 +473,9 @@ impl<T> DerefMut for TrackedProperty<T> {
 pub struct Base {
     #[reflect(hidden)]
     self_handle: Handle<Node>,
+
+    #[reflect(hidden)]
+    new_age: NewAge,
 
     #[reflect(hidden)]
     script_message_sender: Option<Sender<NodeScriptMessage>>,
@@ -1103,6 +1138,32 @@ impl Base {
         self.global_enabled.get()
     }
 
+    /// Sets or clears the `is_new` flag for the node. New scene nodes won't be rendered and have physics disabled,
+    /// but they will still be updated so that they can prepare themselves for when the `is_new` flag is reset.
+    /// Unlike `enabled`, the `is_new` flag does not affect the children of this node, and `is_new` will automatically
+    /// be reset after one frame.
+    #[inline]
+    pub fn set_new(&mut self, is_new: bool) {
+        self.new_age = if is_new {
+            NewAge::FirstFrame
+        } else {
+            NewAge::Old
+        };
+    }
+
+    /// The frame is ending, so it is time to update a new node to the next age category.
+    pub(crate) fn advance_age(&mut self) {
+        self.new_age = self.new_age.advance();
+    }
+
+    /// Returns `true` if the node is new, `false` - otherwise. New scene nodes won't be rendered and have physics disabled,
+    /// but they will still be updated so that they can prepare themselves for when the `is_new` flag is reset.
+    /// Unlike `enabled`, the `is_new` flag does not affect the children of this node.
+    #[inline]
+    pub fn is_new(&self) -> bool {
+        self.new_age != NewAge::Old
+    }
+
     /// Returns a root resource of the scene node. This method crawls up on dependency tree until it finds that
     /// the ancestor node does not have any dependencies and returns this resource as the root resource. For
     /// example, in case of simple scene node instance, this method will return the resource from which the node
@@ -1388,6 +1449,7 @@ impl BaseBuilder {
     pub fn build_base(self) -> Base {
         Base {
             self_handle: Default::default(),
+            new_age: NewAge::Old,
             script_message_sender: None,
             message_sender: None,
             name: self.name.into(),

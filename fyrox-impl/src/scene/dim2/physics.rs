@@ -924,7 +924,7 @@ impl PhysicsWorld {
         handle: Handle<Node>,
         rigid_body_node: &scene::dim2::rigidbody::RigidBody,
     ) {
-        if !rigid_body_node.is_globally_enabled() {
+        if !rigid_body_node.is_globally_enabled() || rigid_body_node.is_new() {
             self.remove_body(rigid_body_node.native.get());
             rigid_body_node.native.set(Default::default());
             return;
@@ -1075,7 +1075,7 @@ impl PhysicsWorld {
         handle: Handle<Node>,
         collider_node: &scene::dim2::collider::Collider,
     ) {
-        if !collider_node.is_globally_enabled() {
+        if !collider_node.is_globally_enabled() || collider_node.is_new() {
             self.remove_collider(collider_node.native.get());
             collider_node.native.set(Default::default());
             return;
@@ -1202,7 +1202,7 @@ impl PhysicsWorld {
         handle: Handle<Node>,
         joint: &scene::dim2::joint::Joint,
     ) {
-        if !joint.is_globally_enabled() {
+        if !joint.is_globally_enabled() || joint.is_new() {
             self.remove_joint(joint.native.get());
             joint.native.set(ImpulseJointHandle(Default::default()));
             return;

@@ -1112,9 +1112,10 @@ mod test {
         let collider_sensor = create_rigid_body(true);
         let collider_non_sensor = create_rigid_body(false);
 
-        // need to call two times for the physics engine to execute
-        graph.update(Vector2::new(800.0, 600.0), 1.0, Default::default());
-        graph.update(Vector2::new(800.0, 600.0), 1.0, Default::default());
+        // need to update twice so the nodes are no longer new, and two times for the physics engine to execute
+        for _ in 0..4 {
+            graph.update(Vector2::new(800.0, 600.0), 1.0, Default::default());
+        }
 
         // we don't expect contact between regular body and sensor
         assert_eq!(

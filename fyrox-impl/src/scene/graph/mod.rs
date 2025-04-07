@@ -1160,6 +1160,8 @@ impl Graph {
         if let Some((ticket, mut node)) = self.pool.try_take_reserve(handle) {
             let mut is_alive = node.is_alive();
 
+            node.advance_age();
+
             if node.is_globally_enabled() {
                 node.update(&mut UpdateContext {
                     frame_size,
@@ -1750,6 +1752,7 @@ impl BaseSceneGraph for Graph {
         let script_message_sender = self.script_message_sender.clone();
         let message_sender = self.message_sender.clone();
         let node = &mut self.pool[handle];
+        node.set_new(true);
         node.on_connected_to_graph(handle, message_sender, script_message_sender);
 
         self.instance_id_map.insert(node.instance_id, handle);

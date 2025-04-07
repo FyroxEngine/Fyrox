@@ -199,6 +199,10 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
     /// visible and (optionally) is inside some viewing frustum.
     #[inline]
     fn should_be_rendered(&self, frustum: Option<&Frustum>) -> bool {
+        if self.is_new() {
+            return false;
+        }
+
         if !self.global_visibility() {
             return false;
         }
