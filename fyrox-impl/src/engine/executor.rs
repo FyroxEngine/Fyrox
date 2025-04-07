@@ -40,6 +40,7 @@ use crate::{
 };
 use clap::Parser;
 use fyrox_core::pool::Handle;
+use fyrox_resource::io::FsResourceIo;
 use fyrox_ui::constructor::new_widget_constructor_container;
 use std::cell::Cell;
 use std::{
@@ -93,9 +94,10 @@ impl Executor {
     ) -> Self {
         let serialization_context = Arc::new(SerializationContext::new());
         let task_pool = Arc::new(TaskPool::new());
+        let io = Arc::new(FsResourceIo);
         let engine = Engine::new(EngineInitParams {
             graphics_context_params,
-            resource_manager: ResourceManager::new(task_pool.clone()),
+            resource_manager: ResourceManager::new(io, task_pool.clone()),
             serialization_context,
             task_pool,
             widget_constructors: Arc::new(new_widget_constructor_container()),

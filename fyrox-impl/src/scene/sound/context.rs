@@ -178,8 +178,7 @@ impl SoundContext {
         sound: &Sound,
         node_overrides: Option<&FxHashSet<Handle<Node>>>,
     ) {
-        if !sound.is_globally_enabled()
-            || !node_overrides.is_none_or(|f| f.contains(&sound_handle))
+        if !sound.is_globally_enabled() || !node_overrides.is_none_or(|f| f.contains(&sound_handle))
         {
             self.remove_sound(sound.native.get(), &sound.name);
             sound.native.set(Default::default());

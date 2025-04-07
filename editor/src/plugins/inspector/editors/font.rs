@@ -260,6 +260,7 @@ impl PropertyEditorDefinition for FontPropertyEditorDefinition {
 #[cfg(test)]
 mod test {
     use crate::plugins::inspector::editors::font::FontFieldBuilder;
+    use fyrox::asset::io::FsResourceIo;
     use fyrox::asset::manager::ResourceManager;
     use fyrox::core::task::TaskPool;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
@@ -267,7 +268,8 @@ mod test {
 
     #[test]
     fn test_deletion() {
-        let resource_manager = ResourceManager::new(Arc::new(TaskPool::new()));
+        let resource_manager =
+            ResourceManager::new(Arc::new(FsResourceIo), Arc::new(TaskPool::new()));
         test_widget_deletion(|ctx| {
             FontFieldBuilder::new(WidgetBuilder::new()).build(resource_manager, ctx)
         });

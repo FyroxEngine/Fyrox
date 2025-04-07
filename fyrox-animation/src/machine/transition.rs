@@ -434,9 +434,9 @@ impl<T: EntityId> LogicNode<T> {
                 lhs_value ^ rhs_value
             }
             LogicNode::Not(node) => !node.lhs.calculate_value(parameters, animations),
-            LogicNode::IsAnimationEnded(animation) => animations
-                .try_get(*animation)
-                .is_none_or(|a| a.has_ended()),
+            LogicNode::IsAnimationEnded(animation) => {
+                animations.try_get(*animation).is_none_or(|a| a.has_ended())
+            }
         }
     }
 }

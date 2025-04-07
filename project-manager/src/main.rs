@@ -27,6 +27,7 @@ mod upgrade;
 mod utils;
 
 use crate::{manager::ProjectManager, settings::DATA_DIR, utils::make_button};
+use fyrox::asset::io::FsResourceIo;
 use fyrox::core::Uuid;
 use fyrox::engine::ApplicationLoopController;
 use fyrox::{
@@ -84,7 +85,7 @@ fn main() {
             msaa_sample_count: Some(2),
             graphics_server_constructor: Default::default(),
         },
-        resource_manager: ResourceManager::new(task_pool.clone()),
+        resource_manager: ResourceManager::new(Arc::new(FsResourceIo), task_pool.clone()),
         serialization_context,
         task_pool,
         widget_constructors: Arc::new(new_widget_constructor_container()),

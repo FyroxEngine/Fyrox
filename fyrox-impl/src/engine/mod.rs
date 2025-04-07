@@ -1367,7 +1367,8 @@ impl Engine {
     /// # };
     /// # use std::sync::Arc;
     /// # use fyrox_core::task::TaskPool;
-    /// use fyrox_ui::constructor::new_widget_constructor_container;
+    /// # use fyrox_resource::io::FsResourceIo;
+    /// # use fyrox_ui::constructor::new_widget_constructor_container;
     ///
     /// let mut window_attributes = WindowAttributes::default();
     /// window_attributes.title = "Some title".to_string();
@@ -1381,7 +1382,7 @@ impl Engine {
     ///
     /// Engine::new(EngineInitParams {
     ///     graphics_context_params,
-    ///     resource_manager: ResourceManager::new(task_pool.clone()),
+    ///     resource_manager: ResourceManager::new(Arc::new(FsResourceIo), task_pool.clone()),
     ///     serialization_context: Arc::new(SerializationContext::new()),
     ///     task_pool,
     ///     widget_constructors: Arc::new(new_widget_constructor_container()),
@@ -2764,6 +2765,7 @@ mod test {
             ScriptTrait,
         },
     };
+    use fyrox_resource::io::FsResourceIo;
     use fyrox_ui::UiContainer;
     use std::cell::Cell;
     use std::sync::{
@@ -2905,7 +2907,8 @@ mod test {
 
     #[test]
     fn test_order() {
-        let resource_manager = ResourceManager::new(Arc::new(Default::default()));
+        let resource_manager =
+            ResourceManager::new(Arc::new(FsResourceIo), Arc::new(Default::default()));
         let mut scene = Scene::new();
 
         let (tx, rx) = mpsc::channel();
@@ -3089,7 +3092,8 @@ mod test {
 
     #[test]
     fn test_messages() {
-        let resource_manager = ResourceManager::new(Arc::new(Default::default()));
+        let resource_manager =
+            ResourceManager::new(Arc::new(FsResourceIo), Arc::new(Default::default()));
         let mut scene = Scene::new();
 
         let (tx, rx) = mpsc::channel();
@@ -3188,7 +3192,7 @@ mod test {
             graphics_context_params: Default::default(),
             serialization_context: Arc::new(Default::default()),
             widget_constructors: Arc::new(Default::default()),
-            resource_manager: ResourceManager::new(task_pool.clone()),
+            resource_manager: ResourceManager::new(Arc::new(FsResourceIo), task_pool.clone()),
             task_pool,
         })
         .unwrap();
@@ -3364,7 +3368,8 @@ mod test {
 
     #[test]
     fn test_script_adding_removing() {
-        let resource_manager = ResourceManager::new(Arc::new(Default::default()));
+        let resource_manager =
+            ResourceManager::new(Arc::new(FsResourceIo), Arc::new(Default::default()));
         let mut scene = Scene::new();
 
         let (tx, rx) = mpsc::channel();

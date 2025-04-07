@@ -70,12 +70,16 @@ pub trait ResourceIo: Send + Sync + 'static {
     /// the entire byte contents of the file or an error
     fn load_file<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, Result<Vec<u8>, FileError>>;
 
-    /// Attempts to write the given set of bytes to the specified path.
+    /// Attempts to asynchronously write the given set of bytes to the specified path.
     fn write_file<'a>(
         &'a self,
         path: &'a Path,
         data: Vec<u8>,
     ) -> ResourceIoFuture<'a, Result<(), FileError>>;
+
+    /// Attempts to synchronously write the given set of bytes to the specified path. This method
+    /// is optional, on some platforms it may not even be supported (WebAssembly).
+    fn write_file_sync(&self, path: &Path, data: &[u8]) -> Result<(), FileError>;
 
     /// Attempts to move a file at the given `source` path to the given `dest` path.
     fn move_file<'a>(
@@ -178,6 +182,12 @@ impl ResourceIo for FsResourceIo {
             file.write_all(&data)?;
             Ok(())
         })
+    }
+
+    fn write_file_sync(&self, path: &Path, data: &[u8]) -> Result<(), FileError> {
+        let mut file = File::create(path)?;
+        file.write_all(data)?;
+        Ok(())
     }
 
     fn move_file<'a>(

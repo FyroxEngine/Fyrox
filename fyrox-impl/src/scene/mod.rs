@@ -304,8 +304,7 @@ impl SceneLoader {
             .state()
             .resource_registry
             .lock()
-            .status
-            .clone();
+            .status_flag();
         // Wait until the registry is fully loaded.
         let registry_status = registry_status.await;
         if registry_status == ResourceRegistryStatus::Unknown {

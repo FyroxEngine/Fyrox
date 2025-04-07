@@ -421,17 +421,20 @@ where
 
 #[cfg(test)]
 mod test {
-
     use crate::plugins::inspector::editors::resource::ResourceFieldBuilder;
+    use fyrox::asset::io::FsResourceIo;
     use fyrox::asset::manager::ResourceManager;
     use fyrox::resource::model::Model;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+    use std::sync::Arc;
 
     #[test]
     fn test_deletion() {
         test_widget_deletion(|ctx| {
-            ResourceFieldBuilder::<Model>::new(WidgetBuilder::new(), Default::default())
-                .build(ctx, ResourceManager::new(Default::default()))
+            ResourceFieldBuilder::<Model>::new(WidgetBuilder::new(), Default::default()).build(
+                ctx,
+                ResourceManager::new(Arc::new(FsResourceIo), Default::default()),
+            )
         });
     }
 }

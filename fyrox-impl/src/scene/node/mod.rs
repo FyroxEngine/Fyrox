@@ -636,6 +636,7 @@ mod test {
         script::ScriptTrait,
     };
     use fyrox_graph::SceneGraph;
+    use fyrox_resource::io::FsResourceIo;
     use fyrox_resource::untyped::ResourceKind;
     use std::{fs, path::Path, sync::Arc};
 
@@ -717,7 +718,8 @@ mod test {
         }
 
         // Initialize resource manager and re-load the scene.
-        let resource_manager = ResourceManager::new(Arc::new(Default::default()));
+        let resource_manager =
+            ResourceManager::new(Arc::new(FsResourceIo), Arc::new(Default::default()));
 
         let serialization_context = SerializationContext::new();
         serialization_context
@@ -763,11 +765,10 @@ mod test {
             assert!(!mesh.surfaces()[0].material.is_modified());
             mesh.set_cast_shadows(false);
             save_scene(&mut derived, derived_asset_path);
-            resource_manager
-                .state()
-                .resource_registry
-                .lock()
-                .write_metadata(Uuid::new_v4(), derived_asset_path)
+            let registry = resource_manager.state().resource_registry.clone();
+            let mut registry = registry.lock();
+            let mut ctx = registry.modify();
+            ctx.write_metadata(Uuid::new_v4(), derived_asset_path)
                 .unwrap();
         }
 

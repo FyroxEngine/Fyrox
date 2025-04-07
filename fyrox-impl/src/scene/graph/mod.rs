@@ -2117,7 +2117,8 @@ mod test {
     }
 
     fn make_resource_manager() -> ResourceManager {
-        let resource_manager = ResourceManager::new(Arc::new(Default::default()));
+        let resource_manager =
+            ResourceManager::new(Arc::new(FsResourceIo), Arc::new(Default::default()));
         engine::initialize_resource_manager_loaders(
             &resource_manager,
             Arc::new(SerializationContext::new()),

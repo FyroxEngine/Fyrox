@@ -371,12 +371,14 @@ impl AssetItemBuilder {
 #[cfg(test)]
 mod test {
     use crate::asset::item::AssetItemBuilder;
+    use fyrox::asset::io::FsResourceIo;
     use fyrox::asset::manager::ResourceManager;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+    use std::sync::Arc;
 
     #[test]
     fn test_deletion() {
-        let rm = ResourceManager::new(Default::default());
+        let rm = ResourceManager::new(Arc::new(FsResourceIo), Default::default());
         test_widget_deletion(|ctx| {
             AssetItemBuilder::new(WidgetBuilder::new()).build(rm, Default::default(), ctx)
         });

@@ -35,11 +35,11 @@ use crate::{
     },
     entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
     event::{ResourceEvent, ResourceEventBroadcaster},
-    io::{FsResourceIo, ResourceIo},
+    io::ResourceIo,
     loader::{ResourceLoader, ResourceLoadersContainer},
     metadata::ResourceMetadata,
     options::OPTIONS_EXTENSION,
-    registry::{RegistryContainerExt, ResourceRegistry, ResourceRegistryStatus},
+    registry::{ResourceRegistry, ResourceRegistryStatus},
     state::{LoadError, ResourceState},
     untyped::ResourceKind,
     Resource, TypedResourceData, UntypedResource,
@@ -285,9 +285,9 @@ impl Display for ResourceRegistrationError {
 
 impl ResourceManager {
     /// Creates a resource manager with default settings and loaders.
-    pub fn new(task_pool: Arc<TaskPool>) -> Self {
+    pub fn new(io: Arc<dyn ResourceIo>, task_pool: Arc<TaskPool>) -> Self {
         Self {
-            state: Arc::new(Mutex::new(ResourceManagerState::new(task_pool))),
+            state: Arc::new(Mutex::new(ResourceManagerState::new(io, task_pool))),
         }
     }
 
@@ -441,13 +441,15 @@ impl ResourceManager {
         // Move the file with its optional import options and mandatory metadata.
         io.move_file(&existing_path, &new_path).await?;
 
-        assert_eq!(
-            registry
-                .lock()
-                .register(resource_uuid, new_path.clone())
-                .as_ref(),
-            Some(&existing_path)
-        );
+        // Separate scope to lock the mutex as short as possible.
+        {
+            let mut registry = registry.lock();
+            let mut ctx = registry.modify();
+            assert_eq!(
+                ctx.register(resource_uuid, new_path.clone()).as_ref(),
+                Some(&existing_path)
+            );
+        }
 
         let options_path = append_extension(&existing_path, OPTIONS_EXTENSION);
         if io.exists(&options_path).await {
@@ -474,18 +476,17 @@ impl ResourceManager {
 }
 
 impl ResourceManagerState {
-    pub(crate) fn new(task_pool: Arc<TaskPool>) -> Self {
+    pub(crate) fn new(io: Arc<dyn ResourceIo>, task_pool: Arc<TaskPool>) -> Self {
         Self {
             resources: Default::default(),
-            task_pool,
             loaders: Default::default(),
             event_broadcaster: Default::default(),
             constructors_container: Default::default(),
             watcher: None,
             built_in_resources: Default::default(),
-            // Use the file system resource io by default
-            resource_io: Arc::new(FsResourceIo),
-            resource_registry: Arc::new(Mutex::new(ResourceRegistry::default())),
+            resource_registry: Arc::new(Mutex::new(ResourceRegistry::new(io.clone()))),
+            task_pool,
+            resource_io: io,
         }
     }
 
@@ -501,7 +502,7 @@ impl ResourceManagerState {
         let resource_registry = self.resource_registry.clone();
         #[allow(unused_variables)]
         let excluded_folders = resource_registry.lock().excluded_folders.clone();
-        let registry_status = resource_registry.lock().status.clone();
+        let registry_status = resource_registry.lock().status_flag();
         registry_status.mark_as_loading();
         #[allow(unused_variables)]
         let task_loaders = self.loaders.clone();
@@ -517,15 +518,8 @@ impl ResourceManagerState {
                     excluded_folders,
                 )
                 .await;
-                if let Err(error) = new_data.save(&path, &*resource_io).await {
-                    err!(
-                        "Unable to write the resource registry at the {} path! Reason: {:?}",
-                        path.display(),
-                        error
-                    )
-                }
-                let mut lock = resource_registry.lock();
-                lock.set_container(new_data);
+                let mut registry_lock = resource_registry.lock();
+                registry_lock.modify().set_container(new_data);
                 registry_status.mark_as_loaded();
 
                 info!(
@@ -541,8 +535,8 @@ impl ResourceManagerState {
                 match crate::registry::RegistryContainer::load_from_file(&path, &*resource_io).await
                 {
                     Ok(registry) => {
-                        let mut lock = resource_registry.lock();
-                        lock.set_container(registry);
+                        let mut registry_lock = resource_registry.lock();
+                        registry_lock.modify().set_container(registry);
 
                         registry_status.mark_as_loaded();
 
@@ -790,7 +784,7 @@ impl ResourceManagerState {
         let loaders = self.loaders.clone();
         let registry = self.resource_registry.clone();
         let io = self.resource_io.clone();
-        let registry_status = registry.lock().status.clone();
+        let registry_status = registry.lock().status_flag();
 
         self.task_pool.spawn_task(async move {
             // Wait until the registry is fully loaded.
@@ -888,7 +882,7 @@ impl ResourceManagerState {
         resource: UntypedResource,
         path: impl AsRef<Path>,
     ) -> Result<(), ResourceRegistrationError> {
-        let path = path.as_ref().to_owned();
+        let path = ResourceRegistry::prepare_path(path);
 
         let resource_uuid = resource
             .resource_uuid()
@@ -901,7 +895,11 @@ impl ResourceManagerState {
         let mut resource_header = resource.0.lock();
         resource_header.kind.make_external();
         if let ResourceState::Ok { resource_uuid, .. } = resource_header.state {
-            self.resource_registry.lock().register(resource_uuid, path);
+            let mut registry = self.resource_registry.lock();
+            let mut ctx = registry.modify();
+            ctx.register(resource_uuid, path);
+            drop(ctx);
+            drop(registry);
             drop(resource_header);
             self.add_resource_and_notify(resource);
             Ok(())
@@ -970,7 +968,9 @@ impl ResourceManagerState {
     /// Tries to reload a resource at the given path.
     pub fn try_reload_resource_from_path(&mut self, path: &Path) -> bool {
         let mut registry = self.resource_registry.lock();
-        if let Some(uuid) = registry.unregister_path(path) {
+        let mut ctx = registry.modify();
+        if let Some(uuid) = ctx.unregister_path(path) {
+            drop(ctx);
             drop(registry);
             if let Some(resource) = self.find_by_uuid(uuid).cloned() {
                 self.reload_resource(resource);
@@ -983,7 +983,9 @@ impl ResourceManagerState {
     /// Forgets that a resource at the given path was ever loaded, thus making it possible to reload it
     /// again as a new instance.
     pub fn unregister(&mut self, path: &Path) {
-        if let Some(uuid) = self.resource_registry.lock().unregister_path(path) {
+        let mut registry = self.resource_registry.lock();
+        let mut ctx = registry.modify();
+        if let Some(uuid) = ctx.unregister_path(path) {
             if let Some(position) = self
                 .resources
                 .iter()
@@ -998,6 +1000,7 @@ impl ResourceManagerState {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::io::FsResourceIo;
     use crate::{
         loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
         ResourceData,
@@ -1048,7 +1051,7 @@ mod test {
     }
 
     fn new_resource_manager() -> ResourceManagerState {
-        ResourceManagerState::new(Arc::new(Default::default()))
+        ResourceManagerState::new(Arc::new(FsResourceIo), Arc::new(Default::default()))
     }
 
     #[test]
@@ -1217,7 +1220,7 @@ mod test {
 
     #[test]
     fn resource_manager_new() {
-        let manager = ResourceManager::new(Arc::new(Default::default()));
+        let manager = ResourceManager::new(Arc::new(FsResourceIo), Arc::new(Default::default()));
 
         assert!(manager.state.lock().is_empty());
         assert!(manager.state().is_empty());
@@ -1225,7 +1228,7 @@ mod test {
 
     #[test]
     fn resource_manager_register() {
-        let manager = ResourceManager::new(Arc::new(Default::default()));
+        let manager = ResourceManager::new(Arc::new(FsResourceIo), Arc::new(Default::default()));
         let path = PathBuf::from("test.txt");
 
         let resource = UntypedResource::new_pending(Default::default(), ResourceKind::External);
@@ -1239,7 +1242,7 @@ mod test {
 
     #[test]
     fn resource_manager_request_untyped() {
-        let manager = ResourceManager::new(Arc::new(Default::default()));
+        let manager = ResourceManager::new(Arc::new(FsResourceIo), Arc::new(Default::default()));
         let resource = UntypedResource::new_ok(Uuid::new_v4(), Default::default(), Stub {});
         let res = manager.register(resource.clone(), PathBuf::from("foo.txt"));
         assert!(res.is_ok());

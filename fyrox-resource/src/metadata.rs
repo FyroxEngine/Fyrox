@@ -24,7 +24,7 @@ use crate::io::ResourceIo;
 use fyrox_core::{io::FileError, Uuid};
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
-use std::{fs::File, io::Write, path::Path};
+use std::path::Path;
 
 /// Resource metadata contains additional information that cannot be stored in the resource file
 /// itself. The most important bit of information is a resource uuid, this id is used to as reference
@@ -84,14 +84,8 @@ impl ResourceMetadata {
     }
 
     /// Tries to write the metadata to the given path.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - WebAssembly - panics, because there's no file system on WebAssembly.
-    pub fn save_sync(&self, path: &Path) -> Result<(), FileError> {
+    pub fn save_sync(&self, path: &Path, resource_io: &dyn ResourceIo) -> Result<(), FileError> {
         let string = self.serialize(path)?;
-        let mut file = File::create(path)?;
-        file.write_all(string.as_bytes())?;
-        Ok(())
+        resource_io.write_file_sync(path, string.as_bytes())
     }
 }

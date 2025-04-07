@@ -19,19 +19,21 @@
 // SOFTWARE.
 
 use crate::{
-    io::ResourceIo, loader::ResourceLoadersContainer, metadata::ResourceMetadata, state::WakersList,
+    core::{
+        append_extension, err, info, io::FileError, ok_or_return, parking_lot::Mutex,
+        replace_slashes, warn, Uuid,
+    },
+    io::ResourceIo,
+    loader::ResourceLoadersContainer,
+    metadata::ResourceMetadata,
+    state::WakersList,
 };
 use fxhash::FxHashSet;
-use fyrox_core::{
-    append_extension, info, io::FileError, ok_or_return, parking_lot::Mutex, replace_slashes, warn,
-    Uuid,
-};
 use ron::ser::PrettyConfig;
-use std::path::Component;
 use std::{
     collections::BTreeMap,
     future::Future,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
@@ -41,11 +43,22 @@ pub type RegistryContainer = BTreeMap<Uuid, PathBuf>;
 
 #[allow(async_fn_in_trait)]
 pub trait RegistryContainerExt: Sized {
+    fn serialize_to_string(&self) -> Result<String, FileError>;
     async fn load_from_file(path: &Path, resource_io: &dyn ResourceIo) -> Result<Self, FileError>;
     async fn save(&self, path: &Path, resource_io: &dyn ResourceIo) -> Result<(), FileError>;
+    fn save_sync(&self, path: &Path, resource_io: &dyn ResourceIo) -> Result<(), FileError>;
 }
 
 impl RegistryContainerExt for RegistryContainer {
+    fn serialize_to_string(&self) -> Result<String, FileError> {
+        ron::ser::to_string_pretty(self, PrettyConfig::default()).map_err(|err| {
+            FileError::Custom(format!(
+                "Unable to serialize resource registry! Reason: {}",
+                err
+            ))
+        })
+    }
+
     async fn load_from_file(path: &Path, resource_io: &dyn ResourceIo) -> Result<Self, FileError> {
         resource_io.load_file(path).await.and_then(|metadata| {
             ron::de::from_bytes::<Self>(&metadata).map_err(|err| {
@@ -58,13 +71,13 @@ impl RegistryContainerExt for RegistryContainer {
     }
 
     async fn save(&self, path: &Path, resource_io: &dyn ResourceIo) -> Result<(), FileError> {
-        let string = ron::ser::to_string_pretty(self, PrettyConfig::default()).map_err(|err| {
-            FileError::Custom(format!(
-                "Unable to serialize resource registry! Reason: {}",
-                err
-            ))
-        })?;
+        let string = self.serialize_to_string()?;
         resource_io.write_file(path, string.into_bytes()).await
+    }
+
+    fn save_sync(&self, path: &Path, resource_io: &dyn ResourceIo) -> Result<(), FileError> {
+        let string = self.serialize_to_string()?;
+        resource_io.write_file_sync(path, string.as_bytes())
     }
 }
 
@@ -163,17 +176,60 @@ async fn make_relative_path_async<P: AsRef<Path>>(
     }
 }
 
+pub struct ResourceRegistryRefMut<'a> {
+    registry: &'a mut ResourceRegistry,
+}
+
+impl ResourceRegistryRefMut<'_> {
+    pub fn write_metadata(&mut self, uuid: Uuid, path: impl AsRef<Path>) -> Result<(), FileError> {
+        ResourceMetadata::new_with_random_id().save_sync(
+            &append_extension(path.as_ref(), ResourceMetadata::EXTENSION),
+            &*self.registry.io,
+        )?;
+        self.register(uuid, path.as_ref().to_path_buf());
+        Ok(())
+    }
+
+    pub fn register(&mut self, uuid: Uuid, path: PathBuf) -> Option<PathBuf> {
+        self.registry.paths.insert(uuid, path)
+    }
+
+    pub fn unregister(&mut self, uuid: Uuid) -> Option<PathBuf> {
+        self.registry.paths.remove(&uuid)
+    }
+
+    pub fn unregister_path(&mut self, path: &Path) -> Option<Uuid> {
+        let uuid = self.registry.path_to_uuid(path)?;
+        self.registry.paths.remove(&uuid);
+        Some(uuid)
+    }
+
+    pub fn set_container(&mut self, registry_container: RegistryContainer) {
+        self.registry.paths = registry_container;
+    }
+}
+
+impl Drop for ResourceRegistryRefMut<'_> {
+    fn drop(&mut self) {
+        self.registry.save_sync();
+    }
+}
+
 /// Resource registry is responsible for UUID mapping of resource files. It maintains a map of
 /// `UUID -> Resource Path`.
 #[derive(Clone)]
 pub struct ResourceRegistry {
-    pub paths: RegistryContainer,
-    pub status: ResourceRegistryStatusFlag,
+    path: PathBuf,
+    paths: RegistryContainer,
+    status: ResourceRegistryStatusFlag,
+    io: Arc<dyn ResourceIo>,
     pub excluded_folders: FxHashSet<PathBuf>,
 }
 
-impl Default for ResourceRegistry {
-    fn default() -> Self {
+impl ResourceRegistry {
+    pub const DEFAULT_PATH: &'static str = "./data/resources.registry";
+
+    pub fn new(io: Arc<dyn ResourceIo>) -> Self {
         let mut excluded_folders = FxHashSet::default();
 
         // Exclude build artifacts folder by default.
@@ -182,15 +238,17 @@ impl Default for ResourceRegistry {
         excluded_folders.insert(PathBuf::from("build"));
 
         Self {
+            path: PathBuf::from(Self::DEFAULT_PATH),
             paths: Default::default(),
             status: Default::default(),
+            io,
             excluded_folders,
         }
     }
-}
 
-impl ResourceRegistry {
-    pub const DEFAULT_PATH: &'static str = "./data/resources.registry";
+    pub fn status_flag(&self) -> ResourceRegistryStatusFlag {
+        self.status.clone()
+    }
 
     pub fn prepare_path(path: impl AsRef<Path>) -> PathBuf {
         let mut components = path.as_ref().components().peekable();
@@ -222,31 +280,32 @@ impl ResourceRegistry {
         replace_slashes(ret)
     }
 
-    pub fn write_metadata(&mut self, uuid: Uuid, path: impl AsRef<Path>) -> Result<(), FileError> {
-        ResourceMetadata::new_with_random_id().save_sync(&append_extension(
-            path.as_ref(),
-            ResourceMetadata::EXTENSION,
-        ))?;
-        self.register(uuid, path.as_ref().to_path_buf());
-        Ok(())
+    pub fn set_path(&mut self, path_buf: PathBuf) {
+        self.path = path_buf;
     }
 
-    pub fn register(&mut self, uuid: Uuid, path: PathBuf) -> Option<PathBuf> {
-        self.paths.insert(uuid, path)
+    pub async fn save(&self) {
+        if let Err(error) = self.paths.save(&self.path, &*self.io).await {
+            err!(
+                "Unable to write the resource registry at the {} path! Reason: {:?}",
+                self.path.display(),
+                error
+            )
+        }
     }
 
-    pub fn unregister(&mut self, uuid: Uuid) -> Option<PathBuf> {
-        self.paths.remove(&uuid)
+    pub fn save_sync(&self) {
+        if let Err(error) = self.paths.save_sync(&self.path, &*self.io) {
+            err!(
+                "Unable to write the resource registry at the {} path! Reason: {:?}",
+                self.path.display(),
+                error
+            )
+        }
     }
 
-    pub fn unregister_path(&mut self, path: &Path) -> Option<Uuid> {
-        let uuid = self.path_to_uuid(path)?;
-        self.paths.remove(&uuid);
-        Some(uuid)
-    }
-
-    pub fn set_container(&mut self, registry_container: RegistryContainer) {
-        self.paths = registry_container;
+    pub fn modify(&mut self) -> ResourceRegistryRefMut<'_> {
+        ResourceRegistryRefMut { registry: self }
     }
 
     pub fn uuid_to_path(&self, uuid: Uuid) -> Option<&Path> {

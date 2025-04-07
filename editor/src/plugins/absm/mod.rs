@@ -912,6 +912,7 @@ impl EditorPlugin for AbsmEditorPlugin {
 #[cfg(test)]
 mod test {
     use crate::plugins::absm::AbsmEditor;
+    use fyrox::asset::io::FsResourceIo;
     use fyrox::asset::manager::ResourceManager;
     use fyrox::core::algebra::Vector2;
     use fyrox::core::pool::Handle;
@@ -921,7 +922,8 @@ mod test {
 
     #[test]
     fn test_deletion() {
-        let resource_manager = ResourceManager::new(Arc::new(TaskPool::new()));
+        let resource_manager =
+            ResourceManager::new(Arc::new(FsResourceIo), Arc::new(TaskPool::new()));
         let screen_size = Vector2::new(100.0, 100.0);
         let mut ui = UserInterface::new(screen_size);
         let editor = AbsmEditor::new(&mut ui.build_ctx(), Default::default(), resource_manager);

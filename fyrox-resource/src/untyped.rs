@@ -321,7 +321,7 @@ impl Visit for UntypedResource {
                 // 2) You're trying to deserialize the resource handle manually without a proper
                 // environment.
                 assert_eq!(
-                    registry_lock.status.status(),
+                    registry_lock.status_flag().status(),
                     ResourceRegistryStatus::Loaded
                 );
 

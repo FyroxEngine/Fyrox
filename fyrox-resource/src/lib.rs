@@ -813,7 +813,8 @@ mod tests {
     #[test]
     fn test_resource_manager_request_simple() {
         write_test_resources(TEST_FOLDER2, 2..4);
-        let resource_manager = ResourceManager::new(Arc::new(TaskPool::new()));
+        let resource_manager =
+            ResourceManager::new(Arc::new(FsResourceIo), Arc::new(TaskPool::new()));
         resource_manager.add_loader(MyDataLoader {});
         resource_manager
             .update_and_load_registry(Path::new(TEST_FOLDER2).join("resources.registry"));
@@ -831,7 +832,8 @@ mod tests {
     #[test]
     fn test_move_resource() {
         write_test_resources(TEST_FOLDER3, 0..2);
-        let resource_manager = ResourceManager::new(Arc::new(TaskPool::new()));
+        let resource_manager =
+            ResourceManager::new(Arc::new(FsResourceIo), Arc::new(TaskPool::new()));
         resource_manager.add_loader(MyDataLoader {});
         resource_manager
             .update_and_load_registry(Path::new(TEST_FOLDER3).join("resources.registry"));

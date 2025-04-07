@@ -698,7 +698,7 @@ impl Editor {
         let task_pool = Arc::new(TaskPool::new());
         let mut engine = Engine::new(EngineInitParams {
             graphics_context_params,
-            resource_manager: ResourceManager::new(task_pool.clone()),
+            resource_manager: ResourceManager::new(Arc::new(FsResourceIo), task_pool.clone()),
             serialization_context,
             task_pool,
             widget_constructors: Arc::new(new_widget_constructor_container()),
