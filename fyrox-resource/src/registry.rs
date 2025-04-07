@@ -178,6 +178,8 @@ impl Default for ResourceRegistry {
 
         // Exclude build artifacts folder by default.
         excluded_folders.insert(PathBuf::from("target"));
+        // Exclude the standard production build folder as well.
+        excluded_folders.insert(PathBuf::from("build"));
 
         Self {
             paths: Default::default(),
@@ -188,7 +190,7 @@ impl Default for ResourceRegistry {
 }
 
 impl ResourceRegistry {
-    pub const DEFAULT_PATH: &'static str = "./resources.registry";
+    pub const DEFAULT_PATH: &'static str = "./data/resources.registry";
 
     pub fn prepare_path(path: impl AsRef<Path>) -> PathBuf {
         let mut components = path.as_ref().components().peekable();
