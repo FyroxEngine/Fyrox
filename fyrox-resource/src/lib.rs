@@ -24,6 +24,7 @@
 #![allow(missing_docs)]
 #![allow(clippy::doc_lazy_continuation)]
 #![allow(clippy::mutable_key_type)]
+#![warn(missing_docs)]
 
 use crate::{
     core::{
@@ -827,9 +828,13 @@ mod tests {
         write_test_resources(TEST_FOLDER2, 2..4);
         let resource_manager =
             ResourceManager::new(Arc::new(FsResourceIo), Arc::new(TaskPool::new()));
-        resource_manager.add_loader(MyDataLoader {});
         resource_manager
-            .update_and_load_registry(Path::new(TEST_FOLDER2).join("resources.registry"));
+            .state()
+            .resource_registry
+            .lock()
+            .set_path(Path::new(TEST_FOLDER2).join("resources.registry"));
+        resource_manager.add_loader(MyDataLoader {});
+        resource_manager.update_or_load_registry();
         let path1 = make_file_path(TEST_FOLDER2, 2);
         let path2 = make_file_path(TEST_FOLDER2, 3);
         let res1 = resource_manager.request::<MyData>(&path1);
@@ -846,9 +851,13 @@ mod tests {
         write_test_resources(TEST_FOLDER3, 0..2);
         let resource_manager =
             ResourceManager::new(Arc::new(FsResourceIo), Arc::new(TaskPool::new()));
-        resource_manager.add_loader(MyDataLoader {});
         resource_manager
-            .update_and_load_registry(Path::new(TEST_FOLDER3).join("resources.registry"));
+            .state()
+            .resource_registry
+            .lock()
+            .set_path(Path::new(TEST_FOLDER3).join("resources.registry"));
+        resource_manager.add_loader(MyDataLoader {});
+        resource_manager.update_or_load_registry();
         let path1 = make_file_path(TEST_FOLDER3, 0);
         let path2 = make_file_path(TEST_FOLDER3, 1);
         let res1 = resource_manager.request::<MyData>(path1);

@@ -279,10 +279,16 @@ impl ResourceManager {
         self.state().request(path)
     }
 
-    pub fn update_and_load_registry(&self, path: impl AsRef<Path>) {
-        self.state().update_and_load_registry(path);
+    /// Tries to update the registry if possible on the current platform, and if not - try to load
+    /// an existing one. Some platforms do not have a file system, so the registry must be prepared
+    /// on a platform that **does** have it and then saved to be loaded later on. For example,
+    /// WebAssembly platform does not have a file system and the resource manager will try to load
+    /// an existing registry instead of updating it.
+    pub fn update_or_load_registry(&self) {
+        self.state().update_or_load_registry();
     }
 
+    /// Adds a new resource loader of the given type.
     pub fn add_loader<T: ResourceLoader>(&self, loader: T) -> Option<T> {
         self.state().add_loader(loader)
     }
@@ -368,14 +374,12 @@ impl ResourceManagerState {
         }
     }
 
-    pub fn update_and_load_registry(&self, path: impl AsRef<Path>) {
-        let path = path.as_ref().to_path_buf();
-
-        info!(
-            "Trying to load or update the registry at {}...",
-            path.display()
-        );
-
+    /// Tries to update the registry if possible on the current platform, and if not - try to load
+    /// an existing one. Some platforms do not have a file system, so the registry must be prepared
+    /// on a platform that **does** have it and then saved to be loaded later on. For example,
+    /// WebAssembly platform does not have a file system and the resource manager will try to load
+    /// an existing registry instead of updating it.
+    pub fn update_or_load_registry(&self) {
         let resource_io = self.resource_io.clone();
         let resource_registry = self.resource_registry.clone();
         #[allow(unused_variables)]
@@ -384,6 +388,13 @@ impl ResourceManagerState {
         registry_status.mark_as_loading();
         #[allow(unused_variables)]
         let task_loaders = self.loaders.clone();
+        let path = resource_registry.lock().path().to_path_buf();
+
+        info!(
+            "Trying to load or update the registry at {}...",
+            path.display()
+        );
+
         self.task_pool.spawn_task(async move {
             // Try to update the registry first.
             // Wasm is an exception, because it does not have a file system.
@@ -399,11 +410,6 @@ impl ResourceManagerState {
                 let mut registry_lock = resource_registry.lock();
                 registry_lock.modify().set_container(new_data);
                 registry_status.mark_as_loaded();
-
-                info!(
-                    "Resource registry was updated and written to {} successfully!",
-                    path.display()
-                );
             }
 
             // WASM can only try to load the existing registry.
@@ -767,6 +773,7 @@ impl ResourceManagerState {
         }
     }
 
+    /// Adds a new resource loader of the given type.
     pub fn add_loader<T: ResourceLoader>(&self, loader: T) -> Option<T> {
         self.loaders.lock().set(loader)
     }

@@ -2119,11 +2119,16 @@ mod test {
     fn make_resource_manager() -> ResourceManager {
         let resource_manager =
             ResourceManager::new(Arc::new(FsResourceIo), Arc::new(Default::default()));
+        resource_manager
+            .state()
+            .resource_registry
+            .lock()
+            .set_path("test_output/resources.registry");
         engine::initialize_resource_manager_loaders(
             &resource_manager,
             Arc::new(SerializationContext::new()),
         );
-        resource_manager.update_and_load_registry("test_output/resources.registry");
+        resource_manager.update_or_load_registry();
         resource_manager
     }
 

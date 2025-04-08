@@ -721,6 +721,12 @@ mod test {
         let resource_manager =
             ResourceManager::new(Arc::new(FsResourceIo), Arc::new(Default::default()));
 
+        resource_manager
+            .state()
+            .resource_registry
+            .lock()
+            .set_path("test_output/resources.registry");
+
         let serialization_context = SerializationContext::new();
         serialization_context
             .script_constructors
@@ -737,7 +743,7 @@ mod test {
             Arc::new(serialization_context),
         );
 
-        resource_manager.update_and_load_registry("test_output/resources.registry");
+        resource_manager.update_or_load_registry();
 
         let root_asset = block_on(resource_manager.request::<Model>(root_asset_path)).unwrap();
 

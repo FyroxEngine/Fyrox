@@ -331,29 +331,50 @@ impl ResourceRegistry {
     }
 
     /// Sets a new path for the registry, but **does not** saves it.
-    pub fn set_path(&mut self, path_buf: PathBuf) {
-        self.path = path_buf;
+    pub fn set_path(&mut self, path: impl AsRef<Path>) {
+        self.path = path.as_ref().to_owned();
+    }
+
+    /// Returns a path to which the resource could be saved.
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 
     /// Asynchronously saves the registry.
     pub async fn save(&self) {
-        if let Err(error) = self.paths.save(&self.path, &*self.io).await {
-            err!(
-                "Unable to write the resource registry at the {} path! Reason: {:?}",
-                self.path.display(),
-                error
-            )
+        match self.paths.save(&self.path, &*self.io).await {
+            Err(error) => {
+                err!(
+                    "Unable to write the resource registry at the {} path! Reason: {:?}",
+                    self.path.display(),
+                    error
+                )
+            }
+            Ok(_) => {
+                info!(
+                    "The registry was successfully saved to {}!",
+                    self.path.display()
+                )
+            }
         }
     }
 
     /// Same as [`Self::save`], but synchronous.
     pub fn save_sync(&self) {
-        if let Err(error) = self.paths.save_sync(&self.path, &*self.io) {
-            err!(
-                "Unable to write the resource registry at the {} path! Reason: {:?}",
-                self.path.display(),
-                error
-            )
+        match self.paths.save_sync(&self.path, &*self.io) {
+            Err(error) => {
+                err!(
+                    "Unable to write the resource registry at the {} path! Reason: {:?}",
+                    self.path.display(),
+                    error
+                )
+            }
+            Ok(_) => {
+                info!(
+                    "The registry was successfully saved to {}!",
+                    self.path.display()
+                )
+            }
         }
     }
 

@@ -29,11 +29,6 @@ pub mod task;
 
 mod hotreload;
 
-use crate::resource::texture::{
-    CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
-    TextureResourceExtension,
-};
-use crate::scene::tilemap::{CustomTileCollider, TileMapData};
 use crate::{
     asset::{
         event::ResourceEvent,
@@ -77,7 +72,10 @@ use crate::{
     resource::{
         curve::{loader::CurveLoader, CurveResourceState},
         model::{loader::ModelLoader, Model, ModelResource},
-        texture::{self, loader::TextureLoader, Texture, TextureKind},
+        texture::{
+            self, loader::TextureLoader, CompressionOptions, Texture, TextureImportOptions,
+            TextureKind, TextureMinificationFilter, TextureResource, TextureResourceExtension,
+        },
     },
     scene::{
         base::NodeScriptMessage,
@@ -94,6 +92,7 @@ use crate::{
             brush::{TileMapBrush, TileMapBrushLoader},
             tileset::{TileSet, TileSetLoader},
         },
+        tilemap::{CustomTileCollider, TileMapData},
         Scene, SceneContainer, SceneLoader,
     },
     script::{
@@ -105,22 +104,20 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
-use fyrox_graphics::gl::server::GlGraphicsServer;
-use fyrox_graphics::server::SharedGraphicsServer;
-use fyrox_resource::registry::ResourceRegistry;
+use fyrox_graphics::{gl::server::GlGraphicsServer, server::SharedGraphicsServer};
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
 };
-use std::cell::Cell;
-use std::rc::Rc;
 use std::{
     any::TypeId,
+    cell::Cell,
     collections::{HashSet, VecDeque},
     fmt::{Display, Formatter},
     io::Cursor,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
+    rc::Rc,
     sync::{
         mpsc::{channel, Receiver, Sender},
         Arc,
@@ -128,10 +125,10 @@ use std::{
     time::Duration,
 };
 use uuid::Uuid;
-use winit::window::Icon;
 use winit::{
     dpi::{Position, Size},
     event_loop::EventLoopWindowTarget,
+    window::Icon,
     window::WindowAttributes,
 };
 
@@ -1410,7 +1407,7 @@ impl Engine {
         let user_interfaces =
             UiContainer::new_with_ui(UserInterface::new(Vector2::new(100.0, 100.0)));
 
-        resource_manager.update_and_load_registry(ResourceRegistry::DEFAULT_PATH);
+        resource_manager.update_or_load_registry();
 
         Ok(Self {
             graphics_context: GraphicsContext::Uninitialized(graphics_context_params),
