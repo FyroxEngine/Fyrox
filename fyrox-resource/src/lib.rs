@@ -122,10 +122,14 @@ impl<T> ResourceHeaderGuard<'_, T>
 where
     T: TypedResourceData,
 {
+    /// Returns resource kind of the locked resource.
     pub fn kind(&self) -> ResourceKind {
         self.guard.kind
     }
 
+    /// Tries to fetch the underlying data of the resource type. This operation will fail if the
+    /// locked resource is not in [`ResourceState::Ok`] or if its actual data does not match the
+    /// type of the resource.
     pub fn data(&mut self) -> Option<&mut T> {
         if let ResourceState::Ok { ref mut data, .. } = self.guard.state {
             (&mut **data as &mut dyn Any).downcast_mut::<T>()
@@ -134,6 +138,9 @@ where
         }
     }
 
+    /// Tries to fetch the underlying data of the resource type. This operation will fail if the
+    /// locked resource is not in [`ResourceState::Ok`] or if its actual data does not match the
+    /// type of the resource.
     pub fn data_ref(&self) -> Option<&T> {
         if let ResourceState::Ok { ref data, .. } = self.guard.state {
             (&**data as &dyn Any).downcast_ref::<T>()
@@ -262,6 +269,7 @@ where
         }
     }
 
+    /// Creates a new embedded resource in ok state (fully loaded).
     #[inline]
     pub fn new_embedded(data: T) -> Self {
         Self {
@@ -304,6 +312,7 @@ where
         })
     }
 
+    /// Locks the resource and provides access to its header. See [`ResourceHeader`] docs for more info.
     #[inline]
     pub fn header(&self) -> MutexGuard<'_, ResourceHeader> {
         self.untyped.0.lock()
@@ -345,6 +354,8 @@ where
         self.untyped.kind()
     }
 
+    /// Tries to get a resource uuid (if any). Uuid is available only for fully loaded resources
+    /// (in [`ResourceState::Ok`] state).
     #[inline]
     pub fn resource_uuid(&self) -> Option<Uuid> {
         self.untyped.resource_uuid()
