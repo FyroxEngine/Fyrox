@@ -745,7 +745,7 @@ impl ResourceManagerState {
             return built_in_resource.resource.clone();
         }
 
-        let path = ResourceRegistry::prepare_path(path);
+        let path = ResourceRegistry::normalize_path(path);
 
         self.find_or_load(path)
     }
@@ -882,7 +882,7 @@ impl ResourceManagerState {
         resource: UntypedResource,
         path: impl AsRef<Path>,
     ) -> Result<(), ResourceRegistrationError> {
-        let path = ResourceRegistry::prepare_path(path);
+        let path = ResourceRegistry::normalize_path(path);
 
         let resource_uuid = resource
             .resource_uuid()

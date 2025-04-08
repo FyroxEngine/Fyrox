@@ -18,6 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! Resource registry is a database, that contains `UUID -> Path` mappings for every **external**
+//! resource used in your game. See [`ResourceRegistry`] docs for more info.
+
 use crate::{
     core::{
         append_extension, err, info, io::FileError, ok_or_return, parking_lot::Mutex,
@@ -39,13 +42,24 @@ use std::{
     task::{Context, Poll},
 };
 
+/// A type alias for the actual registry data container.
 pub type RegistryContainer = BTreeMap<Uuid, PathBuf>;
 
+/// An extension trait with save/load methods.
 #[allow(async_fn_in_trait)]
 pub trait RegistryContainerExt: Sized {
+    /// Serializes the registry into a formatted string.
     fn serialize_to_string(&self) -> Result<String, FileError>;
+
+    /// Tries to load a registry from a file using the specified resource IO. This method is intended
+    /// to be used only in async contexts.
     async fn load_from_file(path: &Path, resource_io: &dyn ResourceIo) -> Result<Self, FileError>;
+
+    /// Tries to save the registry into a file using the specified resource IO. This method is
+    /// intended to be used only in async contexts.
     async fn save(&self, path: &Path, resource_io: &dyn ResourceIo) -> Result<(), FileError>;
+
+    /// Same as [`Self::save`], but synchronous.
     fn save_sync(&self, path: &Path, resource_io: &dyn ResourceIo) -> Result<(), FileError>;
 }
 
@@ -81,28 +95,44 @@ impl RegistryContainerExt for RegistryContainer {
     }
 }
 
+/// Actual status of a resource registry.
 #[derive(Default, Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum ResourceRegistryStatus {
+    /// The status is unknown. It means that the registry wasn't even attempted to be loaded from
+    /// a file. This status will prevent any access to resources through a resource manager - all
+    /// requested resources will immediately fail to load.
     #[default]
     Unknown,
+
+    /// Fully loaded registry and ready to use.
     Loaded,
+
+    /// The registry is still loading and has to be waited for. See [`ResourceRegistryStatusFlag`]
+    /// for more info.
     Loading,
 }
 
+/// Internal data of the registry status flag.
 #[derive(Clone, Default)]
 pub struct RegistryReadyFlagData {
     status: ResourceRegistryStatus,
     wakers: WakersList,
 }
 
+/// A shared flag that can be used to fetch the current status of a resource registry. This struct
+/// supports [`Future`] trait, which means that you can `.await` it in an async context to wait
+/// until the registry is fully loaded (or failed to load). Any access to the registry in an async
+/// context must be guarded with such `.await` call.
 #[derive(Default, Clone)]
 pub struct ResourceRegistryStatusFlag(Arc<Mutex<RegistryReadyFlagData>>);
 
 impl ResourceRegistryStatusFlag {
+    /// Returns current status of the registry.
     pub fn status(&self) -> ResourceRegistryStatus {
         self.0.lock().status
     }
 
+    /// Marks the registry as loaded.
     pub fn mark_as_loaded(&self) {
         let mut lock = self.0.lock();
 
@@ -113,6 +143,8 @@ impl ResourceRegistryStatusFlag {
         }
     }
 
+    /// Marks the registry as loading. This method should be used before trying to load a registry
+    /// from an external source.
     pub fn mark_as_loading(&self) {
         self.0.lock().status = ResourceRegistryStatus::Loading;
     }
@@ -176,11 +208,15 @@ async fn make_relative_path_async<P: AsRef<Path>>(
     }
 }
 
+/// A mutable reference to a resource registry. Automatically saves the registry back to a source
+/// from which it was loaded when an instance of this object is dropped. To prevent saving use
+/// [`std::mem::forget`] after you've finished working with the mutable reference.
 pub struct ResourceRegistryRefMut<'a> {
     registry: &'a mut ResourceRegistry,
 }
 
 impl ResourceRegistryRefMut<'_> {
+    /// Writes the new metadata file for a resource at the given path.
     pub fn write_metadata(&mut self, uuid: Uuid, path: impl AsRef<Path>) -> Result<(), FileError> {
         ResourceMetadata::new_with_random_id().save_sync(
             &append_extension(path.as_ref(), ResourceMetadata::EXTENSION),
@@ -190,20 +226,24 @@ impl ResourceRegistryRefMut<'_> {
         Ok(())
     }
 
+    /// Registers a new pair `UUID -> Path`.
     pub fn register(&mut self, uuid: Uuid, path: PathBuf) -> Option<PathBuf> {
         self.registry.paths.insert(uuid, path)
     }
 
+    /// Unregisters a resource path with the given UUID.
     pub fn unregister(&mut self, uuid: Uuid) -> Option<PathBuf> {
         self.registry.paths.remove(&uuid)
     }
 
+    /// Unregisters a resource path.
     pub fn unregister_path(&mut self, path: &Path) -> Option<Uuid> {
         let uuid = self.registry.path_to_uuid(path)?;
         self.registry.paths.remove(&uuid);
         Some(uuid)
     }
 
+    /// Completely replaces the internal storage.
     pub fn set_container(&mut self, registry_container: RegistryContainer) {
         self.registry.paths = registry_container;
     }
@@ -223,12 +263,18 @@ pub struct ResourceRegistry {
     paths: RegistryContainer,
     status: ResourceRegistryStatusFlag,
     io: Arc<dyn ResourceIo>,
+    /// A list of folder that should be excluded when scanning the project folder for supported
+    /// resources. By default, it contains `./target` (a folder with build artifacts) and `./build`
+    /// (a folder with production builds) folders.
     pub excluded_folders: FxHashSet<PathBuf>,
 }
 
 impl ResourceRegistry {
+    /// Default path of the registry. It can be overridden on a registry instance using
+    /// [`Self::set_path`] method.
     pub const DEFAULT_PATH: &'static str = "./data/resources.registry";
 
+    /// Creates a new resource registry with the given resource IO.
     pub fn new(io: Arc<dyn ResourceIo>) -> Self {
         let mut excluded_folders = FxHashSet::default();
 
@@ -246,11 +292,15 @@ impl ResourceRegistry {
         }
     }
 
+    /// Returns a shared reference to the status flag. See [`ResourceRegistryStatusFlag`] docs for
+    /// more info.
     pub fn status_flag(&self) -> ResourceRegistryStatusFlag {
         self.status.clone()
     }
 
-    pub fn prepare_path(path: impl AsRef<Path>) -> PathBuf {
+    /// Normalizes the path by resolving all `.` and `..` and removing any prefixes. Also replaces
+    /// `\\` slashes to cross-platform `/` slashes.
+    pub fn normalize_path(path: impl AsRef<Path>) -> PathBuf {
         let mut components = path.as_ref().components().peekable();
         let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
             components.next();
@@ -280,10 +330,12 @@ impl ResourceRegistry {
         replace_slashes(ret)
     }
 
+    /// Sets a new path for the registry, but **does not** saves it.
     pub fn set_path(&mut self, path_buf: PathBuf) {
         self.path = path_buf;
     }
 
+    /// Asynchronously saves the registry.
     pub async fn save(&self) {
         if let Err(error) = self.paths.save(&self.path, &*self.io).await {
             err!(
@@ -294,6 +346,7 @@ impl ResourceRegistry {
         }
     }
 
+    /// Same as [`Self::save`], but synchronous.
     pub fn save_sync(&self) {
         if let Err(error) = self.paths.save_sync(&self.path, &*self.io) {
             err!(
@@ -304,34 +357,26 @@ impl ResourceRegistry {
         }
     }
 
+    /// Begins registry modification. See [`ResourceRegistryRefMut`] docs for more info.
     pub fn modify(&mut self) -> ResourceRegistryRefMut<'_> {
         ResourceRegistryRefMut { registry: self }
     }
 
+    /// Tries to get a path associated with the given resource UUID.
     pub fn uuid_to_path(&self, uuid: Uuid) -> Option<&Path> {
         self.paths.get(&uuid).map(|path| path.as_path())
     }
 
+    /// Same as [`Self::uuid_to_path`], but returns [`PathBuf`] instead of `&Path`.
     pub fn uuid_to_path_buf(&self, uuid: Uuid) -> Option<PathBuf> {
         self.uuid_to_path(uuid).map(|path| path.to_path_buf())
     }
 
+    /// Tries to find a UUID that corresponds for the given path.
     pub fn path_to_uuid(&self, path: &Path) -> Option<Uuid> {
         self.paths
             .iter()
             .find_map(|(k, v)| if v == path { Some(*k) } else { None })
-    }
-
-    pub fn path_to_uuid_or_random(&self, path: &Path) -> Uuid {
-        self.path_to_uuid(path).unwrap_or_else(|| {
-            warn!(
-                "There's no UUID for {} resource! Random UUID will be used, run \
-                    ResourceRegistry::scan_and_update to generate resource ids!",
-                path.display()
-            );
-
-            Uuid::new_v4()
-        })
     }
 
     /// Searches for supported resources starting from the given path and builds a mapping `UUID -> Path`.
