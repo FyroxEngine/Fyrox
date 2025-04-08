@@ -44,16 +44,15 @@ use crate::{
     untyped::ResourceKind,
     Resource, TypedResourceData, UntypedResource,
 };
-use fxhash::FxHashMap;
 use fyrox_core::{err, info, Uuid};
 use std::{
-    borrow::Cow,
     fmt::{Debug, Display, Formatter},
     marker::PhantomData,
-    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::Arc,
 };
+
+pub use crate::builtin::*;
 
 /// A set of resources that can be waited for.
 #[must_use]
@@ -73,140 +72,6 @@ impl ResourceWaitContext {
             }
         }
         loaded_count == self.resources.len()
-    }
-}
-
-/// Data source of a built-in resource.
-#[derive(Clone)]
-pub struct DataSource {
-    /// File extension, associated with the data source.
-    pub extension: Cow<'static, str>,
-    /// The actual data.
-    pub bytes: Cow<'static, [u8]>,
-}
-
-impl DataSource {
-    pub fn new(path: &'static str, data: &'static [u8]) -> Self {
-        Self {
-            extension: Cow::Borrowed(
-                Path::new(path)
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .unwrap_or(""),
-            ),
-            bytes: Cow::Borrowed(data),
-        }
-    }
-}
-
-#[macro_export]
-macro_rules! embedded_data_source {
-    ($path:expr) => {
-        $crate::manager::DataSource::new($path, include_bytes!($path))
-    };
-}
-
-#[derive(Clone)]
-pub struct UntypedBuiltInResource {
-    pub id: PathBuf,
-    /// Initial data, from which the resource is created from.
-    pub data_source: Option<DataSource>,
-    /// Ready-to-use ("loaded") resource.
-    pub resource: UntypedResource,
-}
-
-pub struct BuiltInResource<T>
-where
-    T: TypedResourceData,
-{
-    pub id: PathBuf,
-    /// Initial data, from which the resource is created from.
-    pub data_source: Option<DataSource>,
-    /// Ready-to-use ("loaded") resource.
-    pub resource: Resource<T>,
-}
-
-impl<T: TypedResourceData> Clone for BuiltInResource<T> {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id.clone(),
-            data_source: self.data_source.clone(),
-            resource: self.resource.clone(),
-        }
-    }
-}
-
-impl<T: TypedResourceData> BuiltInResource<T> {
-    pub fn new<F>(id: impl AsRef<Path>, data_source: DataSource, make: F) -> Self
-    where
-        F: FnOnce(&[u8]) -> Resource<T>,
-    {
-        let resource = make(&data_source.bytes);
-        Self {
-            id: id.as_ref().to_path_buf(),
-            resource,
-            data_source: Some(data_source),
-        }
-    }
-
-    pub fn new_no_source(id: impl AsRef<Path>, resource: Resource<T>) -> Self {
-        Self {
-            id: id.as_ref().to_path_buf(),
-            data_source: None,
-            resource,
-        }
-    }
-
-    pub fn resource(&self) -> Resource<T> {
-        self.resource.clone()
-    }
-}
-
-impl<T: TypedResourceData> From<BuiltInResource<T>> for UntypedBuiltInResource {
-    fn from(value: BuiltInResource<T>) -> Self {
-        Self {
-            id: value.id,
-            data_source: value.data_source,
-            resource: value.resource.into(),
-        }
-    }
-}
-
-#[derive(Default, Clone)]
-pub struct BuiltInResourcesContainer {
-    inner: FxHashMap<PathBuf, UntypedBuiltInResource>,
-}
-
-impl BuiltInResourcesContainer {
-    pub fn add<T>(&mut self, resource: BuiltInResource<T>)
-    where
-        T: TypedResourceData,
-    {
-        self.add_untyped(resource.id.clone(), resource.into())
-    }
-
-    pub fn add_untyped(&mut self, id: PathBuf, resource: UntypedBuiltInResource) {
-        self.inner.insert(id, resource);
-    }
-
-    pub fn find_by_uuid(&self, uuid: Uuid) -> Option<&UntypedBuiltInResource> {
-        self.inner
-            .values()
-            .find(|r| r.resource.resource_uuid() == Some(uuid))
-    }
-}
-
-impl Deref for BuiltInResourcesContainer {
-    type Target = FxHashMap<PathBuf, UntypedBuiltInResource>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl DerefMut for BuiltInResourcesContainer {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
     }
 }
 
@@ -308,6 +173,14 @@ impl ResourceManager {
         state.task_pool()
     }
 
+    /// Registers a new built-in resource, so it becomes accessible via [`Self::request`].
+    pub fn register_built_in_resource<T: TypedResourceData>(
+        &self,
+        resource: BuiltInResource<T>,
+    ) -> Option<UntypedBuiltInResource> {
+        self.state().register_built_in_resource(resource)
+    }
+
     /// Requests a resource of the given type located at the given path. This method is non-blocking, instead
     /// it immediately returns the typed resource wrapper. Loading of the resource is managed automatically in
     /// a separate thread (or thread pool) on PC, and JS micro-task (the same thread) on WebAssembly.
@@ -389,6 +262,11 @@ impl ResourceManager {
         }
     }
 
+    /// Tries to fetch a path of the given untyped resource. The path may be missing in a few cases:
+    ///
+    /// 1) The resource is in invalid state (not in [`ResourceState::Ok`]).
+    /// 2) The resource wasn't registered in the resource registry.
+    /// 3) The resource registry wasn't loaded.
     pub fn resource_path(&self, resource: &UntypedResource) -> Option<PathBuf> {
         self.state().resource_path(resource)
     }
@@ -675,6 +553,11 @@ impl ResourceManagerState {
             .map(|entry| &entry.value)
     }
 
+    /// Tries to find a resource by a path. Returns None if no resource was found.
+    ///
+    /// # Complexity
+    ///
+    /// O(n)
     pub fn find_by_path(&self, path: &Path) -> Option<&UntypedResource> {
         let registry = self.resource_registry.lock();
         self.resources.iter().find_map(|entry| {
@@ -734,6 +617,14 @@ impl ResourceManagerState {
     /// Returns a set of resource handled by this container.
     pub fn resources(&self) -> Vec<UntypedResource> {
         self.resources.iter().map(|t| t.value.clone()).collect()
+    }
+
+    /// Registers a new built-in resource, so it becomes accessible via [`Self::request`].
+    pub fn register_built_in_resource<T: TypedResourceData>(
+        &mut self,
+        resource: BuiltInResource<T>,
+    ) -> Option<UntypedBuiltInResource> {
+        self.built_in_resources.add(resource)
     }
 
     /// Tries to load a resources at a given path.
@@ -861,6 +752,11 @@ impl ResourceManagerState {
         });
     }
 
+    /// Tries to fetch a path of the given untyped resource. The path may be missing in a few cases:
+    ///
+    /// 1) The resource is in invalid state (not in [`ResourceState::Ok`]).
+    /// 2) The resource wasn't registered in the resource registry.
+    /// 3) The resource registry wasn't loaded.
     pub fn resource_path(&self, resource: &UntypedResource) -> Option<PathBuf> {
         let header = resource.0.lock();
         if let ResourceState::Ok { resource_uuid, .. } = header.state {
