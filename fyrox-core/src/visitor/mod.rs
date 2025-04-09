@@ -33,12 +33,13 @@ pub mod error;
 pub mod field;
 mod impls;
 pub mod pod;
+mod reader;
+mod writer;
 
 pub use fyrox_core_derive::Visit;
 
 pub mod prelude {
     //! Types to use `#[derive(Visit)]`
-
     pub use super::{Visit, VisitResult, Visitor};
     pub use crate::visitor::error::VisitError;
 }
@@ -47,6 +48,10 @@ use crate::{
     array_as_u8_slice_mut,
     io::{self},
     pool::{Handle, Pool},
+    visitor::{
+        reader::{BinaryReader, Reader},
+        writer::{BinaryWriter, Writer},
+    },
 };
 use bitflags::bitflags;
 use blackboard::Blackboard;
@@ -461,24 +466,9 @@ impl Visitor {
 
     /// Write the data of this Visitor to the given writer.
     /// Begin by writing [Visitor::MAGIC].
-    pub fn save_binary_to_memory<W: Write>(&self, mut writer: W) -> VisitResult {
-        writer.write_all(Self::MAGIC.as_bytes())?;
-        let mut stack = vec![self.root];
-        while let Some(node_handle) = stack.pop() {
-            let node = self.nodes.borrow(node_handle);
-            let name = node.name.as_bytes();
-            writer.write_u32::<LittleEndian>(name.len() as u32)?;
-            writer.write_all(name)?;
-
-            writer.write_u32::<LittleEndian>(node.fields.len() as u32)?;
-            for field in node.fields.iter() {
-                Field::save(field, &mut writer)?
-            }
-
-            writer.write_u32::<LittleEndian>(node.children.len() as u32)?;
-            stack.extend_from_slice(&node.children);
-        }
-        Ok(())
+    pub fn save_binary_to_memory<W: Write>(&self, mut dest: W) -> VisitResult {
+        let writer = BinaryWriter::default();
+        writer.write(self, &mut dest)
     }
 
     /// Encode the data of this visitor into bytes and push the bytes
@@ -506,39 +496,6 @@ impl Visitor {
         Ok(())
     }
 
-    fn load_node_binary(&mut self, file: &mut dyn Read) -> Result<Handle<VisitorNode>, VisitError> {
-        let name_len = file.read_u32::<LittleEndian>()? as usize;
-        let mut raw_name = vec![Default::default(); name_len];
-        file.read_exact(raw_name.as_mut_slice())?;
-
-        let mut node = VisitorNode {
-            name: String::from_utf8(raw_name)?,
-            ..VisitorNode::default()
-        };
-
-        let field_count = file.read_u32::<LittleEndian>()? as usize;
-        for _ in 0..field_count {
-            let field = Field::load(file)?;
-            node.fields.push(field);
-        }
-
-        let child_count = file.read_u32::<LittleEndian>()? as usize;
-        let mut children = Vec::with_capacity(child_count);
-        for _ in 0..child_count {
-            children.push(self.load_node_binary(file)?);
-        }
-
-        node.children.clone_from(&children);
-
-        let handle = self.nodes.spawn(node);
-        for child_handle in children.iter() {
-            let child = self.nodes.borrow_mut(*child_handle);
-            child.parent = handle;
-        }
-
-        Ok(handle)
-    }
-
     /// Create a visitor by reading data from the file at the given path,
     /// assuming that the file was created using [Visitor::save_binary].
     /// Return a [VisitError::NotSupportedFormat] if [Visitor::MAGIC] is not the first bytes read from the file.
@@ -551,25 +508,9 @@ impl Visitor {
     /// by [Visitor::save_binary_to_vec].
     /// Return a [VisitError::NotSupportedFormat] if [Visitor::MAGIC] is not the first bytes read from the slice.
     pub fn load_from_memory(data: &[u8]) -> Result<Self, VisitError> {
-        let mut reader = Cursor::new(data);
-        let mut magic: [u8; 4] = Default::default();
-        reader.read_exact(&mut magic)?;
-        if !magic.eq(Self::MAGIC.as_bytes()) {
-            return Err(VisitError::NotSupportedFormat);
-        }
-        let mut visitor = Self {
-            nodes: Pool::new(),
-            rc_map: Default::default(),
-            arc_map: Default::default(),
-            reading: true,
-            current_node: Handle::NONE,
-            root: Handle::NONE,
-            blackboard: Blackboard::new(),
-            flags: VisitorFlags::NONE,
-        };
-        visitor.root = visitor.load_node_binary(&mut reader)?;
-        visitor.current_node = visitor.root;
-        Ok(visitor)
+        let mut src = Cursor::new(data);
+        let reader = BinaryReader::default();
+        reader.read(&mut src)
     }
 }
 
