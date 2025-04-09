@@ -870,6 +870,11 @@ impl ResourceManagerState {
 
     /// Tries to reload a resource at the given path.
     pub fn try_reload_resource_from_path(&mut self, path: &Path) -> bool {
+        // Do not try to reload unsupported resources.
+        if !self.loaders.lock().is_supported_resource(path) {
+            return false;
+        }
+
         let mut registry = self.resource_registry.lock();
         let mut ctx = registry.modify();
         if let Some(uuid) = ctx.unregister_path(path) {
