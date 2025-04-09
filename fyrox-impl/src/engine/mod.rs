@@ -1822,6 +1822,14 @@ impl Engine {
         lag: &mut f32,
         switches: FxHashMap<Handle<Scene>, GraphUpdateSwitches>,
     ) {
+        // Run some plugin and script methods, potentially causing nodes to be added
+        // or removed. This is where most of the rules of the game happen.
+        self.update_plugins(dt, controller, lag);
+        self.handle_scripts(dt);
+
+        // Now that the plugins and scripts have made whatever changes are needed, we must respond
+        // to those changes by updating the scenes and the state of the engine.
+
         self.resource_manager.state().update(dt);
         self.handle_model_events();
 
@@ -1854,9 +1862,6 @@ impl Engine {
                 switches.get(&handle).cloned().unwrap_or_default(),
             );
         }
-
-        self.update_plugins(dt, controller, lag);
-        self.handle_scripts(dt);
     }
 
     /// Performs post update for the engine.
