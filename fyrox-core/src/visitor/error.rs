@@ -1,0 +1,143 @@
+// Copyright (c) 2019-present Dmitry Stepanov and Fyrox Engine contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+use crate::io::FileError;
+use std::{
+    error::Error,
+    fmt::{Display, Formatter},
+    string::FromUtf8Error,
+};
+
+/// Errors that may occur while reading or writing [Visitor].
+#[derive(Debug)]
+pub enum VisitError {
+    /// An [std::io::Error] occured while reading or writing a file with Visitor data.
+    Io(std::io::Error),
+    /// When a field is encoded as bytes, the field data is prefixed by an identifying byte
+    /// to allow the bytes to be decoded. This error happens when an identifying byte is
+    /// expected during decoding, but an unknown value is found in that byte.
+    UnknownFieldType(u8),
+    /// Attempting to visit a field on a read-mode Visitor when no field in the visitor data
+    /// has the given name.
+    FieldDoesNotExist(String),
+    /// Attempting to visit a field on a write-mode Visitor when a field already has the
+    /// given name.
+    FieldAlreadyExists(String),
+    /// Attempting to enter a region on a write-mode Visitor when a region already has the
+    /// given name.
+    RegionAlreadyExists(String),
+    InvalidCurrentNode,
+    /// Attempting to visit a field using a read-mode Visitor when when that field was originally
+    /// written using a value of a different type.
+    FieldTypeDoesNotMatch,
+    /// Attempting to enter a region on a read-mode Visitor when no region in the visitor's data
+    /// has the given name.
+    RegionDoesNotExist(String),
+    /// The Visitor tried to leave is current node, but somehow it had no current node. This should never happen.
+    NoActiveNode,
+    /// The [Visitor::MAGIC] bytes were missing from the beginning of encoded Visitor data.
+    NotSupportedFormat,
+    /// Some sequence of bytes was not in UTF8 format.
+    InvalidName,
+    /// Visitor data can be self-referential, such as when the data contains multiple [Rc] references
+    /// to a single shared value. This causes the visitor to store the data once and then later references
+    /// to the same value point back to its first occurrence. This error occurs if one of these references
+    /// points to a value of the wrong type.
+    TypeMismatch,
+    /// Attempting to visit a mutably borrowed RefCell.
+    RefCellAlreadyMutableBorrowed,
+    /// A plain-text error message that could indicate almost anything.
+    User(String),
+    /// [Rc] and [Arc] values store an "Id" value in the Visitor data which is based in their internal pointer.
+    /// This error indicates that while reading this data, one of those Id values was discovered by be 0.
+    UnexpectedRcNullIndex,
+    /// A poison error occurred while trying to visit a mutex.
+    PoisonedMutex,
+    /// A FileLoadError was encountered while trying to decode Visitor data from a file.
+    FileLoadError(FileError),
+}
+
+impl Error for VisitError {}
+
+impl Display for VisitError {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            Self::Io(io) => write!(f, "io error: {io}"),
+            Self::UnknownFieldType(type_index) => write!(f, "unknown field type {type_index}"),
+            Self::FieldDoesNotExist(name) => write!(f, "field does not exists {name}"),
+            Self::FieldAlreadyExists(name) => write!(f, "field already exists {name}"),
+            Self::RegionAlreadyExists(name) => write!(f, "region already exists {name}"),
+            Self::InvalidCurrentNode => write!(f, "invalid current node"),
+            Self::FieldTypeDoesNotMatch => write!(f, "field type does not match"),
+            Self::RegionDoesNotExist(name) => write!(f, "region does not exists {name}"),
+            Self::NoActiveNode => write!(f, "no active node"),
+            Self::NotSupportedFormat => write!(f, "not supported format"),
+            Self::InvalidName => write!(f, "invalid name"),
+            Self::TypeMismatch => write!(f, "type mismatch"),
+            Self::RefCellAlreadyMutableBorrowed => write!(f, "ref cell already mutable borrowed"),
+            Self::User(msg) => write!(f, "user defined error: {msg}"),
+            Self::UnexpectedRcNullIndex => write!(f, "unexpected rc null index"),
+            Self::PoisonedMutex => write!(f, "attempt to lock poisoned mutex"),
+            Self::FileLoadError(e) => write!(f, "file load error: {e:?}"),
+        }
+    }
+}
+
+impl<T> From<std::sync::PoisonError<std::sync::MutexGuard<'_, T>>> for VisitError {
+    fn from(_: std::sync::PoisonError<std::sync::MutexGuard<'_, T>>) -> Self {
+        Self::PoisonedMutex
+    }
+}
+
+impl<T> From<std::sync::PoisonError<&mut T>> for VisitError {
+    fn from(_: std::sync::PoisonError<&mut T>) -> Self {
+        Self::PoisonedMutex
+    }
+}
+
+impl<T> From<std::sync::PoisonError<std::sync::RwLockWriteGuard<'_, T>>> for VisitError {
+    fn from(_: std::sync::PoisonError<std::sync::RwLockWriteGuard<'_, T>>) -> Self {
+        Self::PoisonedMutex
+    }
+}
+
+impl From<std::io::Error> for VisitError {
+    fn from(io_err: std::io::Error) -> Self {
+        Self::Io(io_err)
+    }
+}
+
+impl From<FromUtf8Error> for VisitError {
+    fn from(_: FromUtf8Error) -> Self {
+        Self::InvalidName
+    }
+}
+
+impl From<String> for VisitError {
+    fn from(s: String) -> Self {
+        Self::User(s)
+    }
+}
+
+impl From<FileError> for VisitError {
+    fn from(e: FileError) -> Self {
+        Self::FileLoadError(e)
+    }
+}

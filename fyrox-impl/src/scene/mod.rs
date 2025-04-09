@@ -58,7 +58,7 @@ use crate::{
         log::{Log, MessageKind},
         pool::{Handle, Pool, Ticket},
         reflect::prelude::*,
-        visitor::{Visit, VisitError, VisitResult, Visitor},
+        visitor::{Visit, VisitResult, Visitor},
     },
     engine::SerializationContext,
     graph::NodeHandleMap,
@@ -78,6 +78,7 @@ use asset::io::ResourceIo;
 use fxhash::FxHashSet;
 
 use fyrox_core::variable::InheritableVariable;
+use fyrox_core::visitor::error::VisitError;
 use fyrox_resource::registry::ResourceRegistryStatus;
 use std::{
     fmt::{Display, Formatter},

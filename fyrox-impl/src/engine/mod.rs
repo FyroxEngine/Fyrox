@@ -46,7 +46,6 @@ use crate::{
         reflect::Reflect,
         task::TaskPool,
         variable::try_inherit_properties,
-        visitor::VisitError,
     },
     engine::{error::EngineError, task::TaskPoolHandler},
     event::Event,
@@ -104,6 +103,7 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
+use fyrox_core::visitor::error::VisitError;
 use fyrox_graphics::{gl::server::GlGraphicsServer, server::SharedGraphicsServer};
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},

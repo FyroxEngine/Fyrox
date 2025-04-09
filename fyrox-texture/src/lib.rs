@@ -44,6 +44,8 @@ use ddsfile::{Caps2, D3DFormat};
 use fast_image_resize as fr;
 use fast_image_resize::ResizeOptions;
 use fxhash::FxHasher;
+use fyrox_core::visitor::error::VisitError;
+use fyrox_core::visitor::pod::PodVecView;
 use fyrox_core::{
     algebra::{Vector2, Vector3},
     futures::io::Error,
@@ -54,7 +56,7 @@ use fyrox_core::{
     uuid,
     uuid::Uuid,
     uuid_provider,
-    visitor::{PodVecView, Visit, VisitError, VisitResult, Visitor},
+    visitor::{Visit, VisitResult, Visitor},
     TypeUuidProvider,
 };
 use fyrox_resource::{

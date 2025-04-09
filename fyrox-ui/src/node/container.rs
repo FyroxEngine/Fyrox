@@ -27,10 +27,11 @@ use crate::{
         pool::PayloadContainer,
         reflect::prelude::*,
         uuid::Uuid,
-        visitor::{Visit, VisitError, VisitResult, Visitor},
+        visitor::{Visit, VisitResult, Visitor},
     },
     UiNode,
 };
+use fyrox_core::visitor::error::VisitError;
 
 /// A wrapper for widget pool record that allows to define custom visit method to have full
 /// control over instantiation process at deserialization.

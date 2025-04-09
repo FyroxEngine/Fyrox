@@ -51,7 +51,7 @@ use crate::{
         uuid::Uuid,
         uuid_provider,
         variable::InheritableVariable,
-        visitor::{Visit, VisitError, VisitResult, Visitor},
+        visitor::{Visit, VisitResult, Visitor},
         NameProvider, TypeUuidProvider,
     },
     engine::SerializationContext,
@@ -66,6 +66,7 @@ use crate::{
 use fxhash::FxHashMap;
 use fyrox_core::algebra::Point3;
 use fyrox_core::math;
+use fyrox_core::visitor::error::VisitError;
 use fyrox_ui::{UiNode, UserInterface};
 use serde::{Deserialize, Serialize};
 use std::{

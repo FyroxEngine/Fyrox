@@ -33,7 +33,7 @@ use crate::{
         type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
-        visitor::{prelude::*, PodVecView},
+        visitor::prelude::*,
     },
     material::MaterialResourceExtension,
     material::{Material, MaterialProperty, MaterialResource},
@@ -78,6 +78,7 @@ mod quadtree;
 
 use crate::scene::node::constructor::NodeConstructor;
 pub use brushstroke::*;
+use fyrox_core::visitor::pod::PodVecView;
 use fyrox_graph::constructor::ConstructorProvider;
 
 /// Current implementation version marker.

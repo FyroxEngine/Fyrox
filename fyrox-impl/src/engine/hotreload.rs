@@ -24,7 +24,7 @@ use crate::{
     core::{
         log::Log,
         pool::{Handle, PayloadContainer, Ticket},
-        visitor::{Visit, VisitError, Visitor, VisitorFlags},
+        visitor::{Visit, Visitor, VisitorFlags},
     },
     engine::SerializationContext,
     gui::constructor::WidgetConstructorContainer,
@@ -37,6 +37,7 @@ use crate::{
     },
     script::Script,
 };
+use fyrox_core::visitor::error::VisitError;
 use std::{
     ops::Deref,
     sync::{mpsc::Sender, Arc},

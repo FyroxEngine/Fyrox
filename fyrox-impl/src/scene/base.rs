@@ -31,7 +31,7 @@ use crate::{
         reflect::prelude::*,
         type_traits::prelude::*,
         variable::InheritableVariable,
-        visitor::{Visit, VisitError, VisitResult, Visitor},
+        visitor::{Visit, VisitResult, Visitor},
         ImmutableString,
     },
     engine::SerializationContext,
@@ -41,6 +41,7 @@ use crate::{
     script::{Script, ScriptTrait},
 };
 use fyrox_core::algebra::UnitQuaternion;
+use fyrox_core::visitor::error::VisitError;
 use serde::{Deserialize, Serialize};
 use std::{
     any::Any,

@@ -27,11 +27,7 @@ pub mod dylib;
 use crate::engine::ApplicationLoopController;
 use crate::{
     asset::manager::ResourceManager,
-    core::{
-        pool::Handle,
-        reflect::Reflect,
-        visitor::{Visit, VisitError},
-    },
+    core::{pool::Handle, reflect::Reflect, visitor::Visit},
     engine::{
         task::TaskPoolHandler, AsyncSceneLoader, GraphicsContext, PerformanceStatistics,
         ScriptProcessor, SerializationContext,
@@ -44,6 +40,7 @@ use crate::{
     scene::{Scene, SceneContainer},
 };
 use fyrox_core::define_as_any_trait;
+use fyrox_core::visitor::error::VisitError;
 use std::{
     ops::{Deref, DerefMut},
     path::Path,

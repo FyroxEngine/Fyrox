@@ -21,11 +21,12 @@
 //! Contains all types related to shared style resource.
 
 use crate::style::{IntoPrimitive, Style, StyleProperty, StyledProperty};
+use fyrox_core::visitor::error::VisitError;
 use fyrox_core::{
     io::FileError,
     log::Log,
     type_traits::prelude::*,
-    visitor::{prelude::*, VisitError, Visitor},
+    visitor::{prelude::*, Visitor},
     ImmutableString, Uuid,
 };
 use fyrox_resource::{
