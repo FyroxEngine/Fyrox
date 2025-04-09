@@ -631,6 +631,7 @@ where
         free_handles.extend(
             self.free_stack
                 .iter()
+                .rev()
                 .take(amount)
                 .map(|i| Handle::new(*i, self.records[*i as usize].generation + 1)),
         );
@@ -1950,5 +1951,29 @@ mod test {
         assert_eq!(pool[h2], 2);
         assert_eq!(pool[h3], 3);
         assert_eq!(pool[h4], 4);
+    }
+
+    #[test]
+    fn test_spawn_consistent_with_generate_free_handles() {
+        let mut pool = Pool::<u32>::new();
+
+        let _ = pool.spawn(42);
+        let b0 = pool.spawn(5);
+        let b1 = pool.spawn(6);
+        let b2 = pool.spawn(7);
+        let _ = pool.spawn(228);
+
+        pool.free(b0);
+        pool.free(b1);
+        pool.free(b2);
+
+        let free_handles = pool.generate_free_handles(5);
+
+        let mut spawn_handles = Vec::new();
+        for i in 0..5 {
+            spawn_handles.push(pool.spawn(i));
+        }
+
+        assert_eq!(free_handles, spawn_handles);
     }
 }
