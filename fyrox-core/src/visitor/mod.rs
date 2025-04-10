@@ -44,6 +44,7 @@ pub mod prelude {
     pub use crate::visitor::error::VisitError;
 }
 
+use crate::visitor::writer::AsciiWriter;
 use crate::{
     array_as_u8_slice_mut,
     io::{self},
@@ -428,40 +429,18 @@ impl Visitor {
         }
     }
 
-    fn print_node(
-        &self,
-        node_handle: Handle<VisitorNode>,
-        nesting: usize,
-        out_string: &mut String,
-    ) {
-        let offset = (0..nesting).map(|_| "\t").collect::<String>();
-        let node = self.nodes.borrow(node_handle);
-        *out_string += format!(
-            "{}{}[Fields={}, Children={}]: ",
-            offset,
-            node.name,
-            node.fields.len(),
-            node.children.len()
-        )
-        .as_str();
-        for field in node.fields.iter() {
-            *out_string += field.as_string().as_str();
-        }
-
-        *out_string += "\n";
-
-        for child_handle in node.children.iter() {
-            self.print_node(*child_handle, nesting + 1, out_string);
-        }
-    }
-
     /// Create a String containing all the data of this Visitor.
     /// The String is formatted to be human-readable with each node on its own line
     /// and tabs to indent child nodes.
     pub fn save_text(&self) -> String {
-        let mut out_string = String::new();
-        self.print_node(self.root, 0, &mut out_string);
-        out_string
+        let mut cursor = Cursor::<Vec<u8>>::default();
+        self.save_ascii(&mut cursor).unwrap();
+        String::from_utf8(cursor.into_inner()).unwrap()
+    }
+
+    pub fn save_ascii<W: Write>(&self, mut dest: W) -> VisitResult {
+        let writer = AsciiWriter::default();
+        writer.write(self, &mut dest)
     }
 
     /// Write the data of this Visitor to the given writer.
@@ -516,13 +495,8 @@ impl Visitor {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::visitor::{BinaryBlob, Visit, VisitResult, Visitor};
-    use nalgebra::{
-        Matrix2, Matrix3, Matrix4, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4,
-    };
     use std::{fs::File, io::Write, path::Path, rc::Rc};
-    use uuid::Uuid;
 
     #[derive(Visit, Default)]
     pub struct Model {
@@ -624,188 +598,5 @@ mod test {
             let mut objects: Vec<Foo> = Vec::new();
             objects.visit("Objects", &mut visitor).unwrap();
         }
-    }
-
-    #[test]
-    fn field_kind_as_string() {
-        assert_eq!(
-            FieldKind::Bool(true).as_string(),
-            "<bool = true>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::BinaryBlob(Vec::<u8>::new()).as_string(),
-            "<data = >, ".to_string()
-        );
-
-        assert_eq!(FieldKind::F32(0.0).as_string(), "<f32 = 0>, ".to_string());
-        assert_eq!(FieldKind::F64(0.0).as_string(), "<f64 = 0>, ".to_string());
-
-        assert_eq!(FieldKind::I8(0).as_string(), "<i8 = 0>, ".to_string());
-        assert_eq!(FieldKind::I16(0).as_string(), "<i16 = 0>, ".to_string());
-        assert_eq!(FieldKind::I32(0).as_string(), "<i32 = 0>, ".to_string());
-        assert_eq!(FieldKind::I64(0).as_string(), "<i64 = 0>, ".to_string());
-
-        assert_eq!(
-            FieldKind::Matrix2(Matrix2::default()).as_string(),
-            "<mat2 = 0; 0; 0; 0; ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Matrix3(Matrix3::default()).as_string(),
-            "<mat3 = 0; 0; 0; 0; 0; 0; 0; 0; 0; ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Matrix4(Matrix4::default()).as_string(),
-            "<mat4 = 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; ".to_string()
-        );
-        assert_eq!(
-            FieldKind::PodArray {
-                type_id: 0,
-                element_size: 0,
-                bytes: Vec::new()
-            }
-            .as_string(),
-            "<podarray = 0; 0; []>".to_string()
-        );
-
-        assert_eq!(FieldKind::U8(0).as_string(), "<u8 = 0>, ".to_string());
-        assert_eq!(FieldKind::U16(0).as_string(), "<u16 = 0>, ".to_string());
-        assert_eq!(FieldKind::U32(0).as_string(), "<u32 = 0>, ".to_string());
-        assert_eq!(FieldKind::U64(0).as_string(), "<u64 = 0>, ".to_string());
-
-        assert_eq!(
-            FieldKind::UnitComplex(UnitComplex::default()).as_string(),
-            "<complex = 1; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::UnitQuaternion(UnitQuaternion::default()).as_string(),
-            "<quat = 0; 0; 0; 1>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Uuid(Uuid::default()).as_string(),
-            "<uuid = 00000000-0000-0000-0000-000000000000".to_string()
-        );
-
-        assert_eq!(
-            FieldKind::Vector2F32(Vector2::new(0.0, 0.0)).as_string(),
-            "<vec2f32 = 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector2F64(Vector2::new(0.0, 0.0)).as_string(),
-            "<vec2f64 = 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector2U8(Vector2::new(0, 0)).as_string(),
-            "<vec2u8 = 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector2U16(Vector2::new(0, 0)).as_string(),
-            "<vec2u16 = 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector2U32(Vector2::new(0, 0)).as_string(),
-            "<vec2u32 = 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector2U64(Vector2::new(0, 0)).as_string(),
-            "<vec2u64 = 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector2I8(Vector2::new(0, 0)).as_string(),
-            "<vec2i8 = 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector2I16(Vector2::new(0, 0)).as_string(),
-            "<vec2i16 = 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector2I32(Vector2::new(0, 0)).as_string(),
-            "<vec2i32 = 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector2I64(Vector2::new(0, 0)).as_string(),
-            "<vec2i64 = 0; 0>, ".to_string()
-        );
-
-        assert_eq!(
-            FieldKind::Vector3F32(Vector3::new(0.0, 0.0, 0.0)).as_string(),
-            "<vec3f32 = 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector3F64(Vector3::new(0.0, 0.0, 0.0)).as_string(),
-            "<vec3f64 = 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector3U8(Vector3::new(0, 0, 0)).as_string(),
-            "<vec3u8 = 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector3U16(Vector3::new(0, 0, 0)).as_string(),
-            "<vec3u16 = 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector3U32(Vector3::new(0, 0, 0)).as_string(),
-            "<vec3u32 = 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector3U64(Vector3::new(0, 0, 0)).as_string(),
-            "<vec3u64 = 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector3I8(Vector3::new(0, 0, 0)).as_string(),
-            "<vec3i8 = 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector3I16(Vector3::new(0, 0, 0)).as_string(),
-            "<vec3i16 = 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector3I32(Vector3::new(0, 0, 0)).as_string(),
-            "<vec3i32 = 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector3I64(Vector3::new(0, 0, 0)).as_string(),
-            "<vec3i64 = 0; 0; 0>, ".to_string()
-        );
-
-        assert_eq!(
-            FieldKind::Vector4F32(Vector4::new(0.0, 0.0, 0.0, 0.0)).as_string(),
-            "<vec4f32 = 0; 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector4F64(Vector4::new(0.0, 0.0, 0.0, 0.0)).as_string(),
-            "<vec4f64 = 0; 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector4U8(Vector4::new(0, 0, 0, 0)).as_string(),
-            "<vec4u8 = 0; 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector4U16(Vector4::new(0, 0, 0, 0)).as_string(),
-            "<vec4u16 = 0; 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector4U32(Vector4::new(0, 0, 0, 0)).as_string(),
-            "<vec4u32 = 0; 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector4U64(Vector4::new(0, 0, 0, 0)).as_string(),
-            "<vec4u64 = 0; 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector4I8(Vector4::new(0, 0, 0, 0)).as_string(),
-            "<vec4i8 = 0; 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector4I16(Vector4::new(0, 0, 0, 0)).as_string(),
-            "<vec4i16 = 0; 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector4I32(Vector4::new(0, 0, 0, 0)).as_string(),
-            "<vec4i32 = 0; 0; 0; 0>, ".to_string()
-        );
-        assert_eq!(
-            FieldKind::Vector4I64(Vector4::new(0, 0, 0, 0)).as_string(),
-            "<vec4i64 = 0; 0; 0; 0>, ".to_string()
-        );
     }
 }

@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use base64::Engine;
 use nalgebra::{Matrix2, Matrix3, Matrix4, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4};
 use uuid::Uuid;
 
@@ -100,153 +99,6 @@ pub enum FieldKind {
     Vector4I64(Vector4<i64>),
 }
 
-impl FieldKind {
-    pub fn as_string(&self) -> String {
-        match self {
-            Self::Bool(data) => format!("<bool = {data}>, "),
-            Self::U8(data) => format!("<u8 = {data}>, "),
-            Self::I8(data) => format!("<i8 = {data}>, "),
-            Self::U16(data) => format!("<u16 = {data}>, "),
-            Self::I16(data) => format!("<i16 = {data}>, "),
-            Self::U32(data) => format!("<u32 = {data}>, "),
-            Self::I32(data) => format!("<i32 = {data}>, "),
-            Self::U64(data) => format!("<u64 = {data}>, "),
-            Self::I64(data) => format!("<i64 = {data}>, "),
-            Self::F32(data) => format!("<f32 = {data}>, "),
-            Self::F64(data) => format!("<f64 = {data}>, "),
-            Self::Vector2F32(data) => format!("<vec2f32 = {}; {}>, ", data.x, data.y),
-            Self::Vector3F32(data) => format!("<vec3f32 = {}; {}; {}>, ", data.x, data.y, data.z),
-            Self::Vector4F32(data) => {
-                format!(
-                    "<vec4f32 = {}; {}; {}; {}>, ",
-                    data.x, data.y, data.z, data.w
-                )
-            }
-            Self::Vector2F64(data) => format!("<vec2f64 = {}; {}>, ", data.x, data.y),
-            Self::Vector3F64(data) => format!("<vec3f64 = {}; {}; {}>, ", data.x, data.y, data.z),
-            Self::Vector4F64(data) => {
-                format!(
-                    "<vec4f64 = {}; {}; {}; {}>, ",
-                    data.x, data.y, data.z, data.w
-                )
-            }
-            Self::Vector2I8(data) => format!("<vec2i8 = {}; {}>, ", data.x, data.y),
-            Self::Vector3I8(data) => format!("<vec3i8 = {}; {}; {}>, ", data.x, data.y, data.z),
-            Self::Vector4I8(data) => {
-                format!(
-                    "<vec4i8 = {}; {}; {}; {}>, ",
-                    data.x, data.y, data.z, data.w
-                )
-            }
-            Self::Vector2U8(data) => format!("<vec2u8 = {}; {}>, ", data.x, data.y),
-            Self::Vector3U8(data) => format!("<vec3u8 = {}; {}; {}>, ", data.x, data.y, data.z),
-            Self::Vector4U8(data) => {
-                format!(
-                    "<vec4u8 = {}; {}; {}; {}>, ",
-                    data.x, data.y, data.z, data.w
-                )
-            }
-
-            Self::Vector2I16(data) => format!("<vec2i16 = {}; {}>, ", data.x, data.y),
-            Self::Vector3I16(data) => format!("<vec3i16 = {}; {}; {}>, ", data.x, data.y, data.z),
-            Self::Vector4I16(data) => {
-                format!(
-                    "<vec4i16 = {}; {}; {}; {}>, ",
-                    data.x, data.y, data.z, data.w
-                )
-            }
-            Self::Vector2U16(data) => format!("<vec2u16 = {}; {}>, ", data.x, data.y),
-            Self::Vector3U16(data) => format!("<vec3u16 = {}; {}; {}>, ", data.x, data.y, data.z),
-            Self::Vector4U16(data) => {
-                format!(
-                    "<vec4u16 = {}; {}; {}; {}>, ",
-                    data.x, data.y, data.z, data.w
-                )
-            }
-
-            Self::Vector2I32(data) => format!("<vec2i32 = {}; {}>, ", data.x, data.y),
-            Self::Vector3I32(data) => format!("<vec3i32 = {}; {}; {}>, ", data.x, data.y, data.z),
-            Self::Vector4I32(data) => {
-                format!(
-                    "<vec4i32 = {}; {}; {}; {}>, ",
-                    data.x, data.y, data.z, data.w
-                )
-            }
-            Self::Vector2U32(data) => format!("<vec2u32 = {}; {}>, ", data.x, data.y),
-            Self::Vector3U32(data) => format!("<vec3u32 = {}; {}; {}>, ", data.x, data.y, data.z),
-            Self::Vector4U32(data) => {
-                format!(
-                    "<vec4u32 = {}; {}; {}; {}>, ",
-                    data.x, data.y, data.z, data.w
-                )
-            }
-
-            Self::Vector2I64(data) => format!("<vec2i64 = {}; {}>, ", data.x, data.y),
-            Self::Vector3I64(data) => format!("<vec3i64 = {}; {}; {}>, ", data.x, data.y, data.z),
-            Self::Vector4I64(data) => {
-                format!(
-                    "<vec4i64 = {}; {}; {}; {}>, ",
-                    data.x, data.y, data.z, data.w
-                )
-            }
-            Self::Vector2U64(data) => format!("<vec2u64 = {}; {}>, ", data.x, data.y),
-            Self::Vector3U64(data) => format!("<vec3u64 = {}; {}; {}>, ", data.x, data.y, data.z),
-            Self::Vector4U64(data) => {
-                format!(
-                    "<vec4u64 = {}; {}; {}; {}>, ",
-                    data.x, data.y, data.z, data.w
-                )
-            }
-
-            Self::UnitQuaternion(data) => {
-                format!("<quat = {}; {}; {}; {}>, ", data.i, data.j, data.k, data.w)
-            }
-            Self::Matrix4(data) => {
-                let mut out = String::from("<mat4 = ");
-                for f in data.iter() {
-                    out += format!("{f}; ").as_str();
-                }
-                out
-            }
-            Self::BinaryBlob(data) => {
-                let out = match String::from_utf8(data.clone()) {
-                    Ok(s) => s,
-                    Err(_) => base64::engine::general_purpose::STANDARD.encode(data),
-                };
-                format!("<data = {out}>, ")
-            }
-            Self::Matrix3(data) => {
-                let mut out = String::from("<mat3 = ");
-                for f in data.iter() {
-                    out += format!("{f}; ").as_str();
-                }
-                out
-            }
-            Self::Uuid(uuid) => {
-                format!("<uuid = {uuid}")
-            }
-            Self::UnitComplex(data) => {
-                format!("<complex = {}; {}>, ", data.re, data.im)
-            }
-            FieldKind::PodArray {
-                type_id,
-                element_size,
-                bytes,
-            } => {
-                let base64_encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
-                format!("<podarray = {type_id}; {element_size}; [{base64_encoded}]>")
-            }
-            Self::Matrix2(data) => {
-                let mut out = String::from("<mat2 = ");
-                for f in data.iter() {
-                    out += format!("{f}; ").as_str();
-                }
-                out
-            }
-        }
-    }
-}
-
 /// Values within a visitor are constructed from Fields.
 /// Each Field has a name and a value. The name is used as a key to access the value
 /// within the visitor using the [Visit::visit] method, so each field within a value
@@ -264,9 +116,5 @@ impl Field {
             name: name.to_owned(),
             kind,
         }
-    }
-
-    pub fn as_string(&self) -> String {
-        format!("{}{}", self.name, self.kind.as_string())
     }
 }
