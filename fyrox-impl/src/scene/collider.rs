@@ -52,6 +52,7 @@ use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
 use rapier3d::geometry::{self, ColliderHandle};
+use std::fmt::Write;
 use std::{
     cell::Cell,
     ops::{Add, BitAnd, BitOr, Deref, DerefMut, Mul, Not, Shl},
@@ -223,10 +224,34 @@ pub struct ConvexPolyhedronShape {
 }
 
 /// A set of bits used for pairwise collision filtering.
-#[derive(Clone, Copy, Default, PartialEq, Debug, Reflect, Eq)]
+#[derive(Clone, Copy, Default, PartialEq, Reflect, Eq)]
 pub struct BitMask(pub u32);
 
 uuid_provider!(BitMask = "f2db0c2a-921b-4728-9ce4-2506d95c60fa");
+
+impl std::fmt::Debug for BitMask {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "BitMask({:08x})", self.0)
+    }
+}
+
+impl std::fmt::Display for BitMask {
+    /// Represent the bit mask in the same way it is shown in the editor, with bit 0 on the left and bit 31 on the right.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut value = self.0;
+        for i in 0..4 {
+            if i != 0 {
+                f.write_char(' ')?;
+            }
+            for _ in 0..8 {
+                let bit = if value & 1 == 1 { '1' } else { '0' };
+                value >>= 1;
+                f.write_char(bit)?;
+            }
+        }
+        Ok(())
+    }
+}
 
 impl Visit for BitMask {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -344,6 +369,12 @@ impl InteractionGroups {
             memberships,
             filter,
         }
+    }
+}
+
+impl std::fmt::Display for InteractionGroups {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} (filter: {})", self.memberships, self.filter)
     }
 }
 
@@ -1013,7 +1044,7 @@ impl ColliderBuilder {
         self
     }
 
-    /// Sets desired friction value.    
+    /// Sets desired friction value.
     pub fn with_friction(mut self, friction: f32) -> Self {
         self.friction = friction;
         self
@@ -1025,7 +1056,7 @@ impl ColliderBuilder {
         self
     }
 
-    /// Sets desired solver groups.    
+    /// Sets desired solver groups.
     pub fn with_solver_groups(mut self, solver_groups: InteractionGroups) -> Self {
         self.solver_groups = solver_groups;
         self
@@ -1079,6 +1110,7 @@ impl ColliderBuilder {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use crate::core::algebra::Vector2;
     use crate::scene::{
         base::BaseBuilder,
@@ -1147,5 +1179,36 @@ mod test {
                 .intersects(&graph.physics)
                 .count()
         );
+    }
+    #[test]
+    fn test_bitmask_display() {
+        assert_eq!(
+            BitMask(1).to_string(),
+            "10000000 00000000 00000000 00000000"
+        );
+        assert_eq!(
+            BitMask(15).to_string(),
+            "11110000 00000000 00000000 00000000"
+        );
+        assert_eq!(
+            BitMask(16).to_string(),
+            "00001000 00000000 00000000 00000000"
+        );
+        assert_eq!(
+            BitMask(256).to_string(),
+            "00000000 10000000 00000000 00000000"
+        );
+        assert_eq!(
+            BitMask(1 << 31).to_string(),
+            "00000000 00000000 00000000 00000001"
+        );
+    }
+    #[test]
+    fn test_bitmask_debug() {
+        assert_eq!(format!("{:?}", BitMask(1)), "BitMask(00000001)");
+        assert_eq!(format!("{:?}", BitMask(15)), "BitMask(0000000f)");
+        assert_eq!(format!("{:?}", BitMask(16)), "BitMask(00000010)");
+        assert_eq!(format!("{:?}", BitMask(256)), "BitMask(00000100)");
+        assert_eq!(format!("{:?}", BitMask(1 << 31)), "BitMask(80000000)");
     }
 }
