@@ -24,7 +24,7 @@ use std::{
     sync::Arc,
 };
 
-/// A Blackboard is a mapping from TypeId to value that allows a [Visitor] to store
+/// A Blackboard is a mapping from TypeId to value that allows a [`crate::visitor::Visitor`] to store
 /// a particular value for each registered type.
 #[derive(Default)]
 pub struct Blackboard {

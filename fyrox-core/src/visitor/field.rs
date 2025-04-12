@@ -21,10 +21,10 @@
 use nalgebra::{Matrix2, Matrix3, Matrix4, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4};
 use uuid::Uuid;
 
-/// The internal data format of [Visitor]. Fields are limited to being one of these types.
-/// This means that all [Visit] values must be built from some assortment
+/// The internal data format of [`crate::visitor::Visitor`]. Fields are limited to being one of these types.
+/// This means that all [`crate::visitor::Visit`] values must be built from some assortment
 /// of these types.
-/// Fields can be accessed from a visitor using [Visit::visit] on a variable with the
+/// Fields can be accessed from a visitor using [`crate::visitor::Visit::visit`] on a variable with the
 /// same type as the field.
 #[derive(PartialEq, Debug)]
 pub enum FieldKind {
@@ -47,10 +47,10 @@ pub enum FieldKind {
     Matrix3(Matrix3<f32>),
     Uuid(Uuid),
     UnitComplex(UnitComplex<f32>),
-    /// A representation for arrays of [Pod] types as a `Vec<u8>`.
+    /// A representation for arrays of [`crate::visitor::pod::Pod`] types as a `Vec<u8>`.
     PodArray {
         /// A code to identify the Pod type of the elements of the array.
-        /// Taken from [Pod::type_id].
+        /// Taken from [`crate::visitor::pod::Pod::type_id`].
         type_id: u8,
         /// The number of bytes in each array element.
         element_size: u32,
@@ -102,7 +102,7 @@ pub enum FieldKind {
 
 /// Values within a visitor are constructed from Fields.
 /// Each Field has a name and a value. The name is used as a key to access the value
-/// within the visitor using the [Visit::visit] method, so each field within a value
+/// within the visitor using the [`crate::Visit::visit`] method, so each field within a value
 /// must have a unique name.
 #[derive(PartialEq, Debug)]
 pub struct Field {

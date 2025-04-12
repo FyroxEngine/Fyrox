@@ -415,6 +415,7 @@ impl ResourceManagerState {
             // WASM can only try to load the existing registry.
             #[cfg(target_arch = "wasm32")]
             {
+                use crate::registry::RegistryContainerExt;
                 // Then load the registry.
                 match crate::registry::RegistryContainer::load_from_file(&path, &*resource_io).await
                 {

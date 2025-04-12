@@ -27,7 +27,7 @@ use std::{
     string::FromUtf8Error,
 };
 
-/// Errors that may occur while reading or writing [Visitor].
+/// Errors that may occur while reading or writing [`crate::visitor::Visitor`].
 #[derive(Debug)]
 pub enum VisitError {
     /// An [std::io::Error] occured while reading or writing a file with Visitor data.
@@ -54,11 +54,12 @@ pub enum VisitError {
     RegionDoesNotExist(String),
     /// The Visitor tried to leave is current node, but somehow it had no current node. This should never happen.
     NoActiveNode,
-    /// The [Visitor::MAGIC] bytes were missing from the beginning of encoded Visitor data.
+    /// The [`crate::Visitor::MAGIC_BINARY`] or [`crate::Visitor::MAGIC_ASCII`] bytes were missing
+    /// from the beginning of encoded Visitor data.
     NotSupportedFormat,
     /// Some sequence of bytes was not in UTF8 format.
     InvalidName,
-    /// Visitor data can be self-referential, such as when the data contains multiple [Rc] references
+    /// Visitor data can be self-referential, such as when the data contains multiple `Rc` references
     /// to a single shared value. This causes the visitor to store the data once and then later references
     /// to the same value point back to its first occurrence. This error occurs if one of these references
     /// points to a value of the wrong type.
@@ -67,7 +68,7 @@ pub enum VisitError {
     RefCellAlreadyMutableBorrowed,
     /// A plain-text error message that could indicate almost anything.
     User(String),
-    /// [Rc] and [Arc] values store an "Id" value in the Visitor data which is based in their internal pointer.
+    /// `Rc` and `Arc` values store an "Id" value in the Visitor data which is based in their internal pointer.
     /// This error indicates that while reading this data, one of those Id values was discovered by be 0.
     UnexpectedRcNullIndex,
     /// A poison error occurred while trying to visit a mutex.

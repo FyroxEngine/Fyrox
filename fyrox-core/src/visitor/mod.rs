@@ -44,15 +44,13 @@ pub mod prelude {
     pub use crate::visitor::error::VisitError;
 }
 
-use crate::visitor::reader::AsciiReader;
-use crate::visitor::writer::AsciiWriter;
 use crate::{
     array_as_u8_slice_mut,
     io::{self},
     pool::{Handle, Pool},
     visitor::{
-        reader::{BinaryReader, Reader},
-        writer::{BinaryWriter, Writer},
+        reader::{AsciiReader, BinaryReader, Reader},
+        writer::{AsciiWriter, BinaryWriter, Writer},
     },
 };
 use bitflags::bitflags;
@@ -61,9 +59,9 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use error::VisitError;
 use field::{Field, FieldKind};
 use fxhash::FxHashMap;
-use std::fmt::{Debug, Formatter};
 use std::{
     any::Any,
+    fmt::{Debug, Formatter},
     fs::File,
     hash::Hash,
     io::{BufWriter, Cursor, Read, Write},
@@ -75,7 +73,7 @@ use std::{
 
 /// Proxy struct for plain data, we can't use `Vec<u8>` directly,
 /// because it will serialize each byte as separate node.
-/// BinaryBlob stores data very much like [PodVecView] except that BinaryBlob
+/// BinaryBlob stores data very much like [`crate::visitor::pod::PodVecView`] except that BinaryBlob
 /// has less type safety. In practice it is used with T = u8 for Strings and Paths,
 /// but it accepts any type T that is Copy, and it lacks the type_id system that
 /// PodVecView has for checking that the data it is reading comes from the expected type.
