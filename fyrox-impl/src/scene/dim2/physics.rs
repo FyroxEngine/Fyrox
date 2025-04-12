@@ -221,10 +221,25 @@ pub struct ContactPair {
     /// All contact manifold contain themselves contact points between the colliders.
     pub manifolds: Vec<ContactManifold>,
     /// Is there any active contact in this contact pair?
+    /// When false, this pair may just mean that bounding boxes are touching.
     pub has_any_active_contact: bool,
 }
 
 impl ContactPair {
+    /// Given the handle of a collider that is expected to be part of the collision,
+    /// return the other node involved in the collision.
+    /// Often one will have a list of contact pairs for some collider, but that collider
+    /// may be the first member of some pairs and the second member of other pairs.
+    /// This method simplifies determining which objects a collider has collided with.
+    #[inline]
+    pub fn other(&self, subject: Handle<Node>) -> Handle<Node> {
+        if subject == self.collider1 {
+            self.collider2
+        } else {
+            self.collider1
+        }
+    }
+
     fn from_native(c: &rapier2d::geometry::ContactPair, physics: &PhysicsWorld) -> Option<Self> {
         Some(ContactPair {
             collider1: Handle::decode_from_u128(physics.colliders.get(c.collider1)?.user_data),
@@ -276,7 +291,24 @@ pub struct IntersectionPair {
     /// The second collider involved in the contact pair.
     pub collider2: Handle<Node>,
     /// Is there any active contact in this contact pair?
+    /// When false, this pair may just mean that bounding boxes are touching.
     pub has_any_active_contact: bool,
+}
+
+impl IntersectionPair {
+    /// Given the handle of a collider that is expected to be part of the collision,
+    /// return the other node involved in the collision.
+    /// Often one will have a list of contact pairs for some collider, but that collider
+    /// may be the first member of some pairs and the second member of other pairs.
+    /// This method simplifies determining which objects a collider has collided with.
+    #[inline]
+    pub fn other(&self, subject: Handle<Node>) -> Handle<Node> {
+        if subject == self.collider1 {
+            self.collider2
+        } else {
+            self.collider1
+        }
+    }
 }
 
 pub(super) struct Container<S, A>
