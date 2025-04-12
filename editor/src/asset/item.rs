@@ -49,6 +49,7 @@ use crate::{
     Message,
 };
 
+use fyrox::gui::message::MouseButton;
 use fyrox::resource::texture::TextureResource;
 use std::{
     ops::{Deref, DerefMut},
@@ -211,7 +212,11 @@ impl Control for AssetItem {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(WidgetMessage::MouseDown { .. }) = message.data::<WidgetMessage>() {
+        if let Some(WidgetMessage::MouseDown {
+            button: MouseButton::Left,
+            ..
+        }) = message.data::<WidgetMessage>()
+        {
             if !message.handled() {
                 message.set_handled(true);
                 ui.send_message(AssetItemMessage::select(
