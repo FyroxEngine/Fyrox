@@ -19,6 +19,8 @@
 // SOFTWARE.
 
 use crate::io::FileError;
+use base64::DecodeError;
+use std::num::{ParseFloatError, ParseIntError};
 use std::{
     error::Error,
     fmt::{Display, Formatter},
@@ -72,6 +74,10 @@ pub enum VisitError {
     PoisonedMutex,
     /// A FileLoadError was encountered while trying to decode Visitor data from a file.
     FileLoadError(FileError),
+    ParseIntError(ParseIntError),
+    ParseFloatError(ParseFloatError),
+    DecodeError(DecodeError),
+    UuidError(uuid::Error),
 }
 
 impl Error for VisitError {}
@@ -96,6 +102,10 @@ impl Display for VisitError {
             Self::UnexpectedRcNullIndex => write!(f, "unexpected rc null index"),
             Self::PoisonedMutex => write!(f, "attempt to lock poisoned mutex"),
             Self::FileLoadError(e) => write!(f, "file load error: {e:?}"),
+            Self::ParseIntError(e) => write!(f, "unable to parse integer: {e:?}"),
+            Self::ParseFloatError(e) => write!(f, "unable to parse float: {e:?}"),
+            Self::DecodeError(e) => write!(f, "base64 decoding error: {e:?}"),
+            Self::UuidError(e) => write!(f, "uuid error: {e:?}"),
         }
     }
 }
@@ -139,5 +149,29 @@ impl From<String> for VisitError {
 impl From<FileError> for VisitError {
     fn from(e: FileError) -> Self {
         Self::FileLoadError(e)
+    }
+}
+
+impl From<ParseIntError> for VisitError {
+    fn from(value: ParseIntError) -> Self {
+        Self::ParseIntError(value)
+    }
+}
+
+impl From<ParseFloatError> for VisitError {
+    fn from(value: ParseFloatError) -> Self {
+        Self::ParseFloatError(value)
+    }
+}
+
+impl From<DecodeError> for VisitError {
+    fn from(value: DecodeError) -> Self {
+        Self::DecodeError(value)
+    }
+}
+
+impl From<uuid::Error> for VisitError {
+    fn from(value: uuid::Error) -> Self {
+        Self::UuidError(value)
     }
 }

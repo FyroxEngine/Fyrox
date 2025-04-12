@@ -432,7 +432,7 @@ impl Writer for AsciiWriter {
                 ref bytes,
             } => write!(
                 dest,
-                "<podarray:{type_id}; {element_size}; [{}]>",
+                "<podarray:{type_id}; {element_size}; {}>",
                 base64::engine::general_purpose::STANDARD.encode(bytes)
             )?,
             FieldKind::Matrix2(data) => {
@@ -465,7 +465,7 @@ impl Writer for AsciiWriter {
         writeln!(dest, "{}", node.name)?;
 
         align(hierarchy_level, dest)?;
-        write!(dest, "[")?;
+        write!(dest, "[{}:", node.fields.len())?;
 
         for field in node.fields.iter() {
             writeln!(dest)?;
@@ -479,7 +479,7 @@ impl Writer for AsciiWriter {
         writeln!(dest, "]")?;
 
         align(hierarchy_level, dest)?;
-        writeln!(dest, "{{")?;
+        writeln!(dest, "{{{}:", node.children.len())?;
 
         for child_handle in node.children.iter() {
             let child = visitor.nodes.borrow(*child_handle);

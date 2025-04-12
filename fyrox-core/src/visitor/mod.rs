@@ -488,8 +488,8 @@ impl Visitor {
     /// Return a [VisitError::NotSupportedFormat] if [Visitor::MAGIC] is not the first bytes read from the slice.
     pub fn load_from_memory(data: &[u8]) -> Result<Self, VisitError> {
         let mut src = Cursor::new(data);
-        let reader = BinaryReader::default();
-        reader.read(&mut src)
+        let mut reader = BinaryReader::new(&mut src);
+        reader.read()
     }
 }
 

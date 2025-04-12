@@ -26,6 +26,7 @@ use uuid::Uuid;
 /// of these types.
 /// Fields can be accessed from a visitor using [Visit::visit] on a variable with the
 /// same type as the field.
+#[derive(PartialEq, Debug)]
 pub enum FieldKind {
     Bool(bool),
     U8(u8),
@@ -103,6 +104,7 @@ pub enum FieldKind {
 /// Each Field has a name and a value. The name is used as a key to access the value
 /// within the visitor using the [Visit::visit] method, so each field within a value
 /// must have a unique name.
+#[derive(PartialEq, Debug)]
 pub struct Field {
     /// The key string that allows access to the field.
     pub name: String,
