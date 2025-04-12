@@ -280,7 +280,7 @@ impl Writer for BinaryWriter {
     }
 
     fn write(&self, visitor: &Visitor, dest: &mut dyn Write) -> VisitResult {
-        dest.write_all(Visitor::MAGIC.as_bytes())?;
+        dest.write_all(Visitor::MAGIC_BINARY.as_bytes())?;
         let mut stack = vec![visitor.root];
         while let Some(node_handle) = stack.pop() {
             let node = visitor.nodes.borrow(node_handle);
@@ -493,7 +493,7 @@ impl Writer for AsciiWriter {
     }
 
     fn write(&self, visitor: &Visitor, dest: &mut dyn Write) -> VisitResult {
-        writeln!(dest, "{}", Visitor::MAGIC)?;
+        writeln!(dest, "{}", Visitor::MAGIC_ASCII)?;
         self.write_node(visitor, &visitor.nodes[visitor.root], 0, dest)
     }
 }

@@ -343,7 +343,19 @@ impl Visitor {
     /// [Visitor::load_binary_from_file] will return an error if this sequence of bytes is not present at the beginning
     /// of the file, and [Visitor::load_binary_from_memory] will return an error of these bytes are not at the beginning
     /// of the given slice.
-    pub const MAGIC: &'static str = "RG3D";
+    pub const MAGIC_BINARY: &'static str = "RG3D";
+    // Fyrox Text Asset Format.
+    pub const MAGIC_ASCII: &'static str = "FTAF";
+
+    #[must_use]
+    pub fn is_supported(src: &mut dyn Read) -> bool {
+        let mut magic: [u8; 4] = Default::default();
+        if src.read_exact(&mut magic).is_ok() {
+            return magic.eq(Visitor::MAGIC_BINARY.as_bytes())
+                || magic.eq(Visitor::MAGIC_ASCII.as_bytes());
+        }
+        false
+    }
 
     /// Creates a Visitor containing only a single node called "`__ROOT__`" which will be the
     /// current region of the visitor.
@@ -483,7 +495,7 @@ impl Visitor {
     }
 
     /// Write the data of this Visitor to the given writer.
-    /// Begin by writing [Visitor::MAGIC].
+    /// Begin by writing [Visitor::MAGIC_BINARY].
     pub fn save_binary_to_memory(&self, mut dest: impl Write) -> VisitResult {
         let writer = BinaryWriter::default();
         writer.write(self, &mut dest)
@@ -491,7 +503,7 @@ impl Visitor {
 
     /// Encode the data of this visitor into bytes and push the bytes
     /// into the given `Vec<u8>`.
-    /// Begin by writing [Visitor::MAGIC].
+    /// Begin by writing [Visitor::MAGIC_BINARY].
     pub fn save_binary_to_vec(&self) -> Result<Vec<u8>, VisitError> {
         let mut writer = Cursor::new(Vec::new());
         self.save_binary_to_memory(&mut writer)?;
@@ -501,7 +513,7 @@ impl Visitor {
     /// Create a file at the given path and write the data of this visitor
     /// into that file in a non-human-readable binary format so that the data
     /// can be reconstructed using [Visitor::load_binary_from_file].
-    /// Begin by writing [Visitor::MAGIC].
+    /// Begin by writing [Visitor::MAGIC_BINARY].
     pub fn save_binary_to_file(&self, path: impl AsRef<Path>) -> VisitResult {
         let writer = BufWriter::new(File::create(path)?);
         self.save_binary_to_memory(writer)
@@ -509,7 +521,7 @@ impl Visitor {
 
     /// Create a visitor by reading data from the file at the given path,
     /// assuming that the file was created using [Visitor::save_binary_to_file].
-    /// Return a [VisitError::NotSupportedFormat] if [Visitor::MAGIC] is not the first bytes read from the file.
+    /// Return a [VisitError::NotSupportedFormat] if [Visitor::MAGIC_BINARY] is not the first bytes read from the file.
     pub async fn load_binary_from_file<P: AsRef<Path>>(path: P) -> Result<Self, VisitError> {
         Self::load_binary_from_memory(&io::load_file(path).await?)
     }
@@ -517,7 +529,7 @@ impl Visitor {
     /// Create a visitor by decoding data from the given byte slice,
     /// assuming that the bytes are in the format that would be produced
     /// by [Visitor::save_binary_to_vec].
-    /// Return a [VisitError::NotSupportedFormat] if [Visitor::MAGIC] is not the first bytes read from the slice.
+    /// Return a [VisitError::NotSupportedFormat] if [Visitor::MAGIC_BINARY] is not the first bytes read from the slice.
     pub fn load_binary_from_memory(data: &[u8]) -> Result<Self, VisitError> {
         let mut src = Cursor::new(data);
         let mut reader = BinaryReader::new(&mut src);

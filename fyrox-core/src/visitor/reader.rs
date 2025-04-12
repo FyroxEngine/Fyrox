@@ -244,7 +244,7 @@ impl Reader for BinaryReader<'_> {
 
         let mut magic: [u8; 4] = Default::default();
         src.read_exact(&mut magic)?;
-        if !magic.eq(Visitor::MAGIC.as_bytes()) {
+        if !magic.eq(Visitor::MAGIC_BINARY.as_bytes()) {
             return Err(VisitError::NotSupportedFormat);
         }
         let mut visitor = Visitor {
@@ -568,7 +568,7 @@ impl Reader for AsciiReader<'_> {
         let src = &mut self.src;
 
         let magic: [u8; 4] = [src.next()?, src.next()?, src.next()?, src.next()?];
-        if !magic.eq(Visitor::MAGIC.as_bytes()) {
+        if !magic.eq(Visitor::MAGIC_ASCII.as_bytes()) {
             return Err(VisitError::NotSupportedFormat);
         }
         let mut visitor = Visitor {
@@ -776,7 +776,7 @@ mod test {
 
     #[test]
     fn test_parse_visitor() {
-        let input = r#"RG3D
+        let input = r#"FTAF
             SomeNode
             [2:
                 U8<u8:123>
