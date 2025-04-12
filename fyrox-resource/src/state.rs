@@ -264,10 +264,10 @@ impl ResourceState {
     }
 
     /// Switches the internal state of the resource to [`ResourceState::Pending`].
-    pub fn switch_to_pending_state(&mut self) {
+    pub fn switch_to_pending_state(&mut self, path: PathBuf) {
         *self = ResourceState::Pending {
             wakers: Default::default(),
-            path: Default::default(),
+            path,
         };
     }
 

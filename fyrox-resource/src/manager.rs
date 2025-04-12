@@ -21,6 +21,7 @@
 //! Resource manager controls loading and lifetime of resource in the engine. See [`ResourceManager`]
 //! docs for more info.
 
+pub use crate::builtin::*;
 use crate::{
     constructor::ResourceConstructorContainer,
     core::{
@@ -44,6 +45,7 @@ use crate::{
     untyped::ResourceKind,
     Resource, TypedResourceData, UntypedResource,
 };
+use fxhash::FxHashSet;
 use fyrox_core::{err, info, Uuid};
 use std::{
     fmt::{Debug, Display, Formatter},
@@ -51,8 +53,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-
-pub use crate::builtin::*;
 
 /// A set of resources that can be waited for.
 #[must_use]
@@ -519,20 +519,34 @@ impl ResourceManagerState {
         });
 
         if let Some(watcher) = self.watcher.as_ref() {
+            let mut changed_resources = FxHashSet::default();
+
             if let Some(evt) = watcher.try_get_event() {
                 if let notify::EventKind::Modify(_) = evt.kind {
                     for path in evt.paths {
                         if let Ok(relative_path) = make_relative_path(path) {
-                            if self.try_reload_resource_from_path(&relative_path) {
-                                Log::info(format!(
-                                    "File {} was changed, trying to reload a respective resource...",
-                                    relative_path.display()
-                                ));
-
-                                break;
-                            }
+                            changed_resources.insert(relative_path);
                         }
                     }
+                }
+            }
+
+            if !changed_resources.is_empty() {
+                info!(
+                    "There's {} files changed in the project's directory. Trying to \
+                reload all supported resources...",
+                    changed_resources.len()
+                );
+            }
+
+            for path in changed_resources {
+                if self.try_reload_resource_from_path(&path) {
+                    Log::info(format!(
+                        "File {} was changed, trying to reload a respective resource...",
+                        path.display()
+                    ));
+
+                    break;
                 }
             }
         }
@@ -648,7 +662,7 @@ impl ResourceManagerState {
         self.find_or_load(path)
     }
 
-    fn find_by_resource_path(&self, path_to_search: &PathBuf) -> Option<&UntypedResource> {
+    fn find_by_resource_path(&self, path_to_search: &Path) -> Option<&UntypedResource> {
         self.resources
             .iter()
             .find(|entry| {
@@ -814,13 +828,14 @@ impl ResourceManagerState {
 
     /// Reloads a single resource.
     pub fn reload_resource(&mut self, resource: UntypedResource) {
-        let header = resource.0.lock();
+        let mut header = resource.0.lock();
         match header.state {
             ResourceState::Pending { .. } => {
                 // The resource is loading already.
             }
             ResourceState::LoadError { ref path, .. } => {
                 let path = path.clone();
+                header.state.switch_to_pending_state(path.clone());
                 drop(header);
                 self.spawn_loading_task(path, resource, true)
             }
@@ -829,8 +844,9 @@ impl ResourceManagerState {
                     .resource_registry
                     .lock()
                     .uuid_to_path_buf(resource_uuid);
-                drop(header);
                 if let Some(path) = path {
+                    header.state.switch_to_pending_state(path.clone());
+                    drop(header);
                     self.spawn_loading_task(path, resource, true);
                 } else {
                     err!(
@@ -876,16 +892,15 @@ impl ResourceManagerState {
             return false;
         }
 
-        let mut registry = self.resource_registry.lock();
-        let mut ctx = registry.modify();
-        if let Some(uuid) = ctx.unregister_path(path) {
-            drop(ctx);
-            drop(registry);
-            if let Some(resource) = self.find_by_uuid(uuid).cloned() {
-                self.reload_resource(resource);
-                return true;
+        if let Some(resource) = self.find_by_resource_path(path) {
+            if resource.0.lock().state.is_loading() {
+                return false;
             }
+
+            self.reload_resource(resource.clone());
+            return true;
         }
+
         false
     }
 
