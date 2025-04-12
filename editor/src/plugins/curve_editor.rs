@@ -358,7 +358,7 @@ impl CurveEditorWindow {
             if let Some(state) = curve_resource.state().data() {
                 let mut visitor = Visitor::new();
                 state.curve.visit("Curve", &mut visitor).unwrap();
-                visitor.save_binary(&self.path).unwrap();
+                visitor.save_binary_to_file(&self.path).unwrap();
             }
         }
     }

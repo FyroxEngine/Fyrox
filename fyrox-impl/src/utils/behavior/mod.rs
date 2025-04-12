@@ -478,12 +478,13 @@ mod test {
         let mut saved_tree = create_tree();
         let mut visitor = Visitor::new();
         saved_tree.visit("Tree", &mut visitor).unwrap();
-        visitor.save_binary(bin.clone()).unwrap();
+        visitor.save_binary_to_file(bin.clone()).unwrap();
         let mut file = File::create(txt).unwrap();
-        file.write_all(visitor.save_text().as_bytes()).unwrap();
+        file.write_all(visitor.save_ascii_to_string().as_bytes())
+            .unwrap();
 
         // Load
-        let mut visitor = block_on(Visitor::load_binary(bin)).unwrap();
+        let mut visitor = block_on(Visitor::load_binary_from_file(bin)).unwrap();
         let mut loaded_tree = BehaviorTree::<BotBehavior>::default();
         loaded_tree.visit("Tree", &mut visitor).unwrap();
 

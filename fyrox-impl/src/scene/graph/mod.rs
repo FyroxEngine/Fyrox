@@ -2110,9 +2110,9 @@ mod test {
     fn save_scene(scene: &mut Scene, path: &Path) {
         let mut visitor = Visitor::new();
         scene.save("Scene", &mut visitor).unwrap();
-        visitor.save_binary(path).unwrap();
+        visitor.save_binary_to_file(path).unwrap();
         visitor
-            .save_text_to_file(append_extension(path, "txt"))
+            .save_ascii_to_file(append_extension(path, "txt"))
             .unwrap();
     }
 

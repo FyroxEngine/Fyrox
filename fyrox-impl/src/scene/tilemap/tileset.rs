@@ -2029,7 +2029,7 @@ impl TileSet {
         io: &dyn ResourceIo,
     ) -> Result<Self, TileSetResourceError> {
         let bytes = io.load_file(path).await?;
-        let mut visitor = Visitor::load_from_memory(&bytes)?;
+        let mut visitor = Visitor::load_binary_from_memory(&bytes)?;
         visitor.blackboard.register(Arc::new(resource_manager));
         let mut tile_set = TileSet::default();
         tile_set.visit("TileSet", &mut visitor)?;
@@ -2111,7 +2111,7 @@ impl ResourceData for TileSet {
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
         self.visit("TileSet", &mut visitor)?;
-        visitor.save_binary(path)?;
+        visitor.save_binary_to_file(path)?;
         Ok(())
     }
 

@@ -758,7 +758,7 @@ impl ResourceData for Material {
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
         self.visit("Material", &mut visitor)?;
-        visitor.save_binary(path)?;
+        visitor.save_binary_to_file(path)?;
         Ok(())
     }
 
@@ -967,7 +967,7 @@ impl Material {
             shader: Default::default(),
             resource_bindings: Default::default(),
         };
-        let mut visitor = Visitor::load_from_memory(&content)?;
+        let mut visitor = Visitor::load_binary_from_memory(&content)?;
         visitor.blackboard.register(Arc::new(resource_manager));
         material.visit("Material", &mut visitor)?;
         Ok(material)

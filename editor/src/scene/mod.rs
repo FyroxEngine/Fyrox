@@ -272,14 +272,14 @@ impl GameScene {
         let mut visitor = Visitor::new();
         pure_scene.save("Scene", &mut visitor).unwrap();
 
-        if let Err(e) = visitor.save_binary(path) {
+        if let Err(e) = visitor.save_binary_to_file(path) {
             Err(format!(
                 "Failed to save scene {}! Reason: {e}",
                 path.display()
             ))
         } else {
             if settings.debugging.save_scene_in_text_form {
-                let text = visitor.save_text();
+                let text = visitor.save_ascii_to_string();
                 let mut path = path.to_path_buf();
                 path.set_extension("txt");
                 if let Ok(mut file) = File::create(path) {
@@ -456,7 +456,7 @@ impl GameScene {
             match dest_scene.save("Scene", &mut visitor) {
                 Err(e) => Log::err(format!("Failed to save selection as prefab! Reason: {e:?}")),
                 Ok(_) => {
-                    if let Err(e) = visitor.save_binary(path) {
+                    if let Err(e) = visitor.save_binary_to_file(path) {
                         Log::err(format!("Failed to save selection as prefab! Reason: {e:?}"));
                     } else {
                         Log::info(format!(

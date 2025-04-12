@@ -270,7 +270,7 @@ impl SceneController for UiScene {
         match self.ui.save(path) {
             Ok(visitor) => {
                 if settings.debugging.save_scene_in_text_form {
-                    let text = visitor.save_text();
+                    let text = visitor.save_ascii_to_string();
                     let mut path = path.to_path_buf();
                     path.set_extension("txt");
                     if let Ok(mut file) = File::create(path) {

@@ -317,7 +317,7 @@ impl SceneLoader {
         }
 
         let data = io.load_file(path.as_ref()).await?;
-        let mut visitor = Visitor::load_from_memory(&data)?;
+        let mut visitor = Visitor::load_binary_from_memory(&data)?;
         let loader = Self::load(
             "Scene",
             serialization_context,
@@ -559,7 +559,7 @@ impl Scene {
     /// scene.save("Scene", &mut visitor).unwrap();
     ///
     /// // Write the data to a file.
-    /// visitor.save_binary("path/to/a/scene.rgs").unwrap();
+    /// visitor.save_binary_to_file("path/to/a/scene.rgs").unwrap();
     /// ```
     pub fn save(&mut self, region_name: &str, visitor: &mut Visitor) -> VisitResult {
         if visitor.is_reading() {

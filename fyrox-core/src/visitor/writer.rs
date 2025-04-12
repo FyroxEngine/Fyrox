@@ -531,7 +531,7 @@ mod test {
         object.visit("MyObject", &mut visitor).unwrap();
 
         let mut cursor = Cursor::<Vec<u8>>::default();
-        visitor.save_ascii(&mut cursor).unwrap();
+        visitor.save_ascii_to_memory(&mut cursor).unwrap();
 
         print!("{}", String::from_utf8(cursor.into_inner()).unwrap());
     }

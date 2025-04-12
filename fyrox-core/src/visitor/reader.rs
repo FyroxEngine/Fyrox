@@ -548,6 +548,11 @@ impl Reader for AsciiReader<'_> {
             children.push(self.read_node(visitor)?);
         }
 
+        let src = &mut self.src;
+
+        src.skip_until(|ch| ch != b'}')?;
+        src.skip_n(1)?;
+
         node.children.clone_from(&children);
 
         let handle = visitor.nodes.spawn(node);
@@ -772,11 +777,56 @@ mod test {
     #[test]
     fn test_parse_visitor() {
         let input = r#"RG3D
-            SomeNode[2: U8<u8:123> I8<i8:-123>]{1:NestedNode[1: F32<f32:123.1>]{0:}}
+            SomeNode
+            [2:
+                U8<u8:123>
+                I8<i8:-123>
+            ]
+            {2:
+                NestedNode1
+                [1:
+                    F32<f32:123.1>
+                ]
+                {0:
+                }
+                NestedNode2
+                [1:
+                    F32<f32:123.1>
+                ]
+                {0:
+                }
+            }
         "#;
         let mut cursor = Cursor::new(input);
         let mut reader = AsciiReader::new(&mut cursor);
 
-        let _visitor = reader.read().unwrap();
+        let visitor = reader.read().unwrap();
+
+        let some_node = visitor.find_node("SomeNode").unwrap();
+        assert_eq!(some_node.fields.len(), 2);
+        assert_eq!(
+            some_node.fields,
+            vec![
+                Field::new("U8", FieldKind::U8(123)),
+                Field::new("I8", FieldKind::I8(-123))
+            ]
+        );
+        assert_eq!(some_node.children.len(), 2);
+
+        let nested_node_1 = visitor.find_node("NestedNode1").unwrap();
+        assert_eq!(nested_node_1.fields.len(), 1);
+        assert_eq!(
+            nested_node_1.fields,
+            vec![Field::new("F32", FieldKind::F32(123.1)),]
+        );
+        assert_eq!(nested_node_1.children.len(), 0);
+
+        let nested_node_2 = visitor.find_node("NestedNode2").unwrap();
+        assert_eq!(nested_node_2.fields.len(), 1);
+        assert_eq!(
+            nested_node_2.fields,
+            vec![Field::new("F32", FieldKind::F32(123.1)),]
+        );
+        assert_eq!(nested_node_2.children.len(), 0);
     }
 }

@@ -89,7 +89,7 @@ impl ResourceData for Style {
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
         self.visit("Style", &mut visitor)?;
-        visitor.save_binary(path)?;
+        visitor.save_binary_to_file(path)?;
         Ok(())
     }
 

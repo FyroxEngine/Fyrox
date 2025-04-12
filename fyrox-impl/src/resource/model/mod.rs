@@ -605,7 +605,7 @@ impl ResourceData for Model {
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
         self.scene.save("Scene", &mut visitor)?;
-        visitor.save_binary(path)?;
+        visitor.save_binary_to_file(path)?;
         Ok(())
     }
 

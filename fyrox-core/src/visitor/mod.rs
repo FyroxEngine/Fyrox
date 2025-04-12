@@ -44,6 +44,7 @@ pub mod prelude {
     pub use crate::visitor::error::VisitError;
 }
 
+use crate::visitor::reader::AsciiReader;
 use crate::visitor::writer::AsciiWriter;
 use crate::{
     array_as_u8_slice_mut,
@@ -60,6 +61,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use error::VisitError;
 use field::{Field, FieldKind};
 use fxhash::FxHashMap;
+use std::fmt::{Debug, Formatter};
 use std::{
     any::Any,
     fs::File,
@@ -135,7 +137,7 @@ where
 }
 
 /// The result of a [Visit::visit] or of a Visitor encoding operation
-/// such as [Visitor::save_binary]. It has no value unless an error occurred.
+/// such as [Visitor::save_binary_to_file]. It has no value unless an error occurred.
 pub type VisitResult = Result<(), VisitError>;
 
 trait VisitableElementaryField {
@@ -172,6 +174,7 @@ impl_visitable_elementary_field!(i64, write_i64, read_i64, LittleEndian);
 /// A node is a collection of [Fields](Field) that exists within a tree of nodes
 /// that allows a [Visitor] to store its data.
 /// Each node has a name, and may have a parent node and child nodes.
+#[derive(Debug)]
 pub struct VisitorNode {
     name: String,
     fields: Vec<Field>,
@@ -230,6 +233,7 @@ impl Drop for RegionGuard<'_> {
 
 bitflags! {
     /// Flags that can be used to influence the behaviour of [Visit::visit] methods.
+    #[derive(Debug)]
     pub struct VisitorFlags: u32 {
         /// No flags set, do nothing special.
         const NONE = 0;
@@ -266,6 +270,20 @@ pub struct Visitor {
     /// Flags that can activate special behaviour in some Visit values, such as
     /// [crate::variable::InheritableVariable].
     pub flags: VisitorFlags,
+}
+
+impl Debug for Visitor {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut output = f.debug_struct("Visitor");
+
+        output.field("flags", &self.flags);
+
+        for (i, node) in self.nodes.iter().enumerate() {
+            output.field(&format!("node{i}"), node);
+        }
+
+        output.finish()
+    }
 }
 
 /// Trait of types that can be read from a [Visitor] or written to a Visitor.
@@ -319,11 +337,11 @@ impl Default for Visitor {
 
 impl Visitor {
     /// Sequence of bytes that is automatically written at the start when a visitor
-    /// is encoded into bytes. It is written by [Visitor::save_binary], [Visitor::save_binary_to_memory],
+    /// is encoded into bytes. It is written by [Visitor::save_binary_to_file], [Visitor::save_binary_to_memory],
     /// and [Visitor::save_binary_to_vec].
     ///
-    /// [Visitor::load_binary] will return an error if this sequence of bytes is not present at the beginning
-    /// of the file, and [Visitor::load_from_memory] will return an error of these bytes are not at the beginning
+    /// [Visitor::load_binary_from_file] will return an error if this sequence of bytes is not present at the beginning
+    /// of the file, and [Visitor::load_binary_from_memory] will return an error of these bytes are not at the beginning
     /// of the given slice.
     pub const MAGIC: &'static str = "RG3D";
 
@@ -350,6 +368,10 @@ impl Visitor {
             .fields
             .iter_mut()
             .find(|field| field.name == name)
+    }
+
+    pub fn find_node(&self, name: &str) -> Option<&VisitorNode> {
+        self.nodes.iter().find(|n| n.name == name)
     }
 
     /// True if this Visitor is changing the values that it visits.
@@ -432,20 +454,37 @@ impl Visitor {
     /// Create a String containing all the data of this Visitor.
     /// The String is formatted to be human-readable with each node on its own line
     /// and tabs to indent child nodes.
-    pub fn save_text(&self) -> String {
+    pub fn save_ascii_to_string(&self) -> String {
         let mut cursor = Cursor::<Vec<u8>>::default();
-        self.save_ascii(&mut cursor).unwrap();
+        self.save_ascii_to_memory(&mut cursor).unwrap();
         String::from_utf8(cursor.into_inner()).unwrap()
     }
 
-    pub fn save_ascii<W: Write>(&self, mut dest: W) -> VisitResult {
+    pub fn save_ascii_to_file(&self, path: impl AsRef<Path>) -> VisitResult {
+        let mut writer = BufWriter::new(File::create(path)?);
+        let text = self.save_ascii_to_string();
+        writer.write_all(text.as_bytes())?;
+        Ok(())
+    }
+
+    pub fn save_ascii_to_memory(&self, mut dest: impl Write) -> VisitResult {
         let writer = AsciiWriter::default();
         writer.write(self, &mut dest)
     }
 
+    pub fn load_ascii_from_memory(data: &[u8]) -> Result<Self, VisitError> {
+        let mut src = Cursor::new(data);
+        let mut reader = AsciiReader::new(&mut src);
+        reader.read()
+    }
+
+    pub async fn load_ascii_from_file(path: impl AsRef<Path>) -> Result<Self, VisitError> {
+        Self::load_ascii_from_memory(&io::load_file(path).await?)
+    }
+
     /// Write the data of this Visitor to the given writer.
     /// Begin by writing [Visitor::MAGIC].
-    pub fn save_binary_to_memory<W: Write>(&self, mut dest: W) -> VisitResult {
+    pub fn save_binary_to_memory(&self, mut dest: impl Write) -> VisitResult {
         let writer = BinaryWriter::default();
         writer.write(self, &mut dest)
     }
@@ -461,32 +500,25 @@ impl Visitor {
 
     /// Create a file at the given path and write the data of this visitor
     /// into that file in a non-human-readable binary format so that the data
-    /// can be reconstructed using [Visitor::load_binary].
+    /// can be reconstructed using [Visitor::load_binary_from_file].
     /// Begin by writing [Visitor::MAGIC].
-    pub fn save_binary<P: AsRef<Path>>(&self, path: P) -> VisitResult {
+    pub fn save_binary_to_file(&self, path: impl AsRef<Path>) -> VisitResult {
         let writer = BufWriter::new(File::create(path)?);
         self.save_binary_to_memory(writer)
     }
 
-    pub fn save_text_to_file<P: AsRef<Path>>(&self, path: P) -> VisitResult {
-        let mut writer = BufWriter::new(File::create(path)?);
-        let text = self.save_text();
-        writer.write_all(text.as_bytes())?;
-        Ok(())
-    }
-
     /// Create a visitor by reading data from the file at the given path,
-    /// assuming that the file was created using [Visitor::save_binary].
+    /// assuming that the file was created using [Visitor::save_binary_to_file].
     /// Return a [VisitError::NotSupportedFormat] if [Visitor::MAGIC] is not the first bytes read from the file.
-    pub async fn load_binary<P: AsRef<Path>>(path: P) -> Result<Self, VisitError> {
-        Self::load_from_memory(&io::load_file(path).await?)
+    pub async fn load_binary_from_file<P: AsRef<Path>>(path: P) -> Result<Self, VisitError> {
+        Self::load_binary_from_memory(&io::load_file(path).await?)
     }
 
     /// Create a visitor by decoding data from the given byte slice,
     /// assuming that the bytes are in the format that would be produced
     /// by [Visitor::save_binary_to_vec].
     /// Return a [VisitError::NotSupportedFormat] if [Visitor::MAGIC] is not the first bytes read from the slice.
-    pub fn load_from_memory(data: &[u8]) -> Result<Self, VisitError> {
+    pub fn load_binary_from_memory(data: &[u8]) -> Result<Self, VisitError> {
         let mut src = Cursor::new(data);
         let mut reader = BinaryReader::new(&mut src);
         reader.read()
@@ -498,12 +530,12 @@ mod test {
     use crate::visitor::{BinaryBlob, Visit, VisitResult, Visitor};
     use std::{fs::File, io::Write, path::Path, rc::Rc};
 
-    #[derive(Visit, Default)]
+    #[derive(Visit, Default, PartialEq, Debug)]
     pub struct Model {
         data: u64,
     }
 
-    #[derive(Default)]
+    #[derive(Default, PartialEq, Debug)]
     pub struct Texture {
         data: Vec<u8>,
     }
@@ -520,7 +552,7 @@ mod test {
     }
 
     #[allow(dead_code)]
-    #[derive(Visit)]
+    #[derive(Visit, PartialEq, Debug)]
     pub enum ResourceKind {
         Unknown,
         Model(Model),
@@ -533,7 +565,7 @@ mod test {
         }
     }
 
-    #[derive(Visit)]
+    #[derive(Visit, PartialEq, Debug)]
     struct Resource {
         kind: ResourceKind,
         data: u16,
@@ -554,7 +586,7 @@ mod test {
         }
     }
 
-    #[derive(Default, Visit)]
+    #[derive(Default, Visit, Debug, PartialEq)]
     struct Foo {
         bar: u64,
         shared_resource: Option<Rc<Resource>>,
@@ -569,34 +601,80 @@ mod test {
         }
     }
 
+    fn resource() -> Rc<Resource> {
+        Rc::new(Resource::new(ResourceKind::Model(Model { data: 555 })))
+    }
+
+    fn objects(resource: Rc<Resource>) -> Vec<Foo> {
+        vec![Foo::new(resource.clone()), Foo::new(resource)]
+    }
+
+    fn serialize() -> Visitor {
+        let mut resource = resource();
+        let mut objects = objects(resource.clone());
+
+        let mut visitor = Visitor::new();
+        resource.visit("SharedResource", &mut visitor).unwrap();
+        objects.visit("Objects", &mut visitor).unwrap();
+        visitor
+    }
+
     #[test]
-    fn visitor_test() {
+    fn visitor_test_binary() {
         let path = Path::new("test.bin");
 
         // Save
         {
-            let mut visitor = Visitor::new();
-            let mut resource = Rc::new(Resource::new(ResourceKind::Model(Model { data: 555 })));
-            resource.visit("SharedResource", &mut visitor).unwrap();
+            let visitor = serialize();
 
-            let mut objects = vec![Foo::new(resource.clone()), Foo::new(resource)];
-
-            objects.visit("Objects", &mut visitor).unwrap();
-
-            visitor.save_binary(path).unwrap();
+            visitor.save_binary_to_file(path).unwrap();
             if let Ok(mut file) = File::create(Path::new("test.txt")) {
-                file.write_all(visitor.save_text().as_bytes()).unwrap();
+                file.write_all(visitor.save_ascii_to_string().as_bytes())
+                    .unwrap();
             }
         }
 
         // Load
         {
-            let mut visitor = futures::executor::block_on(Visitor::load_binary(path)).unwrap();
+            let expected_resource = resource();
+            let expected_objects = objects(expected_resource.clone());
+
+            let mut visitor =
+                futures::executor::block_on(Visitor::load_binary_from_file(path)).unwrap();
             let mut resource: Rc<Resource> = Rc::new(Default::default());
             resource.visit("SharedResource", &mut visitor).unwrap();
+            assert_eq!(resource, expected_resource);
 
             let mut objects: Vec<Foo> = Vec::new();
             objects.visit("Objects", &mut visitor).unwrap();
+            assert_eq!(objects, expected_objects);
+        }
+    }
+
+    #[test]
+    fn visitor_test_ascii() {
+        let path = Path::new("test.txt");
+
+        // Save
+        {
+            let visitor = serialize();
+            visitor.save_ascii_to_file(path).unwrap();
+        }
+
+        // Load
+        {
+            let expected_resource = resource();
+            let expected_objects = objects(expected_resource.clone());
+
+            let mut visitor =
+                futures::executor::block_on(Visitor::load_ascii_from_file(path)).unwrap();
+            let mut resource: Rc<Resource> = Rc::new(Default::default());
+            resource.visit("SharedResource", &mut visitor).unwrap();
+            assert_eq!(resource, expected_resource);
+
+            let mut objects: Vec<Foo> = Vec::new();
+            objects.visit("Objects", &mut visitor).unwrap();
+            assert_eq!(objects, expected_objects);
         }
     }
 }

@@ -48,14 +48,15 @@ pub fn save_load<T: Visit>(test_name: &str, data: &mut T, data_default: &mut T) 
         let mut visitor = Visitor::new();
         data.visit("Data", &mut visitor).unwrap();
 
-        visitor.save_binary(&bin).unwrap();
+        visitor.save_binary_to_file(&bin).unwrap();
         let mut file = File::create(txt).unwrap();
-        file.write_all(visitor.save_text().as_bytes()).unwrap();
+        file.write_all(visitor.save_ascii_to_string().as_bytes())
+            .unwrap();
     }
 
     // Load the saved data to `data_default`
     {
-        let mut visitor = block_on(Visitor::load_binary(&bin)).unwrap();
+        let mut visitor = block_on(Visitor::load_binary_from_file(&bin)).unwrap();
         // overwrite the default data with saved data
         data_default.visit("Data", &mut visitor).unwrap();
     }

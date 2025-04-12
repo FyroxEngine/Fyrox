@@ -491,7 +491,7 @@ impl Lightmap {
         path: P,
         resource_manager: ResourceManager,
     ) -> Result<Lightmap, VisitError> {
-        let mut visitor = Visitor::load_binary(path).await?;
+        let mut visitor = Visitor::load_binary_from_file(path).await?;
         visitor.blackboard.register(Arc::new(resource_manager));
         let mut lightmap = Lightmap::default();
         lightmap.visit("Lightmap", &mut visitor)?;
@@ -503,7 +503,7 @@ impl Lightmap {
     pub fn save<P: AsRef<Path>>(&mut self, path: P) -> VisitResult {
         let mut visitor = Visitor::new();
         self.visit("Lightmap", &mut visitor)?;
-        visitor.save_binary(path)?;
+        visitor.save_binary_to_file(path)?;
         Ok(())
     }
 
