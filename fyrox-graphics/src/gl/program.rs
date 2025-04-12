@@ -101,11 +101,20 @@ impl Vendor {
     }
 }
 
+/// A version of Regex::find_at that does not panic.
+fn find_at<'a>(re: &regex::Regex, src: &'a str, offset: usize) -> Option<regex::Match<'a>> {
+    if offset > src.len() {
+        None
+    } else {
+        re.find_at(src, offset)
+    }
+}
+
 fn patch_error_message(vendor: Vendor, src: &mut String, line_offset: isize) {
     let re = vendor.regex();
     let mut offset = 0;
-    while let Some(result) = re.find_at(src, offset) {
-        offset += result.end();
+    while let Some(result) = find_at(&re, src, offset) {
+        offset = result.end().max(offset + 1);
         let range = vendor.line_number_range(result);
         let substr = &src[range];
         if let Ok(line_number) = substr.parse::<isize>() {
