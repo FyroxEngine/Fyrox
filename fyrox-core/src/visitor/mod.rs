@@ -574,7 +574,11 @@ impl Visitor {
 #[cfg(test)]
 mod test {
     use crate::visitor::{BinaryBlob, Visit, VisitResult, Visitor};
+    use nalgebra::{
+        Matrix2, Matrix3, Matrix4, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4,
+    };
     use std::{fs::File, io::Write, path::Path, rc::Rc};
+    use uuid::{uuid, Uuid};
 
     #[derive(Visit, Default, PartialEq, Debug)]
     pub struct Model {
@@ -634,14 +638,113 @@ mod test {
 
     #[derive(Default, Visit, Debug, PartialEq)]
     struct Foo {
-        bar: u64,
+        boolean: bool,
+        num_u8: u8,
+        num_i8: i8,
+        num_u16: u16,
+        num_i16: i16,
+        num_u32: u32,
+        num_i32: i32,
+        num_u64: u64,
+        num_i64: i64,
+        num_f32: f32,
+        num_f64: f64,
+        quat: UnitQuaternion<f32>,
+        mat4: Matrix4<f32>,
+        array: Vec<u8>,
+        mat3: Matrix3<f32>,
+        uuid: Uuid,
+        complex: UnitComplex<f32>,
+        mat2: Matrix2<f32>,
+
+        vec2_u8: Vector2<u8>,
+        vec2_i8: Vector2<i8>,
+        vec2_u16: Vector2<u16>,
+        vec2_i16: Vector2<i16>,
+        vec2_u32: Vector2<u32>,
+        vec2_i32: Vector2<i32>,
+        vec2_u64: Vector2<u64>,
+        vec2_i64: Vector2<i64>,
+
+        vec3_u8: Vector3<u8>,
+        vec3_i8: Vector3<i8>,
+        vec3_u16: Vector3<u16>,
+        vec3_i16: Vector3<i16>,
+        vec3_u32: Vector3<u32>,
+        vec3_i32: Vector3<i32>,
+        vec3_u64: Vector3<u64>,
+        vec3_i64: Vector3<i64>,
+
+        vec4_u8: Vector4<u8>,
+        vec4_i8: Vector4<i8>,
+        vec4_u16: Vector4<u16>,
+        vec4_i16: Vector4<i16>,
+        vec4_u32: Vector4<u32>,
+        vec4_i32: Vector4<i32>,
+        vec4_u64: Vector4<u64>,
+        vec4_i64: Vector4<i64>,
+
+        vec2_f32: Vector2<f32>,
+        vec2_f64: Vector2<f64>,
+        vec3_f32: Vector3<f32>,
+        vec3_f64: Vector3<f64>,
+        vec4_f32: Vector4<f32>,
+        vec4_f64: Vector4<f64>,
+
         shared_resource: Option<Rc<Resource>>,
     }
 
     impl Foo {
         fn new(resource: Rc<Resource>) -> Self {
             Self {
-                bar: 123,
+                boolean: true,
+                num_u8: 123,
+                num_i8: -123,
+                num_u16: 123,
+                num_i16: -123,
+                num_u32: 123,
+                num_i32: -123,
+                num_u64: 123,
+                num_i64: -123,
+                num_f32: 123.321,
+                num_f64: 123.321,
+                quat: UnitQuaternion::from_euler_angles(1.0, 2.0, 3.0),
+                mat4: Matrix4::new_scaling(3.0),
+                array: vec![1, 2, 3, 4],
+                mat3: Matrix3::new_scaling(3.0),
+                uuid: uuid!("51a582c0-30d7-4dbc-b5a0-da8ea186edce"),
+                complex: UnitComplex::new(0.0),
+                mat2: Matrix2::new_scaling(2.0),
+                vec2_u8: Vector2::new(1, 2),
+                vec2_i8: Vector2::new(-1, -2),
+                vec2_u16: Vector2::new(1, 2),
+                vec2_i16: Vector2::new(-1, -2),
+                vec2_u32: Vector2::new(1, 2),
+                vec2_i32: Vector2::new(-1, -2),
+                vec2_u64: Vector2::new(1, 2),
+                vec2_i64: Vector2::new(-1, -2),
+                vec3_u8: Vector3::new(1, 2, 3),
+                vec3_i8: Vector3::new(-1, -2, -3),
+                vec3_u16: Vector3::new(1, 2, 3),
+                vec3_i16: Vector3::new(-1, -2, -3),
+                vec3_u32: Vector3::new(1, 2, 3),
+                vec3_i32: Vector3::new(-1, -2, -3),
+                vec3_u64: Vector3::new(1, 2, 3),
+                vec3_i64: Vector3::new(-1, -2, -3),
+                vec4_u8: Vector4::new(1, 2, 3, 4),
+                vec4_i8: Vector4::new(-1, -2, -3, -4),
+                vec4_u16: Vector4::new(1, 2, 3, 4),
+                vec4_i16: Vector4::new(-1, -2, -3, -4),
+                vec4_u32: Vector4::new(1, 2, 3, 4),
+                vec4_i32: Vector4::new(-1, -2, -3, -4),
+                vec4_u64: Vector4::new(1, 2, 3, 4),
+                vec4_i64: Vector4::new(-1, -2, -3, -4),
+                vec2_f32: Vector2::new(123.321, 234.432),
+                vec2_f64: Vector2::new(123.321, 234.432),
+                vec3_f32: Vector3::new(123.321, 234.432, 567.765),
+                vec3_f64: Vector3::new(123.321, 234.432, 567.765),
+                vec4_f32: Vector4::new(123.321, 234.432, 567.765, 890.098),
+                vec4_f64: Vector4::new(123.321, 234.432, 567.765, 890.098),
                 shared_resource: Some(resource),
             }
         }
@@ -685,8 +788,7 @@ mod test {
             let expected_resource = resource();
             let expected_objects = objects(expected_resource.clone());
 
-            let mut visitor =
-                futures::executor::block_on(Visitor::load_binary_from_file(path)).unwrap();
+            let mut visitor = futures::executor::block_on(Visitor::load_from_file(path)).unwrap();
             let mut resource: Rc<Resource> = Rc::new(Default::default());
             resource.visit("SharedResource", &mut visitor).unwrap();
             assert_eq!(resource, expected_resource);

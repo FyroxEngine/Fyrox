@@ -25,6 +25,7 @@ use crate::visitor::{
 use base64::Engine;
 use byteorder::{LittleEndian, WriteBytesExt};
 use nalgebra::SVector;
+use std::fmt::Display;
 use std::io::Write;
 
 pub trait Writer {
@@ -296,6 +297,19 @@ pub struct AsciiWriter {}
 
 impl Writer for AsciiWriter {
     fn write_field(&self, field: &Field, dest: &mut dyn Write) -> VisitResult {
+        fn write_array(
+            dest: &mut dyn Write,
+            iter: impl Iterator<Item = impl Display>,
+        ) -> VisitResult {
+            for (i, f) in iter.enumerate() {
+                if i != 0 {
+                    write!(dest, "; ")?;
+                }
+                write!(dest, "{f}")?;
+            }
+            Ok(())
+        }
+
         write!(dest, "{}", field.name)?;
         match field.kind {
             FieldKind::Bool(data) => write!(dest, "<bool:{data}>")?,
@@ -407,9 +421,7 @@ impl Writer for AsciiWriter {
             )?,
             FieldKind::Matrix4(data) => {
                 write!(dest, "<mat4:")?;
-                for f in data.iter() {
-                    write!(dest, "{f}; ")?;
-                }
+                write_array(dest, data.iter())?;
                 write!(dest, ">")?;
             }
             FieldKind::BinaryBlob(ref data) => write!(
@@ -419,12 +431,10 @@ impl Writer for AsciiWriter {
             )?,
             FieldKind::Matrix3(data) => {
                 write!(dest, "<mat3:")?;
-                for f in data.iter() {
-                    write!(dest, "{f}; ")?;
-                }
+                write_array(dest, data.iter())?;
                 write!(dest, ">")?;
             }
-            FieldKind::Uuid(uuid) => write!(dest, "<uuid:{uuid}")?,
+            FieldKind::Uuid(uuid) => write!(dest, "<uuid:{uuid}>")?,
             FieldKind::UnitComplex(data) => write!(dest, "<complex:{}; {}>", data.re, data.im)?,
             FieldKind::PodArray {
                 type_id,
@@ -437,9 +447,7 @@ impl Writer for AsciiWriter {
             )?,
             FieldKind::Matrix2(data) => {
                 write!(dest, "<mat2:")?;
-                for f in data.iter() {
-                    write!(dest, "{f}; ")?;
-                }
+                write_array(dest, data.iter())?;
                 write!(dest, ">")?;
             }
         }
