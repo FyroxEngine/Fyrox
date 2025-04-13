@@ -369,19 +369,19 @@ mod test {
     fn resource_state_switch_to_pending_state() {
         // from Ok
         let mut state = ResourceState::new_ok(Uuid::new_v4(), Stub {});
-        state.switch_to_pending_state();
+        state.switch_to_pending_state(Default::default());
 
         assert!(matches!(state, ResourceState::Pending { .. }));
 
         // from LoadError
         let mut state = ResourceState::new_load_error(Default::default(), Default::default());
-        state.switch_to_pending_state();
+        state.switch_to_pending_state(Default::default());
 
         assert!(matches!(state, ResourceState::Pending { .. }));
 
         // from Pending
         let mut state = ResourceState::new_pending(Default::default());
-        state.switch_to_pending_state();
+        state.switch_to_pending_state(Default::default());
 
         assert!(matches!(state, ResourceState::Pending { .. }));
     }
