@@ -333,6 +333,14 @@ impl Default for Visitor {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[must_use]
+pub enum Format {
+    Unknown,
+    Binary,
+    Ascii,
+}
+
 impl Visitor {
     /// Sequence of bytes that is automatically written at the start when a visitor
     /// is encoded into bytes. It is written by [Visitor::save_binary_to_file], [Visitor::save_binary_to_memory],
@@ -347,12 +355,24 @@ impl Visitor {
 
     #[must_use]
     pub fn is_supported(src: &mut dyn Read) -> bool {
+        Self::detect_format(src) != Format::Unknown
+    }
+
+    pub fn detect_format(src: &mut dyn Read) -> Format {
         let mut magic: [u8; 4] = Default::default();
         if src.read_exact(&mut magic).is_ok() {
-            return magic.eq(Visitor::MAGIC_BINARY.as_bytes())
-                || magic.eq(Visitor::MAGIC_ASCII.as_bytes());
+            if magic.eq(Visitor::MAGIC_BINARY.as_bytes()) {
+                return Format::Binary;
+            } else if magic.eq(Visitor::MAGIC_ASCII.as_bytes()) {
+                return Format::Ascii;
+            }
         }
-        false
+        Format::Unknown
+    }
+
+    pub fn detect_format_from_slice(data: &[u8]) -> Format {
+        let mut src = Cursor::new(data);
+        Self::detect_format(&mut src)
     }
 
     /// Creates a Visitor containing only a single node called "`__ROOT__`" which will be the
@@ -520,7 +540,7 @@ impl Visitor {
     /// Create a visitor by reading data from the file at the given path,
     /// assuming that the file was created using [Visitor::save_binary_to_file].
     /// Return a [VisitError::NotSupportedFormat] if [Visitor::MAGIC_BINARY] is not the first bytes read from the file.
-    pub async fn load_binary_from_file<P: AsRef<Path>>(path: P) -> Result<Self, VisitError> {
+    pub async fn load_binary_from_file(path: impl AsRef<Path>) -> Result<Self, VisitError> {
         Self::load_binary_from_memory(&io::load_file(path).await?)
     }
 
@@ -532,6 +552,22 @@ impl Visitor {
         let mut src = Cursor::new(data);
         let mut reader = BinaryReader::new(&mut src);
         reader.read()
+    }
+
+    /// Tries to load a visitor from the given file. This method automatically detects a format of
+    /// the incoming data (binary or ASCII) and tries to load it.
+    pub async fn load_from_file(path: impl AsRef<Path>) -> Result<Self, VisitError> {
+        Self::load_from_memory(&io::load_file(path).await?)
+    }
+
+    /// Tries to load a visitor from the given data. This method automatically detects a format of
+    /// the incoming data (binary or ASCII) and tries to load it.
+    pub fn load_from_memory(data: &[u8]) -> Result<Self, VisitError> {
+        match Self::detect_format_from_slice(data) {
+            Format::Unknown => Err(VisitError::NotSupportedFormat),
+            Format::Binary => Self::load_binary_from_memory(data),
+            Format::Ascii => Self::load_ascii_from_memory(data),
+        }
     }
 }
 
@@ -663,7 +699,7 @@ mod test {
 
     #[test]
     fn visitor_test_ascii() {
-        let path = Path::new("test.txt");
+        let path = Path::new("test_ascii.txt");
 
         // Save
         {
