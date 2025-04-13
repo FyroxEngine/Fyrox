@@ -1470,7 +1470,7 @@ impl ResourceLoader for SurfaceDataLoader {
             let io = io.as_ref();
 
             let data = io.load_file(&path).await.map_err(LoadError::new)?;
-            let mut visitor = Visitor::load_binary_from_memory(&data).map_err(LoadError::new)?;
+            let mut visitor = Visitor::load_from_memory(&data).map_err(LoadError::new)?;
             let mut surface_data = SurfaceData::default();
             surface_data
                 .visit("SurfaceData", &mut visitor)

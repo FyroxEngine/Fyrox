@@ -109,7 +109,7 @@ impl Configurator {
         // Load history.
         let mut history: Vec<HistoryEntry> = Vec::new();
         if let Ok(mut visitor) =
-            fyrox::core::futures::executor::block_on(Visitor::load_binary_from_file(HISTORY_PATH))
+            fyrox::core::futures::executor::block_on(Visitor::load_from_file(HISTORY_PATH))
         {
             history.visit("History", &mut visitor).unwrap();
         }

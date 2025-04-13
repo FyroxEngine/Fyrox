@@ -491,7 +491,7 @@ impl Lightmap {
         path: P,
         resource_manager: ResourceManager,
     ) -> Result<Lightmap, VisitError> {
-        let mut visitor = Visitor::load_binary_from_file(path).await?;
+        let mut visitor = Visitor::load_from_file(path).await?;
         visitor.blackboard.register(Arc::new(resource_manager));
         let mut lightmap = Lightmap::default();
         lightmap.visit("Lightmap", &mut visitor)?;

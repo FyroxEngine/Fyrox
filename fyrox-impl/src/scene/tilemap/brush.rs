@@ -541,7 +541,7 @@ impl TileMapBrush {
         io: &dyn ResourceIo,
     ) -> Result<Self, TileMapBrushResourceError> {
         let bytes = io.load_file(path).await?;
-        let mut visitor = Visitor::load_binary_from_memory(&bytes)?;
+        let mut visitor = Visitor::load_from_memory(&bytes)?;
         visitor.blackboard.register(Arc::new(resource_manager));
         let mut tile_map_brush = Self::default();
         tile_map_brush.visit("TileMapBrush", &mut visitor)?;

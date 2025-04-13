@@ -484,7 +484,7 @@ mod test {
             .unwrap();
 
         // Load
-        let mut visitor = block_on(Visitor::load_binary_from_file(bin)).unwrap();
+        let mut visitor = block_on(Visitor::load_from_file(bin)).unwrap();
         let mut loaded_tree = BehaviorTree::<BotBehavior>::default();
         loaded_tree.visit("Tree", &mut visitor).unwrap();
 

@@ -521,7 +521,7 @@ impl Style {
         resource_manager: ResourceManager,
     ) -> Result<Self, StyleResourceError> {
         let bytes = io.load_file(path).await?;
-        let mut visitor = Visitor::load_binary_from_memory(&bytes)?;
+        let mut visitor = Visitor::load_from_memory(&bytes)?;
         visitor.blackboard.register(Arc::new(resource_manager));
         let mut style = Style::default();
         style.visit("Style", &mut visitor)?;

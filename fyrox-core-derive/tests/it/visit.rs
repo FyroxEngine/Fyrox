@@ -56,7 +56,7 @@ pub fn save_load<T: Visit>(test_name: &str, data: &mut T, data_default: &mut T) 
 
     // Load the saved data to `data_default`
     {
-        let mut visitor = block_on(Visitor::load_binary_from_file(&bin)).unwrap();
+        let mut visitor = block_on(Visitor::load_from_file(&bin)).unwrap();
         // overwrite the default data with saved data
         data_default.visit("Data", &mut visitor).unwrap();
     }

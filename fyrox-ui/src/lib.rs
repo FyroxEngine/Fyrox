@@ -3098,8 +3098,7 @@ impl UserInterface {
         io: &dyn ResourceIo,
     ) -> Result<Self, VisitError> {
         let mut ui = {
-            let mut visitor =
-                Visitor::load_binary_from_memory(&io.load_file(path.as_ref()).await?)?;
+            let mut visitor = Visitor::load_from_memory(&io.load_file(path.as_ref()).await?)?;
             let (sender, receiver) = mpsc::channel();
             visitor.blackboard.register(constructors);
             visitor.blackboard.register(Arc::new(sender.clone()));

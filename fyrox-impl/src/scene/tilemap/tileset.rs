@@ -2029,7 +2029,7 @@ impl TileSet {
         io: &dyn ResourceIo,
     ) -> Result<Self, TileSetResourceError> {
         let bytes = io.load_file(path).await?;
-        let mut visitor = Visitor::load_binary_from_memory(&bytes)?;
+        let mut visitor = Visitor::load_from_memory(&bytes)?;
         visitor.blackboard.register(Arc::new(resource_manager));
         let mut tile_set = TileSet::default();
         tile_set.visit("TileSet", &mut visitor)?;

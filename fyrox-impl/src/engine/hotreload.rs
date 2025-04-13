@@ -261,7 +261,7 @@ pub fn make_reading_visitor(
     resource_manager: &ResourceManager,
     widget_constructors: &Arc<WidgetConstructorContainer>,
 ) -> Result<Visitor, VisitError> {
-    let mut visitor = Visitor::load_binary_from_memory(binary_blob)?;
+    let mut visitor = Visitor::load_from_memory(binary_blob)?;
     visitor.blackboard.register(serialization_context.clone());
     visitor
         .blackboard

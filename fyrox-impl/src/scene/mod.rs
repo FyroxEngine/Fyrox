@@ -317,7 +317,7 @@ impl SceneLoader {
         }
 
         let data = io.load_file(path.as_ref()).await?;
-        let mut visitor = Visitor::load_binary_from_memory(&data)?;
+        let mut visitor = Visitor::load_from_memory(&data)?;
         let loader = Self::load(
             "Scene",
             serialization_context,
