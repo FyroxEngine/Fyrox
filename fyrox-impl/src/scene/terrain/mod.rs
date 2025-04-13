@@ -59,7 +59,7 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
-use fyrox_core::uuid_provider;
+use fyrox_core::{uuid_provider, warn};
 use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::untyped::ResourceKind;
 use half::f16;
@@ -733,9 +733,29 @@ impl Chunk {
                                 self.update_quad_tree();
                                 return prev_texture;
                             }
+                        } else {
+                            warn!(
+                                "Unable to convert input texture into single-channel height map!\
+                            Input texture format is {:?}.",
+                                new_height_map_texture.pixel_kind()
+                            )
                         }
+                    } else {
+                        warn!(
+                            "The size of the texture must match the height map size! \
+                        Input texture size: {width}x{height}, but the height map size is \
+                        {}x{}",
+                            self.height_map_size.x, self.height_map_size.y
+                        );
                     }
+                } else {
+                    warn!(
+                        "Height map can be set only from 2D textures! The input texture is {:?}",
+                        new_height_map_texture.kind()
+                    )
                 }
+            } else {
+                warn!("The input texture is in invalid state (unloaded)!")
             }
         }
 
