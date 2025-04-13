@@ -464,7 +464,7 @@ impl Writer for AsciiWriter {
     ) -> VisitResult {
         fn align(count: usize, dest: &mut dyn Write) -> VisitResult {
             for _ in 0..count {
-                write!(dest, "    ")?;
+                write!(dest, "\t")?;
             }
             Ok(())
         }
