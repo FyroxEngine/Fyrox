@@ -18,15 +18,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! Visitor is a tree-based serializer/deserializer.
+//! Visitor is a tree-based serializer/deserializer with intermediate representation for stored data.
+//! When data is serialized, it will be transformed into an intermediate representation and only then
+//! will be dumped onto the disk. Deserialization is the same: the data (binary or text) is read
+//! and converted into an intermediate representation (IR). End users can use this IR to save or load
+//! their structures of pretty much any complexity.
 //!
 //! # Overview
 //!
-//! Visitor uses tree to create structured storage of data. Basic unit is a *node* - it is a container
-//! for data fields. Each node has name, handle to parent, set of handles to children nodes and some
-//! container for data fields. Data field is tuple of name and value, value can be any of simple Rust
-//! types and some of basic structures of the crate. Main criteria of what could be the field and what
-//! not is the ability to be represented as set of bytes without any aliasing issues.
+//! Visitor uses a tree to create structured data storage. Basic unit is a *node* - it is a container
+//! for data fields. Each node has a name, handle to parent, set of handles to children nodes and a
+//! container for data fields. Data field is a pair of a name and a value, the value can be any of
+//! simple Rust types and some of the trivially copyable data structures (vectors, matrices, etc.).
+//! The main criteria of what could be the field and what not is the ability to be represented as
+//! a set of bytes.
+//!
+//! See [`Visitor`] docs for more info.
 
 pub mod blackboard;
 pub mod error;
@@ -71,12 +78,14 @@ use std::{
     sync::Arc,
 };
 
-/// Proxy struct for plain data, we can't use `Vec<u8>` directly,
-/// because it will serialize each byte as separate node.
+/// Proxy struct for plain data. It is used to serialize arrays of trivially copyable data (`Vec<u8>`)
+/// directly as a large chunk of data. For example, an attempt to serialize `Vec<u8>` serialize each
+/// byte as a separate node which is very inefficient.
+///
 /// BinaryBlob stores data very much like [`crate::visitor::pod::PodVecView`] except that BinaryBlob
-/// has less type safety. In practice it is used with T = u8 for Strings and Paths,
-/// but it accepts any type T that is Copy, and it lacks the type_id system that
-/// PodVecView has for checking that the data it is reading comes from the expected type.
+/// has less type safety. In practice, it is used with `T` = `u8` for Strings and Paths. However,
+/// it accepts any type T that is Copy, and it lacks the type_id system that PodVecView has for
+/// checking that the data it is reading comes from the expected type.
 pub struct BinaryBlob<'a, T>
 where
     T: Copy,
@@ -134,8 +143,8 @@ where
     }
 }
 
-/// The result of a [Visit::visit] or of a Visitor encoding operation
-/// such as [Visitor::save_binary_to_file]. It has no value unless an error occurred.
+/// The result of a [Visit::visit] or of a Visitor encoding operation such as [Visitor::save_binary_to_file].
+/// It has no value unless an error occurred.
 pub type VisitResult = Result<(), VisitError>;
 
 trait VisitableElementaryField {
@@ -169,9 +178,9 @@ impl_visitable_elementary_field!(i32, write_i32, read_i32, LittleEndian);
 impl_visitable_elementary_field!(u64, write_u64, read_u64, LittleEndian);
 impl_visitable_elementary_field!(i64, write_i64, read_i64, LittleEndian);
 
-/// A node is a collection of [Fields](Field) that exists within a tree of nodes
-/// that allows a [Visitor] to store its data.
-/// Each node has a name, and may have a parent node and child nodes.
+/// A node is a collection of [Fields](Field) that exists within a tree of nodes that allows a
+/// [Visitor] to store its data. Each node has a name, and may have a parent node and child nodes.
+/// A node is used when visiting complex data, that cannot be represented by a simple memory block.
 #[derive(Debug)]
 pub struct VisitorNode {
     name: String,
@@ -202,8 +211,8 @@ impl Default for VisitorNode {
     }
 }
 
-/// A RegionGuard is a [Visitor] that automatically leaves the current region
-/// when it is dropped.
+/// A RegionGuard is a [Visitor] wrapper that automatically leaves the current region when it is
+/// dropped.
 #[must_use = "the guard must be used"]
 pub struct RegionGuard<'a>(&'a mut Visitor);
 
@@ -230,7 +239,7 @@ impl Drop for RegionGuard<'_> {
 }
 
 bitflags! {
-    /// Flags that can be used to influence the behaviour of [Visit::visit] methods.
+    /// Flags that can be used to influence the behavior of [Visit::visit] methods.
     #[derive(Debug)]
     pub struct VisitorFlags: u32 {
         /// No flags set, do nothing special.
@@ -243,10 +252,23 @@ bitflags! {
     }
 }
 
-/// A collection of nodes that stores data that can be read or write values of types with the [Visit] trait.
+/// Visitor is a tree-based serializer/deserializer with intermediate representation for stored data.
+/// When data is serialized, it will be transformed into an intermediate representation and only then
+/// will be dumped onto the disk. Deserialization is the same: the data (binary or text) is read
+/// and converted into an intermediate representation (IR). End users can use this IR to save or load
+/// their structures of pretty much any complexity.
 ///
-/// Instead of calling methods of the visitor in order to read or write the visitor's data, reading
-/// and writing happens in the [Visit::visit] method of a variable that will either store the read value
+/// # Overview
+///
+/// Visitor uses a tree to create structured data storage. Basic unit is a *node* - it is a container
+/// for data fields. Each node has a name, handle to parent, set of handles to children nodes and a
+/// container for data fields. Data field is a pair of a name and a value, the value can be any of
+/// simple Rust types and some of the trivially copyable data structures (vectors, matrices, etc.).
+/// The main criteria of what could be the field and what not is the ability to be represented as
+/// a set of bytes.
+///
+/// Instead of calling visitor methods to read or write the visitor's data, reading and writing
+/// happen in the [Visit::visit] method of a variable that will either store the read value
 /// or holds the value to be written.
 ///
 /// For example, `x.visit("MyValue", &mut visitor)` will do one of:
@@ -254,7 +276,7 @@ bitflags! {
 /// 1. Take the value of `x` and store it in `visitor` under the name "MyValue", if `visitor.is_reading()` is false.
 /// 2. Read a value named "MyValue" from `visitor` and store it in `x`, if `visitor.is_reading()` is true.
 ///
-/// Whether the value of `x` gets written into `visitor` or overwitten with a value from `visitor` is determined
+/// Whether the value of `x` gets written into `visitor` or overwritten with a value from `visitor` is determined
 /// by whether [Visitor::is_reading()] returns true or false.
 pub struct Visitor {
     nodes: Pool<VisitorNode>,
@@ -263,9 +285,9 @@ pub struct Visitor {
     reading: bool,
     current_node: Handle<VisitorNode>,
     root: Handle<VisitorNode>,
-    /// A place to store whatever objects may be needed to assist with reading and writing values.
+    /// A place to store whatever objects may be needed to help with reading and writing values.
     pub blackboard: Blackboard,
-    /// Flags that can activate special behaviour in some Visit values, such as
+    /// Flags that can activate special behavior in some Visit values, such as
     /// [crate::variable::InheritableVariable].
     pub flags: VisitorFlags,
 }
@@ -333,31 +355,49 @@ impl Default for Visitor {
     }
 }
 
+/// Format of the data that be used by a [`Visitor`] instance for reading or writing from/to an
+/// external storage.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 #[must_use]
 pub enum Format {
+    /// The format is unknown and unsupported.
     Unknown,
+    /// Binary format. The fastest and smallest, but changes cannot be merged by a version control
+    /// system, thus not suitable for collaborative work. It should be used primarily for production
+    /// builds.
     Binary,
+    /// Slow and "fat" format, but changes can be merged by a version control system. It makes this
+    /// format ideal for collaborative work.
     Ascii,
 }
 
 impl Visitor {
-    /// Sequence of bytes that is automatically written at the start when a visitor
-    /// is encoded into bytes. It is written by [Visitor::save_binary_to_file], [Visitor::save_binary_to_memory],
+    /// Sequence of bytes that is automatically written at the start when a visitor is encoded into
+    /// bytes. It is written by [Visitor::save_binary_to_file], [Visitor::save_binary_to_memory],
     /// and [Visitor::save_binary_to_vec].
     ///
-    /// [Visitor::load_binary_from_file] will return an error if this sequence of bytes is not present at the beginning
-    /// of the file, and [Visitor::load_binary_from_memory] will return an error of these bytes are not at the beginning
-    /// of the given slice.
+    /// [Visitor::load_binary_from_file] will return an error if this sequence of bytes is not present
+    /// at the beginning of the file, and [Visitor::load_binary_from_memory] will return an error of
+    /// these bytes are not at the beginning of the given slice.
     pub const MAGIC_BINARY: &'static str = "RG3D";
+
+    /// Sequence of bytes that is automatically written at the start when a visitor is encoded into
+    /// ascii form. It is written by [Visitor::save_ascii_to_file], [Visitor::save_ascii_to_memory],
+    /// and [Visitor::save_ascii_to_vec].
+    ///
+    /// [Visitor::load_ascii_from_file] will return an error if this sequence of bytes is not present
+    /// at the beginning of the file, and [Visitor::load_ascii_from_memory] will return an error of
+    /// these bytes are not at the beginning of the given slice.
     // Fyrox Text Asset Format.
     pub const MAGIC_ASCII: &'static str = "FTAF";
 
+    /// Checks whether the given reader points to a supported file format or not.
     #[must_use]
     pub fn is_supported(src: &mut dyn Read) -> bool {
         Self::detect_format(src) != Format::Unknown
     }
 
+    /// Tries to extract the information about the file format in the given reader.
     pub fn detect_format(src: &mut dyn Read) -> Format {
         let mut magic: [u8; 4] = Default::default();
         if src.read_exact(&mut magic).is_ok() {
@@ -370,6 +410,7 @@ impl Visitor {
         Format::Unknown
     }
 
+    /// Tries to extract the information about the file format in the given slice.
     pub fn detect_format_from_slice(data: &[u8]) -> Format {
         let mut src = Cursor::new(data);
         Self::detect_format(&mut src)
@@ -400,17 +441,18 @@ impl Visitor {
             .find(|field| field.name == name)
     }
 
+    /// Tries to find a node by its name.
     pub fn find_node(&self, name: &str) -> Option<&VisitorNode> {
         self.nodes.iter().find(|n| n.name == name)
     }
 
-    /// True if this Visitor is changing the values that it visits.
-    /// In other words `x.visit("MyValue", &mut visitor)` will result in `x` being mutated to match
-    /// whatever value is stored in `visitor`.
+    /// True if this Visitor is changing the values that it visits. In other words,
+    /// `x.visit("MyValue", &mut visitor)` will result in `x` being mutated to match whatever value
+    /// is stored in `visitor`.
     ///
-    /// False if this visitor is copying and storing the values that it visits.
-    /// In other words `x.visit("MyValue", &mut visitor)` will result in `x` being unchanged,
-    /// but `visitor` will be mutated to store the value of `x` under the name "MyValue".
+    /// False if this visitor is copying and storing the values that it visits. In other words,
+    /// `x.visit("MyValue", &mut visitor)` will result in `x` being unchanged, but `visitor` will
+    /// be mutated to store the value of `x` under the name "MyValue".
     pub fn is_reading(&self) -> bool {
         self.reading
     }
@@ -419,13 +461,11 @@ impl Visitor {
         self.nodes.borrow_mut(self.current_node)
     }
 
-    /// If [Visitor::is_reading], find a node with the given name that is a child
-    /// of the current node, and return a Visitor for the found node. Return an error
-    /// if no node with that name exists.
+    /// If [Visitor::is_reading], find a node with the given name that is a child of the current
+    /// node, and return a Visitor for the found node. Return an error if no node with that name exists.
     ///
-    /// If not reading, create a node with the given name as a chld of the current
-    /// node, and return a visitor for the new node. Return an error if a node with
-    /// that name already exists.
+    /// If not reading, create a node with the given name as a chld of the current node, and return
+    /// a visitor for the new node. Return an error if a node with  that name already exists.
     pub fn enter_region(&mut self, name: &str) -> Result<RegionGuard, VisitError> {
         let node = self.nodes.borrow(self.current_node);
         if self.reading {
@@ -463,8 +503,7 @@ impl Visitor {
         }
     }
 
-    /// The name of the current region.
-    /// This should never be None if the Visitor is operating normally,
+    /// The name of the current region. This should never be None if the Visitor is operating normally,
     /// because there should be no way to leave the initial `__ROOT__` region.
     pub fn current_region(&self) -> Option<&str> {
         self.nodes
@@ -481,15 +520,17 @@ impl Visitor {
         }
     }
 
-    /// Create a String containing all the data of this Visitor.
-    /// The String is formatted to be human-readable with each node on its own line
-    /// and tabs to indent child nodes.
+    /// Create a string containing all the data of this Visitor in ascii form. The string is
+    /// formatted to be human-readable with each node on its own line and tabs to indent child nodes.
     pub fn save_ascii_to_string(&self) -> String {
         let mut cursor = Cursor::<Vec<u8>>::default();
         self.save_ascii_to_memory(&mut cursor).unwrap();
         String::from_utf8(cursor.into_inner()).unwrap()
     }
 
+    /// Create a string containing all the data of this Visitor in ascii form and saves it to the given
+    /// path. The string is formatted to be human-readable with each node on its own line and tabs
+    /// to indent child nodes.
     pub fn save_ascii_to_file(&self, path: impl AsRef<Path>) -> VisitResult {
         let mut writer = BufWriter::new(File::create(path)?);
         let text = self.save_ascii_to_string();
@@ -497,30 +538,35 @@ impl Visitor {
         Ok(())
     }
 
+    /// Create a string containing all the data of this Visitor in ascii form and writes it to the
+    /// given writer. The string is formatted to be human-readable with each node on its own line
+    /// and tabs to indent child nodes.
     pub fn save_ascii_to_memory(&self, mut dest: impl Write) -> VisitResult {
         let writer = AsciiWriter::default();
         writer.write(self, &mut dest)
     }
 
+    /// Tries to create a visitor from the given data. The returned instance can then be used to
+    /// deserialize some data.
     pub fn load_ascii_from_memory(data: &[u8]) -> Result<Self, VisitError> {
         let mut src = Cursor::new(data);
         let mut reader = AsciiReader::new(&mut src);
         reader.read()
     }
 
+    /// Tries to create a visitor from the given file. The returned instance can then be used to
+    /// deserialize some data.
     pub async fn load_ascii_from_file(path: impl AsRef<Path>) -> Result<Self, VisitError> {
         Self::load_ascii_from_memory(&io::load_file(path).await?)
     }
 
-    /// Write the data of this Visitor to the given writer.
-    /// Begin by writing [Visitor::MAGIC_BINARY].
+    /// Write the data of this Visitor to the given writer. Begin by writing [Visitor::MAGIC_BINARY].
     pub fn save_binary_to_memory(&self, mut dest: impl Write) -> VisitResult {
         let writer = BinaryWriter::default();
         writer.write(self, &mut dest)
     }
 
-    /// Encode the data of this visitor into bytes and push the bytes
-    /// into the given `Vec<u8>`.
+    /// Encode the data of this visitor into bytes and push the bytes into the given `Vec<u8>`.
     /// Begin by writing [Visitor::MAGIC_BINARY].
     pub fn save_binary_to_vec(&self) -> Result<Vec<u8>, VisitError> {
         let mut writer = Cursor::new(Vec::new());
@@ -528,26 +574,25 @@ impl Visitor {
         Ok(writer.into_inner())
     }
 
-    /// Create a file at the given path and write the data of this visitor
-    /// into that file in a non-human-readable binary format so that the data
-    /// can be reconstructed using [Visitor::load_binary_from_file].
+    /// Create a file at the given path and write the data of this visitor into that file in a
+    /// non-human-readable binary format so that the data can be reconstructed using [Visitor::load_binary_from_file].
     /// Begin by writing [Visitor::MAGIC_BINARY].
     pub fn save_binary_to_file(&self, path: impl AsRef<Path>) -> VisitResult {
         let writer = BufWriter::new(File::create(path)?);
         self.save_binary_to_memory(writer)
     }
 
-    /// Create a visitor by reading data from the file at the given path,
-    /// assuming that the file was created using [Visitor::save_binary_to_file].
-    /// Return a [VisitError::NotSupportedFormat] if [Visitor::MAGIC_BINARY] is not the first bytes read from the file.
+    /// Create a visitor by reading data from the file at the given path, assuming that the file was
+    /// created using [Visitor::save_binary_to_file]. Return a [VisitError::NotSupportedFormat] if
+    /// [Visitor::MAGIC_BINARY] is not the first bytes read from the file.
     pub async fn load_binary_from_file(path: impl AsRef<Path>) -> Result<Self, VisitError> {
         Self::load_binary_from_memory(&io::load_file(path).await?)
     }
 
-    /// Create a visitor by decoding data from the given byte slice,
-    /// assuming that the bytes are in the format that would be produced
-    /// by [Visitor::save_binary_to_vec].
-    /// Return a [VisitError::NotSupportedFormat] if [Visitor::MAGIC_BINARY] is not the first bytes read from the slice.
+    /// Create a visitor by decoding data from the given byte slice, assuming that the bytes are in
+    /// the format that would be produced by [Visitor::save_binary_to_vec]. Return a
+    /// [VisitError::NotSupportedFormat] if [Visitor::MAGIC_BINARY] is not the first bytes read from
+    /// the slice.
     pub fn load_binary_from_memory(data: &[u8]) -> Result<Self, VisitError> {
         let mut src = Cursor::new(data);
         let mut reader = BinaryReader::new(&mut src);
