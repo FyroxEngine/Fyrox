@@ -727,16 +727,16 @@ fn make_heightfield(terrain: &Terrain) -> Option<SharedShape> {
         .fill(HeightFieldCellStatus::CELL_REMOVED);
     let hole_mask_size = terrain.hole_mask_size();
     for chunk in terrain.chunks_ref() {
-        let Some(texture) = chunk.hole_mask().map(|t| t.data_ref()) else {
-            continue;
-        };
-        let hole_mask = texture.data_of_type::<u8>().unwrap();
+        let texture = chunk.hole_mask().map(|t| t.data_ref());
+        let hole_mask = texture.as_ref().map(|t| t.data_of_type::<u8>().unwrap());
         let pos = (chunk.grid_position() - chunk_min).map(|x| x as u32);
         let (ox, oy) = (pos.x * chunk_size.x, pos.y * chunk_size.y);
 
         for iy in 0..hole_mask_size.y {
             for ix in 0..hole_mask_size.x {
-                let is_hole = hole_mask[(iy * hole_mask_size.x + ix) as usize] < 128;
+                let is_hole = hole_mask
+                    .map(|m| m[(iy * hole_mask_size.x + ix) as usize] < 128)
+                    .unwrap_or_default();
                 let (x, y) = (ox + ix, oy + iy);
                 if !is_hole {
                     hf.set_cell_status(y as usize, x as usize, HeightFieldCellStatus::empty());
