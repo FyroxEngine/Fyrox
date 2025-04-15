@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! Data types that can be serialized as-is, by dumping the memory into a file.
+
 use crate::visitor::{
     error::VisitError,
     field::{Field, FieldKind},
@@ -103,6 +105,7 @@ pub struct PodVecView<'a, T: Pod> {
 }
 
 impl<'a, T: Pod> PodVecView<'a, T> {
+    /// Creates a view from the given vector.
     pub fn from_pod_vec(vec: &'a mut Vec<T>) -> Self {
         Self {
             type_id: T::type_id(),

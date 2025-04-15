@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! Possible errors that may occur during serialization/deserialization.
+
 use crate::io::FileError;
 use base64::DecodeError;
 use std::num::{ParseFloatError, ParseIntError};
@@ -45,8 +47,9 @@ pub enum VisitError {
     /// Attempting to enter a region on a write-mode Visitor when a region already has the
     /// given name.
     RegionAlreadyExists(String),
+    /// Current node handle is invalid and does not lead to a real node.
     InvalidCurrentNode,
-    /// Attempting to visit a field using a read-mode Visitor when when that field was originally
+    /// Attempting to visit a field using a read-mode Visitor when that field was originally
     /// written using a value of a different type.
     FieldTypeDoesNotMatch,
     /// Attempting to enter a region on a read-mode Visitor when no region in the visitor's data
@@ -75,9 +78,13 @@ pub enum VisitError {
     PoisonedMutex,
     /// A FileLoadError was encountered while trying to decode Visitor data from a file.
     FileLoadError(FileError),
+    /// Integer parsing error.
     ParseIntError(ParseIntError),
+    /// Floating point number parsing error.
     ParseFloatError(ParseFloatError),
+    /// An error occurred when trying to decode base64-encoded data.
     DecodeError(DecodeError),
+    /// An error occurred when trying to parse uuid from a string.
     UuidError(uuid::Error),
 }
 

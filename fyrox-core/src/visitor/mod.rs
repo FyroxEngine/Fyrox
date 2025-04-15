@@ -35,6 +35,8 @@
 //!
 //! See [`Visitor`] docs for more info.
 
+#![warn(missing_docs)]
+
 pub mod blackboard;
 pub mod error;
 pub mod field;
@@ -90,6 +92,7 @@ pub struct BinaryBlob<'a, T>
 where
     T: Copy,
 {
+    /// A reference to a vector that represents a binary blob.
     pub vec: &'a mut Vec<T>,
 }
 
