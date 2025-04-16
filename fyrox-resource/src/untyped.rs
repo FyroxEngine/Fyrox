@@ -308,8 +308,11 @@ impl Visit for UntypedResource {
                     .get::<ResourceManager>()
                     .expect("Resource manager must be available when deserializing resources!");
 
-                let registry = resource_manager.state().resource_registry.clone();
-                let registry_lock = registry.lock();
+                let status_flag = resource_manager
+                    .state()
+                    .resource_registry
+                    .lock()
+                    .status_flag();
 
                 // The resource registry **MUST** be loaded at this stage. This assertion should never
                 // trigger in normal circumstances, because resource references normally stored inside
@@ -320,19 +323,17 @@ impl Visit for UntypedResource {
                 // 1) The registry is not loaded.
                 // 2) You're trying to deserialize the resource handle manually without a proper
                 // environment.
-                assert_eq!(
-                    registry_lock.status_flag().status(),
-                    ResourceRegistryStatus::Loaded
-                );
+                assert_eq!(status_flag.status(), ResourceRegistryStatus::Loaded);
 
                 let path = match inner_lock.old_format_path {
                     None => {
+                        let rm_state = resource_manager.state();
+                        let registry_lock = rm_state.resource_registry.lock();
                         match registry_lock.uuid_to_path_buf(resource_uuid) {
                             Some(path) => Some(path),
                             None => {
                                 // As a last resort - try to find a built-in resource with this id.
-                                resource_manager
-                                    .state()
+                                rm_state
                                     .built_in_resources
                                     .find_by_uuid(resource_uuid)
                                     .map(|r| r.id.clone())
@@ -341,8 +342,6 @@ impl Visit for UntypedResource {
                     }
                     Some(ref path) => Some(path.clone()),
                 };
-
-                drop(registry_lock);
 
                 if let Some(path) = path {
                     drop(inner_lock);
