@@ -46,7 +46,7 @@ use crate::{
     Resource, TypedResourceData, UntypedResource,
 };
 use fxhash::FxHashSet;
-use fyrox_core::{err, info, Uuid};
+use fyrox_core::{err, futures, info, Uuid};
 use std::{
     fmt::{Debug, Display, Formatter},
     marker::PhantomData,
@@ -395,46 +395,39 @@ impl ResourceManagerState {
             path.display()
         );
 
+        // Try to update the registry first.
+        // Wasm is an exception, because it does not have a file system.
+        #[cfg(not(target_arch = "wasm32"))]
+        futures::executor::block_on(async move {
+            let new_data =
+                ResourceRegistry::scan(resource_io.clone(), task_loaders, &path, excluded_folders)
+                    .await;
+            let mut registry_lock = resource_registry.lock();
+            registry_lock.modify().set_container(new_data);
+            registry_status.mark_as_loaded();
+        });
+
+        // WASM can only try to asynchronously load the existing registry.
+        #[cfg(target_arch = "wasm32")]
         self.task_pool.spawn_task(async move {
-            // Try to update the registry first.
-            // Wasm is an exception, because it does not have a file system.
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                let new_data = ResourceRegistry::scan(
-                    resource_io.clone(),
-                    task_loaders,
-                    &path,
-                    excluded_folders,
-                )
-                .await;
-                let mut registry_lock = resource_registry.lock();
-                registry_lock.modify().set_container(new_data);
-                registry_status.mark_as_loaded();
-            }
+            use crate::registry::RegistryContainerExt;
+            // Then load the registry.
+            match crate::registry::RegistryContainer::load_from_file(&path, &*resource_io).await {
+                Ok(registry) => {
+                    let mut registry_lock = resource_registry.lock();
+                    registry_lock.modify().set_container(registry);
 
-            // WASM can only try to load the existing registry.
-            #[cfg(target_arch = "wasm32")]
-            {
-                use crate::registry::RegistryContainerExt;
-                // Then load the registry.
-                match crate::registry::RegistryContainer::load_from_file(&path, &*resource_io).await
-                {
-                    Ok(registry) => {
-                        let mut registry_lock = resource_registry.lock();
-                        registry_lock.modify().set_container(registry);
+                    registry_status.mark_as_loaded();
 
-                        registry_status.mark_as_loaded();
-
-                        info!(
-                            "Resource registry was loaded from {} successfully!",
-                            path.display()
-                        );
-                    }
-                    Err(error) => {
-                        err!("Unable to load resource registry! Reason: {:?}.", error);
-                    }
-                };
-            }
+                    info!(
+                        "Resource registry was loaded from {} successfully!",
+                        path.display()
+                    );
+                }
+                Err(error) => {
+                    err!("Unable to load resource registry! Reason: {:?}.", error);
+                }
+            };
         });
     }
 
