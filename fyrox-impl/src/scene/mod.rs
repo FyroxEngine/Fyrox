@@ -370,11 +370,13 @@ impl SceneLoader {
             let exclusion_list = used_resources
                 .iter()
                 .filter(|res| {
+                    // Calling resource_uuid means locking the header.
+                    // To minimize the number of locks we hold at once, get the UUID first,
+                    // before we lock the resource manager and registry.
+                    let uuid = res.resource_uuid();
                     let state = self.resource_manager.state();
                     let registry = state.resource_registry.lock();
-                    res.resource_uuid()
-                        .and_then(|uuid| registry.uuid_to_path(uuid))
-                        == Some(&path)
+                    uuid.and_then(|uuid| registry.uuid_to_path(uuid)) == Some(&path)
                 })
                 .cloned()
                 .collect::<Vec<_>>();

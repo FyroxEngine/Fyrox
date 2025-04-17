@@ -713,7 +713,13 @@ impl ResourceManagerState {
                     Ok(data) => {
                         let data = data.0;
 
-                        match registry.lock().path_to_uuid(&path) {
+                        // Creating this p variable causes the lock to be dropped
+                        // before the match. If we put the expression directly into the
+                        // match, then it would not be dropped until after, which would mean
+                        // holding the registry lock while we resource header, which can cause
+                        // a deadlock.
+                        let p = registry.lock().path_to_uuid(&path);
+                        match p {
                             Some(resource_uuid) => {
                                 let mut mutex_guard = resource.0.lock();
 
