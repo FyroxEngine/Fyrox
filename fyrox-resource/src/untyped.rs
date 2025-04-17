@@ -329,10 +329,14 @@ impl Visit for UntypedResource {
                     None => {
                         let rm_state = resource_manager.state();
                         let registry_lock = rm_state.resource_registry.lock();
-                        match registry_lock.uuid_to_path_buf(resource_uuid) {
+                        let path = registry_lock.uuid_to_path_buf(resource_uuid);
+                        // Minimize duration of lock on registry.
+                        drop(registry_lock);
+                        match path {
                             Some(path) => Some(path),
                             None => {
                                 // As a last resort - try to find a built-in resource with this id.
+                                // Beware that find_by_uuid causes resource header locking.
                                 rm_state
                                     .built_in_resources
                                     .find_by_uuid(resource_uuid)
