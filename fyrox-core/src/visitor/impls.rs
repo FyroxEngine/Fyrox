@@ -150,16 +150,39 @@ where
             self.clear();
             for index in 0..len {
                 let region_name = format!("Item{index}");
-                let mut region = region.enter_region(region_name.as_str())?;
+
+                // Backward compatibility with the previous version (verbose, non-flat).
+                if let Ok(mut item_region) = region.enter_region(region_name.as_str()) {
+                    let current_node = item_region.current_node_ref();
+                    if current_node.children.len() == 1
+                        && item_region.node_ref(current_node.children[0]).name == "ItemData"
+                    {
+                        let mut object = T::default();
+                        object.visit("ItemData", &mut item_region)?;
+                        self.push(object);
+                        continue;
+                    }
+                }
+
+                // Try to read the new (flattened) version.
                 let mut object = T::default();
-                object.visit("ItemData", &mut region)?;
+                object.visit(&region_name, &mut region)?;
                 self.push(object);
             }
         } else {
             for (index, item) in self.iter_mut().enumerate() {
-                let region_name = format!("Item{index}");
-                let mut region = region.enter_region(region_name.as_str())?;
-                item.visit("ItemData", &mut region)?;
+                let current_node_ref = region.current_node_ref();
+                let prev_children_count = current_node_ref.children.len();
+                let prev_field_count = current_node_ref.fields.len();
+
+                let item_name = format!("Item{index}");
+                item.visit(&item_name, &mut region)?;
+
+                let current_node_ref = region.current_node_ref();
+                let new_children_count = current_node_ref.children.len();
+                let new_field_count = current_node_ref.fields.len();
+                assert_eq!(prev_field_count, new_field_count);
+                assert_eq!(prev_children_count + 1, new_children_count);
             }
         }
 
