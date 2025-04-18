@@ -50,7 +50,9 @@ use tileset::*;
 pub use transform::*;
 pub use update::*;
 
-use super::{dim2::rectangle::RectangleVertex, node::constructor::NodeConstructor};
+use super::{
+    collider::BitMask, dim2::rectangle::RectangleVertex, node::constructor::NodeConstructor,
+};
 use crate::lazy_static::*;
 use crate::{
     asset::{untyped::ResourceKind, ResourceDataRef},
@@ -1406,6 +1408,10 @@ impl NodeTrait for TileMap {
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
+        if *self.render_mask & ctx.render_mask == BitMask::none() {
+            return RdcControlFlow::Continue;
+        }
+
         if !self.should_be_rendered(ctx.frustum) {
             return RdcControlFlow::Continue;
         }

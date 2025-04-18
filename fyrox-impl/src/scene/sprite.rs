@@ -22,6 +22,7 @@
 //!
 //! For more info see [`Sprite`].
 
+use crate::scene::collider::BitMask;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::scene::node::RdcControlFlow;
 use crate::{
@@ -233,7 +234,7 @@ impl TypeUuidProvider for Sprite {
 
 impl Sprite {
     /// Sets new size of sprite. Since sprite is always square, size defines half of width or height, so actual size
-    /// will be doubled. Default value is 0.2.    
+    /// will be doubled. Default value is 0.2.
     ///
     /// Negative values could be used to "inverse" the image on the sprite.
     pub fn set_size(&mut self, size: f32) -> f32 {
@@ -319,6 +320,10 @@ impl NodeTrait for Sprite {
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
+        if *self.render_mask & ctx.render_mask == BitMask::none() {
+            return RdcControlFlow::Continue;
+        }
+
         if !self.should_be_rendered(ctx.frustum) {
             return RdcControlFlow::Continue;
         }

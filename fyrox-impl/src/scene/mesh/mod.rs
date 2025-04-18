@@ -72,6 +72,8 @@ use std::{
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
+use super::collider::BitMask;
+
 pub mod buffer;
 pub mod surface;
 pub mod vertex;
@@ -178,6 +180,7 @@ impl BatchContainer {
             }
 
             descendant.collect_render_data(&mut RenderContext {
+                render_mask: ctx.render_mask,
                 elapsed_time: ctx.elapsed_time,
                 observer_info: ctx.observer_info,
                 frustum: None,
@@ -664,6 +667,10 @@ impl NodeTrait for Mesh {
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
+        if *self.render_mask & ctx.render_mask == BitMask::none() {
+            return RdcControlFlow::Continue;
+        }
+
         if !self.should_be_rendered(ctx.frustum) {
             return RdcControlFlow::Continue;
         }

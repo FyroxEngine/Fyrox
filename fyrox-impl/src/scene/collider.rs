@@ -229,6 +229,37 @@ pub struct BitMask(pub u32);
 
 uuid_provider!(BitMask = "f2db0c2a-921b-4728-9ce4-2506d95c60fa");
 
+impl BitMask {
+    /// BitMask with all bits set. BitMask(u32::MAX)
+    pub const fn all() -> Self {
+        Self(u32::MAX)
+    }
+    /// BitMask with no bits set. BitMask(0)
+    pub const fn none() -> Self {
+        Self(0)
+    }
+    /// Construct BitMask from this BitMask plus setting bit at the given index to 1.
+    pub const fn with(self, index: usize) -> Self {
+        Self(self.0 | (1 << index))
+    }
+    /// Construct BitMask from this BitMask plus resetting the bit at the given index to 0.
+    pub const fn without(self, index: usize) -> Self {
+        Self(self.0 & !(1 << index))
+    }
+    /// True if the bit at `index` is set.
+    pub fn bit(&self, index: usize) -> bool {
+        (self.0 >> index) & 1 != 0
+    }
+    /// Set or reset the bit at `index`.
+    pub fn set_bit(&mut self, index: usize, value: bool) {
+        if value {
+            self.0 |= 1 << index;
+        } else {
+            self.0 &= !(1 << index);
+        }
+    }
+}
+
 impl std::fmt::Debug for BitMask {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "BitMask({:08x})", self.0)
@@ -381,8 +412,8 @@ impl std::fmt::Display for InteractionGroups {
 impl Default for InteractionGroups {
     fn default() -> Self {
         Self {
-            memberships: BitMask(u32::MAX),
-            filter: BitMask(u32::MAX),
+            memberships: BitMask::all(),
+            filter: BitMask::all(),
         }
     }
 }
@@ -1271,5 +1302,27 @@ mod test {
         assert_eq!(format!("{:?}", BitMask(16)), "BitMask(00000010)");
         assert_eq!(format!("{:?}", BitMask(256)), "BitMask(00000100)");
         assert_eq!(format!("{:?}", BitMask(1 << 31)), "BitMask(80000000)");
+    }
+    #[test]
+    fn test_bitmask_set_bit() {
+        let mut mask = BitMask::none();
+        mask.set_bit(0, true);
+        assert!(mask.bit(0));
+        assert_eq!(mask.to_string(), "10000000 00000000 00000000 00000000");
+        mask.set_bit(3, true);
+        assert!(mask.bit(3));
+        assert_eq!(mask.to_string(), "10010000 00000000 00000000 00000000");
+        mask.set_bit(0, false);
+        assert!(!mask.bit(0));
+        assert_eq!(mask.to_string(), "00010000 00000000 00000000 00000000");
+    }
+    #[test]
+    fn test_bitmask_with() {
+        let mask = BitMask::none().with(8);
+        assert_eq!(mask.to_string(), "00000000 10000000 00000000 00000000");
+        let mask = BitMask::all().without(8);
+        assert_eq!(mask.to_string(), "11111111 01111111 11111111 11111111");
+        let mask = BitMask::none().with(1).with(2).with(3);
+        assert_eq!(mask.to_string(), "01110000 00000000 00000000 00000000");
     }
 }
