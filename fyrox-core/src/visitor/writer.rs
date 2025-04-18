@@ -470,20 +470,12 @@ impl Writer for AsciiWriter {
         }
 
         align(hierarchy_level, dest)?;
-        writeln!(dest, "{}", node.name)?;
+        write!(dest, "{}", node.name)?;
 
-        align(hierarchy_level, dest)?;
         write!(dest, "[{}:", node.fields.len())?;
-
         for field in node.fields.iter() {
-            writeln!(dest)?;
-            align(hierarchy_level + 1, dest)?;
             self.write_field(field, dest)?;
         }
-
-        writeln!(dest)?;
-
-        align(hierarchy_level, dest)?;
         writeln!(dest, "]")?;
 
         align(hierarchy_level, dest)?;
