@@ -18,11 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::visitor::field::FieldKind;
-use crate::visitor::Field;
 use crate::{
     replace_slashes,
-    visitor::{error::VisitError, BinaryBlob, Visit, VisitResult, Visitor},
+    visitor::{
+        error::VisitError, field::FieldKind, BinaryBlob, Field, Visit, VisitResult, Visitor,
+    },
 };
 use nalgebra::{Matrix2, Matrix3, Matrix4, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4};
 use std::{
@@ -146,43 +146,36 @@ where
         let mut len = self.len() as u32;
         len.visit("Length", &mut region)?;
 
+        fn make_name(i: usize) -> String {
+            format!("Item{i}")
+        }
+
         if region.reading {
             self.clear();
-            for index in 0..len {
-                let region_name = format!("Item{index}");
-
+            for index in 0..len as usize {
                 // Backward compatibility with the previous version (verbose, non-flat).
-                if let Ok(mut item_region) = region.enter_region(region_name.as_str()) {
-                    let current_node = item_region.current_node_ref();
-                    if current_node.children.len() == 1
-                        && item_region.node_ref(current_node.children[0]).name == "ItemData"
-                    {
-                        let mut object = T::default();
-                        object.visit("ItemData", &mut item_region)?;
-                        self.push(object);
-                        continue;
+                {
+                    if let Ok(mut item_region) = region.enter_region(&make_name(index)) {
+                        let current_node = item_region.current_node_ref();
+                        if current_node.children.len() == 1
+                            && item_region.node_ref(current_node.children[0]).name == "ItemData"
+                        {
+                            let mut object = T::default();
+                            object.visit("ItemData", &mut item_region)?;
+                            self.push(object);
+                            continue;
+                        }
                     }
                 }
 
                 // Try to read the new (flattened) version.
                 let mut object = T::default();
-                object.visit(&region_name, &mut region)?;
+                object.visit(&make_name(index), &mut region)?;
                 self.push(object);
             }
         } else {
             for (index, item) in self.iter_mut().enumerate() {
-                let current_node_ref = region.current_node_ref();
-                let prev_children_count = current_node_ref.children.len();
-                let prev_field_count = current_node_ref.fields.len();
-
-                let item_name = format!("Item{index}");
-                item.visit(&item_name, &mut region)?;
-
-                let current_node_ref = region.current_node_ref();
-                let new_children_count = current_node_ref.children.len();
-                let new_field_count = current_node_ref.fields.len();
-                assert_eq!(prev_field_count, new_field_count);
-                assert_eq!(prev_children_count + 1, new_children_count);
+                item.visit(&make_name(index), &mut region)?;
             }
         }
 
