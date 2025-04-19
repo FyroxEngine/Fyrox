@@ -1476,6 +1476,7 @@ impl Renderer {
 
             let bundle_storage = RenderDataBundleStorage::from_graph(
                 graph,
+                *camera.render_mask,
                 elapsed_time,
                 ObserverInfo {
                     observer_position: camera.global_position(),

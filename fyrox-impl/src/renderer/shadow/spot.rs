@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::renderer::DynamicSurfaceCache;
+use crate::scene::collider::BitMask;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -117,6 +118,7 @@ impl SpotShadowMapRenderer {
         &mut self,
         server: &dyn GraphicsServer,
         graph: &Graph,
+        render_mask: BitMask,
         elapsed_time: f32,
         light_position: Vector3<f32>,
         light_view_matrix: Matrix4<f32>,
@@ -142,6 +144,7 @@ impl SpotShadowMapRenderer {
 
         let bundle_storage = RenderDataBundleStorage::from_graph(
             graph,
+            render_mask,
             elapsed_time,
             ObserverInfo {
                 observer_position: light_position,

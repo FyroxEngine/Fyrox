@@ -178,6 +178,7 @@ impl BatchContainer {
             }
 
             descendant.collect_render_data(&mut RenderContext {
+                render_mask: ctx.render_mask,
                 elapsed_time: ctx.elapsed_time,
                 observer_info: ctx.observer_info,
                 frustum: None,
@@ -664,7 +665,7 @@ impl NodeTrait for Mesh {
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
-        if !self.should_be_rendered(ctx.frustum) {
+        if !self.should_be_rendered(ctx.frustum, ctx.render_mask) {
             return RdcControlFlow::Continue;
         }
 

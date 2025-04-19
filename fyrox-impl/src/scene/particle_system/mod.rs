@@ -587,7 +587,7 @@ impl NodeTrait for ParticleSystem {
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
-        if !self.should_be_rendered(ctx.frustum)
+        if !self.should_be_rendered(ctx.frustum, ctx.render_mask)
             || self.is_distance_clipped(&ctx.observer_info.observer_position)
         {
             return RdcControlFlow::Continue;

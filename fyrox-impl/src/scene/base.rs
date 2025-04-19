@@ -51,6 +51,8 @@ use std::{
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
+use super::collider::BitMask;
+
 /// Level of detail is a collection of objects for given normalized distance range.
 /// Objects will be rendered **only** if they're in specified range.
 /// Normalized distance is a distance in (0; 1) range where 0 - closest to camera,
@@ -462,6 +464,14 @@ pub struct Base {
 
     #[reflect(deref)]
     enabled: TrackedProperty<InheritableVariable<bool>>,
+
+    /// Control whether this node should be rendered. A node should be rendered only if its render mask shares
+    /// some set bits in common with the render mask of the camera.
+    #[reflect(
+        description = "Control whether this node should be rendered. A node should be rendered only if its render mask shares\
+        some set bits in common with the render mask of the camera."
+    )]
+    pub render_mask: InheritableVariable<BitMask>,
 
     #[reflect(
         description = "Maximum amount of Some(time) that node will \"live\" or None if the node has unlimited lifetime."
@@ -1207,6 +1217,7 @@ impl Visit for Base {
         let _ = self.cast_shadows.visit("CastShadows", &mut region);
         let _ = self.instance_id.visit("InstanceId", &mut region);
         let _ = self.enabled.visit("Enabled", &mut region);
+        let _ = self.render_mask.visit("RenderMask", &mut region);
 
         // Script visiting may fail for various reasons:
         //
@@ -1406,6 +1417,7 @@ impl BaseBuilder {
                 self.enabled.into(),
                 NodeMessageKind::EnabledFlagChanged,
             ),
+            render_mask: BitMask::all().into(),
             global_visibility: Cell::new(true),
             parent: Handle::NONE,
             global_transform: Cell::new(Matrix4::identity()),

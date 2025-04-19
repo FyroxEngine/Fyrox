@@ -140,6 +140,7 @@ impl SceneRenderPass for HighlightRenderPass {
 
             let frustum = ctx.camera.frustum();
             let mut render_context = RenderContext {
+                render_mask: *ctx.camera.render_mask,
                 elapsed_time: ctx.elapsed_time,
                 observer_info: &observer_info,
                 frustum: Some(&frustum),

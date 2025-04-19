@@ -306,7 +306,7 @@ impl NodeTrait for Rectangle {
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
-        if !self.should_be_rendered(ctx.frustum) {
+        if !self.should_be_rendered(ctx.frustum, ctx.render_mask) {
             return RdcControlFlow::Continue;
         }
 

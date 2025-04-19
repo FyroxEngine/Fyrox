@@ -459,6 +459,7 @@ pub fn make_property_editors_container(
     container.insert(ScriptPropertyEditorDefinition {});
 
     container.insert(BitFieldPropertyEditorDefinition::<BitMask>::new());
+    container.insert(InheritablePropertyEditorDefinition::<BitMask>::new());
 
     container.register_inheritable_inspectable::<BallShape>();
     container.register_inheritable_inspectable::<dim2::collider::BallShape>();

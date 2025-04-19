@@ -32,16 +32,17 @@ use crate::{
         cache::{shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator},
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind},
-            gpu_texture::{CubeMapFace, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+            framebuffer::{Attachment, AttachmentKind, GpuFrameBuffer},
+            gpu_texture::{
+                CubeMapFace, GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind,
+            },
             server::GraphicsServer,
         },
-        framework::{framebuffer::GpuFrameBuffer, gpu_texture::GpuTexture},
         shadow::cascade_size,
         DynamicSurfaceCache, FallbackResources, GeometryCache, RenderPassStatistics,
         ShadowMapPrecision, POINT_SHADOW_PASS_NAME,
     },
-    scene::graph::Graph,
+    scene::{collider::BitMask, graph::Graph},
 };
 
 pub struct PointShadowMapRenderer {
@@ -58,6 +59,7 @@ struct PointShadowCubeMapFace {
 }
 
 pub(crate) struct PointShadowMapRenderContext<'a> {
+    pub render_mask: BitMask,
     pub elapsed_time: f32,
     pub state: &'a dyn GraphicsServer,
     pub graph: &'a Graph,
@@ -178,6 +180,7 @@ impl PointShadowMapRenderer {
             elapsed_time,
             state,
             graph,
+            render_mask,
             light_pos,
             light_radius,
             geom_cache,
@@ -212,6 +215,7 @@ impl PointShadowMapRenderer {
 
             let bundle_storage = RenderDataBundleStorage::from_graph(
                 graph,
+                render_mask,
                 elapsed_time,
                 ObserverInfo {
                     observer_position: light_pos,
