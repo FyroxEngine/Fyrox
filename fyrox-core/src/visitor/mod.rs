@@ -386,7 +386,7 @@ impl Visitor {
 
     /// Sequence of bytes that is automatically written at the start when a visitor is encoded into
     /// ascii form. It is written by [Visitor::save_ascii_to_file], [Visitor::save_ascii_to_memory],
-    /// and [Visitor::save_ascii_to_vec].
+    /// and [Visitor::save_ascii_to_string].
     ///
     /// [Visitor::load_ascii_from_file] will return an error if this sequence of bytes is not present
     /// at the beginning of the file, and [Visitor::load_ascii_from_memory] will return an error of
@@ -467,7 +467,7 @@ impl Visitor {
     fn current_node_ref(&self) -> &VisitorNode {
         self.nodes.borrow(self.current_node)
     }
-    
+
     fn node_ref(&self, handle: Handle<VisitorNode>) -> &VisitorNode {
         &self.nodes[handle]
     }

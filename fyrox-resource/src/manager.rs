@@ -46,7 +46,7 @@ use crate::{
     Resource, TypedResourceData, UntypedResource,
 };
 use fxhash::FxHashSet;
-use fyrox_core::{err, futures, info, Uuid};
+use fyrox_core::{err, info, Uuid};
 use std::{
     fmt::{Debug, Display, Formatter},
     marker::PhantomData,
@@ -398,7 +398,7 @@ impl ResourceManagerState {
         // Try to update the registry first.
         // Wasm is an exception, because it does not have a file system.
         #[cfg(not(target_arch = "wasm32"))]
-        futures::executor::block_on(async move {
+        fyrox_core::futures::executor::block_on(async move {
             let new_data =
                 ResourceRegistry::scan(resource_io.clone(), task_loaders, &path, excluded_folders)
                     .await;
