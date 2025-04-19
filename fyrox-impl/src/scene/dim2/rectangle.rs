@@ -23,7 +23,6 @@
 //!
 //! See [`Rectangle`] docs for more info.
 
-use crate::scene::collider::BitMask;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -307,11 +306,7 @@ impl NodeTrait for Rectangle {
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
-        if *self.render_mask & ctx.render_mask == BitMask::none() {
-            return RdcControlFlow::Continue;
-        }
-
-        if !self.should_be_rendered(ctx.frustum) {
+        if !self.should_be_rendered(ctx.frustum, ctx.render_mask) {
             return RdcControlFlow::Continue;
         }
 

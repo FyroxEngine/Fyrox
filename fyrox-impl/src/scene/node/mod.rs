@@ -68,6 +68,8 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use super::collider::BitMask;
+
 pub mod constructor;
 pub mod container;
 
@@ -198,7 +200,11 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
     /// Checks if the node should be rendered or not. A node should be rendered if it is enabled,
     /// visible and (optionally) is inside some viewing frustum.
     #[inline]
-    fn should_be_rendered(&self, frustum: Option<&Frustum>) -> bool {
+    fn should_be_rendered(&self, frustum: Option<&Frustum>, render_mask: BitMask) -> bool {
+        if *self.render_mask & render_mask == BitMask::none() {
+            return false;
+        }
+
         if !self.global_visibility() {
             return false;
         }

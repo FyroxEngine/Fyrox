@@ -62,8 +62,6 @@ use std::{
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
-use super::collider::BitMask;
-
 pub(crate) mod draw;
 pub mod emitter;
 pub mod particle;
@@ -589,11 +587,7 @@ impl NodeTrait for ParticleSystem {
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
-        if *self.render_mask & ctx.render_mask == BitMask::none() {
-            return RdcControlFlow::Continue;
-        }
-
-        if !self.should_be_rendered(ctx.frustum)
+        if !self.should_be_rendered(ctx.frustum, ctx.render_mask)
             || self.is_distance_clipped(&ctx.observer_info.observer_position)
         {
             return RdcControlFlow::Continue;
