@@ -155,7 +155,7 @@ impl Reader for BinaryReader<'_> {
                     }
                 }
                 22 => FieldKind::Matrix2({
-                    let mut f = [0.0f32; 3];
+                    let mut f = [0.0f32; 4];
                     for n in &mut f {
                         *n = src.read_f32::<LittleEndian>()?;
                     }
