@@ -81,6 +81,8 @@ pub use brushstroke::*;
 use fyrox_core::visitor::pod::PodVecView;
 use fyrox_graph::constructor::ConstructorProvider;
 
+use super::collider::BitMask;
+
 /// Current implementation version marker.
 pub const VERSION: u8 = 2;
 
@@ -2618,6 +2620,10 @@ impl NodeTrait for Terrain {
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
+        if *self.render_mask & ctx.render_mask == BitMask::none() {
+            return RdcControlFlow::Continue;
+        }
+
         if !self.global_visibility()
             || !self.is_globally_enabled()
             || (self.frustum_culling()

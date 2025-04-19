@@ -26,8 +26,7 @@ use crate::{
     core::{
         algebra::{Matrix4, Vector3, Vector4},
         arrayvec::ArrayVec,
-        color,
-        color::Color,
+        color::{self, Color},
         err_once,
         log::Log,
         math::{frustum::Frustum, Matrix4Ext, Rect},
@@ -50,14 +49,14 @@ use crate::{
             gpu_program::{ShaderProperty, ShaderPropertyKind, ShaderResourceKind},
             gpu_texture::GpuTexture,
             server::GraphicsServer,
-            uniform::StaticUniformBuffer,
-            uniform::{ByteStorage, UniformBuffer},
+            uniform::{ByteStorage, StaticUniformBuffer, UniformBuffer},
             ElementRange,
         },
         DynamicSurfaceCache, FallbackResources, LightData, RenderPassStatistics,
     },
     resource::texture::TextureResource,
     scene::{
+        collider::BitMask,
         graph::Graph,
         light::{
             directional::{CsmOptions, DirectionalLight},
@@ -99,6 +98,9 @@ pub struct ObserverInfo {
 /// Render context is used to collect render data from the scene nodes. It provides all required information about
 /// the observer (camera, light source virtual camera, etc.), that could be used for culling.
 pub struct RenderContext<'a> {
+    /// Mask that controls whether a node should be rendered. Only nodes that share at least
+    /// one set bit in their `render_mask` should be rendered.
+    pub render_mask: BitMask,
     /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
     /// this value is **not** guaranteed to match real time. A user can change delta time with
     /// which the engine "ticks" and this delta time affects elapsed time.
@@ -825,6 +827,7 @@ impl RenderDataBundleStorage {
     /// Frustum culling is done on scene node side ([`crate::scene::node::NodeTrait::collect_render_data`]).
     pub fn from_graph(
         graph: &Graph,
+        render_mask: BitMask,
         elapsed_time: f32,
         observer_info: ObserverInfo,
         render_pass_name: ImmutableString,
@@ -914,6 +917,7 @@ impl RenderDataBundleStorage {
         }
 
         let mut ctx = RenderContext {
+            render_mask,
             elapsed_time,
             observer_info: &observer_info,
             frustum: Some(&frustum),

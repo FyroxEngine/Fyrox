@@ -634,6 +634,7 @@ impl DeferredLightRenderer {
                         pass_stats += self.spot_shadow_map_renderer.render(
                             server,
                             &scene.graph,
+                            *camera.render_mask,
                             elapsed_time,
                             light.position,
                             light_view_matrix,
@@ -655,6 +656,7 @@ impl DeferredLightRenderer {
                         pass_stats +=
                             self.point_shadow_map_renderer
                                 .render(PointShadowMapRenderContext {
+                                    render_mask: *camera.render_mask,
                                     elapsed_time,
                                     state: server,
                                     graph: &scene.graph,
