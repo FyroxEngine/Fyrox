@@ -476,18 +476,23 @@ impl Writer for AsciiWriter {
         for field in node.fields.iter() {
             self.write_field(field, dest)?;
         }
-        writeln!(dest, "]")?;
 
-        align(hierarchy_level, dest)?;
-        writeln!(dest, "{{{}:", node.children.len())?;
+        if node.children.is_empty() {
+            writeln!(dest, "]{{0:}}")?;
+        } else {
+            writeln!(dest, "]")?;
 
-        for child_handle in node.children.iter() {
-            let child = visitor.nodes.borrow(*child_handle);
-            self.write_node(visitor, child, hierarchy_level + 1, dest)?;
+            align(hierarchy_level, dest)?;
+            writeln!(dest, "{{{}:", node.children.len())?;
+
+            for child_handle in node.children.iter() {
+                let child = visitor.nodes.borrow(*child_handle);
+                self.write_node(visitor, child, hierarchy_level + 1, dest)?;
+            }
+
+            align(hierarchy_level, dest)?;
+            writeln!(dest, "}}")?;
         }
-
-        align(hierarchy_level, dest)?;
-        writeln!(dest, "}}")?;
 
         Ok(())
     }
