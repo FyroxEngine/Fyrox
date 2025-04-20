@@ -440,17 +440,19 @@ impl CameraController {
 
         match button {
             MouseButton::Right => {
-                if modifiers.shift && is_perspective {
-                    self.mouse_control_mode = MouseControlMode::Drag {
-                        initial_position: self.position(graph),
-                        initial_mouse_position: mouse_position,
-                    };
-                } else {
-                    self.mouse_control_mode = MouseControlMode::CenteredRotation {
-                        prev_z_offset: self.z_offset,
-                    };
-                    self.move_along_look_vector(self.z_offset, graph);
-                    self.z_offset = 0.0;
+                if is_perspective {
+                    if modifiers.shift {
+                        self.mouse_control_mode = MouseControlMode::Drag {
+                            initial_position: self.position(graph),
+                            initial_mouse_position: mouse_position,
+                        };
+                    } else {
+                        self.mouse_control_mode = MouseControlMode::CenteredRotation {
+                            prev_z_offset: self.z_offset,
+                        };
+                        self.move_along_look_vector(self.z_offset, graph);
+                        self.z_offset = 0.0;
+                    }
                 }
             }
             MouseButton::Middle => {
@@ -627,17 +629,21 @@ impl CameraController {
 
                 camera
                     .local_transform_mut()
-                    .set_rotation(UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 0.0));
+                    .set_rotation(Default::default());
 
-                let local_transform = graph[self.pivot].local_transform_mut();
+                graph[self.camera_hinge]
+                    .local_transform_mut()
+                    .set_rotation(Default::default());
 
-                let mut new_position = **local_transform.position();
+                let pivot_local_transform = graph[self.pivot].local_transform_mut();
+
+                let mut new_position = **pivot_local_transform.position();
                 new_position.z = DEFAULT_Z_OFFSET;
                 new_position.x += move_vec.x;
                 new_position.y += move_vec.y;
 
-                local_transform
-                    .set_rotation(UnitQuaternion::from_axis_angle(&Vector3::y_axis(), 0.0))
+                pivot_local_transform
+                    .set_rotation(Default::default())
                     .set_position(new_position);
             }
         }
