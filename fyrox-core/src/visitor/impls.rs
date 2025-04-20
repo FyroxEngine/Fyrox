@@ -146,38 +146,20 @@ where
         let mut len = self.len() as u32;
         len.visit("Length", &mut region)?;
 
-        fn make_name(i: usize) -> String {
-            format!("Item{i}")
-        }
-
         if region.reading {
             self.clear();
-            for index in 0..len as usize {
-                // Backward compatibility with the previous version (verbose, non-flat).
-                {
-                    if let Ok(mut item_region) = region.enter_region(&make_name(index)) {
-                        let current_node = item_region.current_node_ref();
-                        if current_node
-                            .children
-                            .iter()
-                            .any(|h| item_region.node_ref(*h).name == "ItemData")
-                        {
-                            let mut object = T::default();
-                            object.visit("ItemData", &mut item_region)?;
-                            self.push(object);
-                            continue;
-                        }
-                    }
-                }
-
-                // Try to read the new (flattened) version.
+            for index in 0..len {
+                let region_name = format!("Item{index}");
+                let mut region = region.enter_region(region_name.as_str())?;
                 let mut object = T::default();
-                object.visit(&make_name(index), &mut region)?;
+                object.visit("ItemData", &mut region)?;
                 self.push(object);
             }
         } else {
             for (index, item) in self.iter_mut().enumerate() {
-                item.visit(&make_name(index), &mut region)?;
+                let region_name = format!("Item{index}");
+                let mut region = region.enter_region(region_name.as_str())?;
+                item.visit("ItemData", &mut region)?;
             }
         }
 
