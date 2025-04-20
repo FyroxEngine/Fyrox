@@ -1196,3 +1196,47 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
         bundle.instances.push(instance_data)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::renderer::bundle::{ObserverInfo, RenderContext, RenderDataBundleStorage};
+    use fyrox_core::algebra::{Matrix4, Vector3};
+
+    //noinspection ALL
+    #[test]
+    fn test_calculate_sorting_index() {
+        let observer_info = ObserverInfo {
+            observer_position: Default::default(),
+            z_near: 0.0,
+            z_far: 0.0,
+            view_matrix: Matrix4::identity(),
+            projection_matrix: Matrix4::identity(),
+        };
+
+        let render_context = RenderContext {
+            render_mask: Default::default(),
+            elapsed_time: 0.0,
+            observer_info: &observer_info.clone(),
+            frustum: None,
+            storage: &mut RenderDataBundleStorage::new_empty(observer_info),
+            graph: &Default::default(),
+            render_pass_name: &Default::default(),
+            dynamic_surface_cache: &mut Default::default(),
+        };
+
+        assert_eq!(
+            render_context.calculate_sorting_index(Vector3::repeat(0.0)),
+            u64::MAX
+        );
+
+        assert_eq!(
+            render_context.calculate_sorting_index(Vector3::new(0.0, 0.0, 1.0)),
+            u64::MAX - 1000
+        );
+
+        assert_eq!(
+            render_context.calculate_sorting_index(Vector3::new(0.0, 0.0, 2.0)),
+            u64::MAX - 2000
+        );
+    }
+}
