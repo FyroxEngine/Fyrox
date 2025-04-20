@@ -3041,7 +3041,7 @@ impl UserInterface {
     pub fn save(&mut self, path: &Path) -> Result<Visitor, VisitError> {
         let mut visitor = Visitor::new();
         self.visit("Ui", &mut visitor)?;
-        visitor.save_binary_to_file(path)?;
+        visitor.save_ascii_to_file(path)?;
         Ok(visitor)
     }
 
