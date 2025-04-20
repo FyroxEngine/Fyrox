@@ -73,6 +73,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+use fyrox_core::algebra::Point3;
 use fyrox_graph::{SceneGraph, SceneGraphNode};
 use std::{
     fmt::{Debug, Formatter},
@@ -125,14 +126,14 @@ impl RenderContext<'_> {
     /// using Z coordinate. This index could be used for back-to-front sorting to prevent blending
     /// issues.
     pub fn calculate_sorting_index(&self, global_position: Vector3<f32>) -> u64 {
-        let granularity = 1000.0;
-        u64::MAX
-            - (self
-                .observer_info
-                .view_matrix
-                .transform_point(&(global_position.into()))
-                .z
-                * granularity) as u64
+        const RANGE_CENTER: u64 = u64::MAX / 2;
+        const GRANULARITY: f32 = 1000.0;
+
+        let view_matrix = &self.observer_info.view_matrix;
+        let world_space_point = Point3::from(global_position);
+        let view_space_point = view_matrix.transform_point(&world_space_point);
+
+        RANGE_CENTER.saturating_add_signed(-(view_space_point.z * GRANULARITY) as i64)
     }
 }
 
@@ -1224,19 +1225,26 @@ mod test {
             dynamic_surface_cache: &mut Default::default(),
         };
 
+        let center = u64::MAX / 2;
+
         assert_eq!(
             render_context.calculate_sorting_index(Vector3::repeat(0.0)),
-            u64::MAX
+            center
         );
 
         assert_eq!(
             render_context.calculate_sorting_index(Vector3::new(0.0, 0.0, 1.0)),
-            u64::MAX - 1000
+            center - 1000
         );
 
         assert_eq!(
             render_context.calculate_sorting_index(Vector3::new(0.0, 0.0, 2.0)),
-            u64::MAX - 2000
+            center - 2000
+        );
+
+        assert_eq!(
+            render_context.calculate_sorting_index(Vector3::new(0.0, 0.0, -3.0)),
+            center + 3000
         );
     }
 }
