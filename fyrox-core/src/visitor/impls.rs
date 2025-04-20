@@ -157,8 +157,10 @@ where
                 {
                     if let Ok(mut item_region) = region.enter_region(&make_name(index)) {
                         let current_node = item_region.current_node_ref();
-                        if current_node.children.len() == 1
-                            && item_region.node_ref(current_node.children[0]).name == "ItemData"
+                        if current_node
+                            .children
+                            .iter()
+                            .any(|h| item_region.node_ref(*h).name == "ItemData")
                         {
                             let mut object = T::default();
                             object.visit("ItemData", &mut item_region)?;
