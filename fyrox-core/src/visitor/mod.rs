@@ -464,14 +464,6 @@ impl Visitor {
         self.nodes.borrow_mut(self.current_node)
     }
 
-    fn current_node_ref(&self) -> &VisitorNode {
-        self.nodes.borrow(self.current_node)
-    }
-
-    fn node_ref(&self, handle: Handle<VisitorNode>) -> &VisitorNode {
-        &self.nodes[handle]
-    }
-
     /// If [Visitor::is_reading], find a node with the given name that is a child of the current
     /// node, and return a Visitor for the found node. Return an error if no node with that name exists.
     ///

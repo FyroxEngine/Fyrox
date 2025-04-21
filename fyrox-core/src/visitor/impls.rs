@@ -141,25 +141,50 @@ where
     T: Default + Visit + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        const VERSION_VERBOSE: u32 = 0;
+        const VERSION_CURRENT: u32 = 1;
+
         let mut region = visitor.enter_region(name)?;
 
         let mut len = self.len() as u32;
         len.visit("Length", &mut region)?;
 
+        let mut version = VERSION_CURRENT;
+        if region.is_reading() && version.visit("Version", &mut region).is_err() {
+            version = VERSION_VERBOSE;
+        } else {
+            version.visit("Version", &mut region)?;
+        }
+
+        fn make_name(i: usize) -> String {
+            format!("Item{i}")
+        }
+
         if region.reading {
             self.clear();
-            for index in 0..len {
-                let region_name = format!("Item{index}");
-                let mut region = region.enter_region(region_name.as_str())?;
-                let mut object = T::default();
-                object.visit("ItemData", &mut region)?;
-                self.push(object);
+            for index in 0..len as usize {
+                // Backward compatibility with the previous version (verbose, non-flat).
+                if version == VERSION_VERBOSE {
+                    if let Ok(mut item_region) = region.enter_region(&make_name(index)) {
+                        let mut object = T::default();
+                        object.visit("ItemData", &mut item_region)?;
+                        self.push(object);
+                        continue;
+                    }
+                } else if version == VERSION_CURRENT {
+                    // Try to read the new (flattened) version.
+                    let mut object = T::default();
+                    object.visit(&make_name(index), &mut region)?;
+                    self.push(object);
+                } else {
+                    return Err(VisitError::User(format!(
+                        "Unknown vector version {version}!"
+                    )));
+                }
             }
         } else {
             for (index, item) in self.iter_mut().enumerate() {
-                let region_name = format!("Item{index}");
-                let mut region = region.enter_region(region_name.as_str())?;
-                item.visit("ItemData", &mut region)?;
+                item.visit(&make_name(index), &mut region)?;
             }
         }
 
