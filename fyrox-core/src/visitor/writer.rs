@@ -256,6 +256,11 @@ impl Writer for BinaryWriter {
             FieldKind::Vector4U64(data) => {
                 write_vec_n(dest, 49, data)?;
             }
+            FieldKind::String(str) => {
+                dest.write_u8(50)?;
+                dest.write_u32::<LittleEndian>(str.len() as u32)?;
+                dest.write_all(str.as_bytes())?;
+            }
         }
         Ok(())
     }
@@ -449,6 +454,23 @@ impl Writer for AsciiWriter {
                 write!(dest, "<mat2:")?;
                 write_array(dest, data.iter())?;
                 write!(dest, ">")?;
+            }
+            FieldKind::String(ref str) => {
+                write!(dest, "<str:\"")?;
+                for &ascii_chr in str.as_bytes() {
+                    if ascii_chr == b'\"' {
+                        // Escape the quotes.
+                        write!(dest, "\\\"")?;
+                    } else if ascii_chr == b'\n' {
+                        // Escape the new line. This is needed to prevent breaking the structured
+                        // output and to reduce merge conflicts.
+                        write!(dest, "\\n")?;
+                    } else {
+                        // The rest can be written as-is.
+                        dest.write_u8(ascii_chr)?;
+                    }
+                }
+                write!(dest, "\">")?
             }
         }
 

@@ -216,26 +216,44 @@ where
     }
 }
 
+fn read_old_string_format(name: &str, visitor: &mut Visitor) -> Result<String, VisitError> {
+    let mut region = visitor.enter_region(name)?;
+
+    let mut len = 0u32;
+    len.visit("Length", &mut region)?;
+
+    let mut data = Vec::new();
+    let mut proxy = BinaryBlob { vec: &mut data };
+    proxy.visit("Data", &mut region)?;
+
+    Ok(String::from_utf8(data)?)
+}
+
 impl Visit for String {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
-
-        let mut len = self.len() as u32;
-        len.visit("Length", &mut region)?;
-
-        let mut data = if region.reading {
-            Vec::new()
+        if visitor.reading {
+            if let Ok(old_string) = read_old_string_format(name, visitor) {
+                *self = old_string;
+                Ok(())
+            } else if let Some(field) = visitor.find_field(name) {
+                match field.kind {
+                    FieldKind::String(ref string) => {
+                        *self = string.clone();
+                        Ok(())
+                    }
+                    _ => Err(VisitError::FieldTypeDoesNotMatch),
+                }
+            } else {
+                Err(VisitError::FieldDoesNotExist(name.to_owned()))
+            }
+        } else if visitor.find_field(name).is_some() {
+            Err(VisitError::FieldAlreadyExists(name.to_owned()))
         } else {
-            Vec::from(self.as_bytes())
-        };
-
-        let mut proxy = BinaryBlob { vec: &mut data };
-        proxy.visit("Data", &mut region)?;
-
-        if region.reading {
-            *self = String::from_utf8(data)?;
+            let node = visitor.current_node();
+            node.fields
+                .push(Field::new(name, FieldKind::String(self.clone())));
+            Ok(())
         }
-        Ok(())
     }
 }
 

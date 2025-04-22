@@ -196,6 +196,12 @@ impl Reader for BinaryReader<'_> {
                 47 => FieldKind::Vector2U64(read_vec_n(src)?),
                 48 => FieldKind::Vector3U64(read_vec_n(src)?),
                 49 => FieldKind::Vector4U64(read_vec_n(src)?),
+                50 => FieldKind::String({
+                    let len = src.read_u32::<LittleEndian>()? as usize;
+                    let mut vec = vec![Default::default(); len];
+                    src.read_exact(vec.as_mut_slice())?;
+                    String::from_utf8(vec)?
+                }),
 
                 _ => return Err(VisitError::UnknownFieldType(id)),
             },
@@ -514,6 +520,36 @@ impl Reader for AsciiReader<'_> {
                 }
             }
             "mat2" => FieldKind::Matrix2(src.read_mat_n()?),
+            "str" => {
+                src.skip_until(|ch| ch != b'\"')?;
+                src.skip_n(1)?;
+
+                let mut bytes = Vec::new();
+
+                loop {
+                    let ch = src.next()?;
+                    if ch == b'\"' {
+                        break;
+                    }
+                    let next_ch = src.peek()?;
+                    if ch == b'\\' && next_ch == b'\"' {
+                        // Special case for quotes.
+                        bytes.push(next_ch);
+                        src.skip_n(1)?;
+                    } else if ch == b'\\' && next_ch == b'n' {
+                        // Special case for new line.
+                        bytes.push(b'\n');
+                        src.skip_n(1)?;
+                    } else {
+                        bytes.push(ch);
+                    }
+                }
+
+                src.skip_until(|ch| ch != b'>')?;
+                src.skip_n(1)?;
+
+                FieldKind::String(String::from_utf8(bytes)?)
+            }
             _ => return err!("unexpected field type: {}", ty),
         };
 

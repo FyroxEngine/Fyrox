@@ -137,6 +137,8 @@ pub enum FieldKind {
     Vector3I64(Vector3<i64>),
     /// 4D i64 vector.
     Vector4I64(Vector4<i64>),
+    /// A unicode string.
+    String(String),
 }
 
 /// Values within a visitor are constructed from Fields. Each Field has a name and a value. The name

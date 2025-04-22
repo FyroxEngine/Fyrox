@@ -732,6 +732,8 @@ mod test {
         vec4_u64: Vector4<u64>,
         vec4_i64: Vector4<i64>,
 
+        string: String,
+
         vec2_f32: Vector2<f32>,
         vec2_f64: Vector2<f64>,
         vec3_f32: Vector3<f32>,
@@ -794,6 +796,9 @@ mod test {
                 vec4_f32: Vector4::new(123.321, 234.432, 567.765, 890.098),
                 vec4_f64: Vector4::new(123.321, 234.432, 567.765, 890.098),
                 shared_resource: Some(resource),
+                string: "This Is A String With Reserved Characters <>:;{}[\\\\\\\\\\] \
+                and \"quotes\" many \"\"\"quotes\"\"\"\" and line\nbreak\ttabs\t\t\t\t"
+                    .to_string(),
             }
         }
     }
