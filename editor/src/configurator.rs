@@ -111,7 +111,7 @@ impl Configurator {
         if let Ok(mut visitor) =
             fyrox::core::futures::executor::block_on(Visitor::load_from_file(HISTORY_PATH))
         {
-            history.visit("History", &mut visitor).unwrap();
+            let _ = history.visit("History", &mut visitor);
         }
 
         // Remove entries with invalid paths.
