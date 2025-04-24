@@ -33,6 +33,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 
+use fyrox_core::algebra::Matrix3;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::Cell,
@@ -114,10 +115,16 @@ use std::{
 pub struct Screen {
     /// Base widget of the screen.
     pub widget: Widget,
+
     /// Last screen size.
     #[visit(skip)]
     #[reflect(hidden)]
     pub last_screen_size: Cell<Vector2<f32>>,
+
+    /// Last UI scale factor.
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub last_visual_transform: Matrix3<f32>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for Screen {
@@ -138,27 +145,36 @@ uuid_provider!(Screen = "3bc7649f-a1ba-49be-bc4e-e0624654e40c");
 
 impl Control for Screen {
     fn measure_override(&self, ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
+        let logical_size = self
+            .visual_transform()
+            .try_inverse()
+            .unwrap_or_default()
+            .transform_vector(&ui.screen_size());
+
         for &child in self.children.iter() {
-            ui.measure_node(child, ui.screen_size());
+            ui.measure_node(child, logical_size);
         }
 
-        ui.screen_size()
+        logical_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface, _final_size: Vector2<f32>) -> Vector2<f32> {
-        let final_rect = Rect::new(0.0, 0.0, ui.screen_size().x, ui.screen_size().y);
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
+        let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
 
         for &child in self.children.iter() {
             ui.arrange_node(child, &final_rect);
         }
 
-        ui.screen_size()
+        final_size
     }
 
     fn update(&mut self, _dt: f32, ui: &mut UserInterface) {
-        if self.last_screen_size.get() != ui.screen_size {
+        if self.last_screen_size.get() != ui.screen_size
+            || self.last_visual_transform != self.visual_transform
+        {
             self.invalidate_layout();
             self.last_screen_size.set(ui.screen_size);
+            self.last_visual_transform = self.visual_transform;
         }
     }
 
@@ -182,6 +198,7 @@ impl ScreenBuilder {
     /// handle to the instance.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let screen = Screen {
+            last_visual_transform: Matrix3::default(),
             widget: self.widget_builder.with_need_update(true).build(ctx),
             last_screen_size: Cell::new(Default::default()),
         };
