@@ -116,9 +116,6 @@ pub struct Screen {
     /// Base widget of the screen.
     pub widget: Widget,
 
-    /// Will auto scale the UI size based on the current OS window scale.
-    pub auto_scale_ui: bool,
-
     /// Last screen size.
     #[visit(skip)]
     #[reflect(hidden)]
@@ -189,22 +186,12 @@ impl Control for Screen {
 /// Screen builder creates instances of [`Screen`] widgets and adds them to the user interface.
 pub struct ScreenBuilder {
     widget_builder: WidgetBuilder,
-    auto_scale_ui: bool,
 }
 
 impl ScreenBuilder {
     /// Creates a new instance of the screen builder.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
-        Self {
-            widget_builder,
-            auto_scale_ui: true,
-        }
-    }
-
-    /// Enables or disables auto scaling of the contained layout.
-    pub fn with_auto_scale_ui(mut self, enabled: bool) -> Self {
-        self.auto_scale_ui = enabled;
-        self
+        Self { widget_builder }
     }
 
     /// Finishes building a [`Screen`] widget instance and adds it to the user interface, returning a
@@ -212,7 +199,6 @@ impl ScreenBuilder {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let screen = Screen {
             last_visual_transform: Matrix3::default(),
-            auto_scale_ui: self.auto_scale_ui,
             widget: self.widget_builder.with_need_update(true).build(ctx),
             last_screen_size: Cell::new(Default::default()),
         };
