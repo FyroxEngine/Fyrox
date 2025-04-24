@@ -283,6 +283,7 @@ bitflags! {
 /// by whether [Visitor::is_reading()] returns true or false.
 pub struct Visitor {
     nodes: Pool<VisitorNode>,
+    unique_id_counter: u64,
     rc_map: FxHashMap<u64, Rc<dyn Any>>,
     arc_map: FxHashMap<u64, Arc<dyn Any + Send + Sync>>,
     reading: bool,
@@ -426,6 +427,7 @@ impl Visitor {
         let root = nodes.spawn(VisitorNode::new("__ROOT__", Handle::NONE));
         Self {
             nodes,
+            unique_id_counter: 1,
             rc_map: FxHashMap::default(),
             arc_map: FxHashMap::default(),
             reading: false,
@@ -433,6 +435,50 @@ impl Visitor {
             root,
             blackboard: Blackboard::new(),
             flags: VisitorFlags::NONE,
+        }
+    }
+
+    fn gen_unique_id(&mut self) -> u64 {
+        let id = self.unique_id_counter;
+        self.unique_id_counter += 1;
+        id
+    }
+
+    fn rc_id<T>(&mut self, rc: &Rc<T>) -> (u64, bool)
+    where
+        T: Any,
+    {
+        if let Some(id) = self.rc_map.iter().find_map(|(id, ptr)| {
+            if Rc::as_ptr(ptr) as *const T == Rc::as_ptr(rc) {
+                Some(*id)
+            } else {
+                None
+            }
+        }) {
+            (id, false)
+        } else {
+            let id = self.gen_unique_id();
+            self.rc_map.insert(id, rc.clone());
+            (id, true)
+        }
+    }
+
+    fn arc_id<T>(&mut self, arc: &Arc<T>) -> (u64, bool)
+    where
+        T: Any + Send + Sync,
+    {
+        if let Some(id) = self.arc_map.iter().find_map(|(id, ptr)| {
+            if Arc::as_ptr(ptr) as *const T == Arc::as_ptr(arc) {
+                Some(*id)
+            } else {
+                None
+            }
+        }) {
+            (id, false)
+        } else {
+            let id = self.gen_unique_id();
+            self.arc_map.insert(id, arc.clone());
+            (id, true)
         }
     }
 
@@ -625,7 +671,8 @@ mod test {
     use nalgebra::{
         Matrix2, Matrix3, Matrix4, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4,
     };
-    use std::{fs::File, io::Write, path::Path, rc::Rc};
+    use std::sync::Arc;
+    use std::{fs::File, io::Write, path::Path, rc, rc::Rc, sync};
     use uuid::{uuid, Uuid};
 
     #[derive(Visit, Default, PartialEq, Debug)]
@@ -681,6 +728,21 @@ mod test {
                 kind: ResourceKind::Unknown,
                 data: 0,
             }
+        }
+    }
+
+    #[derive(Default, Visit, Debug)]
+    struct Weaks {
+        weak_resource_arc: Option<sync::Weak<Resource>>,
+        weak_resource_rc: Option<rc::Weak<Resource>>,
+    }
+
+    impl PartialEq for Weaks {
+        fn eq(&self, other: &Self) -> bool {
+            self.weak_resource_arc.as_ref().and_then(|r| r.upgrade())
+                == other.weak_resource_arc.as_ref().and_then(|r| r.upgrade())
+                && self.weak_resource_rc.as_ref().and_then(|r| r.upgrade())
+                    == other.weak_resource_rc.as_ref().and_then(|r| r.upgrade())
         }
     }
 
@@ -742,10 +804,12 @@ mod test {
         vec4_f64: Vector4<f64>,
 
         shared_resource: Option<Rc<Resource>>,
+        shared_resource_arc: Option<Arc<Resource>>,
+        weaks: Weaks,
     }
 
     impl Foo {
-        fn new(resource: Rc<Resource>) -> Self {
+        fn new(resource: Rc<Resource>, arc_resource: Arc<Resource>) -> Self {
             Self {
                 boolean: true,
                 num_u8: 123,
@@ -795,7 +859,12 @@ mod test {
                 vec3_f64: Vector3::new(123.321, 234.432, 567.765),
                 vec4_f32: Vector4::new(123.321, 234.432, 567.765, 890.098),
                 vec4_f64: Vector4::new(123.321, 234.432, 567.765, 890.098),
+                weaks: Weaks {
+                    weak_resource_arc: Some(Arc::downgrade(&arc_resource)),
+                    weak_resource_rc: Some(Rc::downgrade(&resource)),
+                },
                 shared_resource: Some(resource),
+                shared_resource_arc: Some(arc_resource),
                 string: "This Is A String With Reserved Characters <>:;{}[\\\\\\\\\\] \
                 and \"quotes\" many \"\"\"quotes\"\"\"\" and line\nbreak\ttabs\t\t\t\t"
                     .to_string(),
@@ -807,16 +876,27 @@ mod test {
         Rc::new(Resource::new(ResourceKind::Model(Model { data: 555 })))
     }
 
-    fn objects(resource: Rc<Resource>) -> Vec<Foo> {
-        vec![Foo::new(resource.clone()), Foo::new(resource)]
+    fn resource_arc() -> Arc<Resource> {
+        Arc::new(Resource::new(ResourceKind::Model(Model { data: 555 })))
+    }
+
+    fn objects(resource: Rc<Resource>, arc_resource: Arc<Resource>) -> Vec<Foo> {
+        vec![
+            Foo::new(resource.clone(), arc_resource.clone()),
+            Foo::new(resource, arc_resource),
+        ]
     }
 
     fn serialize() -> Visitor {
         let mut resource = resource();
-        let mut objects = objects(resource.clone());
+        let mut resource_arc = resource_arc();
+        let mut objects = objects(resource.clone(), resource_arc.clone());
 
         let mut visitor = Visitor::new();
         resource.visit("SharedResource", &mut visitor).unwrap();
+        resource_arc
+            .visit("SharedResourceArc", &mut visitor)
+            .unwrap();
         objects.visit("Objects", &mut visitor).unwrap();
         visitor
     }
@@ -839,12 +919,20 @@ mod test {
         // Load
         {
             let expected_resource = resource();
-            let expected_objects = objects(expected_resource.clone());
+            let expected_resource_arc = resource_arc();
+            let expected_objects =
+                objects(expected_resource.clone(), expected_resource_arc.clone());
 
             let mut visitor = futures::executor::block_on(Visitor::load_from_file(path)).unwrap();
             let mut resource: Rc<Resource> = Rc::new(Default::default());
             resource.visit("SharedResource", &mut visitor).unwrap();
             assert_eq!(resource, expected_resource);
+
+            let mut resource_arc: Arc<Resource> = Arc::new(Default::default());
+            resource_arc
+                .visit("SharedResourceArc", &mut visitor)
+                .unwrap();
+            assert_eq!(resource_arc, expected_resource_arc);
 
             let mut objects: Vec<Foo> = Vec::new();
             objects.visit("Objects", &mut visitor).unwrap();
@@ -865,13 +953,21 @@ mod test {
         // Load
         {
             let expected_resource = resource();
-            let expected_objects = objects(expected_resource.clone());
+            let expected_resource_arc = resource_arc();
+            let expected_objects =
+                objects(expected_resource.clone(), expected_resource_arc.clone());
 
             let mut visitor =
                 futures::executor::block_on(Visitor::load_ascii_from_file(path)).unwrap();
             let mut resource: Rc<Resource> = Rc::new(Default::default());
             resource.visit("SharedResource", &mut visitor).unwrap();
             assert_eq!(resource, expected_resource);
+
+            let mut resource_arc: Arc<Resource> = Arc::new(Default::default());
+            resource_arc
+                .visit("SharedResourceArc", &mut visitor)
+                .unwrap();
+            assert_eq!(resource_arc, expected_resource_arc);
 
             let mut objects: Vec<Foo> = Vec::new();
             objects.visit("Objects", &mut visitor).unwrap();

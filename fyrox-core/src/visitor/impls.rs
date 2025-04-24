@@ -26,8 +26,9 @@ use crate::{
 };
 use nalgebra::{Matrix2, Matrix3, Matrix4, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4};
 use std::{
+    any::Any,
     cell::{Cell, RefCell},
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     hash::{BuildHasher, Hash},
     ops::{DerefMut, Range},
     path::PathBuf,
@@ -314,35 +315,26 @@ where
         let mut region = visitor.enter_region(name)?;
 
         if region.reading {
-            let mut raw = 0u64;
-            raw.visit("Id", &mut region)?;
-            if raw == 0 {
+            let mut id = 0u64;
+            id.visit("Id", &mut region)?;
+            if id == 0 {
                 return Err(VisitError::UnexpectedRcNullIndex);
             }
-            if let Some(ptr) = region.rc_map.get(&raw) {
+            if let Some(ptr) = region.rc_map.get(&id) {
                 if let Ok(res) = Rc::downcast::<T>(ptr.clone()) {
                     *self = res;
                 } else {
                     return Err(VisitError::TypeMismatch);
                 }
             } else {
-                // Remember that we already visited data Rc store.
-                region.rc_map.insert(raw, self.clone());
-
-                let raw = rc_to_raw(self);
-                unsafe { &mut *raw }.visit("RcData", &mut region)?;
+                region.rc_map.insert(id, self.clone());
+                unsafe { rc_to_raw(self).visit("RcData", &mut region)? };
             }
         } else {
-            // Take raw pointer to inner data.
-            let raw = rc_to_raw(self);
-
-            // Save it as id.
-            let mut index = raw as u64;
-            index.visit("Id", &mut region)?;
-
-            if let Entry::Vacant(entry) = region.rc_map.entry(index) {
-                entry.insert(self.clone());
-                unsafe { &mut *raw }.visit("RcData", &mut region)?;
+            let (mut id, serialize_data) = region.rc_id(self);
+            id.visit("Id", &mut region)?;
+            if serialize_data {
+                unsafe { rc_to_raw(self).visit("RcData", &mut region)? };
             }
         }
 
@@ -386,51 +378,54 @@ where
     }
 }
 
-fn arc_to_raw<T>(arc: &Arc<T>) -> *mut T {
+unsafe fn arc_to_ptr<T>(arc: &Arc<T>) -> *mut T {
     &**arc as *const T as *mut T
 }
 
-fn rc_to_raw<T>(rc: &Rc<T>) -> *mut T {
+unsafe fn rc_to_ptr<T>(rc: &Rc<T>) -> *mut T {
     &**rc as *const T as *mut T
+}
+
+// FIXME: Visiting an Rc/Arc is undefined behavior because it mutates the shared data.
+#[allow(clippy::mut_from_ref)]
+unsafe fn arc_to_raw<T>(arc: &Arc<T>) -> &mut T {
+    &mut *arc_to_ptr(arc)
+}
+
+// FIXME: Visiting an Rc/Arc is undefined behavior because it mutates the shared data.
+#[allow(clippy::mut_from_ref)]
+unsafe fn rc_to_raw<T>(rc: &Rc<T>) -> &mut T {
+    &mut *rc_to_ptr(rc)
 }
 
 impl<T> Visit for Arc<T>
 where
-    T: Visit + Send + Sync + 'static,
+    T: Visit + Send + Sync + Any,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
         if region.reading {
-            let mut raw = 0u64;
-            raw.visit("Id", &mut region)?;
-            if raw == 0 {
+            let mut id = 0u64;
+            id.visit("Id", &mut region)?;
+            if id == 0 {
                 return Err(VisitError::UnexpectedRcNullIndex);
             }
-            if let Some(ptr) = &mut region.arc_map.get(&raw) {
+            if let Some(ptr) = &mut region.arc_map.get(&id) {
                 if let Ok(res) = Arc::downcast::<T>(ptr.clone()) {
                     *self = res;
                 } else {
                     return Err(VisitError::TypeMismatch);
                 }
             } else {
-                // Remember that we already visited data Rc store.
-                region.arc_map.insert(raw, self.clone());
-
-                let raw = arc_to_raw(self);
-                unsafe { &mut *raw }.visit("ArcData", &mut region)?;
+                region.arc_map.insert(id, self.clone());
+                unsafe { arc_to_raw(self).visit("ArcData", &mut region)? };
             }
         } else {
-            // Take raw pointer to inner data.
-            let raw = arc_to_raw(self);
-
-            // Save it as id.
-            let mut index = raw as u64;
-            index.visit("Id", &mut region)?;
-
-            if let Entry::Vacant(entry) = region.arc_map.entry(index) {
-                entry.insert(self.clone());
-                unsafe { &mut *raw }.visit("ArcData", &mut region)?;
+            let (mut id, serialize_data) = region.arc_id(self);
+            id.visit("Id", &mut region)?;
+            if serialize_data {
+                unsafe { arc_to_raw(self).visit("ArcData", &mut region)? };
             }
         }
 
@@ -440,17 +435,17 @@ where
 
 impl<T> Visit for std::rc::Weak<T>
 where
-    T: Default + Visit + 'static,
+    T: Default + Visit + Any,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
         if region.reading {
-            let mut raw = 0u64;
-            raw.visit("Id", &mut region)?;
+            let mut id = 0u64;
+            id.visit("Id", &mut region)?;
 
-            if raw != 0 {
-                if let Some(ptr) = &mut region.rc_map.get(&raw) {
+            if id != 0 {
+                if let Some(ptr) = &mut region.rc_map.get(&id) {
                     if let Ok(res) = Rc::downcast::<T>(ptr.clone()) {
                         *self = Rc::downgrade(&res);
                     } else {
@@ -459,25 +454,18 @@ where
                 } else {
                     // Create new value wrapped into Rc and deserialize it.
                     let rc = Rc::new(T::default());
-                    region.rc_map.insert(raw, rc.clone());
+                    region.rc_map.insert(id, rc.clone());
 
-                    let raw = rc_to_raw(&rc);
-                    unsafe { &mut *raw }.visit("RcData", &mut region)?;
+                    unsafe { rc_to_raw(&rc).visit("RcData", &mut region)? };
 
                     *self = Rc::downgrade(&rc);
                 }
             }
         } else if let Some(rc) = std::rc::Weak::upgrade(self) {
-            // Take raw pointer to inner data.
-            let raw = rc_to_raw(&rc);
-
-            // Save it as id.
-            let mut index = raw as u64;
-            index.visit("Id", &mut region)?;
-
-            if let Entry::Vacant(entry) = region.rc_map.entry(index) {
-                entry.insert(rc);
-                unsafe { &mut *raw }.visit("RcData", &mut region)?;
+            let (mut id, serialize_data) = region.rc_id(&rc);
+            id.visit("Id", &mut region)?;
+            if serialize_data {
+                unsafe { rc_to_raw(&rc).visit("RcData", &mut region)? };
             }
         } else {
             let mut index = 0u64;
@@ -496,38 +484,28 @@ where
         let mut region = visitor.enter_region(name)?;
 
         if region.reading {
-            let mut raw = 0u64;
-            raw.visit("Id", &mut region)?;
+            let mut id = 0u64;
+            id.visit("Id", &mut region)?;
 
-            if raw != 0 {
-                if let Some(ptr) = region.arc_map.get(&raw) {
+            if id != 0 {
+                if let Some(ptr) = region.arc_map.get(&id) {
                     if let Ok(res) = Arc::downcast::<T>(ptr.clone()) {
                         *self = Arc::downgrade(&res);
                     } else {
                         return Err(VisitError::TypeMismatch);
                     }
                 } else {
-                    // Create new value wrapped into Arc and deserialize it.
                     let arc = Arc::new(T::default());
-                    region.arc_map.insert(raw, arc.clone());
-
-                    let raw = arc_to_raw(&arc);
-                    unsafe { &mut *raw }.visit("ArcData", &mut region)?;
-
+                    region.arc_map.insert(id, arc.clone());
+                    unsafe { arc_to_raw(&arc).visit("ArcData", &mut region)? };
                     *self = Arc::downgrade(&arc);
                 }
             }
         } else if let Some(arc) = std::sync::Weak::upgrade(self) {
-            // Take raw pointer to inner data.
-            let raw = arc_to_raw(&arc);
-
-            // Save it as id.
-            let mut index = raw as u64;
-            index.visit("Id", &mut region)?;
-
-            if let Entry::Vacant(entry) = region.arc_map.entry(index) {
-                entry.insert(arc);
-                unsafe { &mut *raw }.visit("ArcData", &mut region)?;
+            let (mut id, serialize_data) = region.arc_id(&arc);
+            id.visit("Id", &mut region)?;
+            if serialize_data {
+                unsafe { arc_to_raw(&arc) }.visit("ArcData", &mut region)?;
             }
         } else {
             let mut index = 0u64;

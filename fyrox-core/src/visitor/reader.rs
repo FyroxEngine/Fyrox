@@ -255,6 +255,7 @@ impl Reader for BinaryReader<'_> {
         }
         let mut visitor = Visitor {
             nodes: Pool::new(),
+            unique_id_counter: 1,
             rc_map: Default::default(),
             arc_map: Default::default(),
             reading: true,
@@ -609,6 +610,7 @@ impl Reader for AsciiReader<'_> {
         }
         let mut visitor = Visitor {
             nodes: Pool::new(),
+            unique_id_counter: 1,
             rc_map: Default::default(),
             arc_map: Default::default(),
             reading: true,
