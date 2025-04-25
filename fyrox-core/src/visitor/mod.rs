@@ -58,8 +58,8 @@ use crate::{
     io::{self},
     pool::{Handle, Pool},
     visitor::{
-        reader::{AsciiReader, BinaryReader, Reader},
-        writer::{AsciiWriter, BinaryWriter, Writer},
+        reader::{ascii::AsciiReader, binary::BinaryReader, Reader},
+        writer::{ascii::AsciiWriter, binary::BinaryWriter, Writer},
     },
 };
 use bitflags::bitflags;
