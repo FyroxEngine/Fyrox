@@ -44,7 +44,9 @@ bitflags! {
         const NONE = 0;
         /// A variable was externally modified.
         const MODIFIED = 0b0000_0001;
-        /// A variable must be synced with respective variable from data model.
+        /// A variable must be synced with respective variable from a data model. This flag is won't
+        /// be serialized when serializing an inheritable variable. This is purely a runtime flag
+        /// anyway.
         const NEED_SYNC = 0b0000_0010;
     }
 }
@@ -355,7 +357,12 @@ where
             {
                 let mut region = visitor.enter_region(name)?;
                 self.value.visit("Value", &mut region)?;
-                self.flags.get_mut().0.visit("Flags", &mut region)?;
+
+                let mut flags = self.flags.get();
+                // Remove NEED_SYNC flag, because it is a runtime flag and when saved, it produces
+                // a lot of merge conflicts in the assets.
+                flags.remove(VariableFlags::NEED_SYNC);
+                flags.0.visit("Flags", &mut region)?;
             } else {
                 // Non-modified variables do not write anything.
             }
