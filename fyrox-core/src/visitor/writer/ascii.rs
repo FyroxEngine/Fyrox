@@ -21,7 +21,7 @@
 use crate::visitor::{
     field::{Field, FieldKind},
     writer::Writer,
-    VisitResult, Visitor, VisitorNode, LATEST_VERSION,
+    VisitResult, Visitor, VisitorNode,
 };
 use base64::Engine;
 use byteorder::WriteBytesExt;
@@ -250,7 +250,12 @@ impl Writer for AsciiWriter {
     }
 
     fn write(&self, visitor: &Visitor, dest: &mut dyn Write) -> VisitResult {
-        writeln!(dest, "{}:{};", Visitor::MAGIC_ASCII_CURRENT, LATEST_VERSION)?;
+        writeln!(
+            dest,
+            "{}:{};",
+            Visitor::MAGIC_ASCII_CURRENT,
+            visitor.version
+        )?;
         self.write_node(visitor, &visitor.nodes[visitor.root], 0, dest)
     }
 }

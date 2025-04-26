@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::visitor::VisitorVersion;
 use crate::{
     pool::{Handle, Pool},
     visitor::{
@@ -373,7 +374,7 @@ impl Reader for AsciiReader<'_> {
         let magic: [u8; 4] = [src.next()?, src.next()?, src.next()?, src.next()?];
 
         let version = if magic.eq(Visitor::MAGIC_ASCII_OLD.as_bytes()) {
-            0u32
+            VisitorVersion::Legacy as u32
         } else if magic.eq(Visitor::MAGIC_ASCII_CURRENT.as_bytes()) {
             src.skip_until(|ch| ch != b':')?;
             src.skip_n(1)?;

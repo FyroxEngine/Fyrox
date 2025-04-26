@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::visitor::VisitorVersion;
 use crate::{
     replace_slashes,
     visitor::{
@@ -155,7 +156,7 @@ where
             self.clear();
             for index in 0..len as usize {
                 // Backward compatibility with the previous version (verbose, non-flat).
-                if region.version == 0 {
+                if region.version == VisitorVersion::Legacy as u32 {
                     if let Ok(mut item_region) = region.enter_region(&make_name(index)) {
                         let mut object = T::default();
                         object.visit("ItemData", &mut item_region)?;

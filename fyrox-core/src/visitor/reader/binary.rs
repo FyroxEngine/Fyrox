@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::visitor::VisitorVersion;
 use crate::{
     pool::{Handle, Pool},
     visitor::{
@@ -246,7 +247,7 @@ impl Reader for BinaryReader<'_> {
         src.read_exact(&mut magic)?;
 
         let version = if magic.eq(Visitor::MAGIC_BINARY_OLD.as_bytes()) {
-            0u32
+            VisitorVersion::Legacy as u32
         } else if magic.eq(Visitor::MAGIC_BINARY_CURRENT.as_bytes()) {
             src.read_u32::<LittleEndian>()?
         } else {

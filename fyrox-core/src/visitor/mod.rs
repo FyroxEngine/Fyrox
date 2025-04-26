@@ -80,8 +80,27 @@ use std::{
     sync::Arc,
 };
 
-/// Latest version number of the visitor.
-pub const LATEST_VERSION: u32 = 1;
+/// Version of the visitor.
+#[repr(u32)]
+pub enum VisitorVersion {
+    /// Version of the old format.
+    Legacy = 0,
+    /// Flattened vector structure.
+    VectorFlattening,
+
+    /// ^^ Add a new version above this line ^^.
+    ///
+    /// There are few major rules:
+    ///
+    /// 1) New version name should be something like `VectorFlattening`, and clearly describe the
+    /// changes introduced by the new version. Always add a doc comment that contains a clear
+    /// description of what was changed.
+    /// 2) Do **NOT** add explicit number value for a new version. The compiler will do that for you,
+    /// and there will be no chance of mistake. `Legacy` variant is an exception.
+    /// 3) Existing version entries must **NOT** be deleted or moved.
+    /// 4) `Last` variant must always be the last.
+    Last,
+}
 
 /// Proxy struct for plain data. It is used to serialize arrays of trivially copyable data (`Vec<u8>`)
 /// directly as a large chunk of data. For example, an attempt to serialize `Vec<u8>` serialize each
@@ -446,7 +465,7 @@ impl Visitor {
             reading: false,
             current_node: root,
             root,
-            version: LATEST_VERSION,
+            version: (VisitorVersion::Last as u32).saturating_sub(1),
             blackboard: Blackboard::new(),
             flags: VisitorFlags::NONE,
         }
