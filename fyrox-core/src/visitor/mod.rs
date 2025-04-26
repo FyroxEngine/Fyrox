@@ -80,6 +80,9 @@ use std::{
     sync::Arc,
 };
 
+/// Latest version number of the visitor.
+pub const LATEST_VERSION: u32 = 1;
+
 /// Proxy struct for plain data. It is used to serialize arrays of trivially copyable data (`Vec<u8>`)
 /// directly as a large chunk of data. For example, an attempt to serialize `Vec<u8>` serialize each
 /// byte as a separate node which is very inefficient.
@@ -289,6 +292,7 @@ pub struct Visitor {
     reading: bool,
     current_node: Handle<VisitorNode>,
     root: Handle<VisitorNode>,
+    version: u32,
     /// A place to store whatever objects may be needed to help with reading and writing values.
     pub blackboard: Blackboard,
     /// Flags that can activate special behavior in some Visit values, such as
@@ -376,6 +380,9 @@ pub enum Format {
 }
 
 impl Visitor {
+    /// Old header marker for binary version.
+    pub const MAGIC_BINARY_OLD: &'static str = "RG3D";
+
     /// Sequence of bytes that is automatically written at the start when a visitor is encoded into
     /// bytes. It is written by [Visitor::save_binary_to_file], [Visitor::save_binary_to_memory],
     /// and [Visitor::save_binary_to_vec].
@@ -383,7 +390,10 @@ impl Visitor {
     /// [Visitor::load_binary_from_file] will return an error if this sequence of bytes is not present
     /// at the beginning of the file, and [Visitor::load_binary_from_memory] will return an error of
     /// these bytes are not at the beginning of the given slice.
-    pub const MAGIC_BINARY: &'static str = "RG3D";
+    pub const MAGIC_BINARY_CURRENT: &'static str = "FBAF";
+
+    /// Old header marker for ASCII version.
+    pub const MAGIC_ASCII_OLD: &'static str = "FTAF";
 
     /// Sequence of bytes that is automatically written at the start when a visitor is encoded into
     /// ascii form. It is written by [Visitor::save_ascii_to_file], [Visitor::save_ascii_to_memory],
@@ -392,8 +402,7 @@ impl Visitor {
     /// [Visitor::load_ascii_from_file] will return an error if this sequence of bytes is not present
     /// at the beginning of the file, and [Visitor::load_ascii_from_memory] will return an error of
     /// these bytes are not at the beginning of the given slice.
-    // Fyrox Text Asset Format.
-    pub const MAGIC_ASCII: &'static str = "FTAF";
+    pub const MAGIC_ASCII_CURRENT: &'static str = "FTAX";
 
     /// Checks whether the given reader points to a supported file format or not.
     #[must_use]
@@ -405,9 +414,13 @@ impl Visitor {
     pub fn detect_format(src: &mut dyn Read) -> Format {
         let mut magic: [u8; 4] = Default::default();
         if src.read_exact(&mut magic).is_ok() {
-            if magic.eq(Visitor::MAGIC_BINARY.as_bytes()) {
+            if magic.eq(Visitor::MAGIC_BINARY_OLD.as_bytes())
+                || magic.eq(Visitor::MAGIC_BINARY_CURRENT.as_bytes())
+            {
                 return Format::Binary;
-            } else if magic.eq(Visitor::MAGIC_ASCII.as_bytes()) {
+            } else if magic.eq(Visitor::MAGIC_ASCII_OLD.as_bytes())
+                || magic.eq(Visitor::MAGIC_ASCII_CURRENT.as_bytes())
+            {
                 return Format::Ascii;
             }
         }
@@ -433,6 +446,7 @@ impl Visitor {
             reading: false,
             current_node: root,
             root,
+            version: LATEST_VERSION,
             blackboard: Blackboard::new(),
             flags: VisitorFlags::NONE,
         }

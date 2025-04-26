@@ -371,9 +371,17 @@ impl Reader for AsciiReader<'_> {
         let src = &mut self.src;
 
         let magic: [u8; 4] = [src.next()?, src.next()?, src.next()?, src.next()?];
-        if !magic.eq(Visitor::MAGIC_ASCII.as_bytes()) {
+
+        let version = if magic.eq(Visitor::MAGIC_ASCII_OLD.as_bytes()) {
+            0u32
+        } else if magic.eq(Visitor::MAGIC_ASCII_CURRENT.as_bytes()) {
+            src.skip_until(|ch| ch != b':')?;
+            src.skip_n(1)?;
+            src.read_num_until::<u32, _>(b';')?
+        } else {
             return Err(VisitError::NotSupportedFormat);
-        }
+        };
+
         let mut visitor = Visitor {
             nodes: Pool::new(),
             unique_id_counter: 1,
@@ -382,6 +390,7 @@ impl Reader for AsciiReader<'_> {
             reading: true,
             current_node: Handle::NONE,
             root: Handle::NONE,
+            version,
             blackboard: Blackboard::new(),
             flags: VisitorFlags::NONE,
         };
@@ -583,7 +592,7 @@ mod test {
 
     #[test]
     fn test_parse_visitor() {
-        let input = r#"FTAF
+        let input = r#"FTAX:1;
             SomeNode
             [2:
                 U8<u8:123>
@@ -608,6 +617,8 @@ mod test {
         let mut reader = AsciiReader::new(&mut cursor);
 
         let visitor = reader.read().unwrap();
+
+        assert_eq!(visitor.version, 1);
 
         let some_node = visitor.find_node("SomeNode").unwrap();
         assert_eq!(some_node.fields.len(), 2);

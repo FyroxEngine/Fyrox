@@ -273,7 +273,8 @@ impl Writer for BinaryWriter {
     }
 
     fn write(&self, visitor: &Visitor, dest: &mut dyn Write) -> VisitResult {
-        dest.write_all(Visitor::MAGIC_BINARY.as_bytes())?;
+        dest.write_all(Visitor::MAGIC_BINARY_CURRENT.as_bytes())?;
+        dest.write_u32::<LittleEndian>(visitor.version)?;
         let mut stack = vec![visitor.root];
         while let Some(node_handle) = stack.pop() {
             let node = visitor.nodes.borrow(node_handle);

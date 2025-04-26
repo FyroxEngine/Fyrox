@@ -244,9 +244,15 @@ impl Reader for BinaryReader<'_> {
 
         let mut magic: [u8; 4] = Default::default();
         src.read_exact(&mut magic)?;
-        if !magic.eq(Visitor::MAGIC_BINARY.as_bytes()) {
+
+        let version = if magic.eq(Visitor::MAGIC_BINARY_OLD.as_bytes()) {
+            0u32
+        } else if magic.eq(Visitor::MAGIC_BINARY_CURRENT.as_bytes()) {
+            src.read_u32::<LittleEndian>()?
+        } else {
             return Err(VisitError::NotSupportedFormat);
-        }
+        };
+
         let mut visitor = Visitor {
             nodes: Pool::new(),
             unique_id_counter: 1,
@@ -255,6 +261,7 @@ impl Reader for BinaryReader<'_> {
             reading: true,
             current_node: Handle::NONE,
             root: Handle::NONE,
+            version,
             blackboard: Blackboard::new(),
             flags: VisitorFlags::NONE,
         };
