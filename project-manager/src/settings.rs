@@ -51,6 +51,7 @@ use std::{
 };
 
 pub const MANIFEST_PATH_VAR: &str = "%MANIFEST_PATH%";
+pub const MANIFEST_DIR_VAR: &str = "%MANIFEST_DIR%";
 
 pub static PROJECT_DIRS: LazyLock<Option<ProjectDirs>> =
     LazyLock::new(|| ProjectDirs::from("", "Fyrox", "Fyrox Project Manager"));
@@ -94,7 +95,7 @@ pub struct SettingsData {
     #[serde(default = "default_open_ide_command")]
     #[reflect(
         description = "Defines a command to run an IDE in a project folder. This command \
-    should use %MANIFEST_PATH% built-in variable to provide the selected project path to the \
+    should use either %MANIFEST_PATH% or %MANIFEST_DIR% built-in variable to provide the selected project path to the \
     chosen IDE."
     )]
     pub open_ide_command: CommandDescriptor,
