@@ -524,6 +524,11 @@ impl Visitor {
         self.nodes.borrow_mut(self.current_node)
     }
 
+    /// Returns version number of the visitor.
+    pub fn version(&self) -> u32 {
+        self.version
+    }
+
     /// If [Visitor::is_reading], find a node with the given name that is a child of the current
     /// node, and return a Visitor for the found node. Return an error if no node with that name exists.
     ///
