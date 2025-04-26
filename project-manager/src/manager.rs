@@ -20,7 +20,7 @@
 
 use crate::{
     project::ProjectWizard,
-    settings::{Project, Settings, SettingsWindow, MANIFEST_PATH_VAR},
+    settings::{Project, Settings, SettingsWindow, MANIFEST_DIR_VAR, MANIFEST_PATH_VAR},
     upgrade::UpgradeTool,
     utils::{self, is_production_ready},
 };
@@ -1028,15 +1028,29 @@ impl ProjectManager {
     fn on_open_ide_click(&mut self, ui: &mut UserInterface) {
         let project = some_or_return!(self.selection.and_then(|i| self.settings.projects.get(i)));
         let mut open_ide_command = self.settings.open_ide_command.clone();
-        if let Some(manifest_path_arg) = open_ide_command
-            .args
-            .iter_mut()
-            .find(|cmd| cmd.as_str() == MANIFEST_PATH_VAR)
-        {
-            *manifest_path_arg = project.manifest_path.to_string_lossy().to_string();
-        } else {
-            Log::warn(format!("{} variable is not specified!", MANIFEST_PATH_VAR));
+        let manifest_path = project.manifest_path.clone();
+        let manifest_dir = some_or_return!(manifest_path.parent());
+
+        let mut has_updated_args = false;
+
+        for arg in open_ide_command.args.iter_mut() {
+            if arg.contains(MANIFEST_PATH_VAR) {
+                has_updated_args = true;
+                *arg = arg.replace(MANIFEST_PATH_VAR, &manifest_path.to_string_lossy());
+            }
+            if arg.contains(MANIFEST_DIR_VAR) {
+                has_updated_args = true;
+                *arg = arg.replace(MANIFEST_DIR_VAR, &manifest_dir.to_string_lossy());
+            }
         }
+
+        if !has_updated_args {
+            Log::warn(format!(
+                "{} and {} variables are not specified!",
+                MANIFEST_PATH_VAR, MANIFEST_DIR_VAR
+            ));
+        }
+
         let mut command = open_ide_command.make_command();
         if let Err(err) = command.spawn() {
             Log::err(format!(
