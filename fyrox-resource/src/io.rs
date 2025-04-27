@@ -18,19 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! Provides an interface for IO operations that a resource loader will use, this facilliates
+//! Provides an interface for IO operations that a resource loader will use, this facilitates
 //! things such as loading assets within archive files
 
 use fyrox_core::io::FileError;
-use std::fs::File;
-use std::future::{ready, Future};
-use std::io::{BufReader, Write};
-use std::iter::empty;
-use std::pin::Pin;
 use std::{
     fmt::Debug,
-    io::{Cursor, Read, Seek},
+    fs::File,
+    future::{ready, Future},
+    io::{BufReader, Cursor, Read, Seek, Write},
+    iter::empty,
     path::{Path, PathBuf},
+    pin::Pin,
 };
 
 /// Trait for files readers ensuring they implement the required traits
@@ -83,6 +82,13 @@ pub trait ResourceIo: Send + Sync + 'static {
 
     /// Attempts to move a file at the given `source` path to the given `dest` path.
     fn move_file<'a>(
+        &'a self,
+        source: &'a Path,
+        dest: &'a Path,
+    ) -> ResourceIoFuture<'a, Result<(), FileError>>;
+
+    /// Attempts to copy a file at the given `source` path to the given `dest` path.
+    fn copy_file<'a>(
         &'a self,
         source: &'a Path,
         dest: &'a Path,
@@ -197,6 +203,17 @@ impl ResourceIo for FsResourceIo {
     ) -> ResourceIoFuture<'a, Result<(), FileError>> {
         Box::pin(async move {
             std::fs::rename(source, dest)?;
+            Ok(())
+        })
+    }
+
+    fn copy_file<'a>(
+        &'a self,
+        source: &'a Path,
+        dest: &'a Path,
+    ) -> ResourceIoFuture<'a, Result<(), FileError>> {
+        Box::pin(async move {
+            std::fs::copy(source, dest)?;
             Ok(())
         })
     }
