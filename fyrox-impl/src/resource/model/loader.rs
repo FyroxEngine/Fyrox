@@ -29,12 +29,18 @@ use crate::{
         manager::ResourceManager,
         options::{try_get_import_settings, try_get_import_settings_opaque, BaseImportOptions},
     },
-    core::{uuid::Uuid, TypeUuidProvider},
+    core::{
+        io::FileError,
+        platform::TargetPlatform,
+        uuid::Uuid,
+        visitor::{Format, Visitor},
+        TypeUuidProvider,
+    },
     engine::SerializationContext,
     resource::model::{Model, ModelImportOptions},
 };
 use fyrox_resource::state::LoadError;
-use std::{path::PathBuf, sync::Arc};
+use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc};
 
 /// Default implementation for model loading.
 pub struct ModelLoader {
@@ -80,6 +86,49 @@ impl ResourceLoader for ModelLoader {
 
             Ok(LoaderPayload::new(model))
         })
+    }
+
+    fn convert(
+        &self,
+        src_path: PathBuf,
+        dest_path: PathBuf,
+        _platform: TargetPlatform,
+        io: Arc<dyn ResourceIo>,
+    ) -> Pin<Box<dyn Future<Output = Result<(), FileError>>>> {
+        if src_path.extension().is_some_and(|ext| {
+            fyrox_core::cmp_strings_case_insensitive(ext.to_string_lossy(), "rgs")
+        }) {
+            // Convert scenes to the binary format where possible.
+            Box::pin(async move {
+                let data = io.load_file(&src_path).await?;
+                match Visitor::detect_format_from_slice(&data) {
+                    Format::Unknown => Err(FileError::Custom("Unknown format!".to_string())),
+                    Format::Binary => {
+                        // Copy the binary format as-is.
+                        Ok(io.copy_file(&src_path, &dest_path).await?)
+                    }
+                    Format::Ascii => {
+                        // Resave the ascii format as binary.
+                        let visitor = Visitor::load_from_memory(&data).map_err(|err| {
+                            FileError::Custom(format!(
+                                "Unable to load {}. Reason: {err}",
+                                src_path.display()
+                            ))
+                        })?;
+                        visitor.save_binary_to_file(dest_path).map_err(|err| {
+                            FileError::Custom(format!(
+                                "Unable to save {}. Reason: {err}",
+                                src_path.display()
+                            ))
+                        })?;
+                        Ok(())
+                    }
+                }
+            })
+        } else {
+            // FBX and other will be copied as is.
+            Box::pin(async move { io.copy_file(&src_path, &dest_path).await })
+        }
     }
 
     fn try_load_import_settings(
