@@ -60,6 +60,7 @@ pub mod log;
 pub mod math;
 pub mod net;
 pub mod numeric_range;
+pub mod platform;
 pub mod pool;
 pub mod quadtree;
 pub mod rectpack;

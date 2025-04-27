@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::export::TargetPlatform;
+use crate::fyrox::core::platform::TargetPlatform;
 use cargo_metadata::Metadata;
 use fyrox::core::log::Log;
 use std::path::Path;

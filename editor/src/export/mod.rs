@@ -27,6 +27,7 @@ use crate::{
     fyrox::{
         core::{
             log::{Log, LogMessage, MessageKind},
+            platform::TargetPlatform,
             pool::Handle,
             reflect::prelude::*,
         },
@@ -61,7 +62,6 @@ use crate::{
 };
 use cargo_metadata::camino::Utf8Path;
 use std::{
-    fmt::{Display, Formatter},
     io::{BufRead, BufReader},
     path::PathBuf,
     sync::{
@@ -72,7 +72,6 @@ use std::{
     time::Duration,
 };
 use strum::VariantNames;
-use strum_macros::VariantNames;
 
 #[derive(Reflect, Debug, Clone)]
 struct ExportOptions {
@@ -103,28 +102,6 @@ impl Default for ExportOptions {
             run_after_build: false,
             open_destination_folder: true,
         }
-    }
-}
-
-#[derive(Copy, Clone, VariantNames, Default, Debug, Eq, PartialEq)]
-enum TargetPlatform {
-    #[default]
-    PC,
-    WebAssembly,
-    Android,
-}
-
-impl Display for TargetPlatform {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                TargetPlatform::PC => "PC",
-                TargetPlatform::WebAssembly => "WASM",
-                TargetPlatform::Android => "Android",
-            }
-        )
     }
 }
 

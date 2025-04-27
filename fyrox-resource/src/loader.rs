@@ -27,6 +27,8 @@ use crate::{
     state::LoadError,
     ResourceData, TypedResourceData,
 };
+use fyrox_core::io::FileError;
+use fyrox_core::platform::TargetPlatform;
 use std::{
     any::Any,
     future::Future,
@@ -65,6 +67,21 @@ pub trait ResourceLoader: BaseResourceLoader {
 
     /// Loads or reloads a resource.
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture;
+
+    /// Loads a resource from the given path and converts it to a format, that is the most efficient
+    /// fot the given platform. This method is usually used to convert resources for production builds;
+    /// to make the resources as efficient as possible for the given platform. This method saves the
+    /// converted resource to the given `dest_path`. If the resource is already in its final form,
+    /// then this method should just copy the file from `src_path` to `dest_path`.
+    fn convert(
+        &self,
+        src_path: PathBuf,
+        dest_path: PathBuf,
+        #[allow(unused_variables)] platform: TargetPlatform,
+        io: Arc<dyn ResourceIo>,
+    ) -> Pin<Box<dyn Future<Output = Result<(), FileError>>>> {
+        Box::pin(async move { io.copy_file(&src_path, &dest_path).await })
+    }
 
     /// Tries to load import settings for a resource.
     fn try_load_import_settings(
