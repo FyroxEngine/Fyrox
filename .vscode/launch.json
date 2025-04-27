@@ -1,0 +1,794 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'it'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=it",
+                    "--package=fyrox-core-derive"
+                ],
+                "filter": {
+                    "name": "it",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_core'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-core"
+                ],
+                "filter": {
+                    "name": "fyrox_core",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_math'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-math"
+                ],
+                "filter": {
+                    "name": "fyrox_math",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_sound'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "fyrox_sound",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'hrtf'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=hrtf",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "hrtf",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'hrtf'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=hrtf",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "hrtf",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'listener'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=listener",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "listener",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'listener'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=listener",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "listener",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'play_sound'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=play_sound",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "play_sound",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'play_sound'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=play_sound",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "play_sound",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'play_spatial_sound'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=play_spatial_sound",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "play_spatial_sound",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'play_spatial_sound'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=play_spatial_sound",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "play_spatial_sound",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'raw_samples'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=raw_samples",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "raw_samples",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'raw_samples'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=raw_samples",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "raw_samples",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'raw_streaming'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=raw_streaming",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "raw_streaming",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'raw_streaming'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=raw_streaming",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "raw_streaming",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'reverb'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=reverb",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "reverb",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'reverb'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=reverb",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "reverb",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'streaming'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=streaming",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "streaming",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'streaming'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=streaming",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "streaming",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'write_wav'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=write_wav",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "write_wav",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'write_wav'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=write_wav",
+                    "--package=fyrox-sound"
+                ],
+                "filter": {
+                    "name": "write_wav",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_resource'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-resource"
+                ],
+                "filter": {
+                    "name": "fyrox_resource",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_ui'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-ui"
+                ],
+                "filter": {
+                    "name": "fyrox_ui",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_animation'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-animation"
+                ],
+                "filter": {
+                    "name": "fyrox_animation",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_graph'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-graph"
+                ],
+                "filter": {
+                    "name": "fyrox_graph",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_texture'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-texture"
+                ],
+                "filter": {
+                    "name": "fyrox_texture",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_scripts'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-scripts"
+                ],
+                "filter": {
+                    "name": "fyrox_scripts",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox"
+                ],
+                "filter": {
+                    "name": "fyrox",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_dylib'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-dylib"
+                ],
+                "filter": {
+                    "name": "fyrox_dylib",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_impl'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-impl"
+                ],
+                "filter": {
+                    "name": "fyrox_impl",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_autotile'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-autotile"
+                ],
+                "filter": {
+                    "name": "fyrox_autotile",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_graphics'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-graphics"
+                ],
+                "filter": {
+                    "name": "fyrox_graphics",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyroxed_base'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyroxed_base"
+                ],
+                "filter": {
+                    "name": "fyroxed_base",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_build_tools'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-build-tools"
+                ],
+                "filter": {
+                    "name": "fyrox_build_tools",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'fyroxed'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=fyroxed",
+                    "--package=fyroxed"
+                ],
+                "filter": {
+                    "name": "fyroxed",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'fyroxed'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=fyroxed",
+                    "--package=fyroxed"
+                ],
+                "filter": {
+                    "name": "fyroxed",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fyrox_template_core'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fyrox-template-core"
+                ],
+                "filter": {
+                    "name": "fyrox_template_core",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'fyrox-template'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=fyrox-template",
+                    "--package=fyrox-template"
+                ],
+                "filter": {
+                    "name": "fyrox-template",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'fyrox-template'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=fyrox-template",
+                    "--package=fyrox-template"
+                ],
+                "filter": {
+                    "name": "fyrox-template",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'fyrox-project-manager'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=fyrox-project-manager",
+                    "--package=fyrox-project-manager"
+                ],
+                "filter": {
+                    "name": "fyrox-project-manager",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'fyrox-project-manager'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=fyrox-project-manager",
+                    "--package=fyrox-project-manager"
+                ],
+                "filter": {
+                    "name": "fyrox-project-manager",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

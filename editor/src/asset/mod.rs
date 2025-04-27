@@ -74,7 +74,6 @@ use std::{
     fs::File,
     io::Write,
     path::{Path, PathBuf},
-    process::Command,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc::{self, Sender},
@@ -99,17 +98,12 @@ struct ContextMenu {
     dependencies: Handle<UiNode>,
 }
 
-fn execute_command(command: &mut Command) {
-    match command.spawn() {
-        Ok(mut process) => Log::verify(process.wait()),
-        Err(err) => Log::err(format!(
+fn show_in_explorer<P: AsRef<Path>>(path: P) {
+    if let Err(err) = opener::reveal(path) {
+        Log::err(format!(
             "Failed to show asset item in explorer. Reason: {err:?}"
-        )),
+        ))
     }
-}
-
-fn show_in_explorer<P: AsRef<OsStr>>(path: P) {
-    execute_command(Command::new("explorer").arg("/select,").arg(path))
 }
 
 fn open_in_explorer<P: AsRef<Path>>(path: P) {
