@@ -18,6 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+mod android;
+mod pc;
+mod utils;
+mod wasm;
+
 use crate::{
     fyrox::{
         core::{
@@ -25,8 +30,7 @@ use crate::{
             pool::Handle,
             reflect::prelude::*,
         },
-        graph::BaseSceneGraph,
-        graph::SceneGraph,
+        graph::{BaseSceneGraph, SceneGraph},
         gui::{
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},
@@ -42,9 +46,9 @@ use crate::{
             message::{MessageDirection, UiMessage},
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             stack_panel::StackPanelBuilder,
-            style::resource::StyleResourceExt,
-            style::Style,
+            style::{resource::StyleResourceExt, Style},
             text::TextBuilder,
+            utils::make_dropdown_list_option,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
@@ -55,15 +59,11 @@ use crate::{
     message::MessageSender,
     Message,
 };
-use cargo_metadata::{camino::Utf8Path, Metadata};
-use fyrox::gui::utils::make_dropdown_list_option;
+use cargo_metadata::camino::Utf8Path;
 use std::{
-    ffi::OsStr,
     fmt::{Display, Formatter},
-    fs,
-    io::{self, BufRead, BufReader},
-    path::{Path, PathBuf},
-    process::Stdio,
+    io::{BufRead, BufReader},
+    path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc::{self, Receiver},
@@ -143,184 +143,6 @@ pub struct ExportWindow {
     build_targets_selector: Handle<UiNode>,
 }
 
-fn copy_dir<F>(src: impl AsRef<Path>, dst: impl AsRef<Path>, filter: &F) -> io::Result<()>
-where
-    F: Fn(&Path) -> bool,
-{
-    fs::create_dir_all(&dst)?;
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let ty = entry.file_type()?;
-        let path = entry.path();
-        if !filter(&path) {
-            continue;
-        }
-        if ty.is_dir() {
-            copy_dir(path, dst.as_ref().join(entry.file_name()), filter)?;
-        } else {
-            let from = path;
-            let to = dst.as_ref().join(entry.file_name());
-            fs::copy(&from, &to)?;
-            Log::info(format!(
-                "{} successfully cloned to {}",
-                from.display(),
-                to.display()
-            ))
-        }
-    }
-    Ok(())
-}
-
-fn make_command(program: &str) -> std::process::Command {
-    let mut command = std::process::Command::new(program);
-    // Remove the `RUSTFLAGS` environment variable, which could be added to the child process
-    // implicitly. It is very important if the editor is running in hot-reloading mode, which
-    // requires to have custom `RUSTFLAGS=-C prefer-dynamic=yes` environment variable set. This
-    // variable also forces any child `cargo` processes to generate binaries with dynamic
-    // linking to the standard library which is a major issue on some platforms. See this issue
-    // https://github.com/FyroxEngine/Fyrox/issues/679 for more info.
-    command.env_remove("RUSTFLAGS");
-    command
-}
-
-fn read_metadata() -> Result<Metadata, String> {
-    match make_command("cargo")
-        .arg("metadata")
-        .stdout(Stdio::piped())
-        .spawn()
-    {
-        Ok(handle) => match handle.wait_with_output() {
-            Ok(output) => match serde_json::from_slice::<Metadata>(&output.stdout) {
-                Ok(metadata) => Ok(metadata),
-                Err(err) => Err(format!(
-                    "Unable to parse workspace metadata. Reason {err:?}"
-                )),
-            },
-            Err(err) => Err(format!("Unable to fetch project metadata. Reason {err:?}")),
-        },
-        Err(err) => Err(format!("Unable to fetch project metadata. Reason {err:?}")),
-    }
-}
-
-fn prepare_build_dir(path: &Path) -> Result<(), String> {
-    if path.exists() {
-        Log::info("Trying to delete previous build...");
-
-        if let Err(err) = fs::remove_dir_all(path) {
-            return Err(format!(
-                "Unable to remove previous build at destination path! Reason: {err:?}"
-            ));
-        }
-    }
-
-    // Create the new clean folder.
-    if let Err(err) = fs::create_dir_all(path) {
-        return Err(format!(
-            "Unable to create build directory at destination path! Reason: {err:?}"
-        ));
-    }
-
-    Ok(())
-}
-
-fn is_installed(program: &str) -> bool {
-    if let Ok(mut handle) = make_command(program)
-        // Assuming that `help` command is always present.
-        .arg("--help")
-        .spawn()
-    {
-        if let Ok(code) = handle.wait() {
-            if code.code().unwrap_or(1) == 0 {
-                return true;
-            }
-        }
-    }
-
-    false
-}
-
-fn cargo_install(crate_name: &str) -> Result<(), String> {
-    Log::info(format!("Trying to install {crate_name}..."));
-
-    let mut process = make_command("cargo");
-    match process
-        .stderr(Stdio::piped())
-        .arg("install")
-        .arg(crate_name)
-        .spawn()
-    {
-        Ok(handle) => match handle.wait_with_output() {
-            Ok(output) => {
-                if output.status.code().unwrap_or(1) == 0 {
-                    Log::info(format!("{crate_name} installed successfully!"));
-
-                    Ok(())
-                } else {
-                    Err(String::from_utf8_lossy(&output.stderr).to_string())
-                }
-            }
-            Err(err) => Err(format!("Unable to install {crate_name}. Reason: {err:?}")),
-        },
-        Err(err) => Err(format!("Unable to install {crate_name}. Reason: {err:?}")),
-    }
-}
-
-fn install_build_target(target: &str) -> Result<(), String> {
-    Log::info(format!("Trying to install {target} build target..."));
-
-    let mut process = make_command("rustup");
-    match process
-        .stderr(Stdio::piped())
-        .arg("target")
-        .arg("add")
-        .arg(target)
-        .spawn()
-    {
-        Ok(handle) => match handle.wait_with_output() {
-            Ok(output) => {
-                if output.status.code().unwrap_or(1) == 0 {
-                    Log::info(format!("{target} target installed successfully!"));
-
-                    Ok(())
-                } else {
-                    Err(String::from_utf8_lossy(&output.stderr).to_string())
-                }
-            }
-            Err(err) => Err(format!(
-                "Unable to install {target} target. Reason: {err:?}"
-            )),
-        },
-        Err(err) => Err(format!(
-            "Unable to install {target} target. Reason: {err:?}"
-        )),
-    }
-}
-
-fn configure_build_environment(
-    target_platform: TargetPlatform,
-    build_target: &str,
-) -> Result<(), String> {
-    match target_platform {
-        TargetPlatform::PC => {
-            // Assume that rustup have installed the correct toolchain.
-            Ok(())
-        }
-        TargetPlatform::WebAssembly => {
-            // Check if the user have `wasm-pack` installed.
-            if !is_installed("wasm-pack") {
-                cargo_install("wasm-pack")?;
-            }
-            install_build_target(build_target)
-        }
-        TargetPlatform::Android => {
-            if !is_installed("cargo-apk") {
-                cargo_install("cargo-apk")?;
-            }
-            install_build_target(build_target)
-        }
-    }
-}
-
 fn build_package(
     package_name: &str,
     build_target: &str,
@@ -328,42 +150,12 @@ fn build_package(
     target_platform: TargetPlatform,
     cancel_flag: Arc<AtomicBool>,
 ) -> Result<(), String> {
-    configure_build_environment(target_platform, build_target)?;
+    utils::configure_build_environment(target_platform, build_target)?;
 
     let mut process = match target_platform {
-        TargetPlatform::PC => {
-            let mut process = make_command("cargo");
-            process
-                .stderr(Stdio::piped())
-                .arg("build")
-                .arg("--package")
-                .arg(package_name)
-                .arg("--release");
-            process
-        }
-        TargetPlatform::WebAssembly => {
-            let mut process = make_command("wasm-pack");
-            process
-                .stderr(Stdio::piped())
-                .arg("build")
-                .arg(package_dir_path)
-                .arg("--target")
-                .arg("web");
-            process
-        }
-        TargetPlatform::Android => {
-            let mut process = make_command("cargo-apk");
-            process
-                .stderr(Stdio::piped())
-                .arg("apk")
-                .arg("build")
-                .arg("--package")
-                .arg(package_name)
-                .arg("--target")
-                .arg(build_target)
-                .arg("--release");
-            process
-        }
+        TargetPlatform::PC => pc::build_package(package_name),
+        TargetPlatform::WebAssembly => wasm::build_package(package_dir_path),
+        TargetPlatform::Android => android::build_package(package_name, build_target),
     };
 
     let mut handle = match process.spawn() {
@@ -410,123 +202,11 @@ fn build_package(
     Ok(())
 }
 
-fn copy_binaries_pc(
-    metadata: &Metadata,
-    package_name: &str,
-    destination_folder: &Path,
-) -> Result<(), String> {
-    let mut binary_paths = vec![];
-    for entry in fs::read_dir(metadata.target_directory.join("release"))
-        .unwrap()
-        .flatten()
-    {
-        if let Ok(file_metadata) = entry.metadata() {
-            if !file_metadata.file_type().is_file() {
-                continue;
-            }
-        }
-
-        if let Some(stem) = entry.path().file_stem() {
-            if stem == OsStr::new(package_name) {
-                binary_paths.push(entry.path());
-            }
-        }
-    }
-    for path in binary_paths {
-        if let Some(file_name) = path.file_name() {
-            match fs::copy(&path, destination_folder.join(file_name)) {
-                Ok(_) => {
-                    Log::info(format!(
-                        "{} was successfully copied to the {} folder.",
-                        path.display(),
-                        destination_folder.display()
-                    ));
-                }
-                Err(err) => {
-                    Log::warn(format!(
-                        "Failed to copy {} file to the {} folder. Reason: {:?}",
-                        path.display(),
-                        destination_folder.display(),
-                        err
-                    ));
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn copy_binaries_android(
-    metadata: &Metadata,
-    package_name: &str,
-    destination_folder: &Path,
-) -> Result<(), String> {
-    let mut binary_paths = vec![];
-    for entry in fs::read_dir(metadata.target_directory.join("release/apk"))
-        .unwrap()
-        .flatten()
-    {
-        if let Ok(file_metadata) = entry.metadata() {
-            if !file_metadata.file_type().is_file() {
-                continue;
-            }
-        }
-
-        if let Some(stem) = entry.path().file_stem() {
-            if stem == OsStr::new(package_name) {
-                binary_paths.push(entry.path());
-            }
-        }
-    }
-    for path in binary_paths {
-        if let Some(file_name) = path.file_name() {
-            match fs::copy(&path, destination_folder.join(file_name)) {
-                Ok(_) => {
-                    Log::info(format!(
-                        "{} was successfully copied to the {} folder.",
-                        path.display(),
-                        destination_folder.display()
-                    ));
-                }
-                Err(err) => {
-                    Log::warn(format!(
-                        "Failed to copy {} file to the {} folder. Reason: {:?}",
-                        path.display(),
-                        destination_folder.display(),
-                        err
-                    ));
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn copy_binaries_wasm(package_dir_path: &Path, destination_folder: &Path) -> Result<(), String> {
-    copy_dir(package_dir_path, destination_folder, &|path: &Path| {
-        if path.is_file() {
-            if path.file_name() == Some(OsStr::new("Cargo.toml"))
-                || path.file_name() == Some(OsStr::new("README.md"))
-                || path.file_name() == Some(OsStr::new(".gitignore"))
-            {
-                return false;
-            }
-        } else if path.is_dir() && path.file_name() == Some(OsStr::new("target")) {
-            return false;
-        }
-
-        true
-    })
-    .map_err(|e| e.to_string())
-}
-
 fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result<(), String> {
     Log::info("Building the game...");
 
-    prepare_build_dir(&export_options.destination_folder)?;
-    let metadata = read_metadata()?;
+    utils::prepare_build_dir(&export_options.destination_folder)?;
+    let metadata = utils::read_metadata()?;
 
     let package_name = match export_options.target_platform {
         TargetPlatform::PC => "executor",
@@ -556,68 +236,19 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
                     export_options.destination_folder.display()
                 ));
 
-                Log::verify(copy_dir(
+                Log::verify(utils::copy_dir(
                     &folder,
                     export_options.destination_folder.join(&folder),
                     &|_| true,
                 ));
             }
         }
-        TargetPlatform::Android => {
-            // Asset management on Android is quite annoying, because all other target platforms
-            // uses the workspace manifest path as a root directory and all paths in code/assets
-            // stored relatively to it. On Android, however, all your assets must be in unified
-            // assets storage. This means that, if we simply specify assets folder to be `../data`
-            // (relative to `executor-android`), it will put all the assets in the storage, but
-            // their path will become relative to the storage. For example, in your code you can
-            // reference an asset like this: `data/my/textures/foo.jpg` and when build script for
-            // Android will clone the assets from `data` folder, your asset will have this
-            // actual path `my/textures/foo.jpg`. In other words, `data` is stripped from the path.
-            //
-            // To solve this, we just copy the entire assets folder to a temporary folder set in
-            // the manifest of `executor-android` and then cargo-apk will pack these assets and the
-            // paths to assets will become valid.
-            //
-            // It could very well possible, that I'm missing something and this could be fixed in
-            // a much easier way.
-            if let Some(assets) = package
-                .metadata
-                .get("android")
-                .and_then(|v| v.get("assets"))
-                .and_then(|v| v.as_str())
-            {
-                let temp_assets_storage = package_dir_path.join(assets).as_std_path().to_path_buf();
-
-                Log::info(format!(
-                    "Trying to copy the assets to a temporary storage {}...",
-                    temp_assets_storage.display()
-                ));
-
-                if !temp_assets_storage.exists() {
-                    Log::verify(std::fs::create_dir_all(&temp_assets_storage));
-                }
-
-                temp_folders.push(temp_assets_storage.clone());
-
-                for folder in export_options.assets_folders {
-                    Log::info(format!(
-                        "Trying to copy assets from {} to {}...",
-                        folder.display(),
-                        temp_assets_storage.display()
-                    ));
-
-                    Log::verify(copy_dir(
-                        &folder,
-                        temp_assets_storage.join(&folder),
-                        &|_| true,
-                    ));
-                }
-            } else {
-                return Err("Android executor must specify assets folder in \
-                    [package.metadata.android] section"
-                    .to_string());
-            }
-        }
+        TargetPlatform::Android => android::copy_assets(
+            &export_options,
+            package,
+            package_dir_path,
+            &mut temp_folders,
+        )?,
     }
 
     build_package(
@@ -630,20 +261,14 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
 
     match export_options.target_platform {
         TargetPlatform::PC => {
-            // TODO: This should be replaced with `--out-dir` flag to cargo when it is stabilized.
-            Log::info("Trying to copy the executable...");
-            copy_binaries_pc(&metadata, package_name, &export_options.destination_folder)?;
+            pc::copy_binaries(&metadata, package_name, &export_options.destination_folder)?
         }
-        TargetPlatform::WebAssembly => {
-            Log::info("Trying to copy the executable...");
-            copy_binaries_wasm(
-                package_dir_path.as_std_path(),
-                &export_options.destination_folder,
-            )?;
-        }
+        TargetPlatform::WebAssembly => wasm::copy_binaries(
+            package_dir_path.as_std_path(),
+            &export_options.destination_folder,
+        )?,
         TargetPlatform::Android => {
-            Log::info("Trying to copy the apk...");
-            copy_binaries_android(&metadata, package_name, &export_options.destination_folder)?;
+            android::copy_binaries(&metadata, package_name, &export_options.destination_folder)?
         }
     }
 
@@ -655,56 +280,9 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
     if let Ok(destination_folder) = export_options.destination_folder.canonicalize() {
         if export_options.run_after_build {
             match export_options.target_platform {
-                TargetPlatform::PC => {
-                    #[allow(unused_mut)]
-                    let mut path = destination_folder.join(package_name);
-                    #[cfg(windows)]
-                    {
-                        path.set_extension("exe");
-                    }
-                    Log::verify(open::that_detached(path))
-                }
-                TargetPlatform::WebAssembly => {
-                    if !is_installed("basic-http-server") {
-                        Log::verify(cargo_install("basic-http-server"));
-                    }
-
-                    Log::verify(
-                        make_command("basic-http-server")
-                            .arg("--addr")
-                            .arg("127.0.0.1:4000")
-                            .current_dir(&destination_folder)
-                            .spawn(),
-                    );
-
-                    Log::verify(open::that_detached("http://127.0.0.1:4000"));
-                }
-                TargetPlatform::Android => {
-                    if let Ok(adb) = make_command("adb")
-                        .current_dir(&destination_folder)
-                        .arg("install")
-                        .arg(format!("{package_name}.apk"))
-                        .spawn()
-                    {
-                        match adb.wait_with_output() {
-                            Ok(_) => {
-                                let compatible_package_name = package_name.replace('-', "_");
-                                Log::verify(
-                                    make_command("adb")
-                                        .arg("shell")
-                                        .arg("am")
-                                        .arg("start")
-                                        .arg("-n")
-                                        .arg(format!(
-                                            "rust.{compatible_package_name}/android.app.NativeActivity"
-                                        ))
-                                        .spawn(),
-                                );
-                            }
-                            Err(err) => Log::err(format!("ADB error: {err:?}")),
-                        }
-                    }
-                }
+                TargetPlatform::PC => pc::run_build(&destination_folder, package_name),
+                TargetPlatform::WebAssembly => wasm::run_build(&destination_folder),
+                TargetPlatform::Android => android::run_build(package_name, &destination_folder),
             }
         }
 
