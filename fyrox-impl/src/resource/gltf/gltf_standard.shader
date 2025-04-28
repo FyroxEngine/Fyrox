@@ -69,6 +69,14 @@
                     name: "parallaxScale",
                     kind: Float(value: 0.08),
                 ),
+                (
+                    name: "metallicFactor",
+                    kind: Float(value: 1.0)
+                ),
+                (
+                    name: "roughnessFactor",
+                    kind: Float(value: 1.0)
+                )
             ]),
             binding: 0
         ),
