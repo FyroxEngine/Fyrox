@@ -770,7 +770,7 @@ impl NodeTrait for Camera {
     }
 
     fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
-        let transform = self.global_transform.get();
+        let transform = self.global_transform_without_scaling();
         ctx.draw_pyramid(
             self.frustum().center(),
             self.frustum().right_top_front_corner(),
