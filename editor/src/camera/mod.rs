@@ -256,8 +256,8 @@ impl CameraController {
             aabb = AxisAlignedBoundingBox::from_point(scene.graph[handle].global_position());
         }
 
-        if scale.is_some() {
-            aabb = aabb.transform(&Matrix4::identity().scale(scale.unwrap()));
+        if let Some(scale) = scale {
+            aabb = aabb.transform(&Matrix4::identity().scale(scale));
         }
 
         let fit_parameters = scene.graph[self.camera].as_camera().fit(
