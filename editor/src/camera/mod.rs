@@ -241,7 +241,7 @@ impl CameraController {
         world_space_position
     }
 
-    pub fn fit_object(&mut self, scene: &mut Scene, handle: Handle<Node>) {
+    pub fn fit_object(&mut self, scene: &mut Scene, handle: Handle<Node>, scale: Option<f32>) {
         // Combine AABBs from the descendants.
         let mut aabb = AxisAlignedBoundingBox::default();
         for (_, descendant) in scene.graph.traverse_iter(handle) {
@@ -254,6 +254,10 @@ impl CameraController {
         if aabb.is_invalid_or_degenerate() {
             // To prevent the camera from flying away into abyss.
             aabb = AxisAlignedBoundingBox::from_point(scene.graph[handle].global_position());
+        }
+
+        if scale.is_some() {
+            aabb = aabb.transform(&Matrix4::identity().scale(scale.unwrap()));
         }
 
         let fit_parameters = scene.graph[self.camera].as_camera().fit(

@@ -990,7 +990,7 @@ impl SceneController for GameScene {
             }
             Message::FocusObject(handle) => {
                 let scene = &mut engine.scenes[self.scene];
-                self.camera_controller.fit_object(scene, *handle);
+                self.camera_controller.fit_object(scene, *handle, Some(2.0));
                 false
             }
             Message::SyncNodeHandleName { view, handle } => {
