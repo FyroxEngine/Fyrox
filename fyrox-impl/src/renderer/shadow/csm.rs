@@ -48,6 +48,7 @@ use crate::{
         light::directional::{FrustumSplitOptions, CSM_NUM_CASCADES},
     },
 };
+use approx::relative_eq;
 use fyrox_graphics::framebuffer::GpuFrameBuffer;
 use fyrox_graphics::gpu_texture::GpuTexture;
 
@@ -194,8 +195,11 @@ impl CsmRenderer {
             let z_near = z_values[i];
             let mut z_far = z_values[i + 1];
 
-            if z_far.eq(&z_near) {
-                z_far += 10.0 * f32::EPSILON;
+            // Prevents z_near and z_far from being relatively equal, which would result in an invalid perspective matrix.
+            if relative_eq!(z_far, z_near) {
+                // Needs to be at least greater than f32::EPSILON to break the relative equality.
+                const MIN_DEPTH_DELTA: f32 = f32::EPSILON * 2.0;
+                z_far += MIN_DEPTH_DELTA * z_near;
             }
 
             let projection_matrix = camera
