@@ -1134,7 +1134,14 @@ impl AssetBrowser {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if search_text.is_empty() {
-                    let path = self.selected_item_path.parent().unwrap().to_path_buf();
+                    let path = if self.selected_item_path != PathBuf::default() {
+                        self.selected_item_path
+                            .parent()
+                            .map(|p| p.to_path_buf())
+                            .unwrap_or_else(|| PathBuf::from("./"))
+                    } else {
+                        PathBuf::from("./")
+                    };
                     self.item_to_select = Some(self.selected_item_path.clone());
                     self.set_path(&path, ui, &engine.resource_manager, &sender);
                 } else {
