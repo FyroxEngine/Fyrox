@@ -108,14 +108,16 @@ impl Control for SurfaceDataPropertyEditor {
                     };
 
                     if let Ok(path) = path {
-                        if let Ok(value) =
-                            block_on(self.resource_manager.request::<SurfaceData>(path))
+                        if let Some(request) =
+                            self.resource_manager.try_request::<SurfaceData>(path)
                         {
-                            ui.send_message(SurfaceDataPropertyEditorMessage::value(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                value,
-                            ));
+                            if let Ok(value) = block_on(request) {
+                                ui.send_message(SurfaceDataPropertyEditorMessage::value(
+                                    self.handle(),
+                                    MessageDirection::ToWidget,
+                                    value,
+                                ));
+                            }
                         }
                     }
                 }
