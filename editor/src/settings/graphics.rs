@@ -28,6 +28,7 @@ pub struct GraphicsSettings {
     pub z_far: f32,
     #[serde(default = "default_draw_grid")]
     pub draw_grid: bool,
+    pub gizmo_scale: f32,
 }
 
 fn default_draw_grid() -> bool {
@@ -41,6 +42,7 @@ impl Default for GraphicsSettings {
             z_near: 0.025,
             z_far: 128.0,
             draw_grid: default_draw_grid(),
+            gizmo_scale: 1.0,
         }
     }
 }

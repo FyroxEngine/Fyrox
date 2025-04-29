@@ -281,7 +281,7 @@ impl InteractionMode for RotateInteractionMode {
                     graph,
                     game_scene.camera_controller.camera,
                     self.rotation_gizmo.origin,
-                );
+                ) * _settings.graphics.gizmo_scale;
                 self.rotation_gizmo.sync_transform(graph, selection, scale);
                 self.rotation_gizmo.set_visible(graph, true);
             }

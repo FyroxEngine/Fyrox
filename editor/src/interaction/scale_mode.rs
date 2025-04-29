@@ -258,7 +258,7 @@ impl InteractionMode for ScaleInteractionMode {
                     graph,
                     game_scene.camera_controller.camera,
                     self.scale_gizmo.origin,
-                );
+                ) * _settings.graphics.gizmo_scale;
                 self.scale_gizmo.sync_transform(graph, selection, scale);
                 self.scale_gizmo.set_visible(graph, true);
             }

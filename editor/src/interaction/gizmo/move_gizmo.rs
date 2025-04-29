@@ -87,6 +87,9 @@ fn make_move_axis(
     color: Color,
     name_prefix: &str,
 ) -> (Handle<Node>, Handle<Node>) {
+    const ARROW_LENGTH: f32 = 0.5;
+    const ARROW_THICKNESS: f32 = 0.015;
+
     let arrow;
     let axis = MeshBuilder::new(
         BaseBuilder::new()
@@ -98,7 +101,7 @@ fn make_move_axis(
                         .with_name(name_prefix.to_owned() + "Arrow")
                         .with_local_transform(
                             TransformBuilder::new()
-                                .with_local_position(Vector3::new(0.0, 1.0, 0.0))
+                                .with_local_position(Vector3::new(0.0, ARROW_LENGTH, 0.0))
                                 .build(),
                         ),
                 )
@@ -120,7 +123,13 @@ fn make_move_axis(
     )
     .with_render_path(RenderPath::Forward)
     .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-        SurfaceData::make_cylinder(10, 0.015, 1.0, true, &Matrix4::identity()),
+        SurfaceData::make_cylinder(
+            10,
+            ARROW_THICKNESS,
+            ARROW_LENGTH,
+            true,
+            &Matrix4::identity(),
+        ),
     ))
     .with_material(make_color_material(color))
     .build()])

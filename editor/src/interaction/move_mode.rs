@@ -498,7 +498,7 @@ impl InteractionMode for MoveInteractionMode {
                 graph,
                 game_scene.camera_controller.camera,
                 self.move_gizmo.origin,
-            );
+            ) * _settings.graphics.gizmo_scale;
             self.move_gizmo.set_visible(graph, true);
             self.move_gizmo
                 .sync_transform(scene, editor_selection, scale);
