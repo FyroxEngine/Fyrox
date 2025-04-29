@@ -43,6 +43,7 @@ use fyrox_core::pool::Handle;
 use fyrox_resource::io::FsResourceIo;
 use fyrox_ui::constructor::new_widget_constructor_container;
 use std::cell::Cell;
+use std::time::Duration;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -256,7 +257,7 @@ fn run_headless(
 ) {
     let mut previous = Instant::now();
     let fixed_time_step = 1.0 / desired_update_rate;
-    let mut lag = 0.0;
+    let mut lag = fixed_time_step;
     let mut frame_counter = 0usize;
     let mut last_throttle_frame_number = 0usize;
     let is_running = Cell::new(true);
@@ -287,6 +288,13 @@ fn run_headless(
         );
 
         frame_counter += 1;
+
+        // Only sleep for two-third of the remaining time step because thread::sleep tends to overshoot.
+        let sleep_time = (fixed_time_step - previous.elapsed().as_secs_f32()).max(0.0) * 0.66666;
+
+        if sleep_time > 0.0 {
+            std::thread::sleep(Duration::from_secs_f32(sleep_time));
+        }
     }
 }
 
