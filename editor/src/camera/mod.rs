@@ -257,7 +257,7 @@ impl CameraController {
         }
 
         if let Some(scale) = scale {
-            aabb = aabb.transform(&Matrix4::identity().scale(scale));
+            aabb.scale(scale);
         }
 
         let fit_parameters = scene.graph[self.camera].as_camera().fit(
