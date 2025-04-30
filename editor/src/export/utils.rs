@@ -25,9 +25,15 @@ use std::path::Path;
 use std::process::Stdio;
 use std::{fs, io};
 
-pub fn copy_dir<F>(src: impl AsRef<Path>, dst: impl AsRef<Path>, filter: &F) -> io::Result<()>
+pub fn copy_dir_ex<F, C>(
+    src: impl AsRef<Path>,
+    dst: impl AsRef<Path>,
+    filter: &F,
+    copy: &mut C,
+) -> io::Result<()>
 where
     F: Fn(&Path) -> bool,
+    C: FnMut(&Path, &Path) -> io::Result<()>,
 {
     fs::create_dir_all(&dst)?;
     for entry in fs::read_dir(src)? {
@@ -38,11 +44,11 @@ where
             continue;
         }
         if ty.is_dir() {
-            copy_dir(path, dst.as_ref().join(entry.file_name()), filter)?;
+            copy_dir_ex(path, dst.as_ref().join(entry.file_name()), filter, copy)?;
         } else {
             let from = path;
             let to = dst.as_ref().join(entry.file_name());
-            fs::copy(&from, &to)?;
+            copy(&from, &to)?;
             Log::info(format!(
                 "{} successfully cloned to {}",
                 from.display(),
@@ -51,6 +57,20 @@ where
         }
     }
     Ok(())
+}
+
+pub fn copy_dir<F>(
+    src_dir: impl AsRef<Path>,
+    dst_dir: impl AsRef<Path>,
+    filter: &F,
+) -> io::Result<()>
+where
+    F: Fn(&Path) -> bool,
+{
+    copy_dir_ex(src_dir, dst_dir, filter, &mut |src_file, dst_file| {
+        fs::copy(src_file, dst_file)?;
+        Ok(())
+    })
 }
 
 pub fn make_command(program: &str) -> std::process::Command {

@@ -1333,7 +1333,12 @@ impl Editor {
             }
         }
         if let Some(export_window) = self.export_window.as_mut() {
-            export_window.handle_ui_message(message, ui, &self.message_sender);
+            export_window.handle_ui_message(
+                message,
+                ui,
+                &self.message_sender,
+                engine.resource_manager.clone(),
+            );
         }
         if let Some(stats) = self.statistics_window.as_ref() {
             if let StatisticsWindowAction::Remove = stats.handle_ui_message(message, ui) {

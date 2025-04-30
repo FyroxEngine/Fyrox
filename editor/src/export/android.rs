@@ -18,9 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::export::{utils, ExportOptions};
+use crate::export::{asset, utils, ExportOptions};
 use cargo_metadata::{camino::Utf8Path, Metadata, Package};
+use fyrox::asset::manager::ResourceManager;
 use fyrox::core::log::Log;
+use fyrox::core::platform::TargetPlatform;
 use std::{
     ffi::OsStr,
     fs,
@@ -123,6 +125,7 @@ pub fn copy_assets(
     package: &Package,
     package_dir_path: &Utf8Path,
     temp_folders: &mut Vec<PathBuf>,
+    resource_manager: &ResourceManager,
 ) -> Result<(), String> {
     // Asset management on Android is quite annoying, because all other target platforms
     // uses the workspace manifest path as a root directory and all paths in code/assets
@@ -166,10 +169,12 @@ pub fn copy_assets(
                 temp_assets_storage.display()
             ));
 
-            Log::verify(utils::copy_dir(
+            Log::verify(asset::copy_and_convert_assets(
                 folder,
                 temp_assets_storage.join(folder),
+                TargetPlatform::Android,
                 &|_| true,
+                resource_manager,
             ));
         }
 

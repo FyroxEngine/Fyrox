@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 mod android;
+mod asset;
 mod pc;
 mod utils;
 mod wasm;
@@ -61,6 +62,7 @@ use crate::{
     Message,
 };
 use cargo_metadata::camino::Utf8Path;
+use fyrox::asset::manager::ResourceManager;
 use std::{
     io::{BufRead, BufReader},
     path::PathBuf,
@@ -179,7 +181,11 @@ fn build_package(
     Ok(())
 }
 
-fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result<(), String> {
+fn export(
+    export_options: ExportOptions,
+    cancel_flag: Arc<AtomicBool>,
+    resource_manager: ResourceManager,
+) -> Result<(), String> {
     Log::info("Building the game...");
 
     utils::prepare_build_dir(&export_options.destination_folder)?;
@@ -213,10 +219,12 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
                     export_options.destination_folder.display()
                 ));
 
-                Log::verify(utils::copy_dir(
+                Log::verify(asset::copy_and_convert_assets(
                     &folder,
                     export_options.destination_folder.join(&folder),
+                    export_options.target_platform,
                     &|_| true,
+                    &resource_manager,
                 ));
             }
         }
@@ -225,6 +233,7 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
             package,
             package_dir_path,
             &mut temp_folders,
+            &resource_manager,
         )?,
     }
 
@@ -549,6 +558,7 @@ impl ExportWindow {
         message: &UiMessage,
         ui: &mut UserInterface,
         sender: &MessageSender,
+        resource_manager: ResourceManager,
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.export {
@@ -574,14 +584,8 @@ impl ExportWindow {
                     std::thread::Builder::new()
                         .name("ExportWorkerThread".to_string())
                         .spawn(move || {
-                            if std::panic::catch_unwind(|| {
-                                tx.send(export(export_options, cancel_flag))
-                                    .expect("Channel must exist!")
-                            })
-                            .is_err()
-                            {
-                                Log::err("Unexpected error has occurred in the exporter thread.")
-                            }
+                            tx.send(export(export_options, cancel_flag, resource_manager))
+                                .expect("Channel must exist!")
                         }),
                 );
             } else if message.destination() == self.cancel {
