@@ -39,7 +39,7 @@ jobs:
         # and you might need to run it using xvfb-run even in headless mode.
         run: |
           sudo apt-get update # Run update first or install might start failing eventually.
-          sudo apt-get install --no-install-recommends -y libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
+          sudo apt-get install --no-install-recommends -y libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libdbus-1-dev
 
       - run: rustc --version && cargo --version
 
@@ -96,7 +96,7 @@ jobs:
       - name: Install linux deps
         run: |
           sudo apt-get update # Run update first or install might start failing eventually.
-          sudo apt-get install --no-install-recommends -y libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
+          sudo apt-get install --no-install-recommends -y libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libdbus-1-dev
 
       - run: cargo clippy --version
         # Using --all-targets to also check tests and examples.
