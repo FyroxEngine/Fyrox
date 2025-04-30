@@ -63,6 +63,8 @@ fn make_rotation_ribbon(
     color: Color,
     name: &str,
 ) -> Handle<Node> {
+    const RIBBON_THICKNESS: f32 = 0.015;
+
     MeshBuilder::new(
         BaseBuilder::new()
             .with_cast_shadows(false)
@@ -75,7 +77,7 @@ fn make_rotation_ribbon(
     )
     .with_render_path(RenderPath::Forward)
     .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-        SurfaceData::make_torus(0.5, 0.025, 16, 32, &Matrix4::identity()),
+        SurfaceData::make_torus(0.5, RIBBON_THICKNESS, 16, 32, &Matrix4::identity()),
     ))
     .with_material(make_color_material(color))
     .build()])
