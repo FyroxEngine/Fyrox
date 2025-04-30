@@ -647,14 +647,14 @@ impl Visitor {
         Self::load_ascii_from_memory(&io::load_file(path).await?)
     }
 
-    /// Write the data of this Visitor to the given writer. Begin by writing [Visitor::MAGIC_BINARY].
+    /// Write the data of this Visitor to the given writer. Begin by writing [Visitor::MAGIC_BINARY_CURRENT].
     pub fn save_binary_to_memory(&self, mut dest: impl Write) -> VisitResult {
         let writer = BinaryWriter::default();
         writer.write(self, &mut dest)
     }
 
     /// Encode the data of this visitor into bytes and push the bytes into the given `Vec<u8>`.
-    /// Begin by writing [Visitor::MAGIC_BINARY].
+    /// Begin by writing [Visitor::MAGIC_BINARY_CURRENT].
     pub fn save_binary_to_vec(&self) -> Result<Vec<u8>, VisitError> {
         let mut writer = Cursor::new(Vec::new());
         self.save_binary_to_memory(&mut writer)?;
@@ -663,7 +663,7 @@ impl Visitor {
 
     /// Create a file at the given path and write the data of this visitor into that file in a
     /// non-human-readable binary format so that the data can be reconstructed using [Visitor::load_binary_from_file].
-    /// Begin by writing [Visitor::MAGIC_BINARY].
+    /// Begin by writing [Visitor::MAGIC_BINARY_CURRENT].
     pub fn save_binary_to_file(&self, path: impl AsRef<Path>) -> VisitResult {
         let writer = BufWriter::new(File::create(path)?);
         self.save_binary_to_memory(writer)
@@ -671,14 +671,14 @@ impl Visitor {
 
     /// Create a visitor by reading data from the file at the given path, assuming that the file was
     /// created using [Visitor::save_binary_to_file]. Return a [VisitError::NotSupportedFormat] if
-    /// [Visitor::MAGIC_BINARY] is not the first bytes read from the file.
+    /// [Visitor::MAGIC_BINARY_CURRENT] is not the first bytes read from the file.
     pub async fn load_binary_from_file(path: impl AsRef<Path>) -> Result<Self, VisitError> {
         Self::load_binary_from_memory(&io::load_file(path).await?)
     }
 
     /// Create a visitor by decoding data from the given byte slice, assuming that the bytes are in
     /// the format that would be produced by [Visitor::save_binary_to_vec]. Return a
-    /// [VisitError::NotSupportedFormat] if [Visitor::MAGIC_BINARY] is not the first bytes read from
+    /// [VisitError::NotSupportedFormat] if [Visitor::MAGIC_BINARY_CURRENT] is not the first bytes read from
     /// the slice.
     pub fn load_binary_from_memory(data: &[u8]) -> Result<Self, VisitError> {
         let mut src = Cursor::new(data);
