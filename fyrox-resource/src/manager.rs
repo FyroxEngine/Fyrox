@@ -518,7 +518,18 @@ impl ResourceManagerState {
                 if let notify::EventKind::Modify(_) = evt.kind {
                     for path in evt.paths {
                         if let Ok(relative_path) = make_relative_path(path) {
-                            changed_resources.insert(relative_path);
+                            let registry = self.resource_registry.lock();
+                            if registry
+                                .excluded_folders
+                                .iter()
+                                .any(|folder| relative_path.starts_with(folder))
+                            {
+                                continue;
+                            }
+
+                            if self.loaders.lock().is_supported_resource(&relative_path) {
+                                changed_resources.insert(relative_path);
+                            }
                         }
                     }
                 }
