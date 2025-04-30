@@ -112,6 +112,13 @@ impl AxisAlignedBoundingBox {
     }
 
     #[inline]
+    pub fn scale(&mut self, scale: f32) {
+        let center = self.center();
+        self.min = (self.min - center) * scale + center;
+        self.max = (self.max - center) * scale + center;
+    }
+
+    #[inline]
     pub fn add_box(&mut self, other: Self) {
         self.add_point(other.min);
         self.add_point(other.max);
