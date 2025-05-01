@@ -133,7 +133,7 @@ impl RenderContext<'_> {
         let world_space_point = Point3::from(global_position);
         let view_space_point = view_matrix.transform_point(&world_space_point);
 
-        RANGE_CENTER.saturating_add_signed(-(view_space_point.z * GRANULARITY) as i64)
+        RANGE_CENTER.saturating_add_signed((view_space_point.z * GRANULARITY) as i64)
     }
 }
 
