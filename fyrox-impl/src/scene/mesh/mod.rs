@@ -673,6 +673,8 @@ impl NodeTrait for Mesh {
             return RdcControlFlow::Continue;
         }
 
+        let sorting_index = ctx.calculate_sorting_index(self.global_position());
+
         if let BatchingMode::Static = *self.batching_mode {
             let mut container = self.batch_container.0.lock();
 
@@ -685,7 +687,7 @@ impl NodeTrait for Mesh {
                     &batch.data,
                     &batch.material,
                     self.render_path(),
-                    batch.material.key(),
+                    sorting_index,
                     SurfaceInstanceData {
                         world_transform: Matrix4::identity(),
                         bone_matrices: Default::default(),
@@ -746,7 +748,7 @@ impl NodeTrait for Mesh {
                             surface_data,
                             substitute_material.as_ref().unwrap_or(surface.material()),
                             self.render_path(),
-                            surface.material().key(),
+                            sorting_index,
                             SurfaceInstanceData {
                                 world_transform: world,
                                 bone_matrices: surface
@@ -782,7 +784,7 @@ impl NodeTrait for Mesh {
                                 .collect::<Vec<_>>(),
                             surface.material(),
                             *self.render_path,
-                            0,
+                            sorting_index,
                             self.handle(),
                             &mut move |mut vertex_buffer, mut triangle_buffer| {
                                 let start_vertex_index = vertex_buffer.vertex_count();
