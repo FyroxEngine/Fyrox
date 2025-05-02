@@ -69,7 +69,7 @@ use crate::{
     Message, Mode,
 };
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use std::process::Command;
+
 use std::{
     ffi::OsStr,
     fs::File,
@@ -99,19 +99,21 @@ struct ContextMenu {
     dependencies: Handle<UiNode>,
 }
 
-fn execute_command(command: &mut Command) {
-    match command.spawn() {
-        Ok(mut process) => Log::verify(process.wait()),
-        Err(err) => Log::err(format!(
-            "Failed to show asset item in explorer. Reason: {err:?}"
-        )),
-    }
-}
-
 fn show_in_explorer<P: AsRef<Path>>(path: P) {
     // opener crate is bugged on Windows, so using explorer's command directly.
     #[cfg(target_os = "windows")]
     {
+        use std::process::Command;
+
+        fn execute_command(command: &mut Command) {
+            match command.spawn() {
+                Ok(mut process) => Log::verify(process.wait()),
+                Err(err) => Log::err(format!(
+                    "Failed to show asset item in explorer. Reason: {err:?}"
+                )),
+            }
+        }
+
         execute_command(Command::new("explorer").arg("/select,").arg(path.as_ref()))
     }
 
