@@ -1234,17 +1234,17 @@ mod test {
 
         assert_eq!(
             render_context.calculate_sorting_index(Vector3::new(0.0, 0.0, 1.0)),
-            center - 1000
+            center + 1000
         );
 
         assert_eq!(
             render_context.calculate_sorting_index(Vector3::new(0.0, 0.0, 2.0)),
-            center - 2000
+            center + 2000
         );
 
         assert_eq!(
             render_context.calculate_sorting_index(Vector3::new(0.0, 0.0, -3.0)),
-            center + 3000
+            center - 3000
         );
     }
 }
