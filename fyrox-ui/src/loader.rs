@@ -20,10 +20,15 @@
 
 //! User Interface loader.
 
-use crate::constructor::new_widget_constructor_container;
 use crate::{
+    constructor::new_widget_constructor_container,
     core::{uuid::Uuid, TypeUuidProvider},
     UserInterface,
+};
+use fyrox_core::{
+    io::FileError,
+    platform::TargetPlatform,
+    visitor::{Format, Visitor},
 };
 use fyrox_resource::{
     io::ResourceIo,
@@ -31,7 +36,7 @@ use fyrox_resource::{
     manager::ResourceManager,
     state::LoadError,
 };
-use std::{path::PathBuf, sync::Arc};
+use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc};
 
 /// Default implementation for UI loading.
 pub struct UserInterfaceLoader {
@@ -60,6 +65,41 @@ impl ResourceLoader for UserInterfaceLoader {
             .await
             .map_err(LoadError::new)?;
             Ok(LoaderPayload::new(ui))
+        })
+    }
+
+    fn convert(
+        &self,
+        src_path: PathBuf,
+        dest_path: PathBuf,
+        _platform: TargetPlatform,
+        io: Arc<dyn ResourceIo>,
+    ) -> Pin<Box<dyn Future<Output = Result<(), FileError>>>> {
+        Box::pin(async move {
+            let data = io.load_file(&src_path).await?;
+            match Visitor::detect_format_from_slice(&data) {
+                Format::Unknown => Err(FileError::Custom("Unknown format!".to_string())),
+                Format::Binary => {
+                    // Copy the binary format as-is.
+                    Ok(io.copy_file(&src_path, &dest_path).await?)
+                }
+                Format::Ascii => {
+                    // Resave the ascii format as binary.
+                    let visitor = Visitor::load_from_memory(&data).map_err(|err| {
+                        FileError::Custom(format!(
+                            "Unable to load {}. Reason: {err}",
+                            src_path.display()
+                        ))
+                    })?;
+                    visitor.save_binary_to_file(dest_path).map_err(|err| {
+                        FileError::Custom(format!(
+                            "Unable to save {}. Reason: {err}",
+                            src_path.display()
+                        ))
+                    })?;
+                    Ok(())
+                }
+            }
         })
     }
 }
