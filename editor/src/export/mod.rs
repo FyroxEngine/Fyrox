@@ -89,6 +89,7 @@ struct ExportOptions {
     selected_build_target: usize,
     run_after_build: bool,
     open_destination_folder: bool,
+    convert_assets: bool,
 }
 
 impl Default for ExportOptions {
@@ -103,6 +104,7 @@ impl Default for ExportOptions {
             selected_build_target: 0,
             run_after_build: false,
             open_destination_folder: true,
+            convert_assets: true,
         }
     }
 }
@@ -225,6 +227,7 @@ fn export(
                     export_options.target_platform,
                     &|_| true,
                     &resource_manager,
+                    export_options.convert_assets,
                 ));
             }
         }
@@ -234,6 +237,7 @@ fn export(
             package_dir_path,
             &mut temp_folders,
             &resource_manager,
+            export_options.convert_assets,
         )?,
     }
 

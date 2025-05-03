@@ -33,37 +33,42 @@ pub fn copy_and_convert_assets(
     target_platform: TargetPlatform,
     filter: &dyn Fn(&Path) -> bool,
     resource_manager: &ResourceManager,
+    convert: bool,
 ) -> io::Result<()> {
-    let rm = resource_manager.state();
-    let io = rm.resource_io.clone();
-    let loaders = rm.loaders.lock();
-    let mut tasks = Vec::new();
+    if convert {
+        let rm = resource_manager.state();
+        let io = rm.resource_io.clone();
+        let loaders = rm.loaders.lock();
+        let mut tasks = Vec::new();
 
-    // Iterate over the file system and try to convert all the supported resources.
-    utils::copy_dir_ex(
-        src_folder,
-        dst_folder,
-        &filter,
-        &mut |src_file, dst_file| {
-            if let Some(loader) = loaders.loader_for(src_file) {
-                tasks.push(loader.convert(
-                    src_file.to_path_buf(),
-                    dst_file.to_path_buf(),
-                    target_platform,
-                    io.clone(),
-                ));
-                Ok(())
-            } else {
-                fs::copy(src_file, dst_file)?;
-                Ok(())
-            }
-        },
-    )?;
+        // Iterate over the file system and try to convert all the supported resources.
+        utils::copy_dir_ex(
+            src_folder,
+            dst_folder,
+            &filter,
+            &mut |src_file, dst_file| {
+                if let Some(loader) = loaders.loader_for(src_file) {
+                    tasks.push(loader.convert(
+                        src_file.to_path_buf(),
+                        dst_file.to_path_buf(),
+                        target_platform,
+                        io.clone(),
+                    ));
+                    Ok(())
+                } else {
+                    fs::copy(src_file, dst_file)?;
+                    Ok(())
+                }
+            },
+        )?;
 
-    // Wait until everything is converted and copied.
-    for result in executor::block_on(join_all(tasks)) {
-        Log::verify(result);
+        // Wait until everything is converted and copied.
+        for result in executor::block_on(join_all(tasks)) {
+            Log::verify(result);
+        }
+
+        Ok(())
+    } else {
+        utils::copy_dir(src_folder, dst_folder, &filter)
     }
-
-    Ok(())
 }

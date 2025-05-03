@@ -126,6 +126,7 @@ pub fn copy_assets(
     package_dir_path: &Utf8Path,
     temp_folders: &mut Vec<PathBuf>,
     resource_manager: &ResourceManager,
+    convert: bool,
 ) -> Result<(), String> {
     // Asset management on Android is quite annoying, because all other target platforms
     // uses the workspace manifest path as a root directory and all paths in code/assets
@@ -175,6 +176,7 @@ pub fn copy_assets(
                 TargetPlatform::Android,
                 &|_| true,
                 resource_manager,
+                convert,
             ));
         }
 
