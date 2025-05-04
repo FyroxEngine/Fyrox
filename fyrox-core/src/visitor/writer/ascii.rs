@@ -224,18 +224,18 @@ impl Writer for AsciiWriter {
         align(hierarchy_level, dest)?;
         write!(dest, "{}", node.name)?;
 
-        write!(dest, "[{}:", node.fields.len())?;
+        write!(dest, "[")?;
         for field in node.fields.iter() {
             self.write_field(field, dest)?;
         }
 
         if node.children.is_empty() {
-            writeln!(dest, "]{{0:}}")?;
+            writeln!(dest, "]{{}}")?;
         } else {
             writeln!(dest, "]")?;
 
             align(hierarchy_level, dest)?;
-            writeln!(dest, "{{{}:", node.children.len())?;
+            writeln!(dest, "{{")?;
 
             for child_handle in node.children.iter() {
                 let child = visitor.nodes.borrow(*child_handle);

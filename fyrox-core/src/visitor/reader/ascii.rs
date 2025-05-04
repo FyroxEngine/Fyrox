@@ -325,37 +325,55 @@ impl Reader for AsciiReader<'_> {
     }
 
     fn read_node(&mut self, visitor: &mut Visitor) -> Result<Handle<VisitorNode>, VisitError> {
-        let src = &mut self.src;
-        let name = src.read_str_until_skip_ws(b'[')?;
+        let name = self.src.read_str_until_skip_ws(b'[')?;
 
         let mut node = VisitorNode {
             name,
             ..VisitorNode::default()
         };
 
-        let field_count: usize = src.read_num_until(b':')?;
-        for _ in 0..field_count {
-            node.fields.push(self.read_field()?);
+        if visitor.version < VisitorVersion::AsciiNoCounters as u32 {
+            let field_count: usize = self.src.read_num_until(b':')?;
+            for _ in 0..field_count {
+                node.fields.push(self.read_field()?);
+            }
+            self.src.skip_until(|ch| ch != b']')?;
+            self.src.skip_n(1)?;
+        } else {
+            loop {
+                self.src.skip_ws()?;
+                let next = self.src.peek()?;
+                if next == b']' {
+                    self.src.skip_n(1)?;
+                    break;
+                }
+                node.fields.push(self.read_field()?);
+            }
         }
 
-        let src = &mut self.src;
+        self.src.skip_until(|ch| ch != b'{')?;
+        self.src.skip_n(1)?;
 
-        src.skip_until(|ch| ch != b']')?;
-        src.skip_n(1)?;
-
-        src.skip_until(|ch| ch != b'{')?;
-        src.skip_n(1)?;
-
-        let child_count: usize = src.read_num_until(b':')?;
-        let mut children = Vec::with_capacity(child_count);
-        for _ in 0..child_count {
-            children.push(self.read_node(visitor)?);
+        let mut children = Vec::new();
+        if visitor.version < VisitorVersion::AsciiNoCounters as u32 {
+            let child_count: usize = self.src.read_num_until(b':')?;
+            children.reserve(child_count);
+            for _ in 0..child_count {
+                children.push(self.read_node(visitor)?);
+            }
+            self.src.skip_until(|ch| ch != b'}')?;
+            self.src.skip_n(1)?;
+        } else {
+            loop {
+                self.src.skip_ws()?;
+                let next = self.src.peek()?;
+                if next == b'}' {
+                    self.src.skip_n(1)?;
+                    break;
+                }
+                children.push(self.read_node(visitor)?);
+            }
         }
-
-        let src = &mut self.src;
-
-        src.skip_until(|ch| ch != b'}')?;
-        src.skip_n(1)?;
 
         node.children.clone_from(&children);
 
@@ -403,6 +421,7 @@ impl Reader for AsciiReader<'_> {
 
 #[cfg(test)]
 mod test {
+    use crate::visitor;
     use crate::visitor::{
         field::{Field, FieldKind},
         reader::{
@@ -593,33 +612,36 @@ mod test {
 
     #[test]
     fn test_parse_visitor() {
-        let input = r#"FTAX:1;
+        let input = format!(
+            r#"FTAX:{};
             SomeNode
-            [2:
+            [
                 U8<u8:123>
                 I8<i8:-123>
             ]
-            {2:
+            {{
                 NestedNode1
-                [1:
+                [
                     F32<f32:123.1>
                 ]
-                {0:
-                }
+                {{
+                }}
                 NestedNode2
-                [1:
+                [
                     F32<f32:123.1>
                 ]
-                {0:
-                }
-            }
-        "#;
+                {{
+                }}
+            }}
+        "#,
+            visitor::CURRENT_VERSION
+        );
         let mut cursor = Cursor::new(input);
         let mut reader = AsciiReader::new(&mut cursor);
 
         let visitor = reader.read().unwrap();
 
-        assert_eq!(visitor.version, 1);
+        assert_eq!(visitor.version, visitor::CURRENT_VERSION);
 
         let some_node = visitor.find_node("SomeNode").unwrap();
         assert_eq!(some_node.fields.len(), 2);

@@ -87,6 +87,8 @@ pub enum VisitorVersion {
     Legacy = 0,
     /// Flattened vector structure.
     VectorFlattening,
+    /// Removal of `[N:` and `{N:` counters in ascii format.
+    AsciiNoCounters,
 
     /// ^^ Add a new version above this line ^^.
     ///
@@ -101,6 +103,9 @@ pub enum VisitorVersion {
     /// 4) `Last` variant must always be the last.
     Last,
 }
+
+/// Current version number of the visitor.
+pub const CURRENT_VERSION: u32 = (VisitorVersion::Last as u32).saturating_sub(1);
 
 /// Proxy struct for plain data. It is used to serialize arrays of trivially copyable data (`Vec<u8>`)
 /// directly as a large chunk of data. For example, an attempt to serialize `Vec<u8>` serialize each
@@ -465,7 +470,7 @@ impl Visitor {
             reading: false,
             current_node: root,
             root,
-            version: (VisitorVersion::Last as u32).saturating_sub(1),
+            version: CURRENT_VERSION,
             blackboard: Blackboard::new(),
             flags: VisitorFlags::NONE,
         }
