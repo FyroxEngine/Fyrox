@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::core::algebra::clamp;
+
 use crate::{
     fyrox::{
         core::{
@@ -83,6 +85,7 @@ pub struct CameraController {
     pitch: f32,
     pub z_offset: f32,
     mouse_control_mode: MouseControlMode,
+    mouse_user_sensitivity: f32,
     move_left: bool,
     move_right: bool,
     move_forward: bool,
@@ -177,6 +180,7 @@ impl CameraController {
             yaw: settings.yaw,
             pitch: settings.pitch,
             mouse_control_mode: MouseControlMode::None,
+            mouse_user_sensitivity: 1.0,
             z_offset: DEFAULT_Z_OFFSET,
             move_left: false,
             move_right: false,
@@ -311,14 +315,12 @@ impl CameraController {
         match self.mouse_control_mode {
             MouseControlMode::None => {}
             MouseControlMode::CenteredRotation { .. } | MouseControlMode::OrbitalRotation => {
-                self.yaw -= delta.x * 0.01;
-                self.pitch += delta.y * 0.01;
-                if self.pitch > 90.0f32.to_radians() {
-                    self.pitch = 90.0f32.to_radians();
-                }
-                if self.pitch < (-90.0f32).to_radians() {
-                    self.pitch = (-90.0f32).to_radians();
-                }
+                const MAX_ANGLE_RAD: f32 = 90.0f32.to_radians();
+                const GLOBAL_MOUSE_SENSITIVITY: f32 = 0.01f32;
+                let mouse_sensitivity = GLOBAL_MOUSE_SENSITIVITY * self.mouse_user_sensitivity;
+                self.yaw -= delta.x * mouse_sensitivity;
+                self.pitch += delta.y * mouse_sensitivity;
+                self.pitch = clamp(self.pitch, -MAX_ANGLE_RAD, MAX_ANGLE_RAD);
             }
             MouseControlMode::Drag {
                 initial_position,
@@ -556,6 +558,8 @@ impl CameraController {
         self.scene_content_root = scene_content_root;
         // Keep screen size in-sync.
         self.screen_size = screen_size;
+
+        self.mouse_user_sensitivity = settings.camera.sensitivity;
 
         let camera = graph[self.camera].as_camera_mut();
 
