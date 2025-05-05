@@ -543,7 +543,7 @@ impl InteractionMode for TerrainInteractionMode {
 
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
         let terrain_mode_tooltip =
-            "Edit Terrain\n\nTerrain edit mode allows you to modify selected \
+            "Edit Terrain - Shortcut: [6]\n\nTerrain edit mode allows you to modify selected \
         terrain.";
 
         make_interaction_mode_button(
