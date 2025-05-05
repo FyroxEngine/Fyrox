@@ -99,7 +99,9 @@ impl StatisticsWindow {
                 let global_stats = graphics_context.renderer.get_statistics();
                 let statistics = format!(
                     "FPS: {}\nFrame Time:{}\n{}",
-                    global_stats.frames_per_second, global_stats.pure_frame_time, stats.statistics
+                    global_stats.frames_per_second,
+                    global_stats.pure_frame_time,
+                    stats.scene_data.statistics
                 );
                 engine
                     .user_interfaces
