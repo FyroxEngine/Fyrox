@@ -339,7 +339,7 @@ fn render_scene_to_texture(
             .renderer
             .render_scene(temp_handle, scene, elapsed_time, 0.0)
     {
-        let ldr_texture = scene_data.ldr_scene_frame_texture();
+        let ldr_texture = scene_data.scene_data.ldr_scene_frame_texture();
 
         let (width, height) = match ldr_texture.kind() {
             GpuTextureKind::Rectangle { width, height } => (width, height),
@@ -347,6 +347,7 @@ fn render_scene_to_texture(
         };
 
         let pixels = scene_data
+            .scene_data
             .ldr_scene_framebuffer
             .read_pixels(ReadTarget::Color(0))?;
 

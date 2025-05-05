@@ -384,6 +384,9 @@ pub struct Camera {
     #[reflect(setter = "set_color_grading_enabled")]
     color_grading_enabled: InheritableVariable<bool>,
 
+    #[reflect(setter = "set_render_target")]
+    render_target: InheritableVariable<Option<TextureResource>>,
+
     #[visit(skip)]
     #[reflect(hidden)]
     view_matrix: Matrix4<f32>,
@@ -736,6 +739,35 @@ impl Camera {
     pub fn exposure(&self) -> Exposure {
         *self.exposure
     }
+
+    /// Sets a new render target of the camera. If set, the camera will render to the specified
+    /// render target and will not appear in the final frame. Typical usage is something like this:
+    ///
+    /// ```rust
+    /// # use fyrox_impl::scene::camera::Camera;
+    /// # use fyrox_texture::{TextureResource, TextureResourceExtension};
+    /// fn set_render_target(camera: &mut Camera) {
+    ///     // Create a render target of 256x256 pixels. The size of the render target can be changed
+    ///     // at runtime, and the engine will automatically adjust GPU resources for you. The render
+    ///     // target is a resource, thus it can be shared across multiple "users". For instance, you
+    ///     // can apply this render target texture to a quad in your game world, and it will make a
+    ///     // sort of virtual camera (surveillance camera).
+    ///     let render_target = TextureResource::new_render_target(256, 256);
+    ///     camera.set_render_target(Some(render_target));
+    /// }
+    /// ```
+    pub fn set_render_target(
+        &mut self,
+        render_target: Option<TextureResource>,
+    ) -> Option<TextureResource> {
+        self.render_target
+            .set_value_and_mark_modified(render_target)
+    }
+
+    /// Returns a reference to the current render target (if any).
+    pub fn render_target(&self) -> Option<&TextureResource> {
+        (*self.render_target).as_ref()
+    }
 }
 
 impl ConstructorProvider<Node, Graph> for Camera {
@@ -766,7 +798,17 @@ impl NodeTrait for Camera {
     }
 
     fn update(&mut self, context: &mut UpdateContext) {
-        self.calculate_matrices(context.frame_size);
+        let frame_size = if let Some(TextureKind::Rectangle { width, height }) = self
+            .render_target
+            .as_ref()
+            .and_then(|rt| rt.data_ref().as_loaded_ref().map(|rt| rt.kind()))
+        {
+            Vector2::new(width as f32, height as f32)
+        } else {
+            context.frame_size
+        };
+
+        self.calculate_matrices(frame_size);
     }
 
     fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
@@ -1085,6 +1127,7 @@ pub struct CameraBuilder {
     color_grading_lut: Option<ColorGradingLut>,
     color_grading_enabled: bool,
     projection: Projection,
+    render_target: Option<TextureResource>,
 }
 
 impl CameraBuilder {
@@ -1103,6 +1146,7 @@ impl CameraBuilder {
             color_grading_lut: None,
             color_grading_enabled: false,
             projection: Projection::default(),
+            render_target: None,
         }
     }
 
@@ -1178,6 +1222,12 @@ impl CameraBuilder {
         self
     }
 
+    /// Sets desired render target for the camera.
+    pub fn with_render_target(mut self, render_target: Option<TextureResource>) -> Self {
+        self.render_target = render_target;
+        self
+    }
+
     /// Creates new instance of camera.
     pub fn build_camera(self) -> Camera {
         Camera {
@@ -1198,6 +1248,7 @@ impl CameraBuilder {
             exposure: self.exposure.into(),
             color_grading_lut: self.color_grading_lut.into(),
             color_grading_enabled: self.color_grading_enabled.into(),
+            render_target: None.into(),
         }
     }
 
