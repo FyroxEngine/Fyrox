@@ -96,6 +96,7 @@ impl NavmeshPanel {
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("NavmeshPanel"))
             .open(false)
             .with_title(WindowTitle::text("Navmesh"))
+            .with_tab_label("Navmesh")
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new().with_child(
