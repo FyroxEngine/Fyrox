@@ -189,7 +189,7 @@ impl ModifyTerrainHolesCommand {
 
 impl CommandTrait for ModifyTerrainHolesCommand {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
-        "Modify Terrain Height".to_owned()
+        "Modify Terrain Holes".to_owned()
     }
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
