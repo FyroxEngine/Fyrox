@@ -92,12 +92,12 @@ impl EditorSceneEntry {
             engine,
             message_sender.clone(),
         ));
-        interaction_modes.add(ScaleInteractionMode::new(
+        interaction_modes.add(RotateInteractionMode::new(
             &game_scene,
             engine,
             message_sender.clone(),
         ));
-        interaction_modes.add(RotateInteractionMode::new(
+        interaction_modes.add(ScaleInteractionMode::new(
             &game_scene,
             engine,
             message_sender.clone(),
