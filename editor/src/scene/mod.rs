@@ -523,6 +523,7 @@ impl SceneController for GameScene {
             pos,
             _screen_bounds.size,
             offset,
+            _settings,
         );
     }
 

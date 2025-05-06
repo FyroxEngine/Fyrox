@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::core::algebra::clamp;
+
 use crate::{
     fyrox::{
         core::{
@@ -307,18 +309,17 @@ impl CameraController {
         mouse_position: Vector2<f32>,
         screen_size: Vector2<f32>,
         delta: Vector2<f32>,
+        settings: &Settings,
     ) {
         match self.mouse_control_mode {
             MouseControlMode::None => {}
             MouseControlMode::CenteredRotation { .. } | MouseControlMode::OrbitalRotation => {
-                self.yaw -= delta.x * 0.01;
-                self.pitch += delta.y * 0.01;
-                if self.pitch > 90.0f32.to_radians() {
-                    self.pitch = 90.0f32.to_radians();
-                }
-                if self.pitch < (-90.0f32).to_radians() {
-                    self.pitch = (-90.0f32).to_radians();
-                }
+                const MAX_ANGLE_RAD: f32 = 90.0f32.to_radians();
+                const GLOBAL_MOUSE_SENSITIVITY: f32 = 0.01f32;
+                let mouse_sensitivity = GLOBAL_MOUSE_SENSITIVITY * settings.camera.sensitivity;
+                self.yaw -= delta.x * mouse_sensitivity;
+                self.pitch += delta.y * mouse_sensitivity;
+                self.pitch = clamp(self.pitch, -MAX_ANGLE_RAD, MAX_ANGLE_RAD);
             }
             MouseControlMode::Drag {
                 initial_position,
