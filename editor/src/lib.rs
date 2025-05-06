@@ -753,7 +753,7 @@ impl Editor {
             InspectorPlugin::new(ctx, message_sender.clone(), engine.resource_manager.clone());
         let particle_system_control_panel =
             ParticleSystemPreviewControlPanel::new(inspector_plugin.head, ctx);
-        let camera_control_panel = CameraPreviewControlPanel::new(inspector_plugin.head, ctx);
+        let camera_control_panel = CameraPreviewControlPanel::new(scene_viewer.frame(), ctx);
         let mesh_control_panel = MeshControlPanel::new(inspector_plugin.head, ctx);
         let audio_preview_panel = AudioPreviewPanel::new(inspector_plugin.head, ctx);
         let doc_window = DocWindow::new(ctx);
@@ -880,10 +880,7 @@ impl Editor {
                                 .build(ctx)
                         }))
                         .with_floating_windows(vec![
-                            particle_system_control_panel.root_widget,
-                            camera_control_panel.root_widget,
-                            mesh_control_panel.root_widget,
-                            audio_preview_panel.root_widget,
+                            camera_control_panel.window,
                             navmesh_panel.window,
                             doc_window.window,
                             light_panel.window,

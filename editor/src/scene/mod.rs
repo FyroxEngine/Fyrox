@@ -28,6 +28,7 @@ use crate::{
         core::{
             algebra::{Matrix4, Vector2, Vector3},
             color::Color,
+            define_as_any_trait,
             futures::executor::block_on,
             log::Log,
             make_relative_path,
@@ -35,12 +36,14 @@ use crate::{
             pool::{ErasedHandle, Handle},
             reflect::Reflect,
             visitor::Visitor,
+            Uuid,
         },
         engine::{Engine, SerializationContext},
         fxhash::FxHashSet,
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
             inspector::PropertyChanged,
+            message::UiMessage,
             message::{KeyCode, MessageDirection, MouseButton},
             UiNode,
         },
@@ -99,10 +102,6 @@ use crate::{
     world::graph::selection::GraphSelection,
     Message, Settings,
 };
-use fyrox::core::{define_as_any_trait, Uuid};
-
-use fyrox::graph::SceneGraphNode;
-use fyrox::gui::message::UiMessage;
 use std::{
     cell::RefCell,
     fmt::Debug,
@@ -347,9 +346,7 @@ impl GameScene {
                     node.debug_draw(ctx);
                 }
             } else if node.component_ref::<Camera>().is_some() {
-                if settings.debugging.show_camera_bounds
-                    && game_scene.preview_camera == Handle::NONE
-                {
+                if settings.debugging.show_camera_bounds {
                     node.debug_draw(ctx);
                 }
             } else if node.component_ref::<PointLight>().is_some()
@@ -834,14 +831,11 @@ impl SceneController for GameScene {
         // Temporarily disable cameras in currently edited scene. This is needed to prevent any
         // scene camera to interfere with the editor camera.
         let scene = &mut engine.scenes[self.scene];
-        let has_preview_camera = scene.graph.is_valid_handle(self.preview_camera);
         for (handle, camera) in scene.graph.pair_iter_mut().filter_map(|(h, n)| {
-            if has_preview_camera && h != self.preview_camera
-                || !has_preview_camera && h != self.camera_controller.camera
-            {
-                n.cast_mut::<Camera>().map(|c| (h, c))
-            } else {
+            if h == self.camera_controller.camera || h == self.preview_camera {
                 None
+            } else {
+                n.cast_mut::<Camera>().map(|c| (h, c))
             }
         }) {
             self.camera_state.push((handle, camera.is_enabled()));
