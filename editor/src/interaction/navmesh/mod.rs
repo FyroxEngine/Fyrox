@@ -681,7 +681,7 @@ impl InteractionMode for EditNavmeshMode {
 
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
         let navmesh_mode_tooltip =
-            "Edit Navmesh\n\nNavmesh edit mode allows you to modify selected \
+            "Edit Navmesh - Shortcut: [5]\n\nNavmesh edit mode allows you to modify selected \
         navigational mesh.";
 
         make_interaction_mode_button(
