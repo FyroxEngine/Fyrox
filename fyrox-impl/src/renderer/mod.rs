@@ -110,6 +110,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_core::err;
+use fyrox_graph::BaseSceneGraph;
 use fyrox_graphics::{
     sampler::{GpuSampler, GpuSamplerDescriptor},
     sampler::{MagnificationFilter, MinificationFilter, WrapMode},
@@ -1496,6 +1497,10 @@ impl Renderer {
                     .clone(),
             )?;
         }
+
+        scene_render_data
+            .camera_data
+            .retain(|h, _| graph.is_valid_handle(*h));
 
         for (camera_handle, camera) in graph.pair_iter().filter_map(|(handle, node)| {
             if node.is_globally_enabled() {
