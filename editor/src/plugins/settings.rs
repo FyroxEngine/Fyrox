@@ -176,6 +176,7 @@ impl SettingsWindow {
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(600.0))
             .open(false)
             .with_title(WindowTitle::text("Settings"))
+            .with_tab_label("Settings")
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
