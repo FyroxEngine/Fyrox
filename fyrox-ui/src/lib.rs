@@ -1783,6 +1783,12 @@ impl UserInterface {
         self.sender.send(message).unwrap()
     }
 
+    pub fn send_messages<const N: usize>(&self, messages: [UiMessage; N]) {
+        for message in messages {
+            self.send_message(message)
+        }
+    }
+
     // Puts node at the end of children list of a parent node.
     //
     // # Notes
