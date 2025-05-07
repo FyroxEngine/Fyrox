@@ -251,7 +251,7 @@ impl InteractionMode for ScaleInteractionMode {
 
         if let Some(selection) = editor_selection.as_graph() {
             let graph = &mut engine.scenes[game_scene.scene].graph;
-            if editor_selection.is_empty() || game_scene.preview_camera.is_some() {
+            if editor_selection.is_empty() {
                 self.scale_gizmo.set_visible(graph, false);
             } else {
                 let scale = calculate_gizmo_distance_scaling(

@@ -102,6 +102,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     Message, Settings,
 };
+use fyrox::scene::collider::BitMask;
 use std::{
     cell::RefCell,
     fmt::Debug,
@@ -168,6 +169,8 @@ fn make_grid_material() -> MaterialResource {
 }
 
 impl GameScene {
+    pub const EDITOR_OBJECTS_MASK: BitMask = BitMask(0b1000_0000_0000_0000);
+
     pub fn from_native_scene(
         mut scene: Scene,
         engine: &mut Engine,
@@ -828,9 +831,22 @@ impl SceneController for GameScene {
     }
 
     fn on_before_render(&mut self, _editor_selection: &Selection, engine: &mut Engine) {
+        let scene = &mut engine.scenes[self.scene];
+
+        // Apply render mask to all editor objects.
+        for handle in scene
+            .graph
+            .traverse_handle_iter(self.editor_objects_root)
+            .collect::<Vec<_>>()
+        {
+            scene.graph[handle]
+                .render_mask
+                .set_value_and_mark_modified(Self::EDITOR_OBJECTS_MASK);
+        }
+
         // Temporarily disable cameras in currently edited scene. This is needed to prevent any
         // scene camera to interfere with the editor camera.
-        let scene = &mut engine.scenes[self.scene];
+
         for (handle, camera) in scene.graph.pair_iter_mut().filter_map(|(h, n)| {
             if h == self.camera_controller.camera || h == self.preview_camera {
                 None

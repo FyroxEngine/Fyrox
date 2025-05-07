@@ -39,6 +39,7 @@ use crate::{
     scene::{GameScene, Selection},
     send_sync_message, Message,
 };
+use fyrox::scene::collider::BitMask;
 
 pub struct CameraPreviewControlPanel {
     pub window: Handle<UiNode>,
@@ -175,6 +176,9 @@ impl CameraPreviewControlPanel {
                         ),
                     );
                     camera.set_render_target(rt);
+                    camera
+                        .render_mask
+                        .set_value_and_mark_modified(BitMask(!GameScene::EDITOR_OBJECTS_MASK.0));
 
                     game_scene.preview_camera = node_handle;
 
