@@ -53,7 +53,7 @@ use crate::{
     message::MessageSender,
     send_sync_message,
     utils::window_content,
-    world::graph::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
+    world::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
     Mode, Settings,
 };
 use rust_fuzzy_search::fuzzy_compare;
@@ -67,6 +67,9 @@ use std::{
 };
 
 pub mod graph;
+pub mod item;
+pub mod menu;
+pub mod selection;
 
 pub trait WorldViewerDataProvider {
     fn root_node(&self) -> ErasedHandle;

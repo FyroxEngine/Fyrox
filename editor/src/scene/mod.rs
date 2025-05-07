@@ -99,7 +99,7 @@ use crate::{
     },
     settings::{keys::KeyBindings, SettingsMessage},
     ui_scene::selection::UiSelection,
-    world::graph::selection::GraphSelection,
+    world::selection::GraphSelection,
     Message, Settings,
 };
 use fyrox::scene::collider::BitMask;

@@ -53,7 +53,7 @@ use crate::{
         commands::graph::{AddNodeCommand, LinkNodesCommand},
         GameScene, Selection,
     },
-    world::graph::selection::GraphSelection,
+    world::selection::GraphSelection,
     Message,
 };
 

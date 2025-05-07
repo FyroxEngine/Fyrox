@@ -42,17 +42,10 @@ use crate::{
         },
         GameScene, Selection,
     },
-    world::{
-        graph::{item::DropAnchor, selection::GraphSelection},
-        WorldViewerDataProvider,
-    },
+    world::{item::DropAnchor, selection::GraphSelection, WorldViewerDataProvider},
 };
 use fyrox::resource::texture::TextureResource;
 use std::{borrow::Cow, path::Path, path::PathBuf};
-
-pub mod item;
-pub mod menu;
-pub mod selection;
 
 pub struct EditorSceneWrapper<'a> {
     pub selection: &'a Selection,
@@ -133,17 +126,17 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
     fn icon_of(&self, node: ErasedHandle) -> Option<TextureResource> {
         let node = self.scene.graph.try_get(node.into()).unwrap();
         if node.is_point_light() || node.is_directional_light() || node.is_spot_light() {
-            load_image!("../../../resources/light.png")
+            load_image!("../../resources/light.png")
         } else if node.is_joint() || node.is_joint2d() {
-            load_image!("../../../resources/joint.png")
+            load_image!("../../resources/joint.png")
         } else if node.is_rigid_body() || node.is_rigid_body2d() {
-            load_image!("../../../resources/rigid_body.png")
+            load_image!("../../resources/rigid_body.png")
         } else if node.is_collider() || node.is_collider2d() {
-            load_image!("../../../resources/collider.png")
+            load_image!("../../resources/collider.png")
         } else if node.is_sound() {
-            load_image!("../../../resources/sound_source.png")
+            load_image!("../../resources/sound_source.png")
         } else {
-            load_image!("../../../resources/cube.png")
+            load_image!("../../resources/cube.png")
         }
     }
 

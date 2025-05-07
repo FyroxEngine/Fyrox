@@ -52,7 +52,7 @@ use crate::{
     load_image_internal,
     message::MessageSender,
     scene::selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-    world::graph::item::SceneItem,
+    world::item::SceneItem,
     Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox::core::PhantomDataSendSync;

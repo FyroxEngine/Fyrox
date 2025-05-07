@@ -39,7 +39,7 @@ use crate::fyrox::{
 };
 use crate::{
     make_color_material, scene::GameScene, set_mesh_diffuse_color,
-    world::graph::selection::GraphSelection, Engine,
+    world::selection::GraphSelection, Engine,
 };
 
 pub enum ScaleGizmoMode {

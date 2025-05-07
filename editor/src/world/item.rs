@@ -202,7 +202,7 @@ impl Control for SceneItem {
                                 .on_row(0)
                                 .on_column(2),
                         )
-                        .with_opt_texture(load_image!("../../../resources/warning.png"))
+                        .with_opt_texture(load_image!("../../resources/warning.png"))
                         .build(&mut ui.build_ctx());
 
                         ui.send_message(WidgetMessage::link(
@@ -370,7 +370,7 @@ impl SceneItemBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::world::graph::item::SceneItemBuilder;
+    use crate::world::item::SceneItemBuilder;
     use fyrox::gui::tree::TreeBuilder;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
 

@@ -34,7 +34,7 @@ use crate::{
     message::MessageSender,
     scene::{commands::ChangeSelectionCommand, GameScene, Selection},
     settings::Settings,
-    world::graph::selection::GraphSelection,
+    world::selection::GraphSelection,
     Engine,
 };
 

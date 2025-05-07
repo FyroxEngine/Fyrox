@@ -162,7 +162,7 @@ use crate::{
         utils::UiSceneWorldViewerDataProvider, UiScene,
     },
     utils::doc::DocWindow,
-    world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
+    world::{graph::EditorSceneWrapper, menu::SceneNodeContextMenu, WorldViewer},
 };
 use fyrox::asset::untyped::ResourceKind;
 use fyrox::engine::ApplicationLoopController;

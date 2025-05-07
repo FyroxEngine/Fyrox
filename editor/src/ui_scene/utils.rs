@@ -43,7 +43,7 @@ use crate::{
         commands::graph::{AddUiPrefabCommand, LinkWidgetsCommand, SetWidgetChildPosition},
         selection::UiSelection,
     },
-    world::{graph::item::DropAnchor, WorldViewerDataProvider},
+    world::{item::DropAnchor, WorldViewerDataProvider},
 };
 use fyrox::resource::texture::TextureResource;
 use std::{borrow::Cow, path::Path, path::PathBuf};

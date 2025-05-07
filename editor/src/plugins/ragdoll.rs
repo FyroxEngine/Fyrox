@@ -62,7 +62,7 @@ use crate::{
         commands::{graph::AddModelCommand, ChangeSelectionCommand},
         GameScene, Selection,
     },
-    world::graph::selection::GraphSelection,
+    world::selection::GraphSelection,
     Editor, MSG_SYNC_FLAG,
 };
 use fyrox::asset::manager::ResourceManager;

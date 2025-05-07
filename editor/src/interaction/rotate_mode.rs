@@ -43,7 +43,7 @@ use crate::{
         GameScene, Selection,
     },
     settings::Settings,
-    world::graph::selection::GraphSelection,
+    world::selection::GraphSelection,
     Engine,
 };
 
