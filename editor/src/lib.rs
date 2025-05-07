@@ -210,6 +210,13 @@ pub fn send_sync_message(ui: &UserInterface, mut msg: UiMessage) {
     ui.send_message(msg);
 }
 
+pub fn send_sync_messages<const N: usize>(ui: &UserInterface, mut messages: [UiMessage; N]) {
+    for message in &mut messages {
+        message.flags = MSG_SYNC_FLAG;
+    }
+    ui.send_messages(messages);
+}
+
 lazy_static! {
     static ref EDITOR_TEXTURE_CACHE: Mutex<FxHashMap<usize, TextureResource>> = Default::default();
 }

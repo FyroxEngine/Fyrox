@@ -37,8 +37,10 @@ use crate::{
         scene::{camera::Camera, node::Node},
     },
     scene::{GameScene, Selection},
-    send_sync_message, Message,
+    send_sync_message, send_sync_messages, Message,
 };
+use fyrox::core::algebra::Vector2;
+use fyrox::gui::widget::WidgetMessage;
 use fyrox::scene::collider::BitMask;
 
 pub struct CameraPreviewControlPanel {
@@ -55,9 +57,8 @@ impl CameraPreviewControlPanel {
         let preview_frame;
         let window = WindowBuilder::new(
             WidgetBuilder::new()
-                .with_width(200.0)
-                .with_height(250.0)
-                .with_name("CameraPanel"),
+                .with_name("CameraPanel")
+                .with_min_size(Vector2::new(180.0, 45.0)),
         )
         .with_title(WindowTitle::text("Camera Preview"))
         .with_content(
@@ -182,6 +183,15 @@ impl CameraPreviewControlPanel {
 
                     game_scene.preview_camera = node_handle;
 
+                    send_sync_message(
+                        engine.user_interfaces.first(),
+                        WidgetMessage::visibility(
+                            self.preview_frame,
+                            MessageDirection::ToWidget,
+                            true,
+                        ),
+                    );
+
                     self.camera_state = Some((node_handle, scene.graph[node_handle].clone_box()));
                     break;
                 }
@@ -201,14 +211,15 @@ impl CameraPreviewControlPanel {
 
         game_scene.preview_camera = Handle::NONE;
 
-        send_sync_message(
-            engine.user_interfaces.first(),
-            ImageMessage::texture(self.preview_frame, MessageDirection::ToWidget, None),
-        );
-
-        send_sync_message(
-            engine.user_interfaces.first(),
-            CheckBoxMessage::checked(self.preview, MessageDirection::ToWidget, Some(false)),
+        let ui = engine.user_interfaces.first();
+        send_sync_messages(
+            ui,
+            [
+                // Don't keep the render target alive after the preview mode is off.
+                ImageMessage::texture(self.preview_frame, MessageDirection::ToWidget, None),
+                CheckBoxMessage::checked(self.preview, MessageDirection::ToWidget, Some(false)),
+                WidgetMessage::visibility(self.preview_frame, MessageDirection::ToWidget, false),
+            ],
         );
     }
 
