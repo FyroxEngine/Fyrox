@@ -1467,19 +1467,24 @@ impl Renderer {
 
         let server = &*self.server;
 
-        let scene_render_data = self.scene_data_map.entry(scene_handle).or_insert_with(|| {
-            Log::info(format!(
-                "A new associated scene rendering data was created for scene {scene_handle}!"
-            ));
-            SceneRenderData::new(server, frame_size).unwrap()
-        });
-
-        recreate_render_data_if_needed(
-            scene_handle,
-            server,
-            &mut scene_render_data.scene_data,
-            frame_size,
-        )?;
+        let scene_render_data = match self.scene_data_map.entry(scene_handle) {
+            Entry::Occupied(entry) => {
+                let render_data = entry.into_mut();
+                recreate_render_data_if_needed(
+                    scene_handle,
+                    server,
+                    &mut render_data.scene_data,
+                    frame_size,
+                )?;
+                render_data
+            }
+            Entry::Vacant(entry) => {
+                Log::info(format!(
+                    "A new associated scene rendering data was created for scene {scene_handle}!"
+                ));
+                entry.insert(SceneRenderData::new(server, frame_size)?)
+            }
+        };
 
         let pipeline_stats = server.pipeline_statistics();
         scene_render_data.scene_data.statistics = Default::default();
