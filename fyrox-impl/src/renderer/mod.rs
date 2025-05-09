@@ -109,7 +109,7 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
-use fyrox_core::err;
+use fyrox_core::info;
 use fyrox_graph::BaseSceneGraph;
 use fyrox_graphics::{
     sampler::{GpuSampler, GpuSamplerDescriptor},
@@ -1028,6 +1028,16 @@ impl<const N: usize> Default for LightData<N> {
     }
 }
 
+fn render_target_size(render_target: &TextureResource) -> Result<Vector2<f32>, FrameworkError> {
+    render_target
+        .data_ref()
+        .as_loaded_ref()
+        .and_then(|rt| rt.kind().rectangle_size().map(|size| size.cast::<f32>()))
+        .ok_or_else(|| {
+            FrameworkError::Custom("Render target must be a valid rectangle texture!".to_string())
+        })
+}
+
 impl Renderer {
     /// Creates a new renderer with the given graphics server.
     pub fn new(
@@ -1479,10 +1489,11 @@ impl Renderer {
                 render_data
             }
             Entry::Vacant(entry) => {
-                Log::info(format!(
+                let render_data = entry.insert(SceneRenderData::new(server, frame_size)?);
+                info!(
                     "A new associated scene rendering data was created for scene {scene_handle}!"
-                ));
-                entry.insert(SceneRenderData::new(server, frame_size)?)
+                );
+                render_data
             }
         };
 
@@ -1517,39 +1528,27 @@ impl Renderer {
             }
             None
         }) {
-            let render_data = if let Some(render_target) = camera.render_target() {
+            let (render_data, rt_size) = if let Some(render_target) = camera.render_target() {
+                let rt_size = render_target_size(render_target)?;
                 let camera_render_data = match scene_render_data.camera_data.entry(camera_handle) {
-                    Entry::Occupied(entry) => entry.into_mut(),
+                    Entry::Occupied(entry) => {
+                        let camera_render_data = entry.into_mut();
+                        recreate_render_data_if_needed(
+                            scene_handle,
+                            server,
+                            camera_render_data,
+                            rt_size,
+                        )?;
+                        camera_render_data
+                    }
                     Entry::Vacant(entry) => {
-                        if let Some(TextureKind::Rectangle { width, height }) = render_target
-                            .data_ref()
-                            .as_loaded_ref()
-                            .map(|texture| texture.kind())
-                        {
-                            Log::info(format!(
-                                "A new associated scene rendering data was created for camera {camera_handle}!"
-                            ));
-                            entry.insert(RenderDataContainer::new(
-                                server,
-                                Vector2::new(width as f32, height as f32),
-                            )?)
-                        } else {
-                            err!(
-                                "Unable to render into a texture specified for {camera_handle}, \
-                            because it is not 2D texture."
-                            );
-
-                            continue;
-                        }
+                        let render_data = entry.insert(RenderDataContainer::new(server, rt_size)?);
+                        info!(
+                            "A new associated scene rendering data was created for camera {camera_handle}!"
+                        );
+                        render_data
                     }
                 };
-
-                recreate_render_data_if_needed(
-                    scene_handle,
-                    server,
-                    camera_render_data,
-                    frame_size,
-                )?;
 
                 self.texture_cache.try_register(
                     server,
@@ -1557,14 +1556,14 @@ impl Renderer {
                     camera_render_data.ldr_scene_frame_texture().clone(),
                 )?;
 
-                camera_render_data
+                (camera_render_data, rt_size)
             } else {
-                &mut scene_render_data.scene_data
+                (&mut scene_render_data.scene_data, frame_size)
             };
 
             let visibility_cache = self.visibility_cache.get_or_register(graph, camera_handle);
 
-            let viewport = camera.viewport_pixels(frame_size);
+            let viewport = camera.viewport_pixels(rt_size);
 
             let bundle_storage = RenderDataBundleStorage::from_graph(
                 graph,
