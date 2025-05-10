@@ -14,8 +14,16 @@
                     kind: Color(r: 255, g: 0, b: 0, a: 255),
                 ),
                 (
+                    name: "yAxisColor",
+                    kind: Color(r: 0, g: 255, b: 0, a: 255),
+                ),
+                (
                     name: "zAxisColor",
                     kind: Color(r: 0, g: 0, b: 255, a: 255),
+                ),
+                (
+                    name: "orientation",
+                    kind: Int(value: 0),
                 ),
             ]),
             binding: 0
@@ -98,28 +106,47 @@
                 in vec3 farPoint;
 
                 vec4 grid(vec3 fragPos3D, float scale) {
-                    vec2 coord = fragPos3D.xz * scale;
+                    vec2 projection;
+                    vec3 planeNormal;
+                    vec4 xColor;
+                    vec4 yColor;
+                    if (properties.orientation == 0) {
+                        projection = fragPos3D.xz;
+                        planeNormal = vec3(0.0, 1.0, 0.0);
+                        xColor = properties.xAxisColor;
+                        yColor = properties.zAxisColor;
+                    } else if (properties.orientation == 1) {
+                        projection = fragPos3D.xy;
+                        planeNormal = vec3(0.0, 0.0, 1.0);
+                        xColor = properties.xAxisColor;
+                        yColor = properties.yAxisColor;
+                    } else if (properties.orientation == 2) {
+                        projection = fragPos3D.zy;
+                        planeNormal = vec3(1.0, 0.0, 0.0);
+                        xColor = properties.zAxisColor;
+                        yColor = properties.yAxisColor;
+                    }
+                
+                    vec2 coord = projection * scale;
                     vec2 derivative = fwidth(coord);
                     vec2 grid = abs(fract(coord - 0.5) - 0.5) / derivative;
                     float line = min(grid.x, grid.y);
-                    float minZ = 0.5 * min(derivative.y, 1.0);
                     float minX = 0.5 * min(derivative.x, 1.0);
+                    float minY = 0.5 * min(derivative.y, 1.0);
 
                     vec4 color = properties.diffuseColor;
                     float alpha = 1.0 - min(line, 1.0);
                     // Sharpen lines a bit.
                     color.a = alpha >= 0.5 ? 1.0 : 0.0;
 
-                    if (fragPos3D.x > -minX && fragPos3D.x < minX) {
-                        // z axis
-                        color.xyz = properties.zAxisColor.xyz;
-                    } else if (fragPos3D.z > -minZ && fragPos3D.z < minZ) {
-                        // x axis
-                        color.xyz = properties.xAxisColor.xyz;
+                    if (projection.x > -minX && projection.x < minX) {
+                        color.xyz = xColor.xyz;
+                    } else if (projection.y > -minY && projection.y < minY) {
+                        color.xyz = yColor.xyz;
                     } else {
                         vec3 viewDir = fragPos3D - fyrox_cameraData.position;
                         // This helps to negate moire pattern at large distances.
-                        float cosAngle = abs(dot(vec3(0.0, 1.0, 0.0), normalize(viewDir)));
+                        float cosAngle = abs(dot(planeNormal, normalize(viewDir)));
                         color.a *= cosAngle;
                     }
 
@@ -133,8 +160,21 @@
 
                 void main()
                 {
-                    float denominator = farPoint.y - nearPoint.y;
-                    float t = denominator != 0.0 ? -nearPoint.y / denominator : 0.0;
+                    float nearCoord;
+                    float farCoord;
+                    if (properties.orientation == 0) {
+                        nearCoord = nearPoint.y;
+                        farCoord = farPoint.y;
+                    } else if (properties.orientation == 1) {
+                        nearCoord = nearPoint.z;
+                        farCoord = farPoint.z;
+                    } else if (properties.orientation == 2) {
+                        nearCoord = nearPoint.x;
+                        farCoord = farPoint.x;
+                    }
+
+                    float denominator = farCoord - nearCoord;
+                    float t = denominator != 0.0 ? -nearCoord / denominator : 0.0;
 
                     vec3 fragPos3D = nearPoint + t * (farPoint - nearPoint);
 
