@@ -25,6 +25,10 @@
                     name: "orientation",
                     kind: Int(value: 0),
                 ),
+                (
+                    name: "isPerspective",
+                    kind: Bool(value: false)
+                )
             ]),
             binding: 0
         ),
@@ -182,7 +186,9 @@
                     gl_FragDepth = ((gl_DepthRange.diff * depth) + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
 
                     FragColor = grid(fragPos3D, 1.0);
-                    FragColor.a *= float(t > 0.0);
+                    if (properties.isPerspective) {
+                        FragColor.a *= float(t > 0.0);
+                    }
 
                     // Alpha test to prevent blending issues.
                     if (FragColor.a < 0.01) {

@@ -149,6 +149,7 @@ pub struct GameScene {
     pub resource_manager: ResourceManager,
     pub serialization_context: Arc<SerializationContext>,
     pub grid: Handle<Node>,
+    pub grid_material: MaterialResource,
     pub settings_receiver: Receiver<SettingsMessage>,
 }
 
@@ -189,6 +190,7 @@ impl GameScene {
 
         let editor_objects_root = PivotBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
 
+        let grid_material = make_grid_material();
         let grid = MeshBuilder::new(
             BaseBuilder::new()
                 .with_frustum_culling(false)
@@ -197,7 +199,7 @@ impl GameScene {
         .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
             SurfaceData::make_quad(&Matrix4::new_scaling(2.0)),
         ))
-        .with_material(make_grid_material())
+        .with_material(grid_material.clone())
         .build()])
         .with_render_path(RenderPath::Forward)
         .build(&mut scene.graph);
@@ -245,6 +247,7 @@ impl GameScene {
             resource_manager: engine.resource_manager.clone(),
             serialization_context: engine.serialization_context.clone(),
             grid,
+            grid_material,
             settings_receiver,
         }
     }
@@ -926,8 +929,19 @@ impl SceneController for GameScene {
 
         let camera = scene.graph[self.camera_controller.camera].as_camera_mut();
 
-        camera.projection_mut().set_z_near(settings.graphics.z_near);
-        camera.projection_mut().set_z_far(settings.graphics.z_far);
+        let projection = camera.projection_mut();
+        projection.set_z_near(settings.graphics.z_near);
+        projection.set_z_far(settings.graphics.z_far);
+
+        let mut grid_material = self.grid_material.data_ref();
+        grid_material.set_property(
+            "orientation",
+            match projection {
+                Projection::Perspective(_) => 0i32,
+                Projection::Orthographic(_) => 1i32,
+            },
+        );
+        grid_material.set_property("isPerspective", projection.is_perspective());
 
         self.camera_controller.update(
             &mut scene.graph,
