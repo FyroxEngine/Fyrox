@@ -28,6 +28,10 @@
                 (
                     name: "isPerspective",
                     kind: Bool(value: false)
+                ),
+                (
+                    name: "scale",
+                    kind: Vector2(value: (1.0, 1.0))
                 )
             ]),
             binding: 0
@@ -109,7 +113,7 @@
                 in vec3 nearPoint;
                 in vec3 farPoint;
 
-                vec4 grid(vec3 fragPos3D, float scale) {
+                vec4 grid(vec3 fragPos3D) {
                     vec2 projection;
                     vec3 planeNormal;
                     vec4 xColor;
@@ -131,7 +135,7 @@
                         yColor = properties.yAxisColor;
                     }
                 
-                    vec2 coord = projection * scale;
+                    vec2 coord = projection * properties.scale;
                     vec2 derivative = fwidth(coord);
                     vec2 grid = abs(fract(coord - 0.5) - 0.5) / derivative;
                     float line = min(grid.x, grid.y);
@@ -185,7 +189,7 @@
                     float depth = computeDepth(fragPos3D);
                     gl_FragDepth = ((gl_DepthRange.diff * depth) + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
 
-                    FragColor = grid(fragPos3D, 1.0);
+                    FragColor = grid(fragPos3D);
                     if (properties.isPerspective) {
                         FragColor.a *= float(t > 0.0);
                     }

@@ -943,6 +943,31 @@ impl SceneController for GameScene {
         );
         grid_material.set_property("isPerspective", projection.is_perspective());
 
+        let scale = if settings.move_mode_settings.grid_snapping {
+            fn div_safe(a: f32, b: f32) -> f32 {
+                if b == 0.0 {
+                    a
+                } else {
+                    a / b
+                }
+            }
+
+            match projection {
+                Projection::Perspective(_) => Vector2::new(
+                    div_safe(1.0, settings.move_mode_settings.x_snap_step),
+                    div_safe(1.0, settings.move_mode_settings.z_snap_step),
+                ),
+                Projection::Orthographic(_) => Vector2::new(
+                    div_safe(1.0, settings.move_mode_settings.x_snap_step),
+                    div_safe(1.0, settings.move_mode_settings.y_snap_step),
+                ),
+            }
+        } else {
+            Vector2::repeat(1.0)
+        };
+
+        grid_material.set_property("scale", scale);
+
         self.camera_controller.update(
             &mut scene.graph,
             settings,
