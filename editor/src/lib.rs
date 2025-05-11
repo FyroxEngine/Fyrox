@@ -1767,14 +1767,14 @@ impl Editor {
     fn do_current_scene_command(&mut self, command: Command) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
+            current_scene_entry.has_unsaved_changes |= command.is_significant();
+
             current_scene_entry.controller.do_command(
                 &mut current_scene_entry.command_stack,
                 command,
                 &mut current_scene_entry.selection,
                 engine,
             );
-
-            current_scene_entry.has_unsaved_changes = true;
 
             true
         } else {
@@ -1785,12 +1785,16 @@ impl Editor {
     fn undo_current_scene_command(&mut self) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
+            if let Some(command) = current_scene_entry.command_stack.top_command() {
+                current_scene_entry.has_unsaved_changes |= command.is_significant();
+            }
+
             current_scene_entry.controller.undo(
                 &mut current_scene_entry.command_stack,
                 &mut current_scene_entry.selection,
                 engine,
             );
-            current_scene_entry.has_unsaved_changes = true;
+
             true
         } else {
             false
@@ -1805,7 +1809,11 @@ impl Editor {
                 &mut current_scene_entry.selection,
                 engine,
             );
-            current_scene_entry.has_unsaved_changes = true;
+
+            if let Some(command) = current_scene_entry.command_stack.top_command() {
+                current_scene_entry.has_unsaved_changes |= command.is_significant();
+            }
+
             true
         } else {
             false

@@ -173,6 +173,10 @@ impl ChangeSelectionCommand {
 }
 
 impl CommandTrait for ChangeSelectionCommand {
+    fn is_significant(&self) -> bool {
+        false
+    }
+
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Change Selection".to_string()
     }

@@ -80,6 +80,13 @@ impl dyn CommandContext + '_ {
 /// An object that can be added to the editors [`CommandStack`] so the user
 /// can execute it and revert it.
 pub trait CommandTrait: Debug + 'static {
+    /// Returns `true` if the command does significant actions, that should be saved into a file
+    /// (pretty much any command that changes some scene data is significant). Otherwise, returns
+    /// `false` (for example, selection change is insignificant, because this command does not
+    /// really modify anything in the scene, only editor's runtime data).
+    fn is_significant(&self) -> bool {
+        true
+    }
     /// The name that the user should see in the command stack.
     fn name(&mut self, context: &dyn CommandContext) -> String;
     /// Perform the operation that this object represents.
@@ -167,6 +174,10 @@ impl CommandGroup {
 }
 
 impl CommandTrait for CommandGroup {
+    fn is_significant(&self) -> bool {
+        self.commands.iter().any(|c| c.is_significant())
+    }
+
     fn name(&mut self, context: &dyn CommandContext) -> String {
         if self.custom_name.is_empty() {
             let mut name = String::from("Command group: ");
@@ -266,6 +277,12 @@ impl CommandStack {
         command.execute(context);
 
         self.commands.push(command);
+    }
+
+    pub fn top_command(&self) -> Option<&dyn CommandTrait> {
+        self.top
+            .and_then(|top| self.commands.get(top))
+            .map(|v| &**v)
     }
 
     pub fn undo(&mut self, context: &mut dyn CommandContext) {
