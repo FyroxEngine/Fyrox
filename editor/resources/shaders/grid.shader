@@ -126,8 +126,8 @@
                     } else if (properties.orientation == 1) {
                         projection = fragPos3D.xy;
                         planeNormal = vec3(0.0, 0.0, 1.0);
-                        xColor = properties.xAxisColor;
-                        yColor = properties.yAxisColor;
+                        xColor = properties.yAxisColor;
+                        yColor = properties.xAxisColor;
                     } else if (properties.orientation == 2) {
                         projection = fragPos3D.zy;
                         planeNormal = vec3(1.0, 0.0, 0.0);
