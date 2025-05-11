@@ -203,7 +203,6 @@ impl GameScene {
         .build()])
         .with_render_path(RenderPath::Forward)
         .build(&mut scene.graph);
-        scene.graph.link_nodes(grid, editor_objects_root);
 
         let (settings_sender, settings_receiver) = mpsc::channel();
         settings.subscribers.push(settings_sender);
@@ -967,6 +966,11 @@ impl SceneController for GameScene {
         };
 
         grid_material.set_property("scale", scale);
+
+        let grid_offset = projection.z_far() - projection.z_near();
+        scene.graph[self.grid]
+            .local_transform_mut()
+            .set_position(Vector3::new(0.0, 0.0, grid_offset));
 
         self.camera_controller.update(
             &mut scene.graph,

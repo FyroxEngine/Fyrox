@@ -170,6 +170,7 @@ impl CameraController {
         )
         .build(graph);
 
+        graph.link_nodes(grid, camera);
         graph.link_nodes(pivot, root);
 
         Self {
