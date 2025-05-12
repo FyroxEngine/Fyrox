@@ -79,7 +79,7 @@ impl InteractionMode for RotateInteractionMode {
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
-        _settings: &Settings,
+        settings: &Settings,
     ) {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
@@ -97,6 +97,7 @@ impl InteractionMode for RotateInteractionMode {
                 ignore_back_faces: false,
                 use_picking_loop: true,
                 only_meshes: false,
+                settings: &settings.selection,
             },
         ) {
             if self.rotation_gizmo.handle_pick(result.node, graph) {
@@ -163,6 +164,7 @@ impl InteractionMode for RotateInteractionMode {
                         ignore_back_faces: settings.selection.ignore_back_faces,
                         use_picking_loop: true,
                         only_meshes: false,
+                        settings: &settings.selection,
                     },
                 )
                 .map(|result| {
@@ -248,6 +250,7 @@ impl InteractionMode for RotateInteractionMode {
                             ignore_back_faces: false,
                             use_picking_loop: false,
                             only_meshes: false,
+                            settings: &settings.selection,
                         },
                     )
                     .map(|r| r.node)

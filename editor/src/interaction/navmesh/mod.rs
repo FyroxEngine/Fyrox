@@ -270,6 +270,7 @@ impl InteractionMode for EditNavmeshMode {
                     ignore_back_faces: false,
                     use_picking_loop: true,
                     only_meshes: false,
+                    settings: &settings.selection,
                 },
             )
             .map(|r| r.node)
@@ -414,7 +415,7 @@ impl InteractionMode for EditNavmeshMode {
         controller: &mut dyn SceneController,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
-        _settings: &Settings,
+        settings: &Settings,
     ) {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
@@ -435,6 +436,7 @@ impl InteractionMode for EditNavmeshMode {
                         ignore_back_faces: false,
                         use_picking_loop: true,
                         only_meshes: false,
+                        settings: &settings.selection,
                     },
                 )
                 .map(|r| r.node)

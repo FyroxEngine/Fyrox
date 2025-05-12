@@ -21,19 +21,27 @@
 use crate::fyrox::core::reflect::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect, Eq)]
+#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
 pub struct SelectionSettings {
     pub ignore_back_faces: bool,
+
+    #[serde(default = "default_hull_less_object_selection_radius")]
+    pub hull_less_object_selection_radius: f32,
 
     // Hidden because there's a separate switch in world viewer for this.
     #[reflect(hidden)]
     pub track_selection: bool,
 }
 
+fn default_hull_less_object_selection_radius() -> f32 {
+    0.33
+}
+
 impl Default for SelectionSettings {
     fn default() -> Self {
         Self {
             ignore_back_faces: false,
+            hull_less_object_selection_radius: default_hull_less_object_selection_radius(),
             track_selection: true,
         }
     }

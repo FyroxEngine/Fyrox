@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::settings::selection::SelectionSettings;
 use crate::{
     fyrox::{
         core::{
@@ -121,7 +122,6 @@ struct PickContext {
 
 pub type PickingFilter<'a> = Option<&'a mut dyn FnMut(Handle<Node>, &Node) -> bool>;
 
-#[derive(Default)]
 pub struct PickingOptions<'a> {
     pub cursor_pos: Vector2<f32>,
     pub editor_only: bool,
@@ -129,6 +129,7 @@ pub struct PickingOptions<'a> {
     pub ignore_back_faces: bool,
     pub use_picking_loop: bool,
     pub only_meshes: bool,
+    pub settings: &'a SelectionSettings,
 }
 
 impl CameraController {
@@ -672,6 +673,7 @@ impl CameraController {
             ignore_back_faces,
             use_picking_loop,
             only_meshes,
+            settings,
         } = options;
 
         if let Some(camera) = graph[self.camera].cast::<Camera>() {
@@ -726,7 +728,7 @@ impl CameraController {
                             .transform(&node.global_transform())
                     };
                     // Do coarse, but fast, intersection test with bounding box first.
-                    if let Some(points) = ray.aabb_intersection_points(&aabb) {
+                    if ray.aabb_intersection_points(&aabb).is_some() {
                         let result = precise_ray_test(node, camera, graph, &ray, ignore_back_faces);
                         if result.has_hull() {
                             if let Some(position) = result.pick_position {
@@ -738,18 +740,21 @@ impl CameraController {
                             }
                         } else if !only_meshes {
                             // Hull-less objects (light sources, cameras, etc.) can still be selected
-                            // by coarse intersection test results.
-                            let da = points[0].metric_distance(&ray.origin);
-                            let db = points[1].metric_distance(&ray.origin);
-                            let closest_distance = da.min(db);
-                            context.pick_list.push(CameraPickResult {
-                                position: transform_vertex(
-                                    if da < db { points[0] } else { points[1] },
-                                    &node.global_transform(),
-                                ),
-                                node: handle,
-                                toi: closest_distance,
-                            });
+                            // by coarse intersection test with a simplified bounding box.
+                            let simple_aabb = AxisAlignedBoundingBox::from_radius(
+                                settings.hull_less_object_selection_radius,
+                            )
+                            .transform(&node.global_transform());
+                            if let Some(points) = ray.aabb_intersection_points(&simple_aabb) {
+                                let da = points[0].metric_distance(&ray.origin);
+                                let db = points[1].metric_distance(&ray.origin);
+                                let closest_distance = da.min(db);
+                                context.pick_list.push(CameraPickResult {
+                                    position: if da < db { points[0] } else { points[1] },
+                                    node: handle,
+                                    toi: closest_distance,
+                                });
+                            }
                         }
                     }
                 }

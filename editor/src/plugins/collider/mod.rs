@@ -376,7 +376,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
         engine: &mut Engine,
         mouse_position: Vector2<f32>,
         _frame_size: Vector2<f32>,
-        _settings: &Settings,
+        settings: &Settings,
     ) {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
@@ -390,7 +390,10 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 cursor_pos: mouse_position,
                 editor_only: true,
                 filter: Some(&mut |handle, _| handle != self.move_gizmo.origin),
-                ..Default::default()
+                ignore_back_faces: false,
+                use_picking_loop: false,
+                only_meshes: false,
+                settings: &settings.selection,
             },
         ) {
             let initial_position = scene.graph[result.node].global_position();
@@ -507,7 +510,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
         controller: &mut dyn SceneController,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
-        _settings: &Settings,
+        settings: &Settings,
     ) {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
@@ -524,7 +527,10 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 cursor_pos: mouse_position,
                 editor_only: true,
                 filter: Some(&mut |handle, _| handle != self.move_gizmo.origin),
-                ..Default::default()
+                ignore_back_faces: false,
+                use_picking_loop: false,
+                only_meshes: false,
+                settings: &settings.selection,
             },
         ) {
             if self.shape_gizmo.has_handle(result.node) {

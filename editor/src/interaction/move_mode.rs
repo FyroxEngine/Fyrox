@@ -215,6 +215,7 @@ impl MoveContext {
                 // We need info only about closest intersection.
                 use_picking_loop: false,
                 only_meshes: true,
+                settings: &settings.selection,
             },
         ) {
             Some(result.position)
@@ -309,7 +310,7 @@ impl InteractionMode for MoveInteractionMode {
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
-        _settings: &Settings,
+        settings: &Settings,
     ) {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
@@ -327,6 +328,7 @@ impl InteractionMode for MoveInteractionMode {
                 ignore_back_faces: false,
                 use_picking_loop: true,
                 only_meshes: false,
+                settings: &settings.selection,
             },
         ) {
             if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, graph) {
@@ -405,6 +407,7 @@ impl InteractionMode for MoveInteractionMode {
                         ignore_back_faces: settings.selection.ignore_back_faces,
                         use_picking_loop: true,
                         only_meshes: false,
+                        settings: &settings.selection,
                     },
                 )
                 .map(|result| {
@@ -470,6 +473,7 @@ impl InteractionMode for MoveInteractionMode {
                         ignore_back_faces: false,
                         use_picking_loop: false,
                         only_meshes: false,
+                        settings: &settings.selection,
                     },
                 )
                 .map(|r| r.node)

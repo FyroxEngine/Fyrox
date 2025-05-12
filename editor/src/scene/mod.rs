@@ -635,6 +635,7 @@ impl SceneController for GameScene {
                         // We need info only about closest intersection.
                         use_picking_loop: false,
                         only_meshes: false,
+                        settings: &settings.selection,
                     },
                 ) {
                     Some(result.position)
@@ -721,6 +722,7 @@ impl SceneController for GameScene {
                             ignore_back_faces: settings.selection.ignore_back_faces,
                             use_picking_loop: true,
                             only_meshes: false,
+                            settings: &settings.selection,
                         },
                     ) {
                         let texture = tex.clone();
