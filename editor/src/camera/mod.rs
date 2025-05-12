@@ -18,12 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::core::algebra::clamp;
-
 use crate::{
     fyrox::{
         core::{
-            algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
+            algebra::{clamp, Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
             math::{
                 aabb::AxisAlignedBoundingBox, plane::Plane, ray::Ray, Matrix4Ext,
                 TriangleDefinition, Vector3Ext,
@@ -32,14 +30,18 @@ use crate::{
         },
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::message::{KeyCode, KeyboardModifiers, MouseButton},
+        renderer::{
+            bundle::{ObserverInfo, RenderContext, RenderDataBundleStorage},
+            DynamicSurfaceCache,
+        },
         scene::{
             base::BaseBuilder,
             camera::{Camera, CameraBuilder, Exposure, FitParameters, Projection},
+            collider::BitMask,
             graph::Graph,
             mesh::{
                 buffer::{VertexAttributeUsage, VertexReadTrait},
                 surface::SurfaceData,
-                Mesh,
             },
             node::Node,
             pivot::PivotBuilder,
@@ -725,14 +727,13 @@ impl CameraController {
                     };
                     // Do coarse, but fast, intersection test with bounding box first.
                     if let Some(points) = ray.aabb_intersection_points(&aabb) {
-                        if has_hull(node) {
-                            if let Some((closest_distance, position)) =
-                                precise_ray_test(node, &ray, ignore_back_faces)
-                            {
+                        let result = precise_ray_test(node, camera, graph, &ray, ignore_back_faces);
+                        if result.has_hull() {
+                            if let Some(position) = result.pick_position {
                                 context.pick_list.push(CameraPickResult {
-                                    position,
+                                    position: position.closest_point,
                                     node: handle,
-                                    toi: closest_distance,
+                                    toi: position.closest_distance,
                                 });
                             }
                         } else if !only_meshes {
@@ -831,33 +832,60 @@ fn read_triangle(
     Some([a, b, c])
 }
 
-fn has_hull(node: &Node) -> bool {
-    node.component_ref::<Mesh>().is_some()
+struct PickPosition {
+    closest_distance: f32,
+    closest_point: Vector3<f32>,
+}
+
+struct PreciseRayTestResult {
+    pick_position: Option<PickPosition>,
+    // Total number of the instances checked with ray test. This number will be zero for objects
+    // without a "hull".
+    instance_count: usize,
+}
+
+impl PreciseRayTestResult {
+    fn has_hull(&self) -> bool {
+        self.instance_count > 0
+    }
 }
 
 fn precise_ray_test(
     node: &Node,
+    camera: &Camera,
+    graph: &Graph,
     ray: &Ray,
     ignore_back_faces: bool,
-) -> Option<(f32, Vector3<f32>)> {
+) -> PreciseRayTestResult {
+    let mut cache = DynamicSurfaceCache::new();
+    let observer_info = ObserverInfo::from_camera(camera);
+    let mut bundle_storage = RenderDataBundleStorage::new_empty(observer_info.clone());
+    node.collect_render_data(&mut RenderContext {
+        render_mask: BitMask::all(),
+        elapsed_time: 0.0,
+        observer_info: &observer_info,
+        frustum: Some(&camera.frustum()),
+        storage: &mut bundle_storage,
+        graph,
+        render_pass_name: &Default::default(),
+        dynamic_surface_cache: &mut cache,
+    });
     let mut closest_distance = f32::MAX;
     let mut closest_point = None;
+    let mut instance_count = 0;
+    for bundle in bundle_storage.bundles {
+        let data = bundle.data.data_ref();
 
-    if let Some(mesh) = node.component_ref::<Mesh>() {
-        let transform = mesh.global_transform();
-
-        for surface in mesh.surfaces().iter() {
-            let data = surface.data();
-            let data = data.data_ref();
-
+        for instance in bundle.instances {
+            instance_count += 1;
             for triangle in data
                 .geometry_buffer
                 .iter()
-                .filter_map(|t| read_triangle(&data, t, &transform))
+                .filter_map(|t| read_triangle(&data, t, &instance.world_transform))
             {
                 if ignore_back_faces {
                     // If normal of the triangle is facing in the same direction as ray's direction,
-                    // then we skip such triangle.
+                    // then we skip such a triangle.
                     let normal = (triangle[1] - triangle[0]).cross(&(triangle[2] - triangle[0]));
                     if normal.dot(&ray.dir) >= 0.0 {
                         continue;
@@ -875,6 +903,11 @@ fn precise_ray_test(
             }
         }
     }
-
-    closest_point.map(|pt| (closest_distance, pt))
+    PreciseRayTestResult {
+        pick_position: closest_point.map(|pt| PickPosition {
+            closest_distance,
+            closest_point: pt,
+        }),
+        instance_count,
+    }
 }

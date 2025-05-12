@@ -22,6 +22,7 @@
 
 #![allow(missing_docs)] // TODO
 
+use crate::scene::camera::Camera;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3, Vector4},
@@ -94,6 +95,18 @@ pub struct ObserverInfo {
     pub view_matrix: Matrix4<f32>,
     /// Projection matrix of the observer.
     pub projection_matrix: Matrix4<f32>,
+}
+
+impl ObserverInfo {
+    pub fn from_camera(camera: &Camera) -> Self {
+        ObserverInfo {
+            observer_position: camera.global_position(),
+            z_near: camera.projection().z_near(),
+            z_far: camera.projection().z_far(),
+            view_matrix: camera.view_matrix(),
+            projection_matrix: camera.projection_matrix(),
+        }
+    }
 }
 
 /// Render context is used to collect render data from the scene nodes. It provides all required information about
