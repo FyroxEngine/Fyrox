@@ -214,7 +214,7 @@ impl MoveContext {
                 ignore_back_faces: settings.selection.ignore_back_faces,
                 // We need info only about closest intersection.
                 use_picking_loop: false,
-                only_meshes: false,
+                only_meshes: true,
             },
         ) {
             Some(result.position)
