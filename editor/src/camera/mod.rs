@@ -95,7 +95,6 @@ pub struct CameraController {
     move_up: bool,
     move_down: bool,
     speed_factor: f32,
-    stack: Vec<Handle<Node>>,
     editor_context: PickContext,
     scene_context: PickContext,
     prev_interaction_state: bool,
@@ -191,7 +190,6 @@ impl CameraController {
             move_up: false,
             move_down: false,
             speed_factor: 1.0,
-            stack: Default::default(),
             editor_context: Default::default(),
             scene_context: Default::default(),
             prev_interaction_state: false,
@@ -665,114 +663,155 @@ impl CameraController {
         }
     }
 
-    pub fn pick(&mut self, graph: &Graph, options: PickingOptions) -> Option<CameraPickResult> {
-        let PickingOptions {
-            cursor_pos,
-            editor_only,
-            mut filter,
-            ignore_back_faces,
-            use_picking_loop,
-            only_meshes,
-            settings,
-        } = options;
+    fn pick_recursive(
+        &self,
+        handle: Handle<Node>,
+        ray: &Ray,
+        camera: &Camera,
+        graph: &Graph,
+        picked_meshes: &mut Vec<CameraPickResult>,
+        picked_non_meshes: &mut Vec<CameraPickResult>,
+        mut toi_limit: f32,
+        options: &mut PickingOptions,
+    ) {
+        if handle == self.grid
+            || handle == self.camera
+            || handle == self.camera_hinge
+            || handle == self.pivot
+        {
+            return;
+        }
 
-        if let Some(camera) = graph[self.camera].cast::<Camera>() {
-            let ray = camera.make_ray(cursor_pos, self.screen_size);
+        // Ignore editor nodes if we picking scene stuff only.
+        if !options.editor_only && handle == self.editor_objects_root {
+            return;
+        }
 
-            self.stack.clear();
-            let context = if editor_only {
-                // In case if we want to pick stuff from editor scene only, we have to
-                // start traversing graph from editor root.
-                self.stack.push(self.editor_objects_root);
-                &mut self.editor_context
+        let node = &graph[handle];
+
+        if node.global_visibility()
+            && handle != self.scene_content_root
+            && options
+                .filter
+                .as_mut()
+                .is_none_or(|func| func(handle, node))
+        {
+            if node.is_resource_instance_root() {
+                // Special case for prefab roots.
+                if let Some(prefab_pick_result) =
+                    probe_hierarchy_precise(handle, graph, camera, ray, options.ignore_back_faces)
+                {
+                    if let Some(position) = prefab_pick_result.pick_position {
+                        picked_meshes.push(CameraPickResult {
+                            position: position.closest_point,
+                            node: handle,
+                            toi: position.closest_distance.max(toi_limit),
+                        });
+                        // Limit selection toi for descendants to always prefer the
+                        // prefab root in selection.
+                        toi_limit = toi_limit.max(position.closest_distance) + f32::EPSILON;
+                    }
+                }
             } else {
-                self.stack.push(self.scene_content_root);
-                &mut self.scene_context
-            };
+                let aabb = node
+                    .local_bounding_box()
+                    .transform(&node.global_transform());
 
-            context.pick_list.clear();
-
-            while let Some(handle) = self.stack.pop() {
-                if handle == self.grid
-                    || handle == self.camera
-                    || handle == self.camera_hinge
-                    || handle == self.pivot
-                {
-                    continue;
-                }
-
-                // Ignore editor nodes if we picking scene stuff only.
-                if !editor_only && handle == self.editor_objects_root {
-                    continue;
-                }
-
-                let node = &graph[handle];
-
-                self.stack.extend_from_slice(node.children());
-
-                if !node.global_visibility()
-                    || !filter.as_mut().is_none_or(|func| func(handle, node))
-                {
-                    continue;
-                }
-
-                if handle != self.scene_content_root {
-                    let aabb = if node.is_resource_instance_root() {
-                        let mut aabb = graph.aabb_of_descendants(handle, |_, _| true).unwrap();
-                        // Inflate the bounding box by a tiny amount to ensure that it will be
-                        // larger than any inner bounding boxes all the times.
-                        aabb.inflate(Vector3::repeat(10.0 * f32::EPSILON));
-                        aabb
-                    } else {
-                        node.local_bounding_box()
-                            .transform(&node.global_transform())
-                    };
-                    // Do coarse, but fast, intersection test with bounding box first.
-                    if ray.aabb_intersection_points(&aabb).is_some() {
-                        let result = precise_ray_test(node, camera, graph, &ray, ignore_back_faces);
-                        if result.has_hull() {
-                            if let Some(position) = result.pick_position {
-                                context.pick_list.push(CameraPickResult {
-                                    position: position.closest_point,
-                                    node: handle,
-                                    toi: position.closest_distance,
-                                });
-                            }
-                        } else if !only_meshes {
-                            // Hull-less objects (light sources, cameras, etc.) can still be selected
-                            // by coarse intersection test with a simplified bounding box.
-                            let simple_aabb = AxisAlignedBoundingBox::from_radius(
-                                settings.hull_less_object_selection_radius,
-                            )
-                            .transform(&node.global_transform());
-                            if let Some(points) = ray.aabb_intersection_points(&simple_aabb) {
-                                let da = points[0].metric_distance(&ray.origin);
-                                let db = points[1].metric_distance(&ray.origin);
-                                let closest_distance = da.min(db);
-                                context.pick_list.push(CameraPickResult {
-                                    position: if da < db { points[0] } else { points[1] },
-                                    node: handle,
-                                    toi: closest_distance,
-                                });
-                            }
+                if ray.aabb_intersection_points(&aabb).is_some() {
+                    let result =
+                        precise_ray_test(node, camera, graph, ray, options.ignore_back_faces);
+                    if result.has_hull() {
+                        if let Some(position) = result.pick_position {
+                            picked_meshes.push(CameraPickResult {
+                                position: position.closest_point,
+                                node: handle,
+                                toi: position.closest_distance.max(toi_limit),
+                            });
+                        }
+                    } else if !options.only_meshes && !options.editor_only {
+                        // Hull-less objects (light sources, cameras, etc.) can still be selected
+                        // by coarse intersection test with a simplified bounding box.
+                        let simple_aabb = AxisAlignedBoundingBox::from_radius(
+                            options.settings.hull_less_object_selection_radius,
+                        )
+                        .transform(&node.global_transform());
+                        if let Some(points) = ray.aabb_intersection_points(&simple_aabb) {
+                            let da = points[0].metric_distance(&ray.origin);
+                            let db = points[1].metric_distance(&ray.origin);
+                            let closest_distance = da.min(db);
+                            picked_non_meshes.push(CameraPickResult {
+                                position: if da < db { points[0] } else { points[1] },
+                                node: handle,
+                                toi: closest_distance.max(toi_limit),
+                            });
                         }
                     }
                 }
             }
+        }
 
-            // Make sure closest will be selected first.
-            context
-                .pick_list
-                .sort_by(|a, b| a.toi.partial_cmp(&b.toi).unwrap());
+        for child in node.children() {
+            self.pick_recursive(
+                *child,
+                ray,
+                camera,
+                graph,
+                picked_meshes,
+                picked_non_meshes,
+                toi_limit,
+                options,
+            )
+        }
+    }
 
-            if use_picking_loop {
+    pub fn pick(&mut self, graph: &Graph, mut options: PickingOptions) -> Option<CameraPickResult> {
+        if let Some(camera) = graph[self.camera].cast::<Camera>() {
+            let ray = camera.make_ray(options.cursor_pos, self.screen_size);
+
+            let root = if options.editor_only {
+                // In case if we want to pick stuff from editor scene only, we have to
+                // start traversing graph from editor root.
+                self.editor_objects_root
+            } else {
+                self.scene_content_root
+            };
+
+            let mut picked_meshes = Vec::new();
+            let mut picked_non_meshes = Vec::new();
+            self.pick_recursive(
+                root,
+                &ray,
+                camera,
+                graph,
+                &mut picked_meshes,
+                &mut picked_non_meshes,
+                0.0,
+                &mut options,
+            );
+
+            fn sort_by_toi(list: &mut [CameraPickResult]) {
+                list.sort_by(|a, b| a.toi.partial_cmp(&b.toi).unwrap());
+            }
+            sort_by_toi(&mut picked_meshes);
+            sort_by_toi(&mut picked_non_meshes);
+
+            let context = if options.editor_only {
+                &mut self.editor_context
+            } else {
+                &mut self.scene_context
+            };
+            context.pick_list.clear();
+            context.pick_list.append(&mut picked_meshes);
+            context.pick_list.append(&mut picked_non_meshes);
+
+            if options.use_picking_loop {
                 let mut hasher = DefaultHasher::new();
                 for result in context.pick_list.iter() {
                     result.node.hash(&mut hasher);
                 }
                 let selection_hash = hasher.finish();
                 if selection_hash == context.old_selection_hash
-                    && cursor_pos == context.old_cursor_pos
+                    && options.cursor_pos == context.old_cursor_pos
                 {
                     context.pick_index += 1;
 
@@ -788,7 +827,7 @@ impl CameraController {
             } else {
                 context.pick_index = 0;
             }
-            context.old_cursor_pos = cursor_pos;
+            context.old_cursor_pos = options.cursor_pos;
 
             if !context.pick_list.is_empty() {
                 if let Some(result) = context.pick_list.get(context.pick_index) {
@@ -837,11 +876,13 @@ fn read_triangle(
     Some([a, b, c])
 }
 
+#[derive(Clone, Debug)]
 struct PickPosition {
     closest_distance: f32,
     closest_point: Vector3<f32>,
 }
 
+#[derive(Clone, Debug)]
 struct PreciseRayTestResult {
     pick_position: Option<PickPosition>,
     // Total number of the instances checked with ray test. This number will be zero for objects
@@ -853,6 +894,31 @@ impl PreciseRayTestResult {
     fn has_hull(&self) -> bool {
         self.instance_count > 0
     }
+}
+
+fn probe_hierarchy_precise(
+    handle: Handle<Node>,
+    graph: &Graph,
+    camera: &Camera,
+    ray: &Ray,
+    ignore_back_faces: bool,
+) -> Option<PreciseRayTestResult> {
+    let mut closest_result: Option<PreciseRayTestResult> = None;
+    for (_, descendant) in graph.traverse_iter(handle) {
+        let result = precise_ray_test(descendant, camera, graph, ray, ignore_back_faces);
+        if let Some(ref pick_position) = result.pick_position {
+            let closest_result = closest_result.get_or_insert(result.clone());
+            let closest_distance = closest_result
+                .pick_position
+                .as_ref()
+                .unwrap()
+                .closest_distance;
+            if pick_position.closest_distance < closest_distance {
+                *closest_result = result;
+            }
+        }
+    }
+    closest_result
 }
 
 fn precise_ray_test(
