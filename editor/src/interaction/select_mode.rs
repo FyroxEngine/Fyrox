@@ -18,21 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::core::uuid::{uuid, Uuid};
-use crate::fyrox::core::TypeUuidProvider;
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::gui::BuildContext;
-use crate::fyrox::{
-    core::{algebra::Vector2, pool::Handle},
-    gui::{message::MessageDirection, widget::WidgetMessage, UiNode},
-    scene::node::Node,
-};
-use crate::interaction::make_interaction_mode_button;
-use crate::scene::controller::SceneController;
 use crate::{
-    interaction::InteractionMode,
+    fyrox::{
+        core::{
+            algebra::Vector2,
+            pool::Handle,
+            uuid::{uuid, Uuid},
+            TypeUuidProvider,
+        },
+        graph::BaseSceneGraph,
+        gui::{message::MessageDirection, widget::WidgetMessage, BuildContext, UiNode},
+        scene::node::Node,
+    },
+    interaction::{make_interaction_mode_button, InteractionMode},
     message::MessageSender,
-    scene::{commands::ChangeSelectionCommand, GameScene, Selection},
+    scene::{commands::ChangeSelectionCommand, controller::SceneController, GameScene, Selection},
     settings::Settings,
     world::selection::GraphSelection,
     Engine,
@@ -127,7 +127,7 @@ impl InteractionMode for SelectInteractionMode {
             .first_mut()
             .node(self.selection_frame)
             .screen_bounds();
-        let relative_bounds = frame_screen_bounds.translate(-preview_screen_bounds.position);
+        let frame_relative_bounds = frame_screen_bounds.translate(-preview_screen_bounds.position);
         self.stack.clear();
         self.stack.push(scene.graph.get_root());
         let mut graph_selection = GraphSelection::default();
@@ -141,16 +141,13 @@ impl InteractionMode for SelectInteractionMode {
                 continue;
             }
 
-            for screen_corner in node
-                .local_bounding_box()
-                .corners()
-                .iter()
-                .filter_map(|&p| camera.project(p + node.global_position(), frame_size))
-            {
-                if relative_bounds.contains(screen_corner) {
-                    graph_selection.insert_or_exclude(handle);
-                    break;
-                }
+            let node_screen_bounds = node.world_bounding_box().project(
+                &camera.view_projection_matrix(),
+                &camera.viewport_pixels(frame_size),
+            );
+
+            if frame_relative_bounds.intersects(node_screen_bounds) {
+                graph_selection.insert_or_exclude(handle);
             }
 
             self.stack.extend_from_slice(node.children());
