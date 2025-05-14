@@ -379,11 +379,22 @@ pub enum InspectorMessage {
     /// Message sent from the inspector to notify the world that the object has been edited according to the
     /// given PropertyChanged struct.
     PropertyChanged(PropertyChanged),
+    /// A message that will be sent from this widget to a user when they click `Paste Value` in the
+    /// context menu. The actual value pasting must be handled on the user side explicitly. The
+    /// widget itself does not have any information about the object structure and a way to actually
+    /// paste the value.
+    PasteValue {
+        /// A path of the property from which the value should be copied.
+        source: String,
+        /// A path of the property to which the cloned value should be pasted.
+        dest: String,
+    },
 }
 
 impl InspectorMessage {
     define_constructor!(InspectorMessage:Context => fn context(InspectorContext), layout: false);
     define_constructor!(InspectorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
+    define_constructor!(InspectorMessage:PasteValue => fn paste_value(source: String, dest: String), layout: false);
 }
 
 /// This trait allows dynamically typed context information to be
@@ -504,6 +515,26 @@ impl Inspector {
     pub fn context(&self) -> &InspectorContext {
         &self.context
     }
+
+    fn find_property_container(
+        &self,
+        from: Handle<UiNode>,
+        ui: &UserInterface,
+    ) -> Option<&ContextEntry> {
+        let mut parent_handle = from;
+
+        while let Some(parent) = ui.try_get(parent_handle) {
+            for entry in self.context.entries.iter() {
+                if entry.property_container == parent_handle {
+                    return Some(entry);
+                }
+            }
+
+            parent_handle = parent.parent;
+        }
+
+        None
+    }
 }
 
 /// Default margines for editor containers.
@@ -579,6 +610,8 @@ impl PartialEq for ContextEntry {
 pub struct Menu {
     /// The handle of the "Copy Value as String" menu item.
     pub copy_value_as_string: Handle<UiNode>,
+    pub copy_value: Handle<UiNode>,
+    pub paste_value: Handle<UiNode>,
     /// The reference-counted handle of the menu as a whole.
     pub menu: Option<RcUiNodeHandle>,
 }
@@ -892,8 +925,6 @@ impl InspectorContext {
                         format!("{}.{}", base_path, info.name)
                     };
 
-                    dbg!(&property_path);
-
                     let editor = match definition.property_editor.create_instance(
                         PropertyEditorBuildContext {
                             build_context: ctx,
@@ -985,14 +1016,31 @@ impl InspectorContext {
         });
 
         let copy_value_as_string;
+        let copy_value;
+        let paste_value;
         let menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                    copy_value_as_string = MenuItemBuilder::new(WidgetBuilder::new())
-                        .with_content(MenuItemContent::text("Copy Value as String"))
-                        .build(ctx);
-                    copy_value_as_string
-                }))
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            copy_value_as_string = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Copy Value as String"))
+                                .build(ctx);
+                            copy_value_as_string
+                        })
+                        .with_child({
+                            copy_value = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Copy Value"))
+                                .build(ctx);
+                            copy_value
+                        })
+                        .with_child({
+                            paste_value = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Paste Value"))
+                                .build(ctx);
+                            paste_value
+                        }),
+                )
                 .build(ctx),
             ),
         )
@@ -1015,6 +1063,8 @@ impl InspectorContext {
             stack_panel,
             menu: Menu {
                 copy_value_as_string,
+                copy_value,
+                paste_value,
                 menu: Some(menu),
             },
             entries,
@@ -1159,25 +1209,32 @@ impl Control for Inspector {
         }
 
         if let Some(PopupMessage::RelayedMessage(popup_message)) = message.data() {
-            if popup_message.destination() == self.context.menu.copy_value_as_string {
+            if let Some(mut clipboard) = ui.clipboard_mut() {
                 if let Some(MenuItemMessage::Click) = popup_message.data() {
-                    // The child that was originally clicked to open the menu was automatically set to be
-                    // the owner of the popup, and so event messages have it as the destination.
-                    let mut parent_handle = message.destination();
-
-                    // Crawl up from the destination to find the actual editor and do the copy.
-                    while let Some(parent) = ui.try_get(parent_handle) {
-                        for entry in self.context.entries.iter() {
-                            if entry.property_container == parent_handle {
-                                let _ = ui
-                                    .clipboard_mut()
-                                    .unwrap()
-                                    .set_contents(entry.property_debug_output.clone());
-                                break;
+                    if popup_message.destination() == self.context.menu.copy_value_as_string {
+                        if let Some(entry) = self.find_property_container(message.destination(), ui)
+                        {
+                            Log::verify(
+                                clipboard.set_contents(entry.property_debug_output.clone()),
+                            );
+                        }
+                    } else if popup_message.destination() == self.context.menu.copy_value {
+                        if let Some(entry) = self.find_property_container(message.destination(), ui)
+                        {
+                            Log::verify(clipboard.set_contents(entry.property_path.clone()));
+                        }
+                    } else if popup_message.destination() == self.context.menu.paste_value {
+                        if let Some(entry) = self.find_property_container(message.destination(), ui)
+                        {
+                            if let Ok(content) = clipboard.get_contents() {
+                                ui.send_message(InspectorMessage::paste_value(
+                                    self.handle,
+                                    MessageDirection::FromWidget,
+                                    content,
+                                    entry.property_path.clone(),
+                                ));
                             }
                         }
-
-                        parent_handle = parent.parent;
                     }
                 }
             }
