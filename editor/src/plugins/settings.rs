@@ -69,6 +69,7 @@ use crate::{
     Editor, MSG_SYNC_FLAG,
 };
 use fyrox::asset::manager::ResourceManager;
+use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 use rust_fuzzy_search::fuzzy_compare;
 use std::sync::Arc;
@@ -256,17 +257,17 @@ impl SettingsWindow {
         resource_manager: ResourceManager,
     ) {
         let ctx = &mut ui.build_ctx();
-        let context = InspectorContext::from_object(
-            &**settings,
+        let context = InspectorContext::from_object(InspectorContextArgs {
+            object: &**settings,
             ctx,
-            make_property_editors_container(sender.clone(), resource_manager),
-            None,
-            MSG_SYNC_FLAG,
-            0,
-            true,
-            Default::default(),
-            150.0,
-        );
+            definition_container: make_property_editors_container(sender.clone(), resource_manager),
+            environment: None,
+            sync_flag: MSG_SYNC_FLAG,
+            layer_index: 0,
+            generate_property_string_values: true,
+            filter: Default::default(),
+            name_column_width: 150.0,
+        });
         let groups =
             context
                 .entries

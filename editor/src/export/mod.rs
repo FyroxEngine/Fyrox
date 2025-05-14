@@ -63,6 +63,7 @@ use crate::{
 };
 use cargo_metadata::camino::Utf8Path;
 use fyrox::asset::manager::ResourceManager;
+use fyrox::gui::inspector::InspectorContextArgs;
 use std::{
     io::{BufRead, BufReader},
     path::PathBuf,
@@ -400,17 +401,19 @@ impl ExportWindow {
                         WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                     )
                     .with_content({
-                        let context = InspectorContext::from_object(
-                            &export_options,
+                        let context = InspectorContext::from_object(InspectorContextArgs {
+                            object: &export_options,
                             ctx,
-                            Arc::new(PropertyEditorDefinitionContainer::with_default_editors()),
-                            None,
-                            1,
-                            0,
-                            true,
-                            Default::default(),
-                            150.0,
-                        );
+                            definition_container: Arc::new(
+                                PropertyEditorDefinitionContainer::with_default_editors(),
+                            ),
+                            environment: None,
+                            sync_flag: 1,
+                            layer_index: 0,
+                            generate_property_string_values: true,
+                            filter: Default::default(),
+                            name_column_width: 150.0,
+                        });
 
                         inspector = InspectorBuilder::new(WidgetBuilder::new())
                             .with_context(context)

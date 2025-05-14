@@ -45,6 +45,7 @@ use crate::{
     command::make_command, message::MessageSender, Message, MessageDirection, MSG_SYNC_FLAG,
 };
 use fyrox::asset::manager::ResourceManager;
+use fyrox::gui::inspector::InspectorContextArgs;
 use std::sync::Arc;
 
 pub struct ParameterPanel {
@@ -94,17 +95,17 @@ impl ParameterPanel {
     ) {
         let inspector_context = parameters
             .map(|parameters| {
-                InspectorContext::from_object(
-                    parameters,
-                    &mut ui.build_ctx(),
-                    self.property_editors.clone(),
-                    None,
-                    MSG_SYNC_FLAG,
-                    0,
-                    true,
-                    Default::default(),
-                    150.0,
-                )
+                InspectorContext::from_object(InspectorContextArgs {
+                    object: parameters,
+                    ctx: &mut ui.build_ctx(),
+                    definition_container: self.property_editors.clone(),
+                    environment: None,
+                    sync_flag: MSG_SYNC_FLAG,
+                    layer_index: 0,
+                    generate_property_string_values: true,
+                    filter: Default::default(),
+                    name_column_width: 150.0,
+                })
             })
             .unwrap_or_default();
 

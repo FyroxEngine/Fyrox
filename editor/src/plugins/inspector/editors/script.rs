@@ -55,6 +55,7 @@ use crate::{
     DropdownListBuilder, MSG_SYNC_FLAG,
 };
 
+use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox::gui::utils::make_dropdown_list_option;
 use std::{
     any::TypeId,
@@ -246,8 +247,8 @@ impl ScriptPropertyEditorBuilder {
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
         let context = script.as_ref().map(|script| {
-            InspectorContext::from_object(
-                script,
+            InspectorContext::from_object(InspectorContextArgs {
+                object: script,
                 ctx,
                 definition_container,
                 environment,
@@ -256,7 +257,7 @@ impl ScriptPropertyEditorBuilder {
                 generate_property_string_values,
                 filter,
                 name_column_width,
-            )
+            })
         });
 
         let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -473,17 +474,17 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             let context = value
                 .as_ref()
                 .map(|script| {
-                    InspectorContext::from_object(
-                        script,
-                        &mut ctx.ui.build_ctx(),
-                        ctx.definition_container.clone(),
-                        ctx.environment.clone(),
-                        ctx.sync_flag,
-                        ctx.layer_index + 1,
-                        ctx.generate_property_string_values,
-                        ctx.filter,
-                        ctx.name_column_width,
-                    )
+                    InspectorContext::from_object(InspectorContextArgs {
+                        object: script,
+                        ctx: &mut ctx.ui.build_ctx(),
+                        definition_container: ctx.definition_container.clone(),
+                        environment: ctx.environment.clone(),
+                        sync_flag: ctx.sync_flag,
+                        layer_index: ctx.layer_index + 1,
+                        generate_property_string_values: ctx.generate_property_string_values,
+                        filter: ctx.filter,
+                        name_column_width: ctx.name_column_width,
+                    })
                 })
                 .unwrap_or_default();
 

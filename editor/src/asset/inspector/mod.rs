@@ -39,6 +39,7 @@ use crate::fyrox::{
 };
 use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{message::MessageSender, MSG_SYNC_FLAG};
+use fyrox::gui::inspector::InspectorContextArgs;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -127,20 +128,20 @@ impl AssetInspector {
     ) {
         if let Some(import_options) = load_import_options_or_default(path, resource_manager) {
             import_options.as_reflect(&mut |reflect| {
-                let context = InspectorContext::from_object(
-                    reflect,
-                    &mut ui.build_ctx(),
-                    Arc::new(make_property_editors_container(
+                let context = InspectorContext::from_object(InspectorContextArgs {
+                    object: reflect,
+                    ctx: &mut ui.build_ctx(),
+                    definition_container: Arc::new(make_property_editors_container(
                         sender.clone(),
                         resource_manager.clone(),
                     )),
-                    None,
-                    MSG_SYNC_FLAG,
-                    0,
-                    true,
-                    Default::default(),
-                    150.0,
-                );
+                    environment: None,
+                    sync_flag: MSG_SYNC_FLAG,
+                    layer_index: 0,
+                    generate_property_string_values: true,
+                    filter: Default::default(),
+                    name_column_width: 150.0,
+                });
                 ui.send_message(InspectorMessage::context(
                     self.inspector,
                     MessageDirection::ToWidget,

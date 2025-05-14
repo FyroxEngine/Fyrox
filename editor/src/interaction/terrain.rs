@@ -77,6 +77,7 @@ use crate::{
     MSG_SYNC_FLAG,
 };
 
+use fyrox::gui::inspector::InspectorContextArgs;
 use std::sync::mpsc::channel;
 use std::sync::Arc;
 
@@ -639,17 +640,17 @@ impl BrushPanel {
         property_editors.insert(make_brush_target_enum_property_editor_definition());
         property_editors.insert(make_brush_shape_enum_property_editor_definition());
 
-        let context = InspectorContext::from_object(
-            brush,
+        let context = InspectorContext::from_object(InspectorContextArgs {
+            object: brush,
             ctx,
-            Arc::new(property_editors),
-            None,
-            MSG_SYNC_FLAG,
-            0,
-            true,
-            Default::default(),
-            150.0,
-        );
+            definition_container: Arc::new(property_editors),
+            environment: None,
+            sync_flag: MSG_SYNC_FLAG,
+            layer_index: 0,
+            generate_property_string_values: true,
+            filter: Default::default(),
+            name_column_width: 150.0,
+        });
 
         let inspector;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(250.0))

@@ -48,6 +48,7 @@ use crate::{
     VerticalAlignment,
 };
 
+use crate::inspector::InspectorContextArgs;
 use fyrox_core::ComponentProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -170,17 +171,17 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
             {
                 let variant = (self.definition.variant_generator)(*variant);
 
-                let ctx = InspectorContext::from_object(
-                    &variant,
-                    &mut ui.build_ctx(),
-                    self.definition_container.clone(),
-                    self.environment.clone(),
-                    self.sync_flag,
-                    self.layer_index,
-                    self.generate_property_string_values,
-                    self.filter.clone(),
-                    self.name_column_width,
-                );
+                let ctx = InspectorContext::from_object(InspectorContextArgs {
+                    object: &variant,
+                    ctx: &mut ui.build_ctx(),
+                    definition_container: self.definition_container.clone(),
+                    environment: self.environment.clone(),
+                    sync_flag: self.sync_flag,
+                    layer_index: self.layer_index,
+                    generate_property_string_values: self.generate_property_string_values,
+                    filter: self.filter.clone(),
+                    name_column_width: self.name_column_width,
+                });
 
                 ui.send_message(InspectorMessage::context(
                     self.inspector,
@@ -300,17 +301,17 @@ impl EnumPropertyEditorBuilder {
             .definition_container
             .unwrap_or_else(|| Arc::new(PropertyEditorDefinitionContainer::with_default_editors()));
 
-        let context = InspectorContext::from_object(
-            value,
+        let context = InspectorContext::from_object(InspectorContextArgs {
+            object: value,
             ctx,
-            definition_container.clone(),
-            self.environment.clone(),
-            self.sync_flag,
-            self.layer_index,
-            self.generate_property_string_values,
-            self.filter.clone(),
+            definition_container: definition_container.clone(),
+            environment: self.environment.clone(),
+            sync_flag: self.sync_flag,
+            layer_index: self.layer_index,
+            generate_property_string_values: self.generate_property_string_values,
+            filter: self.filter.clone(),
             name_column_width,
-        );
+        });
 
         let inspector = InspectorBuilder::new(WidgetBuilder::new())
             .with_context(context)
@@ -507,17 +508,17 @@ where
 
             let inspector = instance_ref.inspector;
 
-            let context = InspectorContext::from_object(
-                value,
-                &mut ctx.ui.build_ctx(),
-                ctx.definition_container.clone(),
+            let context = InspectorContext::from_object(InspectorContextArgs {
+                object: value,
+                ctx: &mut ctx.ui.build_ctx(),
+                definition_container: ctx.definition_container.clone(),
                 environment,
-                ctx.sync_flag,
-                ctx.layer_index + 1,
-                ctx.generate_property_string_values,
-                ctx.filter,
-                ctx.name_column_width,
-            );
+                sync_flag: ctx.sync_flag,
+                layer_index: ctx.layer_index + 1,
+                generate_property_string_values: ctx.generate_property_string_values,
+                filter: ctx.filter,
+                name_column_width: ctx.name_column_width,
+            });
 
             Ok(Some(InspectorMessage::context(
                 inspector,

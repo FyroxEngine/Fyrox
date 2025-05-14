@@ -40,6 +40,7 @@ use crate::fyrox::{
 };
 use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{message::MessageSender, scene::GameScene, Engine, MSG_SYNC_FLAG};
+use fyrox::gui::inspector::InspectorContextArgs;
 use std::{
     path::PathBuf,
     sync::mpsc::{Receiver, Sender},
@@ -244,17 +245,17 @@ impl LightPanel {
                             inspector = InspectorBuilder::new(
                                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                             )
-                            .with_context(InspectorContext::from_object(
-                                &settings,
+                            .with_context(InspectorContext::from_object(InspectorContextArgs {
+                                object: &settings,
                                 ctx,
-                                container,
-                                None,
-                                MSG_SYNC_FLAG,
-                                0,
-                                true,
-                                Default::default(),
-                                150.0,
-                            ))
+                                definition_container: container,
+                                environment: None,
+                                sync_flag: MSG_SYNC_FLAG,
+                                layer_index: 0,
+                                generate_property_string_values: true,
+                                filter: Default::default(),
+                                name_column_width: 150.0,
+                            }))
                             .build(ctx);
                             inspector
                         })

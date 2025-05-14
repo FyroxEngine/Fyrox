@@ -55,6 +55,7 @@ use crate::{
     utils::window_content,
     Editor, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
+use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox::gui::stack_panel::StackPanelBuilder;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -301,17 +302,17 @@ impl InspectorPlugin {
             sender: sender.clone(),
         });
 
-        let context = InspectorContext::from_object(
-            obj,
-            &mut ui.build_ctx(),
-            self.property_editors.clone(),
-            Some(environment),
-            MSG_SYNC_FLAG,
-            0,
-            true,
-            Default::default(),
-            150.0,
-        );
+        let context = InspectorContext::from_object(InspectorContextArgs {
+            object: obj,
+            ctx: &mut ui.build_ctx(),
+            definition_container: self.property_editors.clone(),
+            environment: Some(environment),
+            sync_flag: MSG_SYNC_FLAG,
+            layer_index: 0,
+            generate_property_string_values: true,
+            filter: Default::default(),
+            name_column_width: 150.0,
+        });
 
         ui.send_message(InspectorMessage::context(
             self.inspector,

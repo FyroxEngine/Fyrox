@@ -66,6 +66,7 @@ use crate::{
     Editor, MSG_SYNC_FLAG,
 };
 use fyrox::asset::manager::ResourceManager;
+use fyrox::gui::inspector::InspectorContextArgs;
 use std::{ops::Range, sync::Arc};
 
 #[derive(Reflect, Debug)]
@@ -1053,17 +1054,17 @@ impl RagdollWizard {
                             inspector = InspectorBuilder::new(
                                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                             )
-                            .with_context(InspectorContext::from_object(
-                                &preset,
+                            .with_context(InspectorContext::from_object(InspectorContextArgs {
+                                object: &preset,
                                 ctx,
-                                container,
-                                None,
-                                MSG_SYNC_FLAG,
-                                0,
-                                true,
-                                Default::default(),
-                                150.0,
-                            ))
+                                definition_container: container,
+                                environment: None,
+                                sync_flag: MSG_SYNC_FLAG,
+                                layer_index: 0,
+                                generate_property_string_values: true,
+                                filter: Default::default(),
+                                name_column_width: 150.0,
+                            }))
                             .build(ctx);
                             inspector
                         })

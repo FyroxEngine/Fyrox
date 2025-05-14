@@ -422,6 +422,7 @@ pub trait InspectorEnvironment: Any + Send + Sync {
 /// # use std::sync::Arc;
 /// # use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// # use fyrox_core::uuid_provider;
+/// # use fyrox_ui::inspector::InspectorContextArgs;
 ///
 /// #[derive(Reflect, Debug, Clone)]
 /// struct MyObject {
@@ -460,17 +461,17 @@ pub trait InspectorEnvironment: Any + Send + Sync {
 ///
 ///     // Generate a new inspector context - its visual representation, that will be used
 ///     // by the inspector.
-///     let context = InspectorContext::from_object(
-///         &my_object,
+///     let context = InspectorContext::from_object(InspectorContextArgs{
+///         object: &my_object,
 ///         ctx,
-///         Arc::new(definition_container),
-///         None,
-///         1,
-///         0,
-///         true,
-///         Default::default(),
-///         150.0
-///     );
+///         definition_container: Arc::new(definition_container),
+///         environment: None,
+///         sync_flag: 1,
+///         layer_index: 0,
+///         generate_property_string_values: true,
+///         filter: Default::default(),
+///         name_column_width: 150.0
+///     });
 ///
 ///     InspectorBuilder::new(WidgetBuilder::new())
 ///         .with_context(context)
@@ -814,6 +815,18 @@ fn assign_tab_indices(container: Handle<UiNode>, ui: &mut UserInterface) {
     }
 }
 
+pub struct InspectorContextArgs<'a, 'b, 'c> {
+    pub object: &'a dyn Reflect,
+    pub ctx: &'b mut BuildContext<'c>,
+    pub definition_container: Arc<PropertyEditorDefinitionContainer>,
+    pub environment: Option<Arc<dyn InspectorEnvironment>>,
+    pub sync_flag: u64,
+    pub layer_index: usize,
+    pub generate_property_string_values: bool,
+    pub filter: PropertyFilter,
+    pub name_column_width: f32,
+}
+
 impl InspectorContext {
     /// Build the widgets for an Inspector to represent the given object by accessing
     /// the object's fields through reflection.
@@ -831,17 +844,19 @@ impl InspectorContext {
     /// * generate_property_string_values: Should we use `format!("{:?}", field)` to construct string representations
     /// for each property?
     /// * filter: A filter function that controls whether each field will be included in the inspector.
-    pub fn from_object(
-        object: &dyn Reflect,
-        ctx: &mut BuildContext,
-        definition_container: Arc<PropertyEditorDefinitionContainer>,
-        environment: Option<Arc<dyn InspectorEnvironment>>,
-        sync_flag: u64,
-        layer_index: usize,
-        generate_property_string_values: bool,
-        filter: PropertyFilter,
-        name_column_width: f32,
-    ) -> Self {
+    pub fn from_object(context: InspectorContextArgs) -> Self {
+        let InspectorContextArgs {
+            object,
+            ctx,
+            definition_container,
+            environment,
+            sync_flag,
+            layer_index,
+            generate_property_string_values,
+            filter,
+            name_column_width,
+        } = context;
+
         let mut entries = Vec::new();
 
         let mut editors = Vec::new();

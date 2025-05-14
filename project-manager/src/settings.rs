@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use directories::ProjectDirs;
+use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*},
     fxhash::FxHashSet,
@@ -222,17 +223,17 @@ impl SettingsWindow {
             .insert(VecCollectionPropertyEditorDefinition::<EnvironmentVariable>::new());
         property_editors.insert(InspectablePropertyEditorDefinition::<EnvironmentVariable>::new());
         let property_editors = Arc::new(property_editors);
-        let context = InspectorContext::from_object(
-            settings.deref(),
+        let context = InspectorContext::from_object(InspectorContextArgs {
+            object: settings.deref(),
             ctx,
-            property_editors,
-            None,
-            1,
-            0,
-            true,
-            Default::default(),
-            170.0,
-        );
+            definition_container: property_editors,
+            environment: None,
+            sync_flag: 1,
+            layer_index: 0,
+            generate_property_string_values: true,
+            filter: Default::default(),
+            name_column_width: 170.0,
+        });
         let inspector = InspectorBuilder::new(WidgetBuilder::new())
             .with_context(context)
             .build(ctx);

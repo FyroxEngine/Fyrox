@@ -53,6 +53,7 @@ use crate::{
     GameScene, Message, MessageDirection, MSG_SYNC_FLAG,
 };
 use fyrox::asset::manager::ResourceManager;
+use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox::{graph::SceneGraph, gui::window::Window};
 use std::sync::Arc;
 
@@ -128,15 +129,15 @@ impl SceneSettingsWindow {
 
         let scene = &engine.scenes[game_scene.scene];
 
-        let context = InspectorContext::from_object(
-            scene,
-            &mut ui.build_ctx(),
-            self.property_definitions.clone(),
-            None,
-            MSG_SYNC_FLAG,
-            0,
-            false,
-            PropertyFilter::new(|property| {
+        let context = InspectorContext::from_object(InspectorContextArgs {
+            object: scene,
+            ctx: &mut ui.build_ctx(),
+            definition_container: self.property_definitions.clone(),
+            environment: None,
+            sync_flag: MSG_SYNC_FLAG,
+            layer_index: 0,
+            generate_property_string_values: false,
+            filter: PropertyFilter::new(|property| {
                 let mut pass = true;
 
                 property.downcast_ref::<NodePool>(&mut |v| {
@@ -159,8 +160,8 @@ impl SceneSettingsWindow {
 
                 pass
             }),
-            150.0,
-        );
+            name_column_width: 150.0,
+        });
 
         ui.send_message(InspectorMessage::context(
             self.inspector,

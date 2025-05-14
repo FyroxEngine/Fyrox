@@ -20,6 +20,7 @@
 
 //! A general-purpose property editor definition that creates
 //! a nested inspector within an [Expander](crate::expander::Expander) widget.
+use crate::inspector::InspectorContextArgs;
 use crate::{
     core::reflect::prelude::*,
     inspector::{
@@ -88,17 +89,17 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<T>()?;
 
-        let inspector_context = InspectorContext::from_object(
-            value,
-            ctx.build_context,
-            ctx.definition_container.clone(),
-            ctx.environment.clone(),
-            ctx.sync_flag,
-            ctx.layer_index + 1,
-            ctx.generate_property_string_values,
-            ctx.filter,
-            ctx.name_column_width,
-        );
+        let inspector_context = InspectorContext::from_object(InspectorContextArgs {
+            object: value,
+            ctx: ctx.build_context,
+            definition_container: ctx.definition_container.clone(),
+            environment: ctx.environment.clone(),
+            sync_flag: ctx.sync_flag,
+            layer_index: ctx.layer_index + 1,
+            generate_property_string_values: ctx.generate_property_string_values,
+            filter: ctx.filter,
+            name_column_width: ctx.name_column_width,
+        });
 
         let editor;
         let container = make_expander_container(
