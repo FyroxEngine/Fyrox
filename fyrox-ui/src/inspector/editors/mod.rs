@@ -179,6 +179,7 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
     pub filter: PropertyFilter,
     /// Width of the property name column.
     pub name_column_width: f32,
+    pub base_path: String,
 }
 
 /// This structure is passed to [PropertyEditorDefinition::create_message] in order to generate a message that will
@@ -218,6 +219,7 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
     pub filter: PropertyFilter,
     /// Width of the property name column.
     pub name_column_width: f32,
+    pub base_path: String,
 }
 
 /// The details relevant to translating a message from an editor widget into

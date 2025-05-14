@@ -233,6 +233,7 @@ impl SettingsWindow {
             generate_property_string_values: true,
             filter: Default::default(),
             name_column_width: 170.0,
+            base_path: Default::default(),
         });
         let inspector = InspectorBuilder::new(WidgetBuilder::new())
             .with_context(context)
@@ -288,7 +289,14 @@ impl SettingsWindow {
                     .context()
                     .clone();
 
-                Log::verify(ctx.sync(&**settings, ui, 0, true, Default::default()));
+                Log::verify(ctx.sync(
+                    &**settings,
+                    ui,
+                    0,
+                    true,
+                    Default::default(),
+                    Default::default(),
+                ));
             }
         }
 

@@ -1064,6 +1064,7 @@ impl RagdollWizard {
                                 generate_property_string_values: true,
                                 filter: Default::default(),
                                 name_column_width: 150.0,
+                                base_path: Default::default(),
                             }))
                             .build(ctx);
                             inspector
@@ -1219,7 +1220,14 @@ impl RagdollWizard {
                     .context()
                     .clone();
 
-                if let Err(sync_errors) = ctx.sync(&self.preset, ui, 0, true, Default::default()) {
+                if let Err(sync_errors) = ctx.sync(
+                    &self.preset,
+                    ui,
+                    0,
+                    true,
+                    Default::default(),
+                    Default::default(),
+                ) {
                     for error in sync_errors {
                         Log::err(format!("Failed to sync property. Reason: {error:?}"))
                     }

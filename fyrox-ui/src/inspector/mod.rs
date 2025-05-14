@@ -470,7 +470,8 @@ pub trait InspectorEnvironment: Any + Send + Sync {
 ///         layer_index: 0,
 ///         generate_property_string_values: true,
 ///         filter: Default::default(),
-///         name_column_width: 150.0
+///         name_column_width: 150.0,
+///         base_path: Default::default(),
 ///     });
 ///
 ///     InspectorBuilder::new(WidgetBuilder::new())
@@ -556,6 +557,7 @@ pub struct ContextEntry {
     /// Storing the handle here allows us to which editor the user is indicating if the mouse is over the area
     /// surrounding the editor instead of the editor itself.
     pub property_container: Handle<UiNode>,
+    pub property_path: String,
 }
 
 impl PartialEq for ContextEntry {
@@ -825,6 +827,7 @@ pub struct InspectorContextArgs<'a, 'b, 'c> {
     pub generate_property_string_values: bool,
     pub filter: PropertyFilter,
     pub name_column_width: f32,
+    pub base_path: String,
 }
 
 impl InspectorContext {
@@ -855,6 +858,7 @@ impl InspectorContext {
             generate_property_string_values,
             filter,
             name_column_width,
+            base_path,
         } = context;
 
         let mut entries = Vec::new();
@@ -882,6 +886,14 @@ impl InspectorContext {
                     .definitions()
                     .get(&info.value.type_id())
                 {
+                    let property_path = if base_path.is_empty() {
+                        info.name.to_string()
+                    } else {
+                        format!("{}.{}", base_path, info.name)
+                    };
+
+                    dbg!(&property_path);
+
                     let editor = match definition.property_editor.create_instance(
                         PropertyEditorBuildContext {
                             build_context: ctx,
@@ -893,6 +905,7 @@ impl InspectorContext {
                             generate_property_string_values,
                             filter: filter.clone(),
                             name_column_width,
+                            base_path: property_path.clone(),
                         },
                     ) {
                         Ok(instance) => {
@@ -921,6 +934,7 @@ impl InspectorContext {
                                 property_tag: info.tag.to_string(),
                                 property_debug_output: field_text.clone(),
                                 property_container: container,
+                                property_path,
                             });
 
                             if info.read_only {
@@ -1030,6 +1044,7 @@ impl InspectorContext {
         layer_index: usize,
         generate_property_string_values: bool,
         filter: PropertyFilter,
+        base_path: String,
     ) -> Result<(), Vec<InspectorError>> {
         if object_type_id(object) != self.object_type_id {
             return Err(vec![InspectorError::OutOfSync]);
@@ -1060,6 +1075,7 @@ impl InspectorContext {
                             generate_property_string_values,
                             filter: filter.clone(),
                             name_column_width: self.name_column_width,
+                            base_path: base_path.clone(),
                         };
 
                         match constructor.property_editor.create_message(ctx) {

@@ -239,6 +239,7 @@ fn create_items<'a, 'b, T, I>(
     filter: PropertyFilter,
     immutable_collection: bool,
     name_column_width: f32,
+    base_path: String,
 ) -> Result<Vec<Item>, InspectorError>
 where
     T: CollectionItem,
@@ -281,6 +282,7 @@ where
                         generate_property_string_values,
                         filter: filter.clone(),
                         name_column_width,
+                        base_path: format!("{base_path}[{index}]"),
                     })?;
 
             if let PropertyEditorInstance::Simple { editor } = editor {
@@ -386,6 +388,7 @@ where
         property_info: &FieldRef<'a, '_>,
         sync_flag: u64,
         name_column_width: f32,
+        base_path: String,
     ) -> Result<Handle<UiNode>, InspectorError> {
         let definition_container = self
             .definition_container
@@ -405,6 +408,7 @@ where
                 self.filter,
                 self.immutable_collection,
                 name_column_width,
+                base_path,
             )?
         } else {
             Vec::new()
@@ -510,6 +514,7 @@ where
                     ctx.property_info,
                     ctx.sync_flag,
                     ctx.name_column_width,
+                    ctx.base_path.clone(),
                 )?;
                 editor
             },
@@ -535,6 +540,7 @@ where
             generate_property_string_values,
             filter,
             name_column_width,
+            base_path,
         } = ctx;
 
         let instance_ref = if let Some(instance) = ui.node(instance).cast::<CollectionEditor<T>>() {
@@ -561,6 +567,7 @@ where
                 filter,
                 property_info.immutable_collection,
                 name_column_width,
+                base_path,
             )?;
 
             Ok(Some(CollectionEditorMessage::items(
@@ -611,6 +618,7 @@ where
                                 generate_property_string_values,
                                 filter: filter.clone(),
                                 name_column_width,
+                                base_path: format!("{base_path}[{index}]"),
                             })?
                     {
                         ui.send_message(message.with_flags(ctx.sync_flag))

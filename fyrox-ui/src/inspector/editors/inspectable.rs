@@ -99,6 +99,7 @@ where
             generate_property_string_values: ctx.generate_property_string_values,
             filter: ctx.filter,
             name_column_width: ctx.name_column_width,
+            base_path: ctx.base_path.clone(),
         });
 
         let editor;
@@ -144,6 +145,7 @@ where
             ctx.layer_index + 1,
             ctx.generate_property_string_values,
             ctx.filter,
+            ctx.base_path.clone(),
         ) {
             error_group.extend(e)
         }

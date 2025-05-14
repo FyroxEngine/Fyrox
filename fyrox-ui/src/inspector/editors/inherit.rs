@@ -263,6 +263,7 @@ where
                         generate_property_string_values: ctx.generate_property_string_values,
                         filter: ctx.filter,
                         name_column_width: ctx.name_column_width,
+                        base_path: ctx.base_path.clone(),
                     })?;
 
             let wrapper = InheritablePropertyEditorBuilder::new(WidgetBuilder::new())
@@ -353,6 +354,7 @@ where
                     generate_property_string_values: ctx.generate_property_string_values,
                     filter: ctx.filter,
                     name_column_width: ctx.name_column_width,
+                    base_path: ctx.base_path.clone(),
                 });
         }
 

@@ -283,7 +283,7 @@ impl InspectorPlugin {
             .context()
             .clone();
 
-        ctx.sync(obj, ui, 0, true, Default::default())
+        ctx.sync(obj, ui, 0, true, Default::default(), Default::default())
     }
 
     fn change_context(
@@ -312,6 +312,7 @@ impl InspectorPlugin {
             generate_property_string_values: true,
             filter: Default::default(),
             name_column_width: 150.0,
+            base_path: Default::default(),
         });
 
         ui.send_message(InspectorMessage::context(

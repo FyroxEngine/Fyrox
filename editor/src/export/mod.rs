@@ -413,6 +413,7 @@ impl ExportWindow {
                             generate_property_string_values: true,
                             filter: Default::default(),
                             name_column_width: 150.0,
+                            base_path: Default::default(),
                         });
 
                         inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -663,9 +664,14 @@ impl ExportWindow {
     pub fn sync_to_model(&self, ui: &mut UserInterface) {
         if let Some(inspector) = ui.try_get_of_type::<Inspector>(self.inspector) {
             let ctx = inspector.context().clone();
-            if let Err(sync_errors) =
-                ctx.sync(&self.export_options, ui, 0, true, Default::default())
-            {
+            if let Err(sync_errors) = ctx.sync(
+                &self.export_options,
+                ui,
+                0,
+                true,
+                Default::default(),
+                Default::default(),
+            ) {
                 for error in sync_errors {
                     Log::err(format!("Failed to sync property. Reason: {error:?}"))
                 }

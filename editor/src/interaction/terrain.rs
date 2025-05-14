@@ -650,6 +650,7 @@ impl BrushPanel {
             generate_property_string_values: true,
             filter: Default::default(),
             name_column_width: 150.0,
+            base_path: Default::default(),
         });
 
         let inspector;
@@ -677,7 +678,7 @@ impl BrushPanel {
             .context()
             .clone();
 
-        if let Err(e) = ctx.sync(brush, ui, 0, true, Default::default()) {
+        if let Err(e) = ctx.sync(brush, ui, 0, true, Default::default(), Default::default()) {
             Log::writeln(
                 MessageKind::Error,
                 format!("Failed to sync BrushPanel's inspector. Reason: {e:?}"),

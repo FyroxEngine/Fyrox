@@ -255,6 +255,7 @@ impl LightPanel {
                                 generate_property_string_values: true,
                                 filter: Default::default(),
                                 name_column_width: 150.0,
+                                base_path: Default::default(),
                             }))
                             .build(ctx);
                             inspector

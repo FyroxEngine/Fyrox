@@ -107,6 +107,9 @@ pub struct EnumPropertyEditor<T: InspectableEnum> {
     #[visit(skip)]
     #[reflect(hidden)]
     pub name_column_width: f32,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub base_path: String,
 }
 
 impl<T: InspectableEnum> Debug for EnumPropertyEditor<T> {
@@ -129,6 +132,7 @@ impl<T: InspectableEnum> Clone for EnumPropertyEditor<T> {
             generate_property_string_values: self.generate_property_string_values,
             filter: self.filter.clone(),
             name_column_width: self.name_column_width,
+            base_path: self.base_path.clone(),
         }
     }
 }
@@ -181,6 +185,7 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
                     generate_property_string_values: self.generate_property_string_values,
                     filter: self.filter.clone(),
                     name_column_width: self.name_column_width,
+                    base_path: self.base_path.clone(),
                 });
 
                 ui.send_message(InspectorMessage::context(
@@ -296,6 +301,7 @@ impl EnumPropertyEditorBuilder {
         definition: &EnumPropertyEditorDefinition<T>,
         value: &T,
         name_column_width: f32,
+        base_path: String,
     ) -> Handle<UiNode> {
         let definition_container = self
             .definition_container
@@ -311,6 +317,7 @@ impl EnumPropertyEditorBuilder {
             generate_property_string_values: self.generate_property_string_values,
             filter: self.filter.clone(),
             name_column_width,
+            base_path: base_path.clone(),
         });
 
         let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -333,6 +340,7 @@ impl EnumPropertyEditorBuilder {
             generate_property_string_values: self.generate_property_string_values,
             filter: self.filter,
             name_column_width,
+            base_path,
         };
 
         ctx.add_node(UiNode::new(editor))
@@ -459,7 +467,13 @@ where
                     .with_sync_flag(ctx.sync_flag)
                     .with_generate_property_string_values(ctx.generate_property_string_values)
                     .with_filter(ctx.filter)
-                    .build(ctx.build_context, self, value, ctx.name_column_width);
+                    .build(
+                        ctx.build_context,
+                        self,
+                        value,
+                        ctx.name_column_width,
+                        ctx.base_path.clone(),
+                    );
                 editor
             },
             ctx.name_column_width,
@@ -518,6 +532,7 @@ where
                 generate_property_string_values: ctx.generate_property_string_values,
                 filter: ctx.filter,
                 name_column_width: ctx.name_column_width,
+                base_path: ctx.base_path.clone(),
             });
 
             Ok(Some(InspectorMessage::context(
@@ -541,6 +556,7 @@ where
                 layer_index + 1,
                 ctx.generate_property_string_values,
                 ctx.filter,
+                ctx.base_path.clone(),
             ) {
                 Err(InspectorError::Group(e))
             } else {

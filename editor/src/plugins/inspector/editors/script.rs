@@ -257,6 +257,7 @@ impl ScriptPropertyEditorBuilder {
                 generate_property_string_values,
                 filter,
                 name_column_width,
+                base_path: Default::default(),
             })
         });
 
@@ -484,6 +485,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                         generate_property_string_values: ctx.generate_property_string_values,
                         filter: ctx.filter,
                         name_column_width: ctx.name_column_width,
+                        base_path: Default::default(),
                     })
                 })
                 .unwrap_or_default();
@@ -508,6 +510,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                     layer_index + 1,
                     ctx.generate_property_string_values,
                     ctx.filter,
+                    ctx.base_path.clone(),
                 ) {
                     Err(InspectorError::Group(e))
                 } else {

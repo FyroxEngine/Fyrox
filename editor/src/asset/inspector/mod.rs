@@ -141,6 +141,7 @@ impl AssetInspector {
                     generate_property_string_values: true,
                     filter: Default::default(),
                     name_column_width: 150.0,
+                    base_path: Default::default(),
                 });
                 ui.send_message(InspectorMessage::context(
                     self.inspector,
@@ -182,6 +183,7 @@ impl AssetInspector {
                                         engine.user_interfaces.first_mut(),
                                         0,
                                         true,
+                                        Default::default(),
                                         Default::default(),
                                     )
                                     .unwrap();
