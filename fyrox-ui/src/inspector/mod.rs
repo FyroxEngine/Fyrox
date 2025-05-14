@@ -844,20 +844,15 @@ impl InspectorContext {
     ) -> Self {
         let mut entries = Vec::new();
 
-        let mut fields_text = Vec::new();
-        object.fields_ref(&mut |fields| {
-            for field in fields {
-                fields_text.push(if generate_property_string_values {
-                    format!("{:?}", field.value.field_value_as_reflect())
-                } else {
-                    Default::default()
-                })
-            }
-        });
-
         let mut editors = Vec::new();
         object.fields_ref(&mut |fields_ref| {
-            for (i, (field_text, info)) in fields_text.iter().zip(fields_ref.iter()).enumerate() {
+            for (i, info) in fields_ref.iter().enumerate() {
+                let field_text = if generate_property_string_values {
+                    format!("{:?}", info.value.field_value_as_reflect())
+                } else {
+                    Default::default()
+                };
+
                 if !filter.pass(info.value.field_value_as_reflect()) {
                     continue;
                 }
