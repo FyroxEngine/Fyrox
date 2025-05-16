@@ -343,7 +343,11 @@ impl<T> Drop for Ticket<T> {
     }
 }
 
-impl<T: Clone> Clone for PoolRecord<T> {
+impl<T, P> Clone for PoolRecord<T, P>
+where
+    T: Clone,
+    P: PayloadContainer<Element = T> + Clone + 'static,
+{
     #[inline]
     fn clone(&self) -> Self {
         Self {
@@ -354,7 +358,11 @@ impl<T: Clone> Clone for PoolRecord<T> {
     }
 }
 
-impl<T: Clone> Clone for Pool<T> {
+impl<T, P> Clone for Pool<T, P>
+where
+    P: PayloadContainer<Element = T> + Clone + 'static,
+    T: Clone,
+{
     #[inline]
     fn clone(&self) -> Self {
         Self {
