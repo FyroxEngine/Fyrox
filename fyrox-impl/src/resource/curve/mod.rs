@@ -74,7 +74,7 @@ impl From<VisitError> for CurveResourceError {
 }
 
 /// State of the [`CurveResource`]
-#[derive(Debug, Visit, Default, Reflect)]
+#[derive(Debug, Clone, Visit, Default, Reflect)]
 pub struct CurveResourceState {
     /// Actual curve.
     pub curve: Curve,
@@ -92,6 +92,10 @@ impl ResourceData for CurveResourceState {
 
     fn can_be_saved(&self) -> bool {
         false
+    }
+
+    fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+        Some(Box::new(self.clone()))
     }
 }
 

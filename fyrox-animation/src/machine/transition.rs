@@ -74,6 +74,10 @@ macro_rules! define_two_args_node {
                 Self::derived_types()
             }
 
+            fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+                Some(Box::new(self.clone()))
+            }
+
             fn type_name(&self) -> &'static str {
                 type_name::<Self>()
             }
@@ -346,6 +350,10 @@ impl<T: EntityId> Reflect for NotNode<T> {
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         let this = std::mem::replace(self, value.take()?);
         Ok(Box::new(this))
+    }
+
+    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+        Some(Box::new(self.clone()))
     }
 }
 

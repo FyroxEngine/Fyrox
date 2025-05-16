@@ -35,7 +35,7 @@ use fyrox_core::visitor::error::VisitError;
 
 /// A wrapper for node pool record that allows to define custom visit method to have full
 /// control over instantiation process at deserialization.
-#[derive(Debug, Default, Reflect)]
+#[derive(Debug, Clone, Default, Reflect)]
 pub struct NodeContainer(Option<Node>);
 
 fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {

@@ -61,6 +61,7 @@ use std::{
 
 /// Streaming buffer for long sounds. Does not support random access.
 #[derive(Debug, Default, Visit, Reflect)]
+#[reflect(non_cloneable)]
 pub struct StreamingBuffer {
     pub(crate) generic: GenericBuffer,
     /// Count of sources that share this buffer, it is important to keep only one

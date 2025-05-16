@@ -765,6 +765,10 @@ impl ResourceData for Material {
     fn can_be_saved(&self) -> bool {
         true
     }
+
+    fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+        Some(Box::new(self.clone()))
+    }
 }
 
 /// A set of possible errors that can occur when working with materials.

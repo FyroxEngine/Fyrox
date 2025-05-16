@@ -118,7 +118,8 @@ lazy_static! {
 /// the style and why do we need to store the value as well? The answer is flexibility. In this
 /// approach style becomes not necessary and the value can be hardcoded. Also, the values of such
 /// properties can be updated individually.
-#[derive(Clone, Debug, Default, Reflect)]
+#[derive(Clone, Debug, Reflect, Default)]
+#[reflect(bounds = "T: Reflect + Clone")]
 pub struct StyledProperty<T> {
     /// Property value.
     pub property: T,
@@ -252,7 +253,7 @@ impl<T: Visit> Visit for StyledProperty<T> {
 ///     ui.set_style(StyleResource::new_embedded(style));
 /// }
 /// ```
-#[derive(Visit, Reflect, Default, Debug, TypeUuidProvider)]
+#[derive(Visit, Reflect, Clone, Default, Debug, TypeUuidProvider)]
 #[type_uuid(id = "38a63b49-d765-4c01-8fb5-202cc43d607e")]
 pub struct Style {
     parent: Option<StyleResource>,

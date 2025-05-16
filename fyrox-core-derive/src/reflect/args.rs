@@ -23,6 +23,7 @@
 use darling::*;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
+use syn::__private::bool;
 use syn::*;
 
 pub type Fields = ast::Fields<FieldArgs>;
@@ -58,6 +59,9 @@ pub struct TypeArgs {
 
     #[darling(multiple)]
     pub derived_type: Vec<Path>,
+
+    #[darling(default)]
+    pub non_cloneable: bool,
 }
 
 impl TypeArgs {

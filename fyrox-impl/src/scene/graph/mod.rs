@@ -186,6 +186,18 @@ pub struct Graph {
     instance_id_map: FxHashMap<SceneNodeId, Handle<Node>>,
 }
 
+impl Clone for Graph {
+    fn clone(&self) -> Self {
+        self.clone_ex(
+            self.root,
+            &mut |_, _| true,
+            &mut |_, _| {},
+            &mut |_, _, _| {},
+        )
+        .0
+    }
+}
+
 impl Default for Graph {
     fn default() -> Self {
         let (script_message_sender, script_message_receiver) = channel();
@@ -1408,7 +1420,7 @@ impl Graph {
     /// Creates deep copy of graph. Allows filtering while copying, returns copy and
     /// old-to-new node mapping.
     #[inline]
-    pub fn clone<F, Pre, Post>(
+    pub fn clone_ex<F, Pre, Post>(
         &self,
         root: Handle<Node>,
         filter: &mut F,

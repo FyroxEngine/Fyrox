@@ -20,6 +20,7 @@
 
 //! A module for untyped resources. See [`UntypedResource`] docs for more info.
 
+use crate::state::ResourceDataWrapper;
 use crate::{
     core::{
         math::curve::Curve, parking_lot::Mutex, reflect::prelude::*, uuid, uuid::Uuid,
@@ -154,7 +155,7 @@ impl Display for ResourceKind {
 
 /// Header of a resource, it contains a common data about the resource, such as its data type uuid,
 /// its kind, etc.
-#[derive(Reflect, Debug)]
+#[derive(Reflect, Clone, Debug)]
 pub struct ResourceHeader {
     /// Kind of the resource. See [`ResourceKind`] for more info.
     pub kind: ResourceKind,
@@ -214,7 +215,7 @@ impl Visit for ResourceHeader {
                         instance.visit("Details", &mut region)?;
 
                         self.state = ResourceState::Ok {
-                            data: instance,
+                            data: ResourceDataWrapper(instance),
                             // The old format does not contain an uuid.
                             resource_uuid: Uuid::nil(),
                         };
@@ -609,6 +610,10 @@ mod test {
         fn can_be_saved(&self) -> bool {
             false
         }
+
+        fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+            Some(Box::new(*self))
+        }
     }
 
     impl TypeUuidProvider for Stub {
@@ -660,7 +665,7 @@ mod test {
         let mut r = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
             kind: ResourceKind::External,
             state: ResourceState::Ok {
-                data: Box::new(stub),
+                data: ResourceDataWrapper(Box::new(stub)),
                 resource_uuid: Uuid::new_v4(),
             },
             old_format_path: None,

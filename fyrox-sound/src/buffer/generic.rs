@@ -51,7 +51,7 @@ use std::time::Duration;
 use super::SoundBufferResourceLoadError;
 
 /// Samples container.
-#[derive(Debug, Default, Visit, Reflect)]
+#[derive(Debug, Default, Visit, Clone, Reflect)]
 pub struct Samples(pub Vec<f32>);
 
 impl Deref for Samples {
@@ -69,7 +69,7 @@ impl DerefMut for Samples {
 }
 
 /// Generic sound buffer that contains decoded samples and allows random access.
-#[derive(Debug, Default, Visit, Reflect)]
+#[derive(Debug, Clone, Default, Visit, Reflect)]
 pub struct GenericBuffer {
     /// Interleaved decoded samples (mono sounds: L..., stereo sounds: LR...)
     /// For streaming buffers it contains only small part of decoded data

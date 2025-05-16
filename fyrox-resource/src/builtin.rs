@@ -93,7 +93,7 @@ pub struct UntypedBuiltInResource {
 /// };
 /// use std::{error::Error, path::Path};
 ///
-/// #[derive(TypeUuidProvider, Default, Debug, Visit, Reflect)]
+/// #[derive(TypeUuidProvider, Default, Debug, Clone, Visit, Reflect)]
 /// #[type_uuid(id = "00d036bb-fbed-47f7-94e3-b3fce93dee17")]
 /// struct MyResource {
 ///     some_data: String,
@@ -110,6 +110,10 @@ pub struct UntypedBuiltInResource {
 ///
 ///     fn can_be_saved(&self) -> bool {
 ///         false
+///     }
+///
+///     fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+///         Some(Box::new(self.clone()))
 ///     }
 /// }
 ///

@@ -35,7 +35,7 @@ use fyrox_core::visitor::error::VisitError;
 
 /// A wrapper for widget pool record that allows to define custom visit method to have full
 /// control over instantiation process at deserialization.
-#[derive(Debug, Default, Reflect)]
+#[derive(Debug, Clone, Default, Reflect)]
 pub struct WidgetContainer(Option<UiNode>);
 
 fn read_widget(name: &str, visitor: &mut Visitor) -> Result<UiNode, VisitError> {

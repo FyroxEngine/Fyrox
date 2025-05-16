@@ -26,7 +26,9 @@ use crate::{
     manager::ResourceManager,
     ResourceData, ResourceLoadError,
 };
+use fyrox_core::reflect::ReflectHandle;
 use fyrox_core::warn;
+use std::any::{Any, TypeId};
 use std::path::PathBuf;
 use std::{
     ops::{Deref, DerefMut},
@@ -75,6 +77,168 @@ impl LoadError {
     }
 }
 
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct ResourceDataWrapper(pub Box<dyn ResourceData>);
+
+impl Reflect for ResourceDataWrapper {
+    fn source_path() -> &'static str
+    where
+        Self: Sized,
+    {
+        file!()
+    }
+
+    fn derived_types() -> &'static [TypeId]
+    where
+        Self: Sized,
+    {
+        &[]
+    }
+
+    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+        Reflect::try_clone_box(&*self.0)
+    }
+
+    fn query_derived_types(&self) -> &'static [TypeId] {
+        self.deref().query_derived_types()
+    }
+
+    fn type_name(&self) -> &'static str {
+        self.deref().type_name()
+    }
+
+    fn doc(&self) -> &'static str {
+        self.deref().doc()
+    }
+
+    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
+        self.deref().fields_ref(func)
+    }
+
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
+        self.deref_mut().fields_mut(func)
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+
+    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+        self.deref().as_any(func)
+    }
+
+    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+        self.deref_mut().as_any_mut(func)
+    }
+
+    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        self.deref().as_reflect(func)
+    }
+
+    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        self.deref_mut().as_reflect_mut(func)
+    }
+
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        self.deref_mut().set(value)
+    }
+
+    fn assembly_name(&self) -> &'static str {
+        env!("CARGO_PKG_NAME")
+    }
+
+    fn type_assembly_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        env!("CARGO_PKG_NAME")
+    }
+
+    fn set_field(
+        &mut self,
+        field: &str,
+        value: Box<dyn Reflect>,
+        func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),
+    ) {
+        self.deref_mut().set_field(field, value, func)
+    }
+
+    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        self.deref().field(name, func)
+    }
+
+    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+        self.deref_mut().field_mut(name, func)
+    }
+
+    fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
+        self.deref().as_array(func)
+    }
+
+    fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
+        self.deref_mut().as_array_mut(func)
+    }
+
+    fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
+        self.deref().as_list(func)
+    }
+
+    fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
+        self.deref_mut().as_list_mut(func)
+    }
+
+    fn as_inheritable_variable(
+        &self,
+        func: &mut dyn FnMut(Option<&dyn ReflectInheritableVariable>),
+    ) {
+        self.deref().as_inheritable_variable(func)
+    }
+
+    fn as_inheritable_variable_mut(
+        &mut self,
+        func: &mut dyn FnMut(Option<&mut dyn ReflectInheritableVariable>),
+    ) {
+        self.deref_mut().as_inheritable_variable_mut(func)
+    }
+
+    fn as_hash_map(&self, func: &mut dyn FnMut(Option<&dyn ReflectHashMap>)) {
+        self.deref().as_hash_map(func)
+    }
+
+    fn as_hash_map_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHashMap>)) {
+        self.deref_mut().as_hash_map_mut(func)
+    }
+
+    fn as_handle(&self, func: &mut dyn FnMut(Option<&dyn ReflectHandle>)) {
+        self.deref().as_handle(func)
+    }
+
+    fn as_handle_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHandle>)) {
+        self.deref_mut().as_handle_mut(func)
+    }
+}
+
+impl Deref for ResourceDataWrapper {
+    type Target = dyn ResourceData;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+impl DerefMut for ResourceDataWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut *self.0
+    }
+}
+
+impl Clone for ResourceDataWrapper {
+    fn clone(&self) -> Self {
+        Self(ResourceData::try_clone_box(&*self.0).unwrap())
+    }
+}
+
 /// Resource could be in three possible states (a small state machine):
 ///
 /// 1. Pending - it is loading or queued for loading.
@@ -101,7 +265,7 @@ impl LoadError {
 /// to get the UUID earlier: the UUID is stored in a metadata file which exists only if the resource
 /// is present. It is somewhat possible to get a UUID when a resource is failed to load, but not in
 /// 100% cases.
-#[derive(Debug, Reflect)]
+#[derive(Debug, Clone, Reflect)]
 pub enum ResourceState {
     /// Resource is loading from external resource or in the queue to load.
     Pending {
@@ -127,7 +291,7 @@ pub enum ResourceState {
         /// Unique id of the resource.
         resource_uuid: Uuid,
         /// Actual data of the resource.
-        data: Box<dyn ResourceData>,
+        data: ResourceDataWrapper,
     },
 }
 
@@ -185,7 +349,7 @@ impl ResourceState {
 
                 *self = Self::Ok {
                     resource_uuid,
-                    data: instance,
+                    data: ResourceDataWrapper(instance),
                 };
             } else {
                 return Err(VisitError::User(format!(
@@ -235,7 +399,7 @@ impl ResourceState {
     pub fn new_ok<T: ResourceData>(resource_uuid: Uuid, data: T) -> Self {
         Self::Ok {
             resource_uuid,
-            data: Box::new(data),
+            data: ResourceDataWrapper(Box::new(data)),
         }
     }
 
@@ -244,7 +408,7 @@ impl ResourceState {
     pub fn new_ok_untyped(resource_uuid: Uuid, data: Box<dyn ResourceData>) -> Self {
         Self::Ok {
             resource_uuid,
-            data,
+            data: ResourceDataWrapper(data),
         }
     }
 
@@ -294,7 +458,7 @@ impl ResourceState {
     pub fn commit_ok<T: ResourceData>(&mut self, resource_uuid: Uuid, data: T) {
         self.commit(ResourceState::Ok {
             resource_uuid,
-            data: Box::new(data),
+            data: ResourceDataWrapper(Box::new(data)),
         })
     }
 
@@ -318,7 +482,7 @@ mod test {
 
     use super::*;
 
-    #[derive(Debug, Default, Reflect, Visit)]
+    #[derive(Debug, Default, Clone, Reflect, Visit)]
     struct Stub {}
 
     impl ResourceData for Stub {
@@ -332,6 +496,10 @@ mod test {
 
         fn can_be_saved(&self) -> bool {
             false
+        }
+
+        fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+            Some(Box::new(self.clone()))
         }
     }
 

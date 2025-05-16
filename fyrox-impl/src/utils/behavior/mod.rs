@@ -126,7 +126,7 @@ where
 #[derive(Debug, PartialEq, Visit, Clone)]
 pub struct BehaviorTree<B>
 where
-    B: Clone,
+    B: Clone + 'static,
 {
     nodes: Pool<BehaviorNode<B>>,
     root: Handle<BehaviorNode<B>>,

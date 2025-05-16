@@ -80,7 +80,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub mod loader;
 
 /// See module docs.
-#[derive(Debug, Visit, Reflect)]
+#[derive(Debug, Clone, Visit, Reflect)]
 pub struct Model {
     #[visit(skip)]
     pub(crate) mapping: NodeMapping,
@@ -611,6 +611,10 @@ impl ResourceData for Model {
 
     fn can_be_saved(&self) -> bool {
         true
+    }
+
+    fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+        Some(Box::new(self.clone()))
     }
 }
 

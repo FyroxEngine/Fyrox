@@ -96,6 +96,10 @@ pub trait ResourceData: Debug + Visit + Send + Reflect {
     /// resource type supports saving, for example there might be temporary resource type that is
     /// used only at runtime which does not need saving at all.
     fn can_be_saved(&self) -> bool;
+
+    /// Tries to clone the resource data. This method can return `None` if the underlying type is
+    /// non-cloneable.
+    fn try_clone_box(&self) -> Option<Box<dyn ResourceData>>;
 }
 
 /// Extension trait for a resource data of a particular type, which adds additional functionality,
@@ -159,10 +163,7 @@ where
 ///
 /// Default state of the resource will be [`ResourceState::Ok`] with `T::default`.
 #[derive(Debug, Reflect)]
-pub struct Resource<T>
-where
-    T: TypedResourceData,
-{
+pub struct Resource<T: Debug> {
     untyped: UntypedResource,
     #[reflect(hidden)]
     phantom: PhantomData<T>,
@@ -409,10 +410,7 @@ where
     }
 }
 
-impl<T> Clone for Resource<T>
-where
-    T: TypedResourceData,
-{
+impl<T: Debug> Clone for Resource<T> {
     #[inline]
     fn clone(&self) -> Self {
         Self {
@@ -696,7 +694,7 @@ mod tests {
         sync::Arc,
     };
 
-    #[derive(Serialize, Deserialize, Default, Debug, Visit, Reflect, TypeUuidProvider)]
+    #[derive(Serialize, Deserialize, Default, Debug, Clone, Visit, Reflect, TypeUuidProvider)]
     #[type_uuid(id = "241d14c7-079e-4395-a63c-364f0fc3e6ea")]
     struct MyData {
         data: u32,
@@ -740,6 +738,10 @@ mod tests {
 
         fn can_be_saved(&self) -> bool {
             true
+        }
+
+        fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+            Some(Box::new(self.clone()))
         }
     }
 

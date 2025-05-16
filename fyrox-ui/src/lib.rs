@@ -338,7 +338,7 @@ use fyrox_core::pool::{BorrowAs, ErasedHandle};
 use fyrox_resource::untyped::ResourceKind;
 pub use fyrox_texture as texture;
 
-#[derive(Default, Reflect, Debug)]
+#[derive(Default, Clone, Reflect, Debug)]
 pub(crate) struct RcUiNodeHandleInner {
     handle: Handle<UiNode>,
     #[reflect(hidden)]
@@ -3547,6 +3547,10 @@ impl ResourceData for UserInterface {
 
     fn can_be_saved(&self) -> bool {
         true
+    }
+
+    fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+        Some(Box::new(self.clone()))
     }
 }
 

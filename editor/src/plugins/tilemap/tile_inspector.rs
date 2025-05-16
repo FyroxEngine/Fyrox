@@ -722,7 +722,7 @@ impl ColliderEditors {
     }
 }
 
-#[derive(Visit, Reflect)]
+#[derive(Visit, Reflect, Clone)]
 pub struct TileInspector {
     handle: Handle<UiNode>,
     /// The shared state that represents the user's currently selected tool and tiles.

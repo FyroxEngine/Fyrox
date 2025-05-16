@@ -227,6 +227,7 @@ impl dyn Plugin {
 /// # use std::str::FromStr;
 ///
 /// #[derive(Default, Visit, Reflect, Debug)]
+/// #[reflect(non_cloneable)]
 /// struct MyPlugin {}
 ///
 /// impl Plugin for MyPlugin {

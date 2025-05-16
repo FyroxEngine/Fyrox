@@ -2118,6 +2118,10 @@ impl ResourceData for TileSet {
     fn can_be_saved(&self) -> bool {
         true
     }
+
+    fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+        Some(Box::new(self.clone()))
+    }
 }
 
 /// An alias for `Resource<TileSet>`.

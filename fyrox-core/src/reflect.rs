@@ -219,7 +219,10 @@ pub trait ReflectBase: Any + Debug {
     fn as_any_raw_mut(&mut self) -> &mut dyn Any;
 }
 
-impl<T: Reflect> ReflectBase for T {
+impl<T> ReflectBase for T
+where
+    T: Reflect,
+{
     fn as_any_raw(&self) -> &dyn Any {
         self
     }
@@ -256,6 +259,8 @@ pub trait Reflect: ReflectBase {
     fn derived_types() -> &'static [TypeId]
     where
         Self: Sized;
+
+    fn try_clone_box(&self) -> Option<Box<dyn Reflect>>;
 
     fn query_derived_types(&self) -> &'static [TypeId];
 
@@ -1203,6 +1208,10 @@ macro_rules! blank_reflect {
             &[]
         }
 
+        fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+            Some(Box::new(self.clone()))
+        }
+
         fn query_derived_types(&self) -> &'static [std::any::TypeId] {
             Self::derived_types()
         }
@@ -1277,6 +1286,10 @@ macro_rules! delegate_reflect {
         fn derived_types() -> &'static [std::any::TypeId] {
             // TODO
             &[]
+        }
+
+        fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+            Some(Box::new(self.clone()))
         }
 
         fn query_derived_types(&self) -> &'static [std::any::TypeId] {
@@ -1456,7 +1469,7 @@ mod test {
     use std::any::TypeId;
     use std::collections::HashMap;
 
-    #[derive(Reflect, Default, Debug)]
+    #[derive(Reflect, Clone, Default, Debug)]
     struct Foo {
         bar: Bar,
         baz: f32,
@@ -1464,12 +1477,12 @@ mod test {
         hash_map: HashMap<String, Item>,
     }
 
-    #[derive(Reflect, Default, Debug)]
+    #[derive(Reflect, Clone, Default, Debug)]
     struct Item {
         payload: u32,
     }
 
-    #[derive(Reflect, Default, Debug)]
+    #[derive(Reflect, Clone, Default, Debug)]
     struct Bar {
         stuff: String,
     }
@@ -1503,7 +1516,7 @@ mod test {
         assert_eq!(names[9], "hash_map[Foobar].payload");
     }
 
-    #[derive(Reflect, Debug)]
+    #[derive(Reflect, Clone, Debug)]
     #[reflect(derived_type = "Derived")]
     struct Base;
 

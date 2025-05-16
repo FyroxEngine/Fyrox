@@ -255,7 +255,7 @@ impl GameScene {
         let scene = &mut engine.scenes[self.scene];
 
         let editor_root = self.editor_objects_root;
-        let (pure_scene, _) = scene.clone(
+        let (pure_scene, _) = scene.clone_ex(
             self.scene_content_root,
             &mut |node, _| node != editor_root,
             &mut |_, _| {},

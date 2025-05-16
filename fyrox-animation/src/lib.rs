@@ -135,6 +135,10 @@ impl ResourceData for AnimationTracksData {
     fn can_be_saved(&self) -> bool {
         true
     }
+
+    fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+        Some(Box::new(self.clone()))
+    }
 }
 
 /// A resource that holds animation tracks. This resource can be shared across multiple animations.

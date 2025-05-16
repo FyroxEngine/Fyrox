@@ -238,6 +238,12 @@ pub struct Scene {
     pub enabled: InheritableVariable<bool>,
 }
 
+impl Clone for Scene {
+    fn clone(&self) -> Self {
+        self.clone_one_to_one().0
+    }
+}
+
 impl Default for Scene {
     fn default() -> Self {
         Self {
@@ -465,7 +471,7 @@ impl Scene {
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
     /// by your criteria.
-    pub fn clone<F, Pre, Post>(
+    pub fn clone_ex<F, Pre, Post>(
         &self,
         root: Handle<Node>,
         filter: &mut F,
@@ -479,7 +485,7 @@ impl Scene {
     {
         let (graph, old_new_map) =
             self.graph
-                .clone(root, filter, pre_process_callback, post_process_callback);
+                .clone_ex(root, filter, pre_process_callback, post_process_callback);
 
         (
             Self {
@@ -495,7 +501,7 @@ impl Scene {
 
     /// Creates deep copy of a scene. Same as [`Self::clone`], but does 1:1 cloning.
     pub fn clone_one_to_one(&self) -> (Self, NodeHandleMap<Node>) {
-        self.clone(
+        self.clone_ex(
             self.graph.get_root(),
             &mut |_, _| true,
             &mut |_, _| {},

@@ -112,7 +112,7 @@ mod test {
 
     use super::*;
 
-    #[derive(Debug, Default, Reflect, Visit)]
+    #[derive(Debug, Default, Clone, Reflect, Visit)]
     struct Stub {}
 
     impl ResourceData for Stub {
@@ -126,6 +126,10 @@ mod test {
 
         fn can_be_saved(&self) -> bool {
             false
+        }
+
+        fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+            Some(Box::new(self.clone()))
         }
     }
 

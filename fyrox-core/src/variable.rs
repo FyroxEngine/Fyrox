@@ -381,6 +381,10 @@ where
         file!()
     }
 
+    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+        Some(Box::new(self.clone()))
+    }
+
     fn derived_types() -> &'static [TypeId]
     where
         Self: Sized,
@@ -839,7 +843,7 @@ mod test {
         assert!(va.value_equals(&vb))
     }
 
-    #[derive(Reflect, Debug)]
+    #[derive(Reflect, Clone, Debug)]
     enum SomeEnum {
         Bar(InheritableVariable<f32>),
         Baz {

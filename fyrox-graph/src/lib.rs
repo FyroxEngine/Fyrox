@@ -1598,6 +1598,10 @@ mod test {
         fn query_derived_types(&self) -> &'static [TypeId] {
             Self::derived_types()
         }
+
+        fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+            Some(Box::new(self.clone()))
+        }
     }
 
     impl NameProvider for Node {
@@ -1622,7 +1626,7 @@ mod test {
 
     /// A wrapper for node pool record that allows to define custom visit method to have full
     /// control over instantiation process at deserialization.
-    #[derive(Debug, Default, Reflect)]
+    #[derive(Debug, Default, Clone, Reflect)]
     pub struct NodeContainer(Option<Node>);
 
     impl Visit for NodeContainer {
@@ -1711,7 +1715,7 @@ mod test {
         }
     }
 
-    #[derive(Default, TypeUuidProvider, Visit, Reflect, Debug)]
+    #[derive(Default, Clone, TypeUuidProvider, Visit, Reflect, Debug)]
     #[type_uuid(id = "fc887063-7780-44af-8710-5e0bcf9a83fd")]
     pub struct Graph {
         root: Handle<Node>,
@@ -1729,6 +1733,10 @@ mod test {
 
         fn can_be_saved(&self) -> bool {
             false
+        }
+
+        fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+            Some(Box::new(self.clone()))
         }
     }
 

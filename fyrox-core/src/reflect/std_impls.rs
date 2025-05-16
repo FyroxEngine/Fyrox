@@ -67,7 +67,7 @@ macro_rules! impl_reflect_tuple {
         )*
     ) => {
         $(
-            impl< $($t: Reflect),* > Reflect for ( $($t,)* ) {
+            impl< $($t: Clone + Reflect),* > Reflect for ( $($t,)* ) {
                 blank_reflect!();
             }
         )*
@@ -82,7 +82,7 @@ impl_reflect_tuple! {
     (T0, T1, T2, T3, T4,);
 }
 
-impl<const N: usize, T: Reflect> Reflect for [T; N] {
+impl<const N: usize, T: Reflect + Clone> Reflect for [T; N] {
     blank_reflect!();
 
     fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
@@ -94,7 +94,7 @@ impl<const N: usize, T: Reflect> Reflect for [T; N] {
     }
 }
 
-impl<const N: usize, T: Reflect> ReflectArray for [T; N] {
+impl<const N: usize, T: Reflect + Clone> ReflectArray for [T; N] {
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
         if let Some(item) = self.get(index) {
             Some(item)
@@ -118,10 +118,10 @@ impl<const N: usize, T: Reflect> ReflectArray for [T; N] {
 
 impl_reflect! {
     #[reflect(ReflectList, ReflectArray)]
-    pub struct Vec<T: Reflect>;
+    pub struct Vec<T: Reflect + Clone>;
 }
 
-impl<T: Reflect> ReflectArray for Vec<T> {
+impl<T: Reflect + Clone> ReflectArray for Vec<T> {
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
         self.get(index).map(|x| x as &dyn Reflect)
     }
@@ -136,7 +136,7 @@ impl<T: Reflect> ReflectArray for Vec<T> {
 }
 
 /// REMARK: `Reflect` is implemented for `Vec<T>` where `T: Reflect` only.
-impl<T: Reflect> ReflectList for Vec<T> {
+impl<T: Reflect + Clone> ReflectList for Vec<T> {
     fn reflect_push(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>> {
         self.push(*value.downcast::<T>()?);
         Ok(())
@@ -170,9 +170,9 @@ impl<T: Reflect> ReflectList for Vec<T> {
 
 impl<K, V, S> Reflect for HashMap<K, V, S>
 where
-    K: Reflect + Eq + Hash + 'static,
-    V: Reflect,
-    S: BuildHasher + 'static,
+    K: Reflect + Eq + Hash + Clone + 'static,
+    V: Reflect + Clone,
+    S: BuildHasher + Clone + 'static,
 {
     blank_reflect!();
 
@@ -187,9 +187,9 @@ where
 
 impl<K, V, S> ReflectHashMap for HashMap<K, V, S>
 where
-    K: Reflect + Eq + Hash + 'static,
-    V: Reflect,
-    S: BuildHasher + 'static,
+    K: Reflect + Eq + Hash + Clone + 'static,
+    V: Reflect + Clone,
+    S: BuildHasher + Clone + 'static,
 {
     fn reflect_insert(
         &mut self,
@@ -281,20 +281,20 @@ impl_reflect! {
 }
 
 impl_reflect! {
-    pub enum Option<T> {
+    pub enum Option<T: Clone> {
         Some(T),
         None
     }
 }
 
 impl_reflect! {
-    pub struct Range<Idx> {
+    pub struct Range<Idx: Clone> {
         pub start: Idx,
         pub end: Idx,
     }
 }
 
-impl<T: ?Sized + Reflect> Reflect for Box<T> {
+impl<T: Reflect + Clone> Reflect for Box<T> {
     delegate_reflect!();
 }
 
@@ -308,6 +308,11 @@ macro_rules! impl_reflect_inner_mutability {
             // TODO: This seems to be impossible to implement because of `?Sized` trait bound
             // up above.
             &[]
+        }
+
+        fn try_clone_box(&$self) -> Option<Box<dyn Reflect>> {
+            let guard = $acquire_lock_guard;
+            Some(Box::new(guard.clone()))
         }
 
         fn query_derived_types(&self) -> &'static [std::any::TypeId] {
@@ -438,24 +443,24 @@ macro_rules! impl_reflect_inner_mutability {
     };
 }
 
-impl<T: Reflect> Reflect for parking_lot::Mutex<T> {
+impl<T: Reflect + Clone> Reflect for parking_lot::Mutex<T> {
     impl_reflect_inner_mutability!(self, { self.lock() }, { self.into_inner() });
 }
 
-impl<T: Reflect> Reflect for parking_lot::RwLock<T> {
+impl<T: Reflect + Clone> Reflect for parking_lot::RwLock<T> {
     impl_reflect_inner_mutability!(self, { self.write() }, { self.into_inner() });
 }
 
 #[allow(clippy::mut_mutex_lock)]
-impl<T: Reflect> Reflect for std::sync::Mutex<T> {
+impl<T: Reflect + Clone> Reflect for std::sync::Mutex<T> {
     impl_reflect_inner_mutability!(self, { self.lock().unwrap() }, { self.into_inner() });
 }
 
-impl<T: Reflect> Reflect for std::sync::RwLock<T> {
+impl<T: Reflect + Clone> Reflect for std::sync::RwLock<T> {
     impl_reflect_inner_mutability!(self, { self.write().unwrap() }, { self.into_inner() });
 }
 
-impl<T: Reflect> Reflect for Arc<parking_lot::Mutex<T>> {
+impl<T: Reflect + Clone> Reflect for Arc<parking_lot::Mutex<T>> {
     impl_reflect_inner_mutability!(self, { self.lock() }, {
         Arc::into_inner(*self)
             .expect("Value cannot be shared!")
@@ -463,7 +468,7 @@ impl<T: Reflect> Reflect for Arc<parking_lot::Mutex<T>> {
     });
 }
 
-impl<T: Reflect> Reflect for Arc<std::sync::Mutex<T>> {
+impl<T: Reflect + Clone> Reflect for Arc<std::sync::Mutex<T>> {
     impl_reflect_inner_mutability!(self, { self.lock().unwrap() }, {
         Arc::into_inner(*self)
             .expect("Value cannot be shared!")
@@ -471,7 +476,7 @@ impl<T: Reflect> Reflect for Arc<std::sync::Mutex<T>> {
     });
 }
 
-impl<T: Reflect> Reflect for Arc<std::sync::RwLock<T>> {
+impl<T: Reflect + Clone> Reflect for Arc<std::sync::RwLock<T>> {
     impl_reflect_inner_mutability!(self, { self.write().unwrap() }, {
         Arc::into_inner(*self)
             .expect("Value cannot be shared!")
@@ -479,7 +484,7 @@ impl<T: Reflect> Reflect for Arc<std::sync::RwLock<T>> {
     });
 }
 
-impl<T: Reflect> Reflect for Arc<parking_lot::RwLock<T>> {
+impl<T: Reflect + Clone> Reflect for Arc<parking_lot::RwLock<T>> {
     impl_reflect_inner_mutability!(self, { self.write() }, {
         Arc::into_inner(*self)
             .expect("Value cannot be shared!")
@@ -487,11 +492,11 @@ impl<T: Reflect> Reflect for Arc<parking_lot::RwLock<T>> {
     });
 }
 
-impl<T: Reflect> Reflect for RefCell<T> {
+impl<T: Reflect + Clone> Reflect for RefCell<T> {
     impl_reflect_inner_mutability!(self, { self.borrow_mut() }, { self.into_inner() });
 }
 
-impl<T: Reflect> Reflect for Rc<RefCell<T>> {
+impl<T: Reflect + Clone> Reflect for Rc<RefCell<T>> {
     impl_reflect_inner_mutability!(self, { self.borrow_mut() }, {
         Rc::into_inner(*self)
             .expect("Value cannot be shared!")

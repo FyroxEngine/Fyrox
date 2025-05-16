@@ -243,6 +243,10 @@ impl Reflect for Limb {
         let this = std::mem::replace(self, value.take()?);
         Ok(Box::new(this))
     }
+
+    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+        Some(Box::new(self.clone()))
+    }
 }
 
 impl Visit for Limb {

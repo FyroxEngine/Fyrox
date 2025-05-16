@@ -103,6 +103,7 @@ impl TaskPoolHandler {
     /// # use std::{fs::File, io::Read};
     ///
     /// #[derive(Visit, Reflect, Debug)]
+    /// #[reflect(non_cloneable)]
     /// struct MyGame {
     ///     data: Option<Vec<u8>>,
     /// }

@@ -172,6 +172,10 @@ impl ResourceData for AutoTileInstance {
     fn can_be_saved(&self) -> bool {
         false
     }
+
+    fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+        Some(Box::new(self.clone()))
+    }
 }
 
 pub struct TileSetTerrainSource<'a, 'b> {

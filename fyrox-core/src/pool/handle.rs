@@ -123,6 +123,10 @@ impl<T: Reflect> Reflect for Handle<T> {
         T::derived_types()
     }
 
+    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+        Some(Box::new(*self))
+    }
+
     fn query_derived_types(&self) -> &'static [TypeId] {
         Self::derived_types()
     }

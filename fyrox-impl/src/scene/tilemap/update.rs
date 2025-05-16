@@ -585,7 +585,7 @@ impl TileSetUpdate {
 /// A stamp element plus the transformation of the [`Stamp`] where the element is taken from,
 /// allowing the stamp element itself to be later transformed before it is applied to a tile map,
 /// tile set, or brush.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect)]
 pub struct RotTileHandle {
     /// The transformation of the element.
     pub transform: OrthoTransformation,

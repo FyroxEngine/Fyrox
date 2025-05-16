@@ -473,7 +473,7 @@ mod test {
     use crate::value::{BoundValue, TrackValue, ValueBinding, ValueType};
     use fyrox_core::{reflect::prelude::*, variable::InheritableVariable};
 
-    #[derive(Reflect, Debug, PartialEq)]
+    #[derive(Reflect, Debug, Clone, PartialEq)]
     struct OtherStruct {
         field: u32,
         inheritable_variable: InheritableVariable<u32>,
@@ -488,7 +488,7 @@ mod test {
         }
     }
 
-    #[derive(Default, Reflect, Debug, PartialEq)]
+    #[derive(Default, Reflect, Clone, Debug, PartialEq)]
     struct MyStruct {
         some_bool: bool,
         some_property: f32,

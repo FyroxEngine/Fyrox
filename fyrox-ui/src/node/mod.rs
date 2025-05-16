@@ -355,4 +355,8 @@ impl Reflect for UiNode {
     fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
         self.0.deref_mut().field_mut(name, func)
     }
+
+    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+        Some(Box::new(self.clone()))
+    }
 }

@@ -239,6 +239,7 @@ impl std::error::Error for SoundBufferResourceLoadError {}
 
 /// Sound buffer is a data source for sound sources. See module documentation for more info.
 #[derive(Debug, Visit, Reflect)]
+#[reflect(non_cloneable)]
 pub enum SoundBuffer {
     /// General-purpose buffer, usually contains all the data and allows random
     /// access to samples. It is also used to make streaming buffer via composition.
@@ -356,5 +357,9 @@ impl ResourceData for SoundBuffer {
 
     fn can_be_saved(&self) -> bool {
         false
+    }
+
+    fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+        None
     }
 }

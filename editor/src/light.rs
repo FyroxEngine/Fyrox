@@ -47,7 +47,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Reflect, Debug)]
+#[derive(Reflect, Clone, Debug)]
 struct LightmapperSettings {
     #[reflect(
         description = "Amount of texels per unit. It defines 'pixels density' per unit of area (square meters). The \

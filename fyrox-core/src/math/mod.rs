@@ -38,7 +38,7 @@ use fyrox_core_derive::{impl_reflect, impl_visit};
 use std::fmt::Debug;
 
 impl_reflect!(
-    pub struct Rect<T: Debug> {}
+    pub struct Rect<T: Debug + Copy> {}
 );
 
 impl<T> Visit for Rect<T>

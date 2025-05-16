@@ -91,7 +91,7 @@ pub static DATA_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     data_dir
 });
 
-#[derive(Default, Serialize, Deserialize, Reflect, Debug)]
+#[derive(Default, Serialize, Deserialize, Reflect, Clone, Debug)]
 pub struct SettingsData {
     #[serde(default = "default_open_ide_command")]
     #[reflect(
@@ -203,7 +203,7 @@ impl Settings {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Project {
     pub manifest_path: PathBuf,
     pub name: String,

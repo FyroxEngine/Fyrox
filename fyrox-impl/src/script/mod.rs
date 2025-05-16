@@ -334,6 +334,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
     /// # };
     /// #
     /// #[derive(Visit, Reflect, Default, Debug)]
+    /// #[reflect(non_cloneable)]
     /// struct Game {
     ///     player_name: String,
     /// }
@@ -750,6 +751,10 @@ impl Reflect for Script {
 
     fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
         self.instance.deref_mut().as_list_mut(func)
+    }
+
+    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+        Some(Box::new(self.clone()))
     }
 }
 

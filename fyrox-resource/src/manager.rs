@@ -22,6 +22,7 @@
 //! docs for more info.
 
 pub use crate::builtin::*;
+use crate::state::ResourceDataWrapper;
 use crate::{
     constructor::ResourceConstructorContainer,
     core::{
@@ -737,7 +738,7 @@ impl ResourceManagerState {
                                 assert!(mutex_guard.kind.is_external());
 
                                 mutex_guard.state.commit(ResourceState::Ok {
-                                    data,
+                                    data: ResourceDataWrapper(data),
                                     resource_uuid,
                                 });
 
@@ -947,7 +948,7 @@ mod test {
     };
     use std::{error::Error, fs::File, time::Duration};
 
-    #[derive(Debug, Default, Reflect, Visit)]
+    #[derive(Debug, Default, Clone, Reflect, Visit)]
     struct Stub {}
 
     impl TypeUuidProvider for Stub {
@@ -967,6 +968,10 @@ mod test {
 
         fn can_be_saved(&self) -> bool {
             false
+        }
+
+        fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+            Some(Box::new(self.clone()))
         }
     }
 

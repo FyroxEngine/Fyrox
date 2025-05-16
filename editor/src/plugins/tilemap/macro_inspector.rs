@@ -39,7 +39,7 @@ const REMOVE_TOOLTIP: &str = "Remove the selected cell from this macro.";
 const CELL_WITH_MACRO_COLOR: Color = Color::DARK_SLATE_BLUE;
 const CELL_WITHOUT_MACRO_COLOR: Color = Color::opaque(50, 50, 50);
 
-#[derive(Visit, Reflect)]
+#[derive(Visit, Clone, Reflect)]
 pub struct MacroInspector {
     handle: Handle<UiNode>,
     content: Handle<UiNode>,
@@ -66,16 +66,19 @@ impl Debug for MacroInspector {
     }
 }
 
+#[derive(Clone)]
 struct Item {
     macro_id: Uuid,
     editor: Option<ItemEditor>,
 }
 
+#[derive(Clone)]
 struct ItemEditor {
     handle: Handle<UiNode>,
     header: ItemHeader,
 }
 
+#[derive(Clone)]
 struct ItemHeader {
     handle: Handle<UiNode>,
     label: Handle<UiNode>,

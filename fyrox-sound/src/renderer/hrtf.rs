@@ -203,7 +203,7 @@ impl HrtfRenderer {
 
 /// Wrapper for [`HrirSphere`] to be able to use it in the resource manager, that will handle async resource
 /// loading automatically.
-#[derive(Reflect, Default, Visit)]
+#[derive(Reflect, Default, Clone, Visit)]
 pub struct HrirSphereResourceData {
     #[reflect(hidden)]
     #[visit(skip)]
@@ -233,6 +233,10 @@ impl ResourceData for HrirSphereResourceData {
 
     fn can_be_saved(&self) -> bool {
         false
+    }
+
+    fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+        Some(Box::new(self.clone()))
     }
 }
 

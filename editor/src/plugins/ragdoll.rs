@@ -69,7 +69,7 @@ use fyrox::asset::manager::ResourceManager;
 use fyrox::gui::inspector::InspectorContextArgs;
 use std::{ops::Range, sync::Arc};
 
-#[derive(Reflect, Debug)]
+#[derive(Reflect, Clone, Debug)]
 pub struct RagdollPreset {
     #[reflect(description = "A handle of a hips (pelvis) bone.")]
     hips: Handle<Node>,

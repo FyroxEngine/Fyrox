@@ -795,7 +795,7 @@ impl PropertyEditorDefinitionContainer {
 
     pub fn register_inheritable_styleable_inspectable<T>(&self)
     where
-        T: Reflect + FieldValue,
+        T: Reflect + FieldValue + Clone + PartialEq,
     {
         assert!(self
             .insert(InspectablePropertyEditorDefinition::<T>::new())
@@ -829,7 +829,13 @@ impl PropertyEditorDefinitionContainer {
 
     pub fn register_inheritable_styleable_enum<T, E: Debug>(&self)
     where
-        T: InspectableEnum + FieldValue + VariantNames + AsRef<str> + FromStr<Err = E> + Debug,
+        T: InspectableEnum
+            + FieldValue
+            + VariantNames
+            + AsRef<str>
+            + FromStr<Err = E>
+            + Debug
+            + PartialEq,
     {
         assert!(self
             .insert(EnumPropertyEditorDefinition::<T>::new())

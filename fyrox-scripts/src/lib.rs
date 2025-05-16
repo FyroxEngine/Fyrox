@@ -36,6 +36,7 @@ pub mod camera;
 /// # };
 /// #
 /// # #[derive(Visit, Reflect, Debug)]
+/// # #[reflect(non_cloneable)]
 /// # struct Game;
 /// #
 /// # impl Plugin for Game {

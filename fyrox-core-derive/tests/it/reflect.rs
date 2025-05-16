@@ -40,10 +40,10 @@ pub struct Struct {
     hidden: usize,
 }
 
-#[derive(Reflect, Debug)]
+#[derive(Reflect, Clone, Debug)]
 pub struct Tuple(usize, usize);
 
-#[derive(Reflect, Debug)]
+#[derive(Reflect, Clone, Debug)]
 pub enum Enum {
     Named { field: usize },
     Tuple(usize),
@@ -122,7 +122,7 @@ fn reflect_field_accessors() {
 
 #[test]
 fn reflect_containers() {
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     struct DerefContainer<T> {
         data: T,
     }
@@ -140,7 +140,7 @@ fn reflect_containers() {
         }
     }
 
-    #[derive(Reflect, Debug)]
+    #[derive(Reflect, Clone, Debug)]
     struct X {
         #[reflect(deref)]
         container: DerefContainer<Struct>,
@@ -161,8 +161,8 @@ fn reflect_containers() {
 
     x.get_resolve_path::<usize>("container.field", &mut |result| assert_eq!(result, Ok(&0)));
 
-    #[derive(Reflect, Debug)]
-    #[reflect(bounds = "T: Reflect")]
+    #[derive(Reflect, Clone, Debug)]
+    #[reflect(bounds = "T: Reflect + Clone")]
     struct B<T> {
         #[reflect(deref)]
         data: Box<T>,
@@ -181,7 +181,7 @@ fn reflect_containers() {
 
 #[test]
 fn reflect_path() {
-    #[derive(Reflect, Debug)]
+    #[derive(Reflect, Clone, Debug)]
     struct Hierarchy {
         s: Struct,
         e: Enum,
@@ -222,12 +222,12 @@ fn reflect_list_path() {
     let data = vec![vec![0usize, 1], vec![2, 3, 4]];
     data.get_resolve_path("[0][1]", &mut |result| assert_eq!(result, Ok(&1usize)));
 
-    #[derive(Reflect, Debug)]
+    #[derive(Reflect, Clone, Debug)]
     struct X {
         data: Vec<usize>,
     }
 
-    #[derive(Reflect, Debug)]
+    #[derive(Reflect, Clone, Debug)]
     struct A {
         xs: Vec<X>,
     }
@@ -248,7 +248,8 @@ fn reflect_list_path() {
 
 #[test]
 fn reflect_custom_setter() {
-    #[derive(Reflect, Debug)]
+    #[derive(Reflect, Clone, Debug)]
+    #[reflect(bounds = "T: Reflect + Clone")]
     pub struct Wrapper<T> {
         #[reflect(setter = "set_value")]
         value: T,
@@ -276,7 +277,7 @@ fn reflect_custom_setter() {
 
 #[test]
 fn reflect_fields_list_of_struct() {
-    #[derive(Reflect, Debug)]
+    #[derive(Reflect, Clone, Debug)]
     struct Foo {
         field_a: f32,
         field_b: String,
@@ -306,7 +307,7 @@ fn reflect_fields_list_of_struct() {
 
 #[test]
 fn reflect_fields_list_of_enum() {
-    #[derive(Reflect, Debug)]
+    #[derive(Reflect, Clone, Debug)]
     enum Foo {
         Bar { field_a: f32 },
         Baz { field_b: u32, field_c: String },
@@ -362,7 +363,7 @@ fn default_prop_metadata() -> FieldMetadata<'static> {
 
 #[test]
 fn inspect_default() {
-    #[derive(Debug, Default, Reflect)]
+    #[derive(Debug, Default, Clone, Reflect)]
     pub struct Data {
         the_field: String,
         another_field: f32,
@@ -398,13 +399,13 @@ fn inspect_default() {
 
 #[test]
 fn inspect_attributes() {
-    #[derive(Debug, Default, Reflect)]
+    #[derive(Debug, Default, Clone, Reflect)]
     pub struct AarGee {
         aar: u32,
         gee: u32,
     }
 
-    #[derive(Debug, Default, Reflect)]
+    #[derive(Debug, Default, Clone, Reflect)]
     pub struct Data {
         // NOTE: Even though this field is skipped, the next field is given index `1` for simplicity
         #[reflect(hidden)]
@@ -459,7 +460,7 @@ fn inspect_attributes() {
 
 #[test]
 fn inspect_struct() {
-    #[derive(Debug, Default, Reflect)]
+    #[derive(Debug, Default, Clone, Reflect)]
     struct Tuple(f32, f32);
 
     let x = Tuple::default();
@@ -488,7 +489,7 @@ fn inspect_struct() {
         )
     });
 
-    #[derive(Debug, Default, Reflect)]
+    #[derive(Debug, Default, Clone, Reflect)]
     struct Unit;
 
     let x = Unit;
@@ -497,12 +498,12 @@ fn inspect_struct() {
 
 #[test]
 fn inspect_enum() {
-    #[derive(Debug, Reflect)]
+    #[derive(Debug, Clone, Reflect)]
     pub struct NonCopy {
         inner: u32,
     }
 
-    #[derive(Debug, Reflect)]
+    #[derive(Debug, Clone, Reflect)]
     pub enum Data {
         Named { x: u32, y: u32, z: NonCopy },
         Tuple(f32, f32),
@@ -596,7 +597,7 @@ fn inspect_enum() {
 #[test]
 fn inspect_prop_key_constants() {
     #[allow(dead_code)]
-    #[derive(Reflect, Debug)]
+    #[derive(Reflect, Clone, Debug)]
     pub struct SStruct {
         field: usize,
         #[reflect(hidden)]
@@ -609,11 +610,11 @@ fn inspect_prop_key_constants() {
     // hidden properties
     // assert_eq!(SStruct::HIDDEN, "hidden");
 
-    #[derive(Reflect, Debug)]
+    #[derive(Reflect, Clone, Debug)]
     pub struct STuple(usize);
     assert_eq!(STuple::F_0, "0");
 
-    #[derive(Reflect, Debug)]
+    #[derive(Reflect, Clone, Debug)]
     #[allow(unused)]
     pub enum E {
         Tuple(usize),
@@ -689,7 +690,7 @@ fn test_hash_map() {
     });
 
     // Check path resolution.
-    #[derive(Reflect, Debug)]
+    #[derive(Reflect, Clone, Debug)]
     struct Something {
         hash_map: HashMap<String, Struct>,
     }

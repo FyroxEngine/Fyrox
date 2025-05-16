@@ -321,6 +321,20 @@ fn gen_impl(
         }
     });
 
+    let try_clone_box = if ty_args.non_cloneable {
+        quote! {
+            fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+                None
+            }
+        }
+    } else {
+        quote! {
+            fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+                Some(Box::new(self.clone()))
+            }
+        }
+    };
+
     let types = ty_args
         .derived_type
         .iter()
@@ -336,6 +350,8 @@ fn gen_impl(
             fn source_path() -> &'static str {
                 file!()
             }
+
+            #try_clone_box
 
             fn type_name(&self) -> &'static str {
                 std::any::type_name::<Self>()

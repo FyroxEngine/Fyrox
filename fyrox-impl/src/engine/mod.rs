@@ -283,6 +283,7 @@ struct SceneLoadingOptions {
 /// use std::path::Path;
 ///
 /// #[derive(Visit, Reflect, Debug)]
+/// #[reflect(non_cloneable)]
 /// struct MyGame {
 ///     scene: Handle<Scene>,
 /// }
@@ -1707,7 +1708,7 @@ impl Engine {
                                     // some methods (`Base::root_resource` in particular) won't work
                                     // correctly.
                                     scene: scene
-                                        .clone(
+                                        .clone_ex(
                                             scene.graph.get_root(),
                                             &mut |_, _| true,
                                             &mut |_, _| {},

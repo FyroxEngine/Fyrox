@@ -43,7 +43,7 @@ use std::{
 
 pub mod loader;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FontGlyph {
     pub bitmap_top: f32,
     pub bitmap_left: f32,
@@ -56,6 +56,7 @@ pub struct FontGlyph {
 }
 
 /// Page is a storage for rasterized glyphs.
+#[derive(Clone)]
 pub struct Page {
     pub pixels: Vec<u8>,
     pub texture: Option<UntypedResource>,
@@ -75,7 +76,7 @@ impl Debug for Page {
 
 /// Atlas is a storage for glyphs of a particular size, each atlas could have any number of pages to
 /// store the rasterized glyphs.
-#[derive(Default, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct Atlas {
     pub glyphs: Vec<FontGlyph>,
     pub char_map: FxHashMap<char, usize>,
@@ -210,7 +211,7 @@ impl Atlas {
     }
 }
 
-#[derive(Default, Debug, Reflect, Visit)]
+#[derive(Default, Clone, Debug, Reflect, Visit)]
 #[reflect(hide_all)]
 pub struct Font {
     #[visit(skip)]
@@ -234,6 +235,10 @@ impl ResourceData for Font {
 
     fn can_be_saved(&self) -> bool {
         false
+    }
+
+    fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+        Some(Box::new(self.clone()))
     }
 }
 

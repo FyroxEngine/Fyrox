@@ -254,6 +254,10 @@ impl ResourceData for WfcInstance {
     fn can_be_saved(&self) -> bool {
         false
     }
+
+    fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+        Some(Box::new(self.clone()))
+    }
 }
 
 impl BrushMacro for WfcMacro {

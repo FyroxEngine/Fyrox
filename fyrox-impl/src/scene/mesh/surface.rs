@@ -250,6 +250,10 @@ impl ResourceData for SurfaceData {
     fn can_be_saved(&self) -> bool {
         true
     }
+
+    fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+        Some(Box::new(self.clone()))
+    }
 }
 
 impl SurfaceData {

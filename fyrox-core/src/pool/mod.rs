@@ -98,6 +98,7 @@ impl<T, P> Reflect for Pool<T, P>
 where
     T: Reflect,
     P: PayloadContainer<Element = T> + Reflect,
+    Pool<T, P>: Clone,
 {
     #[inline]
     fn source_path() -> &'static str {
@@ -109,6 +110,10 @@ where
         Self: Sized,
     {
         &[]
+    }
+
+    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+        Some(Box::new(self.clone()))
     }
 
     fn query_derived_types(&self) -> &'static [TypeId] {
@@ -189,6 +194,7 @@ impl<T, P> ReflectArray for Pool<T, P>
 where
     T: Reflect,
     P: PayloadContainer<Element = T> + Reflect,
+    Pool<T, P>: Clone,
 {
     #[inline]
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {

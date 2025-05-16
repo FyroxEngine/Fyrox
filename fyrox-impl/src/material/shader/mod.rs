@@ -543,7 +543,7 @@ pub const STANDARD_SHADER_SOURCES: [&str; 6] = [
 ///
 /// Usually you don't need to access internals of the shader, but there sometimes could be a need to
 /// read shader definition, to get supported passes and properties.
-#[derive(Default, Debug, Reflect, Visit)]
+#[derive(Default, Debug, Clone, Reflect, Visit)]
 pub struct Shader {
     /// Shader definition contains description of properties and render passes.
     #[visit(optional)]
@@ -561,7 +561,7 @@ impl TypeUuidProvider for Shader {
 }
 
 /// A render pass definition. See [`ShaderResource`] docs for more info about render passes.
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq, Reflect, Visit)]
+#[derive(Default, Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Reflect, Visit)]
 pub struct RenderPassDefinition {
     /// A name of render pass.
     pub name: String,
@@ -581,7 +581,7 @@ pub struct RenderPassDefinition {
 }
 
 /// A definition of the shader.
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
+#[derive(Default, Clone, Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
 pub struct ShaderDefinition {
     /// A name of the shader.
     pub name: String,
@@ -844,6 +844,10 @@ impl ResourceData for Shader {
 
     fn can_be_saved(&self) -> bool {
         true
+    }
+
+    fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
+        Some(Box::new(self.clone()))
     }
 }
 
