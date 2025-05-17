@@ -31,7 +31,7 @@ use fyrox::asset::io::FsResourceIo;
 use fyrox::core::Uuid;
 use fyrox::engine::ApplicationLoopController;
 use fyrox::{
-    asset::{manager::ResourceManager, untyped::ResourceKind},
+    asset::{manager::ResourceManager, untyped::ResourceKind, Resource},
     core::{
         algebra::Matrix3,
         log::{Log, MessageKind},
@@ -47,13 +47,15 @@ use fyrox::{
         constructor::new_widget_constructor_container,
         font::{Font, FontResource},
         message::MessageDirection,
+        texture::TextureResourceExtension,
         widget::WidgetMessage,
-        UserInterface,
+        window, UserInterface,
     },
     utils::{translate_cursor_icon, translate_event},
     window::WindowAttributes,
 };
 use std::{
+    path::PathBuf,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -72,17 +74,16 @@ fn main() {
     Log::set_file_name(DATA_DIR.join("project_manager.log"));
 
     let mut window_attributes = WindowAttributes::default();
-    window_attributes.inner_size = Some(PhysicalSize::new(720, 520).into());
+    window_attributes.inner_size = Some(PhysicalSize::new(1024, 768).into());
     window_attributes.resizable = true;
     window_attributes.title = "Fyrox Project Manager".to_string();
-
     let serialization_context = Arc::new(SerializationContext::new());
     let task_pool = Arc::new(TaskPool::new());
     let mut engine = Engine::new(EngineInitParams {
         graphics_context_params: GraphicsContextParams {
             window_attributes,
             vsync: true,
-            msaa_sample_count: Some(2),
+            msaa_sample_count: Some(4),
             graphics_server_constructor: Default::default(),
         },
         resource_manager: ResourceManager::new(Arc::new(FsResourceIo), task_pool.clone()),
@@ -98,13 +99,12 @@ fn main() {
         Uuid::new_v4(),
         ResourceKind::Embedded,
         Font::from_memory(
-            include_bytes!("../resources/Roboto-Regular.ttf").to_vec(),
-            1024,
+            include_bytes!("../resources/cascadia_mono.ttf").to_vec(),
+            2048,
         )
         .unwrap(),
     );
     let mut project_manager = ProjectManager::new(&mut primary_ui.build_ctx());
-
     let event_loop = EventLoop::new().unwrap();
 
     let mut previous = Instant::now();
