@@ -169,6 +169,7 @@ use std::path::Path;
 pub use fyrox;
 
 #[derive(Default, Visit, Reflect, Debug)]
+#[reflect(non_cloneable)]
 pub struct Game {
     scene: Handle<Scene>,
 }
