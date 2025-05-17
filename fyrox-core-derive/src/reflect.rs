@@ -330,7 +330,7 @@ fn gen_impl(
     } else {
         quote! {
             fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-                Some(Box::new(self.clone()))
+                Some(Box::new(Clone::clone(self)))
             }
         }
     };
