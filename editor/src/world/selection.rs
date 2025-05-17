@@ -72,7 +72,7 @@ impl GraphSelection {
     }
 
     pub fn contains(&self, handle: Handle<Node>) -> bool {
-        self.nodes.iter().any(|&h| h == handle)
+        self.nodes.contains(&handle)
     }
 
     pub fn nodes(&self) -> &[Handle<Node>] {

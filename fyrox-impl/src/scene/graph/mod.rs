@@ -817,7 +817,7 @@ impl Graph {
                 }
             }
         }
-        Ok(std::mem::replace(&mut self.lightmap, Some(lightmap)))
+        Ok(self.lightmap.replace(lightmap))
     }
 
     /// Returns current lightmap.

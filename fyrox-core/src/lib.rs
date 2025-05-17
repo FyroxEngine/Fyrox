@@ -327,16 +327,14 @@ pub fn make_relative_path<P: AsRef<Path>>(path: P) -> Result<PathBuf, std::io::E
     let canon_path = dir
         .canonicalize()
         .map_err(|err| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
+            std::io::Error::other(
                 format!("Unable to canonicalize '{}'. Reason: {err}", dir.display()),
             )
         })?
         .join(file_name);
     match canon_path.strip_prefix(std::env::current_dir()?.canonicalize()?) {
         Ok(relative_path) => Ok(replace_slashes(relative_path)),
-        Err(err) => Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        Err(err) => Err(std::io::Error::other(
             format!(
                 "unable to strip prefix from '{}'! Reason: {err}",
                 canon_path.display()
