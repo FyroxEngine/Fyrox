@@ -93,9 +93,7 @@ impl AssetItem {
 
     pub fn relative_path(&self) -> Result<PathBuf, std::io::Error> {
         let Some(resource_manager) = self.resource_manager.as_ref() else {
-            return Err(std::io::Error::other(
-                "No resource manager".to_string(),
-            ));
+            return Err(std::io::Error::other("No resource manager".to_string()));
         };
 
         if resource_manager

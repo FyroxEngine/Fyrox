@@ -730,8 +730,7 @@ impl Chunk {
                             if let Some(texture) =
                                 make_height_map_texture_internal(pixels, self.height_map_size)
                             {
-                                let prev_texture =
-                                    self.heightmap.replace(texture);
+                                let prev_texture = self.heightmap.replace(texture);
                                 self.update_quad_tree();
                                 return prev_texture;
                             }

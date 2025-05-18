@@ -80,8 +80,7 @@ impl NetStream {
         if self.tx_buffer.capacity() < std::mem::size_of::<T>() {
             self.tx_buffer.reserve(std::mem::size_of::<T>());
         }
-        bincode::serialize_into(&mut self.tx_buffer, data)
-            .map_err(io::Error::other)?;
+        bincode::serialize_into(&mut self.tx_buffer, data).map_err(io::Error::other)?;
         self.stream
             .write_u32::<LittleEndian>(self.tx_buffer.len() as u32)?;
         self.stream.write_all(&self.tx_buffer)?;
