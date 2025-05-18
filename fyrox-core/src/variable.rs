@@ -460,7 +460,7 @@ where
         &mut self,
         field: &str,
         value: Box<dyn Reflect>,
-        func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),
+        func: &mut dyn FnMut(Result<Box<dyn Reflect>, SetFieldError>),
     ) {
         self.mark_modified_and_need_sync();
         self.value.set_field(field, value, func)

@@ -18,8 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::absm::animation_container_ref;
-use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{
     fyrox::{
         asset::manager::ResourceManager,
@@ -49,17 +47,19 @@ use crate::{
     load_image,
     message::MessageSender,
     plugin::EditorPlugin,
+    plugins::{absm::animation_container_ref, inspector::editors::make_property_editors_container},
     scene::{controller::SceneController, GameScene, Selection},
     send_sync_message,
     ui_scene::UiScene,
     utils::window_content,
     Editor, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
-use fyrox::gui::inspector::InspectorContextArgs;
-use fyrox::gui::stack_panel::StackPanelBuilder;
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
-use fyrox::gui::utils::make_image_button_with_tooltip;
+use fyrox::gui::{
+    inspector::InspectorContextArgs,
+    stack_panel::StackPanelBuilder,
+    style::{resource::StyleResourceExt, Style},
+    utils::make_image_button_with_tooltip,
+};
 use std::{any::Any, sync::Arc};
 
 pub mod editors;
@@ -115,6 +115,7 @@ pub struct InspectorPlugin {
     warning_text: Handle<UiNode>,
     type_name_text: Handle<UiNode>,
     docs_button: Handle<UiNode>,
+    clipboard: Option<Box<dyn Reflect>>,
 }
 
 fn fetch_available_animations(
@@ -268,6 +269,7 @@ impl InspectorPlugin {
             warning_text,
             type_name_text,
             docs_button,
+            clipboard: None,
         }
     }
 
@@ -407,6 +409,44 @@ impl EditorPlugin for InspectorPlugin {
         let Some(entry) = editor.scenes.current_scene_entry_mut() else {
             return;
         };
+
+        if (message.destination() == self.inspector
+            || editor
+                .engine
+                .user_interfaces
+                .first()
+                .is_node_child_of(message.destination(), self.inspector))
+            && message.direction() == MessageDirection::FromWidget
+        {
+            if let Some(msg) = message.data::<InspectorMessage>() {
+                match msg {
+                    InspectorMessage::CopyValue { path } => {
+                        entry.controller.first_selected_entity(
+                            &entry.selection,
+                            &editor.engine.scenes,
+                            &mut |entity| {
+                                entity.resolve_path(path, &mut |result| {
+                                    if let Ok(result) = result {
+                                        self.clipboard = result.try_clone_box();
+                                    }
+                                });
+                            },
+                        );
+                    }
+                    InspectorMessage::PasteValue { dest } => {
+                        if let Some(value) = self.clipboard.as_ref() {
+                            entry.controller.paste_property(
+                                dest,
+                                &**value,
+                                &entry.selection,
+                                &mut editor.engine,
+                            );
+                        }
+                    }
+                    _ => (),
+                }
+            }
+        }
 
         if message.destination() == self.inspector
             && message.direction() == MessageDirection::FromWidget

@@ -599,7 +599,7 @@ impl Reflect for Node {
         &mut self,
         field: &str,
         value: Box<dyn Reflect>,
-        func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),
+        func: &mut dyn FnMut(Result<Box<dyn Reflect>, SetFieldError>),
     ) {
         self.0.deref_mut().set_field(field, value, func)
     }

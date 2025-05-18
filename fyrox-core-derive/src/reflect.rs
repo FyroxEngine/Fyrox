@@ -202,7 +202,9 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
                     Ok(Box::new(prev))
                 }
                 Err(current) => {
-                    Err(current)
+                    let mut field_type_name = "(none)";
+                    self.field_mut(name, &mut |field| { field_type_name = field.unwrap().type_name() });
+                    Err(SetFieldError::InvalidValue{field_type_name, value: current})
                 }
             })
         }}
@@ -218,8 +220,14 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
                 self.field_mut(name, &mut move |field| {
                     let value = opt_value.take().unwrap();
                     match field {
-                        Some(f) => func(f.set(value)),
-                        None => func(Err(value)),
+                        Some(f) => func(f.set(value).map_err(|value| SetFieldError::InvalidValue {
+                            field_type_name: f.type_name(),
+                            value,
+                        })),
+                        None => func(Err(SetFieldError::NoSuchField {
+                            name: name.to_string(),
+                            value,
+                        })),
                     };
                 });
             },
@@ -315,7 +323,7 @@ fn gen_impl(
 
     let set_field = set_field.map(|set_field| {
         quote! {
-            fn set_field(&mut self, name: &str, value: Box<dyn Reflect>, func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),) {
+            fn set_field(&mut self, name: &str, value: Box<dyn Reflect>, func: &mut dyn FnMut(Result<Box<dyn Reflect>, SetFieldError>),) {
                 #set_field
             }
         }

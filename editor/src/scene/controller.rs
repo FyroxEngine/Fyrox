@@ -184,6 +184,14 @@ pub trait SceneController: SceneControllerAsAny {
         engine: &mut Engine,
     );
 
+    fn paste_property(
+        &mut self,
+        path: &str,
+        value: &dyn Reflect,
+        selection: &Selection,
+        engine: &mut Engine,
+    );
+
     fn provide_docs(&self, selection: &Selection, engine: &Engine) -> Option<String>;
 }
 

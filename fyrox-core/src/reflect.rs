@@ -34,7 +34,7 @@ use std::{
 pub mod prelude {
     pub use super::{
         FieldMetadata, FieldMut, FieldRef, FieldValue, Reflect, ReflectArray, ReflectHashMap,
-        ReflectInheritableVariable, ReflectList, ResolvePath, SetFieldByPathError,
+        ReflectInheritableVariable, ReflectList, ResolvePath, SetFieldByPathError, SetFieldError,
     };
 }
 
@@ -305,16 +305,22 @@ pub trait Reflect: ReflectBase {
     #[allow(clippy::type_complexity)]
     fn set_field(
         &mut self,
-        field: &str,
+        field_name: &str,
         value: Box<dyn Reflect>,
-        func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),
+        func: &mut dyn FnMut(Result<Box<dyn Reflect>, SetFieldError>),
     ) {
         let mut opt_value = Some(value);
-        self.field_mut(field, &mut move |field| {
+        self.field_mut(field_name, &mut move |field| {
             let value = opt_value.take().unwrap();
             match field {
-                Some(f) => func(f.set(value)),
-                None => func(Err(value)),
+                Some(f) => func(f.set(value).map_err(|value| SetFieldError::InvalidValue {
+                    field_type_name: f.type_name(),
+                    value,
+                })),
+                None => func(Err(SetFieldError::NoSuchField {
+                    name: field_name.to_string(),
+                    value,
+                })),
             };
         });
     }
@@ -831,12 +837,27 @@ impl ResolvePath for dyn Reflect {
     }
 }
 
+pub enum SetFieldError {
+    NoSuchField {
+        name: String,
+        value: Box<dyn Reflect>,
+    },
+    InvalidValue {
+        field_type_name: &'static str,
+        value: Box<dyn Reflect>,
+    },
+}
+
 pub enum SetFieldByPathError<'p> {
     InvalidPath {
         value: Box<dyn Reflect>,
         reason: ReflectPathError<'p>,
     },
-    InvalidValue(Box<dyn Reflect>),
+    InvalidValue {
+        field_type_name: &'static str,
+        value: Box<dyn Reflect>,
+    },
+    SetFieldError(SetFieldError),
 }
 
 /// Type-erased API
@@ -892,14 +913,14 @@ impl dyn Reflect {
                     property.set_field(field, opt_value.take().unwrap(), &mut |result| match result
                     {
                         Ok(value) => func(Ok(value)),
-                        Err(e) => func(Err(SetFieldByPathError::InvalidValue(e))),
+                        Err(err) => func(Err(SetFieldByPathError::SetFieldError(err))),
                     })
                 }
             });
         } else {
             self.set_field(path, value, &mut |result| match result {
                 Ok(value) => func(Ok(value)),
-                Err(e) => func(Err(SetFieldByPathError::InvalidValue(e))),
+                Err(err) => func(Err(SetFieldByPathError::SetFieldError(err))),
             });
         }
     }

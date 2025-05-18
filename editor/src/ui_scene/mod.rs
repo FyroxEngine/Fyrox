@@ -25,6 +25,7 @@ pub mod menu;
 pub mod selection;
 pub mod utils;
 
+use crate::command::SetPropertyCommand;
 use crate::plugins::inspector::editors::handle::{
     HandlePropertyEditorHierarchyMessage, HandlePropertyEditorNameMessage,
 };
@@ -672,6 +673,128 @@ impl SceneController for UiScene {
                 Log::err(format!("Failed to handle a property {}", args.path()))
             }
         } else if group.len() == 1 {
+            self.message_sender
+                .send(Message::DoCommand(group.into_iter().next().unwrap()))
+        } else {
+            self.message_sender.do_command(CommandGroup::from(group));
+        }
+    }
+
+    fn paste_property(
+        &mut self,
+        path: &str,
+        value: &dyn Reflect,
+        selection: &Selection,
+        _engine: &mut Engine,
+    ) {
+        let group = if let Some(selection) = selection.as_ui() {
+            selection
+                .widgets
+                .iter()
+                .filter_map(|&node_handle| {
+                    value.try_clone_box().map(|value| {
+                        Command::new(SetPropertyCommand::new(
+                            path.to_string(),
+                            value,
+                            move |ctx| ctx.get_mut::<UiSceneContext>().ui.node_mut(node_handle),
+                        ))
+                    })
+                })
+                .collect::<Vec<_>>()
+        } else if let Some(selection) = selection.as_animation() {
+            if self
+                .ui
+                .try_get_of_type::<AnimationPlayer>(selection.animation_player)
+                .and_then(|player| player.animations().try_get(selection.animation))
+                .is_some()
+            {
+                let animation_player = selection.animation_player;
+                let animation = selection.animation;
+                selection
+                    .entities
+                    .iter()
+                    .filter_map(|e| {
+                        if let &animation::selection::SelectedEntity::Signal(id) = e {
+                            value.try_clone_box().map(|value| {
+                                Command::new(SetPropertyCommand::new(
+                                    path.to_string(),
+                                    value,
+                                    move |ctx| {
+                                        fetch_animations_container(animation_player, ctx)[animation]
+                                            .signals_mut()
+                                            .iter_mut()
+                                            .find(|s| s.id == id)
+                                            .unwrap()
+                                    },
+                                ))
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            } else {
+                vec![]
+            }
+        } else if let Some(selection) = selection.as_absm() {
+            if self
+                .ui
+                .try_get(selection.absm_node_handle)
+                .and_then(|n| n.component_ref::<AnimationBlendingStateMachine>())
+                .is_some()
+            {
+                if let Some(layer_index) = selection.layer {
+                    let absm_node_handle = selection.absm_node_handle;
+                    selection
+                        .entities
+                        .iter()
+                        .filter_map(|ent| match *ent {
+                            SelectedEntity::Transition(transition) => {
+                                value.try_clone_box().map(|value| {
+                                    Command::new(SetPropertyCommand::new(
+                                        path.to_string(),
+                                        value,
+                                        move |ctx| {
+                                            let machine = fetch_machine(ctx, absm_node_handle);
+                                            &mut machine.layers_mut()[layer_index].transitions_mut()
+                                                [transition]
+                                        },
+                                    ))
+                                })
+                            }
+                            SelectedEntity::State(state) => value.try_clone_box().map(|value| {
+                                Command::new(SetPropertyCommand::new(
+                                    path.to_string(),
+                                    value,
+                                    move |ctx| {
+                                        let machine = fetch_machine(ctx, absm_node_handle);
+                                        &mut machine.layers_mut()[layer_index].states_mut()[state]
+                                    },
+                                ))
+                            }),
+                            SelectedEntity::PoseNode(pose) => value.try_clone_box().map(|value| {
+                                Command::new(SetPropertyCommand::new(
+                                    path.to_string(),
+                                    value,
+                                    move |ctx| {
+                                        let machine = fetch_machine(ctx, absm_node_handle);
+                                        &mut machine.layers_mut()[layer_index].nodes_mut()[pose]
+                                    },
+                                ))
+                            }),
+                        })
+                        .collect()
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        };
+
+        if group.len() == 1 {
             self.message_sender
                 .send(Message::DoCommand(group.into_iter().next().unwrap()))
         } else {

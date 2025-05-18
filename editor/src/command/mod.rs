@@ -25,6 +25,7 @@ use crate::fyrox::{
     },
     gui::inspector::{PropertyAction, PropertyChanged},
 };
+use fyrox::core::reflect::SetFieldError;
 use std::{
     any::{type_name, TypeId},
     fmt::{Debug, Formatter},
@@ -422,8 +423,10 @@ where
                     }
                     Err(current_value) => {
                         fyrox::core::log::Log::err(format!(
-                            "Failed to set property {}! Incompatible types {}!",
+                            "Failed to set property {}! Incompatible types. \
+                            Target property: {}. Value: {}!",
                             self.path,
+                            property.type_name(),
                             current_value.type_name()
                         ));
                         self.value = Some(current_value);
@@ -448,15 +451,44 @@ where
 
                                 value
                             }
-                            SetFieldByPathError::InvalidValue(value) => {
+                            SetFieldByPathError::InvalidValue {
+                                field_type_name,
+                                value,
+                            } => {
                                 fyrox::core::log::Log::err(format!(
-                                    "Failed to set property {}! Incompatible types {}!",
+                                    "Failed to set property {}! Incompatible types. \
+                                    Target property: {}. Value: {}!",
                                     self.path,
+                                    field_type_name,
                                     value.type_name()
                                 ));
 
                                 value
                             }
+                            SetFieldByPathError::SetFieldError(err) => match err {
+                                SetFieldError::NoSuchField { value, .. } => {
+                                    fyrox::core::log::Log::err(format!(
+                                        "Failed to set property {}, because it does not exist!",
+                                        self.path,
+                                    ));
+
+                                    value
+                                }
+                                SetFieldError::InvalidValue {
+                                    field_type_name,
+                                    value,
+                                } => {
+                                    fyrox::core::log::Log::err(format!(
+                                        "Failed to set property {}! Incompatible types. \
+                                    Target property: {}. Value: {}!",
+                                        self.path,
+                                        field_type_name,
+                                        value.type_name()
+                                    ));
+
+                                    value
+                                }
+                            },
                         };
                         self.value = Some(value);
                     }

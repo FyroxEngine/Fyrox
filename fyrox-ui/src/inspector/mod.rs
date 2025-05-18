@@ -379,13 +379,15 @@ pub enum InspectorMessage {
     /// Message sent from the inspector to notify the world that the object has been edited according to the
     /// given PropertyChanged struct.
     PropertyChanged(PropertyChanged),
+    CopyValue {
+        /// A path of the property from which the value should be copied.
+        path: String,
+    },
     /// A message that will be sent from this widget to a user when they click `Paste Value` in the
     /// context menu. The actual value pasting must be handled on the user side explicitly. The
     /// widget itself does not have any information about the object structure and a way to actually
     /// paste the value.
     PasteValue {
-        /// A path of the property from which the value should be copied.
-        source: String,
         /// A path of the property to which the cloned value should be pasted.
         dest: String,
     },
@@ -394,7 +396,8 @@ pub enum InspectorMessage {
 impl InspectorMessage {
     define_constructor!(InspectorMessage:Context => fn context(InspectorContext), layout: false);
     define_constructor!(InspectorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
-    define_constructor!(InspectorMessage:PasteValue => fn paste_value(source: String, dest: String), layout: false);
+    define_constructor!(InspectorMessage:CopyValue => fn copy_value(path: String), layout: false);
+    define_constructor!(InspectorMessage:PasteValue => fn paste_value(dest: String), layout: false);
 }
 
 /// This trait allows dynamically typed context information to be
@@ -1221,19 +1224,20 @@ impl Control for Inspector {
                     } else if popup_message.destination() == self.context.menu.copy_value {
                         if let Some(entry) = self.find_property_container(message.destination(), ui)
                         {
-                            Log::verify(clipboard.set_contents(entry.property_path.clone()));
+                            ui.send_message(InspectorMessage::copy_value(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                                entry.property_path.clone(),
+                            ));
                         }
                     } else if popup_message.destination() == self.context.menu.paste_value {
                         if let Some(entry) = self.find_property_container(message.destination(), ui)
                         {
-                            if let Ok(content) = clipboard.get_contents() {
-                                ui.send_message(InspectorMessage::paste_value(
-                                    self.handle,
-                                    MessageDirection::FromWidget,
-                                    content,
-                                    entry.property_path.clone(),
-                                ));
-                            }
+                            ui.send_message(InspectorMessage::paste_value(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                                entry.property_path.clone(),
+                            ));
                         }
                     }
                 }

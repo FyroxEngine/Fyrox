@@ -379,7 +379,7 @@ macro_rules! impl_reflect_inner_mutability {
             &mut $self,
             field: &str,
             value: Box<dyn Reflect>,
-            func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),
+            func: &mut dyn FnMut(Result<Box<dyn Reflect>, SetFieldError>),
         ) {
             let mut guard = $acquire_lock_guard;
             guard.set_field(field, value, func)
