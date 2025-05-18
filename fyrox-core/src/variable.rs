@@ -382,7 +382,7 @@ where
     }
 
     fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-        Some(Box::new(self.clone()))
+        Some(Box::new(self.value.clone()))
     }
 
     fn derived_types() -> &'static [TypeId]
