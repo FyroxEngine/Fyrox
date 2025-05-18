@@ -1303,7 +1303,9 @@ impl Control for ColorField {
     // handle_routed_message won't trigger because of it.
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if let Some(PopupMessage::Close) = message.data::<PopupMessage>() {
-            if message.destination() == self.popup {
+            if message.destination() == self.popup
+                && message.direction() == MessageDirection::ToWidget
+            {
                 let picker = ui
                     .node(self.picker)
                     .cast::<ColorPicker>()

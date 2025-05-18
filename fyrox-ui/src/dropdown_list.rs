@@ -359,7 +359,9 @@ impl Control for DropdownList {
                 ));
             }
         } else if let Some(msg) = message.data::<PopupMessage>() {
-            if message.destination() == *self.popup {
+            if message.destination() == *self.popup
+                && message.direction() == MessageDirection::ToWidget
+            {
                 match msg {
                     PopupMessage::Open => {
                         ui.send_message(DropdownListMessage::open(

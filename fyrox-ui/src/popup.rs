@@ -400,7 +400,7 @@ impl Control for Popup {
             if message.destination() == self.handle() {
                 match msg {
                     PopupMessage::Open => {
-                        if !*self.is_open {
+                        if !*self.is_open && message.direction() == MessageDirection::ToWidget {
                             self.is_open.set_value_and_mark_modified(true);
                             ui.send_message(WidgetMessage::visibility(
                                 self.handle(),
@@ -448,10 +448,11 @@ impl Control for Popup {
                                     MessageDirection::ToWidget,
                                 ));
                             }
+                            ui.send_message(message.reverse());
                         }
                     }
                     PopupMessage::Close => {
-                        if *self.is_open {
+                        if *self.is_open && message.direction() == MessageDirection::ToWidget {
                             self.is_open.set_value_and_mark_modified(false);
                             ui.send_message(WidgetMessage::visibility(
                                 self.handle(),
@@ -470,41 +471,59 @@ impl Control for Popup {
                             if ui.captured_node() == self.handle() {
                                 ui.release_mouse_capture();
                             }
+
+                            ui.send_message(message.reverse());
                         }
                     }
                     PopupMessage::Content(content) => {
-                        if self.content.is_some() {
-                            ui.send_message(WidgetMessage::remove(
+                        if *self.content != *content
+                            && message.direction() == MessageDirection::ToWidget
+                        {
+                            if self.content.is_some() {
+                                ui.send_message(WidgetMessage::remove(
+                                    *self.content,
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
+                            self.content.set_value_and_mark_modified(*content);
+
+                            ui.send_message(WidgetMessage::link(
                                 *self.content,
                                 MessageDirection::ToWidget,
+                                *self.body,
                             ));
-                        }
-                        self.content.set_value_and_mark_modified(*content);
 
-                        ui.send_message(WidgetMessage::link(
-                            *self.content,
-                            MessageDirection::ToWidget,
-                            *self.body,
-                        ));
+                            ui.send_message(message.reverse());
+                        }
                     }
                     PopupMessage::Placement(placement) => {
-                        self.placement.set_value_and_mark_modified(*placement);
-                        self.invalidate_layout();
+                        if *self.placement != *placement
+                            && message.direction() == MessageDirection::ToWidget
+                        {
+                            self.placement.set_value_and_mark_modified(*placement);
+                            self.invalidate_layout();
+
+                            ui.send_message(message.reverse());
+                        }
                     }
                     PopupMessage::AdjustPosition => {
-                        let new_position =
-                            adjust_placement_position(self.screen_bounds(), ui.screen_size());
+                        if message.direction() == MessageDirection::ToWidget {
+                            let new_position =
+                                adjust_placement_position(self.screen_bounds(), ui.screen_size());
 
-                        if new_position != self.screen_position() {
-                            ui.send_message(WidgetMessage::desired_position(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                ui.screen_to_root_canvas_space(new_position),
-                            ));
+                            if new_position != self.screen_position() {
+                                ui.send_message(WidgetMessage::desired_position(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                    ui.screen_to_root_canvas_space(new_position),
+                                ));
+                            }
                         }
                     }
                     PopupMessage::Owner(owner) => {
-                        self.owner = *owner;
+                        if message.direction() == MessageDirection::ToWidget {
+                            self.owner = *owner;
+                        }
                     }
                     PopupMessage::RelayedMessage(_) => (),
                 }
