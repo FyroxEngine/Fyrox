@@ -52,6 +52,7 @@ use crate::{
 };
 use copypasta::ClipboardProvider;
 
+use crate::popup::Popup;
 use fyrox_core::log::Log;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
@@ -379,6 +380,18 @@ pub enum InspectorMessage {
     /// Message sent from the inspector to notify the world that the object has been edited according to the
     /// given PropertyChanged struct.
     PropertyChanged(PropertyChanged),
+    /// The user opened a context menu on a property.
+    PropertyContextMenuOpened {
+        /// A path of the property at which the menu was opened.
+        path: String,
+    },
+    /// Sets a new status of the context menu actions.
+    PropertyContextMenuStatus {
+        /// Defines whether the property value can be cloned.
+        can_clone: bool,
+        /// Defines whether a value can be pasted.
+        can_paste: bool,
+    },
     CopyValue {
         /// A path of the property from which the value should be copied.
         path: String,
@@ -398,6 +411,8 @@ impl InspectorMessage {
     define_constructor!(InspectorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
     define_constructor!(InspectorMessage:CopyValue => fn copy_value(path: String), layout: false);
     define_constructor!(InspectorMessage:PasteValue => fn paste_value(dest: String), layout: false);
+    define_constructor!(InspectorMessage:PropertyContextMenuOpened => fn property_context_menu_opened(path: String), layout: false);
+    define_constructor!(InspectorMessage:PropertyContextMenuStatus => fn property_context_menu_status(can_clone: bool, can_paste: bool), layout: false);
 }
 
 /// This trait allows dynamically typed context information to be
@@ -1194,20 +1209,43 @@ impl Control for Inspector {
 
         if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
         {
-            if let Some(InspectorMessage::Context(ctx)) = message.data::<InspectorMessage>() {
-                // Remove previous content.
-                for child in self.children() {
-                    ui.send_message(WidgetMessage::remove(*child, MessageDirection::ToWidget));
+            if let Some(msg) = message.data::<InspectorMessage>() {
+                match msg {
+                    InspectorMessage::Context(ctx) => {
+                        // Remove previous content.
+                        for child in self.children() {
+                            ui.send_message(WidgetMessage::remove(
+                                *child,
+                                MessageDirection::ToWidget,
+                            ));
+                        }
+
+                        // Link new panel.
+                        ui.send_message(WidgetMessage::link(
+                            ctx.stack_panel,
+                            MessageDirection::ToWidget,
+                            self.handle,
+                        ));
+
+                        self.context = ctx.clone();
+                    }
+                    InspectorMessage::PropertyContextMenuStatus {
+                        can_clone,
+                        can_paste,
+                    } => {
+                        ui.send_message(WidgetMessage::enabled(
+                            self.context.menu.copy_value,
+                            MessageDirection::ToWidget,
+                            *can_clone,
+                        ));
+                        ui.send_message(WidgetMessage::enabled(
+                            self.context.menu.paste_value,
+                            MessageDirection::ToWidget,
+                            *can_paste,
+                        ));
+                    }
+                    _ => (),
                 }
-
-                // Link new panel.
-                ui.send_message(WidgetMessage::link(
-                    ctx.stack_panel,
-                    MessageDirection::ToWidget,
-                    self.handle,
-                ));
-
-                self.context = ctx.clone();
             }
         }
 
@@ -1274,6 +1312,26 @@ impl Control for Inspector {
             }
         }
     }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        if let Some(PopupMessage::Open) = message.data() {
+            if let Some(menu) = self.context.menu.menu.clone() {
+                if message.direction() == MessageDirection::FromWidget
+                    && menu.handle() == message.destination()
+                {
+                    if let Some(popup) = ui.try_get_of_type::<Popup>(menu.handle()) {
+                        if let Some(entry) = self.find_property_container(popup.owner, ui) {
+                            ui.send_message(InspectorMessage::property_context_menu_opened(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                                entry.property_path.clone(),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Build an Inspector from a [WidgetBuilder] and an [InspectorContext].
@@ -1309,6 +1367,7 @@ impl InspectorBuilder {
         let canvas = Inspector {
             widget: self
                 .widget_builder
+                .with_preview_messages(true)
                 .with_child(self.context.stack_panel)
                 .build(ctx),
             context: self.context,

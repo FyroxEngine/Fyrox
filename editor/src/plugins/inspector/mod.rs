@@ -443,6 +443,42 @@ impl EditorPlugin for InspectorPlugin {
                             );
                         }
                     }
+                    InspectorMessage::PropertyContextMenuOpened { path } => {
+                        let mut can_paste = false;
+                        let mut can_copy = false;
+
+                        // TODO: This could work incorrectly in case of multiselection of objects
+                        // of different types.
+                        entry.controller.first_selected_entity(
+                            &entry.selection,
+                            &editor.engine.scenes,
+                            &mut |entity| {
+                                entity.resolve_path(path, &mut |result| {
+                                    if let Ok(property) = result {
+                                        can_copy = property.try_clone_box().is_some();
+
+                                        if let Some(value) = self.clipboard.as_ref() {
+                                            value.as_any(&mut |value| {
+                                                property.as_any(&mut |property| {
+                                                    can_paste =
+                                                        property.type_id() == value.type_id();
+                                                })
+                                            })
+                                        }
+                                    }
+                                });
+                            },
+                        );
+
+                        editor.engine.user_interfaces.first().send_message(
+                            InspectorMessage::property_context_menu_status(
+                                message.destination(),
+                                MessageDirection::ToWidget,
+                                can_copy,
+                                can_paste,
+                            ),
+                        )
+                    }
                     _ => (),
                 }
             }
