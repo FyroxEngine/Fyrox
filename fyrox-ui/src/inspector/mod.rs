@@ -43,7 +43,7 @@ use crate::{
     },
     menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
     message::{MessageDirection, UiMessage},
-    popup::{PopupBuilder, PopupMessage},
+    popup::{Popup, PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     utils::{make_arrow, make_simple_tooltip, ArrowDirection},
@@ -51,9 +51,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
-
-use crate::popup::Popup;
-use fyrox_core::log::Log;
+use fyrox_core::{err, log::Log};
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph, SceneGraph,
@@ -530,6 +528,100 @@ impl ConstructorProvider<UiNode, UserInterface> for Inspector {
 crate::define_widget_deref!(Inspector);
 
 impl Inspector {
+    pub fn handle_context_menu_simple(
+        inspector: Handle<UiNode>,
+        msg: &InspectorMessage,
+        ui: &UserInterface,
+        object: &mut dyn Reflect,
+        clipboard_value: &mut Option<Box<dyn Reflect>>,
+    ) {
+        let object_type_name = object.type_name();
+
+        match msg {
+            InspectorMessage::PropertyContextMenuOpened { path } => {
+                let mut can_copy = false;
+                let mut can_paste = false;
+
+                object.resolve_path(path, &mut |result| {
+                    if let Ok(field) = result {
+                        can_copy = field.try_clone_box().is_some();
+
+                        if let Some(clipboard_value) = clipboard_value {
+                            clipboard_value.as_any(&mut |clipboard_value| {
+                                field.as_any(&mut |field| {
+                                    can_paste = field.type_id() == clipboard_value.type_id();
+                                })
+                            });
+                        }
+                    }
+                });
+
+                ui.send_message(InspectorMessage::property_context_menu_status(
+                    inspector,
+                    MessageDirection::ToWidget,
+                    can_copy,
+                    can_paste,
+                ));
+            }
+            InspectorMessage::CopyValue { path } => {
+                object.resolve_path(path, &mut |field| {
+                    if let Ok(field) = field {
+                        if let Some(field) = field.try_clone_box() {
+                            clipboard_value.replace(field);
+                        } else {
+                            err!(
+                                "Unable to clone the field {}, because it is non-cloneable! \
+                            Field type is: {}",
+                                path,
+                                field.type_name()
+                            );
+                        }
+                    } else {
+                        err!(
+                            "There's no {} field in the object of type {}!",
+                            path,
+                            object_type_name
+                        );
+                    }
+                });
+            }
+            InspectorMessage::PasteValue { dest } => {
+                if let Some(value) = clipboard_value.as_ref() {
+                    if let Some(value) = value.try_clone_box() {
+                        let mut value = Some(value);
+                        object.resolve_path_mut(dest, &mut |field| {
+                            if let Ok(field) = field {
+                                if field.set(value.take().unwrap()).is_err() {
+                                    err!(
+                                    "Unable to paste a value from the clipboard to the field {}, \
+                                types don't match!",
+                                    dest
+                                )
+                                }
+                            } else {
+                                err!(
+                                    "There's no {} field in the object of type {}!",
+                                    dest,
+                                    object_type_name
+                                );
+                            }
+                        });
+                    } else {
+                        err!(
+                            "Unable to clone the field {}, because it is non-cloneable! \
+                            Field type is: {}",
+                            dest,
+                            value.type_name()
+                        );
+                    }
+                } else {
+                    err!("Nothing to paste!");
+                }
+            }
+            _ => (),
+        }
+    }
+
     pub fn context(&self) -> &InspectorContext {
         &self.context
     }
