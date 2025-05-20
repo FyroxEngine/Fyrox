@@ -40,7 +40,7 @@ use crate::fyrox::{
 };
 use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{message::MessageSender, scene::GameScene, Engine, MSG_SYNC_FLAG};
-use fyrox::gui::inspector::InspectorContextArgs;
+use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
 use std::{
     path::PathBuf,
     sync::mpsc::{Receiver, Sender},
@@ -211,6 +211,7 @@ pub struct LightPanel {
     progress_window: Option<ProgressWindow>,
     sender: Sender<Result<Lightmap, LightmapGenerationError>>,
     receiver: Receiver<Result<Lightmap, LightmapGenerationError>>,
+    clipboard: Option<Box<dyn Reflect>>,
 }
 
 impl LightPanel {
@@ -291,6 +292,7 @@ impl LightPanel {
             progress_window: None,
             sender,
             receiver,
+            clipboard: None,
         }
     }
 
@@ -300,6 +302,14 @@ impl LightPanel {
         game_scene: &GameScene,
         engine: &mut Engine,
     ) {
+        Inspector::handle_context_menu_message(
+            self.inspector,
+            message,
+            engine.user_interfaces.first_mut(),
+            &mut self.settings,
+            &mut self.clipboard,
+        );
+
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.generate {
                 let scene = &mut engine.scenes[game_scene.scene];

@@ -213,6 +213,7 @@ pub struct Project {
 pub struct SettingsWindow {
     window: Handle<UiNode>,
     inspector: Handle<UiNode>,
+    clipboard: Option<Box<dyn Reflect>>,
 }
 
 impl SettingsWindow {
@@ -257,15 +258,27 @@ impl SettingsWindow {
             true,
         ));
 
-        Self { window, inspector }
+        Self {
+            window,
+            inspector,
+            clipboard: None,
+        }
     }
 
     pub fn handle_ui_message(
-        self,
+        mut self,
         settings: &mut Settings,
         message: &UiMessage,
         ui: &mut UserInterface,
     ) -> Option<Self> {
+        Inspector::handle_context_menu_message(
+            self.inspector,
+            message,
+            ui,
+            settings.deref_mut(),
+            &mut self.clipboard,
+        );
+
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
                 return None;

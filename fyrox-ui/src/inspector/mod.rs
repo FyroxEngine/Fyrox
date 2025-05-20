@@ -528,7 +528,27 @@ impl ConstructorProvider<UiNode, UserInterface> for Inspector {
 crate::define_widget_deref!(Inspector);
 
 impl Inspector {
-    pub fn handle_context_menu_simple(
+    pub fn handle_context_menu_message(
+        inspector: Handle<UiNode>,
+        message: &UiMessage,
+        ui: &mut UserInterface,
+        object: &mut dyn Reflect,
+        clipboard_value: &mut Option<Box<dyn Reflect>>,
+    ) {
+        if ui.has_descendant_or_equal(message.destination(), inspector) {
+            if let Some(message) = message.data() {
+                Inspector::handle_context_menu_message_ex(
+                    inspector,
+                    message,
+                    ui,
+                    object,
+                    clipboard_value,
+                );
+            }
+        }
+    }
+
+    pub fn handle_context_menu_message_ex(
         inspector: Handle<UiNode>,
         msg: &InspectorMessage,
         ui: &mut UserInterface,

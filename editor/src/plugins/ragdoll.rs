@@ -66,7 +66,7 @@ use crate::{
     Editor, MSG_SYNC_FLAG,
 };
 use fyrox::asset::manager::ResourceManager;
-use fyrox::gui::inspector::InspectorContextArgs;
+use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
 use std::{ops::Range, sync::Arc};
 
 #[derive(Reflect, Clone, Debug)]
@@ -1020,6 +1020,7 @@ pub struct RagdollWizard {
     ok: Handle<UiNode>,
     cancel: Handle<UiNode>,
     autofill: Handle<UiNode>,
+    clipboard: Option<Box<dyn Reflect>>,
 }
 
 impl RagdollWizard {
@@ -1132,6 +1133,7 @@ impl RagdollWizard {
             ok,
             cancel,
             autofill,
+            clipboard: None,
         }
     }
 
@@ -1152,6 +1154,14 @@ impl RagdollWizard {
         game_scene: &GameScene,
         sender: &MessageSender,
     ) {
+        Inspector::handle_context_menu_message(
+            self.inspector,
+            message,
+            ui,
+            &mut self.preset,
+            &mut self.clipboard,
+        );
+
         if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
             if message.destination() == self.inspector
                 && message.direction() == MessageDirection::FromWidget
