@@ -531,7 +531,7 @@ impl Inspector {
     pub fn handle_context_menu_simple(
         inspector: Handle<UiNode>,
         msg: &InspectorMessage,
-        ui: &UserInterface,
+        ui: &mut UserInterface,
         object: &mut dyn Reflect,
         clipboard_value: &mut Option<Box<dyn Reflect>>,
     ) {
@@ -586,6 +586,8 @@ impl Inspector {
                 });
             }
             InspectorMessage::PasteValue { dest } => {
+                let mut pasted = false;
+
                 if let Some(value) = clipboard_value.as_ref() {
                     if let Some(value) = value.try_clone_box() {
                         let mut value = Some(value);
@@ -597,6 +599,8 @@ impl Inspector {
                                 types don't match!",
                                     dest
                                 )
+                                } else {
+                                    pasted = true;
                                 }
                             } else {
                                 err!(
@@ -616,6 +620,20 @@ impl Inspector {
                     }
                 } else {
                     err!("Nothing to paste!");
+                }
+
+                if pasted {
+                    if let Some(inspector) = ui.try_get_of_type::<Inspector>(inspector) {
+                        let ctx = inspector.context.clone();
+                        Log::verify(ctx.sync(
+                            object,
+                            ui,
+                            0,
+                            true,
+                            Default::default(),
+                            Default::default(),
+                        ));
+                    }
                 }
             }
             _ => (),
