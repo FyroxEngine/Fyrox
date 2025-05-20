@@ -1752,6 +1752,16 @@ impl UserInterface {
             .has_descendant(node_handle, self)
     }
 
+    /// Checks if the specified node is a descendant of the hierarchy defined by a `root_handle` or
+    /// the given handles are equal.
+    pub fn has_descendant_or_equal(
+        &self,
+        node_handle: Handle<UiNode>,
+        root_handle: Handle<UiNode>,
+    ) -> bool {
+        root_handle == node_handle || self.is_node_child_of(node_handle, root_handle)
+    }
+
     /// Recursively calculates clipping bounds for every node.
     fn calculate_clip_bounds(&self, node: Handle<UiNode>, parent_bounds: Rect<f32>) {
         let node = &self.nodes[node];
