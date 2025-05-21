@@ -69,6 +69,7 @@ use crate::{
     Editor, MSG_SYNC_FLAG,
 };
 use fyrox::asset::manager::ResourceManager;
+use fyrox::core::reflect::Reflect;
 use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 use rust_fuzzy_search::fuzzy_compare;
@@ -125,6 +126,7 @@ pub struct SettingsWindow {
     groups: Handle<UiNode>,
     scroll_viewer: Handle<UiNode>,
     search_bar: Handle<UiNode>,
+    clipboard: Option<Box<dyn Reflect>>,
 }
 
 impl SettingsWindow {
@@ -229,6 +231,7 @@ impl SettingsWindow {
             groups,
             scroll_viewer,
             search_bar,
+            clipboard: None,
         }
     }
 
@@ -333,7 +336,7 @@ impl SettingsWindow {
     }
 
     pub fn handle_ui_message(
-        self,
+        mut self,
         message: &UiMessage,
         engine: &mut Engine,
         settings: &mut Settings,
@@ -341,6 +344,19 @@ impl SettingsWindow {
         docking_manager: Handle<UiNode>,
     ) -> Option<Self> {
         let ui = engine.user_interfaces.first_mut();
+
+        if message.data::<InspectorMessage>().is_some() {
+            // This is tricky - since Settings has DerefMut impl, it causes infinite syncing loop
+            // if called on each message.
+            let settings_data = &mut **settings;
+            Inspector::handle_context_menu_message(
+                self.inspector,
+                message,
+                ui,
+                settings_data,
+                &mut self.clipboard,
+            );
+        }
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.ok {
