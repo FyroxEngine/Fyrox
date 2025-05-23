@@ -976,6 +976,10 @@ fn draw_node(
         return;
     }
 
+    if let Some(shader) = node.shader.as_ref() {
+        drawing_context.push_shader(shader.clone());
+    }
+
     let pushed = if !is_node_enabled(nodes, node_handle) {
         drawing_context.push_opacity(0.4);
         true
@@ -1017,6 +1021,10 @@ fn draw_node(
     }
 
     drawing_context.transform_stack.pop();
+
+    if node.shader.as_ref().is_some() {
+        drawing_context.pop_shader();
+    }
 
     if pushed {
         drawing_context.pop_opacity();

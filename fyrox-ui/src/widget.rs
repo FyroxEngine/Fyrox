@@ -23,8 +23,6 @@
 
 #![warn(missing_docs)]
 
-use crate::style::resource::StyleResource;
-use crate::style::StyledProperty;
 use crate::{
     brush::Brush,
     core::{
@@ -39,13 +37,15 @@ use crate::{
     core::{parking_lot::Mutex, variable::InheritableVariable},
     define_constructor,
     message::{CursorIcon, Force, KeyCode, MessageDirection, UiMessage},
-    style::resource::StyleResourceExt,
-    style::Style,
+    style::{
+        resource::{StyleResource, StyleResourceExt},
+        Style, StyledProperty,
+    },
     BuildContext, HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle,
     Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_graph::BaseSceneGraph;
-use fyrox_resource::Resource;
+use fyrox_resource::{untyped::UntypedResource, Resource};
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -749,6 +749,7 @@ impl WidgetMessage {
 /// for layout information, basic visual appearance, visibility options, parent-child information. It does almost nothing
 /// on its own, instead, the user interface modifies its state accordingly.
 #[derive(Default, Debug, Clone, Reflect, Visit)]
+#[visit(optional)]
 pub struct Widget {
     /// Self handle of the widget. It is valid **only**, if the widget is added to the user interface, in other
     /// cases it will most likely be [`Handle::NONE`].
@@ -836,12 +837,10 @@ pub struct Widget {
     /// Optional opacity of the widget. It should be in `[0.0..1.0]` range, where 0.0 - fully transparent, 1.0 - fully opaque.
     pub opacity: InheritableVariable<Option<f32>>,
     /// An optional ref counted handle to a tooltip used by the widget.
-    #[visit(optional)]
     pub tooltip: Option<RcUiNodeHandle>,
     /// Maximum available time to show the tooltip after the cursor was moved away from the widget.
     pub tooltip_time: f32,
     /// An optional ref counted handle to a context menu used by the widget.
-    #[visit(optional)]
     pub context_menu: Option<RcUiNodeHandle>,
     /// A flag, that defines whether the widget should be clipped by the parent bounds or not.
     pub clip_to_bounds: InheritableVariable<bool>,
@@ -866,23 +865,18 @@ pub struct Widget {
     pub handle_os_events: bool,
     /// Defines the order in which this widget will get keyboard focus when Tab key is pressed.
     /// If set to [`None`], Tab key won't do anything on such widget. Default is [`None`].
-    #[visit(optional)]
     pub tab_index: InheritableVariable<Option<usize>>,
     /// A flag, that defines whether the Tab key navigation is enabled or disabled for this widget.
-    #[visit(optional)]
     pub tab_stop: InheritableVariable<bool>,
     /// A flag, that defines whether the widget will be update or not. Basically, it defines whether [crate::Control::update]
     /// is called or not.
-    #[visit(optional)]
     pub need_update: bool,
     /// Enables (`false`) or disables (`true`) layout rounding.
-    #[visit(optional)]
     pub ignore_layout_rounding: bool,
     /// A flag, that indicates that the widget accepts user input. It could be used to determine, if
     /// a user can interact with the widget using keyboard. It is also used for automatic assignment
     /// of the tab index. Keep in mind, that this flag is only a marker and does not do anything else
     /// on its own. Default value is `false`.
-    #[visit(optional)]
     pub accepts_input: bool,
     /// Internal sender for layout events.
     #[reflect(hidden)]
@@ -893,16 +887,15 @@ pub struct Widget {
     /// A flag, that indicates whether this widget is a root widget of a hierarchy of widgets
     /// instantiated from a resource.
     #[reflect(hidden)]
-    #[visit(optional)]
     pub is_resource_instance_root: bool,
     /// A resource from which this widget was instantiated from, can work in pair with `original`
     /// handle to get a corresponding widget from resource.
     #[reflect(read_only)]
-    #[visit(optional)]
     pub resource: Option<Resource<UserInterface>>,
+    /// A shader, that should be used when rendering the widget.
+    pub shader: InheritableVariable<Option<UntypedResource>>,
     /// Handle to a widget in a user interface resource from which this node was instantiated from.
     #[reflect(hidden)]
-    #[visit(optional)]
     pub original_handle_in_resource: Handle<UiNode>,
     //
     // Layout. Interior mutability is a must here because layout performed in a series of recursive calls.
@@ -1901,6 +1894,8 @@ pub struct WidgetBuilder {
     pub tab_stop: bool,
     /// A flag, that indicates that the widget accepts user input.
     pub accepts_input: bool,
+    /// A shader that will be used for rendering.
+    pub shader: Option<UntypedResource>,
 }
 
 impl Default for WidgetBuilder {
@@ -1950,6 +1945,7 @@ impl WidgetBuilder {
             tab_index: None,
             tab_stop: false,
             accepts_input: false,
+            shader: None,
         }
     }
 
@@ -2212,6 +2208,12 @@ impl WidgetBuilder {
         self
     }
 
+    /// Sets a shader which will be used for rendering of this widget.
+    pub fn with_shader(mut self, shader: UntypedResource) -> Self {
+        self.shader = Some(shader);
+        self
+    }
+
     /// Finishes building of the base widget.
     pub fn build(self, ctx: &BuildContext) -> Widget {
         Widget {
@@ -2280,6 +2282,7 @@ impl WidgetBuilder {
             id: self.id,
             is_resource_instance_root: false,
             resource: None,
+            shader: self.shader.into(),
             original_handle_in_resource: Default::default(),
         }
     }
