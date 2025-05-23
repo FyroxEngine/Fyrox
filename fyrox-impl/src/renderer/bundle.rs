@@ -22,6 +22,7 @@
 
 #![allow(missing_docs)] // TODO
 
+use crate::material::Material;
 use crate::scene::camera::Camera;
 use crate::{
     core::{
@@ -76,6 +77,7 @@ use crate::{
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use fyrox_core::algebra::Point3;
 use fyrox_graph::{SceneGraph, SceneGraphNode};
+use fyrox_graphics::gpu_program::{SamplerFallback, ShaderResourceDefinition};
 use std::{
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
@@ -363,6 +365,49 @@ pub fn write_shader_values<T: ByteStorage>(
     }
 }
 
+pub fn make_texture_binding(
+    server: &dyn GraphicsServer,
+    material: &Material,
+    resource_definition: &ShaderResourceDefinition,
+    fallback_resources: &FallbackResources,
+    fallback: SamplerFallback,
+    texture_cache: &mut TextureCache,
+) -> ResourceBinding {
+    let fallback = fallback_resources.sampler_fallback(fallback);
+    let fallback = (fallback, &fallback_resources.linear_wrap_sampler);
+
+    let texture_sampler_pair =
+        if let Some(binding) = material.binding_ref(resource_definition.name.clone()) {
+            if let material::MaterialResourceBinding::Texture(binding) = binding {
+                binding
+                    .value
+                    .as_ref()
+                    .and_then(|t| {
+                        texture_cache
+                            .get(server, t)
+                            .map(|t| (&t.gpu_texture, &t.gpu_sampler))
+                    })
+                    .unwrap_or(fallback)
+            } else {
+                Log::err(format!(
+                    "Unable to use texture binding {}, types mismatch! Expected \
+                                {:?} got {:?}",
+                    resource_definition.name, resource_definition.kind, binding
+                ));
+
+                fallback
+            }
+        } else {
+            fallback
+        };
+
+    ResourceBinding::texture(
+        texture_sampler_pair.0,
+        texture_sampler_pair.1,
+        resource_definition.binding,
+    )
+}
+
 impl RenderDataBundle {
     /// Writes all the required uniform data of the bundle to uniform memory allocator.
     pub fn write_uniforms(
@@ -597,43 +642,13 @@ impl RenderDataBundle {
                 }
                 _ => match resource_definition.kind {
                     ShaderResourceKind::Texture { fallback, .. } => {
-                        let fallback = render_context.fallback_resources.sampler_fallback(fallback);
-                        let fallback = (
+                        material_bindings.push(make_texture_binding(
+                            server,
+                            material,
+                            resource_definition,
+                            render_context.fallback_resources,
                             fallback,
-                            &render_context.fallback_resources.linear_wrap_sampler,
-                        );
-
-                        let texture_sampler_pair = if let Some(binding) =
-                            material.binding_ref(resource_definition.name.clone())
-                        {
-                            if let material::MaterialResourceBinding::Texture(binding) = binding {
-                                binding
-                                    .value
-                                    .as_ref()
-                                    .and_then(|t| {
-                                        render_context
-                                            .texture_cache
-                                            .get(server, t)
-                                            .map(|t| (&t.gpu_texture, &t.gpu_sampler))
-                                    })
-                                    .unwrap_or(fallback)
-                            } else {
-                                Log::err(format!(
-                                    "Unable to use texture binding {}, types mismatch! Expected \
-                                {:?} got {:?}",
-                                    resource_definition.name, resource_definition.kind, binding
-                                ));
-
-                                fallback
-                            }
-                        } else {
-                            fallback
-                        };
-
-                        material_bindings.push(ResourceBinding::texture(
-                            texture_sampler_pair.0,
-                            texture_sampler_pair.1,
-                            resource_definition.binding,
+                            render_context.texture_cache,
                         ));
                     }
                     ShaderResourceKind::PropertyGroup(_) => {

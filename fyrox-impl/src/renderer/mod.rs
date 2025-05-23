@@ -1369,6 +1369,7 @@ impl Renderer {
             fallback_resources: &self.fallback_resources,
             texture_cache: &mut self.texture_cache,
             uniform_buffer_cache: &mut self.uniform_buffer_cache,
+            render_pass_cache: &mut self.shader_cache,
         })?;
 
         // Finally register texture in the cache so it will become available as texture in deferred/forward
@@ -1856,6 +1857,7 @@ impl Renderer {
                 fallback_resources: &self.fallback_resources,
                 texture_cache: &mut self.texture_cache,
                 uniform_buffer_cache: &mut self.uniform_buffer_cache,
+                render_pass_cache: &mut self.shader_cache,
             })?;
         }
 

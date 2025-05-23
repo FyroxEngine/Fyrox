@@ -976,8 +976,8 @@ fn draw_node(
         return;
     }
 
-    if let Some(shader) = node.shader.as_ref() {
-        drawing_context.push_shader(shader.clone());
+    if let Some(shader) = node.material.as_ref() {
+        drawing_context.push_material(shader.clone());
     }
 
     let pushed = if !is_node_enabled(nodes, node_handle) {
@@ -1022,8 +1022,8 @@ fn draw_node(
 
     drawing_context.transform_stack.pop();
 
-    if node.shader.as_ref().is_some() {
-        drawing_context.pop_shader();
+    if node.material.as_ref().is_some() {
+        drawing_context.pop_material();
     }
 
     if pushed {

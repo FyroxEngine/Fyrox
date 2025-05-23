@@ -132,7 +132,7 @@ pub struct Command {
     pub brush: Brush,
     pub texture: CommandTexture,
     pub triangles: Range<usize>,
-    pub shader: Option<UntypedResource>,
+    pub material: Option<UntypedResource>,
     pub opacity: f32,
     /// A set of triangles that defines clipping region.
     pub clipping_geometry: Option<ClippingGeometry>,
@@ -786,7 +786,7 @@ pub struct DrawingContext {
     command_buffer: Vec<Command>,
     pub transform_stack: TransformStack,
     opacity_stack: Vec<f32>,
-    shader_stack: Vec<UntypedResource>,
+    material_stack: Vec<UntypedResource>,
     triangles_to_commit: usize,
     pub style: StyleResource,
     /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
@@ -838,7 +838,7 @@ impl DrawingContext {
             transform_stack: Default::default(),
             style,
             elapsed_time: 0.0,
-            shader_stack: Default::default(),
+            material_stack: Default::default(),
         }
     }
 
@@ -848,7 +848,7 @@ impl DrawingContext {
         self.triangle_buffer.clear();
         self.command_buffer.clear();
         self.opacity_stack.clear();
-        self.shader_stack.clear();
+        self.material_stack.clear();
         self.opacity_stack.push(1.0);
         self.triangles_to_commit = 0;
     }
@@ -876,12 +876,12 @@ impl DrawingContext {
         self.opacity_stack.pop().unwrap();
     }
 
-    pub fn push_shader(&mut self, shader: UntypedResource) {
-        self.shader_stack.push(shader)
+    pub fn push_material(&mut self, shader: UntypedResource) {
+        self.material_stack.push(shader)
     }
 
-    pub fn pop_shader(&mut self) {
-        self.shader_stack.pop().unwrap();
+    pub fn pop_material(&mut self) {
+        self.material_stack.pop().unwrap();
     }
 
     pub fn triangle_points(
@@ -938,14 +938,14 @@ impl DrawingContext {
             let bounds = self.bounds_of(triangles.clone());
 
             let opacity = *self.opacity_stack.last().unwrap();
-            let shader = self.shader_stack.last().cloned();
+            let shader = self.material_stack.last().cloned();
             self.command_buffer.push(Command {
                 clip_bounds,
                 bounds,
                 brush,
                 texture,
                 triangles,
-                shader,
+                material: shader,
                 opacity,
                 clipping_geometry,
             });

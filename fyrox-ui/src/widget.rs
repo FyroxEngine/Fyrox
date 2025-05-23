@@ -892,8 +892,8 @@ pub struct Widget {
     /// handle to get a corresponding widget from resource.
     #[reflect(read_only)]
     pub resource: Option<Resource<UserInterface>>,
-    /// A shader, that should be used when rendering the widget.
-    pub shader: InheritableVariable<Option<UntypedResource>>,
+    /// A material, that should be used when rendering the widget.
+    pub material: InheritableVariable<Option<UntypedResource>>,
     /// Handle to a widget in a user interface resource from which this node was instantiated from.
     #[reflect(hidden)]
     pub original_handle_in_resource: Handle<UiNode>,
@@ -1894,8 +1894,8 @@ pub struct WidgetBuilder {
     pub tab_stop: bool,
     /// A flag, that indicates that the widget accepts user input.
     pub accepts_input: bool,
-    /// A shader that will be used for rendering.
-    pub shader: Option<UntypedResource>,
+    /// A material that will be used for rendering.
+    pub material: Option<UntypedResource>,
 }
 
 impl Default for WidgetBuilder {
@@ -1945,7 +1945,7 @@ impl WidgetBuilder {
             tab_index: None,
             tab_stop: false,
             accepts_input: false,
-            shader: None,
+            material: None,
         }
     }
 
@@ -2208,9 +2208,9 @@ impl WidgetBuilder {
         self
     }
 
-    /// Sets a shader which will be used for rendering of this widget.
-    pub fn with_shader(mut self, shader: UntypedResource) -> Self {
-        self.shader = Some(shader);
+    /// Sets a material which will be used for rendering of this widget.
+    pub fn with_material(mut self, material: UntypedResource) -> Self {
+        self.material = Some(material);
         self
     }
 
@@ -2282,7 +2282,7 @@ impl WidgetBuilder {
             id: self.id,
             is_resource_instance_root: false,
             resource: None,
-            shader: self.shader.into(),
+            material: self.material.into(),
             original_handle_in_resource: Default::default(),
         }
     }

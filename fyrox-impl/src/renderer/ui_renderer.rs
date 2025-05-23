@@ -32,9 +32,13 @@ use crate::{
         brush::Brush,
         draw::{CommandTexture, DrawingContext},
     },
+    material::{Material, MaterialResource},
     renderer::{
+        bundle::{self, make_texture_binding},
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            shader::{
+                binding, property, PropertyGroup, RenderMaterial, RenderPassContainer, ShaderCache,
+            },
             uniform::UniformBufferCache,
         },
         framework::{
@@ -53,6 +57,13 @@ use crate::{
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
+use fyrox_core::arrayvec::ArrayVec;
+use fyrox_graphics::{
+    framebuffer::{ResourceBindGroup, ResourceBinding},
+    gpu_program::ShaderResourceKind,
+    uniform::StaticUniformBuffer,
+};
+use fyrox_resource::untyped::UntypedResource;
 use uuid::Uuid;
 
 /// User interface renderer allows you to render drawing context in specified render target.
@@ -82,6 +93,26 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     pub texture_cache: &'a mut TextureCache,
     /// A reference to the cache of uniform buffers.
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
+    /// A reference to the render pass cache.
+    pub render_pass_cache: &'a mut ShaderCache,
+}
+
+fn try_get_render_pass<'a>(
+    server: &dyn GraphicsServer,
+    material: Option<&UntypedResource>,
+    render_pass_cache: &'a mut ShaderCache,
+) -> Option<(MaterialResource, &'a RenderPassContainer)> {
+    if let Some(material) = material {
+        if let Some(material) = material.try_cast::<Material>() {
+            let material_data_guard = material.data_ref();
+            if let Some(material_data) = material_data_guard.as_loaded_ref() {
+                let rp = render_pass_cache.get(server, material_data.shader())?;
+                drop(material_data_guard);
+                return Some((material, rp));
+            }
+        }
+    }
+    None
 }
 
 impl UiRenderer {
@@ -163,6 +194,7 @@ impl UiRenderer {
             fallback_resources,
             texture_cache,
             uniform_buffer_cache,
+            render_pass_cache,
         } = args;
 
         let mut statistics = RenderPassStatistics::default();
@@ -176,12 +208,6 @@ impl UiRenderer {
         let resolution = Vector2::new(frame_width, frame_height);
 
         for cmd in drawing_context.get_commands() {
-            let mut diffuse_texture = (
-                &fallback_resources.white_dummy,
-                &fallback_resources.linear_wrap_sampler,
-            );
-            let mut is_font_texture = false;
-
             let mut clip_bounds = cmd.clip_bounds;
             clip_bounds.position.x = clip_bounds.position.x.floor();
             clip_bounds.position.y = clip_bounds.position.y.floor();
@@ -231,72 +257,6 @@ impl UiRenderer {
                 });
             }
 
-            match &cmd.texture {
-                CommandTexture::Font {
-                    font,
-                    page_index,
-                    height,
-                } => {
-                    if let Some(font) = font.state().data() {
-                        let page_size = font.page_size() as u32;
-                        if let Some(page) = font
-                            .atlases
-                            .get_mut(height)
-                            .and_then(|atlas| atlas.pages.get_mut(*page_index))
-                        {
-                            if page.texture.is_none() || page.modified {
-                                if let Some(details) = Texture::from_bytes(
-                                    TextureKind::Rectangle {
-                                        width: page_size,
-                                        height: page_size,
-                                    },
-                                    TexturePixelKind::R8,
-                                    page.pixels.clone(),
-                                ) {
-                                    page.texture = Some(
-                                        TextureResource::new_ok(
-                                            Uuid::new_v4(),
-                                            ResourceKind::Embedded,
-                                            details,
-                                        )
-                                        .into(),
-                                    );
-                                    page.modified = false;
-                                }
-                            }
-                            if let Some(texture) = texture_cache.get(
-                                server,
-                                &page
-                                    .texture
-                                    .as_ref()
-                                    .unwrap()
-                                    .try_cast::<Texture>()
-                                    .unwrap(),
-                            ) {
-                                diffuse_texture = (&texture.gpu_texture, &texture.gpu_sampler);
-                            }
-                            is_font_texture = true;
-                        }
-                    }
-                }
-                CommandTexture::Texture(texture) => {
-                    if let Some(texture) = texture_cache.get(server, texture) {
-                        diffuse_texture = (&texture.gpu_texture, &texture.gpu_sampler);
-                    }
-                }
-                _ => (),
-            }
-
-            let mut raw_stops = [0.0; 16];
-            let mut raw_colors = [Vector4::default(); 16];
-            let bounds_max = cmd.bounds.right_bottom_corner();
-
-            let (gradient_origin, gradient_end) = match cmd.brush {
-                Brush::Solid(_) => (Vector2::default(), Vector2::default()),
-                Brush::LinearGradient { from, to, .. } => (from, to),
-                Brush::RadialGradient { center, .. } => (center, Vector2::default()),
-            };
-
             let params = DrawParameters {
                 cull_face: None,
                 color_write: ColorMask::all(true),
@@ -311,76 +271,219 @@ impl UiRenderer {
                 scissor_box,
             };
 
-            let solid_color = match cmd.brush {
-                Brush::Solid(color) => color,
-                _ => Color::WHITE,
+            let element_range = ElementRange::Specific {
+                offset: cmd.triangles.start,
+                count: cmd.triangles.end - cmd.triangles.start,
             };
-            let gradient_colors = match cmd.brush {
-                Brush::Solid(_) => &raw_colors,
-                Brush::LinearGradient { ref stops, .. }
-                | Brush::RadialGradient { ref stops, .. } => {
-                    for (i, point) in stops.iter().enumerate() {
-                        raw_colors[i] = point.color.as_frgba();
+
+            if let Some((material, render_pass_container)) =
+                try_get_render_pass(server, cmd.material.as_ref(), render_pass_cache)
+            {
+                let render_pass = render_pass_container.get(&ImmutableString::new("Forward"))?;
+
+                let mut resource_bindings = ArrayVec::<ResourceBinding, 32>::new();
+
+                let material = material.data_ref();
+                let shader = material.shader();
+                let shader = shader.data_ref();
+
+                for resource in shader.definition.resources.iter() {
+                    // Ignore built-in groups.
+                    if resource.is_built_in() {
+                        continue;
                     }
-                    &raw_colors
-                }
-            };
-            let gradient_stops = match cmd.brush {
-                Brush::Solid(_) => &raw_stops,
-                Brush::LinearGradient { ref stops, .. }
-                | Brush::RadialGradient { ref stops, .. } => {
-                    for (i, point) in stops.iter().enumerate() {
-                        raw_stops[i] = point.stop;
+
+                    match resource.kind {
+                        ShaderResourceKind::Texture { fallback, .. } => {
+                            resource_bindings.push(make_texture_binding(
+                                server,
+                                &material,
+                                resource,
+                                fallback_resources,
+                                fallback,
+                                texture_cache,
+                            ))
+                        }
+                        ShaderResourceKind::PropertyGroup(ref shader_property_group) => {
+                            let mut buf = StaticUniformBuffer::<16384>::new();
+
+                            if let Some(material_property_group) =
+                                material.property_group_ref(resource.name.clone())
+                            {
+                                bundle::write_with_material(
+                                    shader_property_group,
+                                    material_property_group,
+                                    |c, n| c.property_ref(n.clone()).map(|p| p.as_ref()),
+                                    &mut buf,
+                                );
+                            } else {
+                                // No respective resource bound in the material, use shader defaults. This is very
+                                // important, because some drivers will crash if uniform buffer has insufficient
+                                // data.
+                                bundle::write_shader_values(shader_property_group, &mut buf)
+                            }
+
+                            resource_bindings.push(ResourceBinding::buffer(
+                                &uniform_buffer_cache.write(buf)?,
+                                resource.binding,
+                                Default::default(),
+                            ));
+                        }
                     }
-                    &raw_stops
                 }
-            };
-            let brush_type = match cmd.brush {
-                Brush::Solid(_) => 0,
-                Brush::LinearGradient { .. } => 1,
-                Brush::RadialGradient { .. } => 2,
-            };
-            let gradient_point_count = match cmd.brush {
-                Brush::Solid(_) => 0,
-                Brush::LinearGradient { ref stops, .. }
-                | Brush::RadialGradient { ref stops, .. } => stops.len() as i32,
-            };
 
-            let properties = PropertyGroup::from([
-                property("worldViewProjection", &ortho),
-                property("solidColor", &solid_color),
-                property("gradientColors", gradient_colors.as_slice()),
-                property("gradientStops", gradient_stops.as_slice()),
-                property("gradientOrigin", &gradient_origin),
-                property("gradientEnd", &gradient_end),
-                property("resolution", &resolution),
-                property("boundsMin", &cmd.bounds.position),
-                property("boundsMax", &bounds_max),
-                property("isFont", &is_font_texture),
-                property("opacity", &cmd.opacity),
-                property("brushType", &brush_type),
-                property("gradientPointCount", &gradient_point_count),
-            ]);
+                statistics += frame_buffer.draw(
+                    &self.geometry_buffer,
+                    viewport,
+                    &render_pass.program,
+                    &params,
+                    &[ResourceBindGroup {
+                        bindings: &resource_bindings,
+                    }],
+                    element_range,
+                )?;
+            } else {
+                // Render with standard material.
+                let mut diffuse_texture = (
+                    &fallback_resources.white_dummy,
+                    &fallback_resources.linear_wrap_sampler,
+                );
+                let mut is_font_texture = false;
 
-            let material = RenderMaterial::from([
-                binding("diffuseTexture", diffuse_texture),
-                binding("properties", &properties),
-            ]);
+                match &cmd.texture {
+                    CommandTexture::Font {
+                        font,
+                        page_index,
+                        height,
+                    } => {
+                        if let Some(font) = font.state().data() {
+                            let page_size = font.page_size() as u32;
+                            if let Some(page) = font
+                                .atlases
+                                .get_mut(height)
+                                .and_then(|atlas| atlas.pages.get_mut(*page_index))
+                            {
+                                if page.texture.is_none() || page.modified {
+                                    if let Some(details) = Texture::from_bytes(
+                                        TextureKind::Rectangle {
+                                            width: page_size,
+                                            height: page_size,
+                                        },
+                                        TexturePixelKind::R8,
+                                        page.pixels.clone(),
+                                    ) {
+                                        page.texture = Some(
+                                            TextureResource::new_ok(
+                                                Uuid::new_v4(),
+                                                ResourceKind::Embedded,
+                                                details,
+                                            )
+                                            .into(),
+                                        );
+                                        page.modified = false;
+                                    }
+                                }
+                                if let Some(texture) = texture_cache.get(
+                                    server,
+                                    &page
+                                        .texture
+                                        .as_ref()
+                                        .unwrap()
+                                        .try_cast::<Texture>()
+                                        .unwrap(),
+                                ) {
+                                    diffuse_texture = (&texture.gpu_texture, &texture.gpu_sampler);
+                                }
+                                is_font_texture = true;
+                            }
+                        }
+                    }
+                    CommandTexture::Texture(texture) => {
+                        if let Some(texture) = texture_cache.get(server, texture) {
+                            diffuse_texture = (&texture.gpu_texture, &texture.gpu_sampler);
+                        }
+                    }
+                    _ => (),
+                }
 
-            statistics += self.render_passes.run_pass(
-                1,
-                &ImmutableString::new("Primary"),
-                frame_buffer,
-                &self.geometry_buffer,
-                viewport,
-                &material,
-                uniform_buffer_cache,
-                ElementRange::Specific {
-                    offset: cmd.triangles.start,
-                    count: cmd.triangles.end - cmd.triangles.start,
-                },
-                Some(&params),
-            )?;
+                let mut raw_stops = [0.0; 16];
+                let mut raw_colors = [Vector4::default(); 16];
+                let bounds_max = cmd.bounds.right_bottom_corner();
+
+                let (gradient_origin, gradient_end) = match cmd.brush {
+                    Brush::Solid(_) => (Vector2::default(), Vector2::default()),
+                    Brush::LinearGradient { from, to, .. } => (from, to),
+                    Brush::RadialGradient { center, .. } => (center, Vector2::default()),
+                };
+
+                let solid_color = match cmd.brush {
+                    Brush::Solid(color) => color,
+                    _ => Color::WHITE,
+                };
+                let gradient_colors = match cmd.brush {
+                    Brush::Solid(_) => &raw_colors,
+                    Brush::LinearGradient { ref stops, .. }
+                    | Brush::RadialGradient { ref stops, .. } => {
+                        for (i, point) in stops.iter().enumerate() {
+                            raw_colors[i] = point.color.as_frgba();
+                        }
+                        &raw_colors
+                    }
+                };
+                let gradient_stops = match cmd.brush {
+                    Brush::Solid(_) => &raw_stops,
+                    Brush::LinearGradient { ref stops, .. }
+                    | Brush::RadialGradient { ref stops, .. } => {
+                        for (i, point) in stops.iter().enumerate() {
+                            raw_stops[i] = point.stop;
+                        }
+                        &raw_stops
+                    }
+                };
+                let brush_type = match cmd.brush {
+                    Brush::Solid(_) => 0,
+                    Brush::LinearGradient { .. } => 1,
+                    Brush::RadialGradient { .. } => 2,
+                };
+                let gradient_point_count = match cmd.brush {
+                    Brush::Solid(_) => 0,
+                    Brush::LinearGradient { ref stops, .. }
+                    | Brush::RadialGradient { ref stops, .. } => stops.len() as i32,
+                };
+
+                let properties = PropertyGroup::from([
+                    property("worldViewProjection", &ortho),
+                    property("solidColor", &solid_color),
+                    property("gradientColors", gradient_colors.as_slice()),
+                    property("gradientStops", gradient_stops.as_slice()),
+                    property("gradientOrigin", &gradient_origin),
+                    property("gradientEnd", &gradient_end),
+                    property("resolution", &resolution),
+                    property("boundsMin", &cmd.bounds.position),
+                    property("boundsMax", &bounds_max),
+                    property("isFont", &is_font_texture),
+                    property("opacity", &cmd.opacity),
+                    property("brushType", &brush_type),
+                    property("gradientPointCount", &gradient_point_count),
+                ]);
+
+                let material = RenderMaterial::from([
+                    binding("diffuseTexture", diffuse_texture),
+                    binding("properties", &properties),
+                ]);
+
+                statistics += self.render_passes.run_pass(
+                    1,
+                    &ImmutableString::new("Primary"),
+                    frame_buffer,
+                    &self.geometry_buffer,
+                    viewport,
+                    &material,
+                    uniform_buffer_cache,
+                    element_range,
+                    Some(&params),
+                )?;
+            }
         }
 
         Ok(statistics)
