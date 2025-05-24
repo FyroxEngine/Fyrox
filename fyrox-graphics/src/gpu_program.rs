@@ -379,6 +379,16 @@ impl ShaderProperty {
         )
     }
 
+    pub fn new_f32_array(name: impl Into<ImmutableString>, max_len: usize) -> Self {
+        Self::new(
+            name,
+            ShaderPropertyKind::FloatArray {
+                value: Default::default(),
+                max_len,
+            },
+        )
+    }
+
     pub fn new_vec4_f32_array(name: impl Into<ImmutableString>, max_len: usize) -> Self {
         Self::new(
             name,

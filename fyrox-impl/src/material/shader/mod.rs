@@ -674,7 +674,7 @@ impl ShaderDefinition {
                             "gradientColors",
                             Self::MAX_GRADIENT_VALUE_COUNT,
                         ),
-                        ShaderProperty::new_vec4_f32_array(
+                        ShaderProperty::new_f32_array(
                             "gradientStops",
                             Self::MAX_GRADIENT_VALUE_COUNT,
                         ),

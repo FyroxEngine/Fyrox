@@ -1370,6 +1370,7 @@ impl Renderer {
             texture_cache: &mut self.texture_cache,
             uniform_buffer_cache: &mut self.uniform_buffer_cache,
             render_pass_cache: &mut self.shader_cache,
+            uniform_memory_allocator: &mut self.uniform_memory_allocator,
         })?;
 
         // Finally register texture in the cache so it will become available as texture in deferred/forward
@@ -1858,6 +1859,7 @@ impl Renderer {
                 texture_cache: &mut self.texture_cache,
                 uniform_buffer_cache: &mut self.uniform_buffer_cache,
                 render_pass_cache: &mut self.shader_cache,
+                uniform_memory_allocator: &mut self.uniform_memory_allocator,
             })?;
         }
 
