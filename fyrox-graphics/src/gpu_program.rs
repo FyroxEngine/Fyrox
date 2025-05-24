@@ -290,6 +290,124 @@ impl ShaderProperty {
             kind,
         }
     }
+
+    pub fn new_matrix2(name: impl Into<ImmutableString>) -> Self {
+        Self::new(
+            name,
+            ShaderPropertyKind::Matrix2 {
+                value: Matrix2::identity(),
+            },
+        )
+    }
+
+    pub fn new_matrix3(name: impl Into<ImmutableString>) -> Self {
+        Self::new(
+            name,
+            ShaderPropertyKind::Matrix3 {
+                value: Matrix3::identity(),
+            },
+        )
+    }
+
+    pub fn new_matrix4(name: impl Into<ImmutableString>) -> Self {
+        Self::new(
+            name,
+            ShaderPropertyKind::Matrix4 {
+                value: Matrix4::identity(),
+            },
+        )
+    }
+
+    pub fn new_vector2(name: impl Into<ImmutableString>) -> Self {
+        Self::new(
+            name,
+            ShaderPropertyKind::Vector2 {
+                value: Default::default(),
+            },
+        )
+    }
+
+    pub fn new_vector3(name: impl Into<ImmutableString>) -> Self {
+        Self::new(
+            name,
+            ShaderPropertyKind::Vector3 {
+                value: Default::default(),
+            },
+        )
+    }
+
+    pub fn new_vector4(name: impl Into<ImmutableString>) -> Self {
+        Self::new(
+            name,
+            ShaderPropertyKind::Vector4 {
+                value: Default::default(),
+            },
+        )
+    }
+
+    pub fn new_float(name: impl Into<ImmutableString>) -> Self {
+        Self::new(name, ShaderPropertyKind::Float { value: 0.0 })
+    }
+
+    pub fn new_bool(name: impl Into<ImmutableString>) -> Self {
+        Self::new(name, ShaderPropertyKind::Bool { value: false })
+    }
+
+    pub fn new_int(name: impl Into<ImmutableString>) -> Self {
+        Self::new(name, ShaderPropertyKind::Int { value: 0 })
+    }
+
+    pub fn new_color(name: impl Into<ImmutableString>) -> Self {
+        Self::new(
+            name,
+            ShaderPropertyKind::Color {
+                r: 255,
+                g: 255,
+                b: 255,
+                a: 255,
+            },
+        )
+    }
+
+    pub fn new_mat4_f32_array(name: impl Into<ImmutableString>, max_len: usize) -> Self {
+        Self::new(
+            name,
+            ShaderPropertyKind::Matrix4Array {
+                value: Default::default(),
+                max_len,
+            },
+        )
+    }
+
+    pub fn new_vec4_f32_array(name: impl Into<ImmutableString>, max_len: usize) -> Self {
+        Self::new(
+            name,
+            ShaderPropertyKind::Vector4Array {
+                value: Default::default(),
+                max_len,
+            },
+        )
+    }
+
+    pub fn new_vec3_f32_array(name: impl Into<ImmutableString>, max_len: usize) -> Self {
+        Self::new(
+            name,
+            ShaderPropertyKind::Vector3Array {
+                value: Default::default(),
+                max_len,
+            },
+        )
+    }
+
+    pub fn new_vec2_f32_array(name: impl Into<ImmutableString>, max_len: usize) -> Self {
+        Self::new(
+            name,
+            ShaderPropertyKind::Vector2Array {
+                value: Default::default(),
+                max_len,
+            },
+        )
+    }
 }
 
 impl Default for ShaderPropertyKind {

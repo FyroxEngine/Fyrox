@@ -454,12 +454,9 @@ use crate::{
         TypeUuidProvider,
     },
     lazy_static::lazy_static,
-    renderer::framework::{
-        gpu_program::{ShaderProperty, ShaderPropertyKind},
-        DrawParameters,
-    },
+    renderer::framework::{gpu_program::ShaderProperty, DrawParameters},
 };
-use fyrox_core::{algebra, some_or_continue};
+use fyrox_core::some_or_continue;
 pub use fyrox_graphics::gpu_program::{
     SamplerFallback, ShaderResourceDefinition, ShaderResourceKind,
 };
@@ -596,15 +593,18 @@ pub struct ShaderDefinition {
 }
 
 impl ShaderDefinition {
-    /// Maximum amount of simultaneous light sources that can be passed into a standard lights data
+    /// Maximum number of simultaneous light sources that can be passed into a standard lights data
     /// block.
     pub const MAX_LIGHTS: usize = 16;
 
-    /// Maximum amount of bone matrices per shader.
+    /// Maximum number of bone matrices per shader.
     pub const MAX_BONE_MATRICES: usize = 255;
 
-    /// Maximum amount of blend shape weight groups (packed weights of blend shapes into vec4).
+    /// Maximum number of blend shape weight groups (packed weights of blend shapes into vec4).
     pub const MAX_BLEND_SHAPE_WEIGHT_GROUPS: usize = 32;
+
+    /// Maximum number of gradient values per widget.
+    pub const MAX_GRADIENT_VALUE_COUNT: usize = 16;
 
     fn find_shader_line_locations(&mut self, str: &str) {
         let mut line_ends = Vec::new();
@@ -664,129 +664,82 @@ impl ShaderDefinition {
                 continue;
             };
 
-            use ShaderPropertyKind::*;
             match resource.name.as_str() {
+                "fyrox_widgetData" => {
+                    properties.clear();
+                    properties.extend([
+                        ShaderProperty::new_matrix4("worldViewProjection"),
+                        ShaderProperty::new_color("solidColor"),
+                        ShaderProperty::new_vec4_f32_array(
+                            "gradientColors",
+                            Self::MAX_GRADIENT_VALUE_COUNT,
+                        ),
+                        ShaderProperty::new_vec4_f32_array(
+                            "gradientStops",
+                            Self::MAX_GRADIENT_VALUE_COUNT,
+                        ),
+                        ShaderProperty::new_vector2("gradientOrigin"),
+                        ShaderProperty::new_vector2("gradientEnd"),
+                        ShaderProperty::new_vector2("resolution"),
+                        ShaderProperty::new_vector2("boundsMin"),
+                        ShaderProperty::new_vector2("boundsMax"),
+                        ShaderProperty::new_bool("isFont"),
+                        ShaderProperty::new_float("opacity"),
+                        ShaderProperty::new_int("brushType"),
+                        ShaderProperty::new_int("gradientPointCount"),
+                    ]);
+                }
                 "fyrox_cameraData" => {
                     properties.clear();
                     properties.extend([
-                        ShaderProperty::new(
-                            "viewProjectionMatrix",
-                            Matrix4 {
-                                value: algebra::Matrix4::identity(),
-                            },
-                        ),
-                        ShaderProperty::new(
-                            "position",
-                            Vector3 {
-                                value: Default::default(),
-                            },
-                        ),
-                        ShaderProperty::new(
-                            "upVector",
-                            Vector3 {
-                                value: Default::default(),
-                            },
-                        ),
-                        ShaderProperty::new(
-                            "sideVector",
-                            Vector3 {
-                                value: Default::default(),
-                            },
-                        ),
-                        ShaderProperty::new("zNear", Float { value: 0.0 }),
-                        ShaderProperty::new("zFar", Float { value: 0.0 }),
-                        ShaderProperty::new("zRange", Float { value: 0.0 }),
+                        ShaderProperty::new_matrix4("viewProjectionMatrix"),
+                        ShaderProperty::new_vector3("position"),
+                        ShaderProperty::new_vector3("upVector"),
+                        ShaderProperty::new_vector3("sideVector"),
+                        ShaderProperty::new_float("zNear"),
+                        ShaderProperty::new_float("zFar"),
+                        ShaderProperty::new_float("zRange"),
                     ]);
                 }
                 "fyrox_lightData" => {
                     properties.clear();
                     properties.extend([
-                        ShaderProperty::new(
-                            "lightPosition",
-                            Vector3 {
-                                value: Default::default(),
-                            },
-                        ),
-                        ShaderProperty::new(
-                            "ambientLightColor",
-                            Vector4 {
-                                value: Default::default(),
-                            },
-                        ),
+                        ShaderProperty::new_vector3("lightPosition"),
+                        ShaderProperty::new_vector4("ambientLightColor"),
                     ]);
                 }
                 "fyrox_graphicsSettings" => {
                     properties.clear();
-                    properties.extend([ShaderProperty::new("usePOM", Bool { value: false })]);
+                    properties.extend([ShaderProperty::new_bool("usePOM")]);
                 }
                 "fyrox_lightsBlock" => {
                     properties.clear();
                     properties.extend([
-                        ShaderProperty::new("lightCount", Int { value: 0 }),
-                        ShaderProperty::new(
-                            "lightsColorRadius",
-                            Vector4Array {
-                                value: Default::default(),
-                                max_len: Self::MAX_LIGHTS,
-                            },
-                        ),
-                        ShaderProperty::new(
-                            "lightsParameters",
-                            Vector2Array {
-                                value: Default::default(),
-                                max_len: Self::MAX_LIGHTS,
-                            },
-                        ),
-                        ShaderProperty::new(
-                            "lightsPosition",
-                            Vector3Array {
-                                value: Default::default(),
-                                max_len: Self::MAX_LIGHTS,
-                            },
-                        ),
-                        ShaderProperty::new(
-                            "lightsDirection",
-                            Vector3Array {
-                                value: Default::default(),
-                                max_len: Self::MAX_LIGHTS,
-                            },
-                        ),
+                        ShaderProperty::new_int("lightCount"),
+                        ShaderProperty::new_vec4_f32_array("lightsColorRadius", Self::MAX_LIGHTS),
+                        ShaderProperty::new_vec2_f32_array("lightsParameters", Self::MAX_LIGHTS),
+                        ShaderProperty::new_vec3_f32_array("lightsPosition", Self::MAX_LIGHTS),
+                        ShaderProperty::new_vec3_f32_array("lightsDirection", Self::MAX_LIGHTS),
                     ])
                 }
                 "fyrox_instanceData" => {
                     properties.clear();
                     properties.extend([
-                        ShaderProperty::new(
-                            "worldMatrix",
-                            Matrix4 {
-                                value: algebra::Matrix4::identity(),
-                            },
-                        ),
-                        ShaderProperty::new(
-                            "worldViewProjection",
-                            Matrix4 {
-                                value: algebra::Matrix4::identity(),
-                            },
-                        ),
-                        ShaderProperty::new("blendShapesCount", Int { value: 0 }),
-                        ShaderProperty::new("useSkeletalAnimation", Bool { value: false }),
-                        ShaderProperty::new(
+                        ShaderProperty::new_matrix4("worldMatrix"),
+                        ShaderProperty::new_matrix4("worldViewProjection"),
+                        ShaderProperty::new_int("blendShapesCount"),
+                        ShaderProperty::new_bool("useSkeletalAnimation"),
+                        ShaderProperty::new_vec4_f32_array(
                             "blendShapesWeights",
-                            Vector4Array {
-                                value: Default::default(),
-                                max_len: Self::MAX_BLEND_SHAPE_WEIGHT_GROUPS,
-                            },
+                            Self::MAX_BLEND_SHAPE_WEIGHT_GROUPS,
                         ),
                     ]);
                 }
                 "fyrox_boneMatrices" => {
                     properties.clear();
-                    properties.extend([ShaderProperty::new(
+                    properties.extend([ShaderProperty::new_mat4_f32_array(
                         "matrices",
-                        Matrix4Array {
-                            value: Default::default(),
-                            max_len: Self::MAX_BONE_MATRICES,
-                        },
+                        Self::MAX_BONE_MATRICES,
                     )])
                 }
                 _ => (),
