@@ -18,37 +18,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! Shader loader.
+//! Material loader.
 
-use crate::{
-    asset::{
-        io::ResourceIo,
-        loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
-    },
-    core::{uuid::Uuid, TypeUuidProvider},
-    material::shader::Shader,
-};
+use crate::Material;
+use fyrox_core::{TypeUuidProvider, uuid::Uuid};
 use fyrox_resource::state::LoadError;
+use fyrox_resource::{
+    io::ResourceIo,
+    loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
+    manager::ResourceManager,
+};
 use std::{path::PathBuf, sync::Arc};
 
-/// Default implementation for shader loading.
-pub struct ShaderLoader;
+/// Default implementation for material loading.
+pub struct MaterialLoader {
+    /// Resource manager that will be used to load internal shader resources of materials.
+    pub resource_manager: ResourceManager,
+}
 
-impl ResourceLoader for ShaderLoader {
+impl ResourceLoader for MaterialLoader {
     fn extensions(&self) -> &[&str] {
-        &["shader"]
+        &["material"]
     }
 
     fn data_type_uuid(&self) -> Uuid {
-        Shader::type_uuid()
+        Material::type_uuid()
     }
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
+        let resource_manager = self.resource_manager.clone();
         Box::pin(async move {
-            let shader_state = Shader::from_file(&path, io.as_ref())
+            let material = Material::from_file(&path, io.as_ref(), resource_manager)
                 .await
                 .map_err(LoadError::new)?;
-            Ok(LoaderPayload::new(shader_state))
+            Ok(LoaderPayload::new(material))
         })
     }
 }

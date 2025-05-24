@@ -65,7 +65,6 @@ use fyrox_graphics::{
     gpu_program::ShaderResourceKind,
     uniform::StaticUniformBuffer,
 };
-use fyrox_resource::untyped::UntypedResource;
 use fyrox_ui::draw::Command;
 use uuid::Uuid;
 
@@ -99,6 +98,7 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     /// A reference to the render pass cache.
     pub render_pass_cache: &'a mut ShaderCache,
+    /// A reference to the uniform memory allocator.
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 }
 

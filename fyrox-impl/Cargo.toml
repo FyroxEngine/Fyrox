@@ -25,6 +25,7 @@ fyrox-graph = { path = "../fyrox-graph", version = "0.36.2" }
 fyrox-graphics = { path = "../fyrox-graphics", version = "0.36.2" }
 fyrox-texture = { path = "../fyrox-texture", version = "0.36.2" }
 fyrox-autotile = { path = "../fyrox-autotile", version = "0.36.0" }
+fyrox-material = { path = "../fyrox-material", version = "0.36" }
 rapier2d = { version = "0.23", features = ["debug-render"] }
 rapier3d = { version = "0.23", features = ["debug-render"] }
 image = { version = "0.25.1", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
@@ -42,7 +43,6 @@ clap = { version = "4", features = ["derive"] }
 winit = { version = "0.29.2", features = ["serde"] }
 half = { version = "2.2.1", features = ["bytemuck"] }
 base64 = "0.22.1"
-regex = "1"
 uvgen = "0.2.0"
 lightmap = "0.2"
 libloading = "0.8.1"

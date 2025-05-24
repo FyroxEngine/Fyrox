@@ -203,20 +203,20 @@
 //! There are number of predefined render passes:
 //!
 //! - `GBuffer` - A pass that fills a set of textures (render targets) with various data about each
-//! rendered object (depth, normal, albedo, etc.). These textures then are used for physically-based
-//! lighting. Use this pass when you want the standard lighting to work with your objects.
+//!   rendered object (depth, normal, albedo, etc.). These textures then are used for physically-based
+//!   lighting. Use this pass when you want the standard lighting to work with your objects.
 //!
 //! - `Forward` - A pass that draws an object directly in a render target. It could be used to render
-//! translucent objects.
+//!   translucent objects.
 //!
 //! - `SpotShadow` - A pass that emits depth values for an object, later this depth map will be
-//! used to render shadows.
+//!   used to render shadows.
 //!
 //! - `PointShadow` - A pass that emits distance from a fragment to a point light, later this depth
-//! map will be used to render shadows.
+//!   map will be used to render shadows.
 //!
 //! - `DirectionalShadow` - A pass that emits depth values for an object, later this depth map will be
-//! used to render shadows for directional cascaded shadows.
+//!   used to render shadows for directional cascaded shadows.
 //!
 //! # Resources
 //!
@@ -436,7 +436,7 @@
 //! flexible. To get standard shader instance, use [`ShaderResource::standard`]
 //!
 //! ```no_run
-//! # use fyrox_impl::material::shader::{ShaderResource, ShaderResourceExtension};
+//! # use fyrox_material::shader::{ShaderResource, ShaderResourceExtension};
 //!
 //! let standard_shader = ShaderResource::standard();
 //! ```
@@ -444,22 +444,20 @@
 //! Usually you don't need to get this shader manually, using of [Material::standard](super::Material::standard)
 //! is enough.
 
-use crate::{
-    asset::{
-        embedded_data_source, io::ResourceIo, manager::BuiltInResource, untyped::ResourceKind,
-        Resource, ResourceData, SHADER_RESOURCE_UUID,
-    },
-    core::{
-        io::FileError, reflect::prelude::*, sparse::AtomicIndex, uuid::Uuid, visitor::prelude::*,
-        TypeUuidProvider,
-    },
-    lazy_static::lazy_static,
-    renderer::framework::{gpu_program::ShaderProperty, DrawParameters},
-};
 use fyrox_core::some_or_continue;
+use fyrox_core::{
+    io::FileError, reflect::prelude::*, sparse::AtomicIndex, uuid::Uuid, visitor::prelude::*,
+    TypeUuidProvider,
+};
 pub use fyrox_graphics::gpu_program::{
     SamplerFallback, ShaderResourceDefinition, ShaderResourceKind,
 };
+use fyrox_graphics::{gpu_program::ShaderProperty, DrawParameters};
+use fyrox_resource::{
+    embedded_data_source, io::ResourceIo, manager::BuiltInResource, untyped::ResourceKind,
+    Resource, ResourceData, SHADER_RESOURCE_UUID,
+};
+use lazy_static::lazy_static;
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -546,9 +544,10 @@ pub struct Shader {
     #[visit(optional)]
     pub definition: ShaderDefinition,
 
+    /// An id that can be used to create associated GPU resources.
     #[reflect(hidden)]
     #[visit(skip)]
-    pub(crate) cache_index: Arc<AtomicIndex>,
+    pub cache_index: Arc<AtomicIndex>,
 }
 
 impl TypeUuidProvider for Shader {
@@ -999,7 +998,7 @@ lazy_static! {
 
 #[cfg(test)]
 mod test {
-    use crate::material::shader::{
+    use crate::shader::{
         RenderPassDefinition, SamplerFallback, ShaderDefinition, ShaderResource,
         ShaderResourceDefinition, ShaderResourceExtension, ShaderResourceKind,
     };
