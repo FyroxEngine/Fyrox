@@ -7,23 +7,23 @@
 use crate::shader::{ShaderResource, ShaderResourceExtension};
 use fxhash::FxHashMap;
 use fyrox_core::{
-    TypeUuidProvider,
     algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
     color::Color,
     io::FileError,
     parking_lot::Mutex,
     reflect::prelude::*,
     sstorage::ImmutableString,
-    uuid::{Uuid, uuid},
-    visitor::{RegionGuard, prelude::*},
+    uuid::{uuid, Uuid},
+    visitor::{prelude::*, RegionGuard},
+    TypeUuidProvider,
 };
 use fyrox_graphics::gpu_program::SamplerFallback;
 use fyrox_resource::{
-    Resource, ResourceData,
     io::ResourceIo,
     manager::{BuiltInResource, ResourceManager},
     state::ResourceState,
     untyped::ResourceKind,
+    Resource, ResourceData,
 };
 use fyrox_texture::TextureResource;
 use lazy_static::lazy_static;
@@ -832,6 +832,11 @@ impl Material {
         Self::from_shader(ShaderResource::standard_tile())
     }
 
+    /// Creates new instance of standard widget material.
+    pub fn standard_widget() -> Self {
+        Self::from_shader(ShaderResource::standard_widget())
+    }
+
     /// Creates a new material instance with given shader. By default, a material does not store any
     /// resource bindings. In this case the renderer will use shader default values for rendering.
     /// Materials could be considered as container with values that overwrites shader values.
@@ -1258,6 +1263,17 @@ lazy_static! {
             uuid!("24115321-7766-495c-bc3a-75db2f73d26d"),
             ResourceKind::External,
            Material::from_shader(ShaderResource::standard_twosides()),
+        )
+    );
+
+    /// Standard widget material. Keep in mind that this material is global, any modification
+    /// of it will reflect on every other usage of it.
+    pub static ref STANDARD_WIDGET: BuiltInResource<Material> = BuiltInResource::new_no_source(
+        "__StandardWidgetMaterial",
+        MaterialResource::new_ok(
+            uuid!("e5d61a6f-5c94-4137-b303-1ae29cfff6e7"),
+            ResourceKind::External,
+           Material::from_shader(ShaderResource::standard_widget()),
         )
     );
 }

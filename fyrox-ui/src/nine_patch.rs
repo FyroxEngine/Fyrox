@@ -36,6 +36,7 @@ use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
 };
+use fyrox_material::MaterialResource;
 use fyrox_texture::{TextureKind, TextureResource};
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
@@ -230,11 +231,12 @@ fn draw_image(
     tex_coords: &[Vector2<f32>; 4],
     clip_bounds: Rect<f32>,
     background: Brush,
+    material: &MaterialResource,
     drawing_context: &mut DrawingContext,
 ) {
     drawing_context.push_rect_filled(&bounds, Some(tex_coords));
     let texture = CommandTexture::Texture(image.clone());
-    drawing_context.commit(clip_bounds, background, texture, None);
+    drawing_context.commit(clip_bounds, background, texture, material, None);
 }
 
 fn draw_tiled_image(
@@ -245,6 +247,7 @@ fn draw_tiled_image(
     tex_coords: &[Vector2<f32>; 4],
     clip_bounds: Rect<f32>,
     background: Brush,
+    material: &MaterialResource,
     drawing_context: &mut DrawingContext,
 ) {
     let region_bounds = Rect::new(
@@ -274,6 +277,7 @@ fn draw_tiled_image(
         clip_bounds,
         background,
         CommandTexture::Texture(image.clone()),
+        material,
         None,
     );
 }
@@ -380,6 +384,7 @@ impl Control for NinePatch {
                     tex_coords,
                     self.clip_bounds(),
                     self.widget.background(),
+                    &self.material,
                     drawing_context,
                 );
             }
@@ -391,6 +396,7 @@ impl Control for NinePatch {
                 tex_coords,
                 self.clip_bounds(),
                 self.widget.background(),
+                &self.material,
                 drawing_context,
             ),
         };

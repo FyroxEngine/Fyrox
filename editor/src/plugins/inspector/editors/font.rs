@@ -105,6 +105,7 @@ impl Control for FontField {
             self.clip_bounds(),
             Brush::Solid(Color::TRANSPARENT),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }

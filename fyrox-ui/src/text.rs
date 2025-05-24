@@ -369,6 +369,7 @@ impl Control for Text {
         drawing_context.draw_text(
             self.clip_bounds(),
             bounds.position,
+            &self.material,
             &self.formatted_text.borrow(),
         );
     }

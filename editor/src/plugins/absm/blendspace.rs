@@ -231,6 +231,7 @@ impl Control for BlendSpaceField {
             self.clip_bounds(),
             self.background(),
             CommandTexture::None,
+            &self.material,
             None,
         );
 
@@ -253,6 +254,7 @@ impl Control for BlendSpaceField {
             self.clip_bounds(),
             self.grid_brush.clone(),
             CommandTexture::None,
+            &self.material,
             None,
         );
 
@@ -285,6 +287,7 @@ impl Control for BlendSpaceField {
             self.clip_bounds(),
             self.foreground(),
             CommandTexture::None,
+            &self.material,
             None,
         );
 
@@ -310,6 +313,7 @@ impl Control for BlendSpaceField {
             self.clip_bounds(),
             self.foreground(),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }
@@ -590,6 +594,7 @@ impl Control for BlendSpaceFieldPoint {
                 self.background()
             },
             CommandTexture::None,
+            &self.material,
             None,
         );
     }

@@ -230,6 +230,7 @@ impl Control for Border {
                 self.clip_bounds(),
                 self.widget.background(),
                 CommandTexture::None,
+                &self.material,
                 None,
             );
 
@@ -238,6 +239,7 @@ impl Control for Border {
                 self.clip_bounds(),
                 self.widget.foreground(),
                 CommandTexture::None,
+                &self.material,
                 None,
             );
         } else {
@@ -254,6 +256,7 @@ impl Control for Border {
                 self.clip_bounds(),
                 self.widget.background(),
                 CommandTexture::None,
+                &self.material,
                 None,
             );
 
@@ -262,6 +265,7 @@ impl Control for Border {
                 self.clip_bounds(),
                 self.widget.foreground(),
                 CommandTexture::None,
+                &self.material,
                 None,
             );
         }

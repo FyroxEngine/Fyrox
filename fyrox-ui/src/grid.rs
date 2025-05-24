@@ -695,6 +695,7 @@ impl Control for Grid {
                 self.clip_bounds(),
                 self.widget.foreground(),
                 CommandTexture::None,
+                &self.material,
                 None,
             );
         }

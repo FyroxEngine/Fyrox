@@ -228,6 +228,7 @@ impl Control for Ruler {
             self.clip_bounds(),
             self.background(),
             CommandTexture::None,
+            &self.material,
             None,
         );
 
@@ -243,6 +244,7 @@ impl Control for Ruler {
             self.clip_bounds(),
             self.foreground(),
             CommandTexture::None,
+            &self.material,
             None,
         );
 
@@ -252,7 +254,12 @@ impl Control for Ruler {
         for x in self.transform.x_step_iter(STANDARD_GRID_SIZE) {
             text.set_text(format!("{x:.1}s")).build();
             let vx = self.local_to_view(x);
-            ctx.draw_text(self.clip_bounds(), Vector2::new(vx + 1.0, 0.0), &text);
+            ctx.draw_text(
+                self.clip_bounds(),
+                Vector2::new(vx + 1.0, 0.0),
+                &self.material,
+                &text,
+            );
         }
 
         // Draw signals.
@@ -270,7 +277,13 @@ impl Control for Ruler {
             } else {
                 ctx.style.get_or_default(Style::BRUSH_LIGHTEST)
             };
-            ctx.commit(self.clip_bounds(), brush, CommandTexture::None, None);
+            ctx.commit(
+                self.clip_bounds(),
+                brush,
+                CommandTexture::None,
+                &self.material,
+                None,
+            );
         }
     }
 

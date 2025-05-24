@@ -341,6 +341,7 @@ impl Control for AbsmCanvas {
             self.clip_bounds(),
             self.widget.background(),
             CommandTexture::None,
+            &self.material,
             None,
         );
 
@@ -349,6 +350,7 @@ impl Control for AbsmCanvas {
             self.clip_bounds(),
             Brush::Solid(Color::opaque(60, 60, 60)),
             CommandTexture::None,
+            &self.material,
             None,
         );
 
@@ -364,6 +366,7 @@ impl Control for AbsmCanvas {
                     Brush::Solid(Color::WHITE),
                     *source_pos,
                     *dest_pos,
+                    &self.material,
                 );
             }
             Mode::CreateConnection {
@@ -377,6 +380,7 @@ impl Control for AbsmCanvas {
                     *dest_pos,
                     self.clip_bounds(),
                     Brush::Solid(Color::WHITE),
+                    &self.material,
                 );
             }
 

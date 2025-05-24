@@ -263,6 +263,7 @@ impl Control for TextureSliceEditor {
             self.clip_bounds(),
             self.background(),
             CommandTexture::Texture(texture.clone()),
+            &self.material,
             None,
         );
 
@@ -281,6 +282,7 @@ impl Control for TextureSliceEditor {
             self.clip_bounds(),
             self.foreground(),
             CommandTexture::Texture(texture.clone()),
+            &self.material,
             None,
         );
 
@@ -333,6 +335,7 @@ impl Control for TextureSliceEditor {
             self.clip_bounds(),
             self.foreground(),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }

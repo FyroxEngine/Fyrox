@@ -195,6 +195,7 @@ impl Control for AssetItem {
             self.clip_bounds(),
             self.background(),
             CommandTexture::None,
+            &self.material,
             None,
         );
         drawing_context.push_rect(&bounds, 1.0);
@@ -202,6 +203,7 @@ impl Control for AssetItem {
             self.clip_bounds(),
             self.foreground(),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }

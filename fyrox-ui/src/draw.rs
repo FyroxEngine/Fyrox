@@ -34,7 +34,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fyrox_core::math::round_to_step;
-use fyrox_resource::untyped::UntypedResource;
+use fyrox_material::MaterialResource;
 use fyrox_texture::TextureResource;
 use std::ops::Range;
 
@@ -132,7 +132,7 @@ pub struct Command {
     pub brush: Brush,
     pub texture: CommandTexture,
     pub triangles: Range<usize>,
-    pub material: Option<UntypedResource>,
+    pub material: MaterialResource,
     pub opacity: f32,
     /// A set of triangles that defines clipping region.
     pub clipping_geometry: Option<ClippingGeometry>,
@@ -786,7 +786,6 @@ pub struct DrawingContext {
     command_buffer: Vec<Command>,
     pub transform_stack: TransformStack,
     opacity_stack: Vec<f32>,
-    material_stack: Vec<UntypedResource>,
     triangles_to_commit: usize,
     pub style: StyleResource,
     /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
@@ -838,7 +837,6 @@ impl DrawingContext {
             transform_stack: Default::default(),
             style,
             elapsed_time: 0.0,
-            material_stack: Default::default(),
         }
     }
 
@@ -848,7 +846,6 @@ impl DrawingContext {
         self.triangle_buffer.clear();
         self.command_buffer.clear();
         self.opacity_stack.clear();
-        self.material_stack.clear();
         self.opacity_stack.push(1.0);
         self.triangles_to_commit = 0;
     }
@@ -874,14 +871,6 @@ impl DrawingContext {
 
     pub fn pop_opacity(&mut self) {
         self.opacity_stack.pop().unwrap();
-    }
-
-    pub fn push_material(&mut self, shader: UntypedResource) {
-        self.material_stack.push(shader)
-    }
-
-    pub fn pop_material(&mut self) {
-        self.material_stack.pop().unwrap();
     }
 
     pub fn triangle_points(
@@ -931,6 +920,7 @@ impl DrawingContext {
         clip_bounds: Rect<f32>,
         brush: Brush,
         texture: CommandTexture,
+        material: &MaterialResource,
         clipping_geometry: Option<ClippingGeometry>,
     ) {
         if self.triangles_to_commit > 0 {
@@ -938,14 +928,13 @@ impl DrawingContext {
             let bounds = self.bounds_of(triangles.clone());
 
             let opacity = *self.opacity_stack.last().unwrap();
-            let shader = self.material_stack.last().cloned();
             self.command_buffer.push(Command {
                 clip_bounds,
                 bounds,
                 brush,
                 texture,
                 triangles,
-                material: shader,
+                material: material.clone(),
                 opacity,
                 clipping_geometry,
             });
@@ -957,6 +946,7 @@ impl DrawingContext {
         &mut self,
         clip_bounds: Rect<f32>,
         position: Vector2<f32>,
+        material: &MaterialResource,
         formatted_text: &FormattedText,
     ) {
         let font = formatted_text.get_font();
@@ -971,6 +961,7 @@ impl DrawingContext {
             offset: Vector2<f32>,
             brush: Brush,
             font: &FontResource,
+            material: &MaterialResource,
         ) {
             let Some(mut current_page_index) = formatted_text
                 .get_glyphs()
@@ -993,6 +984,7 @@ impl DrawingContext {
                             // page.
                             height: FontHeight::from(formatted_text.super_sampled_font_size()),
                         },
+                        material,
                         None,
                     );
                     current_page_index = element.atlas_page_index;
@@ -1022,6 +1014,7 @@ impl DrawingContext {
                     // page.
                     height: FontHeight::from(formatted_text.super_sampled_font_size()),
                 },
+                material,
                 None,
             );
         }
@@ -1037,6 +1030,7 @@ impl DrawingContext {
                 *formatted_text.shadow_offset,
                 (*formatted_text.shadow_brush).clone(),
                 &font,
+                material,
             );
         }
 
@@ -1049,6 +1043,7 @@ impl DrawingContext {
             Default::default(),
             formatted_text.brush(),
             &font,
+            material,
         );
     }
 }

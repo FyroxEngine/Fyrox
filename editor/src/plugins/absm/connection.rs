@@ -35,6 +35,7 @@ use crate::fyrox::{
 use crate::plugins::absm::segment::Segment;
 use crate::utils::fetch_node_screen_center;
 
+use fyrox::material::MaterialResource;
 use std::ops::{Deref, DerefMut};
 
 const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(100, 100, 100));
@@ -57,6 +58,7 @@ pub fn draw_connection(
     dest: Vector2<f32>,
     clip_bounds: Rect<f32>,
     brush: Brush,
+    material: &MaterialResource,
 ) {
     let k = 75.0;
     drawing_context.push_bezier(
@@ -67,7 +69,7 @@ pub fn draw_connection(
         20,
         4.0,
     );
-    drawing_context.commit(clip_bounds, brush, CommandTexture::None, None);
+    drawing_context.commit(clip_bounds, brush, CommandTexture::None, material, None);
 }
 
 uuid_provider!(Connection = "c802b6fa-a5ef-4464-a097-749c731ffde0");
@@ -80,6 +82,7 @@ impl Control for Connection {
             self.segment.dest_pos,
             self.clip_bounds(),
             self.foreground(),
+            &self.material,
         );
     }
 

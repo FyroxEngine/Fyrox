@@ -1582,6 +1582,7 @@ impl PaletteWidget {
             self.clip_bounds(),
             Brush::Solid(color),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }
@@ -1670,6 +1671,7 @@ impl PaletteWidget {
             self.clip_bounds(),
             Brush::Solid(self.material_color),
             CommandTexture::Texture(tex),
+            &self.material,
             None,
         );
         ctx.transform_stack.pop();
@@ -1742,6 +1744,7 @@ impl Control for PaletteWidget {
             self.clip_bounds(),
             self.widget.background(),
             CommandTexture::None,
+            &self.material,
             None,
         );
         let transform = self.tile_to_local();
@@ -1770,7 +1773,7 @@ impl Control for PaletteWidget {
             let t = self.tile_size;
             let position = Vector2::new(pos.x as f32 * t.x, pos.y as f32 * t.y);
             let rect = Rect { position, size: t };
-            draw_tile(rect, self.clip_bounds(), &data, ctx);
+            draw_tile(rect, self.clip_bounds(), &data, &self.material, ctx);
         });
 
         if let Some(tile_set) = self.state.lock().tile_set.as_ref() {
@@ -1786,7 +1789,7 @@ impl Control for PaletteWidget {
                     let t = self.tile_size;
                     let position = Vector2::new(pos.x as f32 * t.x, pos.y as f32 * t.y);
                     let rect = Rect { position, size: t };
-                    draw_tile(rect, self.clip_bounds(), &data, ctx);
+                    draw_tile(rect, self.clip_bounds(), &data, &self.material, ctx);
                 }
                 for (handle, v) in self.tile_set_update.iter() {
                     let pos = handle.tile();
@@ -1802,7 +1805,7 @@ impl Control for PaletteWidget {
                     let t = self.tile_size;
                     let position = Vector2::new(pos.x as f32 * t.x, pos.y as f32 * t.y);
                     let rect = Rect { position, size: t };
-                    draw_tile(rect, self.clip_bounds(), &data, ctx);
+                    draw_tile(rect, self.clip_bounds(), &data, &self.material, ctx);
                 }
             }
         }
@@ -1811,7 +1814,7 @@ impl Control for PaletteWidget {
                 let t = self.tile_size;
                 let position = Vector2::new(pos.x as f32 * t.x, pos.y as f32 * t.y);
                 let rect = Rect { position, size: t };
-                draw_tile(rect, self.clip_bounds(), data, ctx);
+                draw_tile(rect, self.clip_bounds(), data, &self.material, ctx);
             }
         }
 
@@ -1910,6 +1913,7 @@ impl Control for PaletteWidget {
         ctx.draw_text(
             self.clip_bounds(),
             Vector2::new(2.0, 2.0),
+            &self.material,
             &self.position_text,
         );
     }
@@ -2118,7 +2122,12 @@ const CHECKERSIZE: f32 = 10.0;
 
 /// Draw a checkerboard pattern into the given drawing context for the purpose of visualizing
 /// the transparency of whatever is drawn on top of the checkerboard.
-pub fn draw_checker_board(bounds: Rect<f32>, clip_bounds: Rect<f32>, ctx: &mut DrawingContext) {
+pub fn draw_checker_board(
+    bounds: Rect<f32>,
+    clip_bounds: Rect<f32>,
+    material: &MaterialResource,
+    ctx: &mut DrawingContext,
+) {
     let transform = ctx.transform_stack.transform();
     let bounds = bounds.transform(transform);
     let Some(clip_bounds) = *clip_bounds.clip_by(bounds) else {
@@ -2149,12 +2158,18 @@ pub fn draw_checker_board(bounds: Rect<f32>, clip_bounds: Rect<f32>, ctx: &mut D
         clip_bounds,
         Brush::Solid(Color::WHITE),
         CommandTexture::None,
+        material,
         None,
     );
     ctx.transform_stack.pop();
 }
 
-fn draw_empty_tile(position: Rect<f32>, clip_bounds: Rect<f32>, ctx: &mut DrawingContext) {
+fn draw_empty_tile(
+    position: Rect<f32>,
+    clip_bounds: Rect<f32>,
+    material: &MaterialResource,
+    ctx: &mut DrawingContext,
+) {
     let Some(image) = ERASER_IMAGE.clone() else {
         return;
     };
@@ -2171,6 +2186,7 @@ fn draw_empty_tile(position: Rect<f32>, clip_bounds: Rect<f32>, ctx: &mut Drawin
         clip_bounds,
         Brush::Solid(Color::WHITE),
         CommandTexture::Texture(image),
+        material,
         None,
     );
 }
@@ -2179,13 +2195,14 @@ fn draw_tile(
     position: Rect<f32>,
     clip_bounds: Rect<f32>,
     tile: &TileRenderData,
+    material: &MaterialResource,
     ctx: &mut DrawingContext,
 ) {
     if tile.is_empty() {
-        draw_empty_tile(position, clip_bounds, ctx);
+        draw_empty_tile(position, clip_bounds, material, ctx);
         return;
     }
-    draw_checker_board(position, clip_bounds, ctx);
+    draw_checker_board(position, clip_bounds, material, ctx);
     let color = tile.color;
     if let Some(material_bounds) = &tile.material_bounds {
         if let Some(texture) = material_bounds
@@ -2211,15 +2228,28 @@ fn draw_tile(
                     clip_bounds,
                     Brush::Solid(color),
                     CommandTexture::Texture(texture),
+                    material,
                     None,
                 );
             }
         } else {
             ctx.push_rect_filled(&position, None);
-            ctx.commit(clip_bounds, Brush::Solid(color), CommandTexture::None, None);
+            ctx.commit(
+                clip_bounds,
+                Brush::Solid(color),
+                CommandTexture::None,
+                material,
+                None,
+            );
         }
     } else {
         ctx.push_rect_filled(&position, None);
-        ctx.commit(clip_bounds, Brush::Solid(color), CommandTexture::None, None);
+        ctx.commit(
+            clip_bounds,
+            Brush::Solid(color),
+            CommandTexture::None,
+            material,
+            None,
+        );
     }
 }

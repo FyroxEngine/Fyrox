@@ -333,6 +333,7 @@ use crate::constructor::new_widget_constructor_container;
 use crate::message::RoutingStrategy;
 use crate::style::resource::{StyleResource, StyleResourceExt};
 use crate::style::{Style, DEFAULT_STYLE};
+use crate::widget::WidgetMaterial;
 pub use fyrox_animation as generic_animation;
 use fyrox_core::pool::{BorrowAs, ErasedHandle};
 use fyrox_resource::untyped::ResourceKind;
@@ -671,7 +672,7 @@ pub struct UserInterface {
     screen_size: Vector2<f32>,
     nodes: WidgetPool,
     #[reflect(hidden)]
-    drawing_context: DrawingContext,
+    pub drawing_context: DrawingContext,
     visual_debug: bool,
     root_canvas: Handle<UiNode>,
     picked_node: Handle<UiNode>,
@@ -711,6 +712,7 @@ pub struct UserInterface {
     double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
     pub double_click_time_slice: f32,
     pub tooltip_appear_delay: f32,
+    pub standard_material: WidgetMaterial,
 }
 
 impl Visit for UserInterface {
@@ -744,6 +746,9 @@ impl Visit for UserInterface {
         let _ = self
             .tooltip_appear_delay
             .visit("TooltipAppearDelay", &mut region);
+        let _ = self
+            .standard_material
+            .visit("StandardMaterial", &mut region);
 
         if region.is_reading() {
             for node in self.nodes.iter() {
@@ -802,6 +807,7 @@ impl Clone for UserInterface {
             double_click_entries: self.double_click_entries.clone(),
             double_click_time_slice: self.double_click_time_slice,
             tooltip_appear_delay: self.tooltip_appear_delay,
+            standard_material: Default::default(),
         }
     }
 }
@@ -976,10 +982,6 @@ fn draw_node(
         return;
     }
 
-    if let Some(shader) = node.material.as_ref() {
-        drawing_context.push_material(shader.clone());
-    }
-
     let pushed = if !is_node_enabled(nodes, node_handle) {
         drawing_context.push_opacity(0.4);
         true
@@ -1021,10 +1023,6 @@ fn draw_node(
     }
 
     drawing_context.transform_stack.pop();
-
-    if node.material.as_ref().is_some() {
-        drawing_context.pop_material();
-    }
 
     if pushed {
         drawing_context.pop_opacity();
@@ -1111,6 +1109,7 @@ impl UserInterface {
             double_click_entries: Default::default(),
             double_click_time_slice: 0.5, // 500 ms is standard in most operating systems.
             tooltip_appear_delay: 0.55,
+            standard_material: Default::default(),
         };
         let root_node = UiNode::new(Canvas {
             widget: WidgetBuilder::new().build(&ui.build_ctx()),
@@ -1153,16 +1152,6 @@ impl UserInterface {
     #[inline]
     pub fn release_mouse_capture(&mut self) {
         self.captured_node = Handle::NONE;
-    }
-
-    #[inline]
-    pub fn get_drawing_context(&self) -> &DrawingContext {
-        &self.drawing_context
-    }
-
-    #[inline]
-    pub fn get_drawing_context_mut(&mut self) -> &mut DrawingContext {
-        &mut self.drawing_context
     }
 
     pub fn is_node_enabled(&self, handle: Handle<UiNode>) -> bool {
@@ -1431,6 +1420,7 @@ impl UserInterface {
                     bounds,
                     Brush::Solid(Color::WHITE),
                     CommandTexture::None,
+                    &self.standard_material,
                     None,
                 );
             }
@@ -1442,6 +1432,7 @@ impl UserInterface {
                     bounds,
                     Brush::Solid(Color::GREEN),
                     CommandTexture::None,
+                    &self.standard_material,
                     None,
                 );
             }
@@ -1457,6 +1448,7 @@ impl UserInterface {
                         .resource
                         .get_or_default(Style::BRUSH_BRIGHT_BLUE),
                     CommandTexture::None,
+                    &self.standard_material,
                     None,
                 );
             }

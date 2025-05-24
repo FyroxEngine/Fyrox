@@ -372,12 +372,13 @@ impl SceneController for UiScene {
                 if let Some(node) = self.ui.try_get(*node) {
                     let bounds = node.screen_bounds();
                     let clip_bounds = node.clip_bounds();
-                    let drawing_context = self.ui.get_drawing_context_mut();
+                    let drawing_context = &mut self.ui.drawing_context;
                     drawing_context.push_rect(&bounds, 1.0);
                     drawing_context.commit(
                         clip_bounds,
                         Brush::Solid(Color::GREEN),
                         CommandTexture::None,
+                        &self.ui.standard_material,
                         None,
                     );
                 }
@@ -393,7 +394,7 @@ impl SceneController for UiScene {
                 .render_ui_to_texture(
                     self.render_target.clone(),
                     self.ui.screen_size(),
-                    self.ui.get_drawing_context(),
+                    &self.ui.drawing_context,
                     Color::DIM_GRAY,
                     PixelKind::RGBA8,
                 ),

@@ -259,7 +259,13 @@ where
                 self.draw_bit_background(i, byte_width, ctx);
             }
         }
-        ctx.commit(self.clip_bounds(), ON_NORMAL, CommandTexture::None, None);
+        ctx.commit(
+            self.clip_bounds(),
+            ON_NORMAL,
+            CommandTexture::None,
+            &self.material,
+            None,
+        );
         for i in 0..bit_count {
             if (self.current_bit != i || self.bit_state == BitState::Normal)
                 && !is_bit_set(value, i)
@@ -271,15 +277,28 @@ where
             self.clip_bounds(),
             Brush::Solid(Color::TRANSPARENT),
             CommandTexture::None,
+            &self.material,
             None,
         );
         if self.bit_state != BitState::Normal {
             let i = self.current_bit;
             self.draw_bit_background(i, byte_width, ctx);
             if is_bit_set(value, i) {
-                ctx.commit(self.clip_bounds(), ON_HOVER, CommandTexture::None, None);
+                ctx.commit(
+                    self.clip_bounds(),
+                    ON_HOVER,
+                    CommandTexture::None,
+                    &self.material,
+                    None,
+                );
             } else {
-                ctx.commit(self.clip_bounds(), OFF_HOVER, CommandTexture::None, None);
+                ctx.commit(
+                    self.clip_bounds(),
+                    OFF_HOVER,
+                    CommandTexture::None,
+                    &self.material,
+                    None,
+                );
             }
         }
         for i in 0..bit_count {
@@ -291,6 +310,7 @@ where
             self.clip_bounds(),
             Brush::Solid(Color::WHITE),
             CommandTexture::None,
+            &self.material,
             None,
         );
         for i in 0..bit_count {
@@ -302,6 +322,7 @@ where
             self.clip_bounds(),
             Brush::Solid(Color::BLACK),
             CommandTexture::Texture(BIT_ICONS.clone().unwrap()),
+            &self.material,
             None,
         );
         for i in 0..bit_count {
@@ -313,6 +334,7 @@ where
             self.clip_bounds(),
             Brush::Solid(Color::GRAY),
             CommandTexture::Texture(BIT_ICONS.clone().unwrap()),
+            &self.material,
             None,
         );
     }

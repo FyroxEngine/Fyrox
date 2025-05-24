@@ -2315,9 +2315,7 @@ impl Engine {
             ctx.renderer.render_and_swap_buffers(
                 &self.scenes,
                 self.elapsed_time,
-                self.user_interfaces
-                    .iter()
-                    .map(|ui| ui.get_drawing_context()),
+                self.user_interfaces.iter().map(|ui| &ui.drawing_context),
                 &ctx.window,
             )?;
         }

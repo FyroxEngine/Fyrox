@@ -20,7 +20,6 @@
 
 //! See [`UiRenderer`] docs.
 
-use crate::material::shader::{ShaderResource, ShaderResourceExtension};
 use crate::renderer::cache::uniform::{UniformBlockLocation, UniformMemoryAllocator};
 use crate::{
     asset::untyped::ResourceKind,
@@ -34,7 +33,6 @@ use crate::{
         brush::Brush,
         draw::{CommandTexture, DrawingContext},
     },
-    material::{Material, MaterialResource},
     renderer::{
         bundle::{self, make_texture_binding},
         cache::{
@@ -73,7 +71,6 @@ pub struct UiRenderer {
     render_passes: RenderPassContainer,
     geometry_buffer: GpuGeometryBuffer,
     clipping_geometry_buffer: GpuGeometryBuffer,
-    default_material: MaterialResource,
 }
 
 /// A set of parameters to render a specified user interface drawing context.
@@ -104,7 +101,6 @@ pub struct UiRenderContext<'a, 'b, 'c> {
 
 fn write_uniform_blocks(
     ortho: &Matrix4<f32>,
-    default_material: &MaterialResource,
     resolution: Vector2<f32>,
     commands: &[Command],
     uniform_memory_allocator: &mut UniformMemoryAllocator,
@@ -114,9 +110,7 @@ fn write_uniform_blocks(
     for cmd in commands {
         let mut command_block_locations = ArrayVec::<(usize, UniformBlockLocation), 8>::new();
 
-        let material = cmd.material.as_ref().and_then(|m| m.try_cast());
-        let material = material.as_ref().unwrap_or(default_material);
-        let material = material.data_ref();
+        let material = cmd.material.data_ref();
         let shader = material.shader();
         let shader = shader.data_ref();
 
@@ -268,21 +262,14 @@ impl UiRenderer {
             usage: BufferUsage::DynamicDraw,
         };
 
-        let shader = ShaderResource::from_str(
-            Uuid::new_v4(),
-            include_str!("shaders/ui.shader"),
-            ResourceKind::Embedded,
-        )
-        .unwrap();
         Ok(Self {
             geometry_buffer: server.create_geometry_buffer(geometry_buffer_desc)?,
             clipping_geometry_buffer: server
                 .create_geometry_buffer(clipping_geometry_buffer_desc)?,
             render_passes: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/ui.shader"),
+                include_str!("../../../fyrox-material/src/shader/standard/widget.shader"),
             )?,
-            default_material: MaterialResource::new_embedded(Material::from_shader(shader)),
         })
     }
 
@@ -317,7 +304,6 @@ impl UiRenderer {
 
         let uniform_blocks = write_uniform_blocks(
             &ortho,
-            &self.default_material,
             resolution,
             drawing_context.get_commands(),
             uniform_memory_allocator,
@@ -396,9 +382,7 @@ impl UiRenderer {
                 count: cmd.triangles.end - cmd.triangles.start,
             };
 
-            let material = cmd.material.as_ref().and_then(|m| m.try_cast());
-            let material = material.as_ref().unwrap_or(&self.default_material);
-            let material = material.data_ref();
+            let material = cmd.material.data_ref();
             let shader = material.shader();
 
             if let Some(render_pass_container) = render_pass_cache.get(server, shader) {

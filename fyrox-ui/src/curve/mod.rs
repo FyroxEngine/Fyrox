@@ -1402,6 +1402,7 @@ impl CurveEditor {
             self.clip_bounds(),
             self.background(),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }
@@ -1423,6 +1424,7 @@ impl CurveEditor {
                 self.clip_bounds(),
                 zone.brush.clone(),
                 CommandTexture::None,
+                &self.material,
                 None,
             );
         }
@@ -1473,6 +1475,7 @@ impl CurveEditor {
             self.clip_bounds(),
             self.grid_brush.clone(),
             CommandTexture::None,
+            &self.material,
             None,
         );
 
@@ -1485,6 +1488,7 @@ impl CurveEditor {
                 ctx.draw_text(
                     self.clip_bounds(),
                     self.point_to_screen_space(Vector2::new(local_left_bottom_n.x, y)),
+                    &self.material,
                     &text,
                 );
             }
@@ -1496,6 +1500,7 @@ impl CurveEditor {
                 ctx.draw_text(
                     self.clip_bounds(),
                     self.point_to_screen_space(Vector2::new(x, local_left_bottom_n.y)),
+                    &self.material,
                     &text,
                 );
             }
@@ -1586,6 +1591,7 @@ impl CurveEditor {
                 self.clip_bounds(),
                 curve.brush.clone(),
                 CommandTexture::None,
+                &self.material,
                 None,
             );
         }
@@ -1689,6 +1695,7 @@ impl CurveEditor {
                         self.key_brush.clone()
                     },
                     CommandTexture::None,
+                    &self.material,
                     None,
                 );
             }
@@ -1708,6 +1715,7 @@ impl CurveEditor {
                 self.clip_bounds(),
                 Brush::Solid(Color::WHITE),
                 CommandTexture::None,
+                &self.material,
                 None,
             );
         }

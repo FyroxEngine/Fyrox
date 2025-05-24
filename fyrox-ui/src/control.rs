@@ -251,6 +251,7 @@ pub trait Control:
     ///         self.clip_bounds(),
     ///         self.widget.background(),
     ///         CommandTexture::None,
+    ///         &self.material,
     ///         None,
     ///     );
     /// }

@@ -368,6 +368,7 @@ impl Control for ListViewItem {
             self.clip_bounds(),
             Brush::Solid(Color::TRANSPARENT),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }

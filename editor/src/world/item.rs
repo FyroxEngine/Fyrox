@@ -161,6 +161,7 @@ impl Control for SceneItem {
             self.clip_bounds().inflate(0.0, 2.0),
             Brush::Solid(Color::CORN_FLOWER_BLUE),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }

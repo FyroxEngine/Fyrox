@@ -965,6 +965,7 @@ impl Control for TextBox {
             self.clip_bounds(),
             self.widget.background(),
             CommandTexture::None,
+            &self.material,
             None,
         );
 
@@ -1039,6 +1040,7 @@ impl Control for TextBox {
             self.clip_bounds(),
             (*self.selection_brush).clone(),
             CommandTexture::None,
+            &self.material,
             None,
         );
 
@@ -1046,6 +1048,7 @@ impl Control for TextBox {
         drawing_context.draw_text(
             self.clip_bounds(),
             local_position,
+            &self.material,
             &self.formatted_text.borrow(),
         );
 
@@ -1062,6 +1065,7 @@ impl Control for TextBox {
                 self.clip_bounds(),
                 (*self.caret_brush).clone(),
                 CommandTexture::None,
+                &self.material,
                 None,
             );
         }

@@ -45,7 +45,9 @@ use crate::{
     Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_graph::BaseSceneGraph;
-use fyrox_resource::{untyped::UntypedResource, Resource};
+use fyrox_material::{Material, MaterialResource};
+use fyrox_resource::Resource;
+use std::ops::{Deref, DerefMut};
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -745,6 +747,36 @@ impl WidgetMessage {
     );
 }
 
+#[doc(hidden)]
+#[derive(Clone, Debug, Reflect, PartialEq)]
+pub struct WidgetMaterial(pub MaterialResource);
+
+impl Visit for WidgetMaterial {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
+impl Default for WidgetMaterial {
+    fn default() -> Self {
+        Self(MaterialResource::new_embedded(Material::standard_widget()))
+    }
+}
+
+impl Deref for WidgetMaterial {
+    type Target = MaterialResource;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for WidgetMaterial {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 /// Widget is a base UI element, that is always used to build derived, more complex, widgets. In general, it is a container
 /// for layout information, basic visual appearance, visibility options, parent-child information. It does almost nothing
 /// on its own, instead, the user interface modifies its state accordingly.
@@ -893,7 +925,7 @@ pub struct Widget {
     #[reflect(read_only)]
     pub resource: Option<Resource<UserInterface>>,
     /// A material, that should be used when rendering the widget.
-    pub material: InheritableVariable<Option<UntypedResource>>,
+    pub material: InheritableVariable<WidgetMaterial>,
     /// Handle to a widget in a user interface resource from which this node was instantiated from.
     #[reflect(hidden)]
     pub original_handle_in_resource: Handle<UiNode>,
@@ -1895,7 +1927,7 @@ pub struct WidgetBuilder {
     /// A flag, that indicates that the widget accepts user input.
     pub accepts_input: bool,
     /// A material that will be used for rendering.
-    pub material: Option<UntypedResource>,
+    pub material: WidgetMaterial,
 }
 
 impl Default for WidgetBuilder {
@@ -1945,7 +1977,7 @@ impl WidgetBuilder {
             tab_index: None,
             tab_stop: false,
             accepts_input: false,
-            material: None,
+            material: Default::default(),
         }
     }
 
@@ -2209,8 +2241,8 @@ impl WidgetBuilder {
     }
 
     /// Sets a material which will be used for rendering of this widget.
-    pub fn with_material(mut self, material: UntypedResource) -> Self {
-        self.material = Some(material);
+    pub fn with_material(mut self, material: WidgetMaterial) -> Self {
+        self.material = material;
         self
     }
 

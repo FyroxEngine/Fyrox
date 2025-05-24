@@ -247,7 +247,13 @@ impl Control for Image {
         let bounds = self.widget.bounding_rect();
 
         if *self.checkerboard_background {
-            draw_checker_board(bounds, self.clip_bounds(), 8.0, drawing_context);
+            draw_checker_board(
+                bounds,
+                self.clip_bounds(),
+                8.0,
+                &self.material,
+                drawing_context,
+            );
         }
 
         if self.texture.is_some() || !*self.checkerboard_background {
@@ -289,7 +295,13 @@ impl Control for Image {
                 .texture
                 .as_ref()
                 .map_or(CommandTexture::None, |t| CommandTexture::Texture(t.clone()));
-            drawing_context.commit(self.clip_bounds(), self.widget.background(), texture, None);
+            drawing_context.commit(
+                self.clip_bounds(),
+                self.widget.background(),
+                texture,
+                &self.material,
+                None,
+            );
         }
     }
 

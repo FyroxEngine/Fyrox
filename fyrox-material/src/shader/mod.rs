@@ -874,8 +874,11 @@ pub trait ShaderResourceExtension: Sized {
     /// Returns an instance of standard two-sides terrain shader.
     fn standard_twosides() -> Self;
 
+    /// Returns an instance of standard widget shader.
+    fn standard_widget() -> Self;
+
     /// Returns a list of standard shader.
-    fn standard_shaders() -> [&'static BuiltInResource<Shader>; 7];
+    fn standard_shaders() -> [&'static BuiltInResource<Shader>; 8];
 }
 
 impl ShaderResourceExtension for ShaderResource {
@@ -911,7 +914,11 @@ impl ShaderResourceExtension for ShaderResource {
         STANDARD_TWOSIDES.resource()
     }
 
-    fn standard_shaders() -> [&'static BuiltInResource<Shader>; 7] {
+    fn standard_widget() -> Self {
+        STANDARD_WIDGET.resource()
+    }
+
+    fn standard_shaders() -> [&'static BuiltInResource<Shader>; 8] {
         [
             &STANDARD,
             &STANDARD_2D,
@@ -920,6 +927,7 @@ impl ShaderResourceExtension for ShaderResource {
             &STANDARD_TERRAIN,
             &STANDARD_TWOSIDES,
             &STANDARD_TILE,
+            &STANDARD_WIDGET,
         ]
     }
 }
@@ -990,6 +998,15 @@ lazy_static! {
         embedded_data_source!("standard/standard-two-sides.shader"),
         |data| ShaderResource::new_ok(
             uuid!("f7979409-5185-4e1c-a644-d53cea64af8f"),
+            ResourceKind::External,
+            Shader::from_string_bytes(data).unwrap(),
+        )
+    );
+    static ref STANDARD_WIDGET: BuiltInResource<Shader> = BuiltInResource::new(
+        STANDARD_TWOSIDES_SHADER_NAME,
+        embedded_data_source!("standard/widget.shader"),
+        |data| ShaderResource::new_ok(
+            uuid!("f5908aa4-e187-42a8-95d2-dc6577f6def4"),
             ResourceKind::External,
             Shader::from_string_bytes(data).unwrap(),
         )

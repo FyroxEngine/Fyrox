@@ -101,6 +101,7 @@ impl Control for Thumb {
             self.clip_bounds(),
             self.foreground(),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }

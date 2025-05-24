@@ -45,6 +45,7 @@ use crate::fyrox::{
     scene::tilemap::{TileRenderData, TileSource},
 };
 
+use fyrox::material::MaterialResource;
 use std::ops::{Deref, DerefMut};
 
 /// The preview widget of the tile map control panel. This allows the user to see the
@@ -80,6 +81,7 @@ fn draw_tile(
     position: Rect<f32>,
     clip_bounds: Rect<f32>,
     tile: &TileRenderData,
+    material: &MaterialResource,
     drawing_context: &mut DrawingContext,
 ) {
     if tile.is_empty() {
@@ -110,16 +112,29 @@ fn draw_tile(
                     clip_bounds,
                     Brush::Solid(color),
                     CommandTexture::Texture(texture),
+                    material,
                     None,
                 );
             }
         } else {
             drawing_context.push_rect_filled(&position, None);
-            drawing_context.commit(clip_bounds, Brush::Solid(color), CommandTexture::None, None);
+            drawing_context.commit(
+                clip_bounds,
+                Brush::Solid(color),
+                CommandTexture::None,
+                material,
+                None,
+            );
         }
     } else {
         drawing_context.push_rect_filled(&position, None);
-        drawing_context.commit(clip_bounds, Brush::Solid(color), CommandTexture::None, None);
+        drawing_context.commit(
+            clip_bounds,
+            Brush::Solid(color),
+            CommandTexture::None,
+            material,
+            None,
+        );
     }
 }
 
@@ -184,6 +199,7 @@ impl Control for PanelPreview {
             self.clip_bounds(),
             self.widget.background(),
             CommandTexture::None,
+            &self.material,
             None,
         );
         let state = self.state.lock();
@@ -210,13 +226,14 @@ impl Control for PanelPreview {
             let t = self.tile_size;
             let position = Vector2::new(pos.x as f32 * t.x, pos.y as f32 * t.y);
             let rect = Rect { position, size: t };
-            draw_tile(rect, self.clip_bounds(), &data, ctx);
+            draw_tile(rect, self.clip_bounds(), &data, &self.material, ctx);
         }
 
         ctx.transform_stack.pop();
         ctx.draw_text(
             self.clip_bounds(),
             bounds.right_bottom_corner() - self.handle_text_size,
+            &self.material,
             &self.handle_text,
         );
     }

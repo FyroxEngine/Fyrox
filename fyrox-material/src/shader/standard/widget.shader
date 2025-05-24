@@ -1,5 +1,5 @@
 (
-    name: "UserInterface",
+    name: "Widget",
     resources: [
         (
             name: "fyrox_widgetTexture",

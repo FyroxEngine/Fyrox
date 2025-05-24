@@ -93,6 +93,7 @@ impl Control for ColorGradientField {
             self.bounding_rect(),
             self.clip_bounds(),
             6.0,
+            &self.material,
             drawing_context,
         );
 
@@ -105,6 +106,7 @@ impl Control for ColorGradientField {
                 self.clip_bounds(),
                 Brush::Solid(ColorGradient::STUB_COLOR),
                 CommandTexture::None,
+                &self.material,
                 None,
             );
         } else {
@@ -139,6 +141,7 @@ impl Control for ColorGradientField {
                 self.clip_bounds(),
                 Brush::Solid(Color::WHITE),
                 CommandTexture::None,
+                &self.material,
                 None,
             );
         }
@@ -548,6 +551,7 @@ impl Control for ColorPoint {
             self.clip_bounds(),
             self.foreground(),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }

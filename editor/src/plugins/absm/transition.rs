@@ -47,6 +47,7 @@ use crate::utils::fetch_node_center;
 
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::material::MaterialResource;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -91,6 +92,7 @@ pub fn draw_transition(
     brush: Brush,
     source_pos: Vector2<f32>,
     dest_pos: Vector2<f32>,
+    material: &MaterialResource,
 ) {
     drawing_context.push_line(source_pos, dest_pos, 4.0);
 
@@ -106,7 +108,7 @@ pub fn draw_transition(
         center - perp.scale(size * 0.5),
     ]);
 
-    drawing_context.commit(clip_bounds, brush, CommandTexture::None, None);
+    drawing_context.commit(clip_bounds, brush, CommandTexture::None, material, None);
 }
 
 uuid_provider!(TransitionView = "01798aee-8fe5-4480-a69d-8e5b95c3cc96");
@@ -125,6 +127,7 @@ impl Control for TransitionView {
             brush,
             self.segment.source_pos,
             self.segment.dest_pos,
+            &self.material,
         );
     }
 

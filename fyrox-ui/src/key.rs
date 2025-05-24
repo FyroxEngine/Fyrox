@@ -225,6 +225,7 @@ impl Control for HotKeyEditor {
             self.clip_bounds(),
             Brush::Solid(Color::TRANSPARENT),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }
@@ -455,6 +456,7 @@ impl Control for KeyBindingEditor {
             self.clip_bounds(),
             Brush::Solid(Color::TRANSPARENT),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }

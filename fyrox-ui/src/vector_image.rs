@@ -298,6 +298,7 @@ impl Control for VectorImage {
             self.clip_bounds(),
             self.widget.foreground(),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }

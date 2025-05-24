@@ -121,7 +121,7 @@ impl EditorPlugin for UiStatisticsPlugin {
                 Drawing Commands: {}\nProcessed Messages: {}\n",
                 ui.nodes().alive_count(),
                 total_memory as f32 / (1024.0 * 1024.0),
-                ui.get_drawing_context().get_commands().len(),
+                ui.drawing_context.get_commands().len(),
                 editor.processed_ui_messages
             ),
         ));

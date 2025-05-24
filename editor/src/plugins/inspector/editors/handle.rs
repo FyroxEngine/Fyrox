@@ -163,6 +163,7 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
             self.clip_bounds(),
             Brush::Solid(Color::TRANSPARENT),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }

@@ -319,6 +319,7 @@ impl Control for ScrollPanel {
             self.clip_bounds(),
             Brush::Solid(Color::TRANSPARENT),
             CommandTexture::None,
+            &self.material,
             None,
         );
     }
