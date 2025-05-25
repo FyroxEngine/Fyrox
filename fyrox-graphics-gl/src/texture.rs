@@ -18,15 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{ToGlConstant, server::GlGraphicsServer};
+use crate::{server::GlGraphicsServer, ToGlConstant};
 use fyrox_graphics::{
     error::FrameworkError,
     gpu_texture::{
-        CubeMapFace, GpuTextureDescriptor, GpuTextureKind, GpuTextureTrait, PixelKind,
-        image_1d_size_bytes, image_2d_size_bytes, image_3d_size_bytes,
+        image_1d_size_bytes, image_2d_size_bytes, image_3d_size_bytes, CubeMapFace,
+        GpuTextureDescriptor, GpuTextureKind, GpuTextureTrait, PixelKind,
     },
 };
-use glow::{COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2, HasContext, PixelUnpackData};
+use glow::{HasContext, PixelUnpackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use std::cell::Cell;
 use std::{
     marker::PhantomData,

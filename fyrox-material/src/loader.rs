@@ -21,7 +21,7 @@
 //! Material loader.
 
 use crate::Material;
-use fyrox_core::{TypeUuidProvider, uuid::Uuid};
+use fyrox_core::{uuid::Uuid, TypeUuidProvider};
 use fyrox_resource::state::LoadError;
 use fyrox_resource::{
     io::ResourceIo,

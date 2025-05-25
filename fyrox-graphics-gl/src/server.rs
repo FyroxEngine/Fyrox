@@ -408,7 +408,7 @@ impl GlGraphicsServer {
 
         #[cfg(target_arch = "wasm32")]
         let (window, mut context, gl_kind) = {
-            use crate::core::wasm_bindgen::JsCast;
+            use fyrox_core::wasm_bindgen::JsCast;
             use serde::{Deserialize, Serialize};
             use winit::{
                 dpi::{LogicalSize, PhysicalSize},
@@ -418,7 +418,7 @@ impl GlGraphicsServer {
             let inner_size = window_builder.window_attributes().inner_size;
             let window = window_builder.build(window_target).unwrap();
 
-            let web_window = crate::core::web_sys::window().unwrap();
+            let web_window = fyrox_core::web_sys::window().unwrap();
             let scale_factor = web_window.device_pixel_ratio();
 
             let canvas = window.canvas().unwrap();
@@ -475,7 +475,7 @@ impl GlGraphicsServer {
                 )
                 .unwrap()
                 .unwrap()
-                .dyn_into::<crate::core::web_sys::WebGl2RenderingContext>()
+                .dyn_into::<fyrox_core::web_sys::WebGl2RenderingContext>()
                 .unwrap();
             (
                 window,

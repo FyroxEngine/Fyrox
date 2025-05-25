@@ -19,8 +19,8 @@
 // SOFTWARE.
 
 use crate::{
-    ToGlConstant,
     server::{GlGraphicsServer, GlKind},
+    ToGlConstant,
 };
 use fyrox_graphics::{
     core::log::{Log, MessageKind},
@@ -499,7 +499,7 @@ impl Drop for GlProgram {
 
 #[cfg(test)]
 mod test {
-    use crate::program::{Vendor, patch_error_message};
+    use crate::program::{patch_error_message, Vendor};
 
     #[test]
     fn test_line_correction() {

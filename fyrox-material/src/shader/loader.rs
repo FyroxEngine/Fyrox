@@ -21,7 +21,7 @@
 //! Shader loader.
 
 use crate::shader::Shader;
-use fyrox_core::{TypeUuidProvider, uuid::Uuid};
+use fyrox_core::{uuid::Uuid, TypeUuidProvider};
 use fyrox_resource::{
     io::ResourceIo,
     loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},

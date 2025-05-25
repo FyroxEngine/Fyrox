@@ -19,6 +19,7 @@ fyrox-core = { version = "0.36", path = "../fyrox-core" }
 fxhash = "0.2.1"
 regex = "1"
 glow = "0.16"
+serde = { version = "1.0.215", features = ["derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 glutin = "0.31"

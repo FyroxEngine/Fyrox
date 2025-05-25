@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::ToGlConstant;
 use crate::server::GlGraphicsServer;
+use crate::ToGlConstant;
 use fyrox_graphics::{
     buffer::{BufferKind, BufferUsage, GpuBufferTrait},
     error::FrameworkError,

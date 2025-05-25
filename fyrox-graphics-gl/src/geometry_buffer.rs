@@ -18,15 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{ToGlConstant, buffer::GlBuffer, server::GlGraphicsServer};
+use crate::{buffer::GlBuffer, server::GlGraphicsServer, ToGlConstant};
 use fyrox_graphics::{
-    ElementKind,
     buffer::{BufferKind, GpuBufferTrait},
     core::{array_as_u8_slice, math::TriangleDefinition},
     error::FrameworkError,
     geometry_buffer::{
         AttributeKind, ElementsDescriptor, GeometryBufferDescriptor, GpuGeometryBufferTrait,
     },
+    ElementKind,
 };
 use glow::HasContext;
 use std::{cell::Cell, marker::PhantomData, rc::Weak};
