@@ -400,11 +400,11 @@
 //!
 //! - cull_face
 //!     - Defines which side of polygon should be culled.
-//!     - **Possible values:** `None`, [Some(CullFace::XXX)](crate::renderer::framework::CullFace)
+//!     - **Possible values:** `None`, [Some(CullFace::XXX)](fyrox_graphics::CullFace)
 //!
 //! - color_write:
 //!     - Defines which components of color should be written to a render target
-//!     - **Possible values:** [ColorMask](crate::renderer::framework::ColorMask)(...)
+//!     - **Possible values:** [ColorMask](fyrox_graphics::ColorMask)(...)
 //!
 //!  - depth_write:
 //!     - Whether to modify depth buffer or not.
@@ -414,7 +414,7 @@
 //!     - Whether to use stencil test or not.
 //!     - **Possible values:**
 //!         - `None`
-//!         - Some([StencilFunc](crate::renderer::framework::StencilFunc))
+//!         - Some([StencilFunc](fyrox_graphics::StencilFunc))
 //!
 //!  - depth_test:
 //!      - Whether to perform depth test when drawing.
@@ -424,11 +424,11 @@
 //!      - Blending options.
 //!      - **Possible values:**
 //!         - `None`
-//!         - Some([BlendFunc](crate::renderer::framework::BlendFunc))
+//!         - Some([BlendFunc](fyrox_graphics::BlendFunc))
 //!
 //!   - stencil_op:
 //!      - Stencil options.
-//!      - **Possible values:** [StencilOp](crate::renderer::framework::StencilOp)
+//!      - **Possible values:** [StencilOp](fyrox_graphics::StencilOp)
 //!
 //! # Standard shader
 //!
