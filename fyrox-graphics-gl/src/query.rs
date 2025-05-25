@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{
+use crate::server::GlGraphicsServer;
+use fyrox_graphics::{
     error::FrameworkError,
-    gl::server::GlGraphicsServer,
     query::{GpuQueryTrait, QueryKind, QueryResult},
 };
 use glow::HasContext;

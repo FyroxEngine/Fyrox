@@ -18,23 +18,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{
+use crate::{ToGlConstant, server::GlGraphicsServer};
+use fyrox_graphics::{
     error::FrameworkError,
-    gl::{server::GlGraphicsServer, ToGlConstant},
     gpu_texture::{
-        image_1d_size_bytes, image_2d_size_bytes, image_3d_size_bytes, CubeMapFace,
-        GpuTextureDescriptor, GpuTextureKind, GpuTextureTrait, PixelKind,
+        CubeMapFace, GpuTextureDescriptor, GpuTextureKind, GpuTextureTrait, PixelKind,
+        image_1d_size_bytes, image_2d_size_bytes, image_3d_size_bytes,
     },
 };
-use glow::{HasContext, PixelUnpackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
+use glow::{COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2, HasContext, PixelUnpackData};
 use std::cell::Cell;
 use std::{
     marker::PhantomData,
     rc::{Rc, Weak},
 };
 
-impl GpuTextureKind {
-    pub fn gl_texture_target(&self) -> u32 {
+impl ToGlConstant for GpuTextureKind {
+    fn into_gl(self) -> u32 {
         match self {
             Self::Line { .. } => glow::TEXTURE_1D,
             Self::Rectangle { .. } => glow::TEXTURE_2D,
@@ -78,9 +78,9 @@ pub struct PixelDescriptor {
     pub swizzle_mask: Option<[i32; 4]>,
 }
 
-impl PixelKind {
-    pub(crate) fn pixel_descriptor(self) -> PixelDescriptor {
-        let (data_type, format, internal_format, swizzle_mask) = match self {
+impl From<PixelKind> for PixelDescriptor {
+    fn from(value: PixelKind) -> Self {
+        let (data_type, format, internal_format, swizzle_mask) = match value {
             PixelKind::R32F => (glow::FLOAT, glow::RED, glow::R32F, None),
             PixelKind::R32UI => (glow::UNSIGNED_INT, glow::RED_INTEGER, glow::R32UI, None),
             PixelKind::R16F => (glow::FLOAT, glow::RED, glow::R16F, None),
@@ -198,7 +198,7 @@ impl TempBinding {
         let unit = server
             .free_texture_unit()
             .expect("Texture units limit exceeded!");
-        let target = texture.kind.get().gl_texture_target();
+        let target = texture.kind.get().into_gl();
         server.set_texture(unit, target, Some(texture.texture));
         Self {
             server,
@@ -284,11 +284,7 @@ impl GlTexture {
     }
 
     pub fn bind(&self, server: &GlGraphicsServer, sampler_index: u32) {
-        server.set_texture(
-            sampler_index,
-            self.kind.get().gl_texture_target(),
-            Some(self.texture),
-        );
+        server.set_texture(sampler_index, self.kind.get().into_gl(), Some(self.texture));
     }
 
     fn make_temp_binding(&self) -> TempBinding {
@@ -385,7 +381,7 @@ impl GpuTextureTrait for GlTexture {
 
         let mut temp_binding = self.make_temp_binding();
         temp_binding.set_max_level(mip_count.saturating_sub(1));
-        let target = kind.gl_texture_target();
+        let target = kind.into_gl();
 
         unsafe {
             let PixelDescriptor {
@@ -393,7 +389,7 @@ impl GpuTextureTrait for GlTexture {
                 format,
                 internal_format,
                 swizzle_mask,
-            } = pixel_kind.pixel_descriptor();
+            } = PixelDescriptor::from(pixel_kind);
 
             let is_compressed = pixel_kind.is_compressed();
 

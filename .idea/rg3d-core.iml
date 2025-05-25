@@ -49,6 +49,7 @@
       <sourceFolder url="file://$MODULE_DIR$/fyrox-resource/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/fyrox-material/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/fyrox-shader/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fyrox-graphics-gl/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/examples/wasm/target" />
     </content>

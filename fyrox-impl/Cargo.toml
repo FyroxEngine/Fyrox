@@ -23,6 +23,7 @@ fyrox-resource = { path = "../fyrox-resource", version = "0.36.2" }
 fyrox-animation = { path = "../fyrox-animation", version = "0.36.2" }
 fyrox-graph = { path = "../fyrox-graph", version = "0.36.2" }
 fyrox-graphics = { path = "../fyrox-graphics", version = "0.36.2" }
+fyrox-graphics-gl = { path = "../fyrox-graphics-gl", version = "0.36" }
 fyrox-texture = { path = "../fyrox-texture", version = "0.36.2" }
 fyrox-autotile = { path = "../fyrox-autotile", version = "0.36.0" }
 fyrox-material = { path = "../fyrox-material", version = "0.36" }

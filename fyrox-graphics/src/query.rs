@@ -8,14 +8,13 @@ use fyrox_core::define_as_any_trait;
 use std::fmt::Debug;
 
 /// Kind of a GPU query.
-#[repr(u32)]
 #[derive(Copy, Clone, Debug)]
 pub enum QueryKind {
     /// Queries a number of rendered pixels; any pixel that passed all pipeline tests counts.
-    SamplesPassed = glow::SAMPLES_PASSED,
+    SamplesPassed,
 
     /// Queries a flag that defines whether the rendering operation produced any pixels or not.
-    AnySamplesPassed = glow::ANY_SAMPLES_PASSED,
+    AnySamplesPassed,
 }
 
 /// Result of a query.

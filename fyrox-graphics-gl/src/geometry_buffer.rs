@@ -18,21 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{
+use crate::{ToGlConstant, buffer::GlBuffer, server::GlGraphicsServer};
+use fyrox_graphics::{
+    ElementKind,
     buffer::{BufferKind, GpuBufferTrait},
     core::{array_as_u8_slice, math::TriangleDefinition},
     error::FrameworkError,
     geometry_buffer::{
         AttributeKind, ElementsDescriptor, GeometryBufferDescriptor, GpuGeometryBufferTrait,
     },
-    gl::{buffer::GlBuffer, server::GlGraphicsServer, ToGlConstant},
-    ElementKind,
 };
 use glow::HasContext;
 use std::{cell::Cell, marker::PhantomData, rc::Weak};
 
-impl AttributeKind {
-    fn gl_type(self) -> u32 {
+impl ToGlConstant for AttributeKind {
+    fn into_gl(self) -> u32 {
         match self {
             AttributeKind::Float => glow::FLOAT,
             AttributeKind::UnsignedByte => glow::UNSIGNED_BYTE,
@@ -94,7 +94,7 @@ impl GlGeometryBuffer {
                     server.gl.vertex_attrib_pointer_f32(
                         definition.location,
                         definition.component_count as i32,
-                        definition.kind.gl_type(),
+                        definition.kind.into_gl(),
                         definition.normalized,
                         buffer.data.element_size as i32,
                         offset as i32,

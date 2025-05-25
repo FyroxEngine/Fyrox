@@ -31,7 +31,6 @@ pub mod buffer;
 pub mod error;
 pub mod framebuffer;
 pub mod geometry_buffer;
-pub mod gl;
 pub mod gpu_program;
 pub mod gpu_texture;
 pub mod query;
@@ -569,7 +568,7 @@ pub enum ElementKind {
 }
 
 impl ElementKind {
-    fn index_per_element(self) -> usize {
+    pub fn index_per_element(self) -> usize {
         match self {
             ElementKind::Triangle => 3,
             ElementKind::Line => 2,

@@ -104,7 +104,8 @@ use crate::{
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
 use fyrox_core::visitor::error::VisitError;
-use fyrox_graphics::{gl::server::GlGraphicsServer, server::SharedGraphicsServer};
+use fyrox_graphics::server::SharedGraphicsServer;
+use fyrox_graphics_gl::server::GlGraphicsServer;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},

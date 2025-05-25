@@ -18,23 +18,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::buffer::GlBuffer;
 use crate::{
+    framebuffer::GlFrameBuffer,
+    geometry_buffer::GlGeometryBuffer,
+    program::{GlProgram, GlShader},
+    query::GlQuery,
+    read_buffer::GlAsyncReadBuffer,
+    sampler::GlSampler,
+    texture::GlTexture,
+    ToGlConstant,
+};
+use fyrox_graphics::{
     buffer::{BufferKind, BufferUsage, GpuBuffer},
     core::{color::Color, log::Log, math::Rect},
     error::FrameworkError,
     framebuffer::{Attachment, GpuFrameBuffer},
     geometry_buffer::{GeometryBufferDescriptor, GpuGeometryBuffer},
-    gl::{
-        self,
-        framebuffer::GlFrameBuffer,
-        geometry_buffer::GlGeometryBuffer,
-        program::{GlProgram, GlShader},
-        query::GlQuery,
-        read_buffer::GlAsyncReadBuffer,
-        sampler::GlSampler,
-        texture::GlTexture,
-        ToGlConstant,
-    },
     gpu_program::{GpuProgram, GpuShader, ShaderKind, ShaderResourceDefinition},
     gpu_texture::{GpuTexture, GpuTextureDescriptor},
     query::GpuQuery,
@@ -367,7 +367,8 @@ impl GlGraphicsServer {
 
                 let gl_surface = gl_config
                     .display()
-                    .create_window_surface(&gl_config, &attrs)?;
+                    .create_window_surface(&gl_config, &attrs)
+                    .map_err(|err| FrameworkError::Custom(format!("{err:?}")))?;
 
                 let (non_current_gl_context, gl_kind) = if let Ok(gl3_3_core_context) =
                     gl_display.create_context(&gl_config, &gl3_3_core_context_attributes)
@@ -375,12 +376,16 @@ impl GlGraphicsServer {
                     (gl3_3_core_context, GlKind::OpenGL)
                 } else {
                     (
-                        gl_display.create_context(&gl_config, &gles3_context_attributes)?,
+                        gl_display
+                            .create_context(&gl_config, &gles3_context_attributes)
+                            .map_err(|err| FrameworkError::Custom(format!("{err:?}")))?,
                         GlKind::OpenGLES,
                     )
                 };
 
-                let gl_context = non_current_gl_context.make_current(&gl_surface)?;
+                let gl_context = non_current_gl_context
+                    .make_current(&gl_surface)
+                    .map_err(|err| FrameworkError::Custom(format!("{err:?}")))?;
 
                 if vsync {
                     Log::verify(gl_surface.set_swap_interval(
@@ -499,7 +504,7 @@ impl GlGraphicsServer {
 
             #[cfg(debug_assertions)]
             {
-                use crate::core::log::{Log, MessageKind};
+                use fyrox_core::log::{Log, MessageKind};
 
                 if context.supported_extensions().contains("GL_KHR_debug") {
                     context.debug_message_callback(|source, msg_type, id, severity, message| {
@@ -1001,7 +1006,7 @@ impl GraphicsServer for GlGraphicsServer {
         buffer_kind: BufferKind,
         buffer_usage: BufferUsage,
     ) -> Result<GpuBuffer, FrameworkError> {
-        Ok(GpuBuffer(Rc::new(gl::buffer::GlBuffer::new(
+        Ok(GpuBuffer(Rc::new(GlBuffer::new(
             self,
             size,
             buffer_kind,
@@ -1138,7 +1143,10 @@ impl GraphicsServer for GlGraphicsServer {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let state = self.state.borrow();
-            Ok(state.gl_surface.swap_buffers(&state.gl_context)?)
+            state
+                .gl_surface
+                .swap_buffers(&state.gl_context)
+                .map_err(|err| FrameworkError::Custom(format!("{err:?}")))
         }
 
         #[cfg(target_arch = "wasm32")]

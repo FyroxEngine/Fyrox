@@ -147,7 +147,8 @@ pub enum PixelElementKind {
 }
 
 impl PixelKind {
-    pub(crate) fn unpack_alignment(self) -> Option<i32> {
+    #[doc(hidden)]
+    pub fn unpack_alignment(self) -> Option<i32> {
         match self {
             Self::RGBA16
             | Self::RGBA16F

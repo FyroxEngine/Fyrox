@@ -18,11 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::sampler::{Coordinate, MagnificationFilter, MinificationFilter, WrapMode};
-use crate::{
+use crate::{ToGlConstant, server::GlGraphicsServer};
+use fyrox_graphics::{
     error::FrameworkError,
-    gl::{server::GlGraphicsServer, ToGlConstant},
-    sampler::{GpuSamplerDescriptor, GpuSamplerTrait},
+    sampler::{
+        Coordinate, GpuSamplerDescriptor, GpuSamplerTrait, MagnificationFilter, MinificationFilter,
+        WrapMode,
+    },
 };
 use glow::HasContext;
 use std::rc::Weak;

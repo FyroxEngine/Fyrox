@@ -8,25 +8,14 @@ keywords = ["graphics", "gapi"]
 categories = ["graphics", "rendering::graphics-api"]
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 homepage = "https://fyrox.rs"
-documentation = "https://docs.rs/fyrox-ui"
+documentation = "https://docs.rs/fyrox-graphics"
 repository = "https://github.com/FyroxEngine/Fyrox"
 rust-version = "1.86"
 
 [dependencies]
 fyrox-core = { path = "../fyrox-core", version = "0.36.2", features = ["serde"] }
-glow = "0.16"
+
 serde = { version = "1", features = ["derive"] }
 strum = "0.26.1"
 strum_macros = "0.26.1"
-winit = { version = "0.29.2", features = ["serde"] }
 bytemuck = { version = "1.16.1", features = ["derive"] }
-fxhash = "0.2.1"
-regex = "1"
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-glutin = "0.31"
-glutin-winit = "0.4.2"
-raw-window-handle = "0.5.0"
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-serde-wasm-bindgen = "0.6.3"

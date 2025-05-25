@@ -18,7 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{
+use crate::texture::PixelDescriptor;
+pub use crate::{
+    ToGlConstant, buffer::GlBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram,
+    sampler::GlSampler, server::GlGraphicsServer, texture::GlTexture,
+};
+use fyrox_graphics::{
+    ColorMask, DrawParameters, ElementRange,
     buffer::GpuBufferTrait,
     core::{color::Color, math::Rect},
     error::FrameworkError,
@@ -28,15 +34,9 @@ use crate::{
         GpuFrameBufferTrait, ResourceBindGroup, ResourceBinding,
     },
     geometry_buffer::GpuGeometryBuffer,
-    gl::sampler::GlSampler,
-    gl::{
-        buffer::GlBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram,
-        server::GlGraphicsServer, texture::GlTexture, ToGlConstant,
-    },
     gpu_program::GpuProgram,
     gpu_texture::image_2d_size_bytes,
     gpu_texture::{CubeMapFace, GpuTextureKind, GpuTextureTrait, PixelElementKind},
-    ColorMask, DrawParameters, ElementRange,
 };
 use glow::{HasContext, PixelPackData};
 use std::rc::Weak;
@@ -274,7 +274,7 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
 
         if let GpuTextureKind::Rectangle { width, height } = texture.kind() {
             let pixel_kind = texture.pixel_kind();
-            let pixel_info = pixel_kind.pixel_descriptor();
+            let pixel_info = PixelDescriptor::from(pixel_kind);
             let mut buffer = vec![0; image_2d_size_bytes(pixel_kind, width, height)];
             unsafe {
                 server.gl.read_pixels(

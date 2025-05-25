@@ -167,13 +167,6 @@ impl From<NulError> for FrameworkError {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-impl From<glutin::error::Error> for FrameworkError {
-    fn from(err: glutin::error::Error) -> Self {
-        Self::Custom(format!("{err:?}"))
-    }
-}
-
 impl From<String> for FrameworkError {
     fn from(v: String) -> Self {
         Self::Custom(v)

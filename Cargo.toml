@@ -22,7 +22,7 @@ members = [
     "fyrox-texture",
     "fyrox-autotile",
     "fyrox-material"
-]
+, "fyrox-graphics-gl"]
 resolver = "2"
 
 [profile.dev]

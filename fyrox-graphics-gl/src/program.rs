@@ -19,12 +19,12 @@
 // SOFTWARE.
 
 use crate::{
+    ToGlConstant,
+    server::{GlGraphicsServer, GlKind},
+};
+use fyrox_graphics::{
     core::log::{Log, MessageKind},
     error::FrameworkError,
-    gl::{
-        server::{GlGraphicsServer, GlKind},
-        ToGlConstant,
-    },
     gpu_program::{
         GpuProgramTrait, GpuShaderTrait, SamplerKind, ShaderKind, ShaderPropertyKind,
         ShaderResourceDefinition, ShaderResourceKind,
@@ -33,18 +33,16 @@ use crate::{
 use glow::HasContext;
 use std::{marker::PhantomData, ops::Range, rc::Weak};
 
-impl SamplerKind {
-    pub fn glsl_name(&self) -> &str {
-        match self {
-            SamplerKind::Sampler1D => "sampler1D",
-            SamplerKind::Sampler2D => "sampler2D",
-            SamplerKind::Sampler3D => "sampler3D",
-            SamplerKind::SamplerCube => "samplerCube",
-            SamplerKind::USampler1D => "usampler1D",
-            SamplerKind::USampler2D => "usampler2D",
-            SamplerKind::USampler3D => "usampler3D",
-            SamplerKind::USamplerCube => "usamplerCube",
-        }
+fn glsl_sampler_name(sampler: SamplerKind) -> &'static str {
+    match sampler {
+        SamplerKind::Sampler1D => "sampler1D",
+        SamplerKind::Sampler2D => "sampler2D",
+        SamplerKind::Sampler3D => "sampler3D",
+        SamplerKind::SamplerCube => "samplerCube",
+        SamplerKind::USampler1D => "usampler1D",
+        SamplerKind::USampler2D => "usampler2D",
+        SamplerKind::USampler3D => "usampler3D",
+        SamplerKind::USamplerCube => "usamplerCube",
     }
 }
 
@@ -187,7 +185,7 @@ impl GlShader {
             let resource_name = &property.name;
             match property.kind {
                 ShaderResourceKind::Texture { kind, .. } => {
-                    let glsl_name = kind.glsl_name();
+                    let glsl_name = glsl_sampler_name(kind);
                     texture_bindings += &format!("uniform {glsl_name} {resource_name};\n");
                 }
                 ShaderResourceKind::PropertyGroup(ref fields) => {
@@ -264,7 +262,9 @@ impl GlShader {
                         }
                     }
                     block += "};\n";
-                    block += &format!("layout(std140) uniform U{resource_name} {{ T{resource_name} {resource_name}; }};\n");
+                    block += &format!(
+                        "layout(std140) uniform U{resource_name} {{ T{resource_name} {resource_name}; }};\n"
+                    );
                     source.insert_str(0, &block);
                     line_offset -= count_lines(&block);
                 }
@@ -304,7 +304,9 @@ impl GlShader {
                 {
                     format!("Shader {name} compiled successfully!")
                 } else {
-                    format!("Shader {name} compiled successfully!\nAdditional info: {compilation_message}")
+                    format!(
+                        "Shader {name} compiled successfully!\nAdditional info: {compilation_message}"
+                    )
                 };
 
                 Log::writeln(MessageKind::Information, msg);
@@ -497,7 +499,7 @@ impl Drop for GlProgram {
 
 #[cfg(test)]
 mod test {
-    use crate::gl::program::{patch_error_message, Vendor};
+    use crate::program::{Vendor, patch_error_message};
 
     #[test]
     fn test_line_correction() {

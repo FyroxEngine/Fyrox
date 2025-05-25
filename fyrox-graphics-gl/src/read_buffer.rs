@@ -18,13 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{
+use crate::texture::PixelDescriptor;
+use crate::{ToGlConstant, buffer::GlBuffer, framebuffer::GlFrameBuffer, server::GlGraphicsServer};
+use fyrox_graphics::{
     buffer::{BufferKind, BufferUsage, GpuBufferTrait},
     core::{algebra::Vector2, math::Rect},
     error::FrameworkError,
     framebuffer::GpuFrameBufferTrait,
-    gl::{buffer::GlBuffer, framebuffer::GlFrameBuffer, server::GlGraphicsServer, ToGlConstant},
-    gpu_texture::{image_2d_size_bytes, GpuTextureKind},
+    gpu_texture::{GpuTextureKind, image_2d_size_bytes},
     read_buffer::GpuAsyncReadBufferTrait,
 };
 use glow::{HasContext, PixelPackData};
@@ -97,7 +98,7 @@ impl GpuAsyncReadBufferTrait for GlAsyncReadBuffer {
             })?
             .texture;
 
-        let attachment_pixel_descriptor = color_attachment.pixel_kind().pixel_descriptor();
+        let attachment_pixel_descriptor = PixelDescriptor::from(color_attachment.pixel_kind());
 
         let color_attachment_size =
             if let GpuTextureKind::Rectangle { width, height } = color_attachment.kind() {
