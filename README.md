@@ -7,7 +7,6 @@
 
 [![License (MIT)](https://img.shields.io/crates/l/fyrox)](https://github.com/FyroxEngine/Fyrox/blob/master/LICENSE.md)
 [![CI Status](https://github.com/FyroxEngine/Fyrox/actions/workflows/ci.yml/badge.svg)](https://github.com/FyroxEngine/Fyrox/actions/workflows/ci.yml)
-[![Dependency status](https://deps.rs/repo/github/FyroxEngine/Fyrox/status.svg)](https://deps.rs/repo/github/FyroxEngine/Fyrox)
 [![Crates.io](https://img.shields.io/crates/v/fyrox)](https://crates.io/crates/fyrox)
 [![docs.rs](https://img.shields.io/badge/docs-website-blue)](https://docs.rs/Fyrox/)
 [![Discord](https://img.shields.io/discord/756573453561102427)](https://discord.gg/xENF5Uh)
