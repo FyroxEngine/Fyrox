@@ -82,7 +82,9 @@ use crate::{
     },
     send_sync_message, Editor, Engine, Message,
 };
+use fyrox::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;
 use fyrox::gui::utils::make_simple_tooltip;
+use fyrox::gui::widget::WidgetMaterial;
 use std::sync::Arc;
 
 pub mod editor;
@@ -769,6 +771,8 @@ impl EditorPlugin for MaterialPlugin {
             resource_manager: editor.engine.resource_manager.clone(),
         });
         container.insert(InheritablePropertyEditorDefinition::<MaterialResource>::new());
+        container.insert(InheritablePropertyEditorDefinition::<WidgetMaterial>::new());
+        container.insert(InspectablePropertyEditorDefinition::<WidgetMaterial>::new());
     }
 
     fn on_sync_to_model(&mut self, editor: &mut Editor) {
