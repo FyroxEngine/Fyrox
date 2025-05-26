@@ -2162,12 +2162,13 @@ impl Editor {
 
         self.asset_browser.clear_preview(&mut self.engine);
 
-        std::env::set_current_dir(working_directory.clone()).unwrap();
-
-        // We must re-read settings, because each project have its own unique settings.
-        self.reload_settings();
-
-        self.load_layout();
+        let current_working_directory = std::env::current_dir().unwrap();
+        if current_working_directory != working_directory {
+            std::env::set_current_dir(working_directory.clone()).unwrap();
+            self.engine.resource_manager.update_or_load_registry();
+            self.reload_settings();
+            self.load_layout();
+        }
 
         let engine = &mut self.engine;
 
