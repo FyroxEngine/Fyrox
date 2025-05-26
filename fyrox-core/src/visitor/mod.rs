@@ -149,7 +149,10 @@ where
 
                         Ok(())
                     }
-                    _ => Err(VisitError::FieldTypeDoesNotMatch),
+                    _ => Err(VisitError::FieldTypeDoesNotMatch {
+                        expected: stringify!(FieldKind::BinaryBlob),
+                        actual: format!("{:?}", field.kind),
+                    }),
                 }
             } else {
                 Err(VisitError::FieldDoesNotExist(name.to_owned()))

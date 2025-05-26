@@ -50,7 +50,10 @@ macro_rules! impl_visit_as_field {
                                 *self = data.clone();
                                 Ok(())
                             },
-                            _ => Err(VisitError::FieldTypeDoesNotMatch)
+                            _ => Err(VisitError::FieldTypeDoesNotMatch {
+                                expected: stringify!($($kind)*),
+                                actual: format!("{:?}", field.kind),
+                            }),
                         }
                     } else {
                         Err(VisitError::FieldDoesNotExist(name.to_owned()))
@@ -229,7 +232,10 @@ impl Visit for String {
                         *self = string.clone();
                         Ok(())
                     }
-                    _ => Err(VisitError::FieldTypeDoesNotMatch),
+                    _ => Err(VisitError::FieldTypeDoesNotMatch {
+                        expected: stringify!(FieldKind::String),
+                        actual: format!("{:?}", field.kind),
+                    }),
                 }
             } else {
                 Err(VisitError::FieldDoesNotExist(name.to_owned()))

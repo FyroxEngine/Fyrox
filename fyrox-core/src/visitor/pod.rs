@@ -142,7 +142,10 @@ impl<T: Pod> Visit for PodVecView<'_, T> {
                             Err(VisitError::TypeMismatch)
                         }
                     }
-                    _ => Err(VisitError::FieldTypeDoesNotMatch),
+                    _ => Err(VisitError::FieldTypeDoesNotMatch {
+                        expected: stringify!(FieldKind::PodArray),
+                        actual: format!("{:?}", field.kind),
+                    }),
                 }
             } else {
                 Err(VisitError::FieldDoesNotExist(name.to_owned()))
