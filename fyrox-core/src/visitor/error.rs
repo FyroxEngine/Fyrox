@@ -51,7 +51,12 @@ pub enum VisitError {
     InvalidCurrentNode,
     /// Attempting to visit a field using a read-mode Visitor when that field was originally
     /// written using a value of a different type.
-    FieldTypeDoesNotMatch,
+    FieldTypeDoesNotMatch {
+        /// expected [`crate::visitor::FieldKind`] variant name, for instance "FieldKind::F64"
+        expected: &'static str,
+        /// Debug representation of actual [`crate::visitor::FieldKind`]
+        actual: String,
+    },
     /// Attempting to enter a region on a read-mode Visitor when no region in the visitor's data
     /// has the given name.
     RegionDoesNotExist(String),
@@ -100,7 +105,10 @@ impl Display for VisitError {
             Self::FieldAlreadyExists(name) => write!(f, "field already exists {name}"),
             Self::RegionAlreadyExists(name) => write!(f, "region already exists {name}"),
             Self::InvalidCurrentNode => write!(f, "invalid current node"),
-            Self::FieldTypeDoesNotMatch => write!(f, "field type does not match"),
+            Self::FieldTypeDoesNotMatch { expected, actual } => write!(
+                f,
+                "field type does not match. expected: {expected}, actual: {actual}"
+            ),
             Self::RegionDoesNotExist(name) => write!(f, "region does not exists {name}"),
             Self::NoActiveNode => write!(f, "no active node"),
             Self::NotSupportedFormat => write!(f, "not supported format"),
