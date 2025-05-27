@@ -40,6 +40,7 @@ pub mod navmesh;
 pub mod node;
 pub mod particle_system;
 pub mod pivot;
+pub mod probe;
 pub mod ragdoll;
 pub mod rigidbody;
 pub mod sound;
@@ -48,9 +49,11 @@ pub mod terrain;
 pub mod tilemap;
 pub mod transform;
 
-use crate::renderer::framework::PolygonFillMode;
 use crate::{
-    asset::{self, manager::ResourceManager, untyped::UntypedResource},
+    asset::{
+        self, io::ResourceIo, manager::ResourceManager, registry::ResourceRegistryStatus,
+        untyped::UntypedResource,
+    },
     core::{
         algebra::Vector2,
         color::Color,
@@ -58,10 +61,12 @@ use crate::{
         log::{Log, MessageKind},
         pool::{Handle, Pool, Ticket},
         reflect::prelude::*,
-        visitor::{Visit, VisitResult, Visitor},
+        variable::InheritableVariable,
+        visitor::{error::VisitError, Visit, VisitResult, Visitor},
     },
     engine::SerializationContext,
     graph::NodeHandleMap,
+    renderer::framework::PolygonFillMode,
     resource::texture::TextureResource,
     scene::{
         base::BaseBuilder,
@@ -74,12 +79,7 @@ use crate::{
     },
     utils::navmesh::Navmesh,
 };
-use asset::io::ResourceIo;
 use fxhash::FxHashSet;
-
-use fyrox_core::variable::InheritableVariable;
-use fyrox_core::visitor::error::VisitError;
-use fyrox_resource::registry::ResourceRegistryStatus;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},

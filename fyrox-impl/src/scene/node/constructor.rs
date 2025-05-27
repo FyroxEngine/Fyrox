@@ -20,26 +20,29 @@
 
 //! A special container that is able to create nodes by their type UUID.
 
-use crate::scene::graph::Graph;
-use crate::scene::{
-    self,
-    animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
-    camera::Camera,
-    decal::Decal,
-    dim2::{self, rectangle::Rectangle},
-    light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
-    mesh::Mesh,
-    navmesh::NavigationalMesh,
-    node::Node,
-    particle_system::ParticleSystem,
-    pivot::Pivot,
-    ragdoll::Ragdoll,
-    sound::{listener::Listener, Sound},
-    sprite::Sprite,
-    terrain::Terrain,
-    tilemap::TileMap,
+use crate::{
+    graph::constructor::{GraphNodeConstructor, GraphNodeConstructorContainer},
+    scene::{
+        self,
+        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
+        camera::Camera,
+        decal::Decal,
+        dim2::{self, rectangle::Rectangle},
+        graph::Graph,
+        light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
+        mesh::Mesh,
+        navmesh::NavigationalMesh,
+        node::Node,
+        particle_system::ParticleSystem,
+        pivot::Pivot,
+        probe::ReflectionProbe,
+        ragdoll::Ragdoll,
+        sound::{listener::Listener, Sound},
+        sprite::Sprite,
+        terrain::Terrain,
+        tilemap::TileMap,
+    },
 };
-use fyrox_graph::constructor::{GraphNodeConstructor, GraphNodeConstructorContainer};
 
 /// Node constructor creates scene nodes in various states.
 pub type NodeConstructor = GraphNodeConstructor<Node, Graph>;
@@ -75,6 +78,7 @@ pub fn new_node_constructor_container() -> NodeConstructorContainer {
     container.add::<NavigationalMesh>();
     container.add::<Ragdoll>();
     container.add::<TileMap>();
+    container.add::<ReflectionProbe>();
 
     container
 }
