@@ -17,10 +17,32 @@
             binding: 2
         ),
         (
+            name: "depthTexture",
+            kind: Texture(kind: Sampler2D, fallback: White),
+            binding: 3
+        ),
+        (
+            name: "normalTexture",
+            kind: Texture(kind: Sampler2D, fallback: White),
+            binding: 4
+        ),
+        (
+            name: "materialTexture",
+            kind: Texture(kind: Sampler2D, fallback: White),
+            binding: 5
+        ),
+        (
+            name: "environmentMap",
+            kind: Texture(kind: SamplerCube, fallback: White),
+            binding: 6
+        ),
+        (
             name: "properties",
             kind: PropertyGroup([
                 (name: "worldViewProjection", kind: Matrix4()),
                 (name: "ambientColor", kind: Vector4()),
+                (name: "cameraPosition", kind: Vector3()),
+                (name: "invViewProj", kind: Matrix4()),
             ]),
             binding: 0
         ),
@@ -82,9 +104,20 @@
 
                     void main()
                     {
+                        vec3 material = texture(materialTexture, texCoord).rgb;
+                        float metallic = material.x;
+                        float roughness = material.y;
+                        vec3 fragmentPosition = S_UnProject(vec3(texCoord, texture(depthTexture, texCoord).r), properties.invViewProj);
+                        vec3 fragmentNormal = normalize(texture(normalTexture, texCoord).xyz * 2.0 - 1.0);
+
+                        vec3 I = normalize(fragmentPosition - properties.cameraPosition);
+                        vec3 R = reflect(I, normalize(fragmentNormal));
+                        vec3 reflection = texture(environmentMap, R).rgb * (1.0 - roughness);
+
                         float ambientOcclusion = texture(aoSampler, texCoord).r;
                         vec4 ambientPixel = texture(ambientTexture, texCoord);
-                        FragColor = (properties.ambientColor + ambientPixel) * S_SRGBToLinear(texture(diffuseTexture, texCoord));
+                        FragColor = (properties.ambientColor + ambientPixel) * S_SRGBToLinear(texture(diffuseTexture, texCoord)) ;
+                        FragColor.rgb += reflection;
                         FragColor.rgb *= ambientOcclusion;
                         FragColor.a = ambientPixel.a;
 

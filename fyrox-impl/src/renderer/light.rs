@@ -376,6 +376,19 @@ impl DeferredLightRenderer {
             }
         }
 
+        let environment_map = camera
+            .skybox_ref()
+            .and_then(|s| s.cubemap_ref())
+            .and_then(|c| {
+                textures
+                    .get(server, c)
+                    .map(|d| (&d.gpu_texture, &d.gpu_sampler))
+            })
+            .unwrap_or((
+                &fallback_resources.environment_dummy,
+                &fallback_resources.linear_clamp_sampler,
+            ));
+
         // Ambient light.
         let gbuffer_depth_map = gbuffer.depth();
         let gbuffer_diffuse_map = gbuffer.diffuse_texture();
@@ -388,6 +401,8 @@ impl DeferredLightRenderer {
         let properties = PropertyGroup::from([
             property("worldViewProjection", &frame_matrix),
             property("ambientColor", &ambient_color),
+            property("cameraPosition", &camera_global_position),
+            property("invViewProj", &inv_view_projection),
         ]);
         let material = RenderMaterial::from([
             binding(
@@ -415,6 +430,22 @@ impl DeferredLightRenderer {
                     &fallback_resources.nearest_clamp_sampler,
                 ),
             ),
+            binding(
+                "depthTexture",
+                (gbuffer_depth_map, &fallback_resources.linear_clamp_sampler),
+            ),
+            binding(
+                "normalTexture",
+                (gbuffer_normal_map, &fallback_resources.linear_clamp_sampler),
+            ),
+            binding(
+                "materialTexture",
+                (
+                    gbuffer_material_map,
+                    &fallback_resources.linear_clamp_sampler,
+                ),
+            ),
+            binding("environmentMap", environment_map),
             binding("properties", &properties),
         ]);
 
