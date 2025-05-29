@@ -361,19 +361,22 @@ impl ResourceRegistry {
 
     /// Same as [`Self::save`], but synchronous.
     pub fn save_sync(&self) {
-        match self.paths.save_sync(&self.path, &*self.io) {
-            Err(error) => {
-                err!(
-                    "Unable to write the resource registry at the {} path! Reason: {:?}",
-                    self.path.display(),
-                    error
-                )
-            }
-            Ok(_) => {
-                info!(
-                    "The registry was successfully saved to {}!",
-                    self.path.display()
-                )
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            match self.paths.save_sync(&self.path, &*self.io) {
+                Err(error) => {
+                    err!(
+                        "Unable to write the resource registry at the {} path! Reason: {:?}",
+                        self.path.display(),
+                        error
+                    )
+                }
+                Ok(_) => {
+                    info!(
+                        "The registry was successfully saved to {}!",
+                        self.path.display()
+                    )
+                }
             }
         }
     }
