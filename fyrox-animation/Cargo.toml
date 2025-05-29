@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-animation"
-version = "0.36.2"
+version = "1.0.0-rc.1"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
@@ -15,8 +15,8 @@ readme = "README.md"
 rust-version = "1.86"
 
 [dependencies]
-fyrox-core = { version = "0.36.2", path = "../fyrox-core" }
-fyrox-resource = { version = "0.36.2", path = "../fyrox-resource" }
+fyrox-core = { version = "1.0.0-rc.1", path = "../fyrox-core" }
+fyrox-resource = { version = "1.0.0-rc.1", path = "../fyrox-resource" }
 strum = "0.26.1"
 strum_macros = "0.26.1"
 fxhash = "0.2.1"

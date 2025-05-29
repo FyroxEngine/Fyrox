@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-core-derive"
-version = "0.36.2"
+version = "1.0.0-rc.1"
 authors = ["toyboot4e <toyboot4e@gmail.com>, Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"

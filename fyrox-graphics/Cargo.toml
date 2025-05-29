@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-graphics"
-version = "0.36.2"
+version = "1.0.0-rc.1"
 edition = "2021"
 license = "MIT"
 description = "Graphics API abstraction for Fyrox Game Engine"
@@ -13,8 +13,7 @@ repository = "https://github.com/FyroxEngine/Fyrox"
 rust-version = "1.86"
 
 [dependencies]
-fyrox-core = { path = "../fyrox-core", version = "0.36.2", features = ["serde"] }
-
+fyrox-core = { path = "../fyrox-core", version = "1.0.0-rc.1", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 strum = "0.26.1"
 strum_macros = "0.26.1"

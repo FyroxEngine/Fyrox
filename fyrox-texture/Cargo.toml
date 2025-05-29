@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-texture"
-version = "0.36.2"
+version = "1.0.0-rc.1"
 edition = "2021"
 license = "MIT"
 description = "Texture utilities for Fyrox Engine"
@@ -13,8 +13,8 @@ repository = "https://github.com/FyroxEngine/Fyrox"
 rust-version = "1.86"
 
 [dependencies]
-fyrox-core = { path = "../fyrox-core", version = "0.36.2" }
-fyrox-resource = { path = "../fyrox-resource", version = "0.36.2" }
+fyrox-core = { path = "../fyrox-core", version = "1.0.0-rc.1" }
+fyrox-resource = { path = "../fyrox-resource", version = "1.0.0-rc.1" }
 ddsfile = "0.5.0"
 fast_image_resize = "5.0.0"
 serde = { version = "1", features = ["derive"] }
