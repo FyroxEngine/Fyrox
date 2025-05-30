@@ -28,7 +28,7 @@ use crate::{
     },
     renderer::{
         bundle::{
-            BundleRenderContext, ObserverInfo, RenderDataBundleStorage,
+            BundleRenderContext, ObserverPosition, RenderDataBundleStorage,
             RenderDataBundleStorageOptions,
         },
         cache::{shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator},
@@ -146,12 +146,13 @@ impl SpotShadowMapRenderer {
             graph,
             render_mask,
             elapsed_time,
-            ObserverInfo {
-                observer_position: light_position,
+            &ObserverPosition {
+                translation: light_position,
                 z_near,
                 z_far,
                 view_matrix: light_view_matrix,
                 projection_matrix: light_projection_matrix,
+                view_projection_matrix: light_projection_matrix * light_view_matrix,
             },
             SPOT_SHADOW_PASS_NAME.clone(),
             RenderDataBundleStorageOptions {

@@ -23,7 +23,7 @@
 #![allow(missing_docs)] // TODO
 
 use crate::material::Material;
-use crate::scene::camera::Camera;
+use crate::scene::camera::{Camera, ColorGradingLut, Exposure, Projection};
 use crate::{
     core::{
         algebra::{Matrix4, Vector3, Vector4},
@@ -75,7 +75,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-use fyrox_core::algebra::Point3;
+use fyrox_core::algebra::{Point3, Vector2};
 use fyrox_graph::{SceneGraph, SceneGraphNode};
 use fyrox_graphics::gpu_program::{SamplerFallback, ShaderResourceDefinition};
 use std::{
@@ -83,30 +83,76 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-/// Observer info contains all the data, that describes an observer. It could be a real camera, light source's
-/// "virtual camera" that is used for shadow mapping, etc.
+pub struct Observer {
+    pub handle: Handle<Node>,
+    pub render_target: Option<TextureResource>,
+    pub position: ObserverPosition,
+    pub environment_map: Option<TextureResource>,
+    pub skybox_map: Option<TextureResource>,
+    pub render_mask: BitMask,
+    pub projection: Projection,
+    pub color_grading_lut: Option<ColorGradingLut>,
+    pub color_grading_enabled: bool,
+    pub exposure: Exposure,
+    pub viewport: Rect<i32>,
+    pub frustum: Frustum,
+}
+
+impl Observer {
+    pub fn from_camera(camera: &Camera, mut frame_size: Vector2<f32>) -> Self {
+        let skybox_map = camera.skybox_ref().and_then(|s| s.cubemap.clone());
+        if let Some(render_target) = camera.render_target() {
+            if let Some(size) = render_target
+                .data_ref()
+                .as_loaded_ref()
+                .and_then(|rt| rt.kind().rectangle_size().map(|size| size.cast::<f32>()))
+            {
+                frame_size = size;
+            }
+        }
+        Observer {
+            handle: camera.handle(),
+            environment_map: camera.environment_map().or_else(|| skybox_map.clone()),
+            skybox_map,
+            render_mask: *camera.render_mask,
+            projection: camera.projection().clone(),
+            position: ObserverPosition::from_camera(camera),
+            render_target: camera.render_target().cloned(),
+            color_grading_lut: camera.color_grading_lut(),
+            color_grading_enabled: camera.color_grading_enabled(),
+            exposure: camera.exposure(),
+            viewport: camera.viewport_pixels(frame_size),
+            frustum: camera.frustum(),
+        }
+    }
+}
+
+/// Observer position contains all the data, that describes an observer position in 3D space. It
+/// could be a real camera, light source's "virtual camera" that is used for shadow mapping, etc.
 #[derive(Clone, Default)]
-pub struct ObserverInfo {
+pub struct ObserverPosition {
     /// World-space position of the observer.
-    pub observer_position: Vector3<f32>,
-    /// Location of the near clipping plane.
+    pub translation: Vector3<f32>,
+    /// Position of the near clipping plane.
     pub z_near: f32,
-    /// Location of the far clipping plane.
+    /// Position of the far clipping plane.
     pub z_far: f32,
-    /// View matrix of the observer.
+    /// The view matrix of the observer.
     pub view_matrix: Matrix4<f32>,
     /// Projection matrix of the observer.
     pub projection_matrix: Matrix4<f32>,
+    pub view_projection_matrix: Matrix4<f32>,
 }
 
-impl ObserverInfo {
+impl ObserverPosition {
     pub fn from_camera(camera: &Camera) -> Self {
-        ObserverInfo {
-            observer_position: camera.global_position(),
+        Self {
+            translation: camera.global_position(),
             z_near: camera.projection().z_near(),
             z_far: camera.projection().z_far(),
             view_matrix: camera.view_matrix(),
             projection_matrix: camera.projection_matrix(),
+            view_projection_matrix: camera.view_projection_matrix(),
         }
     }
 }
@@ -121,7 +167,7 @@ pub struct RenderContext<'a> {
     /// this value is **not** guaranteed to match real time. A user can change delta time with
     /// which the engine "ticks" and this delta time affects elapsed time.
     pub elapsed_time: f32,
-    pub observer_info: &'a ObserverInfo,
+    pub observer_position: &'a ObserverPosition,
     /// Frustum of the observer, it is built using observer's view and projection matrix. Use the frustum to do
     /// frustum culling.
     pub frustum: Option<&'a Frustum>,
@@ -144,7 +190,7 @@ impl RenderContext<'_> {
         const RANGE_CENTER: u64 = u64::MAX / 2;
         const GRANULARITY: f32 = 1000.0;
 
-        let view_matrix = &self.observer_info.view_matrix;
+        let view_matrix = &self.observer_position.view_matrix;
         let world_space_point = Point3::from(global_position);
         let view_space_point = view_matrix.transform_point(&world_space_point);
 
@@ -823,7 +869,8 @@ pub struct LightSource {
 /// rendering by reducing amount of state changes of OpenGL context.
 pub struct RenderDataBundleStorage {
     bundle_map: FxHashMap<u64, usize>,
-    pub observer_info: ObserverInfo,
+    /// Position of an observer for which this data bundle was created.
+    pub observer_position: ObserverPosition,
     /// A sorted list of bundles.
     pub bundles: Vec<RenderDataBundle>,
     pub light_sources: Vec<LightSource>,
@@ -842,10 +889,10 @@ impl Default for RenderDataBundleStorageOptions {
 }
 
 impl RenderDataBundleStorage {
-    pub fn new_empty(observer_info: ObserverInfo) -> Self {
+    pub fn new_empty(observer_position: ObserverPosition) -> Self {
         Self {
             bundle_map: Default::default(),
-            observer_info,
+            observer_position,
             bundles: Default::default(),
             light_sources: Default::default(),
         }
@@ -858,7 +905,7 @@ impl RenderDataBundleStorage {
         graph: &Graph,
         render_mask: BitMask,
         elapsed_time: f32,
-        observer_info: ObserverInfo,
+        observer_position: &ObserverPosition,
         render_pass_name: ImmutableString,
         options: RenderDataBundleStorageOptions,
         dynamic_surface_cache: &mut DynamicSurfaceCache,
@@ -867,13 +914,13 @@ impl RenderDataBundleStorage {
         let capacity = graph.node_count() as usize;
         let mut storage = Self {
             bundle_map: FxHashMap::with_capacity_and_hasher(capacity, FxBuildHasher::default()),
-            observer_info: observer_info.clone(),
+            observer_position: observer_position.clone(),
             bundles: Vec::with_capacity(capacity),
             light_sources: Default::default(),
         };
 
         let frustum = Frustum::from_view_projection_matrix(
-            observer_info.projection_matrix * observer_info.view_matrix,
+            observer_position.projection_matrix * observer_position.view_matrix,
         )
         .unwrap_or_default();
 
@@ -883,11 +930,12 @@ impl RenderDataBundleStorage {
                 for level in lod_group.levels.iter() {
                     for &object in level.objects.iter() {
                         if let Some(object_ref) = graph.try_get(object) {
-                            let distance = observer_info
-                                .observer_position
+                            let distance = observer_position
+                                .translation
                                 .metric_distance(&object_ref.global_position());
-                            let z_range = observer_info.z_far - observer_info.z_near;
-                            let normalized_distance = (distance - observer_info.z_near) / z_range;
+                            let z_range = observer_position.z_far - observer_position.z_near;
+                            let normalized_distance =
+                                (distance - observer_position.z_near) / z_range;
                             let visible = normalized_distance >= level.begin()
                                 && normalized_distance <= level.end();
                             lod_filter[object.index() as usize] = visible;
@@ -948,7 +996,7 @@ impl RenderDataBundleStorage {
         let mut ctx = RenderContext {
             render_mask,
             elapsed_time,
-            observer_info: &observer_info,
+            observer_position,
             frustum: Some(&frustum),
             storage: &mut storage,
             graph,
@@ -1042,21 +1090,22 @@ impl RenderDataBundleStorage {
 
         // Upload camera uniforms.
         let inv_view = self
-            .observer_info
+            .observer_position
             .view_matrix
             .try_inverse()
             .unwrap_or_default();
-        let view_projection = self.observer_info.projection_matrix * self.observer_info.view_matrix;
+        let view_projection =
+            self.observer_position.projection_matrix * self.observer_position.view_matrix;
         let camera_up = inv_view.up();
         let camera_side = inv_view.side();
         let camera_uniforms = StaticUniformBuffer::<512>::new()
             .with(&view_projection)
-            .with(&self.observer_info.observer_position)
+            .with(&self.observer_position.translation)
             .with(&camera_up)
             .with(&camera_side)
-            .with(&self.observer_info.z_near)
-            .with(&self.observer_info.z_far)
-            .with(&(self.observer_info.z_far - self.observer_info.z_near));
+            .with(&self.observer_position.z_near)
+            .with(&self.observer_position.z_far)
+            .with(&(self.observer_position.z_far - self.observer_position.z_near));
         let camera_block = render_context
             .uniform_memory_allocator
             .allocate(camera_uniforms);
@@ -1089,7 +1138,8 @@ impl RenderDataBundleStorage {
     {
         let global_uniforms = self.write_global_uniform_blocks(&mut render_context);
 
-        let view_projection = self.observer_info.projection_matrix * self.observer_info.view_matrix;
+        let view_projection =
+            self.observer_position.projection_matrix * self.observer_position.view_matrix;
         let mut bundle_uniform_data_set = Vec::with_capacity(self.bundles.len());
         for bundle in self.bundles.iter() {
             if !bundle_filter(bundle) {
@@ -1228,26 +1278,27 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
 
 #[cfg(test)]
 mod test {
-    use crate::renderer::bundle::{ObserverInfo, RenderContext, RenderDataBundleStorage};
+    use crate::renderer::bundle::{ObserverPosition, RenderContext, RenderDataBundleStorage};
     use fyrox_core::algebra::{Matrix4, Vector3};
 
     //noinspection ALL
     #[test]
     fn test_calculate_sorting_index() {
-        let observer_info = ObserverInfo {
-            observer_position: Default::default(),
+        let observer_position = ObserverPosition {
+            translation: Default::default(),
             z_near: 0.0,
             z_far: 0.0,
             view_matrix: Matrix4::identity(),
             projection_matrix: Matrix4::identity(),
+            view_projection_matrix: Matrix4::identity(),
         };
 
         let render_context = RenderContext {
             render_mask: Default::default(),
             elapsed_time: 0.0,
-            observer_info: &observer_info.clone(),
+            observer_position: &observer_position.clone(),
             frustum: None,
-            storage: &mut RenderDataBundleStorage::new_empty(observer_info),
+            storage: &mut RenderDataBundleStorage::new_empty(observer_position),
             graph: &Default::default(),
             render_pass_name: &Default::default(),
             dynamic_surface_cache: &mut Default::default(),

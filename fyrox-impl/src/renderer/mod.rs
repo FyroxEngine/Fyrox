@@ -49,6 +49,7 @@ mod shadow;
 mod ssao;
 mod stats;
 
+use crate::renderer::bundle::Observer;
 use crate::scene::node::Node;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
@@ -65,12 +66,11 @@ use crate::{
         uuid_provider,
     },
     engine::error::EngineError,
-    graph::SceneGraph,
     gui::draw::DrawingContext,
     material::shader::{Shader, ShaderDefinition},
     renderer::{
         bloom::BloomRenderer,
-        bundle::{ObserverInfo, RenderDataBundleStorage, RenderDataBundleStorageOptions},
+        bundle::{RenderDataBundleStorage, RenderDataBundleStorageOptions},
         cache::{
             geometry::GeometryCache,
             shader::{
@@ -899,10 +899,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     pub scene: &'b Scene,
 
     /// A camera from the scene that is used as "eyes".
-    pub camera: &'b Camera,
-
-    /// A viewport of the camera.
-    pub viewport: Rect<i32>,
+    pub observer: &'b Observer,
 
     /// A handle of the scene being rendered.
     pub scene_handle: Handle<Scene>,
@@ -1036,6 +1033,24 @@ fn render_target_size(render_target: &TextureResource) -> Result<Vector2<f32>, F
         .ok_or_else(|| {
             FrameworkError::Custom("Render target must be a valid rectangle texture!".to_string())
         })
+}
+
+fn collect_observers(scene: &Scene, frame_size: Vector2<f32>) -> Vec<Observer> {
+    scene
+        .graph
+        .linear_iter()
+        .filter_map(|node| {
+            if node.is_globally_enabled() {
+                if let Some(camera) = node.cast::<Camera>() {
+                    if camera.is_enabled() {
+                        return Some(camera);
+                    }
+                }
+            }
+            None
+        })
+        .map(|camera| Observer::from_camera(camera, frame_size))
+        .collect()
 }
 
 impl Renderer {
@@ -1520,19 +1535,13 @@ impl Renderer {
             .camera_data
             .retain(|h, _| graph.is_valid_handle(*h));
 
-        for (camera_handle, camera) in graph.pair_iter().filter_map(|(handle, node)| {
-            if node.is_globally_enabled() {
-                if let Some(camera) = node.cast::<Camera>() {
-                    if camera.is_enabled() {
-                        return Some((handle, camera));
-                    }
-                }
-            }
-            None
-        }) {
-            let (render_data, rt_size) = if let Some(render_target) = camera.render_target() {
+        let observers = collect_observers(scene, frame_size);
+
+        for observer in &observers {
+            let render_data = if let Some(render_target) = observer.render_target.as_ref() {
                 let rt_size = render_target_size(render_target)?;
-                let camera_render_data = match scene_render_data.camera_data.entry(camera_handle) {
+                let camera_render_data = match scene_render_data.camera_data.entry(observer.handle)
+                {
                     Entry::Occupied(entry) => {
                         let camera_render_data = entry.into_mut();
                         recreate_render_data_if_needed(
@@ -1546,7 +1555,8 @@ impl Renderer {
                     Entry::Vacant(entry) => {
                         let render_data = entry.insert(RenderDataContainer::new(server, rt_size)?);
                         info!(
-                            "A new associated scene rendering data was created for camera {camera_handle}!"
+                            "A new associated scene rendering data was created for camera {}!",
+                            observer.handle
                         );
                         render_data
                     }
@@ -1558,26 +1568,20 @@ impl Renderer {
                     camera_render_data.ldr_scene_frame_texture().clone(),
                 )?;
 
-                (camera_render_data, rt_size)
+                camera_render_data
             } else {
-                (&mut scene_render_data.scene_data, frame_size)
+                &mut scene_render_data.scene_data
             };
 
-            let visibility_cache = self.visibility_cache.get_or_register(graph, camera_handle);
-
-            let viewport = camera.viewport_pixels(rt_size);
+            let visibility_cache = self
+                .visibility_cache
+                .get_or_register(graph, observer.handle);
 
             let bundle_storage = RenderDataBundleStorage::from_graph(
                 graph,
-                *camera.render_mask,
+                observer.render_mask,
                 elapsed_time,
-                ObserverInfo {
-                    observer_position: camera.global_position(),
-                    z_near: camera.projection().z_near(),
-                    z_far: camera.projection().z_far(),
-                    view_matrix: camera.view_matrix(),
-                    projection_matrix: camera.projection_matrix(),
-                },
+                &observer.position,
                 GBUFFER_PASS_NAME.clone(),
                 RenderDataBundleStorageOptions {
                     collect_lights: true,
@@ -1592,7 +1596,7 @@ impl Renderer {
 
             render_data.statistics += render_data.gbuffer.fill(GBufferRenderContext {
                 server,
-                camera,
+                observer,
                 geom_cache: &mut self.geometry_cache,
                 bundle_storage: &bundle_storage,
                 texture_cache: &mut self.texture_cache,
@@ -1611,7 +1615,7 @@ impl Renderer {
             render_data.copy_depth_stencil_to_scene_framebuffer();
 
             render_data.hdr_scene_framebuffer.clear(
-                viewport,
+                observer.viewport,
                 Some(
                     scene
                         .rendering_options
@@ -1628,7 +1632,7 @@ impl Renderer {
                         elapsed_time,
                         server,
                         scene,
-                        camera,
+                        observer,
                         gbuffer: &mut render_data.gbuffer,
                         ambient_color: scene.rendering_options.ambient_lighting_color,
                         render_data_bundle: &bundle_storage,
@@ -1656,7 +1660,7 @@ impl Renderer {
                 shader_cache: &mut self.shader_cache,
                 bundle_storage: &bundle_storage,
                 framebuffer: &render_data.hdr_scene_framebuffer,
-                viewport,
+                viewport: observer.viewport,
                 quality_settings: &self.quality_settings,
                 fallback_resources: &self.fallback_resources,
                 scene_depth: depth,
@@ -1676,9 +1680,8 @@ impl Renderer {
                             shader_cache: &mut self.shader_cache,
                             quality_settings: &self.quality_settings,
                             bundle_storage: &bundle_storage,
-                            viewport,
                             scene,
-                            camera,
+                            observer,
                             scene_handle,
                             fallback_resources: &self.fallback_resources,
                             depth_texture: render_data.gbuffer.depth(),
@@ -1708,12 +1711,12 @@ impl Renderer {
                 render_data.hdr_scene_frame_texture(),
                 render_data.bloom_renderer.result(),
                 &render_data.ldr_scene_framebuffer,
-                viewport,
+                observer.viewport,
                 quad,
                 dt,
-                camera.exposure(),
-                camera.color_grading_lut_ref(),
-                camera.color_grading_enabled(),
+                observer.exposure,
+                observer.color_grading_lut.as_ref(),
+                observer.color_grading_enabled,
                 &mut self.texture_cache,
                 &mut self.uniform_buffer_cache,
                 &self.fallback_resources,
@@ -1722,7 +1725,7 @@ impl Renderer {
             // Apply FXAA if needed.
             if self.quality_settings.fxaa {
                 render_data.statistics += self.fxaa_renderer.render(
-                    viewport,
+                    observer.viewport,
                     render_data.ldr_scene_frame_texture(),
                     &render_data.ldr_temp_framebuffer,
                     &mut self.uniform_buffer_cache,
@@ -1736,7 +1739,7 @@ impl Renderer {
                     &render_data.ldr_scene_framebuffer,
                     temp_frame_texture,
                     &self.blit_shader,
-                    viewport,
+                    observer.viewport,
                     quad,
                     &self.fallback_resources,
                 )?;
@@ -1746,9 +1749,9 @@ impl Renderer {
             self.debug_renderer.set_lines(&scene.drawing_context.lines);
             render_data.statistics += self.debug_renderer.render(
                 &mut self.uniform_buffer_cache,
-                viewport,
+                observer.viewport,
                 &render_data.ldr_scene_framebuffer,
-                camera.view_projection_matrix(),
+                observer.position.view_projection_matrix,
             )?;
 
             for render_pass in self.scene_render_passes.iter() {
@@ -1763,9 +1766,8 @@ impl Renderer {
                             shader_cache: &mut self.shader_cache,
                             quality_settings: &self.quality_settings,
                             bundle_storage: &bundle_storage,
-                            viewport,
                             scene,
-                            camera,
+                            observer,
                             scene_handle,
                             fallback_resources: &self.fallback_resources,
                             depth_texture: render_data.gbuffer.depth(),

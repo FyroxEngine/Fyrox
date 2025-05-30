@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::bundle::Observer;
 use crate::renderer::DynamicSurfaceCache;
 use crate::{
     core::{
@@ -54,7 +55,6 @@ use crate::{
         RenderPassStatistics, TextureCache,
     },
     scene::{
-        camera::Camera,
         mesh::{
             buffer::{TriangleBuffer, VertexBuffer},
             surface::SurfaceData,
@@ -87,7 +87,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub elapsed_time: f32,
     pub server: &'a dyn GraphicsServer,
     pub scene: &'a Scene,
-    pub camera: &'a Camera,
+    pub observer: &'a Observer,
     pub gbuffer: &'a mut GBuffer,
     pub ambient_color: Color,
     pub render_data_bundle: &'a RenderDataBundleStorage,
@@ -298,7 +298,7 @@ impl DeferredLightRenderer {
             elapsed_time,
             server,
             scene,
-            camera,
+            observer,
             gbuffer,
             render_data_bundle,
             shader_cache,
@@ -315,38 +315,41 @@ impl DeferredLightRenderer {
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
-        let frustum = Frustum::from_view_projection_matrix(camera.view_projection_matrix())
-            .unwrap_or_default();
+        let frustum =
+            Frustum::from_view_projection_matrix(observer.position.view_projection_matrix)
+                .unwrap_or_default();
 
         let frame_matrix = make_viewport_matrix(viewport);
 
-        let projection_matrix = camera.projection_matrix();
-        let view_projection = camera.view_projection_matrix();
-        let inv_projection = projection_matrix.try_inverse().unwrap_or_default();
-        let inv_view_projection = view_projection.try_inverse().unwrap_or_default();
-        let camera_global_position = camera.global_position();
+        let inv_projection = observer
+            .position
+            .projection_matrix
+            .try_inverse()
+            .unwrap_or_default();
+        let inv_view_projection = observer
+            .position
+            .view_projection_matrix
+            .try_inverse()
+            .unwrap_or_default();
 
         // Fill SSAO map.
         if settings.use_ssao {
             pass_stats += self.ssao_renderer.render(
                 gbuffer,
-                projection_matrix,
-                camera.view_matrix().basis(),
+                observer.position.projection_matrix,
+                observer.position.view_matrix.basis(),
                 uniform_buffer_cache,
                 fallback_resources,
             )?;
         }
 
         // Render skybox (if any).
-        if let Some(skybox) = camera.skybox_ref() {
-            if let Some(texture_sampler_pair) = skybox
-                .cubemap_ref()
-                .and_then(|cube_map| textures.get(server, cube_map))
-            {
-                let size = camera.projection().z_far() / 2.0f32.sqrt();
+        if let Some(skybox) = observer.skybox_map.as_ref() {
+            if let Some(texture_sampler_pair) = textures.get(server, skybox) {
+                let size = observer.position.z_far / 2.0f32.sqrt();
                 let scale = Matrix4::new_scaling(size);
-                let wvp = Matrix4::new_translation(&camera.global_position()) * scale;
-                let wvp = view_projection * wvp;
+                let wvp = Matrix4::new_translation(&observer.position.translation) * scale;
+                let wvp = observer.position.view_projection_matrix * wvp;
                 let properties = PropertyGroup::from([property("worldViewProjection", &wvp)]);
                 let material = RenderMaterial::from([
                     binding(
@@ -376,9 +379,9 @@ impl DeferredLightRenderer {
             }
         }
 
-        let environment_map = camera
-            .skybox_ref()
-            .and_then(|s| s.cubemap_ref())
+        let environment_map = observer
+            .environment_map
+            .as_ref()
             .and_then(|c| {
                 textures
                     .get(server, c)
@@ -401,7 +404,7 @@ impl DeferredLightRenderer {
         let properties = PropertyGroup::from([
             property("worldViewProjection", &frame_matrix),
             property("ambientColor", &ambient_color),
-            property("cameraPosition", &camera_global_position),
+            property("cameraPosition", &observer.position.translation),
             property("invViewProj", &inv_view_projection),
         ]);
         let material = RenderMaterial::from([
@@ -462,7 +465,7 @@ impl DeferredLightRenderer {
         )?;
 
         for light in render_data_bundle.light_sources.iter() {
-            let distance_to_camera = (light.position - camera.global_position()).norm();
+            let distance_to_camera = (light.position - observer.position.translation).norm();
 
             let (
                 raw_radius,
@@ -547,7 +550,11 @@ impl DeferredLightRenderer {
             let b1 = shadows_distance * 0.2;
             let b2 = shadows_distance * 0.4;
             let cascade_index = if distance_to_camera < b1
-                || (camera.global_position().metric_distance(&light.position) <= light_radius)
+                || (observer
+                    .position
+                    .translation
+                    .metric_distance(&light.position)
+                    <= light_radius)
             {
                 0
             } else if distance_to_camera > b1 && distance_to_camera < b2 {
@@ -566,7 +573,7 @@ impl DeferredLightRenderer {
             let mut light_view_projection = Matrix4::identity();
 
             // Mark lit areas in stencil buffer to do light calculations only on them.
-            let shape_wvp_matrix = view_projection * bounding_shape_matrix;
+            let shape_wvp_matrix = observer.position.view_projection_matrix * bounding_shape_matrix;
             for (cull_face, stencil_action) in [
                 (CullFace::Front, StencilAction::Incr),
                 (CullFace::Back, StencilAction::Decr),
@@ -611,10 +618,16 @@ impl DeferredLightRenderer {
             if !matches!(light.kind, LightSourceKind::Directional { .. })
                 && settings.use_light_occlusion_culling
             {
-                if visibility_cache.needs_occlusion_query(camera_global_position, light.handle) {
+                if visibility_cache
+                    .needs_occlusion_query(observer.position.translation, light.handle)
+                {
                     // Draw full screen quad, that will be used to count pixels that passed the stencil test
                     // on the stencil buffer's content generated by two previous drawing commands.
-                    visibility_cache.begin_query(server, camera_global_position, light.handle)?;
+                    visibility_cache.begin_query(
+                        server,
+                        observer.position.translation,
+                        light.handle,
+                    )?;
                     let properties =
                         PropertyGroup::from([property("worldViewProjection", &frame_matrix)]);
                     let material = RenderMaterial::from([binding("properties", &properties)]);
@@ -632,7 +645,7 @@ impl DeferredLightRenderer {
                     visibility_cache.end_query();
                 }
 
-                if !visibility_cache.is_visible(camera_global_position, light.handle) {
+                if !visibility_cache.is_visible(observer.position.translation, light.handle) {
                     needs_lighting = false;
                 }
             }
@@ -665,7 +678,7 @@ impl DeferredLightRenderer {
                         pass_stats += self.spot_shadow_map_renderer.render(
                             server,
                             &scene.graph,
-                            *camera.render_mask,
+                            observer.render_mask,
                             elapsed_time,
                             light.position,
                             light_view_matrix,
@@ -687,7 +700,7 @@ impl DeferredLightRenderer {
                         pass_stats +=
                             self.point_shadow_map_renderer
                                 .render(PointShadowMapRenderContext {
-                                    render_mask: *camera.render_mask,
+                                    render_mask: observer.render_mask,
                                     elapsed_time,
                                     state: server,
                                     graph: &scene.graph,
@@ -711,7 +724,7 @@ impl DeferredLightRenderer {
                             state: server,
                             graph: &scene.graph,
                             light,
-                            camera,
+                            observer,
                             geom_cache: geometry_cache,
                             shader_cache,
                             texture_cache: textures,
@@ -774,7 +787,7 @@ impl DeferredLightRenderer {
                             property("invViewProj", &inv_view_projection),
                             property("lightPos", &light.position),
                             property("lightColor", &color),
-                            property("cameraPosition", &camera_global_position),
+                            property("cameraPosition", &observer.position.translation),
                             property("lightDirection", &emit_direction),
                             property("lightRadius", &light_radius),
                             property("halfHotspotConeAngleCos", &half_hotspot_cone_angle_cos),
@@ -844,7 +857,7 @@ impl DeferredLightRenderer {
                             property("invViewProj", &inv_view_projection),
                             property("lightPos", &light.position),
                             property("lightColor", &color),
-                            property("cameraPosition", &camera_global_position),
+                            property("cameraPosition", &observer.position.translation),
                             property("lightRadius", &light_radius),
                             property("shadowBias", &shadow_bias),
                             property("lightIntensity", &light.intensity),
@@ -916,15 +929,14 @@ impl DeferredLightRenderer {
                         ];
                         let shadow_map_inv_size = 1.0 / (self.csm_renderer.size() as f32);
                         let shadow_bias = csm_options.shadow_bias();
-                        let view_matrix = camera.view_matrix();
                         let properties = PropertyGroup::from([
                             property("worldViewProjection", &frame_matrix),
-                            property("viewMatrix", &view_matrix),
+                            property("viewMatrix", &observer.position.view_matrix),
                             property("invViewProj", &inv_view_projection),
                             property("lightViewProjMatrices", matrices.as_slice()),
                             property("lightColor", &color),
                             property("lightDirection", &emit_direction),
-                            property("cameraPosition", &camera_global_position),
+                            property("cameraPosition", &observer.position.translation),
                             property("lightIntensity", &light.intensity),
                             property("shadowsEnabled", &shadows_enabled),
                             property("shadowBias", &shadow_bias),
@@ -1006,9 +1018,9 @@ impl DeferredLightRenderer {
                     light,
                     gbuffer,
                     &self.quad,
-                    camera.view_matrix(),
+                    observer.position.view_matrix,
                     inv_projection,
-                    view_projection,
+                    observer.position.view_projection_matrix,
                     viewport,
                     &scene.graph,
                     frame_buffer,

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::bundle::Observer;
 use crate::renderer::DynamicSurfaceCache;
 use crate::{
     core::{
@@ -27,7 +28,7 @@ use crate::{
     },
     renderer::{
         bundle::{
-            BundleRenderContext, LightSource, LightSourceKind, ObserverInfo,
+            BundleRenderContext, LightSource, LightSourceKind, ObserverPosition,
             RenderDataBundleStorage, RenderDataBundleStorageOptions,
         },
         cache::{
@@ -43,7 +44,6 @@ use crate::{
         FallbackResources, RenderPassStatistics, ShadowMapPrecision, DIRECTIONAL_SHADOW_PASS_NAME,
     },
     scene::{
-        camera::Camera,
         graph::Graph,
         light::directional::{FrustumSplitOptions, CSM_NUM_CASCADES},
     },
@@ -103,7 +103,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub state: &'a dyn GraphicsServer,
     pub graph: &'c Graph,
     pub light: &'c LightSource,
-    pub camera: &'c Camera,
+    pub observer: &'a Observer,
     pub geom_cache: &'a mut GeometryCache,
     pub shader_cache: &'a mut ShaderCache,
     pub texture_cache: &'a mut TextureCache,
@@ -153,7 +153,7 @@ impl CsmRenderer {
             state,
             graph,
             light,
-            camera,
+            observer,
             geom_cache,
             shader_cache,
             texture_cache,
@@ -178,16 +178,16 @@ impl CsmRenderer {
 
         let z_values = match csm_options.split_options {
             FrustumSplitOptions::Absolute { far_planes } => [
-                camera.projection().z_near(),
+                observer.position.z_near,
                 far_planes[0],
                 far_planes[1],
                 far_planes[2],
             ],
             FrustumSplitOptions::Relative { fractions } => [
-                camera.projection().z_near(),
-                camera.projection().z_far() * fractions[0],
-                camera.projection().z_far() * fractions[1],
-                camera.projection().z_far() * fractions[2],
+                observer.position.z_near,
+                observer.position.z_far * fractions[0],
+                observer.position.z_far * fractions[1],
+                observer.position.z_far * fractions[2],
             ],
         };
 
@@ -202,16 +202,17 @@ impl CsmRenderer {
                 z_far += MIN_DEPTH_DELTA * z_near;
             }
 
-            let projection_matrix = camera
-                .projection()
+            let projection_matrix = observer
+                .projection
                 .clone()
                 .with_z_near(z_near)
                 .with_z_far(z_far)
                 .matrix(frame_size);
 
-            let frustum =
-                Frustum::from_view_projection_matrix(projection_matrix * camera.view_matrix())
-                    .unwrap_or_default();
+            let frustum = Frustum::from_view_projection_matrix(
+                projection_matrix * observer.position.view_matrix,
+            )
+            .unwrap_or_default();
 
             let center = frustum.center();
             let observer_position = center + light_direction;
@@ -256,14 +257,15 @@ impl CsmRenderer {
 
             let bundle_storage = RenderDataBundleStorage::from_graph(
                 graph,
-                *camera.render_mask,
+                observer.render_mask,
                 elapsed_time,
-                ObserverInfo {
-                    observer_position,
+                &ObserverPosition {
+                    translation: observer_position,
                     z_near,
                     z_far,
                     view_matrix: light_view_matrix,
                     projection_matrix: cascade_projection_matrix,
+                    view_projection_matrix: cascade_projection_matrix * light_view_matrix,
                 },
                 DIRECTIONAL_SHADOW_PASS_NAME.clone(),
                 RenderDataBundleStorageOptions {

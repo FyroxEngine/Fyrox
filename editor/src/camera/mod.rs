@@ -32,7 +32,7 @@ use crate::{
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::message::{KeyCode, KeyboardModifiers, MouseButton},
         renderer::{
-            bundle::{ObserverInfo, RenderContext, RenderDataBundleStorage},
+            bundle::{ObserverPosition, RenderContext, RenderDataBundleStorage},
             DynamicSurfaceCache,
         },
         scene::{
@@ -929,12 +929,12 @@ fn precise_ray_test(
     ignore_back_faces: bool,
 ) -> PreciseRayTestResult {
     let mut cache = DynamicSurfaceCache::new();
-    let observer_info = ObserverInfo::from_camera(camera);
-    let mut bundle_storage = RenderDataBundleStorage::new_empty(observer_info.clone());
+    let observer_position = ObserverPosition::from_camera(camera);
+    let mut bundle_storage = RenderDataBundleStorage::new_empty(observer_position.clone());
     node.collect_render_data(&mut RenderContext {
         render_mask: BitMask::all(),
         elapsed_time: 0.0,
-        observer_info: &observer_info,
+        observer_position: &observer_position,
         frustum: Some(&camera.frustum()),
         storage: &mut bundle_storage,
         graph,

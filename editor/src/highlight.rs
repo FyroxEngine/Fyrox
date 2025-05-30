@@ -24,7 +24,7 @@ use crate::{
         fxhash::FxHashSet,
         graph::{BaseSceneGraph, SceneGraph},
         renderer::{
-            bundle::{BundleRenderContext, ObserverInfo, RenderContext, RenderDataBundleStorage},
+            bundle::{BundleRenderContext, RenderContext, RenderDataBundleStorage},
             cache::shader::{
                 binding, property, PropertyGroup, RenderMaterial, RenderPassContainer,
             },
@@ -127,23 +127,14 @@ impl SceneRenderPass for HighlightRenderPass {
         {
             let render_pass_name = ImmutableString::new("Forward");
 
-            let observer_info = ObserverInfo {
-                observer_position: ctx.camera.global_position(),
-                z_near: ctx.camera.projection().z_near(),
-                z_far: ctx.camera.projection().z_far(),
-                view_matrix: ctx.camera.view_matrix(),
-                projection_matrix: ctx.camera.projection_matrix(),
-            };
-
             let mut render_bundle_storage =
-                RenderDataBundleStorage::new_empty(observer_info.clone());
+                RenderDataBundleStorage::new_empty(ctx.observer.position.clone());
 
-            let frustum = ctx.camera.frustum();
             let mut render_context = RenderContext {
-                render_mask: *ctx.camera.render_mask,
+                render_mask: ctx.observer.render_mask,
                 elapsed_time: ctx.elapsed_time,
-                observer_info: &observer_info,
-                frustum: Some(&frustum),
+                observer_position: &ctx.observer.position,
+                frustum: Some(&ctx.observer.frustum),
                 storage: &mut render_bundle_storage,
                 graph: &ctx.scene.graph,
                 render_pass_name: &render_pass_name,
@@ -160,8 +151,12 @@ impl SceneRenderPass for HighlightRenderPass {
 
             render_bundle_storage.sort();
 
-            self.framebuffer
-                .clear(ctx.viewport, Some(Color::TRANSPARENT), Some(1.0), None);
+            self.framebuffer.clear(
+                ctx.observer.viewport,
+                Some(Color::TRANSPARENT),
+                Some(1.0),
+                None,
+            );
 
             stats += render_bundle_storage.render_to_frame_buffer(
                 ctx.server,
@@ -178,7 +173,7 @@ impl SceneRenderPass for HighlightRenderPass {
                     fallback_resources: ctx.fallback_resources,
                     ambient_light: Default::default(),
                     scene_depth: Some(ctx.depth_texture),
-                    viewport: ctx.viewport,
+                    viewport: ctx.observer.viewport,
                     uniform_memory_allocator: ctx.uniform_memory_allocator,
                 },
             )?;
@@ -186,7 +181,7 @@ impl SceneRenderPass for HighlightRenderPass {
 
         // Render full screen quad with edge detect shader to draw outline of selected objects.
         {
-            let frame_matrix = make_viewport_matrix(ctx.viewport);
+            let frame_matrix = make_viewport_matrix(ctx.observer.viewport);
             let frame_texture = &self.framebuffer.color_attachments()[0].texture;
 
             let color = Color::ORANGE.as_frgba();
@@ -207,7 +202,7 @@ impl SceneRenderPass for HighlightRenderPass {
                 &ImmutableString::new("Primary"),
                 ctx.framebuffer,
                 &self.quad,
-                ctx.viewport,
+                ctx.observer.viewport,
                 &material,
                 ctx.uniform_buffer_cache,
                 Default::default(),

@@ -29,6 +29,7 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
+use crate::renderer::bundle::Observer;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -58,7 +59,6 @@ use crate::{
         FallbackResources, GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{
-        camera::Camera,
         decal::Decal,
         graph::Graph,
         mesh::{surface::SurfaceData, RenderPath},
@@ -79,7 +79,7 @@ pub struct GBuffer {
 
 pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub server: &'a dyn GraphicsServer,
-    pub camera: &'b Camera,
+    pub observer: &'b Observer,
     pub geom_cache: &'a mut GeometryCache,
     pub bundle_storage: &'a RenderDataBundleStorage,
     pub texture_cache: &'a mut TextureCache,
@@ -200,7 +200,7 @@ impl GBuffer {
 
         let GBufferRenderContext {
             server,
-            camera,
+            observer,
             geom_cache,
             bundle_storage,
             texture_cache,
@@ -213,8 +213,6 @@ impl GBuffer {
             uniform_memory_allocator,
             ..
         } = args;
-
-        let view_projection = camera.view_projection_matrix();
 
         if quality_settings.use_occlusion_culling {
             self.occlusion_tester.try_query_visibility_results(graph);
@@ -231,7 +229,7 @@ impl GBuffer {
         let grid_cell = self
             .occlusion_tester
             .grid_cache
-            .cell(camera.global_position());
+            .cell(observer.position.translation);
 
         let instance_filter = |instance: &SurfaceInstanceData| {
             !quality_settings.use_occlusion_culling
@@ -272,14 +270,18 @@ impl GBuffer {
                 unit_quad,
                 objects.iter(),
                 &self.framebuffer,
-                camera.global_position(),
-                view_projection,
+                observer.position.translation,
+                observer.position.view_projection_matrix,
                 uniform_buffer_cache,
                 fallback_resources,
             )?;
         }
 
-        let inv_view_proj = view_projection.try_inverse().unwrap_or_default();
+        let inv_view_proj = observer
+            .position
+            .view_projection_matrix
+            .try_inverse()
+            .unwrap_or_default();
         let depth = self.depth();
         let decal_mask = self.decal_mask_texture();
         let resolution = Vector2::new(self.width as f32, self.height as f32);
@@ -289,7 +291,8 @@ impl GBuffer {
         // decals do not modify depth (only diffuse and normal maps).
         let unit_cube = &self.cube;
         for decal in graph.linear_iter().filter_map(|n| n.cast::<Decal>()) {
-            let world_view_proj = view_projection * decal.global_transform();
+            let world_view_proj =
+                observer.position.view_projection_matrix * decal.global_transform();
 
             let diffuse_texture = decal
                 .diffuse_texture()

@@ -26,7 +26,7 @@ use crate::{
     },
     renderer::{
         bundle::{
-            BundleRenderContext, ObserverInfo, RenderDataBundleStorage,
+            BundleRenderContext, ObserverPosition, RenderDataBundleStorage,
             RenderDataBundleStorageOptions,
         },
         cache::{shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator},
@@ -217,12 +217,13 @@ impl PointShadowMapRenderer {
                 graph,
                 render_mask,
                 elapsed_time,
-                ObserverInfo {
-                    observer_position: light_pos,
+                &ObserverPosition {
+                    translation: light_pos,
                     z_near,
                     z_far,
                     view_matrix: light_view_matrix,
                     projection_matrix: light_projection_matrix,
+                    view_projection_matrix: light_projection_matrix * light_view_matrix,
                 },
                 POINT_SHADOW_PASS_NAME.clone(),
                 RenderDataBundleStorageOptions {

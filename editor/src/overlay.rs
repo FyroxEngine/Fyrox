@@ -94,8 +94,8 @@ impl SceneRenderPass for OverlayRenderPass {
         ctx: SceneRenderPassContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
-        let view_projection = ctx.camera.view_projection_matrix();
-        let inv_view = ctx.camera.inv_view_matrix().unwrap();
+        let view_projection = ctx.observer.position.view_projection_matrix;
+        let inv_view = ctx.observer.position.view_matrix.try_inverse().unwrap();
         let camera_up = -inv_view.up();
         let camera_side = inv_view.side();
         let sound_icon = ctx
@@ -135,7 +135,7 @@ impl SceneRenderPass for OverlayRenderPass {
                 &ImmutableString::new("Primary"),
                 ctx.framebuffer,
                 &self.quad,
-                ctx.viewport,
+                ctx.observer.viewport,
                 &material,
                 ctx.uniform_buffer_cache,
                 Default::default(),

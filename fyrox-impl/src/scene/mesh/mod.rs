@@ -180,7 +180,7 @@ impl BatchContainer {
             descendant.collect_render_data(&mut RenderContext {
                 render_mask: ctx.render_mask,
                 elapsed_time: ctx.elapsed_time,
-                observer_info: ctx.observer_info,
+                observer_position: ctx.observer_position,
                 frustum: None,
                 storage: self,
                 graph: ctx.graph,
