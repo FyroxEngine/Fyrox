@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::formatted_text::Run;
 use crate::style::StyledProperty;
 use crate::{
     brush::Brush,
@@ -502,6 +503,7 @@ pub struct TextBuilder {
     shadow_dilation: f32,
     shadow_offset: Vector2<f32>,
     font_size: Option<StyledProperty<f32>>,
+    runs: Vec<Run>,
 }
 
 impl TextBuilder {
@@ -519,6 +521,7 @@ impl TextBuilder {
             shadow_dilation: 1.0,
             shadow_offset: Vector2::new(1.0, 1.0),
             font_size: None,
+            runs: Vec::default(),
         }
     }
 
@@ -589,6 +592,22 @@ impl TextBuilder {
         self
     }
 
+    /// Adds the given run to the text to set the style for a portion of the text.
+    /// Later runs potentially overriding earlier runs if the ranges of the runs overlap and the later run
+    /// sets a property that conflicts with an earlier run.
+    pub fn with_run(mut self, run: Run) -> Self {
+        self.runs.push(run);
+        self
+    }
+
+    /// Adds multiple runs to the text to set the style of portions of the text.
+    /// Later runs potentially overriding earlier runs if the ranges of the runs overlap and the later run
+    /// sets a property that conflicts with an earlier run.
+    pub fn with_runs<I: IntoIterator<Item = Run>>(mut self, runs: I) -> Self {
+        self.runs.extend(runs);
+        self
+    }
+
     /// Finishes text widget creation and registers it in the user interface, returning its handle to you.
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let font = if let Some(font) = self.font {
@@ -617,6 +636,7 @@ impl TextBuilder {
                         self.font_size
                             .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
                     )
+                    .with_runs(self.runs)
                     .build(),
             ),
         };

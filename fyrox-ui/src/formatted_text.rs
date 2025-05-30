@@ -24,15 +24,17 @@ use crate::{
         algebra::Vector2, color::Color, math::Rect, reflect::prelude::*, uuid_provider,
         variable::InheritableVariable, visitor::prelude::*,
     },
-    font::{Font, FontGlyph, FontResource},
+    font::{Font, FontGlyph, FontHeight, FontResource},
     style::StyledProperty,
     HorizontalAlignment, VerticalAlignment,
 };
+pub use run::*;
 use std::ops::Range;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
-
-mod textwrapper;
 use textwrapper::*;
+
+mod run;
+mod textwrapper;
 
 /// Defines a position in the text. It is just a coordinates of a character in text.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Visit, Reflect)]
@@ -49,6 +51,7 @@ pub struct TextGlyph {
     pub bounds: Rect<f32>,
     pub tex_coords: [Vector2<f32>; 4],
     pub atlas_page_index: usize,
+    pub source_char_index: usize,
 }
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -160,6 +163,7 @@ fn build_glyph(
     metrics: &mut GlyphMetrics,
     mut x: f32,
     mut y: f32,
+    source_char_index: usize,
     character: char,
     prev_character: Option<char>,
     super_sampling_scale: f32,
@@ -187,6 +191,7 @@ fn build_glyph(
                 bounds: rect,
                 tex_coords: glyph.tex_coords,
                 atlas_page_index: glyph.page_index,
+                source_char_index,
             };
             let advance = glyph.advance
                 + prev_character
@@ -201,6 +206,7 @@ fn build_glyph(
                 bounds: rect,
                 tex_coords: [Vector2::default(); 4],
                 atlas_page_index: 0,
+                source_char_index,
             };
             (text_glyph, rect.w())
         }
@@ -257,9 +263,40 @@ pub struct FormattedText {
     pub shadow_brush: InheritableVariable<Brush>,
     pub shadow_dilation: InheritableVariable<f32>,
     pub shadow_offset: InheritableVariable<Vector2<f32>>,
+    #[visit(optional)]
+    pub runs: RunSet,
 }
 
 impl FormattedText {
+    pub fn font_at(&self, index: usize) -> FontResource {
+        self.runs.font_at(index).unwrap_or_else(|| self.get_font())
+    }
+    pub fn font_size_at(&self, index: usize) -> f32 {
+        self.runs
+            .font_size_at(index)
+            .unwrap_or_else(|| self.font_size().property)
+    }
+    pub fn brush_at(&self, index: usize) -> Brush {
+        self.runs.brush_at(index).unwrap_or_else(|| self.brush())
+    }
+    pub fn shadow_at(&self, index: usize) -> bool {
+        self.runs.shadow_at(index).unwrap_or(*self.shadow)
+    }
+    pub fn shadow_brush_at(&self, index: usize) -> Brush {
+        self.runs
+            .shadow_brush_at(index)
+            .unwrap_or_else(|| self.shadow_brush.clone_inner())
+    }
+    pub fn shadow_dilation_at(&self, index: usize) -> f32 {
+        self.runs
+            .shadow_dilation_at(index)
+            .unwrap_or(*self.shadow_dilation)
+    }
+    pub fn shadow_offset_at(&self, index: usize) -> Vector2<f32> {
+        self.runs
+            .shadow_offset_at(index)
+            .unwrap_or(*self.shadow_offset)
+    }
     pub fn nearest_valid_position(&self, start: Position) -> Position {
         if self.lines.is_empty() {
             return Position::default();
@@ -476,6 +513,31 @@ impl FormattedText {
         &self.glyphs
     }
 
+    pub fn get_glyph_draw_values(
+        &self,
+        layer: DrawValueLayer,
+        glyph: &TextGlyph,
+    ) -> GlyphDrawValues {
+        let atlas_page_index = glyph.atlas_page_index;
+        let i = glyph.source_char_index;
+        let font = self.font_at(i);
+        let height = FontHeight::from(self.font_size_at(i) * self.super_sampling_scale);
+        match layer {
+            DrawValueLayer::Main => GlyphDrawValues {
+                atlas_page_index,
+                font,
+                brush: self.brush_at(i),
+                height,
+            },
+            DrawValueLayer::Shadow => GlyphDrawValues {
+                atlas_page_index,
+                font,
+                brush: self.shadow_brush_at(i),
+                height,
+            },
+        }
+    }
+
     pub fn get_font(&self) -> FontResource {
         (*self.font).clone()
     }
@@ -637,23 +699,18 @@ impl FormattedText {
     }
 
     pub fn build(&mut self) -> Vector2<f32> {
-        let mut font_state = self.font.state();
-        let Some(font) = font_state.data() else {
-            return Default::default();
-        };
-        let mut metrics = GlyphMetrics {
-            font,
-            size: **self.font_size(),
-        };
-        let line_height: f32 = metrics.ascender();
-
-        self.lines.clear();
+        let mut lines = std::mem::take(&mut self.lines);
+        lines.clear();
         let sink = WrapSink {
-            lines: &mut self.lines,
+            lines: &mut lines,
             max_width: self.constraint.x,
         };
         if let Some(mask) = *self.mask_char {
-            let advance = metrics.advance(mask);
+            let advance = GlyphMetrics {
+                font: &mut self.font.data_ref(),
+                size: **self.font_size,
+            }
+            .advance(mask);
             match *self.wrap {
                 WrapMode::NoWrap => wrap_mask(NoWrap::new(sink), self.text.len(), mask, advance),
                 WrapMode::Letter => wrap_mask(
@@ -665,16 +722,24 @@ impl FormattedText {
                 WrapMode::Word => wrap_mask(WordWrap::new(sink), self.text.len(), mask, advance),
             }
         } else {
+            let source = self.text.iter().enumerate().map(|(i, c)| {
+                let a = GlyphMetrics {
+                    font: &mut self.font_at(i).data_ref(),
+                    size: self.font_size_at(i),
+                }
+                .advance(*c);
+                (*c, a)
+            });
             match *self.wrap {
-                WrapMode::NoWrap => wrap(NoWrap::new(sink), &mut metrics, self.text.as_slice()),
-                WrapMode::Letter => wrap(LetterWrap::new(sink), &mut metrics, self.text.as_slice()),
-                WrapMode::Word => wrap(WordWrap::new(sink), &mut metrics, self.text.as_slice()),
+                WrapMode::NoWrap => wrap(NoWrap::new(sink), source),
+                WrapMode::Letter => wrap(LetterWrap::new(sink), source),
+                WrapMode::Word => wrap(WordWrap::new(sink), source),
             }
         }
 
-        let total_height = line_height * self.lines.len() as f32;
+        let mut total_height = 0.0;
         // Align lines according to desired alignment.
-        for line in self.lines.iter_mut() {
+        for line in lines.iter_mut() {
             match *self.horizontal_alignment {
                 HorizontalAlignment::Left => line.x_offset = 0.0,
                 HorizontalAlignment::Center => {
@@ -693,6 +758,26 @@ impl FormattedText {
                 }
                 HorizontalAlignment::Stretch => line.x_offset = 0.0,
             }
+        }
+        // Calculate line height
+        for line in lines.iter_mut() {
+            if self.mask_char.is_some() || self.runs.is_empty() {
+                line.height = GlyphMetrics {
+                    font: &mut self.font.data_ref(),
+                    size: **self.font_size,
+                }
+                .ascender();
+            } else {
+                for i in line.begin..line.end {
+                    let h = GlyphMetrics {
+                        font: &mut self.font_at(i).data_ref(),
+                        size: self.font_size_at(i),
+                    }
+                    .ascender();
+                    line.height = line.height.max(h);
+                }
+            }
+            total_height += line.height;
         }
 
         // Generate glyphs for each text line.
@@ -716,29 +801,40 @@ impl FormattedText {
             }
             VerticalAlignment::Stretch => 0.0,
         };
-
         let mut y: f32 = cursor_y_start.floor();
-        for line in self.lines.iter_mut() {
+        for line in lines.iter_mut() {
             let mut x = line.x_offset.floor();
             if let Some(mask) = *self.mask_char {
                 let mut prev = None;
+                let mut metrics = GlyphMetrics {
+                    font: &mut self.font.data_ref(),
+                    size: **self.font_size,
+                };
                 for c in std::iter::repeat_n(mask, line.len()) {
                     let (glyph, advance) =
-                        build_glyph(&mut metrics, x, y, c, prev, self.super_sampling_scale);
+                        build_glyph(&mut metrics, x, y, 0, c, prev, self.super_sampling_scale);
                     self.glyphs.push(glyph);
                     x += advance;
                     prev = Some(c);
                 }
             } else {
                 let mut prev = None;
-                for c in self.text.iter().take(line.end).skip(line.begin).cloned() {
+                for (i, &c) in self.text.iter().enumerate().take(line.end).skip(line.begin) {
+                    let font = self.font_at(i);
+                    let font = &mut font.data_ref();
+                    let mut metrics = GlyphMetrics {
+                        font,
+                        size: self.font_size_at(i),
+                    };
                     match c {
                         '\n' => {
                             x += metrics.newline_advance();
                         }
                         _ => {
+                            let y1 = y + line.height - metrics.ascender();
+                            let scale = self.super_sampling_scale;
                             let (glyph, advance) =
-                                build_glyph(&mut metrics, x, y, c, prev, self.super_sampling_scale);
+                                build_glyph(&mut metrics, x, y1, i, c, prev, scale);
                             self.glyphs.push(glyph);
                             x += advance;
                         }
@@ -746,26 +842,56 @@ impl FormattedText {
                     prev = Some(c);
                 }
             }
-            line.height = line_height;
             line.y_offset = y;
-            y += line_height;
+            y += line.height;
         }
 
-        let size_x = self
-            .lines
-            .iter()
-            .map(|line| line.width)
-            .max_by(f32::total_cmp)
-            .unwrap_or_default();
-        // Minus here is because descender has negative value.
-        let size_y = total_height - metrics.descender();
+        let size_x = if self.constraint.x.is_finite() {
+            self.constraint.x
+        } else {
+            lines
+                .iter()
+                .map(|line| line.width)
+                .max_by(f32::total_cmp)
+                .unwrap_or_default()
+        };
+        let size_y = if self.constraint.y.is_finite() {
+            self.constraint.y
+        } else {
+            let descender = if self.mask_char.is_some() || self.runs.is_empty() {
+                GlyphMetrics {
+                    font: &mut self.font.data_ref(),
+                    size: **self.font_size,
+                }
+                .descender()
+            } else if let Some(line) = self.lines.last() {
+                (line.begin..line.end)
+                    .map(|i| {
+                        GlyphMetrics {
+                            font: &mut self.font_at(i).data_ref(),
+                            size: self.font_size_at(i),
+                        }
+                        .descender()
+                    })
+                    .min_by(f32::total_cmp)
+                    .unwrap_or_default()
+            } else {
+                0.0
+            };
+            // Minus here is because descender has negative value.
+            total_height - descender
+        };
+        self.lines = lines;
         Vector2::new(size_x, size_y)
     }
 }
 
-fn wrap<W: TextWrapper>(mut wrapper: W, metrics: &mut GlyphMetrics, text: &[char]) {
-    for &character in text.iter() {
-        let advance = metrics.advance(character);
+fn wrap<W, I>(mut wrapper: W, source: I)
+where
+    W: TextWrapper,
+    I: Iterator<Item = (char, f32)>,
+{
+    for (character, advance) in source {
         wrapper.push(character, advance);
     }
     wrapper.finish();
@@ -793,6 +919,7 @@ pub struct FormattedTextBuilder {
     shadow_offset: Vector2<f32>,
     font_size: StyledProperty<f32>,
     super_sampling_scaling: f32,
+    runs: Vec<Run>,
 }
 
 impl FormattedTextBuilder {
@@ -813,6 +940,7 @@ impl FormattedTextBuilder {
             shadow_offset: Vector2::new(1.0, 1.0),
             font_size: 14.0f32.into(),
             super_sampling_scaling: 1.0,
+            runs: Vec::default(),
         }
     }
 
@@ -887,6 +1015,22 @@ impl FormattedTextBuilder {
         self
     }
 
+    /// Adds the given run to the text to set the style for a portion of the text.
+    /// Later runs potentially overriding earlier runs if the ranges of the runs overlap and the later run
+    /// sets a property that conflicts with an earlier run.
+    pub fn with_run(mut self, run: Run) -> Self {
+        self.runs.push(run);
+        self
+    }
+
+    /// Adds multiple runs to the text to set the style of portions of the text.
+    /// Later runs potentially overriding earlier runs if the ranges of the runs overlap and the later run
+    /// sets a property that conflicts with an earlier run.
+    pub fn with_runs<I: IntoIterator<Item = Run>>(mut self, runs: I) -> Self {
+        self.runs.extend(runs);
+        self
+    }
+
     pub fn build(self) -> FormattedText {
         FormattedText {
             text: self.text.chars().collect::<Vec<char>>().into(),
@@ -905,6 +1049,7 @@ impl FormattedTextBuilder {
             font: self.font.into(),
             shadow_dilation: self.shadow_dilation.into(),
             shadow_offset: self.shadow_offset.into(),
+            runs: self.runs.into(),
         }
     }
 }
