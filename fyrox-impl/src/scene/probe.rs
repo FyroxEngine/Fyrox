@@ -38,6 +38,7 @@ use crate::{
         node::{constructor::NodeConstructor, Node, NodeTrait},
     },
 };
+use fyrox_texture::{TextureKind, TextureResource, TextureResourceExtension};
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Reflect, Default, Debug, Visit, ComponentProvider, TypeUuidProvider)]
@@ -48,6 +49,29 @@ pub struct ReflectionProbe {
     #[reflect(min_value = 0.0)]
     pub size: InheritableVariable<Vector3<f32>>,
     pub offset: InheritableVariable<Vector3<f32>>,
+    #[reflect(min_value = 0.0)]
+    pub z_near: InheritableVariable<f32>,
+    #[reflect(min_value = 0.0)]
+    pub z_far: InheritableVariable<f32>,
+    #[reflect(read_only)]
+    render_target: TextureResource,
+}
+
+impl ReflectionProbe {
+    pub fn set_resolution(&mut self, resolution: u32) {
+        self.render_target = TextureResource::new_cube_render_target(resolution);
+    }
+
+    pub fn resolution(&self) -> u32 {
+        match self.render_target.data_ref().kind() {
+            TextureKind::Cube { size } => size,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn render_target(&self) -> &TextureResource {
+        &self.render_target
+    }
 }
 
 impl Deref for ReflectionProbe {
@@ -93,6 +117,9 @@ pub struct ReflectionProbeBuilder {
     base_builder: BaseBuilder,
     size: Vector3<f32>,
     offset: Vector3<f32>,
+    z_near: f32,
+    z_far: f32,
+    resolution: u32,
 }
 
 impl ReflectionProbeBuilder {
@@ -102,6 +129,9 @@ impl ReflectionProbeBuilder {
             base_builder,
             size: Default::default(),
             offset: Default::default(),
+            z_near: 0.1,
+            z_far: 32.0,
+            resolution: 512,
         }
     }
 
@@ -117,12 +147,30 @@ impl ReflectionProbeBuilder {
         self
     }
 
+    pub fn with_z_near(mut self, z_near: f32) -> Self {
+        self.z_near = z_near;
+        self
+    }
+
+    pub fn with_z_far(mut self, z_far: f32) -> Self {
+        self.z_far = z_far;
+        self
+    }
+
+    pub fn with_resolution(mut self, resolution: u32) -> Self {
+        self.resolution = resolution;
+        self
+    }
+
     /// Creates a new reflection probe node.
     pub fn build_node(self) -> Node {
         Node::new(ReflectionProbe {
             base: self.base_builder.build_base(),
             size: self.size.into(),
             offset: self.offset.into(),
+            z_near: self.z_near.into(),
+            z_far: self.z_far.into(),
+            render_target: TextureResource::new_cube_render_target(self.resolution),
         })
     }
 
