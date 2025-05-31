@@ -694,6 +694,11 @@ pub trait TextureResourceExtension: Sized {
     /// result is undefined.
     fn new_render_target(width: u32, height: u32) -> Self;
 
+    /// Creates a new cube map render target. This method automatically configures GPU texture
+    /// to correct settings. After the render target was created, it must not be modified. Otherwise
+    /// the result is undefined. Cube map contains six images
+    fn new_cube_render_target(resolution: u32) -> Self;
+
     /// Tries to load a texture from given data. Use this method if you want to
     /// load a texture from embedded data.
     ///
@@ -741,6 +746,35 @@ impl TextureResourceExtension for TextureResource {
             Texture {
                 // Render target will automatically set width and height before rendering.
                 kind: TextureKind::Rectangle { width, height },
+                bytes: Default::default(),
+                pixel_kind: TexturePixelKind::RGBA8,
+                minification_filter: TextureMinificationFilter::Linear,
+                magnification_filter: TextureMagnificationFilter::Linear,
+                s_wrap_mode: TextureWrapMode::Repeat,
+                t_wrap_mode: TextureWrapMode::Repeat,
+                r_wrap_mode: TextureWrapMode::Repeat,
+                base_level: 0,
+                max_level: 1000,
+                min_lod: -1000.0,
+                max_lod: 1000.0,
+                lod_bias: 0.0,
+                mip_count: 1,
+                anisotropy: 1.0,
+                modifications_counter: 0,
+                sampler_properties_modifications: 1,
+                is_render_target: true,
+                cache_index: Default::default(),
+            },
+        )
+    }
+
+    fn new_cube_render_target(size: u32) -> Self {
+        Resource::new_ok(
+            Default::default(),
+            Default::default(),
+            Texture {
+                // Render target will automatically set width and height before rendering.
+                kind: TextureKind::Cube { size },
                 bytes: Default::default(),
                 pixel_kind: TexturePixelKind::RGBA8,
                 minification_filter: TextureMinificationFilter::Linear,
