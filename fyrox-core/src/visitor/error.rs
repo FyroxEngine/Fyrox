@@ -109,7 +109,7 @@ impl Display for VisitError {
                 f,
                 "field type does not match. expected: {expected}, actual: {actual}"
             ),
-            Self::RegionDoesNotExist(name) => write!(f, "region does not exists {name}"),
+            Self::RegionDoesNotExist(name) => write!(f, "region does not exist: {name}"),
             Self::NoActiveNode => write!(f, "no active node"),
             Self::NotSupportedFormat => write!(f, "not supported format"),
             Self::InvalidName => write!(f, "invalid name"),
