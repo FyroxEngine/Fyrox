@@ -2302,6 +2302,10 @@ impl Editor {
                                             self.running_game_process.take()
                                         {
                                             self.mode = Mode::Play { process, active };
+                                            self.on_mode_changed();
+                                        } else {
+                                            self.mode = Mode::Edit;
+                                            self.on_mode_changed();
                                         }
                                     } else {
                                         if let Some(build_window) = self.build_window.as_mut() {
