@@ -591,6 +591,10 @@ pub struct Editor {
 
 impl Editor {
     pub fn new(startup_data: Option<StartupData>) -> Self {
+        Self::new_with_settings(startup_data, Default::default())
+    }
+
+    pub fn new_with_settings(startup_data: Option<StartupData>, settings: Settings) -> Self {
         // Useful for debugging purposes when users don't bother to mention editor version
         // they're using.
         Log::info(format!("Editor version: {}", &*EDITOR_VERSION));
@@ -664,7 +668,7 @@ impl Editor {
         .into_iter()
         .collect::<FxHashMap<_, _>>();
 
-        let mut settings = Settings::default();
+        let mut settings = settings;
 
         match Settings::load() {
             Ok(s) => {
