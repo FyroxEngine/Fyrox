@@ -42,7 +42,7 @@ use fyrox_ui::{
 };
 use std::{
     io::{BufRead, BufReader},
-    process::ChildStderr,
+    process::{ChildStderr, ChildStdout},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -199,18 +199,27 @@ impl BuildWindow {
         }
     }
 
-    pub fn listen(&mut self, mut stdout: ChildStderr, ui: &UserInterface) {
+    pub fn listen(
+        &mut self,
+        (mut stderr, mut stdout): (ChildStderr, ChildStdout),
+        ui: &UserInterface,
+    ) {
         let log = self.log.clone();
         self.active.store(true, Ordering::SeqCst);
         let reader_active = self.active.clone();
         let log_changed = self.changed.clone();
         std::thread::spawn(move || {
             while reader_active.load(Ordering::SeqCst) {
-                for line in BufReader::new(&mut stdout).lines().take(10).flatten() {
-                    let mut log_guard = log.lock();
-                    log_guard.push_str(&line);
-                    log_guard.push('\n');
-                    log_changed.store(true, Ordering::SeqCst);
+                let stderr: &mut dyn BufRead = &mut BufReader::new(&mut stderr);
+                let stdout: &mut dyn BufRead = &mut BufReader::new(&mut stdout);
+                let mut pipes = [stdout, stderr];
+                for pipe in &mut pipes {
+                    for line in pipe.lines().take(10).flatten() {
+                        let mut log_guard = log.lock();
+                        log_guard.push_str(&line);
+                        log_guard.push('\n');
+                        log_changed.store(true, Ordering::SeqCst);
+                    }
                 }
             }
         });

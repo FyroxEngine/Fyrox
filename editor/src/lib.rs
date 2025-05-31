@@ -2246,11 +2246,19 @@ impl Editor {
                     if let Some(build_command) = queue.pop_front() {
                         Log::info(format!("Trying to run build command: {build_command}"));
 
-                        match build_command.make_command().stderr(Stdio::piped()).spawn() {
+                        match build_command
+                            .make_command()
+                            .stderr(Stdio::piped())
+                            .stdout(Stdio::piped())
+                            .spawn()
+                        {
                             Ok(mut new_process) => {
                                 if let Some(build_window) = self.build_window.as_mut() {
                                     build_window.listen(
-                                        new_process.stderr.take().unwrap(),
+                                        (
+                                            new_process.stderr.take().unwrap(),
+                                            new_process.stdout.take().unwrap(),
+                                        ),
                                         self.engine.user_interfaces.first(),
                                     );
                                 }
