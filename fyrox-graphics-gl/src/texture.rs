@@ -338,12 +338,9 @@ impl GpuTextureTrait for GlTexture {
                         break 'mip_loop;
                     }
                 }
-                GpuTextureKind::Cube { width, height } => {
-                    if let (Some(width), Some(height)) = (
-                        width.checked_shr(mip as u32),
-                        height.checked_shr(mip as u32),
-                    ) {
-                        desired_byte_count += 6 * image_2d_size_bytes(pixel_kind, width, height);
+                GpuTextureKind::Cube { size } => {
+                    if let Some(size) = size.checked_shr(mip as u32) {
+                        desired_byte_count += 6 * image_2d_size_bytes(pixel_kind, size, size);
                     } else {
                         break 'mip_loop;
                     }
@@ -495,12 +492,9 @@ impl GpuTextureTrait for GlTexture {
                             break 'mip_loop2;
                         }
                     }
-                    GpuTextureKind::Cube { width, height } => {
-                        if let (Some(width), Some(height)) = (
-                            width.checked_shr(mip as u32),
-                            height.checked_shr(mip as u32),
-                        ) {
-                            let bytes_per_face = image_2d_size_bytes(pixel_kind, width, height);
+                    GpuTextureKind::Cube { size } => {
+                        if let Some(size) = size.checked_shr(mip as u32) {
+                            let bytes_per_face = image_2d_size_bytes(pixel_kind, size, size);
 
                             for face in 0..6 {
                                 let begin = mip_byte_offset + face * bytes_per_face;
@@ -512,8 +506,8 @@ impl GpuTextureTrait for GlTexture {
                                         glow::TEXTURE_CUBE_MAP_POSITIVE_X + face as u32,
                                         mip as i32,
                                         internal_format as i32,
-                                        width as i32,
-                                        height as i32,
+                                        size as i32,
+                                        size as i32,
                                         0,
                                         bytes_per_face as i32,
                                         face_pixels.ok_or(FrameworkError::EmptyTextureData)?,
@@ -523,8 +517,8 @@ impl GpuTextureTrait for GlTexture {
                                         glow::TEXTURE_CUBE_MAP_POSITIVE_X + face as u32,
                                         mip as i32,
                                         internal_format as i32,
-                                        width as i32,
-                                        height as i32,
+                                        size as i32,
+                                        size as i32,
                                         0,
                                         format,
                                         data_type,

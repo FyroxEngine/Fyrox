@@ -1507,8 +1507,11 @@ impl SkyBox {
                 },
             );
 
-        let (width, height) = match kind {
-            TextureKind::Rectangle { width, height } => (width, height),
+        let size = match kind {
+            TextureKind::Rectangle { width, height } => {
+                assert_eq!(width, height);
+                width
+            }
             _ => return Err(SkyBoxError::UnsupportedTextureKind(kind)),
         };
 
@@ -1524,7 +1527,7 @@ impl SkyBox {
 
         let cubemap = TextureResource::from_bytes(
             Uuid::new_v4(),
-            TextureKind::Cube { width, height },
+            TextureKind::Cube { size },
             pixel_kind,
             data,
             ResourceKind::Embedded,

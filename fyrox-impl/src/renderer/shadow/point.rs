@@ -95,10 +95,7 @@ impl PointShadowMapRenderer {
             )?;
 
             let cube_map = server.create_texture(GpuTextureDescriptor {
-                kind: GpuTextureKind::Cube {
-                    width: size,
-                    height: size,
-                },
+                kind: GpuTextureKind::Cube { size },
                 pixel_kind: PixelKind::R16F,
                 ..Default::default()
             })?;

@@ -95,10 +95,8 @@ pub enum TextureKind {
     },
     /// Cube texture.
     Cube {
-        /// Width of the cube face.
-        width: u32,
-        /// Height of the cube face.
-        height: u32,
+        /// Width and height of the cube face.
+        size: u32,
     },
     /// Volume texture (3D).
     Volume {
@@ -132,11 +130,11 @@ impl TextureKind {
         }
     }
 
-    /// Tries to fetch [`TextureKind::Cube`]'s width (x) and height (y).
+    /// Tries to fetch [`TextureKind::Cube`]'s size.
     #[inline]
-    pub fn cube_size(&self) -> Option<Vector2<u32>> {
-        if let Self::Cube { width, height } = self {
-            Some(Vector2::new(*width, *height))
+    pub fn cube_size(&self) -> Option<u32> {
+        if let Self::Cube { size } = self {
+            Some(*size)
         } else {
             None
         }
@@ -185,10 +183,7 @@ impl Visit for TextureKind {
                     width: 0,
                     height: 0,
                 },
-                2 => TextureKind::Cube {
-                    width: 0,
-                    height: 0,
-                },
+                2 => TextureKind::Cube { size: 0 },
                 3 => TextureKind::Volume {
                     width: 0,
                     height: 0,
@@ -209,9 +204,9 @@ impl Visit for TextureKind {
                 width.visit("Width", &mut region)?;
                 height.visit("Height", &mut region)?;
             }
-            TextureKind::Cube { width, height } => {
-                width.visit("Width", &mut region)?;
-                height.visit("Height", &mut region)?;
+            TextureKind::Cube { size } => {
+                // Called `Width` for backward compatibility reasons.
+                size.visit("Width", &mut region)?;
             }
             TextureKind::Volume {
                 width,
@@ -1321,7 +1316,7 @@ fn bytes_in_mip_level(kind: TextureKind, pixel_kind: TexturePixelKind, mip: usiz
     let pixel_count = match kind {
         TextureKind::Line { length } => length.shr(mip),
         TextureKind::Rectangle { width, height } => width.shr(mip) * height.shr(mip),
-        TextureKind::Cube { width, height } => 6 * width.shr(mip) * height.shr(mip),
+        TextureKind::Cube { size } => 6 * size.shr(mip).pow(2),
         TextureKind::Volume {
             width,
             height,
@@ -1368,9 +1363,7 @@ fn bytes_in_mip_level(kind: TextureKind, pixel_kind: TexturePixelKind, mip: usiz
                 TextureKind::Rectangle { width, height } => {
                     ceil_div_4(width) * ceil_div_4(height) * block_size
                 }
-                TextureKind::Cube { width, height } => {
-                    6 * ceil_div_4(width) * ceil_div_4(height) * block_size
-                }
+                TextureKind::Cube { size } => 6 * ceil_div_4(size).pow(2) * block_size,
                 TextureKind::Volume {
                     width,
                     height,
@@ -1519,8 +1512,7 @@ impl Texture {
                 bytes: bytes.into(),
                 kind: if dds.header.caps2 & Caps2::CUBEMAP == Caps2::CUBEMAP {
                     TextureKind::Cube {
-                        width: dds.header.width,
-                        height: dds.header.height,
+                        size: dds.header.width,
                     }
                 } else if dds.header.caps2 & Caps2::VOLUME == Caps2::VOLUME {
                     TextureKind::Volume {

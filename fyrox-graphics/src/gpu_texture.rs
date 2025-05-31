@@ -43,10 +43,8 @@ pub enum GpuTextureKind {
     },
     /// Six 2D textures forming a cube.
     Cube {
-        /// Width of the texture.
-        width: usize,
-        /// Height of the texture.
-        height: usize,
+        /// Size of the texture.
+        size: usize,
     },
     /// Volumetric texture that consists of `depth` textures with `width x height` size.
     Volume {

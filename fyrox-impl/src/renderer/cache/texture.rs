@@ -57,9 +57,8 @@ fn convert_texture_kind(v: TextureKind) -> GpuTextureKind {
             width: width as usize,
             height: height as usize,
         },
-        TextureKind::Cube { width, height } => GpuTextureKind::Cube {
-            width: width as usize,
-            height: height as usize,
+        TextureKind::Cube { size } => GpuTextureKind::Cube {
+            size: size as usize,
         },
         TextureKind::Volume {
             width,
