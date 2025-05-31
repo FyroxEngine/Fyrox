@@ -1110,10 +1110,7 @@ impl Renderer {
                 ..Default::default()
             })?,
             environment_dummy: server.create_texture(GpuTextureDescriptor {
-                kind: GpuTextureKind::Cube {
-                    width: 1,
-                    height: 1,
-                },
+                kind: GpuTextureKind::Cube { size: 1 },
                 pixel_kind: PixelKind::RGBA8,
                 data: Some(&[
                     0u8, 0u8, 0u8, 255u8, // pos-x
