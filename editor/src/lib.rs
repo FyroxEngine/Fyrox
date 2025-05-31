@@ -2278,10 +2278,10 @@ impl Editor {
                     match process_ref.try_wait() {
                         Ok(status) => {
                             if let Some(status) = status {
-                                // https://doc.rust-lang.org/cargo/commands/cargo-build.html#exit-status
-                                let err_code = 101;
-                                let code = status.code().unwrap_or(err_code);
-                                if code == err_code {
+                                let success_code = 0;
+                                let wtf_code = 12345;
+                                let code = status.code().unwrap_or(wtf_code);
+                                if code != success_code {
                                     Log::err("Failed to build the game!");
                                     self.mode = Mode::Edit;
                                     self.on_mode_changed();
