@@ -209,10 +209,10 @@ impl BuildWindow {
         let reader_active = self.active.clone();
         let log_changed = self.changed.clone();
         std::thread::spawn(move || {
+            let stderr: &mut dyn BufRead = &mut BufReader::new(&mut stderr);
+            let stdout: &mut dyn BufRead = &mut BufReader::new(&mut stdout);
+            let mut pipes = [stdout, stderr];
             while reader_active.load(Ordering::SeqCst) {
-                let stderr: &mut dyn BufRead = &mut BufReader::new(&mut stderr);
-                let stdout: &mut dyn BufRead = &mut BufReader::new(&mut stdout);
-                let mut pipes = [stdout, stderr];
                 for pipe in &mut pipes {
                     for line in pipe.lines().take(10).flatten() {
                         let mut log_guard = log.lock();
