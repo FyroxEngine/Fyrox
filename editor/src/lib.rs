@@ -1580,14 +1580,11 @@ impl Editor {
             return;
         }
 
-        let Some(entry) = self.scenes.current_scene_entry_ref() else {
-            Log::err("Cannot enter build mode when there is no scene!");
-            return;
-        };
-
-        if entry.path.is_none() {
-            Log::err("Save you scene first!");
-            return;
+        if let Some(entry) = self.scenes.current_scene_entry_ref() {
+            if entry.path.is_none() {
+                Log::err("Save you scene first!");
+                return;
+            }
         }
 
         let Some(build_profile) = self
