@@ -1625,6 +1625,8 @@ impl Engine {
                 Log::err(format!(
                     "Unable to reload dynamic plugins. Reason: {message}"
                 ))
+            } else {
+                Log::info("Dynamic plugins reloaded.");
             }
         }
     }
