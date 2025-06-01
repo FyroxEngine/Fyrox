@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#![allow(missing_docs)] // TODO
+
 use fyrox_core::instant;
 use fyrox_graphics::framebuffer::DrawCallStatistics;
 pub use fyrox_graphics::stats::*;
@@ -190,5 +192,61 @@ impl Display for Statistics {
 impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
     fn add_assign(&mut self, rhs: RenderPassStatistics) {
         self.geometry += rhs;
+    }
+}
+
+impl Default for Statistics {
+    fn default() -> Self {
+        Self {
+            pipeline: Default::default(),
+            lighting: Default::default(),
+            geometry: Default::default(),
+            pure_frame_time: 0.0,
+            capped_frame_time: 0.0,
+            frames_per_second: 0,
+            texture_cache_size: 0,
+            geometry_cache_size: 0,
+            shader_cache_size: 0,
+            uniform_buffer_cache_size: 0,
+            frame_counter: 0,
+            frame_start_time: instant::Instant::now(),
+            last_fps_commit_time: instant::Instant::now(),
+        }
+    }
+}
+
+impl Statistics {
+    /// Must be called before render anything.
+    pub fn begin_frame(&mut self) {
+        self.frame_start_time = instant::Instant::now();
+        self.geometry = Default::default();
+        self.lighting = Default::default();
+    }
+
+    /// Must be called before SwapBuffers but after all rendering is done.
+    pub fn end_frame(&mut self) {
+        let current_time = instant::Instant::now();
+
+        self.pure_frame_time = current_time
+            .duration_since(self.frame_start_time)
+            .as_secs_f32();
+        self.frame_counter += 1;
+
+        if current_time
+            .duration_since(self.last_fps_commit_time)
+            .as_secs_f32()
+            >= 1.0
+        {
+            self.last_fps_commit_time = current_time;
+            self.frames_per_second = self.frame_counter;
+            self.frame_counter = 0;
+        }
+    }
+
+    /// Must be called after SwapBuffers to get capped frame time.
+    pub fn finalize(&mut self) {
+        self.capped_frame_time = instant::Instant::now()
+            .duration_since(self.frame_start_time)
+            .as_secs_f32();
     }
 }
