@@ -179,7 +179,20 @@ pub trait GraphicsServer: GraphicsServerAsAny {
         self.create_texture(GpuTextureDescriptor {
             kind: GpuTextureKind::Rectangle { width, height },
             pixel_kind,
+            ..Default::default()
+        })
+    }
 
+    /// A shortcut for [`Self::create_texture`], that creates a cube texture with the given
+    /// size and pixel kind.
+    fn create_cube_render_target(
+        &self,
+        pixel_kind: PixelKind,
+        size: usize,
+    ) -> Result<GpuTexture, FrameworkError> {
+        self.create_texture(GpuTextureDescriptor {
+            kind: GpuTextureKind::Cube { size },
+            pixel_kind,
             ..Default::default()
         })
     }
