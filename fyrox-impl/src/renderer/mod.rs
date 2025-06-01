@@ -19,12 +19,8 @@
 // SOFTWARE.
 
 //! Renderer is a "workhorse" of the engine, it draws scenes (both 3D and 2D), user interface,
-//! debug geometry and has an ability to add user-defined render passes. Current renderer
-//! implementation is not very flexible, but should cover 95% of use cases.
-//!
-//! # Implementation details
-//!
-//! Renderer is based on OpenGL 3.3+ Core.
+//! debug geometry and can add user-defined render passes. Current renderer implementation is not
+//! very flexible, but should cover 95% of use cases.
 
 #![warn(missing_docs)]
 
@@ -33,6 +29,7 @@ pub mod framework;
 pub mod bundle;
 pub mod cache;
 pub mod debug_renderer;
+pub mod observer;
 pub mod storage;
 pub mod ui_renderer;
 pub mod visibility;
@@ -53,12 +50,12 @@ mod stats;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
-        algebra::{Matrix4, Point3, Vector2, Vector3},
+        algebra::{Matrix4, Vector2, Vector3},
         array_as_u8_slice,
         color::Color,
         info, instant,
         log::{Log, MessageKind},
-        math::{frustum::Frustum, Rect},
+        math::Rect,
         pool::Handle,
         reflect::prelude::*,
         sstorage::ImmutableString,
@@ -69,9 +66,7 @@ use crate::{
     material::shader::{Shader, ShaderDefinition},
     renderer::{
         bloom::BloomRenderer,
-        bundle::{
-            Observer, ObserverPosition, RenderDataBundleStorage, RenderDataBundleStorageOptions,
-        },
+        bundle::{RenderDataBundleStorage, RenderDataBundleStorageOptions},
         cache::{
             geometry::GeometryCache,
             shader::{
@@ -100,24 +95,16 @@ use crate::{
         visibility::VisibilityCache,
     },
     resource::texture::{Texture, TextureKind, TextureResource},
-    scene::{
-        camera::{Camera, PerspectiveProjection, Projection},
-        mesh::surface::SurfaceData,
-        node::Node,
-        probe::ReflectionProbe,
-        Scene, SceneContainer,
-    },
+    scene::{mesh::surface::SurfaceData, node::Node, Scene, SceneContainer},
 };
 use cache::DynamicSurfaceCache;
 use fxhash::FxHashMap;
 use fyrox_graph::BaseSceneGraph;
-use fyrox_graphics::{
-    gpu_texture::CubeMapFace,
-    sampler::{
-        GpuSampler, GpuSamplerDescriptor, MagnificationFilter, MinificationFilter, WrapMode,
-    },
+use fyrox_graphics::sampler::{
+    GpuSampler, GpuSamplerDescriptor, MagnificationFilter, MinificationFilter, WrapMode,
 };
 use lazy_static::lazy_static;
+use observer::{Observer, ObserversCollection};
 use serde::{Deserialize, Serialize};
 pub use settings::*;
 pub use stats::*;
@@ -753,82 +740,6 @@ fn render_target_size(
                 "Render target must be a valid rectangle or cube texture!".to_string(),
             )
         })
-}
-
-/// Collections of observers in a scene.
-#[derive(Default)]
-pub struct ObserversCollection {
-    /// Camera observers.
-    pub cameras: Vec<Observer>,
-    /// Reflection probes, rendered first.
-    pub reflection_probes: Vec<Observer>,
-}
-
-impl ObserversCollection {
-    fn from_scene(scene: &Scene, frame_size: Vector2<f32>) -> Self {
-        let mut observers = Self::default();
-        for node in scene.graph.linear_iter() {
-            if node.is_globally_enabled() {
-                if let Some(camera) = node.cast::<Camera>() {
-                    if camera.is_enabled() {
-                        observers
-                            .cameras
-                            .push(Observer::from_camera(camera, frame_size));
-                    }
-                } else if let Some(probe) = node.cast::<ReflectionProbe>() {
-                    let projection = Projection::Perspective(PerspectiveProjection {
-                        fov: 90.0f32.to_radians(),
-                        z_near: *probe.z_near,
-                        z_far: *probe.z_far,
-                    });
-                    let resolution = probe.resolution() as f32;
-                    let cube_size = Vector2::repeat(probe.resolution() as f32);
-                    let projection_matrix = projection.matrix(cube_size);
-
-                    for (face, dir) in [
-                        (CubeMapFace::PositiveX, Vector3::new(1.0, 0.0, 0.0)),
-                        (CubeMapFace::NegativeX, Vector3::new(-1.0, 0.0, 0.0)),
-                        (CubeMapFace::PositiveY, Vector3::new(0.0, 1.0, 0.0)),
-                        (CubeMapFace::NegativeY, Vector3::new(0.0, -1.0, 0.0)),
-                        (CubeMapFace::PositiveZ, Vector3::new(0.0, 0.0, 1.0)),
-                        (CubeMapFace::NegativeZ, Vector3::new(0.0, 0.0, -1.0)),
-                    ] {
-                        let translation = probe.global_position();
-                        let view_matrix = Matrix4::look_at_rh(
-                            &Point3::from(translation),
-                            &Point3::from(translation + dir),
-                            &Vector3::y_axis(),
-                        );
-                        let view_projection_matrix = projection_matrix * view_matrix;
-                        observers.reflection_probes.push(Observer {
-                            handle: node.handle(),
-                            cube_map_face: Some(face),
-                            render_target: Some(probe.render_target().clone()),
-                            position: ObserverPosition {
-                                translation,
-                                z_near: *probe.z_near,
-                                z_far: *probe.z_far,
-                                view_matrix,
-                                projection_matrix,
-                                view_projection_matrix,
-                            },
-                            environment_map: None,
-                            skybox_map: None,
-                            render_mask: *probe.render_mask,
-                            projection: projection.clone(),
-                            color_grading_lut: None,
-                            color_grading_enabled: false,
-                            exposure: Default::default(),
-                            viewport: Rect::new(0, 0, resolution as i32, resolution as i32),
-                            frustum: Frustum::from_view_projection_matrix(view_projection_matrix)
-                                .unwrap_or_default(),
-                        })
-                    }
-                }
-            }
-        }
-        observers
-    }
 }
 
 impl Renderer {

@@ -31,7 +31,7 @@ use crate::{
         },
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::message::{KeyCode, KeyboardModifiers, MouseButton},
-        renderer::bundle::{ObserverPosition, RenderContext, RenderDataBundleStorage},
+        renderer::bundle::{RenderContext, RenderDataBundleStorage},
         scene::{
             base::BaseBuilder,
             camera::{Camera, CameraBuilder, Exposure, FitParameters, Projection},
@@ -55,6 +55,7 @@ use crate::{
     },
 };
 use fyrox::renderer::cache::DynamicSurfaceCache;
+use fyrox::renderer::observer::ObserverPosition;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},

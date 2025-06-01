@@ -23,6 +23,7 @@
 #![allow(missing_docs)] // TODO
 
 use crate::renderer::cache::DynamicSurfaceCache;
+use crate::renderer::observer::ObserverPosition;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -57,7 +58,6 @@ use crate::{
     },
     resource::texture::TextureResource,
     scene::{
-        camera::{Camera, ColorGradingLut, Exposure, Projection},
         collider::BitMask,
         graph::Graph,
         light::{
@@ -76,90 +76,11 @@ use crate::{
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use fyrox_graph::{SceneGraph, SceneGraphNode};
-use fyrox_graphics::{
-    gpu_program::{SamplerFallback, ShaderResourceDefinition},
-    gpu_texture::CubeMapFace,
-};
+use fyrox_graphics::gpu_program::{SamplerFallback, ShaderResourceDefinition};
 use std::{
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
 };
-
-pub struct Observer {
-    pub handle: Handle<Node>,
-    pub cube_map_face: Option<CubeMapFace>,
-    pub render_target: Option<TextureResource>,
-    pub position: ObserverPosition,
-    pub environment_map: Option<TextureResource>,
-    pub skybox_map: Option<TextureResource>,
-    pub render_mask: BitMask,
-    pub projection: Projection,
-    pub color_grading_lut: Option<ColorGradingLut>,
-    pub color_grading_enabled: bool,
-    pub exposure: Exposure,
-    pub viewport: Rect<i32>,
-    pub frustum: Frustum,
-}
-
-impl Observer {
-    pub fn from_camera(camera: &Camera, mut frame_size: Vector2<f32>) -> Self {
-        let skybox_map = camera.skybox_ref().and_then(|s| s.cubemap.clone());
-        if let Some(render_target) = camera.render_target() {
-            if let Some(size) = render_target
-                .data_ref()
-                .as_loaded_ref()
-                .and_then(|rt| rt.kind().rectangle_size().map(|size| size.cast::<f32>()))
-            {
-                frame_size = size;
-            }
-        }
-        Observer {
-            handle: camera.handle(),
-            environment_map: camera.environment_map().or_else(|| skybox_map.clone()),
-            skybox_map,
-            render_mask: *camera.render_mask,
-            projection: camera.projection().clone(),
-            position: ObserverPosition::from_camera(camera),
-            render_target: camera.render_target().cloned(),
-            color_grading_lut: camera.color_grading_lut(),
-            color_grading_enabled: camera.color_grading_enabled(),
-            exposure: camera.exposure(),
-            viewport: camera.viewport_pixels(frame_size),
-            frustum: camera.frustum(),
-            cube_map_face: None,
-        }
-    }
-}
-
-/// Observer position contains all the data, that describes an observer position in 3D space. It
-/// could be a real camera, light source's "virtual camera" that is used for shadow mapping, etc.
-#[derive(Clone, Default)]
-pub struct ObserverPosition {
-    /// World-space position of the observer.
-    pub translation: Vector3<f32>,
-    /// Position of the near clipping plane.
-    pub z_near: f32,
-    /// Position of the far clipping plane.
-    pub z_far: f32,
-    /// The view matrix of the observer.
-    pub view_matrix: Matrix4<f32>,
-    /// Projection matrix of the observer.
-    pub projection_matrix: Matrix4<f32>,
-    pub view_projection_matrix: Matrix4<f32>,
-}
-
-impl ObserverPosition {
-    pub fn from_camera(camera: &Camera) -> Self {
-        Self {
-            translation: camera.global_position(),
-            z_near: camera.projection().z_near(),
-            z_far: camera.projection().z_far(),
-            view_matrix: camera.view_matrix(),
-            projection_matrix: camera.projection_matrix(),
-            view_projection_matrix: camera.view_projection_matrix(),
-        }
-    }
-}
 
 /// Render context is used to collect render data from the scene nodes. It provides all required information about
 /// the observer (camera, light source virtual camera, etc.), that could be used for culling.
@@ -1303,7 +1224,8 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
 
 #[cfg(test)]
 mod test {
-    use crate::renderer::bundle::{ObserverPosition, RenderContext, RenderDataBundleStorage};
+    use crate::renderer::bundle::{RenderContext, RenderDataBundleStorage};
+    use crate::renderer::observer::ObserverPosition;
     use fyrox_core::algebra::{Matrix4, Vector3};
 
     //noinspection ALL

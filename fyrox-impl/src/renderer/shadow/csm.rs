@@ -18,8 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::bundle::Observer;
 use crate::renderer::cache::DynamicSurfaceCache;
+use crate::renderer::observer::Observer;
+use crate::renderer::observer::ObserverPosition;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -28,8 +29,8 @@ use crate::{
     },
     renderer::{
         bundle::{
-            BundleRenderContext, LightSource, LightSourceKind, ObserverPosition,
-            RenderDataBundleStorage, RenderDataBundleStorageOptions,
+            BundleRenderContext, LightSource, LightSourceKind, RenderDataBundleStorage,
+            RenderDataBundleStorageOptions,
         },
         cache::{
             geometry::GeometryCache, shader::ShaderCache, texture::TextureCache,

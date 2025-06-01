@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::renderer::cache::DynamicSurfaceCache;
+use crate::renderer::observer::ObserverPosition;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -26,10 +27,7 @@ use crate::{
         math::Rect,
     },
     renderer::{
-        bundle::{
-            BundleRenderContext, ObserverPosition, RenderDataBundleStorage,
-            RenderDataBundleStorageOptions,
-        },
+        bundle::{BundleRenderContext, RenderDataBundleStorage, RenderDataBundleStorageOptions},
         cache::{shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator},
         framework::{
             error::FrameworkError,

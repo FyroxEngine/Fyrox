@@ -29,7 +29,7 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
-use crate::renderer::bundle::Observer;
+use crate::renderer::observer::Observer;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},

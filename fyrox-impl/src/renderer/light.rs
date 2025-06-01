@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::bundle::Observer;
 use crate::renderer::cache::DynamicSurfaceCache;
+use crate::renderer::observer::Observer;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
