@@ -591,6 +591,10 @@ pub struct Editor {
 
 impl Editor {
     pub fn new(startup_data: Option<StartupData>) -> Self {
+        Self::new_with_settings(startup_data, Default::default())
+    }
+
+    pub fn new_with_settings(startup_data: Option<StartupData>, settings: Settings) -> Self {
         // Useful for debugging purposes when users don't bother to mention editor version
         // they're using.
         Log::info(format!("Editor version: {}", &*EDITOR_VERSION));
@@ -664,7 +668,7 @@ impl Editor {
         .into_iter()
         .collect::<FxHashMap<_, _>>();
 
-        let mut settings = Settings::default();
+        let mut settings = settings;
 
         match Settings::load() {
             Ok(s) => {
@@ -1580,14 +1584,11 @@ impl Editor {
             return;
         }
 
-        let Some(entry) = self.scenes.current_scene_entry_ref() else {
-            Log::err("Cannot enter build mode when there is no scene!");
-            return;
-        };
-
-        if entry.path.is_none() {
-            Log::err("Save you scene first!");
-            return;
+        if let Some(entry) = self.scenes.current_scene_entry_ref() {
+            if entry.path.is_none() {
+                Log::err("Save you scene first!");
+                return;
+            }
         }
 
         let Some(build_profile) = self
@@ -2249,11 +2250,19 @@ impl Editor {
                     if let Some(build_command) = queue.pop_front() {
                         Log::info(format!("Trying to run build command: {build_command}"));
 
-                        match build_command.make_command().stderr(Stdio::piped()).spawn() {
+                        match build_command
+                            .make_command()
+                            .stderr(Stdio::piped())
+                            .stdout(Stdio::piped())
+                            .spawn()
+                        {
                             Ok(mut new_process) => {
                                 if let Some(build_window) = self.build_window.as_mut() {
                                     build_window.listen(
-                                        new_process.stderr.take().unwrap(),
+                                        (
+                                            new_process.stderr.take().unwrap(),
+                                            new_process.stdout.take().unwrap(),
+                                        ),
                                         self.engine.user_interfaces.first(),
                                     );
                                 }
@@ -2278,10 +2287,10 @@ impl Editor {
                     match process_ref.try_wait() {
                         Ok(status) => {
                             if let Some(status) = status {
-                                // https://doc.rust-lang.org/cargo/commands/cargo-build.html#exit-status
-                                let err_code = 101;
-                                let code = status.code().unwrap_or(err_code);
-                                if code == err_code {
+                                let success_code = 0;
+                                let wtf_code = 12345;
+                                let code = status.code().unwrap_or(wtf_code);
+                                if code != success_code {
                                     Log::err("Failed to build the game!");
                                     self.mode = Mode::Edit;
                                     self.on_mode_changed();
@@ -2297,6 +2306,10 @@ impl Editor {
                                             self.running_game_process.take()
                                         {
                                             self.mode = Mode::Play { process, active };
+                                            self.on_mode_changed();
+                                        } else {
+                                            self.mode = Mode::Edit;
+                                            self.on_mode_changed();
                                         }
                                     } else {
                                         if let Some(build_window) = self.build_window.as_mut() {

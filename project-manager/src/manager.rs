@@ -765,12 +765,21 @@ impl ProjectManager {
 
                 let mut command = build_command.make_command();
 
-                command.stderr(Stdio::piped()).current_dir(current_dir);
+                command
+                    .stderr(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .current_dir(current_dir);
 
                 match command.spawn() {
                     Ok(mut new_process) => {
                         if let Some(build_window) = self.build_window.as_mut() {
-                            build_window.listen(new_process.stderr.take().unwrap(), ui);
+                            build_window.listen(
+                                (
+                                    new_process.stderr.take().unwrap(),
+                                    new_process.stdout.take().unwrap(),
+                                ),
+                                ui,
+                            );
                         }
 
                         *process = Some(new_process);
