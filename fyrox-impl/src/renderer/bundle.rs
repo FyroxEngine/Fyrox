@@ -22,11 +22,10 @@
 
 #![allow(missing_docs)] // TODO
 
-use crate::material::Material;
-use crate::scene::camera::{Camera, ColorGradingLut, Exposure, Projection};
+use crate::renderer::cache::DynamicSurfaceCache;
 use crate::{
     core::{
-        algebra::{Matrix4, Vector3, Vector4},
+        algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
         color::{self, Color},
         err_once,
@@ -36,7 +35,7 @@ use crate::{
         sstorage::ImmutableString,
     },
     graph::BaseSceneGraph,
-    material::{self, shader::ShaderDefinition, MaterialPropertyRef, MaterialResource},
+    material::{self, shader::ShaderDefinition, Material, MaterialPropertyRef, MaterialResource},
     renderer::{
         cache::{
             geometry::GeometryCache,
@@ -54,10 +53,11 @@ use crate::{
             uniform::{ByteStorage, StaticUniformBuffer, UniformBuffer},
             ElementRange,
         },
-        DynamicSurfaceCache, FallbackResources, LightData, RenderPassStatistics,
+        FallbackResources, RenderPassStatistics,
     },
     resource::texture::TextureResource,
     scene::{
+        camera::{Camera, ColorGradingLut, Exposure, Projection},
         collider::BitMask,
         graph::Graph,
         light::{
@@ -75,10 +75,11 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-use fyrox_core::algebra::{Point3, Vector2};
 use fyrox_graph::{SceneGraph, SceneGraphNode};
-use fyrox_graphics::gpu_program::{SamplerFallback, ShaderResourceDefinition};
-use fyrox_graphics::gpu_texture::CubeMapFace;
+use fyrox_graphics::{
+    gpu_program::{SamplerFallback, ShaderResourceDefinition},
+    gpu_texture::CubeMapFace,
+};
 use std::{
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
@@ -850,6 +851,27 @@ pub enum LightSourceKind {
         csm_options: CsmOptions,
     },
     Unknown,
+}
+
+#[allow(missing_docs)] // TODO
+pub struct LightData<const N: usize = 16> {
+    pub count: usize,
+    pub color_radius: [Vector4<f32>; N],
+    pub position: [Vector3<f32>; N],
+    pub direction: [Vector3<f32>; N],
+    pub parameters: [Vector2<f32>; N],
+}
+
+impl<const N: usize> Default for LightData<N> {
+    fn default() -> Self {
+        Self {
+            count: 0,
+            color_radius: [Default::default(); N],
+            position: [Default::default(); N],
+            direction: [Default::default(); N],
+            parameters: [Default::default(); N],
+        }
+    }
 }
 
 pub struct LightSource {

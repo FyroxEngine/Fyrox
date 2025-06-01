@@ -24,7 +24,7 @@
 use crate::material::{
     Material, MaterialResourceBinding, MaterialResourceExtension, MaterialTextureBinding,
 };
-use crate::renderer::DynamicSurfaceCache;
+use crate::renderer::cache::DynamicSurfaceCache;
 use crate::resource::texture::PLACEHOLDER;
 use crate::scene::mesh::surface::SurfaceBuilder;
 use crate::scene::node::constructor::NodeConstructor;

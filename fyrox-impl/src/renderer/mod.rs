@@ -53,7 +53,7 @@ mod stats;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
-        algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
+        algebra::{Matrix4, Point3, Vector2, Vector3},
         array_as_u8_slice,
         color::Color,
         info, instant,
@@ -102,15 +102,13 @@ use crate::{
     resource::texture::{Texture, TextureKind, TextureResource},
     scene::{
         camera::{Camera, PerspectiveProjection, Projection},
-        mesh::{
-            buffer::{BytesStorage, TriangleBuffer, VertexAttributeDescriptor, VertexBuffer},
-            surface::{SurfaceData, SurfaceResource},
-        },
+        mesh::surface::SurfaceData,
         node::Node,
         probe::ReflectionProbe,
         Scene, SceneContainer,
     },
 };
+use cache::DynamicSurfaceCache;
 use fxhash::FxHashMap;
 use fyrox_graph::BaseSceneGraph;
 use fyrox_graphics::{
@@ -119,7 +117,6 @@ use fyrox_graphics::{
         GpuSampler, GpuSamplerDescriptor, MagnificationFilter, MinificationFilter, WrapMode,
     },
 };
-use fyrox_resource::untyped::ResourceKind;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 pub use settings::*;
@@ -133,7 +130,6 @@ use std::{
     sync::mpsc::Receiver,
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
-use uuid::Uuid;
 use winit::window::Window;
 
 lazy_static! {
@@ -517,66 +513,6 @@ impl FallbackResources {
     }
 }
 
-/// A cache for dynamic surfaces, the content of which changes every frame. The main purpose of this
-/// cache is to keep associated GPU buffers alive a long as the surfaces in the cache and thus prevent
-/// redundant resource reallocation on every frame. This is very important for dynamic drawing, such
-/// as 2D sprites, tile maps, etc.
-#[derive(Default)]
-pub struct DynamicSurfaceCache {
-    cache: FxHashMap<u64, SurfaceResource>,
-}
-
-impl DynamicSurfaceCache {
-    /// Creates a new empty cache.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Tries to get an existing surface from the cache using its unique id or creates a new one and
-    /// returns it.
-    pub fn get_or_create(
-        &mut self,
-        unique_id: u64,
-        layout: &[VertexAttributeDescriptor],
-    ) -> SurfaceResource {
-        if let Some(surface) = self.cache.get(&unique_id) {
-            surface.clone()
-        } else {
-            let default_capacity = 4096;
-
-            // Initialize empty vertex buffer.
-            let vertex_buffer = VertexBuffer::new_with_layout(
-                layout,
-                0,
-                BytesStorage::with_capacity(default_capacity),
-            )
-            .unwrap();
-
-            // Initialize empty triangle buffer.
-            let triangle_buffer = TriangleBuffer::new(Vec::with_capacity(default_capacity * 3));
-
-            let surface = SurfaceResource::new_ok(
-                Uuid::new_v4(),
-                ResourceKind::Embedded,
-                SurfaceData::new(vertex_buffer, triangle_buffer),
-            );
-
-            self.cache.insert(unique_id, surface.clone());
-
-            surface
-        }
-    }
-
-    /// Clears the surfaces in the cache, does **not** clear the cache itself.
-    pub fn clear(&mut self) {
-        for surface in self.cache.values_mut() {
-            let mut surface_data = surface.data_ref();
-            surface_data.vertex_buffer.modify().clear();
-            surface_data.geometry_buffer.modify().clear();
-        }
-    }
-}
-
 /// See module docs.
 pub struct Renderer {
     backbuffer: GpuFrameBuffer,
@@ -793,27 +729,6 @@ fn blit_pixels(
         Default::default(),
         None,
     )
-}
-
-#[allow(missing_docs)] // TODO
-pub struct LightData<const N: usize = 16> {
-    pub count: usize,
-    pub color_radius: [Vector4<f32>; N],
-    pub position: [Vector3<f32>; N],
-    pub direction: [Vector3<f32>; N],
-    pub parameters: [Vector2<f32>; N],
-}
-
-impl<const N: usize> Default for LightData<N> {
-    fn default() -> Self {
-        Self {
-            count: 0,
-            color_radius: [Default::default(); N],
-            position: [Default::default(); N],
-            direction: [Default::default(); N],
-            parameters: [Default::default(); N],
-        }
-    }
 }
 
 fn render_target_size(

@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::renderer::bundle::Observer;
-use crate::renderer::DynamicSurfaceCache;
+use crate::renderer::cache::DynamicSurfaceCache;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},

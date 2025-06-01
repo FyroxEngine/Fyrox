@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::DynamicSurfaceCache;
+use crate::renderer::cache::DynamicSurfaceCache;
 use crate::scene::collider::BitMask;
 use crate::{
     core::{
