@@ -49,8 +49,10 @@ mod shadow;
 mod ssao;
 mod stats;
 
-use crate::renderer::bundle::Observer;
+use crate::renderer::bundle::{Observer, ObserverPosition};
+use crate::scene::camera::{PerspectiveProjection, Projection};
 use crate::scene::node::Node;
+use crate::scene::probe::ReflectionProbe;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -109,8 +111,11 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_core::algebra::Point3;
 use fyrox_core::info;
+use fyrox_core::math::frustum::Frustum;
 use fyrox_graph::BaseSceneGraph;
+use fyrox_graphics::gpu_texture::CubeMapFace;
 use fyrox_graphics::{
     sampler::{GpuSampler, GpuSamplerDescriptor},
     sampler::{MagnificationFilter, MinificationFilter, WrapMode},
@@ -505,10 +510,11 @@ impl SceneRenderData {
     pub fn new(
         server: &dyn GraphicsServer,
         frame_size: Vector2<f32>,
+        final_frame_texture: FrameTextureKind,
     ) -> Result<Self, FrameworkError> {
         Ok(Self {
             camera_data: Default::default(),
-            scene_data: RenderDataContainer::new(server, frame_size)?,
+            scene_data: RenderDataContainer::new(server, frame_size, final_frame_texture)?,
         })
     }
 }
@@ -518,6 +524,7 @@ fn recreate_render_data_if_needed<T: Any>(
     server: &dyn GraphicsServer,
     data: &mut RenderDataContainer,
     frame_size: Vector2<f32>,
+    final_frame_texture: FrameTextureKind,
 ) -> Result<(), FrameworkError> {
     if data.gbuffer.width != frame_size.x as i32 || data.gbuffer.height != frame_size.y as i32 {
         Log::info(format!(
@@ -531,7 +538,7 @@ fn recreate_render_data_if_needed<T: Any>(
             frame_size.y
         ));
 
-        *data = RenderDataContainer::new(server, frame_size)?;
+        *data = RenderDataContainer::new(server, frame_size, final_frame_texture)?;
     }
 
     Ok(())
@@ -563,14 +570,29 @@ pub struct RenderDataContainer {
     pub statistics: SceneStatistics,
 }
 
+/// Texture kind that will be used to store final frame image.
+#[derive(Default)]
+pub enum FrameTextureKind {
+    /// Rectangular texture.
+    #[default]
+    Rectangle,
+    /// Cube texture (six square textures). Used primarily for reflection probes.
+    Cube,
+}
+
 impl RenderDataContainer {
     /// Creates a new container.
     pub fn new(
         server: &dyn GraphicsServer,
         frame_size: Vector2<f32>,
+        final_frame_texture: FrameTextureKind,
     ) -> Result<Self, FrameworkError> {
         let width = frame_size.x as usize;
         let height = frame_size.y as usize;
+
+        if matches!(final_frame_texture, FrameTextureKind::Cube) {
+            assert_eq!(width, height);
+        }
 
         let depth_stencil = server.create_2d_render_target(PixelKind::D24S8, width, height)?;
         // Intermediate scene frame will be rendered in HDR render target.
@@ -589,7 +611,10 @@ impl RenderDataContainer {
         )?;
 
         let ldr_frame_texture = server.create_texture(GpuTextureDescriptor {
-            kind: GpuTextureKind::Rectangle { width, height },
+            kind: match final_frame_texture {
+                FrameTextureKind::Rectangle => GpuTextureKind::Rectangle { width, height },
+                FrameTextureKind::Cube => GpuTextureKind::Cube { size: width },
+            },
             // Final scene frame is in standard sRGB space.
             pixel_kind: PixelKind::RGBA8,
             ..Default::default()
@@ -1025,32 +1050,104 @@ impl<const N: usize> Default for LightData<N> {
     }
 }
 
-fn render_target_size(render_target: &TextureResource) -> Result<Vector2<f32>, FrameworkError> {
+fn render_target_size(
+    render_target: &TextureResource,
+) -> Result<(Vector2<f32>, FrameTextureKind), FrameworkError> {
     render_target
         .data_ref()
         .as_loaded_ref()
-        .and_then(|rt| rt.kind().rectangle_size().map(|size| size.cast::<f32>()))
+        .and_then(|rt| match rt.kind() {
+            TextureKind::Rectangle { width, height } => Some((
+                Vector2::new(width as f32, height as f32),
+                FrameTextureKind::Rectangle,
+            )),
+            TextureKind::Cube { size } => Some((
+                Vector2::new(size as f32, size as f32),
+                FrameTextureKind::Cube,
+            )),
+            _ => None,
+        })
         .ok_or_else(|| {
-            FrameworkError::Custom("Render target must be a valid rectangle texture!".to_string())
+            FrameworkError::Custom(
+                "Render target must be a valid rectangle or cube texture!".to_string(),
+            )
         })
 }
 
-fn collect_observers(scene: &Scene, frame_size: Vector2<f32>) -> Vec<Observer> {
-    scene
-        .graph
-        .linear_iter()
-        .filter_map(|node| {
+/// Collections of observers in a scene.
+#[derive(Default)]
+pub struct ObserversCollection {
+    /// Camera observers.
+    pub cameras: Vec<Observer>,
+    /// Reflection probes, rendered first.
+    pub reflection_probes: Vec<Observer>,
+}
+
+impl ObserversCollection {
+    fn from_scene(scene: &Scene, frame_size: Vector2<f32>) -> Self {
+        let mut observers = Self::default();
+        for node in scene.graph.linear_iter() {
             if node.is_globally_enabled() {
                 if let Some(camera) = node.cast::<Camera>() {
                     if camera.is_enabled() {
-                        return Some(camera);
+                        observers
+                            .cameras
+                            .push(Observer::from_camera(camera, frame_size));
+                    }
+                } else if let Some(probe) = node.cast::<ReflectionProbe>() {
+                    let projection = Projection::Perspective(PerspectiveProjection {
+                        fov: 90.0f32.to_radians(),
+                        z_near: *probe.z_near,
+                        z_far: *probe.z_far,
+                    });
+                    let resolution = probe.resolution() as f32;
+                    let cube_size = Vector2::repeat(probe.resolution() as f32);
+                    let projection_matrix = projection.matrix(cube_size);
+
+                    for (face, dir) in [
+                        (CubeMapFace::PositiveX, Vector3::new(1.0, 0.0, 0.0)),
+                        (CubeMapFace::NegativeX, Vector3::new(-1.0, 0.0, 0.0)),
+                        (CubeMapFace::PositiveY, Vector3::new(0.0, 1.0, 0.0)),
+                        (CubeMapFace::NegativeY, Vector3::new(0.0, -1.0, 0.0)),
+                        (CubeMapFace::PositiveZ, Vector3::new(0.0, 0.0, 1.0)),
+                        (CubeMapFace::NegativeZ, Vector3::new(0.0, 0.0, -1.0)),
+                    ] {
+                        let translation = probe.global_position();
+                        let view_matrix = Matrix4::look_at_rh(
+                            &Point3::from(translation),
+                            &Point3::from(translation + dir),
+                            &Vector3::y_axis(),
+                        );
+                        let view_projection_matrix = projection_matrix * view_matrix;
+                        observers.reflection_probes.push(Observer {
+                            handle: node.handle(),
+                            cube_map_face: Some(face),
+                            render_target: Some(probe.render_target().clone()),
+                            position: ObserverPosition {
+                                translation,
+                                z_near: *probe.z_near,
+                                z_far: *probe.z_far,
+                                view_matrix,
+                                projection_matrix,
+                                view_projection_matrix,
+                            },
+                            environment_map: None,
+                            skybox_map: None,
+                            render_mask: *probe.render_mask,
+                            projection: projection.clone(),
+                            color_grading_lut: None,
+                            color_grading_enabled: false,
+                            exposure: Default::default(),
+                            viewport: Rect::new(0, 0, resolution as i32, resolution as i32),
+                            frustum: Frustum::from_view_projection_matrix(view_projection_matrix)
+                                .unwrap_or_default(),
+                        })
                     }
                 }
             }
-            None
-        })
-        .map(|camera| Observer::from_camera(camera, frame_size))
-        .collect()
+        }
+        observers
+    }
 }
 
 impl Renderer {
@@ -1499,11 +1596,16 @@ impl Renderer {
                     server,
                     &mut render_data.scene_data,
                     frame_size,
+                    FrameTextureKind::Rectangle,
                 )?;
                 render_data
             }
             Entry::Vacant(entry) => {
-                let render_data = entry.insert(SceneRenderData::new(server, frame_size)?);
+                let render_data = entry.insert(SceneRenderData::new(
+                    server,
+                    frame_size,
+                    FrameTextureKind::Rectangle,
+                )?);
                 info!(
                     "A new associated scene rendering data was created for scene {scene_handle}!"
                 );
@@ -1532,40 +1634,50 @@ impl Renderer {
             .camera_data
             .retain(|h, _| graph.is_valid_handle(*h));
 
-        let observers = collect_observers(scene, frame_size);
-
-        for observer in &observers {
+        let observers = ObserversCollection::from_scene(scene, frame_size);
+        for observer in observers.reflection_probes.iter().chain(&observers.cameras) {
             let render_data = if let Some(render_target) = observer.render_target.as_ref() {
-                let rt_size = render_target_size(render_target)?;
-                let camera_render_data = match scene_render_data.camera_data.entry(observer.handle)
-                {
-                    Entry::Occupied(entry) => {
-                        let camera_render_data = entry.into_mut();
-                        recreate_render_data_if_needed(
-                            scene_handle,
-                            server,
-                            camera_render_data,
-                            rt_size,
-                        )?;
-                        camera_render_data
-                    }
-                    Entry::Vacant(entry) => {
-                        let render_data = entry.insert(RenderDataContainer::new(server, rt_size)?);
-                        info!(
-                            "A new associated scene rendering data was created for camera {}!",
+                let (rt_size, final_frame_texture) = render_target_size(render_target)?;
+                let observer_render_data =
+                    match scene_render_data.camera_data.entry(observer.handle) {
+                        Entry::Occupied(entry) => {
+                            let observer_render_data = entry.into_mut();
+                            recreate_render_data_if_needed(
+                                scene_handle,
+                                server,
+                                observer_render_data,
+                                rt_size,
+                                final_frame_texture,
+                            )?;
+                            observer_render_data
+                        }
+                        Entry::Vacant(entry) => {
+                            let render_data = entry.insert(RenderDataContainer::new(
+                                server,
+                                rt_size,
+                                final_frame_texture,
+                            )?);
+                            info!(
+                            "A new associated scene rendering data was created for observer {}!",
                             observer.handle
                         );
-                        render_data
-                    }
-                };
+                            render_data
+                        }
+                    };
+
+                if let Some(face) = observer.cube_map_face {
+                    observer_render_data
+                        .ldr_scene_framebuffer
+                        .set_cubemap_face(0, face);
+                }
 
                 self.texture_cache.try_register(
                     server,
                     render_target,
-                    camera_render_data.ldr_scene_frame_texture().clone(),
+                    observer_render_data.ldr_scene_frame_texture().clone(),
                 )?;
 
-                camera_render_data
+                observer_render_data
             } else {
                 &mut scene_render_data.scene_data
             };

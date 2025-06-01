@@ -78,6 +78,7 @@ use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use fyrox_core::algebra::{Point3, Vector2};
 use fyrox_graph::{SceneGraph, SceneGraphNode};
 use fyrox_graphics::gpu_program::{SamplerFallback, ShaderResourceDefinition};
+use fyrox_graphics::gpu_texture::CubeMapFace;
 use std::{
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
@@ -85,6 +86,7 @@ use std::{
 
 pub struct Observer {
     pub handle: Handle<Node>,
+    pub cube_map_face: Option<CubeMapFace>,
     pub render_target: Option<TextureResource>,
     pub position: ObserverPosition,
     pub environment_map: Option<TextureResource>,
@@ -123,6 +125,7 @@ impl Observer {
             exposure: camera.exposure(),
             viewport: camera.viewport_pixels(frame_size),
             frustum: camera.frustum(),
+            cube_map_face: None,
         }
     }
 }
