@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::font::FontHeight;
+use crate::formatted_text::{DrawValueLayer, GlyphDrawValues};
 use crate::style::resource::StyleResource;
 use crate::{
     brush::Brush,
@@ -949,48 +950,55 @@ impl DrawingContext {
         material: &MaterialResource,
         formatted_text: &FormattedText,
     ) {
-        let font = formatted_text.get_font();
-
         #[inline(always)]
         fn draw(
             formatted_text: &FormattedText,
+            layer: DrawValueLayer,
             ctx: &mut DrawingContext,
             clip_bounds: Rect<f32>,
             position: Vector2<f32>,
-            dilation: f32,
-            offset: Vector2<f32>,
-            brush: Brush,
-            font: &FontResource,
             material: &MaterialResource,
         ) {
-            let Some(mut current_page_index) = formatted_text
-                .get_glyphs()
-                .first()
-                .map(|g| g.atlas_page_index)
-            else {
-                return;
-            };
-
+            let mut current_draw_values = None;
             for element in formatted_text.get_glyphs() {
-                // If we've switched to another atlas page, commit the text and start a new batch.
-                if current_page_index != element.atlas_page_index {
-                    ctx.commit(
-                        clip_bounds,
-                        brush.clone(),
-                        CommandTexture::Font {
-                            font: font.clone(),
-                            page_index: current_page_index,
-                            // Use font size scaled by super sampling scaling to pick correct atlas
-                            // page.
-                            height: FontHeight::from(formatted_text.super_sampled_font_size()),
-                        },
-                        material,
-                        None,
-                    );
-                    current_page_index = element.atlas_page_index;
+                if let DrawValueLayer::Shadow = layer {
+                    if !formatted_text.shadow_at(element.source_char_index) {
+                        continue;
+                    }
+                }
+                let draw_values = formatted_text.get_glyph_draw_values(layer, element);
+                if current_draw_values.is_none() {
+                    current_draw_values = Some(draw_values)
+                } else if current_draw_values.as_ref() != Some(&draw_values) {
+                    // If the drawing values have changed, commit the text and start a new batch.
+                    let GlyphDrawValues {
+                        atlas_page_index: page_index,
+                        font,
+                        brush,
+                        height,
+                    } = current_draw_values.unwrap();
+                    let texture = CommandTexture::Font {
+                        font,
+                        page_index,
+                        height,
+                    };
+                    ctx.commit(clip_bounds, brush, texture, material, None);
+                    current_draw_values = Some(draw_values);
                 }
 
                 let bounds = element.bounds;
+                let dilation = match layer {
+                    DrawValueLayer::Main => 0.0,
+                    DrawValueLayer::Shadow => {
+                        formatted_text.shadow_dilation_at(element.source_char_index)
+                    }
+                };
+                let offset = match layer {
+                    DrawValueLayer::Main => Vector2::default(),
+                    DrawValueLayer::Shadow => {
+                        formatted_text.shadow_offset_at(element.source_char_index)
+                    }
+                };
 
                 let final_bounds = Rect::new(
                     position.x + bounds.x() + offset.x,
@@ -1003,46 +1011,41 @@ impl DrawingContext {
                 ctx.push_rect_filled(&final_bounds, Some(&element.tex_coords));
             }
 
-            // Commit the rest.
-            ctx.commit(
-                clip_bounds,
+            if let Some(GlyphDrawValues {
+                atlas_page_index: page_index,
+                font,
                 brush,
-                CommandTexture::Font {
-                    font: font.clone(),
-                    page_index: current_page_index,
-                    // Use font size scaled by super sampling scaling to pick correct atlas
-                    // page.
-                    height: FontHeight::from(formatted_text.super_sampled_font_size()),
-                },
-                material,
-                None,
-            );
+                height,
+            }) = current_draw_values
+            {
+                let texture = CommandTexture::Font {
+                    font,
+                    page_index,
+                    height,
+                };
+                // Commit the rest.
+                ctx.commit(clip_bounds, brush, texture, material, None);
+            }
         }
 
         // Draw shadow, if any.
-        if *formatted_text.shadow {
+        if *formatted_text.shadow || !formatted_text.runs.is_empty() {
             draw(
                 formatted_text,
+                DrawValueLayer::Shadow,
                 self,
                 clip_bounds,
                 position,
-                *formatted_text.shadow_dilation,
-                *formatted_text.shadow_offset,
-                (*formatted_text.shadow_brush).clone(),
-                &font,
                 material,
             );
         }
 
         draw(
             formatted_text,
+            DrawValueLayer::Main,
             self,
             clip_bounds,
             position,
-            0.0,
-            Default::default(),
-            formatted_text.brush(),
-            &font,
             material,
         );
     }
