@@ -20,6 +20,7 @@
 
 #![allow(missing_docs)] // TODO
 
+use crate::renderer::utils::CubeMapFaceDescriptor;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -97,24 +98,17 @@ impl ObserversCollection {
                     let cube_size = Vector2::repeat(probe.resolution() as f32);
                     let projection_matrix = projection.matrix(cube_size);
 
-                    for (face, dir) in [
-                        (CubeMapFace::PositiveX, Vector3::new(1.0, 0.0, 0.0)),
-                        (CubeMapFace::NegativeX, Vector3::new(-1.0, 0.0, 0.0)),
-                        (CubeMapFace::PositiveY, Vector3::new(0.0, 1.0, 0.0)),
-                        (CubeMapFace::NegativeY, Vector3::new(0.0, -1.0, 0.0)),
-                        (CubeMapFace::PositiveZ, Vector3::new(0.0, 0.0, 1.0)),
-                        (CubeMapFace::NegativeZ, Vector3::new(0.0, 0.0, -1.0)),
-                    ] {
+                    for cube_face in CubeMapFaceDescriptor::cube_faces() {
                         let translation = probe.global_position();
                         let view_matrix = Matrix4::look_at_rh(
                             &Point3::from(translation),
-                            &Point3::from(translation + dir),
-                            &Vector3::y_axis(),
+                            &Point3::from(translation + cube_face.look),
+                            &cube_face.up,
                         );
                         let view_projection_matrix = projection_matrix * view_matrix;
                         observers.reflection_probes.push(Observer {
                             handle: node.handle(),
-                            cube_map_face: Some(face),
+                            cube_map_face: Some(cube_face.face),
                             render_target: Some(probe.render_target().clone()),
                             position: ObserverPosition {
                                 translation,

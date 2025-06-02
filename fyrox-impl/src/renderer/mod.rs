@@ -46,6 +46,7 @@ mod occlusion;
 mod settings;
 mod shadow;
 mod ssao;
+mod utils;
 
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},

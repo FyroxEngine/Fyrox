@@ -18,8 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::DynamicSurfaceCache;
-use crate::renderer::observer::ObserverPosition;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -28,16 +26,19 @@ use crate::{
     },
     renderer::{
         bundle::{BundleRenderContext, RenderDataBundleStorage, RenderDataBundleStorageOptions},
-        cache::{shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator},
+        cache::{
+            shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator,
+            DynamicSurfaceCache,
+        },
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, GpuFrameBuffer},
-            gpu_texture::{
-                CubeMapFace, GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind,
-            },
+            gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::GraphicsServer,
         },
+        observer::ObserverPosition,
         shadow::cascade_size,
+        utils::CubeMapFaceDescriptor,
         FallbackResources, GeometryCache, RenderPassStatistics, ShadowMapPrecision,
         POINT_SHADOW_PASS_NAME,
     },
@@ -48,13 +49,7 @@ pub struct PointShadowMapRenderer {
     precision: ShadowMapPrecision,
     cascades: [GpuFrameBuffer; 3],
     size: usize,
-    faces: [PointShadowCubeMapFace; 6],
-}
-
-struct PointShadowCubeMapFace {
-    face: CubeMapFace,
-    look: Vector3<f32>,
-    up: Vector3<f32>,
+    faces: [CubeMapFaceDescriptor; 6],
 }
 
 pub(crate) struct PointShadowMapRenderContext<'a> {
@@ -119,38 +114,7 @@ impl PointShadowMapRenderer {
                 make_cascade(server, cascade_size(size, 2), precision)?,
             ],
             size,
-            faces: [
-                PointShadowCubeMapFace {
-                    face: CubeMapFace::PositiveX,
-                    look: Vector3::new(1.0, 0.0, 0.0),
-                    up: Vector3::new(0.0, -1.0, 0.0),
-                },
-                PointShadowCubeMapFace {
-                    face: CubeMapFace::NegativeX,
-                    look: Vector3::new(-1.0, 0.0, 0.0),
-                    up: Vector3::new(0.0, -1.0, 0.0),
-                },
-                PointShadowCubeMapFace {
-                    face: CubeMapFace::PositiveY,
-                    look: Vector3::new(0.0, 1.0, 0.0),
-                    up: Vector3::new(0.0, 0.0, 1.0),
-                },
-                PointShadowCubeMapFace {
-                    face: CubeMapFace::NegativeY,
-                    look: Vector3::new(0.0, -1.0, 0.0),
-                    up: Vector3::new(0.0, 0.0, -1.0),
-                },
-                PointShadowCubeMapFace {
-                    face: CubeMapFace::PositiveZ,
-                    look: Vector3::new(0.0, 0.0, 1.0),
-                    up: Vector3::new(0.0, -1.0, 0.0),
-                },
-                PointShadowCubeMapFace {
-                    face: CubeMapFace::NegativeZ,
-                    look: Vector3::new(0.0, 0.0, -1.0),
-                    up: Vector3::new(0.0, -1.0, 0.0),
-                },
-            ],
+            faces: CubeMapFaceDescriptor::cube_faces(),
         })
     }
 
