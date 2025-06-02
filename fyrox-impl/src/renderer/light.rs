@@ -382,6 +382,7 @@ impl DeferredLightRenderer {
         let environment_map = observer
             .environment_map
             .as_ref()
+            .or_else(|| render_data_bundle.environment_map.as_ref())
             .and_then(|c| {
                 textures
                     .get(server, c)

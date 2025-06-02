@@ -22,8 +22,6 @@
 
 #![allow(missing_docs)] // TODO
 
-use crate::renderer::cache::DynamicSurfaceCache;
-use crate::renderer::observer::ObserverPosition;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -43,7 +41,7 @@ use crate::{
             shader::ShaderCache,
             texture::TextureCache,
             uniform::{UniformBlockLocation, UniformMemoryAllocator},
-            TimeToLive,
+            DynamicSurfaceCache, TimeToLive,
         },
         framework::{
             error::FrameworkError,
@@ -54,6 +52,7 @@ use crate::{
             uniform::{ByteStorage, StaticUniformBuffer, UniformBuffer},
             ElementRange,
         },
+        observer::ObserverPosition,
         FallbackResources, RenderPassStatistics,
     },
     resource::texture::TextureResource,
@@ -71,7 +70,8 @@ use crate::{
             surface::SurfaceResource,
             RenderPath,
         },
-        node::{Node, RdcControlFlow},
+        node::{Node, NodeTrait, RdcControlFlow},
+        probe::ReflectionProbe,
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
@@ -820,6 +820,7 @@ pub struct RenderDataBundleStorage {
     /// A sorted list of bundles.
     pub bundles: Vec<RenderDataBundle>,
     pub light_sources: Vec<LightSource>,
+    pub environment_map: Option<TextureResource>,
 }
 
 pub struct RenderDataBundleStorageOptions {
@@ -841,6 +842,7 @@ impl RenderDataBundleStorage {
             observer_position,
             bundles: Default::default(),
             light_sources: Default::default(),
+            environment_map: None,
         }
     }
 
@@ -863,6 +865,7 @@ impl RenderDataBundleStorage {
             observer_position: observer_position.clone(),
             bundles: Vec::with_capacity(capacity),
             light_sources: Default::default(),
+            environment_map: None,
         };
 
         let frustum = Frustum::from_view_projection_matrix(
@@ -887,6 +890,15 @@ impl RenderDataBundleStorage {
                             lod_filter[object.index() as usize] = visible;
                         }
                     }
+                }
+            }
+
+            if let Some(reflection_probe) = node.component_ref::<ReflectionProbe>() {
+                if (reflection_probe as &dyn NodeTrait)
+                    .world_bounding_box()
+                    .is_contains_point(observer_position.translation)
+                {
+                    storage.environment_map = Some(reflection_probe.render_target().clone());
                 }
             }
 

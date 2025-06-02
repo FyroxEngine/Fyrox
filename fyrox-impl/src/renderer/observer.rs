@@ -161,7 +161,6 @@ pub struct Observer {
 
 impl Observer {
     pub fn from_camera(camera: &Camera, mut frame_size: Vector2<f32>) -> Self {
-        let skybox_map = camera.skybox_ref().and_then(|s| s.cubemap.clone());
         if let Some(render_target) = camera.render_target() {
             if let Some(size) = render_target
                 .data_ref()
@@ -173,8 +172,8 @@ impl Observer {
         }
         Observer {
             handle: camera.handle(),
-            environment_map: camera.environment_map().or_else(|| skybox_map.clone()),
-            skybox_map,
+            environment_map: camera.environment_map(),
+            skybox_map: camera.skybox_ref().and_then(|s| s.cubemap.clone()),
             render_mask: *camera.render_mask,
             projection: camera.projection().clone(),
             position: ObserverPosition::from_camera(camera),
