@@ -576,10 +576,12 @@ impl Visitor {
                 self.current_node = region;
                 Ok(RegionGuard(self))
             } else {
-                Err(VisitError::RegionDoesNotExist(name.to_owned()))
+                Err(VisitError::RegionDoesNotExist(
+                    self.build_breadcrumb(" > ")
+                ))
             }
         } else {
-            // Make sure that node does not exists already.
+            // Make sure that node does not exist already.
             for child_handle in node.children.iter() {
                 let child = self.nodes.borrow(*child_handle);
                 if child.name == name {
@@ -596,6 +598,23 @@ impl Visitor {
 
             Ok(RegionGuard(self))
         }
+    }
+
+    fn build_breadcrumb(&self, separator: &str) -> String {
+        let mut rev = String::new();
+        let mut handle = self.current_node;
+        loop {
+            let node = self.nodes.try_borrow(handle);
+            let Some(node) = node else {
+                break;
+            };
+            if !rev.is_empty() {
+                rev.extend(separator.chars().rev());
+            }
+            rev.extend(node.name.chars().rev());
+            handle = node.parent;
+        }
+        rev.chars().rev().collect()
     }
 
     /// The name of the current region. This should never be None if the Visitor is operating normally,
