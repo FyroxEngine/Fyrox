@@ -249,7 +249,7 @@ pub struct RenderDataContainer {
     pub ldr_scene_framebuffer: GpuFrameBuffer,
 
     /// Additional frame buffer for post-processing.
-    pub ldr_temp_framebuffer: GpuFrameBuffer,
+    pub ldr_temp_framebuffer: [GpuFrameBuffer; 2],
 
     /// HDR renderer has to be created per container, because it contains
     /// scene luminance.
@@ -324,23 +324,30 @@ impl RenderDataContainer {
             }],
         )?;
 
-        let ldr_temp_texture = server.create_texture(GpuTextureDescriptor {
-            kind: GpuTextureKind::Rectangle { width, height },
-            // Final scene frame is in standard sRGB space.
-            pixel_kind: PixelKind::RGBA8,
-            ..Default::default()
-        })?;
+        fn make_ldr_temp_frame_buffer(
+            server: &dyn GraphicsServer,
+            width: usize,
+            height: usize,
+            depth_stencil: GpuTexture,
+        ) -> Result<GpuFrameBuffer, FrameworkError> {
+            let ldr_temp_texture = server.create_texture(GpuTextureDescriptor {
+                kind: GpuTextureKind::Rectangle { width, height },
+                // Final scene frame is in standard sRGB space.
+                pixel_kind: PixelKind::RGBA8,
+                ..Default::default()
+            })?;
 
-        let ldr_temp_framebuffer = server.create_frame_buffer(
-            Some(Attachment {
-                kind: AttachmentKind::DepthStencil,
-                texture: depth_stencil,
-            }),
-            vec![Attachment {
-                kind: AttachmentKind::Color,
-                texture: ldr_temp_texture,
-            }],
-        )?;
+            server.create_frame_buffer(
+                Some(Attachment {
+                    kind: AttachmentKind::DepthStencil,
+                    texture: depth_stencil,
+                }),
+                vec![Attachment {
+                    kind: AttachmentKind::Color,
+                    texture: ldr_temp_texture,
+                }],
+            )
+        }
 
         Ok(Self {
             gbuffer: GBuffer::new(server, width, height)?,
@@ -348,7 +355,10 @@ impl RenderDataContainer {
             bloom_renderer: BloomRenderer::new(server, width, height)?,
             hdr_scene_framebuffer,
             ldr_scene_framebuffer,
-            ldr_temp_framebuffer,
+            ldr_temp_framebuffer: [
+                make_ldr_temp_frame_buffer(server, width, height, depth_stencil.clone())?,
+                make_ldr_temp_frame_buffer(server, width, height, depth_stencil.clone())?,
+            ],
             statistics: Default::default(),
         })
     }
@@ -381,8 +391,8 @@ impl RenderDataContainer {
     }
 
     /// Returns low-dynamic range frame buffer texture (accumulation frame).
-    pub fn ldr_temp_frame_texture(&self) -> &GpuTexture {
-        &self.ldr_temp_framebuffer.color_attachments()[0].texture
+    pub fn ldr_temp_frame_texture(&self, i: usize) -> &GpuTexture {
+        &self.ldr_temp_framebuffer[i].color_attachments()[0].texture
     }
 }
 
@@ -1351,11 +1361,13 @@ impl Renderer {
             )?;
 
             // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
+            let mut dest_buf = 0;
+            let mut src_buf = 1;
             render_data.statistics += render_data.hdr_renderer.render(
                 server,
                 render_data.hdr_scene_frame_texture(),
                 render_data.bloom_renderer.result(),
-                &render_data.ldr_scene_framebuffer,
+                &render_data.ldr_temp_framebuffer[dest_buf],
                 observer.viewport,
                 quad,
                 dt,
@@ -1366,29 +1378,30 @@ impl Renderer {
                 &mut self.uniform_buffer_cache,
                 &self.fallback_resources,
             )?;
+            std::mem::swap(&mut dest_buf, &mut src_buf);
 
             // Apply FXAA if needed.
             if self.quality_settings.fxaa {
                 render_data.statistics += self.fxaa_renderer.render(
                     observer.viewport,
-                    render_data.ldr_scene_frame_texture(),
-                    &render_data.ldr_temp_framebuffer,
+                    render_data.ldr_temp_frame_texture(src_buf),
+                    &render_data.ldr_temp_framebuffer[dest_buf],
                     &mut self.uniform_buffer_cache,
                     &self.fallback_resources,
                 )?;
-
-                let quad = &self.quad;
-                let temp_frame_texture = render_data.ldr_temp_frame_texture();
-                render_data.statistics += blit_pixels(
-                    &mut self.uniform_buffer_cache,
-                    &render_data.ldr_scene_framebuffer,
-                    temp_frame_texture,
-                    &self.blit_shader,
-                    observer.viewport,
-                    quad,
-                    &self.fallback_resources,
-                )?;
+                std::mem::swap(&mut dest_buf, &mut src_buf);
             }
+
+            let quad = &self.quad;
+            render_data.statistics += blit_pixels(
+                &mut self.uniform_buffer_cache,
+                &render_data.ldr_scene_framebuffer,
+                render_data.ldr_temp_frame_texture(src_buf),
+                &self.blit_shader,
+                observer.viewport,
+                quad,
+                &self.fallback_resources,
+            )?;
 
             // Render debug geometry in the LDR frame buffer.
             self.debug_renderer.set_lines(&scene.drawing_context.lines);
