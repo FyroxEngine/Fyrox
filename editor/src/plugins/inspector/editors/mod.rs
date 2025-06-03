@@ -90,7 +90,7 @@ use crate::{
             },
             camera::{
                 ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection,
-                Projection, SkyBox,
+                Projection,
             },
             collider::{
                 BallShape, BitMask, CapsuleShape, ColliderShape, ConeShape, ConvexPolyhedronShape,
@@ -167,6 +167,7 @@ use crate::{
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::reflect::Reflect;
+use fyrox::scene::skybox::SkyBox;
 
 pub mod animation;
 pub mod font;

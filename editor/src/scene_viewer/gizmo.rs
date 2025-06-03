@@ -30,7 +30,7 @@ use crate::fyrox::{
     resource::texture::{TextureResource, TextureResourceExtension},
     scene::{
         base::BaseBuilder,
-        camera::{CameraBuilder, SkyBoxKind},
+        camera::CameraBuilder,
         graph::Graph,
         light::{directional::DirectionalLightBuilder, BaseLightBuilder},
         mesh::{
@@ -44,6 +44,7 @@ use crate::fyrox::{
     },
 };
 use crate::scene::GameScene;
+use fyrox::scene::skybox::SkyBoxKind;
 use fyrox::scene::SceneContainer;
 
 pub struct CameraRotation {

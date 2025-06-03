@@ -29,6 +29,7 @@ pub mod task;
 
 mod hotreload;
 
+use crate::scene::skybox::SkyBoxKind;
 use crate::{
     asset::{
         event::ResourceEvent,
@@ -78,7 +79,6 @@ use crate::{
     },
     scene::{
         base::NodeScriptMessage,
-        camera::SkyBoxKind,
         graph::{GraphUpdateSwitches, NodePool},
         mesh::surface::{self, SurfaceData, SurfaceDataLoader},
         navmesh,

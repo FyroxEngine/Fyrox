@@ -43,6 +43,7 @@ pub mod pivot;
 pub mod probe;
 pub mod ragdoll;
 pub mod rigidbody;
+pub mod skybox;
 pub mod sound;
 pub mod sprite;
 pub mod terrain;
