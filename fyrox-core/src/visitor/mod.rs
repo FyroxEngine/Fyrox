@@ -576,9 +576,7 @@ impl Visitor {
                 self.current_node = region;
                 Ok(RegionGuard(self))
             } else {
-                Err(VisitError::RegionDoesNotExist(
-                    self.build_breadcrumb(" > ")
-                ))
+                Err(VisitError::RegionDoesNotExist(self.build_breadcrumb(" > ")))
             }
         } else {
             // Make sure that node does not exist already.

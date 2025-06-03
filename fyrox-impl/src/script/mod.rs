@@ -56,6 +56,9 @@ pub(crate) trait UniversalScriptContext {
     fn set_script_index(&mut self, index: usize);
 }
 
+/// Alternative to `core::any::TypeId` that allows to dispatch separately messages of the same static type.
+pub type DynamicTypeId = i64;
+
 /// A script message's payload.
 pub trait ScriptMessagePayload: Any + Send + Debug {
     /// Returns `self` as `&dyn Any`
@@ -63,6 +66,17 @@ pub trait ScriptMessagePayload: Any + Send + Debug {
 
     /// Returns `self` as `&dyn Any`
     fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    /// By default messages are dispatched by [`TypeId::of`]`::<Self>()`.
+    ///
+    /// If this method returns [`Some`], then the message become dynamically typed.
+    /// Dynamically typed messages are dispatched by the returned type identifier instead of static type.
+    /// Subscriptions to dynamically typed messages are managed by
+    /// [`ScriptMessageDispatcher::subscribe_dynamic_to`]
+    /// and [`ScriptMessageDispatcher::unsubscribe_dynamic_from`]
+    fn get_dynamic_type_id(&self) -> Option<DynamicTypeId> {
+        None
+    }
 }
 
 impl dyn ScriptMessagePayload {

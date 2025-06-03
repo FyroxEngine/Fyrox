@@ -90,14 +90,14 @@ use crate::{
         tilemap::{
             brush::{TileMapBrush, TileMapBrushLoader},
             tileset::{TileSet, TileSetLoader},
+            CustomTileCollider, TileMapData,
         },
-        tilemap::{CustomTileCollider, TileMapData},
         Scene, SceneContainer, SceneLoader,
     },
     script::{
-        constructor::ScriptConstructorContainer, PluginsRefMut, RoutingStrategy, Script,
-        ScriptContext, ScriptDeinitContext, ScriptMessage, ScriptMessageContext, ScriptMessageKind,
-        ScriptMessageSender, UniversalScriptContext,
+        constructor::ScriptConstructorContainer, DynamicTypeId, PluginsRefMut, RoutingStrategy,
+        Script, ScriptContext, ScriptDeinitContext, ScriptMessage, ScriptMessageContext,
+        ScriptMessageKind, ScriptMessageSender, UniversalScriptContext,
     },
     window::{Window, WindowBuilder},
 };
@@ -502,9 +502,15 @@ pub struct Engine {
     pub script_processor: ScriptProcessor,
 }
 
+#[derive(Debug, Hash, PartialEq, Eq)]
+enum MessageTypeId {
+    Static(TypeId),
+    Dynamic(DynamicTypeId),
+}
+
 /// Performs dispatch of script messages.
 pub struct ScriptMessageDispatcher {
-    type_groups: FxHashMap<TypeId, FxHashSet<Handle<Node>>>,
+    type_groups: FxHashMap<MessageTypeId, FxHashSet<Handle<Node>>>,
     message_receiver: Receiver<ScriptMessage>,
 }
 
@@ -519,8 +525,19 @@ impl ScriptMessageDispatcher {
     /// Subscribes a node to receive any message of the given type `T`. Subscription is automatically removed
     /// if the node dies.
     pub fn subscribe_to<T: 'static>(&mut self, receiver: Handle<Node>) {
+        self.subscribe_internal_to(receiver, MessageTypeId::Static(TypeId::of::<T>()));
+    }
+
+    /// Subscribes a node to receive any message of the given type `type_id`. Subscription is automatically removed
+    /// if the node dies.
+    pub fn subscribe_dynamic_to(&mut self, receiver: Handle<Node>, type_id: DynamicTypeId) {
+        self.subscribe_internal_to(receiver, MessageTypeId::Dynamic(type_id));
+    }
+
+    #[inline]
+    fn subscribe_internal_to(&mut self, receiver: Handle<Node>, type_id: MessageTypeId) {
         self.type_groups
-            .entry(TypeId::of::<T>())
+            .entry(type_id)
             .and_modify(|v| {
                 v.insert(receiver);
             })
@@ -529,7 +546,17 @@ impl ScriptMessageDispatcher {
 
     /// Unsubscribes a node from receiving any messages of the given type `T`.
     pub fn unsubscribe_from<T: 'static>(&mut self, receiver: Handle<Node>) {
-        if let Some(group) = self.type_groups.get_mut(&TypeId::of::<T>()) {
+        self.unsubscribe_internal_from(receiver, &MessageTypeId::Static(TypeId::of::<T>()));
+    }
+
+    /// Unsubscribes a node from receiving any messages of the given type `type_id`.
+    pub fn unsubscribe_dynamic_from(&mut self, receiver: Handle<Node>, type_id: DynamicTypeId) {
+        self.unsubscribe_internal_from(receiver, &MessageTypeId::Dynamic(type_id));
+    }
+
+    #[inline]
+    fn unsubscribe_internal_from(&mut self, receiver: Handle<Node>, type_id: &MessageTypeId) {
+        if let Some(group) = self.type_groups.get_mut(type_id) {
             group.remove(&receiver);
         }
     }
@@ -555,7 +582,11 @@ impl ScriptMessageDispatcher {
         task_pool: &mut TaskPoolHandler,
     ) {
         while let Ok(message) = self.message_receiver.try_recv() {
-            let receivers = self.type_groups.get(&message.payload.deref().type_id());
+            let type_id = match message.payload.get_dynamic_type_id() {
+                Some(it) => MessageTypeId::Dynamic(it),
+                None => MessageTypeId::Static(message.payload.deref().type_id()),
+            };
+            let receivers = self.type_groups.get(&type_id);
 
             if receivers.is_none_or(|r| r.is_empty()) {
                 Log::warn(format!(
