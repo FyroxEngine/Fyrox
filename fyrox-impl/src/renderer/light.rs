@@ -344,7 +344,7 @@ impl DeferredLightRenderer {
         }
 
         // Render skybox (if any).
-        if let Some(skybox) = observer.skybox_map.as_ref() {
+        if let Some(skybox) = scene.skybox_ref().and_then(|s| s.cubemap_ref()) {
             if let Some(texture_sampler_pair) = textures.get(server, skybox) {
                 let size = observer.position.z_far / 2.0f32.sqrt();
                 let scale = Matrix4::new_scaling(size);

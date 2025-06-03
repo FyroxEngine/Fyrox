@@ -71,11 +71,11 @@ use crate::{
     resource::texture::TextureResource,
     scene::{
         base::BaseBuilder,
-        camera::Camera,
         debug::SceneDrawingContext,
         graph::{Graph, GraphPerformanceStatistics, GraphUpdateSwitches},
         navmesh::NavigationalMeshBuilder,
         node::Node,
+        skybox::{SkyBox, SkyBoxKind},
         sound::SoundEngine,
     },
     utils::navmesh::Navmesh,
@@ -229,6 +229,9 @@ pub struct Scene {
     #[reflect(hidden)]
     pub performance_statistics: PerformanceStatistics,
 
+    #[reflect(setter = "set_skybox")]
+    sky_box: InheritableVariable<Option<SkyBox>>,
+
     /// Whether the scene will be updated and rendered or not. Default is true.
     /// This flag allowing you to build a scene manager for your game. For example,
     /// you may have a scene for menu and one per level. Menu's scene is persistent,
@@ -253,6 +256,7 @@ impl Default for Scene {
             drawing_context: Default::default(),
             performance_statistics: Default::default(),
             enabled: true.into(),
+            sky_box: Some(SkyBoxKind::built_in_skybox().clone()).into(),
         }
     }
 }
@@ -406,16 +410,11 @@ impl SceneLoader {
             "SceneLoader::finish() - All {used_resources_count} resources have finished loading."
         ));
 
-        // TODO: Move into Camera::restore_resources?
         // We have to wait until skybox textures are all loaded, because we need to read their data
         // to re-create cube map.
         let mut skybox_textures = Vec::new();
-        for node in scene.graph.linear_iter() {
-            if let Some(camera) = node.cast::<Camera>() {
-                if let Some(skybox) = camera.skybox_ref() {
-                    skybox_textures.extend(skybox.textures().iter().filter_map(|t| t.clone()));
-                }
-            }
+        if let Some(skybox) = scene.skybox_ref() {
+            skybox_textures.extend(skybox.textures().iter().filter_map(|t| t.clone()));
         }
         join_all(skybox_textures).await;
 
@@ -442,12 +441,38 @@ impl Scene {
             drawing_context: Default::default(),
             performance_statistics: Default::default(),
             enabled: true.into(),
+            sky_box: Some(SkyBoxKind::built_in_skybox().clone()).into(),
         }
+    }
+
+    /// Sets new skybox. Could be None if no skybox needed.
+    pub fn set_skybox(&mut self, skybox: Option<SkyBox>) -> Option<SkyBox> {
+        self.sky_box.set_value_and_mark_modified(skybox)
+    }
+
+    /// Return optional mutable reference to current skybox.
+    pub fn skybox_mut(&mut self) -> Option<&mut SkyBox> {
+        self.sky_box.get_value_mut_and_mark_modified().as_mut()
+    }
+
+    /// Return optional shared reference to current skybox.
+    pub fn skybox_ref(&self) -> Option<&SkyBox> {
+        self.sky_box.as_ref()
+    }
+
+    /// Replaces the skybox.
+    pub fn replace_skybox(&mut self, new: Option<SkyBox>) -> Option<SkyBox> {
+        std::mem::replace(self.sky_box.get_value_mut_and_mark_modified(), new)
     }
 
     /// Synchronizes the state of the scene with external resources.
     pub fn resolve(&mut self) {
         Log::writeln(MessageKind::Information, "Starting resolve...");
+
+        // Update cube maps for sky boxes.
+        if let Some(skybox) = self.skybox_mut() {
+            Log::verify(skybox.create_cubemap());
+        }
 
         self.graph.resolve();
 
@@ -495,6 +520,7 @@ impl Scene {
                 drawing_context: self.drawing_context.clone(),
                 performance_statistics: Default::default(),
                 enabled: self.enabled.clone(),
+                sky_box: self.sky_box.clone(),
             },
             old_new_map,
         )

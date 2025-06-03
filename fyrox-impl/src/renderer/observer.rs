@@ -119,7 +119,6 @@ impl ObserversCollection {
                                 view_projection_matrix,
                             },
                             environment_map: None,
-                            skybox_map: None,
                             render_mask: *probe.render_mask,
                             projection: projection.clone(),
                             color_grading_lut: None,
@@ -143,7 +142,6 @@ pub struct Observer {
     pub render_target: Option<TextureResource>,
     pub position: ObserverPosition,
     pub environment_map: Option<TextureResource>,
-    pub skybox_map: Option<TextureResource>,
     pub render_mask: BitMask,
     pub projection: Projection,
     pub color_grading_lut: Option<ColorGradingLut>,
@@ -167,7 +165,6 @@ impl Observer {
         Observer {
             handle: camera.handle(),
             environment_map: camera.environment_map(),
-            skybox_map: camera.skybox_ref().and_then(|s| s.cubemap.clone()),
             render_mask: *camera.render_mask,
             projection: camera.projection().clone(),
             position: ObserverPosition::from_camera(camera),

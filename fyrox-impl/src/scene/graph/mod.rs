@@ -59,7 +59,6 @@ use crate::{
     resource::model::{Model, ModelResource, ModelResourceExtension},
     scene::{
         base::{NodeMessage, NodeMessageKind, NodeScriptMessage, SceneNodeId},
-        camera::Camera,
         dim2::{self},
         graph::{
             event::{GraphEvent, GraphEventBroadcaster},
@@ -777,15 +776,6 @@ impl Graph {
             ModelResource::instantiate_from(model, model_data, handle, dest_graph, &mut |_, _| {})
         });
         self.remap_handles(&instances);
-
-        // Update cube maps for sky boxes.
-        for node in self.linear_iter_mut() {
-            if let Some(camera) = node.cast_mut::<Camera>() {
-                if let Some(skybox) = camera.skybox_mut() {
-                    Log::verify(skybox.create_cubemap());
-                }
-            }
-        }
 
         self.apply_lightmap();
 

@@ -44,7 +44,6 @@ use crate::fyrox::{
     },
 };
 use crate::scene::GameScene;
-use fyrox::scene::skybox::SkyBoxKind;
 use fyrox::scene::SceneContainer;
 
 pub struct CameraRotation {
@@ -95,6 +94,7 @@ fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle
 impl SceneGizmo {
     pub fn new(engine: &mut Engine) -> Self {
         let mut scene = Scene::new();
+        scene.set_skybox(None);
 
         let render_target = TextureResource::new_render_target(85, 85);
         scene.rendering_options.render_target = Some(render_target.clone());
@@ -202,7 +202,6 @@ impl SceneGizmo {
                             .build(),
                     ),
                 )
-                .with_specific_skybox(SkyBoxKind::None)
                 .build(&mut scene.graph);
                 camera
             }]))

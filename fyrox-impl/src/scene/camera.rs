@@ -44,7 +44,6 @@ use crate::{
         graph::Graph,
         node::constructor::NodeConstructor,
         node::{Node, NodeTrait, UpdateContext},
-        skybox::{SkyBox, SkyBoxKind},
     },
 };
 use fyrox_graph::constructor::ConstructorProvider;
@@ -364,9 +363,6 @@ pub struct Camera {
     #[reflect(setter = "set_enabled")]
     enabled: InheritableVariable<bool>,
 
-    #[reflect(setter = "set_skybox")]
-    sky_box: InheritableVariable<Option<SkyBox>>,
-
     #[reflect(setter = "set_environment")]
     environment: InheritableVariable<Option<TextureResource>>,
 
@@ -551,26 +547,6 @@ impl Camera {
     #[inline]
     pub fn set_enabled(&mut self, enabled: bool) -> bool {
         self.enabled.set_value_and_mark_modified(enabled)
-    }
-
-    /// Sets new skybox. Could be None if no skybox needed.
-    pub fn set_skybox(&mut self, skybox: Option<SkyBox>) -> Option<SkyBox> {
-        self.sky_box.set_value_and_mark_modified(skybox)
-    }
-
-    /// Return optional mutable reference to current skybox.
-    pub fn skybox_mut(&mut self) -> Option<&mut SkyBox> {
-        self.sky_box.get_value_mut_and_mark_modified().as_mut()
-    }
-
-    /// Return optional shared reference to current skybox.
-    pub fn skybox_ref(&self) -> Option<&SkyBox> {
-        self.sky_box.as_ref()
-    }
-
-    /// Replaces the skybox.
-    pub fn replace_skybox(&mut self, new: Option<SkyBox>) -> Option<SkyBox> {
-        std::mem::replace(self.sky_box.get_value_mut_and_mark_modified(), new)
     }
 
     /// Sets new environment.
@@ -1017,7 +993,6 @@ pub struct CameraBuilder {
     z_far: f32,
     viewport: Rect<f32>,
     enabled: bool,
-    skybox: SkyBoxKind,
     environment: Option<TextureResource>,
     exposure: Exposure,
     color_grading_lut: Option<ColorGradingLut>,
@@ -1036,7 +1011,6 @@ impl CameraBuilder {
             z_near: 0.025,
             z_far: 2048.0,
             viewport: Rect::new(0.0, 0.0, 1.0, 1.0),
-            skybox: SkyBoxKind::Builtin,
             environment: None,
             exposure: Exposure::Manual(std::f32::consts::E),
             color_grading_lut: None,
@@ -1073,18 +1047,6 @@ impl CameraBuilder {
     /// Sets desired initial state of camera: enabled or disabled.
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
-        self
-    }
-
-    /// Sets desired skybox.
-    pub fn with_skybox(mut self, skybox: SkyBox) -> Self {
-        self.skybox = SkyBoxKind::Specific(skybox);
-        self
-    }
-
-    /// Sets desired skybox.
-    pub fn with_specific_skybox(mut self, skybox_kind: SkyBoxKind) -> Self {
-        self.skybox = skybox_kind;
         self
     }
 
@@ -1135,11 +1097,6 @@ impl CameraBuilder {
             // recalculated before rendering.
             view_matrix: Matrix4::identity(),
             projection_matrix: Matrix4::identity(),
-            sky_box: InheritableVariable::new_modified(match self.skybox {
-                SkyBoxKind::Builtin => Some(SkyBoxKind::built_in_skybox().clone()),
-                SkyBoxKind::None => None,
-                SkyBoxKind::Specific(skybox) => Some(skybox),
-            }),
             environment: self.environment.into(),
             exposure: self.exposure.into(),
             color_grading_lut: self.color_grading_lut.into(),
