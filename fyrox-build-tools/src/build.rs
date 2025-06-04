@@ -41,7 +41,7 @@ use fyrox_ui::{
     BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
 };
 use std::{
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Read},
     process::{ChildStderr, ChildStdout},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -199,30 +199,14 @@ impl BuildWindow {
         }
     }
 
-    pub fn listen(
-        &mut self,
-        (mut stderr, mut stdout): (ChildStderr, ChildStdout),
-        ui: &UserInterface,
-    ) {
+    pub fn listen(&mut self, (stderr, stdout): (ChildStderr, ChildStdout), ui: &UserInterface) {
         let log = self.log.clone();
         self.active.store(true, Ordering::SeqCst);
         let reader_active = self.active.clone();
         let log_changed = self.changed.clone();
-        std::thread::spawn(move || {
-            let stderr: &mut dyn BufRead = &mut BufReader::new(&mut stderr);
-            let stdout: &mut dyn BufRead = &mut BufReader::new(&mut stdout);
-            let mut pipes = [stdout, stderr];
-            while reader_active.load(Ordering::SeqCst) {
-                for pipe in &mut pipes {
-                    for line in pipe.lines().take(10).flatten() {
-                        let mut log_guard = log.lock();
-                        log_guard.push_str(&line);
-                        log_guard.push('\n');
-                        log_changed.store(true, Ordering::SeqCst);
-                    }
-                }
-            }
-        });
+
+        Self::spawn_pipe_pump(stderr, &reader_active, &log_changed, &log);
+        Self::spawn_pipe_pump(stdout, &reader_active, &log_changed, &log);
 
         ui.send_message(WindowMessage::open_modal(
             self.window,
@@ -230,6 +214,28 @@ impl BuildWindow {
             true,
             true,
         ));
+    }
+
+    fn spawn_pipe_pump(
+        mut pipe: impl Read + Send + 'static,
+        reader_active: &Arc<AtomicBool>,
+        log_changed: &Arc<AtomicBool>,
+        log: &Arc<Mutex<String>>,
+    ) {
+        let reader_active = reader_active.clone();
+        let log_changed = log_changed.clone();
+        let log = log.clone();
+        std::thread::spawn(move || {
+            let pipe: &mut dyn BufRead = &mut BufReader::new(&mut pipe);
+            while reader_active.load(Ordering::SeqCst) {
+                for line in pipe.lines().take(10).flatten() {
+                    let mut log_guard = log.lock();
+                    log_guard.push_str(&line);
+                    log_guard.push('\n');
+                    log_changed.store(true, Ordering::SeqCst);
+                }
+            }
+        });
     }
 
     pub fn reset(&mut self, ui: &UserInterface) {
