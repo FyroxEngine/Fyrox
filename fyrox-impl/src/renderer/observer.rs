@@ -89,6 +89,11 @@ impl ObserversCollection {
                             .push(Observer::from_camera(camera, frame_size));
                     }
                 } else if let Some(probe) = node.cast::<ReflectionProbe>() {
+                    if probe.updated.get() {
+                        continue;
+                    }
+                    probe.updated.set(true);
+
                     let projection = Projection::Perspective(PerspectiveProjection {
                         fov: 90.0f32.to_radians(),
                         z_near: *probe.z_near,

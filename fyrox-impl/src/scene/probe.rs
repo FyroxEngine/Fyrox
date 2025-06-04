@@ -20,6 +20,7 @@
 
 #![allow(missing_docs)] // TODO
 
+use crate::scene::node::UpdateContext;
 use crate::{
     core::{
         algebra::Vector3,
@@ -39,11 +40,33 @@ use crate::{
     },
 };
 use fyrox_texture::{TextureKind, TextureResource, TextureResourceExtension};
+use std::cell::Cell;
 use std::ops::{Deref, DerefMut};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
-#[derive(Clone, Reflect, Default, Debug, Visit, ComponentProvider, TypeUuidProvider)]
+#[derive(
+    Clone,
+    Reflect,
+    PartialEq,
+    Default,
+    Debug,
+    Visit,
+    TypeUuidProvider,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+)]
+#[type_uuid(id = "66450303-4f6c-4456-bde5-a7309f25b7ce")]
+pub enum UpdateMode {
+    #[default]
+    Once,
+    EachFrame,
+}
+
+#[derive(Clone, Reflect, Debug, Visit, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "7e0c138f-e371-4045-bd2c-ff5b165c7ee6")]
 #[reflect(derived_type = "Node")]
+#[visit(optional)]
 pub struct ReflectionProbe {
     base: Base,
     #[reflect(min_value = 0.0)]
@@ -53,8 +76,28 @@ pub struct ReflectionProbe {
     pub z_near: InheritableVariable<f32>,
     #[reflect(min_value = 0.0)]
     pub z_far: InheritableVariable<f32>,
-    #[reflect(read_only)]
+    pub update_mode: InheritableVariable<UpdateMode>,
+    pub need_update: bool,
+    #[reflect(hidden)]
+    pub(crate) updated: Cell<bool>,
+    #[reflect(hidden)]
     render_target: TextureResource,
+}
+
+impl Default for ReflectionProbe {
+    fn default() -> Self {
+        Self {
+            base: Default::default(),
+            size: Default::default(),
+            offset: Default::default(),
+            z_near: 0.001.into(),
+            z_far: 128.0.into(),
+            update_mode: Default::default(),
+            need_update: true,
+            updated: Cell::new(false),
+            render_target: Default::default(),
+        }
+    }
 }
 
 impl ReflectionProbe {
@@ -110,6 +153,20 @@ impl NodeTrait for ReflectionProbe {
     fn id(&self) -> Uuid {
         Self::type_uuid()
     }
+
+    fn update(&mut self, _context: &mut UpdateContext) {
+        match *self.update_mode {
+            UpdateMode::Once => {
+                if self.need_update {
+                    self.updated.set(false);
+                    self.need_update = false;
+                }
+            }
+            UpdateMode::EachFrame => {
+                self.updated.set(false);
+            }
+        }
+    }
 }
 
 /// Allows you to create a reflection probe node declaratively.
@@ -120,6 +177,7 @@ pub struct ReflectionProbeBuilder {
     z_near: f32,
     z_far: f32,
     resolution: u32,
+    update_mode: UpdateMode,
 }
 
 impl ReflectionProbeBuilder {
@@ -132,6 +190,7 @@ impl ReflectionProbeBuilder {
             z_near: 0.1,
             z_far: 32.0,
             resolution: 512,
+            update_mode: Default::default(),
         }
     }
 
@@ -162,6 +221,11 @@ impl ReflectionProbeBuilder {
         self
     }
 
+    pub fn with_update_mode(mut self, mode: UpdateMode) -> Self {
+        self.update_mode = mode;
+        self
+    }
+
     /// Creates a new reflection probe node.
     pub fn build_node(self) -> Node {
         Node::new(ReflectionProbe {
@@ -170,6 +234,9 @@ impl ReflectionProbeBuilder {
             offset: self.offset.into(),
             z_near: self.z_near.into(),
             z_far: self.z_far.into(),
+            update_mode: self.update_mode.into(),
+            need_update: true,
+            updated: Cell::new(false),
             render_target: TextureResource::new_cube_render_target(self.resolution),
         })
     }
