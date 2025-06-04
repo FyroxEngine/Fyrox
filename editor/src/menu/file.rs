@@ -326,7 +326,9 @@ impl FileMenu {
             } else if message.destination() == self.open_scene_settings {
                 if let Some(game_scene) = entry {
                     if let Some(game_scene) = game_scene.controller.downcast_ref::<GameScene>() {
-                        panels.scene_settings.open(game_scene, engine);
+                        panels
+                            .scene_settings
+                            .open(game_scene, engine, sender.clone());
                     }
                 }
             } else if let Some(recent_file) = self

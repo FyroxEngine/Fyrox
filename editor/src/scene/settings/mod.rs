@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{
     command::make_command,
     fyrox::{
@@ -37,7 +36,6 @@ use crate::{
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, UiNode,
         },
-        resource::texture::TextureResource,
         scene::{
             dim2,
             graph::{
@@ -49,12 +47,15 @@ use crate::{
         utils::lightmap::Lightmap,
     },
     message::MessageSender,
+    plugins::inspector::{editors::make_property_editors_container, EditorEnvironment},
     scene::commands::GameSceneContext,
     GameScene, Message, MessageDirection, MSG_SYNC_FLAG,
 };
-use fyrox::asset::manager::ResourceManager;
-use fyrox::gui::inspector::InspectorContextArgs;
-use fyrox::{graph::SceneGraph, gui::window::Window};
+use fyrox::{
+    asset::manager::ResourceManager,
+    graph::SceneGraph,
+    gui::{inspector::InspectorContextArgs, window::Window},
+};
 use std::sync::Arc;
 
 pub struct SceneSettingsWindow {
@@ -105,7 +106,7 @@ impl SceneSettingsWindow {
         }
     }
 
-    pub fn open(&self, game_scene: &GameScene, engine: &mut Engine) {
+    pub fn open(&self, game_scene: &GameScene, engine: &mut Engine, sender: MessageSender) {
         let ui = engine.user_interfaces.first();
         ui.send_message(WindowMessage::open(
             self.window,
@@ -113,10 +114,16 @@ impl SceneSettingsWindow {
             true,
             true,
         ));
-        self.sync_to_model(true, game_scene, engine);
+        self.sync_to_model(true, game_scene, engine, sender);
     }
 
-    pub fn sync_to_model(&self, force: bool, game_scene: &GameScene, engine: &mut Engine) {
+    pub fn sync_to_model(
+        &self,
+        force: bool,
+        game_scene: &GameScene,
+        engine: &mut Engine,
+        sender: MessageSender,
+    ) {
         let ui = engine.user_interfaces.first_mut();
         if !force
             && !ui
@@ -129,11 +136,18 @@ impl SceneSettingsWindow {
 
         let scene = &engine.scenes[game_scene.scene];
 
+        let environment = Arc::new(EditorEnvironment {
+            resource_manager: engine.resource_manager.clone(),
+            serialization_context: engine.serialization_context.clone(),
+            available_animations: Default::default(),
+            sender,
+        });
+
         let context = InspectorContext::from_object(InspectorContextArgs {
             object: scene,
             ctx: &mut ui.build_ctx(),
             definition_container: self.property_definitions.clone(),
-            environment: None,
+            environment: Some(environment),
             sync_flag: MSG_SYNC_FLAG,
             layer_index: 0,
             generate_property_string_values: false,
@@ -141,12 +155,6 @@ impl SceneSettingsWindow {
                 let mut pass = true;
 
                 property.downcast_ref::<NodePool>(&mut |v| {
-                    if v.is_some() {
-                        pass = false;
-                    }
-                });
-
-                property.downcast_ref::<Option<TextureResource>>(&mut |v| {
                     if v.is_some() {
                         pass = false;
                     }
