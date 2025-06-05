@@ -24,6 +24,7 @@ pub mod collider;
 pub mod curve_editor;
 pub mod inspector;
 pub mod material;
+pub mod probe;
 pub mod ragdoll;
 pub mod settings;
 pub mod stats;

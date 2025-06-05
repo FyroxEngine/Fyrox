@@ -58,6 +58,7 @@ pub mod world;
 pub use fyrox;
 use fyrox::core::make_relative_path;
 
+use crate::plugins::probe::ReflectionProbePlugin;
 use crate::{
     asset::{item::AssetItem, AssetBrowser},
     audio::{preview::AudioPreviewPanel, AudioPanel},
@@ -983,6 +984,7 @@ impl Editor {
                 .with(AbsmEditorPlugin::default())
                 .with(UiStatisticsPlugin::default())
                 .with(CurveEditorPlugin::default())
+                .with(ReflectionProbePlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread

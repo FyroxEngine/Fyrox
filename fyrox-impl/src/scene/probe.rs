@@ -115,6 +115,11 @@ impl ReflectionProbe {
     pub fn render_target(&self) -> &TextureResource {
         &self.render_target
     }
+
+    pub fn force_update(&mut self) {
+        self.need_update = true;
+        self.updated.set(false);
+    }
 }
 
 impl Deref for ReflectionProbe {
