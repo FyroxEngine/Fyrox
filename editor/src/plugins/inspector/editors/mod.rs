@@ -167,6 +167,7 @@ use crate::{
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::reflect::Reflect;
+use fyrox::scene::probe::UpdateMode;
 use fyrox::scene::skybox::SkyBox;
 
 pub mod animation;
@@ -453,6 +454,7 @@ pub fn make_property_editors_container(
     container.register_inheritable_enum::<sound::Renderer, _>();
     container.register_inheritable_enum::<RenderPath, _>();
     container.register_inheritable_enum::<CoordinateSystem, _>();
+    container.register_inheritable_enum::<UpdateMode, _>();
 
     container.insert(EnumPropertyEditorDefinition::<Vec<ScriptRecord>>::new_optional());
     container.insert(VecCollectionPropertyEditorDefinition::<ScriptRecord>::new());
