@@ -222,6 +222,12 @@ impl TempBinding {
                 .tex_parameter_i32(self.target, glow::TEXTURE_MAX_LEVEL, level as i32);
         }
     }
+
+    fn generate_mipmap(&self) {
+        unsafe {
+            self.server.gl.generate_mipmap(self.target);
+        }
+    }
 }
 
 impl Drop for TempBinding {
@@ -281,6 +287,10 @@ impl GlTexture {
 
             Ok(result)
         }
+    }
+
+    pub(crate) fn generate_mipmap(&self) {
+        self.make_temp_binding().generate_mipmap();
     }
 
     pub fn bind(&self, server: &GlGraphicsServer, sampler_index: u32) {

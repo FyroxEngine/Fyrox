@@ -168,6 +168,10 @@ pub trait GraphicsServer: GraphicsServerAsAny {
     /// Sets current polygon fill mode. See [`PolygonFace`] and [`PolygonFillMode`] docs for more info.
     fn set_polygon_fill_mode(&self, polygon_face: PolygonFace, polygon_fill_mode: PolygonFillMode);
 
+    /// Generates mipmaps for the given texture. Graphics server implementation can pick any desired
+    /// way of mipmaps generation, depending on the underlying GAPI capabilities.
+    fn generate_mipmap(&self, texture: &GpuTexture);
+
     /// A shortcut for [`Self::create_texture`], that creates a rectangular texture with the given
     /// size and pixel kind.
     fn create_2d_render_target(

@@ -1168,6 +1168,14 @@ impl GraphicsServer for GlGraphicsServer {
         }
     }
 
+    fn generate_mipmap(&self, texture: &GpuTexture) {
+        texture
+            .as_any()
+            .downcast_ref::<GlTexture>()
+            .unwrap()
+            .generate_mipmap();
+    }
+
     fn capabilities(&self) -> ServerCapabilities {
         let gl = &self.gl;
         unsafe {
