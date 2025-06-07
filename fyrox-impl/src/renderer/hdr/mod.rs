@@ -34,7 +34,7 @@ use crate::{
         },
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, DrawCallStatistics, GpuFrameBuffer},
+            framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
             geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::GraphicsServer,
@@ -64,13 +64,7 @@ impl LumBuffer {
     fn new(server: &dyn GraphicsServer, size: usize) -> Result<Self, FrameworkError> {
         let texture = server.create_2d_render_target(PixelKind::R32F, size, size)?;
         Ok(Self {
-            framebuffer: server.create_frame_buffer(
-                None,
-                vec![Attachment {
-                    kind: AttachmentKind::Color,
-                    texture,
-                }],
-            )?,
+            framebuffer: server.create_frame_buffer(None, vec![Attachment::color(texture)])?,
             size,
         })
     }

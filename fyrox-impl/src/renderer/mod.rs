@@ -81,7 +81,7 @@ use crate::{
         framework::{
             buffer::{BufferKind, BufferUsage, GpuBuffer},
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, DrawCallStatistics, GpuFrameBuffer},
+            framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
             geometry_buffer::GpuGeometryBuffer,
             gpu_program::SamplerFallback,
             gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
@@ -294,14 +294,8 @@ impl RenderDataContainer {
             server.create_2d_render_target(PixelKind::RGBA16F, width, height)?;
 
         let hdr_scene_framebuffer = server.create_frame_buffer(
-            Some(Attachment {
-                kind: AttachmentKind::DepthStencil,
-                texture: depth_stencil.clone(),
-            }),
-            vec![Attachment {
-                kind: AttachmentKind::Color,
-                texture: hdr_frame_texture,
-            }],
+            Some(Attachment::depth_stencil(depth_stencil.clone())),
+            vec![Attachment::color(hdr_frame_texture)],
         )?;
 
         let ldr_frame_texture = server.create_texture(GpuTextureDescriptor {
@@ -315,14 +309,8 @@ impl RenderDataContainer {
         })?;
 
         let ldr_scene_framebuffer = server.create_frame_buffer(
-            Some(Attachment {
-                kind: AttachmentKind::DepthStencil,
-                texture: depth_stencil.clone(),
-            }),
-            vec![Attachment {
-                kind: AttachmentKind::Color,
-                texture: ldr_frame_texture,
-            }],
+            Some(Attachment::depth_stencil(depth_stencil.clone())),
+            vec![Attachment::color(ldr_frame_texture)],
         )?;
 
         fn make_ldr_temp_frame_buffer(
@@ -339,14 +327,8 @@ impl RenderDataContainer {
             })?;
 
             server.create_frame_buffer(
-                Some(Attachment {
-                    kind: AttachmentKind::DepthStencil,
-                    texture: depth_stencil,
-                }),
-                vec![Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: ldr_temp_texture,
-                }],
+                Some(Attachment::depth_stencil(depth_stencil)),
+                vec![Attachment::color(ldr_temp_texture)],
             )
         }
 
@@ -521,14 +503,8 @@ fn make_ui_frame_buffer(
     )?;
 
     server.create_frame_buffer(
-        Some(Attachment {
-            kind: AttachmentKind::DepthStencil,
-            texture: depth_stencil,
-        }),
-        vec![Attachment {
-            kind: AttachmentKind::Color,
-            texture: color_texture,
-        }],
+        Some(Attachment::depth_stencil(depth_stencil)),
+        vec![Attachment::color(color_texture)],
     )
 }
 

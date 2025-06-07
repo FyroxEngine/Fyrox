@@ -37,9 +37,7 @@ use crate::{
             uniform::UniformMemoryAllocator,
         },
         framework::{
-            error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind},
-            gpu_texture::PixelKind,
+            error::FrameworkError, framebuffer::Attachment, gpu_texture::PixelKind,
             server::GraphicsServer,
         },
         FallbackResources, RenderPassStatistics, ShadowMapPrecision, DIRECTIONAL_SHADOW_PASS_NAME,
@@ -75,13 +73,8 @@ impl Cascade {
         )?;
 
         Ok(Self {
-            frame_buffer: server.create_frame_buffer(
-                Some(Attachment {
-                    kind: AttachmentKind::Depth,
-                    texture: depth,
-                }),
-                Default::default(),
-            )?,
+            frame_buffer: server
+                .create_frame_buffer(Some(Attachment::depth(depth)), Default::default())?,
             view_proj_matrix: Default::default(),
             z_far: 0.0,
         })

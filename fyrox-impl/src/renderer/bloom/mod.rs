@@ -29,7 +29,7 @@ use crate::{
         },
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, GpuFrameBuffer},
+            framebuffer::{Attachment, GpuFrameBuffer},
             geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
@@ -59,10 +59,11 @@ impl BloomRenderer {
             blur: GaussianBlur::new(server, width, height, PixelKind::RGBA16F)?,
             framebuffer: server.create_frame_buffer(
                 None,
-                vec![Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: server.create_2d_render_target(PixelKind::RGBA16F, width, height)?,
-                }],
+                vec![Attachment::color(server.create_2d_render_target(
+                    PixelKind::RGBA16F,
+                    width,
+                    height,
+                )?)],
             )?,
             width,
             height,

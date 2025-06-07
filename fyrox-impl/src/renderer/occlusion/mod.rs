@@ -41,8 +41,8 @@ use crate::{
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
+            framebuffer::Attachment,
             framebuffer::GpuFrameBuffer,
-            framebuffer::{Attachment, AttachmentKind},
             geometry_buffer::GpuGeometryBuffer,
             gpu_texture::GpuTexture,
             gpu_texture::{GpuTextureKind, PixelKind},
@@ -141,14 +141,8 @@ impl OcclusionTester {
 
         Ok(Self {
             framebuffer: server.create_frame_buffer(
-                Some(Attachment {
-                    kind: AttachmentKind::DepthStencil,
-                    texture: depth_stencil,
-                }),
-                vec![Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: visibility_mask.clone(),
-                }],
+                Some(Attachment::depth_stencil(depth_stencil)),
+                vec![Attachment::color(visibility_mask.clone())],
             )?,
             visibility_mask,
             frame_size: Vector2::new(width, height),

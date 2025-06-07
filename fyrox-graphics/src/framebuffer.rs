@@ -56,6 +56,8 @@ pub struct Attachment {
     pub kind: AttachmentKind,
     /// A texture that is used to write the rendered image to.
     pub texture: GpuTexture,
+    /// Mip level of the texture. In most cases, it can be zero.
+    pub level: usize,
 }
 
 impl Attachment {
@@ -64,6 +66,16 @@ impl Attachment {
         Self {
             kind: AttachmentKind::Color,
             texture,
+            level: 0,
+        }
+    }
+
+    /// Creates a new [`AttachmentKind::Color`] attachment with the given texture and the mip level.
+    pub fn color_with_level(texture: GpuTexture, level: usize) -> Self {
+        Self {
+            kind: AttachmentKind::Color,
+            texture,
+            level,
         }
     }
 
@@ -72,6 +84,7 @@ impl Attachment {
         Self {
             kind: AttachmentKind::Depth,
             texture,
+            level: 0,
         }
     }
 
@@ -80,6 +93,7 @@ impl Attachment {
         Self {
             kind: AttachmentKind::DepthStencil,
             texture,
+            level: 0,
         }
     }
 }

@@ -32,7 +32,7 @@ use crate::{
         },
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, GpuFrameBuffer},
+            framebuffer::{Attachment, GpuFrameBuffer},
             gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::GraphicsServer,
         },
@@ -95,14 +95,8 @@ impl PointShadowMapRenderer {
             })?;
 
             server.create_frame_buffer(
-                Some(Attachment {
-                    kind: AttachmentKind::Depth,
-                    texture: depth,
-                }),
-                vec![Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: cube_map,
-                }],
+                Some(Attachment::depth(depth)),
+                vec![Attachment::color(cube_map)],
             )
         }
 

@@ -35,7 +35,7 @@ use crate::{
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, GpuFrameBuffer},
+            framebuffer::{Attachment, GpuFrameBuffer},
             geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::GraphicsServer,
@@ -87,13 +87,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         Ok(Self {
             blur: Blur::new(server, width, height)?,
             program: RenderPassContainer::from_str(server, include_str!("../shaders/ssao.shader"))?,
-            framebuffer: server.create_frame_buffer(
-                None,
-                vec![Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: occlusion,
-                }],
-            )?,
+            framebuffer: server.create_frame_buffer(None, vec![Attachment::color(occlusion)])?,
             quad: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,

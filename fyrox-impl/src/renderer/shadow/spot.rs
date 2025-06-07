@@ -31,9 +31,7 @@ use crate::{
         bundle::{BundleRenderContext, RenderDataBundleStorage, RenderDataBundleStorageOptions},
         cache::{shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator},
         framework::{
-            error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind},
-            gpu_texture::PixelKind,
+            error::FrameworkError, framebuffer::Attachment, gpu_texture::PixelKind,
             server::GraphicsServer,
         },
         shadow::cascade_size,
@@ -75,13 +73,7 @@ impl SpotShadowMapRenderer {
                 size,
             )?;
 
-            server.create_frame_buffer(
-                Some(Attachment {
-                    kind: AttachmentKind::Depth,
-                    texture: depth,
-                }),
-                vec![],
-            )
+            server.create_frame_buffer(Some(Attachment::depth(depth)), vec![])
         }
 
         Ok(Self {

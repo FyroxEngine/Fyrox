@@ -49,7 +49,7 @@ use crate::{
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, GpuFrameBuffer},
+            framebuffer::{Attachment, GpuFrameBuffer},
             geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
@@ -103,45 +103,37 @@ impl GBuffer {
         let diffuse_texture = server.create_2d_render_target(PixelKind::RGBA8, width, height)?;
         let normal_texture = server.create_2d_render_target(PixelKind::RGBA8, width, height)?;
         let framebuffer = server.create_frame_buffer(
-            Some(Attachment {
-                kind: AttachmentKind::DepthStencil,
-                texture: server.create_2d_render_target(PixelKind::D24S8, width, height)?,
-            }),
+            Some(Attachment::depth_stencil(server.create_2d_render_target(
+                PixelKind::D24S8,
+                width,
+                height,
+            )?)),
             vec![
-                Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: diffuse_texture.clone(),
-                },
-                Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: normal_texture.clone(),
-                },
-                Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: server.create_2d_render_target(PixelKind::RGBA16F, width, height)?,
-                },
-                Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: server.create_2d_render_target(PixelKind::RGBA8, width, height)?,
-                },
-                Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: server.create_2d_render_target(PixelKind::R8UI, width, height)?,
-                },
+                Attachment::color(diffuse_texture.clone()),
+                Attachment::color(normal_texture.clone()),
+                Attachment::color(server.create_2d_render_target(
+                    PixelKind::RGBA16F,
+                    width,
+                    height,
+                )?),
+                Attachment::color(server.create_2d_render_target(
+                    PixelKind::RGBA8,
+                    width,
+                    height,
+                )?),
+                Attachment::color(server.create_2d_render_target(
+                    PixelKind::R8UI,
+                    width,
+                    height,
+                )?),
             ],
         )?;
 
         let decal_framebuffer = server.create_frame_buffer(
             None,
             vec![
-                Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: diffuse_texture,
-                },
-                Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: normal_texture,
-                },
+                Attachment::color(diffuse_texture),
+                Attachment::color(normal_texture),
             ],
         )?;
 

@@ -28,7 +28,7 @@ use crate::{
         },
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, GpuFrameBuffer},
+            framebuffer::{Attachment, GpuFrameBuffer},
             geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
@@ -51,14 +51,11 @@ fn create_framebuffer(
     height: usize,
     pixel_kind: PixelKind,
 ) -> Result<GpuFrameBuffer, FrameworkError> {
-    let frame = server.create_2d_render_target(pixel_kind, width, height)?;
-
     server.create_frame_buffer(
         None,
-        vec![Attachment {
-            kind: AttachmentKind::Color,
-            texture: frame,
-        }],
+        vec![Attachment::color(
+            server.create_2d_render_target(pixel_kind, width, height)?,
+        )],
     )
 }
 

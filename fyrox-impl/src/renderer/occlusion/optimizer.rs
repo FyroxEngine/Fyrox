@@ -28,7 +28,7 @@ use crate::{
         },
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, GpuFrameBuffer},
+            framebuffer::{Attachment, GpuFrameBuffer},
             geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, PixelKind},
             read_buffer::GpuAsyncReadBuffer,
@@ -57,13 +57,8 @@ impl VisibilityBufferOptimizer {
             server.create_2d_render_target(PixelKind::R32UI, w_tiles, h_tiles)?;
 
         Ok(Self {
-            framebuffer: server.create_frame_buffer(
-                None,
-                vec![Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: optimized_visibility_buffer,
-                }],
-            )?,
+            framebuffer: server
+                .create_frame_buffer(None, vec![Attachment::color(optimized_visibility_buffer)])?,
             pixel_buffer: server.create_async_read_buffer(size_of::<u32>(), w_tiles * h_tiles)?,
             shader: RenderPassContainer::from_str(
                 server,

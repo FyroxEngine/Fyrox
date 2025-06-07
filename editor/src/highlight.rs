@@ -72,14 +72,8 @@ impl HighlightRenderPass {
 
         server
             .create_frame_buffer(
-                Some(Attachment {
-                    kind: AttachmentKind::DepthStencil,
-                    texture: depth_stencil,
-                }),
-                vec![Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: frame_texture,
-                }],
+                Some(Attachment::depth_stencil(depth_stencil)),
+                vec![Attachment::color(frame_texture)],
             )
             .unwrap()
     }

@@ -48,14 +48,19 @@ pub struct GlFrameBuffer {
     color_attachments: Vec<Attachment>,
 }
 
-unsafe fn set_attachment(server: &GlGraphicsServer, gl_attachment_kind: u32, texture: &GlTexture) {
+unsafe fn set_attachment(
+    server: &GlGraphicsServer,
+    gl_attachment_kind: u32,
+    texture: &GlTexture,
+    level: i32,
+) {
     match texture.kind() {
         GpuTextureKind::Line { .. } => {
             server.gl.framebuffer_texture(
                 glow::FRAMEBUFFER,
                 gl_attachment_kind,
                 Some(texture.id()),
-                0,
+                level,
             );
         }
         GpuTextureKind::Rectangle { .. } => {
@@ -64,7 +69,7 @@ unsafe fn set_attachment(server: &GlGraphicsServer, gl_attachment_kind: u32, tex
                 gl_attachment_kind,
                 glow::TEXTURE_2D,
                 Some(texture.id()),
-                0,
+                level,
             );
         }
         GpuTextureKind::Cube { .. } => {
@@ -73,7 +78,7 @@ unsafe fn set_attachment(server: &GlGraphicsServer, gl_attachment_kind: u32, tex
                 gl_attachment_kind,
                 glow::TEXTURE_CUBE_MAP_POSITIVE_X,
                 Some(texture.id()),
-                0,
+                level,
             );
         }
         GpuTextureKind::Volume { .. } => {
@@ -82,7 +87,7 @@ unsafe fn set_attachment(server: &GlGraphicsServer, gl_attachment_kind: u32, tex
                 gl_attachment_kind,
                 glow::TEXTURE_3D,
                 Some(texture.id()),
-                0,
+                level,
                 0,
             );
         }
@@ -113,7 +118,12 @@ impl GlFrameBuffer {
                     .as_any()
                     .downcast_ref::<GlTexture>()
                     .unwrap();
-                set_attachment(server, depth_attachment_kind, texture);
+                set_attachment(
+                    server,
+                    depth_attachment_kind,
+                    texture,
+                    depth_attachment.level as i32,
+                );
             }
 
             let mut color_buffers = Vec::new();
@@ -125,7 +135,12 @@ impl GlFrameBuffer {
                     .as_any()
                     .downcast_ref::<GlTexture>()
                     .unwrap();
-                set_attachment(server, color_attachment_kind, texture);
+                set_attachment(
+                    server,
+                    color_attachment_kind,
+                    texture,
+                    color_attachment.level as i32,
+                );
                 color_buffers.push(color_attachment_kind);
             }
 
