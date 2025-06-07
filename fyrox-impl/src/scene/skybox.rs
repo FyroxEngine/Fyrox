@@ -515,7 +515,7 @@ impl SkyBoxKind {
     }
 }
 
-/// A fixed set of possible sky boxes, that can be selected when building [`Camera`] scene node.
+/// A fixed set of possible sky boxes, that can be selected when building [`super::camera::Camera`] scene node.
 #[derive(Default)]
 pub enum SkyBoxKind {
     /// Uses built-in sky box. This is default sky box.
