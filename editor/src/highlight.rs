@@ -31,7 +31,7 @@ use crate::{
             framework::{
                 buffer::BufferUsage,
                 error::FrameworkError,
-                framebuffer::{Attachment, AttachmentKind, GpuFrameBuffer},
+                framebuffer::{Attachment, GpuFrameBuffer},
                 geometry_buffer::GpuGeometryBuffer,
                 gpu_texture::PixelKind,
                 server::GraphicsServer,
