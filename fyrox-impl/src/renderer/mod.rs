@@ -1074,6 +1074,280 @@ impl Renderer {
         self.geometry_cache.update(dt);
     }
 
+    fn render_scene_observer(
+        &mut self,
+        observer: &Observer,
+        scene_handle: Handle<Scene>,
+        scene: &Scene,
+        elapsed_time: f32,
+        dt: f32,
+    ) -> Result<&mut RenderDataContainer, FrameworkError> {
+        let server = &*self.server;
+
+        let scene_render_data = self.scene_data_map.get_mut(&scene_handle).ok_or_else(|| {
+            FrameworkError::Custom(format!(
+                "No assocated render data for {scene_handle} scene!"
+            ))
+        })?;
+        let render_data = if let Some(render_target) = observer.render_target.as_ref() {
+            let (rt_size, final_frame_texture) = render_target_size(render_target)?;
+            let observer_render_data = match scene_render_data.camera_data.entry(observer.handle) {
+                Entry::Occupied(entry) => {
+                    let observer_render_data = entry.into_mut();
+                    recreate_render_data_if_needed(
+                        scene_handle,
+                        server,
+                        observer_render_data,
+                        rt_size,
+                        final_frame_texture,
+                    )?;
+                    observer_render_data
+                }
+                Entry::Vacant(entry) => {
+                    let render_data = entry.insert(RenderDataContainer::new(
+                        server,
+                        rt_size,
+                        final_frame_texture,
+                    )?);
+                    info!(
+                        "A new associated scene rendering data was created for observer {}!",
+                        observer.handle
+                    );
+                    render_data
+                }
+            };
+
+            if let Some(face) = observer.cube_map_face {
+                observer_render_data
+                    .ldr_scene_framebuffer
+                    .set_cubemap_face(0, face);
+            }
+
+            self.texture_cache.try_register(
+                server,
+                render_target,
+                observer_render_data.ldr_scene_frame_texture().clone(),
+            )?;
+
+            observer_render_data
+        } else {
+            &mut scene_render_data.scene_data
+        };
+
+        let visibility_cache = self
+            .visibility_cache
+            .get_or_register(&scene.graph, observer.handle);
+
+        let bundle_storage = RenderDataBundleStorage::from_graph(
+            &scene.graph,
+            observer.render_mask,
+            elapsed_time,
+            &observer.position,
+            GBUFFER_PASS_NAME.clone(),
+            RenderDataBundleStorageOptions {
+                collect_lights: true,
+            },
+            &mut self.dynamic_surface_cache,
+        );
+
+        server.set_polygon_fill_mode(
+            PolygonFace::FrontAndBack,
+            scene.rendering_options.polygon_rasterization_mode,
+        );
+
+        render_data.statistics += render_data.gbuffer.fill(GBufferRenderContext {
+            server,
+            observer,
+            geom_cache: &mut self.geometry_cache,
+            bundle_storage: &bundle_storage,
+            texture_cache: &mut self.texture_cache,
+            shader_cache: &mut self.shader_cache,
+            quality_settings: &self.quality_settings,
+            fallback_resources: &self.fallback_resources,
+            graph: &scene.graph,
+            uniform_buffer_cache: &mut self.uniform_buffer_cache,
+            uniform_memory_allocator: &mut self.uniform_memory_allocator,
+            screen_space_debug_renderer: &mut self.screen_space_debug_renderer,
+            unit_quad: &self.quad,
+        })?;
+
+        server.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
+
+        render_data.copy_depth_stencil_to_scene_framebuffer();
+
+        render_data.hdr_scene_framebuffer.clear(
+            observer.viewport,
+            Some(
+                scene
+                    .rendering_options
+                    .clear_color
+                    .unwrap_or(self.backbuffer_clear_color),
+            ),
+            None, // Keep depth, we've just copied valid data in it.
+            Some(0),
+        );
+
+        let (pass_stats, light_stats) =
+            self.deferred_light_renderer
+                .render(DeferredRendererContext {
+                    elapsed_time,
+                    server,
+                    scene,
+                    observer,
+                    gbuffer: &mut render_data.gbuffer,
+                    ambient_color: scene.rendering_options.ambient_lighting_color,
+                    render_data_bundle: &bundle_storage,
+                    settings: &self.quality_settings,
+                    textures: &mut self.texture_cache,
+                    geometry_cache: &mut self.geometry_cache,
+                    frame_buffer: &render_data.hdr_scene_framebuffer,
+                    shader_cache: &mut self.shader_cache,
+                    fallback_resources: &self.fallback_resources,
+                    uniform_buffer_cache: &mut self.uniform_buffer_cache,
+                    visibility_cache,
+                    uniform_memory_allocator: &mut self.uniform_memory_allocator,
+                    dynamic_surface_cache: &mut self.dynamic_surface_cache,
+                })?;
+
+        render_data.statistics += light_stats;
+        render_data.statistics += pass_stats;
+
+        let depth = render_data.gbuffer.depth();
+
+        render_data.statistics += self.forward_renderer.render(ForwardRenderContext {
+            state: server,
+            geom_cache: &mut self.geometry_cache,
+            texture_cache: &mut self.texture_cache,
+            shader_cache: &mut self.shader_cache,
+            bundle_storage: &bundle_storage,
+            framebuffer: &render_data.hdr_scene_framebuffer,
+            viewport: observer.viewport,
+            quality_settings: &self.quality_settings,
+            fallback_resources: &self.fallback_resources,
+            scene_depth: depth,
+            ambient_light: scene.rendering_options.ambient_lighting_color,
+            uniform_memory_allocator: &mut self.uniform_memory_allocator,
+        })?;
+
+        for render_pass in self.scene_render_passes.iter() {
+            render_data.statistics +=
+                render_pass
+                    .borrow_mut()
+                    .on_hdr_render(SceneRenderPassContext {
+                        elapsed_time,
+                        server,
+                        texture_cache: &mut self.texture_cache,
+                        geometry_cache: &mut self.geometry_cache,
+                        shader_cache: &mut self.shader_cache,
+                        quality_settings: &self.quality_settings,
+                        bundle_storage: &bundle_storage,
+                        scene,
+                        observer,
+                        scene_handle,
+                        fallback_resources: &self.fallback_resources,
+                        depth_texture: render_data.gbuffer.depth(),
+                        normal_texture: render_data.gbuffer.normal_texture(),
+                        ambient_texture: render_data.gbuffer.ambient_texture(),
+                        framebuffer: &render_data.hdr_scene_framebuffer,
+                        ui_renderer: &mut self.ui_renderer,
+                        uniform_buffer_cache: &mut self.uniform_buffer_cache,
+                        uniform_memory_allocator: &mut self.uniform_memory_allocator,
+                        dynamic_surface_cache: &mut self.dynamic_surface_cache,
+                    })?;
+        }
+
+        let quad = &self.quad;
+
+        // Prepare glow map.
+        render_data.statistics += render_data.bloom_renderer.render(
+            quad,
+            render_data.hdr_scene_frame_texture(),
+            &mut self.uniform_buffer_cache,
+            &self.fallback_resources,
+        )?;
+
+        // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
+        let mut dest_buf = 0;
+        let mut src_buf = 1;
+        render_data.statistics += render_data.hdr_renderer.render(
+            server,
+            render_data.hdr_scene_frame_texture(),
+            render_data.bloom_renderer.result(),
+            &render_data.ldr_temp_framebuffer[dest_buf],
+            observer.viewport,
+            quad,
+            dt,
+            observer.exposure,
+            observer.color_grading_lut.as_ref(),
+            observer.color_grading_enabled,
+            &mut self.texture_cache,
+            &mut self.uniform_buffer_cache,
+            &self.fallback_resources,
+        )?;
+        std::mem::swap(&mut dest_buf, &mut src_buf);
+
+        // Apply FXAA if needed.
+        if self.quality_settings.fxaa {
+            render_data.statistics += self.fxaa_renderer.render(
+                observer.viewport,
+                render_data.ldr_temp_frame_texture(src_buf),
+                &render_data.ldr_temp_framebuffer[dest_buf],
+                &mut self.uniform_buffer_cache,
+                &self.fallback_resources,
+            )?;
+            std::mem::swap(&mut dest_buf, &mut src_buf);
+        }
+
+        let quad = &self.quad;
+        render_data.statistics += blit_pixels(
+            &mut self.uniform_buffer_cache,
+            &render_data.ldr_scene_framebuffer,
+            render_data.ldr_temp_frame_texture(src_buf),
+            &self.blit_shader,
+            observer.viewport,
+            quad,
+            &self.fallback_resources,
+        )?;
+
+        // Render debug geometry in the LDR frame buffer.
+        self.debug_renderer.set_lines(&scene.drawing_context.lines);
+        render_data.statistics += self.debug_renderer.render(
+            &mut self.uniform_buffer_cache,
+            observer.viewport,
+            &render_data.ldr_scene_framebuffer,
+            observer.position.view_projection_matrix,
+        )?;
+
+        for render_pass in self.scene_render_passes.iter() {
+            render_data.statistics +=
+                render_pass
+                    .borrow_mut()
+                    .on_ldr_render(SceneRenderPassContext {
+                        elapsed_time,
+                        server,
+                        texture_cache: &mut self.texture_cache,
+                        geometry_cache: &mut self.geometry_cache,
+                        shader_cache: &mut self.shader_cache,
+                        quality_settings: &self.quality_settings,
+                        bundle_storage: &bundle_storage,
+                        scene,
+                        observer,
+                        scene_handle,
+                        fallback_resources: &self.fallback_resources,
+                        depth_texture: render_data.gbuffer.depth(),
+                        normal_texture: render_data.gbuffer.normal_texture(),
+                        ambient_texture: render_data.gbuffer.ambient_texture(),
+                        framebuffer: &render_data.ldr_scene_framebuffer,
+                        ui_renderer: &mut self.ui_renderer,
+                        uniform_buffer_cache: &mut self.uniform_buffer_cache,
+                        uniform_memory_allocator: &mut self.uniform_memory_allocator,
+                        dynamic_surface_cache: &mut self.dynamic_surface_cache,
+                    })?;
+        }
+
+        Ok(render_data)
+    }
+
     /// Unconditionally renders a scene and returns a reference to a [`RenderDataContainer`] instance
     /// that contains rendered data (including intermediate data, such as G-Buffer content, etc.).
     pub fn render_scene(
@@ -1109,14 +1383,12 @@ impl Renderer {
             // Clamp to [1.0; infinity] range.
             .sup(&Vector2::new(1.0, 1.0));
 
-        let server = &*self.server;
-
         let scene_render_data = match self.scene_data_map.entry(scene_handle) {
             Entry::Occupied(entry) => {
                 let render_data = entry.into_mut();
                 recreate_render_data_if_needed(
                     scene_handle,
-                    server,
+                    &*self.server,
                     &mut render_data.scene_data,
                     frame_size,
                     FrameTextureKind::Rectangle,
@@ -1125,7 +1397,7 @@ impl Renderer {
             }
             Entry::Vacant(entry) => {
                 let render_data = entry.insert(SceneRenderData::new(
-                    server,
+                    &*self.server,
                     frame_size,
                     FrameTextureKind::Rectangle,
                 )?);
@@ -1136,7 +1408,7 @@ impl Renderer {
             }
         };
 
-        let pipeline_stats = server.pipeline_statistics();
+        let pipeline_stats = &self.server.pipeline_statistics();
         scene_render_data.scene_data.statistics = Default::default();
 
         // If we specified a texture to draw to, we have to register it in texture cache
@@ -1144,7 +1416,7 @@ impl Renderer {
         // to draw something on offscreen and then draw it on some mesh.
         if let Some(rt) = scene.rendering_options.render_target.clone() {
             self.texture_cache.try_register(
-                server,
+                &*self.server,
                 &rt,
                 scene_render_data
                     .scene_data
@@ -1158,266 +1430,24 @@ impl Renderer {
             .retain(|h, _| graph.is_valid_handle(*h));
 
         let observers = ObserversCollection::from_scene(scene, frame_size);
-        for observer in observers.reflection_probes.iter().chain(&observers.cameras) {
-            let render_data = if let Some(render_target) = observer.render_target.as_ref() {
-                let (rt_size, final_frame_texture) = render_target_size(render_target)?;
-                let observer_render_data =
-                    match scene_render_data.camera_data.entry(observer.handle) {
-                        Entry::Occupied(entry) => {
-                            let observer_render_data = entry.into_mut();
-                            recreate_render_data_if_needed(
-                                scene_handle,
-                                server,
-                                observer_render_data,
-                                rt_size,
-                                final_frame_texture,
-                            )?;
-                            observer_render_data
-                        }
-                        Entry::Vacant(entry) => {
-                            let render_data = entry.insert(RenderDataContainer::new(
-                                server,
-                                rt_size,
-                                final_frame_texture,
-                            )?);
-                            info!(
-                            "A new associated scene rendering data was created for observer {}!",
-                            observer.handle
-                        );
-                            render_data
-                        }
-                    };
 
-                if let Some(face) = observer.cube_map_face {
-                    observer_render_data
-                        .ldr_scene_framebuffer
-                        .set_cubemap_face(0, face);
-                }
+        // At first, render the reflection probes to off-screen render target and generate mipmaps
+        // for the cube maps.
+        for observer in observers.reflection_probes.iter() {
+            let render_data =
+                self.render_scene_observer(observer, scene_handle, scene, elapsed_time, dt)?;
+            let probe_cube_map = render_data.ldr_scene_frame_texture().clone();
+            self.server.generate_mipmap(&probe_cube_map);
+        }
 
-                self.texture_cache.try_register(
-                    server,
-                    render_target,
-                    observer_render_data.ldr_scene_frame_texture().clone(),
-                )?;
-
-                observer_render_data
-            } else {
-                &mut scene_render_data.scene_data
-            };
-
-            let visibility_cache = self
-                .visibility_cache
-                .get_or_register(graph, observer.handle);
-
-            let bundle_storage = RenderDataBundleStorage::from_graph(
-                graph,
-                observer.render_mask,
-                elapsed_time,
-                &observer.position,
-                GBUFFER_PASS_NAME.clone(),
-                RenderDataBundleStorageOptions {
-                    collect_lights: true,
-                },
-                &mut self.dynamic_surface_cache,
-            );
-
-            server.set_polygon_fill_mode(
-                PolygonFace::FrontAndBack,
-                scene.rendering_options.polygon_rasterization_mode,
-            );
-
-            render_data.statistics += render_data.gbuffer.fill(GBufferRenderContext {
-                server,
-                observer,
-                geom_cache: &mut self.geometry_cache,
-                bundle_storage: &bundle_storage,
-                texture_cache: &mut self.texture_cache,
-                shader_cache: &mut self.shader_cache,
-                quality_settings: &self.quality_settings,
-                fallback_resources: &self.fallback_resources,
-                graph,
-                uniform_buffer_cache: &mut self.uniform_buffer_cache,
-                uniform_memory_allocator: &mut self.uniform_memory_allocator,
-                screen_space_debug_renderer: &mut self.screen_space_debug_renderer,
-                unit_quad: &self.quad,
-            })?;
-
-            server.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
-
-            render_data.copy_depth_stencil_to_scene_framebuffer();
-
-            render_data.hdr_scene_framebuffer.clear(
-                observer.viewport,
-                Some(
-                    scene
-                        .rendering_options
-                        .clear_color
-                        .unwrap_or(self.backbuffer_clear_color),
-                ),
-                None, // Keep depth, we've just copied valid data in it.
-                Some(0),
-            );
-
-            let (pass_stats, light_stats) =
-                self.deferred_light_renderer
-                    .render(DeferredRendererContext {
-                        elapsed_time,
-                        server,
-                        scene,
-                        observer,
-                        gbuffer: &mut render_data.gbuffer,
-                        ambient_color: scene.rendering_options.ambient_lighting_color,
-                        render_data_bundle: &bundle_storage,
-                        settings: &self.quality_settings,
-                        textures: &mut self.texture_cache,
-                        geometry_cache: &mut self.geometry_cache,
-                        frame_buffer: &render_data.hdr_scene_framebuffer,
-                        shader_cache: &mut self.shader_cache,
-                        fallback_resources: &self.fallback_resources,
-                        uniform_buffer_cache: &mut self.uniform_buffer_cache,
-                        visibility_cache,
-                        uniform_memory_allocator: &mut self.uniform_memory_allocator,
-                        dynamic_surface_cache: &mut self.dynamic_surface_cache,
-                    })?;
-
-            render_data.statistics += light_stats;
-            render_data.statistics += pass_stats;
-
-            let depth = render_data.gbuffer.depth();
-
-            render_data.statistics += self.forward_renderer.render(ForwardRenderContext {
-                state: server,
-                geom_cache: &mut self.geometry_cache,
-                texture_cache: &mut self.texture_cache,
-                shader_cache: &mut self.shader_cache,
-                bundle_storage: &bundle_storage,
-                framebuffer: &render_data.hdr_scene_framebuffer,
-                viewport: observer.viewport,
-                quality_settings: &self.quality_settings,
-                fallback_resources: &self.fallback_resources,
-                scene_depth: depth,
-                ambient_light: scene.rendering_options.ambient_lighting_color,
-                uniform_memory_allocator: &mut self.uniform_memory_allocator,
-            })?;
-
-            for render_pass in self.scene_render_passes.iter() {
-                render_data.statistics +=
-                    render_pass
-                        .borrow_mut()
-                        .on_hdr_render(SceneRenderPassContext {
-                            elapsed_time,
-                            server,
-                            texture_cache: &mut self.texture_cache,
-                            geometry_cache: &mut self.geometry_cache,
-                            shader_cache: &mut self.shader_cache,
-                            quality_settings: &self.quality_settings,
-                            bundle_storage: &bundle_storage,
-                            scene,
-                            observer,
-                            scene_handle,
-                            fallback_resources: &self.fallback_resources,
-                            depth_texture: render_data.gbuffer.depth(),
-                            normal_texture: render_data.gbuffer.normal_texture(),
-                            ambient_texture: render_data.gbuffer.ambient_texture(),
-                            framebuffer: &render_data.hdr_scene_framebuffer,
-                            ui_renderer: &mut self.ui_renderer,
-                            uniform_buffer_cache: &mut self.uniform_buffer_cache,
-                            uniform_memory_allocator: &mut self.uniform_memory_allocator,
-                            dynamic_surface_cache: &mut self.dynamic_surface_cache,
-                        })?;
-            }
-
-            let quad = &self.quad;
-
-            // Prepare glow map.
-            render_data.statistics += render_data.bloom_renderer.render(
-                quad,
-                render_data.hdr_scene_frame_texture(),
-                &mut self.uniform_buffer_cache,
-                &self.fallback_resources,
-            )?;
-
-            // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
-            let mut dest_buf = 0;
-            let mut src_buf = 1;
-            render_data.statistics += render_data.hdr_renderer.render(
-                server,
-                render_data.hdr_scene_frame_texture(),
-                render_data.bloom_renderer.result(),
-                &render_data.ldr_temp_framebuffer[dest_buf],
-                observer.viewport,
-                quad,
-                dt,
-                observer.exposure,
-                observer.color_grading_lut.as_ref(),
-                observer.color_grading_enabled,
-                &mut self.texture_cache,
-                &mut self.uniform_buffer_cache,
-                &self.fallback_resources,
-            )?;
-            std::mem::swap(&mut dest_buf, &mut src_buf);
-
-            // Apply FXAA if needed.
-            if self.quality_settings.fxaa {
-                render_data.statistics += self.fxaa_renderer.render(
-                    observer.viewport,
-                    render_data.ldr_temp_frame_texture(src_buf),
-                    &render_data.ldr_temp_framebuffer[dest_buf],
-                    &mut self.uniform_buffer_cache,
-                    &self.fallback_resources,
-                )?;
-                std::mem::swap(&mut dest_buf, &mut src_buf);
-            }
-
-            let quad = &self.quad;
-            render_data.statistics += blit_pixels(
-                &mut self.uniform_buffer_cache,
-                &render_data.ldr_scene_framebuffer,
-                render_data.ldr_temp_frame_texture(src_buf),
-                &self.blit_shader,
-                observer.viewport,
-                quad,
-                &self.fallback_resources,
-            )?;
-
-            // Render debug geometry in the LDR frame buffer.
-            self.debug_renderer.set_lines(&scene.drawing_context.lines);
-            render_data.statistics += self.debug_renderer.render(
-                &mut self.uniform_buffer_cache,
-                observer.viewport,
-                &render_data.ldr_scene_framebuffer,
-                observer.position.view_projection_matrix,
-            )?;
-
-            for render_pass in self.scene_render_passes.iter() {
-                render_data.statistics +=
-                    render_pass
-                        .borrow_mut()
-                        .on_ldr_render(SceneRenderPassContext {
-                            elapsed_time,
-                            server,
-                            texture_cache: &mut self.texture_cache,
-                            geometry_cache: &mut self.geometry_cache,
-                            shader_cache: &mut self.shader_cache,
-                            quality_settings: &self.quality_settings,
-                            bundle_storage: &bundle_storage,
-                            scene,
-                            observer,
-                            scene_handle,
-                            fallback_resources: &self.fallback_resources,
-                            depth_texture: render_data.gbuffer.depth(),
-                            normal_texture: render_data.gbuffer.normal_texture(),
-                            ambient_texture: render_data.gbuffer.ambient_texture(),
-                            framebuffer: &render_data.ldr_scene_framebuffer,
-                            ui_renderer: &mut self.ui_renderer,
-                            uniform_buffer_cache: &mut self.uniform_buffer_cache,
-                            uniform_memory_allocator: &mut self.uniform_memory_allocator,
-                            dynamic_surface_cache: &mut self.dynamic_surface_cache,
-                        })?;
-            }
+        // Then render everything else.
+        for observer in observers.cameras.iter() {
+            self.render_scene_observer(observer, scene_handle, scene, elapsed_time, dt)?;
         }
 
         self.visibility_cache.update(graph);
+
+        let scene_render_data = self.scene_data_map.get_mut(&scene_handle).unwrap();
 
         // Optionally render everything into back buffer.
         if scene.rendering_options.render_target.is_none() {
@@ -1434,7 +1464,7 @@ impl Renderer {
 
         self.statistics += scene_render_data.scene_data.statistics;
         scene_render_data.scene_data.statistics.pipeline =
-            server.pipeline_statistics() - pipeline_stats;
+            self.server.pipeline_statistics() - *pipeline_stats;
 
         Ok(scene_render_data)
     }
