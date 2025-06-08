@@ -223,8 +223,12 @@ impl TempBinding {
         }
     }
 
-    fn generate_mipmap(&self) {
+    fn generate_mipmap(&mut self, width: usize, height: usize, depth: usize) {
         unsafe {
+            self.set_base_level(0);
+            self.set_max_level(
+                ((width.max(height).max(depth) as f32).log2().floor() + 1.0) as usize,
+            );
             self.server.gl.generate_mipmap(self.target);
         }
     }
@@ -290,7 +294,18 @@ impl GlTexture {
     }
 
     pub(crate) fn generate_mipmap(&self) {
-        self.make_temp_binding().generate_mipmap();
+        let (width, height, depth) = match self.kind.get() {
+            GpuTextureKind::Line { length } => (length, 1, 1),
+            GpuTextureKind::Rectangle { width, height } => (width, height, 1),
+            GpuTextureKind::Cube { size } => (size, size, 1),
+            GpuTextureKind::Volume {
+                width,
+                height,
+                depth,
+            } => (width, height, depth),
+        };
+        self.make_temp_binding()
+            .generate_mipmap(width, height, depth);
     }
 
     pub fn bind(&self, server: &GlGraphicsServer, sampler_index: u32) {
