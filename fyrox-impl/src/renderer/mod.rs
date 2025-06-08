@@ -33,6 +33,7 @@ pub mod observer;
 pub mod stats;
 pub mod storage;
 pub mod ui_renderer;
+pub mod utils;
 pub mod visibility;
 
 mod bloom;
@@ -46,7 +47,6 @@ mod occlusion;
 mod settings;
 mod shadow;
 mod ssao;
-mod utils;
 
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
