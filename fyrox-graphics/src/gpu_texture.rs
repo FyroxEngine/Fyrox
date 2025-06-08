@@ -92,6 +92,8 @@ pub enum PixelKind {
     LA16,
     /// Red, Green; all by 16-bit.
     RG16,
+    /// Red, Green; all by 16-bit floating point.
+    RG16F,
     /// Red, Green; 16-bit.
     R8,
     /// Luminance; 8-bit.
@@ -158,6 +160,7 @@ impl PixelKind {
             | Self::SRGBA8
             | Self::BGRA8
             | Self::RG16
+            | Self::RG16F
             | Self::LA16
             | Self::D24S8
             | Self::D32F
@@ -203,6 +206,7 @@ impl PixelKind {
             | Self::BGRA8
             | Self::BGR8
             | Self::RG16
+            | Self::RG16F
             | Self::R16
             | Self::D24S8
             | Self::D32F
@@ -229,6 +233,7 @@ impl PixelKind {
         match self {
             Self::R32F
             | Self::R16F
+            | Self::RG16F
             | Self::RGB32F
             | Self::RGBA32F
             | Self::RGBA16F
@@ -287,6 +292,7 @@ pub fn image_3d_size_bytes(
         | PixelKind::SRGBA8
         | PixelKind::BGRA8
         | PixelKind::RG16
+        | PixelKind::RG16F
         | PixelKind::LA16
         | PixelKind::D24S8
         | PixelKind::D32F
@@ -326,6 +332,7 @@ pub fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -
         | PixelKind::SRGBA8
         | PixelKind::BGRA8
         | PixelKind::RG16
+        | PixelKind::RG16F
         | PixelKind::LA16
         | PixelKind::D24S8
         | PixelKind::D32F
@@ -364,6 +371,7 @@ pub fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
         | PixelKind::SRGBA8
         | PixelKind::BGRA8
         | PixelKind::RG16
+        | PixelKind::RG16F
         | PixelKind::LA16
         | PixelKind::D24S8
         | PixelKind::D32F
