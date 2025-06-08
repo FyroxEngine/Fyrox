@@ -417,6 +417,8 @@ pub struct FallbackResources {
     pub bone_matrices_stub_uniform_buffer: GpuBuffer,
     /// A sampler with the linear filtration that clamps incoming UVs to `[0;1]` range.
     pub linear_clamp_sampler: GpuSampler,
+    /// A sampler with the linear filtration and mipmapping that clamps incoming UVs to `[0;1]` range.
+    pub linear_mipmap_linear_clamp_sampler: GpuSampler,
     /// A sampler with the linear filtration.
     pub linear_wrap_sampler: GpuSampler,
     /// A sampler with the nearest filtration that clamps incoming UVs to `[0;1]` range.
@@ -783,6 +785,14 @@ impl Renderer {
             },
             linear_clamp_sampler: server.create_sampler(GpuSamplerDescriptor {
                 min_filter: MinificationFilter::Linear,
+                mag_filter: MagnificationFilter::Linear,
+                s_wrap_mode: WrapMode::ClampToEdge,
+                t_wrap_mode: WrapMode::ClampToEdge,
+                r_wrap_mode: WrapMode::ClampToEdge,
+                ..Default::default()
+            })?,
+            linear_mipmap_linear_clamp_sampler: server.create_sampler(GpuSamplerDescriptor {
+                min_filter: MinificationFilter::LinearMipMapLinear,
                 mag_filter: MagnificationFilter::Linear,
                 s_wrap_mode: WrapMode::ClampToEdge,
                 t_wrap_mode: WrapMode::ClampToEdge,

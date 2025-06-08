@@ -112,12 +112,14 @@
 
                         vec3 I = normalize(fragmentPosition - properties.cameraPosition);
                         vec3 R = reflect(I, normalize(fragmentNormal));
-                        vec3 reflection = texture(environmentMap, R).rgb;
+                        ivec2 cubeMapSize = textureSize(environmentMap, 0);
+                        float mip = (1.0 - roughness) * (floor(log2(max(float(cubeMapSize.x), float(cubeMapSize.y)))) + 1.0);
+                        vec3 reflection = textureLod(environmentMap, R, mip).rgb;
 
                         float ambientOcclusion = texture(aoSampler, texCoord).r;
                         vec4 ambientPixel = texture(ambientTexture, texCoord);
                         FragColor = (properties.ambientColor + ambientPixel) * S_SRGBToLinear(texture(diffuseTexture, texCoord)) ;
-                        FragColor.rgb = mix(FragColor.rgb, reflection, 1.0 - roughness);
+                        FragColor.rgb += reflection;
                         FragColor.rgb *= ambientOcclusion;
                         FragColor.a = ambientPixel.a;
 

@@ -383,15 +383,8 @@ impl DeferredLightRenderer {
             .environment_map
             .as_ref()
             .or(render_data_bundle.environment_map.as_ref())
-            .and_then(|c| {
-                textures
-                    .get(server, c)
-                    .map(|d| (&d.gpu_texture, &d.gpu_sampler))
-            })
-            .unwrap_or((
-                &fallback_resources.environment_dummy,
-                &fallback_resources.linear_clamp_sampler,
-            ));
+            .and_then(|c| textures.get(server, c).map(|d| &d.gpu_texture))
+            .unwrap_or(&fallback_resources.environment_dummy);
 
         // Ambient light.
         let gbuffer_depth_map = gbuffer.depth();
@@ -449,7 +442,13 @@ impl DeferredLightRenderer {
                     &fallback_resources.linear_clamp_sampler,
                 ),
             ),
-            binding("environmentMap", environment_map),
+            binding(
+                "environmentMap",
+                (
+                    environment_map,
+                    &fallback_resources.linear_mipmap_linear_clamp_sampler,
+                ),
+            ),
             binding("properties", &properties),
         ]);
 
