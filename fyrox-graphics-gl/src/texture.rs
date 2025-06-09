@@ -84,7 +84,7 @@ impl From<PixelKind> for PixelDescriptor {
             PixelKind::R32F => (glow::FLOAT, glow::RED, glow::R32F, None),
             PixelKind::R32UI => (glow::UNSIGNED_INT, glow::RED_INTEGER, glow::R32UI, None),
             PixelKind::R16F => (glow::FLOAT, glow::RED, glow::R16F, None),
-            PixelKind::RG16F => (glow::FLOAT, glow::RG, glow::RG16F, None),
+            PixelKind::RG16F => (glow::HALF_FLOAT, glow::RG, glow::RG16F, None),
             PixelKind::D32F => (
                 glow::FLOAT,
                 glow::DEPTH_COMPONENT,
