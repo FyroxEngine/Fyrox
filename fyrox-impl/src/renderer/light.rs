@@ -20,6 +20,7 @@
 
 use crate::renderer::cache::DynamicSurfaceCache;
 use crate::renderer::observer::Observer;
+use crate::renderer::utils::make_brdf_lut;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -63,6 +64,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_graphics::gpu_texture::GpuTexture;
 
 pub struct DeferredLightRenderer {
     pub ssao_renderer: ScreenSpaceAmbientOcclusionRenderer,
@@ -81,6 +83,7 @@ pub struct DeferredLightRenderer {
     light_volume: LightVolumeRenderer,
     volume_marker: RenderPassContainer,
     pixel_counter: RenderPassContainer,
+    brdf_lut: GpuTexture,
 }
 
 pub(crate) struct DeferredRendererContext<'a> {
@@ -235,6 +238,7 @@ impl DeferredLightRenderer {
                 server,
                 include_str!("shaders/pixel_counter.shader"),
             )?,
+            brdf_lut: make_brdf_lut(server, 256, 256)?,
         })
     }
 
@@ -448,6 +452,10 @@ impl DeferredLightRenderer {
                     environment_map,
                     &fallback_resources.linear_mipmap_linear_clamp_sampler,
                 ),
+            ),
+            binding(
+                "brdfLUT",
+                (&self.brdf_lut, &fallback_resources.linear_clamp_sampler),
             ),
             binding("properties", &properties),
         ]);

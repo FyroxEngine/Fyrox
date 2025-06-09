@@ -37,6 +37,11 @@
             binding: 6
         ),
         (
+            name: "brdfLUT",
+            kind: Texture(kind: Sampler2D, fallback: White),
+            binding: 7
+        ),
+        (
             name: "properties",
             kind: PropertyGroup([
                 (name: "worldViewProjection", kind: Matrix4()),
@@ -104,24 +109,40 @@
 
                     void main()
                     {
+                        float depth = texture(depthTexture, texCoord).r;
+                        vec3 fragmentPosition = S_UnProject(vec3(texCoord, depth), properties.invViewProj);
+
+                        vec4 albedo = S_SRGBToLinear(texture(diffuseTexture, texCoord));
+
+                        vec3 fragmentNormal = normalize(texture(normalTexture, texCoord).xyz * 2.0 - 1.0);
+
                         vec3 material = texture(materialTexture, texCoord).rgb;
                         float metallic = material.x;
                         float roughness = material.y;
-                        vec3 fragmentPosition = S_UnProject(vec3(texCoord, texture(depthTexture, texCoord).r), properties.invViewProj);
-                        vec3 fragmentNormal = normalize(texture(normalTexture, texCoord).xyz * 2.0 - 1.0);
 
-                        vec3 I = normalize(fragmentPosition - properties.cameraPosition);
-                        vec3 R = reflect(I, normalize(fragmentNormal));
+                        vec3 viewVector = normalize(properties.cameraPosition - fragmentPosition);
+                        vec3 reflectionVector = -reflect(viewVector, fragmentNormal);
+
+                        float clampedCosViewAngle = max(dot(fragmentNormal, viewVector), 0.0);
+
                         ivec2 cubeMapSize = textureSize(environmentMap, 0);
                         float mip = roughness * (floor(log2(max(float(cubeMapSize.x), float(cubeMapSize.y)))) + 1.0);
-                        vec3 reflection = textureLod(environmentMap, R, mip).rgb;
+                        vec3 reflection = textureLod(environmentMap, reflectionVector, mip).rgb;
+
+                        vec3 F0 = mix(vec3(0.04), albedo.rgb, metallic);
+                        vec3 F = S_FresnelSchlickRoughness(clampedCosViewAngle, F0, roughness);
+                        vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);
+
+                        vec2 envBRDF = texture(brdfLUT, vec2(clampedCosViewAngle, roughness)).rg;
+                        vec3 specular = reflection * (F * envBRDF.x + envBRDF.y);
 
                         float ambientOcclusion = texture(aoSampler, texCoord).r;
-                        vec4 ambientPixel = texture(ambientTexture, texCoord);
-                        FragColor = (properties.ambientColor + ambientPixel) * S_SRGBToLinear(texture(diffuseTexture, texCoord)) ;
-                        FragColor.rgb = mix(reflection, FragColor.rgb, roughness);
-                        FragColor.rgb *= ambientOcclusion;
-                        FragColor.a = ambientPixel.a;
+                        vec4 emission = texture(ambientTexture, texCoord);
+
+                        vec3 diffuse = (properties.ambientColor.rgb + emission.rgb) * albedo.rgb;
+
+                        FragColor.rgb = (kD * diffuse + specular) * ambientOcclusion;
+                        FragColor.a = emission.a;
 
                         // TODO: Implement IBL.
                     }
