@@ -21,6 +21,7 @@
 use crate::renderer::cache::DynamicSurfaceCache;
 use crate::renderer::observer::Observer;
 use crate::renderer::observer::ObserverPosition;
+use crate::renderer::settings::ShadowMapPrecision;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -40,7 +41,7 @@ use crate::{
             error::FrameworkError, framebuffer::Attachment, gpu_texture::PixelKind,
             server::GraphicsServer,
         },
-        FallbackResources, RenderPassStatistics, ShadowMapPrecision, DIRECTIONAL_SHADOW_PASS_NAME,
+        FallbackResources, RenderPassStatistics, DIRECTIONAL_SHADOW_PASS_NAME,
     },
     scene::{
         graph::Graph,

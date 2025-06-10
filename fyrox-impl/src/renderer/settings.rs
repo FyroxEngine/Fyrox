@@ -19,8 +19,9 @@
 // SOFTWARE.
 
 use crate::core::reflect::prelude::*;
-use crate::renderer::{CsmSettings, ShadowMapPrecision};
+use fyrox_core::uuid_provider;
 use serde::{Deserialize, Serialize};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Quality settings allows you to find optimal balance between performance and
 /// graphics quality.
@@ -258,3 +259,59 @@ impl QualitySettings {
         }
     }
 }
+
+/// Cascaded-shadow maps settings.
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect, Eq)]
+pub struct CsmSettings {
+    /// Whether cascaded shadow maps enabled or not.
+    pub enabled: bool,
+
+    /// Size of texture for each cascade.
+    pub size: usize,
+
+    /// Bit-wise precision for each cascade, the lower precision the better performance is,
+    /// but the more artifacts may occur.
+    pub precision: ShadowMapPrecision,
+
+    /// Whether to use Percentage-Closer Filtering or not.
+    pub pcf: bool,
+}
+
+impl Default for CsmSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            size: 2048,
+            precision: ShadowMapPrecision::Full,
+            pcf: true,
+        }
+    }
+}
+
+/// Shadow map precision allows you to select compromise between quality and performance.
+#[derive(
+    Copy,
+    Clone,
+    Hash,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Debug,
+    Serialize,
+    Deserialize,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+)]
+pub enum ShadowMapPrecision {
+    /// Shadow map will use 2 times less memory by switching to 16bit pixel format,
+    /// but "shadow acne" may occur.
+    Half,
+    /// Shadow map will use 32bit pixel format. This option gives highest quality,
+    /// but could be less performant than `Half`.
+    Full,
+}
+
+uuid_provider!(ShadowMapPrecision = "f9b2755b-248e-46ba-bcab-473eac1acdb8");

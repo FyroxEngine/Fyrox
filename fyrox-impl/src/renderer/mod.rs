@@ -58,9 +58,7 @@ use crate::{
         log::{Log, MessageKind},
         math::Rect,
         pool::Handle,
-        reflect::prelude::*,
         sstorage::ImmutableString,
-        uuid_provider,
     },
     engine::error::EngineError,
     gui::draw::DrawingContext,
@@ -106,18 +104,15 @@ use fyrox_graphics::sampler::{
 };
 use lazy_static::lazy_static;
 use observer::{Observer, ObserversCollection};
-use serde::{Deserialize, Serialize};
 pub use settings::*;
 pub use stats::*;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
     collections::hash_map::Entry,
-    hash::Hash,
     rc::Rc,
     sync::mpsc::Receiver,
 };
-use strum_macros::{AsRefStr, EnumString, VariantNames};
 use winit::window::Window;
 
 lazy_static! {
@@ -133,62 +128,6 @@ pub fn is_shadow_pass(render_pass_name: &str) -> bool {
     render_pass_name == &**DIRECTIONAL_SHADOW_PASS_NAME
         || render_pass_name == &**SPOT_SHADOW_PASS_NAME
         || render_pass_name == &**POINT_SHADOW_PASS_NAME
-}
-
-/// Shadow map precision allows you to select compromise between quality and performance.
-#[derive(
-    Copy,
-    Clone,
-    Hash,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Debug,
-    Serialize,
-    Deserialize,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-)]
-pub enum ShadowMapPrecision {
-    /// Shadow map will use 2 times less memory by switching to 16bit pixel format,
-    /// but "shadow acne" may occur.
-    Half,
-    /// Shadow map will use 32bit pixel format. This option gives highest quality,
-    /// but could be less performant than `Half`.
-    Full,
-}
-
-uuid_provider!(ShadowMapPrecision = "f9b2755b-248e-46ba-bcab-473eac1acdb8");
-
-/// Cascaded-shadow maps settings.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect, Eq)]
-pub struct CsmSettings {
-    /// Whether cascaded shadow maps enabled or not.
-    pub enabled: bool,
-
-    /// Size of texture for each cascade.
-    pub size: usize,
-
-    /// Bit-wise precision for each cascade, the lower precision the better performance is,
-    /// but the more artifacts may occur.
-    pub precision: ShadowMapPrecision,
-
-    /// Whether to use Percentage-Closer Filtering or not.
-    pub pcf: bool,
-}
-
-impl Default for CsmSettings {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            size: 2048,
-            precision: ShadowMapPrecision::Full,
-            pcf: true,
-        }
-    }
 }
 
 /// A set of frame buffers, renderers, that contains scene-specific data.

@@ -47,7 +47,7 @@ use crate::{
             window::{WindowBuilder, WindowMessage, WindowTitle},
             HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         },
-        renderer::{CsmSettings, QualitySettings, ShadowMapPrecision},
+        renderer::QualitySettings,
     },
     menu::create_menu_item,
     message::MessageSender,
@@ -71,6 +71,7 @@ use crate::{
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::reflect::Reflect;
 use fyrox::gui::inspector::InspectorContextArgs;
+use fyrox::renderer::{CsmSettings, ShadowMapPrecision};
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 use rust_fuzzy_search::fuzzy_compare;
 use std::sync::Arc;
