@@ -387,6 +387,7 @@ impl DeferredLightRenderer {
             .environment_map
             .as_ref()
             .or(render_data_bundle.environment_map.as_ref())
+            .or_else(|| scene.skybox_ref().and_then(|s| s.cubemap_ref()))
             .and_then(|c| textures.get(server, c).map(|d| &d.gpu_texture))
             .unwrap_or(&fallback_resources.environment_dummy);
 
