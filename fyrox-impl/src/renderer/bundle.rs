@@ -22,6 +22,7 @@
 
 #![allow(missing_docs)] // TODO
 
+use crate::renderer::fallback::FallbackResources;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -53,7 +54,7 @@ use crate::{
             ElementRange,
         },
         observer::ObserverPosition,
-        FallbackResources, RenderPassStatistics,
+        RenderPassStatistics,
     },
     resource::texture::TextureResource,
     scene::{

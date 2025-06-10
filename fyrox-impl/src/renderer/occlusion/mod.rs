@@ -23,7 +23,7 @@
 mod grid;
 mod optimizer;
 
-use crate::renderer::FallbackResources;
+use crate::renderer::fallback::FallbackResources;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},

@@ -20,13 +20,14 @@
 
 //! Forward renderer is used to render transparent meshes and meshes with custom blending options.
 
+use crate::renderer::fallback::FallbackResources;
 use crate::{
     core::{color::Color, math::Rect, sstorage::ImmutableString},
     renderer::{
         bundle::{BundleRenderContext, RenderDataBundleStorage},
         cache::{shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator},
         framework::{error::FrameworkError, server::GraphicsServer},
-        FallbackResources, GeometryCache, QualitySettings, RenderPassStatistics,
+        GeometryCache, QualitySettings, RenderPassStatistics,
     },
     scene::mesh::RenderPath,
 };

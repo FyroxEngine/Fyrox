@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::renderer::cache::DynamicSurfaceCache;
+use crate::renderer::fallback::FallbackResources;
 use crate::renderer::observer::ObserverPosition;
 use crate::renderer::settings::ShadowMapPrecision;
 use crate::scene::collider::BitMask;
@@ -36,7 +37,7 @@ use crate::{
             server::GraphicsServer,
         },
         shadow::cascade_size,
-        FallbackResources, GeometryCache, RenderPassStatistics, SPOT_SHADOW_PASS_NAME,
+        GeometryCache, RenderPassStatistics, SPOT_SHADOW_PASS_NAME,
     },
     scene::graph::Graph,
 };

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::fallback::FallbackResources;
 use crate::renderer::settings::ShadowMapPrecision;
 use crate::{
     core::{
@@ -40,7 +41,7 @@ use crate::{
         observer::ObserverPosition,
         shadow::cascade_size,
         utils::CubeMapFaceDescriptor,
-        FallbackResources, GeometryCache, RenderPassStatistics, POINT_SHADOW_PASS_NAME,
+        GeometryCache, RenderPassStatistics, POINT_SHADOW_PASS_NAME,
     },
     scene::{collider::BitMask, graph::Graph},
 };

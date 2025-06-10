@@ -29,6 +29,7 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
+use crate::renderer::fallback::FallbackResources;
 use crate::renderer::observer::Observer;
 use crate::{
     core::{
@@ -56,7 +57,7 @@ use crate::{
             GeometryBufferExt,
         },
         occlusion::OcclusionTester,
-        FallbackResources, GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
+        GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{
         decal::Decal,

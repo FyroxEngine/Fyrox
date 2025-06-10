@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::renderer::cache::DynamicSurfaceCache;
+use crate::renderer::fallback::FallbackResources;
 use crate::renderer::observer::Observer;
 use crate::renderer::observer::ObserverPosition;
 use crate::renderer::settings::ShadowMapPrecision;
@@ -41,7 +42,7 @@ use crate::{
             error::FrameworkError, framebuffer::Attachment, gpu_texture::PixelKind,
             server::GraphicsServer,
         },
-        FallbackResources, RenderPassStatistics, DIRECTIONAL_SHADOW_PASS_NAME,
+        RenderPassStatistics, DIRECTIONAL_SHADOW_PASS_NAME,
     },
     scene::{
         graph::Graph,

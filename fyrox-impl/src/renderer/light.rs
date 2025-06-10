@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::renderer::cache::DynamicSurfaceCache;
+use crate::renderer::fallback::FallbackResources;
 use crate::renderer::observer::Observer;
 use crate::renderer::utils::make_brdf_lut;
 use crate::{
@@ -52,8 +53,7 @@ use crate::{
         },
         ssao::ScreenSpaceAmbientOcclusionRenderer,
         visibility::ObserverVisibilityCache,
-        FallbackResources, GeometryCache, LightingStatistics, QualitySettings,
-        RenderPassStatistics, TextureCache,
+        GeometryCache, LightingStatistics, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{
         mesh::{

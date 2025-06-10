@@ -21,6 +21,7 @@
 //! See [`UiRenderer`] docs.
 
 use crate::renderer::cache::uniform::{UniformBlockLocation, UniformMemoryAllocator};
+use crate::renderer::fallback::FallbackResources;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -53,7 +54,7 @@ use crate::{
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
             ElementRange, ScissorBox, StencilFunc,
         },
-        FallbackResources, RenderPassStatistics, TextureCache,
+        RenderPassStatistics, TextureCache,
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
