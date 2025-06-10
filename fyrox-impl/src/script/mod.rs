@@ -48,6 +48,8 @@ use std::{
     sync::mpsc::Sender,
 };
 
+pub use fyrox_core_derive::ScriptMessagePayload;
+
 pub mod constructor;
 
 pub(crate) trait UniversalScriptContext {
@@ -60,6 +62,14 @@ pub(crate) trait UniversalScriptContext {
 pub type DynamicTypeId = i64;
 
 /// A script message's payload.
+/// Use `#[derive(ScriptMessagePayload)]` to implement this trait:
+///
+/// ```rust
+///     use fyrox::script::ScriptMessagePayload;
+///     #[derive(Debug, ScriptMessagePayload)]
+///     struct MyStruct {
+///     }
+/// ```
 pub trait ScriptMessagePayload: Any + Send + Debug {
     /// Returns `self` as `&dyn Any`
     fn as_any_ref(&self) -> &dyn Any;
@@ -88,19 +98,6 @@ impl dyn ScriptMessagePayload {
     /// Tries to cast the payload to a particular type.
     pub fn downcast_mut<T: 'static>(&mut self) -> Option<&mut T> {
         self.as_any_mut().downcast_mut::<T>()
-    }
-}
-
-impl<T> ScriptMessagePayload for T
-where
-    T: 'static + Send + Debug,
-{
-    fn as_any_ref(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }
 
