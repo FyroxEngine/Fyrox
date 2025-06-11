@@ -22,6 +22,7 @@
 
 mod component;
 mod reflect;
+mod script_message_payload;
 mod uuid;
 mod visit;
 
@@ -189,4 +190,13 @@ pub fn type_uuid(input: TokenStream) -> TokenStream {
 pub fn component(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
     TokenStream::from(component::impl_type_uuid_provider(ast))
+}
+
+/// Implements `ScriptMessagePayload` trait
+///
+/// User has to import `ScriptMessagePayload` trait to use this macro.
+#[proc_macro_derive(ScriptMessagePayload)]
+pub fn script_message_payload(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as DeriveInput);
+    TokenStream::from(script_message_payload::impl_script_message_payload(ast))
 }

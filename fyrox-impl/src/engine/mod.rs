@@ -3050,7 +3050,7 @@ mod test {
         }
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, ScriptMessagePayload)]
     enum MyMessage {
         Foo(usize),
         Bar(String),
