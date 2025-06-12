@@ -58,6 +58,8 @@ pub struct Attachment {
     pub texture: GpuTexture,
     /// Mip level of the texture. In most cases, it can be zero.
     pub level: usize,
+    /// Face of the cube map, this field is used only if the `texture` is a cube map.
+    pub cube_map_face: Option<CubeMapFace>,
 }
 
 impl Attachment {
@@ -67,6 +69,7 @@ impl Attachment {
             kind: AttachmentKind::Color,
             texture,
             level: 0,
+            cube_map_face: None,
         }
     }
 
@@ -76,6 +79,18 @@ impl Attachment {
             kind: AttachmentKind::Color,
             texture,
             level,
+            cube_map_face: None,
+        }
+    }
+
+    /// Creates a new [`AttachmentKind::Color`] attachment with the given texture and the cube map
+    /// face. The texture must be a cube map.
+    pub fn color_with_face(texture: GpuTexture, cube_map_face: CubeMapFace) -> Self {
+        Self {
+            kind: AttachmentKind::Color,
+            texture,
+            level: 0,
+            cube_map_face: Some(cube_map_face),
         }
     }
 
@@ -85,6 +100,7 @@ impl Attachment {
             kind: AttachmentKind::Depth,
             texture,
             level: 0,
+            cube_map_face: None,
         }
     }
 
@@ -94,6 +110,7 @@ impl Attachment {
             kind: AttachmentKind::DepthStencil,
             texture,
             level: 0,
+            cube_map_face: None,
         }
     }
 }

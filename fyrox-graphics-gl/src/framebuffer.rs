@@ -53,6 +53,7 @@ unsafe fn set_attachment(
     gl_attachment_kind: u32,
     texture: &GlTexture,
     level: i32,
+    cube_map_face: Option<CubeMapFace>,
 ) {
     match texture.kind() {
         GpuTextureKind::Line { .. } => {
@@ -76,7 +77,7 @@ unsafe fn set_attachment(
             server.gl.framebuffer_texture_2d(
                 glow::FRAMEBUFFER,
                 gl_attachment_kind,
-                glow::TEXTURE_CUBE_MAP_POSITIVE_X,
+                cube_map_face.map_or(glow::TEXTURE_CUBE_MAP_POSITIVE_X, |face| face.into_gl()),
                 Some(texture.id()),
                 level,
             );
@@ -123,6 +124,7 @@ impl GlFrameBuffer {
                     depth_attachment_kind,
                     texture,
                     depth_attachment.level as i32,
+                    depth_attachment.cube_map_face,
                 );
             }
 
@@ -140,6 +142,7 @@ impl GlFrameBuffer {
                     color_attachment_kind,
                     texture,
                     color_attachment.level as i32,
+                    color_attachment.cube_map_face,
                 );
                 color_buffers.push(color_attachment_kind);
             }
