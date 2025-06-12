@@ -29,17 +29,14 @@ use crate::{
                 binding, property, PropertyGroup, RenderMaterial, RenderPassContainer,
             },
             framework::{
-                buffer::BufferUsage,
                 error::FrameworkError,
                 framebuffer::{Attachment, GpuFrameBuffer},
-                geometry_buffer::GpuGeometryBuffer,
                 gpu_texture::PixelKind,
                 server::GraphicsServer,
-                GeometryBufferExt,
             },
             make_viewport_matrix, RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
         },
-        scene::{mesh::surface::SurfaceData, node::Node, Scene},
+        scene::{node::Node, Scene},
     },
     Editor,
 };
@@ -47,7 +44,6 @@ use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 pub struct HighlightRenderPass {
     framebuffer: GpuFrameBuffer,
-    quad: GpuGeometryBuffer,
     edge_detect_shader: RenderPassContainer,
     pub scene_handle: Handle<Scene>,
     pub nodes_to_highlight: FxHashSet<Handle<Node>>,
@@ -81,12 +77,6 @@ impl HighlightRenderPass {
     pub fn new_raw(server: &dyn GraphicsServer, width: usize, height: usize) -> Self {
         Self {
             framebuffer: Self::create_frame_buffer(server, width, height),
-            quad: GpuGeometryBuffer::from_surface_data(
-                &SurfaceData::make_unit_xy_quad(),
-                BufferUsage::StaticDraw,
-                server,
-            )
-            .unwrap(),
             edge_detect_shader: RenderPassContainer::from_str(
                 server,
                 include_str!("../resources/shaders/highlight.shader"),
@@ -164,7 +154,7 @@ impl SceneRenderPass for HighlightRenderPass {
                     frame_buffer: &self.framebuffer,
                     use_pom: false,
                     light_position: &Default::default(),
-                    fallback_resources: ctx.fallback_resources,
+                    renderer_resources: ctx.renderer_resources,
                     ambient_light: Default::default(),
                     scene_depth: Some(ctx.depth_texture),
                     viewport: ctx.observer.viewport,
@@ -186,7 +176,7 @@ impl SceneRenderPass for HighlightRenderPass {
             let material = RenderMaterial::from([
                 binding(
                     "frameTexture",
-                    (frame_texture, &ctx.fallback_resources.nearest_clamp_sampler),
+                    (frame_texture, &ctx.renderer_resources.nearest_clamp_sampler),
                 ),
                 binding("properties", &properties),
             ]);
@@ -195,7 +185,7 @@ impl SceneRenderPass for HighlightRenderPass {
                 1,
                 &ImmutableString::new("Primary"),
                 ctx.framebuffer,
-                &self.quad,
+                &ctx.renderer_resources.quad,
                 ctx.observer.viewport,
                 &material,
                 ctx.uniform_buffer_cache,

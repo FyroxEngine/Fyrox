@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::fallback::FallbackResources;
+use crate::renderer::resources::RendererResources;
 use crate::{
     core::{math::Rect, ImmutableString},
     renderer::{
@@ -30,7 +30,6 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, GpuFrameBuffer},
-            geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
         },
@@ -80,10 +79,9 @@ impl BloomRenderer {
 
     pub(crate) fn render(
         &self,
-        quad: &GpuGeometryBuffer,
         hdr_scene_frame: &GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
-        fallback_resources: &FallbackResources,
+        renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -94,7 +92,7 @@ impl BloomRenderer {
         let material = RenderMaterial::from([
             binding(
                 "hdrSampler",
-                (hdr_scene_frame, &fallback_resources.nearest_clamp_sampler),
+                (hdr_scene_frame, &renderer_resources.nearest_clamp_sampler),
             ),
             binding("properties", &properties),
         ]);
@@ -103,7 +101,7 @@ impl BloomRenderer {
             1,
             &ImmutableString::new("Primary"),
             &self.framebuffer,
-            quad,
+            &renderer_resources.quad,
             viewport,
             &material,
             uniform_buffer_cache,
@@ -112,10 +110,10 @@ impl BloomRenderer {
         )?;
 
         stats += self.blur.render(
-            quad,
+            &renderer_resources.quad,
             self.glow_texture(),
             uniform_buffer_cache,
-            fallback_resources,
+            renderer_resources,
         )?;
 
         Ok(stats)

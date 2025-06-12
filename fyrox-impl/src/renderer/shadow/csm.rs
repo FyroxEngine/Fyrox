@@ -19,9 +19,9 @@
 // SOFTWARE.
 
 use crate::renderer::cache::DynamicSurfaceCache;
-use crate::renderer::fallback::FallbackResources;
 use crate::renderer::observer::Observer;
 use crate::renderer::observer::ObserverPosition;
+use crate::renderer::resources::RendererResources;
 use crate::renderer::settings::ShadowMapPrecision;
 use crate::{
     core::{
@@ -103,7 +103,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub geom_cache: &'a mut GeometryCache,
     pub shader_cache: &'a mut ShaderCache,
     pub texture_cache: &'a mut TextureCache,
-    pub fallback_resources: &'a FallbackResources,
+    pub renderer_resources: &'a RendererResources,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
 }
@@ -153,7 +153,7 @@ impl CsmRenderer {
             geom_cache,
             shader_cache,
             texture_cache,
-            fallback_resources,
+            renderer_resources,
             uniform_memory_allocator,
             dynamic_surface_cache,
         } = ctx;
@@ -284,7 +284,7 @@ impl CsmRenderer {
                     uniform_memory_allocator,
                     use_pom: false,
                     light_position: &Default::default(),
-                    fallback_resources,
+                    renderer_resources,
                     ambient_light: Color::WHITE, // TODO
                     scene_depth: None,
                 },

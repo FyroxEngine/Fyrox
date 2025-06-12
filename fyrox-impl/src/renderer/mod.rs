@@ -29,8 +29,8 @@ pub mod framework;
 pub mod bundle;
 pub mod cache;
 pub mod debug_renderer;
-pub mod fallback;
 pub mod observer;
+pub mod resources;
 pub mod stats;
 pub mod storage;
 pub mod ui_renderer;
@@ -77,13 +77,11 @@ use crate::{
         debug_renderer::DebugRenderer,
         forward_renderer::{ForwardRenderContext, ForwardRenderer},
         framework::{
-            buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
-            geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::{GraphicsServer, SharedGraphicsServer},
-            GeometryBufferExt, PolygonFace, PolygonFillMode,
+            PolygonFace, PolygonFillMode,
         },
         fxaa::FxaaRenderer,
         gbuffer::{GBuffer, GBufferRenderContext},
@@ -93,14 +91,14 @@ use crate::{
         visibility::VisibilityCache,
     },
     resource::texture::{Texture, TextureKind, TextureResource},
-    scene::{mesh::surface::SurfaceData, node::Node, Scene, SceneContainer},
+    scene::{node::Node, Scene, SceneContainer},
 };
 use cache::DynamicSurfaceCache;
-use fallback::FallbackResources;
 use fxhash::FxHashMap;
 use fyrox_graph::BaseSceneGraph;
 use lazy_static::lazy_static;
 use observer::{Observer, ObserversCollection};
+use resources::RendererResources;
 pub use settings::*;
 pub use stats::*;
 use std::{
@@ -339,11 +337,11 @@ pub struct Renderer {
     blit_shader: RenderPassContainer,
     /// A set of textures of certain kinds that could be used as a stub in cases when you don't have
     /// your own texture of this kind.
-    pub fallback_resources: FallbackResources,
+    pub renderer_resources: RendererResources,
     /// User interface renderer.
     pub ui_renderer: UiRenderer,
     statistics: Statistics,
-    quad: GpuGeometryBuffer,
+
     frame_size: (u32, u32),
     quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
@@ -445,7 +443,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
 
     /// A set of textures of certain kinds that could be used as a stub in cases when you don't have
     /// your own texture of this kind.
-    pub fallback_resources: &'a FallbackResources,
+    pub renderer_resources: &'a RendererResources,
 
     /// A texture with depth values from G-Buffer.
     ///
@@ -518,15 +516,14 @@ fn blit_pixels(
     texture: &GpuTexture,
     blit_shader: &RenderPassContainer,
     viewport: Rect<i32>,
-    quad: &GpuGeometryBuffer,
-    fallback_resources: &FallbackResources,
+    renderer_resources: &RendererResources,
 ) -> Result<DrawCallStatistics, FrameworkError> {
     let wvp = make_viewport_matrix(viewport);
     let properties = PropertyGroup::from([property("worldViewProjection", &wvp)]);
     let material = RenderMaterial::from([
         binding(
             "diffuseTexture",
-            (texture, &fallback_resources.linear_clamp_sampler),
+            (texture, &renderer_resources.linear_clamp_sampler),
         ),
         binding("properties", &properties),
     ]);
@@ -534,7 +531,7 @@ fn blit_pixels(
         1,
         &ImmutableString::new("Primary"),
         framebuffer,
-        quad,
+        &renderer_resources.quad,
         viewport,
         &material,
         uniform_buffer_cache,
@@ -612,12 +609,7 @@ impl Renderer {
                 &*server,
                 include_str!("shaders/blit.shader"),
             )?,
-            fallback_resources: FallbackResources::new(&*server)?,
-            quad: GpuGeometryBuffer::from_surface_data(
-                &SurfaceData::make_unit_xy_quad(),
-                BufferUsage::StaticDraw,
-                &*server,
-            )?,
+            renderer_resources: RendererResources::new(&*server)?,
             ui_renderer: UiRenderer::new(&*server)?,
             quality_settings: settings,
             debug_renderer: DebugRenderer::new(&*server)?,
@@ -793,7 +785,7 @@ impl Renderer {
             frame_width: screen_size.x,
             frame_height: screen_size.y,
             drawing_context,
-            fallback_resources: &self.fallback_resources,
+            renderer_resources: &self.renderer_resources,
             texture_cache: &mut self.texture_cache,
             uniform_buffer_cache: &mut self.uniform_buffer_cache,
             render_pass_cache: &mut self.shader_cache,
@@ -958,12 +950,11 @@ impl Renderer {
             texture_cache: &mut self.texture_cache,
             shader_cache: &mut self.shader_cache,
             quality_settings: &self.quality_settings,
-            fallback_resources: &self.fallback_resources,
+            renderer_resources: &self.renderer_resources,
             graph: &scene.graph,
             uniform_buffer_cache: &mut self.uniform_buffer_cache,
             uniform_memory_allocator: &mut self.uniform_memory_allocator,
             screen_space_debug_renderer: &mut self.screen_space_debug_renderer,
-            unit_quad: &self.quad,
         })?;
 
         server.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
@@ -997,7 +988,7 @@ impl Renderer {
                     geometry_cache: &mut self.geometry_cache,
                     frame_buffer: &render_data.hdr_scene_framebuffer,
                     shader_cache: &mut self.shader_cache,
-                    fallback_resources: &self.fallback_resources,
+                    renderer_resources: &self.renderer_resources,
                     uniform_buffer_cache: &mut self.uniform_buffer_cache,
                     visibility_cache,
                     uniform_memory_allocator: &mut self.uniform_memory_allocator,
@@ -1018,7 +1009,7 @@ impl Renderer {
             framebuffer: &render_data.hdr_scene_framebuffer,
             viewport: observer.viewport,
             quality_settings: &self.quality_settings,
-            fallback_resources: &self.fallback_resources,
+            renderer_resources: &self.renderer_resources,
             scene_depth: depth,
             ambient_light: scene.rendering_options.ambient_lighting_color,
             uniform_memory_allocator: &mut self.uniform_memory_allocator,
@@ -1039,7 +1030,7 @@ impl Renderer {
                         scene,
                         observer,
                         scene_handle,
-                        fallback_resources: &self.fallback_resources,
+                        renderer_resources: &self.renderer_resources,
                         depth_texture: render_data.gbuffer.depth(),
                         normal_texture: render_data.gbuffer.normal_texture(),
                         ambient_texture: render_data.gbuffer.ambient_texture(),
@@ -1051,14 +1042,11 @@ impl Renderer {
                     })?;
         }
 
-        let quad = &self.quad;
-
         // Prepare glow map.
         render_data.statistics += render_data.bloom_renderer.render(
-            quad,
             render_data.hdr_scene_frame_texture(),
             &mut self.uniform_buffer_cache,
-            &self.fallback_resources,
+            &self.renderer_resources,
         )?;
 
         // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
@@ -1070,14 +1058,13 @@ impl Renderer {
             render_data.bloom_renderer.result(),
             &render_data.ldr_temp_framebuffer[dest_buf],
             observer.viewport,
-            quad,
             dt,
             observer.exposure,
             observer.color_grading_lut.as_ref(),
             observer.color_grading_enabled,
             &mut self.texture_cache,
             &mut self.uniform_buffer_cache,
-            &self.fallback_resources,
+            &self.renderer_resources,
         )?;
         std::mem::swap(&mut dest_buf, &mut src_buf);
 
@@ -1088,20 +1075,18 @@ impl Renderer {
                 render_data.ldr_temp_frame_texture(src_buf),
                 &render_data.ldr_temp_framebuffer[dest_buf],
                 &mut self.uniform_buffer_cache,
-                &self.fallback_resources,
+                &self.renderer_resources,
             )?;
             std::mem::swap(&mut dest_buf, &mut src_buf);
         }
 
-        let quad = &self.quad;
         render_data.statistics += blit_pixels(
             &mut self.uniform_buffer_cache,
             &render_data.ldr_scene_framebuffer,
             render_data.ldr_temp_frame_texture(src_buf),
             &self.blit_shader,
             observer.viewport,
-            quad,
-            &self.fallback_resources,
+            &self.renderer_resources,
         )?;
 
         // Render debug geometry in the LDR frame buffer.
@@ -1128,7 +1113,7 @@ impl Renderer {
                         scene,
                         observer,
                         scene_handle,
-                        fallback_resources: &self.fallback_resources,
+                        renderer_resources: &self.renderer_resources,
                         depth_texture: render_data.gbuffer.depth(),
                         normal_texture: render_data.gbuffer.normal_texture(),
                         ambient_texture: render_data.gbuffer.ambient_texture(),
@@ -1252,8 +1237,7 @@ impl Renderer {
                 scene_render_data.scene_data.ldr_scene_frame_texture(),
                 &self.blit_shader,
                 window_viewport,
-                &self.quad,
-                &self.fallback_resources,
+                &self.renderer_resources,
             )?;
         }
 
@@ -1317,7 +1301,7 @@ impl Renderer {
                 frame_width: backbuffer_width,
                 frame_height: backbuffer_height,
                 drawing_context,
-                fallback_resources: &self.fallback_resources,
+                renderer_resources: &self.renderer_resources,
                 texture_cache: &mut self.texture_cache,
                 uniform_buffer_cache: &mut self.uniform_buffer_cache,
                 render_pass_cache: &mut self.shader_cache,

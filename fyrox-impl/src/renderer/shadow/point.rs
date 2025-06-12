@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::fallback::FallbackResources;
+use crate::renderer::resources::RendererResources;
 use crate::renderer::settings::ShadowMapPrecision;
 use crate::{
     core::{
@@ -64,7 +64,7 @@ pub(crate) struct PointShadowMapRenderContext<'a> {
     pub cascade: usize,
     pub shader_cache: &'a mut ShaderCache,
     pub texture_cache: &'a mut TextureCache,
-    pub fallback_resources: &'a FallbackResources,
+    pub renderer_resources: &'a RendererResources,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
 }
@@ -142,7 +142,7 @@ impl PointShadowMapRenderer {
             cascade,
             shader_cache,
             texture_cache,
-            fallback_resources,
+            renderer_resources,
             uniform_memory_allocator,
             dynamic_surface_cache,
         } = args;
@@ -201,7 +201,7 @@ impl PointShadowMapRenderer {
                     uniform_memory_allocator,
                     use_pom: false,
                     light_position: &light_pos,
-                    fallback_resources,
+                    renderer_resources,
                     ambient_light: Color::WHITE, // TODO
                     scene_depth: None,
                 },

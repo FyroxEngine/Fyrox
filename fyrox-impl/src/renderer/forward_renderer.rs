@@ -20,7 +20,7 @@
 
 //! Forward renderer is used to render transparent meshes and meshes with custom blending options.
 
-use crate::renderer::fallback::FallbackResources;
+use crate::renderer::resources::RendererResources;
 use crate::{
     core::{color::Color, math::Rect, sstorage::ImmutableString},
     renderer::{
@@ -47,7 +47,7 @@ pub(crate) struct ForwardRenderContext<'a> {
     pub framebuffer: &'a GpuFrameBuffer,
     pub viewport: Rect<i32>,
     pub quality_settings: &'a QualitySettings,
-    pub fallback_resources: &'a FallbackResources,
+    pub renderer_resources: &'a RendererResources,
     pub scene_depth: &'a GpuTexture,
     pub ambient_light: Color,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
@@ -75,7 +75,7 @@ impl ForwardRenderer {
             framebuffer,
             viewport,
             quality_settings,
-            fallback_resources,
+            renderer_resources,
             scene_depth,
             ambient_light,
             uniform_memory_allocator,
@@ -95,7 +95,7 @@ impl ForwardRenderer {
                 uniform_memory_allocator,
                 use_pom: quality_settings.use_parallax_mapping,
                 light_position: &Default::default(),
-                fallback_resources,
+                renderer_resources,
                 ambient_light,
                 scene_depth: Some(scene_depth),
             },

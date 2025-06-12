@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::fallback::FallbackResources;
+use crate::renderer::resources::RendererResources;
 use crate::{
     core::{math::Rect, ImmutableString},
     renderer::{
@@ -27,23 +27,18 @@ use crate::{
             uniform::UniformBufferCache,
         },
         framework::{
-            buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
-            geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
-            GeometryBufferExt,
         },
         make_viewport_matrix,
     },
-    scene::mesh::surface::SurfaceData,
 };
 
 pub struct Blur {
     program: RenderPassContainer,
     framebuffer: GpuFrameBuffer,
-    quad: GpuGeometryBuffer,
     width: usize,
     height: usize,
 }
@@ -60,11 +55,6 @@ impl Blur {
         Ok(Self {
             program,
             framebuffer: server.create_frame_buffer(None, vec![Attachment::color(frame)])?,
-            quad: GpuGeometryBuffer::from_surface_data(
-                &SurfaceData::make_unit_xy_quad(),
-                BufferUsage::StaticDraw,
-                server,
-            )?,
             width,
             height,
         })
@@ -78,7 +68,7 @@ impl Blur {
         &mut self,
         input: GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
-        fallback_resources: &FallbackResources,
+        renderer_resources: &RendererResources,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
 
@@ -87,7 +77,7 @@ impl Blur {
         let material = RenderMaterial::from([
             binding(
                 "inputTexture",
-                (&input, &fallback_resources.nearest_clamp_sampler),
+                (&input, &renderer_resources.nearest_clamp_sampler),
             ),
             binding("properties", &properties),
         ]);
@@ -96,7 +86,7 @@ impl Blur {
             1,
             &ImmutableString::new("Primary"),
             &self.framebuffer,
-            &self.quad,
+            &renderer_resources.quad,
             viewport,
             &material,
             uniform_buffer_cache,

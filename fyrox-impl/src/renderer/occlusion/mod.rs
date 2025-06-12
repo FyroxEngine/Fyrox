@@ -23,7 +23,7 @@
 mod grid;
 mod optimizer;
 
-use crate::renderer::fallback::FallbackResources;
+use crate::renderer::resources::RendererResources;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -328,13 +328,12 @@ impl OcclusionTester {
         &mut self,
         graph: &Graph,
         debug_renderer: Option<&mut DebugRenderer>,
-        unit_quad: &GpuGeometryBuffer,
         objects_to_test: impl Iterator<Item = &'a Handle<Node>>,
         prev_framebuffer: &GpuFrameBuffer,
         observer_position: Vector3<f32>,
         view_projection: Matrix4<f32>,
         uniform_buffer_cache: &mut UniformBufferCache,
-        fallback_resources: &FallbackResources,
+        renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -378,12 +377,12 @@ impl OcclusionTester {
                 "matrices",
                 (
                     self.matrix_storage.texture(),
-                    &fallback_resources.nearest_clamp_sampler,
+                    &renderer_resources.nearest_clamp_sampler,
                 ),
             ),
             binding(
                 "tileBuffer",
-                (&self.tile_buffer, &fallback_resources.nearest_clamp_sampler),
+                (&self.tile_buffer, &renderer_resources.nearest_clamp_sampler),
             ),
             binding("properties", &properties),
         ]);
@@ -402,10 +401,9 @@ impl OcclusionTester {
 
         self.visibility_buffer_optimizer.optimize(
             &self.visibility_mask,
-            unit_quad,
             self.tile_size as i32,
             uniform_buffer_cache,
-            fallback_resources,
+            renderer_resources,
         )?;
 
         Ok(stats)

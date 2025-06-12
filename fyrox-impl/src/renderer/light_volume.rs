@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::fallback::FallbackResources;
+use crate::renderer::resources::RendererResources;
 use crate::{
     core::{
         algebra::{Isometry3, Matrix4, Point3, Translation, Vector3},
@@ -87,7 +87,6 @@ impl LightVolumeRenderer {
         &mut self,
         light: &LightSource,
         gbuffer: &GBuffer,
-        quad: &GpuGeometryBuffer,
         view: Matrix4<f32>,
         inv_proj: Matrix4<f32>,
         view_proj: Matrix4<f32>,
@@ -95,7 +94,7 @@ impl LightVolumeRenderer {
         graph: &Graph,
         frame_buffer: &GpuFrameBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
-        fallback_resources: &FallbackResources,
+        renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -165,7 +164,7 @@ impl LightVolumeRenderer {
                 let material = RenderMaterial::from([
                     binding(
                         "depthSampler",
-                        (gbuffer.depth(), &fallback_resources.nearest_clamp_sampler),
+                        (gbuffer.depth(), &renderer_resources.nearest_clamp_sampler),
                     ),
                     binding("properties", &properties),
                 ]);
@@ -174,7 +173,7 @@ impl LightVolumeRenderer {
                     1,
                     &ImmutableString::new("Primary"),
                     frame_buffer,
-                    quad,
+                    &renderer_resources.quad,
                     viewport,
                     &material,
                     uniform_buffer_cache,
@@ -222,7 +221,7 @@ impl LightVolumeRenderer {
                 let material = RenderMaterial::from([
                     binding(
                         "depthSampler",
-                        (gbuffer.depth(), &fallback_resources.nearest_clamp_sampler),
+                        (gbuffer.depth(), &renderer_resources.nearest_clamp_sampler),
                     ),
                     binding("properties", &properties),
                 ]);
@@ -231,7 +230,7 @@ impl LightVolumeRenderer {
                     1,
                     &ImmutableString::new("Primary"),
                     frame_buffer,
-                    quad,
+                    &renderer_resources.quad,
                     viewport,
                     &material,
                     uniform_buffer_cache,

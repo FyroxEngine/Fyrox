@@ -19,8 +19,8 @@
 // SOFTWARE.
 
 use crate::renderer::cache::DynamicSurfaceCache;
-use crate::renderer::fallback::FallbackResources;
 use crate::renderer::observer::Observer;
+use crate::renderer::resources::RendererResources;
 use crate::renderer::utils::make_brdf_lut;
 use crate::{
     core::{
@@ -72,7 +72,6 @@ pub struct DeferredLightRenderer {
     point_light_shader: RenderPassContainer,
     directional_light_shader: RenderPassContainer,
     ambient_light_shader: RenderPassContainer,
-    quad: GpuGeometryBuffer,
     sphere: GpuGeometryBuffer,
     cone: GpuGeometryBuffer,
     skybox: GpuGeometryBuffer,
@@ -99,7 +98,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub geometry_cache: &'a mut GeometryCache,
     pub frame_buffer: &'a GpuFrameBuffer,
     pub shader_cache: &'a mut ShaderCache,
-    pub fallback_resources: &'a FallbackResources,
+    pub renderer_resources: &'a RendererResources,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub visibility_cache: &'a mut ObserverVisibilityCache,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
@@ -168,11 +167,6 @@ impl DeferredLightRenderer {
             ambient_light_shader: RenderPassContainer::from_str(
                 server,
                 include_str!("shaders/ambient_light.shader"),
-            )?,
-            quad: GpuGeometryBuffer::from_surface_data(
-                &SurfaceData::make_unit_xy_quad(),
-                BufferUsage::StaticDraw,
-                server,
             )?,
             skybox: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::new(
@@ -311,7 +305,7 @@ impl DeferredLightRenderer {
             textures,
             geometry_cache,
             frame_buffer,
-            fallback_resources,
+            renderer_resources,
             uniform_buffer_cache,
             visibility_cache,
             uniform_memory_allocator,
@@ -343,7 +337,7 @@ impl DeferredLightRenderer {
                 observer.position.projection_matrix,
                 observer.position.view_matrix.basis(),
                 uniform_buffer_cache,
-                fallback_resources,
+                renderer_resources,
             )?;
         }
 
@@ -389,7 +383,7 @@ impl DeferredLightRenderer {
             .or(render_data_bundle.environment_map.as_ref())
             .or_else(|| scene.skybox_ref().and_then(|s| s.cubemap_ref()))
             .and_then(|c| textures.get(server, c).map(|d| &d.gpu_texture))
-            .unwrap_or(&fallback_resources.environment_dummy);
+            .unwrap_or(&renderer_resources.environment_dummy);
 
         // Ambient light.
         let gbuffer_depth_map = gbuffer.depth();
@@ -411,17 +405,17 @@ impl DeferredLightRenderer {
                 "diffuseTexture",
                 (
                     gbuffer_diffuse_map,
-                    &fallback_resources.nearest_clamp_sampler,
+                    &renderer_resources.nearest_clamp_sampler,
                 ),
             ),
             binding(
                 "aoSampler",
                 if settings.use_ssao {
-                    (&ao_map, &fallback_resources.linear_clamp_sampler)
+                    (&ao_map, &renderer_resources.linear_clamp_sampler)
                 } else {
                     (
-                        &fallback_resources.white_dummy,
-                        &fallback_resources.linear_clamp_sampler,
+                        &renderer_resources.white_dummy,
+                        &renderer_resources.linear_clamp_sampler,
                     )
                 },
             ),
@@ -429,34 +423,34 @@ impl DeferredLightRenderer {
                 "ambientTexture",
                 (
                     gbuffer_ambient_map,
-                    &fallback_resources.nearest_clamp_sampler,
+                    &renderer_resources.nearest_clamp_sampler,
                 ),
             ),
             binding(
                 "depthTexture",
-                (gbuffer_depth_map, &fallback_resources.linear_clamp_sampler),
+                (gbuffer_depth_map, &renderer_resources.linear_clamp_sampler),
             ),
             binding(
                 "normalTexture",
-                (gbuffer_normal_map, &fallback_resources.linear_clamp_sampler),
+                (gbuffer_normal_map, &renderer_resources.linear_clamp_sampler),
             ),
             binding(
                 "materialTexture",
                 (
                     gbuffer_material_map,
-                    &fallback_resources.linear_clamp_sampler,
+                    &renderer_resources.linear_clamp_sampler,
                 ),
             ),
             binding(
                 "environmentMap",
                 (
                     environment_map,
-                    &fallback_resources.linear_mipmap_linear_clamp_sampler,
+                    &renderer_resources.linear_mipmap_linear_clamp_sampler,
                 ),
             ),
             binding(
                 "brdfLUT",
-                (&self.brdf_lut, &fallback_resources.linear_clamp_sampler),
+                (&self.brdf_lut, &renderer_resources.linear_clamp_sampler),
             ),
             binding("properties", &properties),
         ]);
@@ -465,7 +459,7 @@ impl DeferredLightRenderer {
             1,
             &ImmutableString::new("Primary"),
             frame_buffer,
-            &self.quad,
+            &renderer_resources.quad,
             viewport,
             &material,
             uniform_buffer_cache,
@@ -644,7 +638,7 @@ impl DeferredLightRenderer {
                         1,
                         &ImmutableString::new("Primary"),
                         frame_buffer,
-                        &self.quad,
+                        &renderer_resources.quad,
                         viewport,
                         &material,
                         uniform_buffer_cache,
@@ -698,7 +692,7 @@ impl DeferredLightRenderer {
                             cascade_index,
                             shader_cache,
                             textures,
-                            fallback_resources,
+                            renderer_resources,
                             uniform_memory_allocator,
                             dynamic_surface_cache,
                         )?;
@@ -719,7 +713,7 @@ impl DeferredLightRenderer {
                                     cascade: cascade_index,
                                     shader_cache,
                                     texture_cache: textures,
-                                    fallback_resources,
+                                    renderer_resources,
                                     uniform_memory_allocator,
                                     dynamic_surface_cache,
                                 })?;
@@ -737,7 +731,7 @@ impl DeferredLightRenderer {
                             geom_cache: geometry_cache,
                             shader_cache,
                             texture_cache: textures,
-                            fallback_resources,
+                            renderer_resources,
                             uniform_memory_allocator,
                             dynamic_surface_cache,
                         })?;
@@ -749,7 +743,7 @@ impl DeferredLightRenderer {
             }
 
             if needs_lighting {
-                let quad = &self.quad;
+                let quad = &renderer_resources.quad;
                 let color = light.color.srgb_to_linear_f32();
 
                 pass_stats += match light.kind {
@@ -768,8 +762,8 @@ impl DeferredLightRenderer {
                                     (
                                         false,
                                         (
-                                            &fallback_resources.white_dummy,
-                                            &fallback_resources.linear_wrap_sampler,
+                                            &renderer_resources.white_dummy,
+                                            &renderer_resources.linear_wrap_sampler,
                                         ),
                                     )
                                 }
@@ -777,8 +771,8 @@ impl DeferredLightRenderer {
                                 (
                                     false,
                                     (
-                                        &fallback_resources.white_dummy,
-                                        &fallback_resources.linear_wrap_sampler,
+                                        &renderer_resources.white_dummy,
+                                        &renderer_resources.linear_wrap_sampler,
                                     ),
                                 )
                             };
@@ -812,34 +806,34 @@ impl DeferredLightRenderer {
                         let material = RenderMaterial::from([
                             binding(
                                 "depthTexture",
-                                (gbuffer_depth_map, &fallback_resources.nearest_clamp_sampler),
+                                (gbuffer_depth_map, &renderer_resources.nearest_clamp_sampler),
                             ),
                             binding(
                                 "colorTexture",
                                 (
                                     gbuffer_diffuse_map,
-                                    &fallback_resources.nearest_clamp_sampler,
+                                    &renderer_resources.nearest_clamp_sampler,
                                 ),
                             ),
                             binding(
                                 "normalTexture",
                                 (
                                     gbuffer_normal_map,
-                                    &fallback_resources.nearest_clamp_sampler,
+                                    &renderer_resources.nearest_clamp_sampler,
                                 ),
                             ),
                             binding(
                                 "materialTexture",
                                 (
                                     gbuffer_material_map,
-                                    &fallback_resources.nearest_clamp_sampler,
+                                    &renderer_resources.nearest_clamp_sampler,
                                 ),
                             ),
                             binding(
                                 "spotShadowTexture",
                                 (
                                     self.spot_shadow_map_renderer.cascade_texture(cascade_index),
-                                    &fallback_resources.nearest_clamp_sampler,
+                                    &renderer_resources.nearest_clamp_sampler,
                                 ),
                             ),
                             binding("cookieTexture", cookie_texture),
@@ -877,27 +871,27 @@ impl DeferredLightRenderer {
                         let material = RenderMaterial::from([
                             binding(
                                 "depthTexture",
-                                (gbuffer_depth_map, &fallback_resources.nearest_clamp_sampler),
+                                (gbuffer_depth_map, &renderer_resources.nearest_clamp_sampler),
                             ),
                             binding(
                                 "colorTexture",
                                 (
                                     gbuffer_diffuse_map,
-                                    &fallback_resources.nearest_clamp_sampler,
+                                    &renderer_resources.nearest_clamp_sampler,
                                 ),
                             ),
                             binding(
                                 "normalTexture",
                                 (
                                     gbuffer_normal_map,
-                                    &fallback_resources.nearest_clamp_sampler,
+                                    &renderer_resources.nearest_clamp_sampler,
                                 ),
                             ),
                             binding(
                                 "materialTexture",
                                 (
                                     gbuffer_material_map,
-                                    &fallback_resources.nearest_clamp_sampler,
+                                    &renderer_resources.nearest_clamp_sampler,
                                 ),
                             ),
                             binding(
@@ -905,7 +899,7 @@ impl DeferredLightRenderer {
                                 (
                                     self.point_shadow_map_renderer
                                         .cascade_texture(cascade_index),
-                                    &fallback_resources.nearest_clamp_sampler,
+                                    &renderer_resources.nearest_clamp_sampler,
                                 ),
                             ),
                             binding("properties", &properties),
@@ -957,48 +951,48 @@ impl DeferredLightRenderer {
                         let material = RenderMaterial::from([
                             binding(
                                 "depthTexture",
-                                (gbuffer_depth_map, &fallback_resources.nearest_clamp_sampler),
+                                (gbuffer_depth_map, &renderer_resources.nearest_clamp_sampler),
                             ),
                             binding(
                                 "colorTexture",
                                 (
                                     gbuffer_diffuse_map,
-                                    &fallback_resources.nearest_clamp_sampler,
+                                    &renderer_resources.nearest_clamp_sampler,
                                 ),
                             ),
                             binding(
                                 "normalTexture",
                                 (
                                     gbuffer_normal_map,
-                                    &fallback_resources.nearest_clamp_sampler,
+                                    &renderer_resources.nearest_clamp_sampler,
                                 ),
                             ),
                             binding(
                                 "materialTexture",
                                 (
                                     gbuffer_material_map,
-                                    &fallback_resources.nearest_clamp_sampler,
+                                    &renderer_resources.nearest_clamp_sampler,
                                 ),
                             ),
                             binding(
                                 "shadowCascade0",
                                 (
                                     cascades[0].texture(),
-                                    &fallback_resources.nearest_clamp_sampler,
+                                    &renderer_resources.nearest_clamp_sampler,
                                 ),
                             ),
                             binding(
                                 "shadowCascade1",
                                 (
                                     cascades[1].texture(),
-                                    &fallback_resources.nearest_clamp_sampler,
+                                    &renderer_resources.nearest_clamp_sampler,
                                 ),
                             ),
                             binding(
                                 "shadowCascade2",
                                 (
                                     cascades[2].texture(),
-                                    &fallback_resources.nearest_clamp_sampler,
+                                    &renderer_resources.nearest_clamp_sampler,
                                 ),
                             ),
                             binding("properties", &properties),
@@ -1026,7 +1020,6 @@ impl DeferredLightRenderer {
                 pass_stats += self.light_volume.render_volume(
                     light,
                     gbuffer,
-                    &self.quad,
                     observer.position.view_matrix,
                     inv_projection,
                     observer.position.view_projection_matrix,
@@ -1034,7 +1027,7 @@ impl DeferredLightRenderer {
                     &scene.graph,
                     frame_buffer,
                     uniform_buffer_cache,
-                    fallback_resources,
+                    renderer_resources,
                 )?;
             }
         }

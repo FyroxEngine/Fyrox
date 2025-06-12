@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::fallback::FallbackResources;
+use crate::renderer::resources::RendererResources;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
@@ -33,20 +33,16 @@ use crate::{
             uniform::UniformBufferCache,
         },
         framework::{
-            buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{Attachment, GpuFrameBuffer},
-            geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::GraphicsServer,
-            GeometryBufferExt,
         },
         gbuffer::GBuffer,
         make_viewport_matrix,
         ssao::blur::Blur,
         RenderPassStatistics,
     },
-    scene::mesh::surface::SurfaceData,
 };
 
 mod blur;
@@ -61,7 +57,6 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
     blur: Blur,
     program: RenderPassContainer,
     framebuffer: GpuFrameBuffer,
-    quad: GpuGeometryBuffer,
     width: i32,
     height: i32,
     noise: GpuTexture,
@@ -88,11 +83,6 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             blur: Blur::new(server, width, height)?,
             program: RenderPassContainer::from_str(server, include_str!("../shaders/ssao.shader"))?,
             framebuffer: server.create_frame_buffer(None, vec![Attachment::color(occlusion)])?,
-            quad: GpuGeometryBuffer::from_surface_data(
-                &SurfaceData::make_unit_xy_quad(),
-                BufferUsage::StaticDraw,
-                server,
-            )?,
             width: width as i32,
             height: height as i32,
             kernel: {
@@ -153,7 +143,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         projection_matrix: Matrix4<f32>,
         view_matrix: Matrix3<f32>,
         uniform_buffer_cache: &mut UniformBufferCache,
-        fallback_resources: &FallbackResources,
+        renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -188,18 +178,18 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         let material = RenderMaterial::from([
             binding(
                 "depthSampler",
-                (gbuffer.depth(), &fallback_resources.nearest_clamp_sampler),
+                (gbuffer.depth(), &renderer_resources.nearest_clamp_sampler),
             ),
             binding(
                 "normalSampler",
                 (
                     gbuffer.normal_texture(),
-                    &fallback_resources.nearest_clamp_sampler,
+                    &renderer_resources.nearest_clamp_sampler,
                 ),
             ),
             binding(
                 "noiseSampler",
-                (&self.noise, &fallback_resources.nearest_wrap_sampler),
+                (&self.noise, &renderer_resources.nearest_wrap_sampler),
             ),
             binding("properties", &properties),
         ]);
@@ -208,7 +198,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             1,
             &ImmutableString::new("Primary"),
             &self.framebuffer,
-            &self.quad,
+            &renderer_resources.quad,
             viewport,
             &material,
             uniform_buffer_cache,
@@ -218,7 +208,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
         stats += self
             .blur
-            .render(self.raw_ao_map(), uniform_buffer_cache, fallback_resources)?;
+            .render(self.raw_ao_map(), uniform_buffer_cache, renderer_resources)?;
 
         Ok(stats)
     }

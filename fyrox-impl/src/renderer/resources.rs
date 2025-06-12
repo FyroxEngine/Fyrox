@@ -18,9 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! A set of textures of certain kinds. See [`FallbackResources`] docs for more info.
+//! A set of textures of certain kinds. See [`RendererResources`] docs for more info.
 
+use crate::renderer::framework::GeometryBufferExt;
+use crate::scene::mesh::surface::SurfaceData;
 use fyrox_core::{algebra::Matrix4, array_as_u8_slice};
+use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
 use fyrox_graphics::{
     buffer::{BufferKind, BufferUsage, GpuBuffer},
     error::FrameworkError,
@@ -35,7 +38,7 @@ use fyrox_material::shader::ShaderDefinition;
 
 /// A set of textures of certain kinds that could be used as a stub in cases when you don't have
 /// your own texture of this kind.
-pub struct FallbackResources {
+pub struct RendererResources {
     /// White, one pixel, texture which will be used as stub when rendering something without
     /// a texture specified.
     pub white_dummy: GpuTexture,
@@ -63,9 +66,11 @@ pub struct FallbackResources {
     pub nearest_clamp_sampler: GpuSampler,
     /// A sampler with the nearest filtration.
     pub nearest_wrap_sampler: GpuSampler,
+    /// Unit oXY-oriented quad.
+    pub quad: GpuGeometryBuffer,
 }
 
-impl FallbackResources {
+impl RendererResources {
     /// Creates a new set of fallback resources.
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
@@ -173,6 +178,11 @@ impl FallbackResources {
                 mag_filter: MagnificationFilter::Nearest,
                 ..Default::default()
             })?,
+            quad: GpuGeometryBuffer::from_surface_data(
+                &SurfaceData::make_unit_xy_quad(),
+                BufferUsage::StaticDraw,
+                server,
+            )?,
         })
     }
 

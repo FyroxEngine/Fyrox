@@ -22,7 +22,7 @@
 
 #![allow(missing_docs)] // TODO
 
-use crate::renderer::fallback::FallbackResources;
+use crate::renderer::resources::RendererResources;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -139,7 +139,7 @@ pub struct BundleRenderContext<'a> {
     // TODO: Add depth pre-pass to remove Option here. Current architecture allows only forward
     // renderer to have access to depth buffer that is available from G-Buffer.
     pub scene_depth: Option<&'a GpuTexture>,
-    pub fallback_resources: &'a FallbackResources,
+    pub renderer_resources: &'a RendererResources,
 }
 
 /// A set of data of a surface for rendering.
@@ -341,12 +341,12 @@ pub fn make_texture_binding(
     server: &dyn GraphicsServer,
     material: &Material,
     resource_definition: &ShaderResourceDefinition,
-    fallback_resources: &FallbackResources,
+    renderer_resources: &RendererResources,
     fallback: SamplerFallback,
     texture_cache: &mut TextureCache,
 ) -> ResourceBinding {
-    let fallback = fallback_resources.sampler_fallback(fallback);
-    let fallback = (fallback, &fallback_resources.linear_wrap_sampler);
+    let fallback = renderer_resources.sampler_fallback(fallback);
+    let fallback = (fallback, &renderer_resources.linear_wrap_sampler);
 
     let texture_sampler_pair =
         if let Some(binding) = material.binding_ref(resource_definition.name.clone()) {
@@ -574,9 +574,9 @@ impl RenderDataBundle {
                         if let Some(scene_depth) = render_context.scene_depth.as_ref() {
                             scene_depth
                         } else {
-                            &render_context.fallback_resources.black_dummy
+                            &render_context.renderer_resources.black_dummy
                         },
-                        &render_context.fallback_resources.nearest_clamp_sampler,
+                        &render_context.renderer_resources.nearest_clamp_sampler,
                         resource_definition.binding,
                     ));
                 }
@@ -618,7 +618,7 @@ impl RenderDataBundle {
                             server,
                             material,
                             resource_definition,
-                            render_context.fallback_resources,
+                            render_context.renderer_resources,
                             fallback,
                             render_context.texture_cache,
                         ));
@@ -676,7 +676,7 @@ impl RenderDataBundle {
                                 // call.
                                 instance_bindings.push(ResourceBinding::Buffer {
                                     buffer: render_context
-                                        .fallback_resources
+                                        .renderer_resources
                                         .bone_matrices_stub_uniform_buffer
                                         .clone(),
                                     binding: resource_definition.binding,

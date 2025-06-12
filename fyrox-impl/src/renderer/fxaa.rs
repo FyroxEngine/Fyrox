@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::fallback::FallbackResources;
+use crate::renderer::resources::RendererResources;
 use crate::{
     core::{algebra::Vector2, math::Rect, sstorage::ImmutableString},
     renderer::{
@@ -27,29 +27,21 @@ use crate::{
             uniform::UniformBufferCache,
         },
         framework::{
-            buffer::BufferUsage, error::FrameworkError, framebuffer::GpuFrameBuffer,
-            geometry_buffer::GpuGeometryBuffer, gpu_texture::GpuTexture, server::GraphicsServer,
-            GeometryBufferExt,
+            error::FrameworkError, framebuffer::GpuFrameBuffer, gpu_texture::GpuTexture,
+            server::GraphicsServer,
         },
         make_viewport_matrix, RenderPassStatistics,
     },
-    scene::mesh::surface::SurfaceData,
 };
 
 pub struct FxaaRenderer {
     shader: RenderPassContainer,
-    quad: GpuGeometryBuffer,
 }
 
 impl FxaaRenderer {
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
             shader: RenderPassContainer::from_str(server, include_str!("shaders/fxaa.shader"))?,
-            quad: GpuGeometryBuffer::from_surface_data(
-                &SurfaceData::make_unit_xy_quad(),
-                BufferUsage::StaticDraw,
-                server,
-            )?,
         })
     }
 
@@ -59,7 +51,7 @@ impl FxaaRenderer {
         frame_texture: &GpuTexture,
         frame_buffer: &GpuFrameBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
-        fallback_resources: &FallbackResources,
+        renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 
@@ -73,7 +65,7 @@ impl FxaaRenderer {
         let material = RenderMaterial::from([
             binding(
                 "screenTexture",
-                (frame_texture, &fallback_resources.nearest_clamp_sampler),
+                (frame_texture, &renderer_resources.nearest_clamp_sampler),
             ),
             binding("properties", &properties),
         ]);
@@ -82,7 +74,7 @@ impl FxaaRenderer {
             1,
             &ImmutableString::new("Primary"),
             frame_buffer,
-            &self.quad,
+            &renderer_resources.quad,
             viewport,
             &material,
             uniform_buffer_cache,

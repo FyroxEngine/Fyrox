@@ -29,8 +29,8 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
-use crate::renderer::fallback::FallbackResources;
 use crate::renderer::observer::Observer;
+use crate::renderer::resources::RendererResources;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -85,14 +85,13 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub bundle_storage: &'a RenderDataBundleStorage,
     pub texture_cache: &'a mut TextureCache,
     pub shader_cache: &'a mut ShaderCache,
-    pub fallback_resources: &'a FallbackResources,
+    pub renderer_resources: &'a RendererResources,
     pub quality_settings: &'a QualitySettings,
     pub graph: &'b Graph,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     #[allow(dead_code)]
     pub screen_space_debug_renderer: &'a mut DebugRenderer,
-    pub unit_quad: &'a GpuGeometryBuffer,
 }
 
 impl GBuffer {
@@ -199,10 +198,9 @@ impl GBuffer {
             texture_cache,
             shader_cache,
             quality_settings,
-            fallback_resources,
+            renderer_resources,
             graph,
             uniform_buffer_cache,
-            unit_quad,
             uniform_memory_allocator,
             ..
         } = args;
@@ -243,7 +241,7 @@ impl GBuffer {
                 uniform_memory_allocator,
                 use_pom: quality_settings.use_parallax_mapping,
                 light_position: &Default::default(),
-                fallback_resources,
+                renderer_resources,
                 ambient_light: Color::WHITE, // TODO
                 scene_depth: None,           // TODO. Add z-pre-pass.
             },
@@ -260,13 +258,12 @@ impl GBuffer {
             self.occlusion_tester.try_run_visibility_test(
                 graph,
                 None,
-                unit_quad,
                 objects.iter(),
                 &self.framebuffer,
                 observer.position.translation,
                 observer.position.view_projection_matrix,
                 uniform_buffer_cache,
-                fallback_resources,
+                renderer_resources,
             )?;
         }
 
@@ -295,8 +292,8 @@ impl GBuffer {
                         .map(|t| (t.gpu_texture.clone(), t.gpu_sampler.clone()))
                 })
                 .unwrap_or((
-                    fallback_resources.white_dummy.clone(),
-                    fallback_resources.linear_clamp_sampler.clone(),
+                    renderer_resources.white_dummy.clone(),
+                    renderer_resources.linear_clamp_sampler.clone(),
                 ))
                 .clone();
 
@@ -308,8 +305,8 @@ impl GBuffer {
                         .map(|t| (t.gpu_texture.clone(), t.gpu_sampler.clone()))
                 })
                 .unwrap_or((
-                    fallback_resources.normal_dummy.clone(),
-                    fallback_resources.linear_clamp_sampler.clone(),
+                    renderer_resources.normal_dummy.clone(),
+                    renderer_resources.linear_clamp_sampler.clone(),
                 ))
                 .clone();
 
@@ -327,13 +324,13 @@ impl GBuffer {
             let material = RenderMaterial::from([
                 binding(
                     "sceneDepth",
-                    (depth, &fallback_resources.nearest_clamp_sampler),
+                    (depth, &renderer_resources.nearest_clamp_sampler),
                 ),
                 binding("diffuseTexture", (&diffuse_texture.0, &diffuse_texture.1)),
                 binding("normalTexture", (&normal_texture.0, &normal_texture.1)),
                 binding(
                     "decalMask",
-                    (decal_mask, &fallback_resources.nearest_clamp_sampler),
+                    (decal_mask, &renderer_resources.nearest_clamp_sampler),
                 ),
                 binding("properties", &properties),
             ]);

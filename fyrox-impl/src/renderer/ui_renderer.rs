@@ -21,7 +21,7 @@
 //! See [`UiRenderer`] docs.
 
 use crate::renderer::cache::uniform::{UniformBlockLocation, UniformMemoryAllocator};
-use crate::renderer::fallback::FallbackResources;
+use crate::renderer::resources::RendererResources;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -88,8 +88,8 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     pub frame_height: f32,
     /// Drawing context of a user interface.
     pub drawing_context: &'c DrawingContext,
-    /// Fallback textures.
-    pub fallback_resources: &'a FallbackResources,
+    /// Renderer resources.
+    pub renderer_resources: &'a RendererResources,
     /// GPU texture cache.
     pub texture_cache: &'a mut TextureCache,
     /// A reference to the cache of uniform buffers.
@@ -286,7 +286,7 @@ impl UiRenderer {
             frame_width,
             frame_height,
             drawing_context,
-            fallback_resources,
+            renderer_resources,
             texture_cache,
             uniform_buffer_cache,
             render_pass_cache,
@@ -398,8 +398,8 @@ impl UiRenderer {
                         ShaderResourceKind::Texture { fallback, .. } => {
                             if resource.name.as_str() == "fyrox_widgetTexture" {
                                 let mut diffuse_texture = (
-                                    &fallback_resources.white_dummy,
-                                    &fallback_resources.linear_wrap_sampler,
+                                    &renderer_resources.white_dummy,
+                                    &renderer_resources.linear_wrap_sampler,
                                 );
 
                                 match &cmd.texture {
@@ -471,7 +471,7 @@ impl UiRenderer {
                                     server,
                                     &material,
                                     resource,
-                                    fallback_resources,
+                                    renderer_resources,
                                     fallback,
                                     texture_cache,
                                 ))

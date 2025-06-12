@@ -19,8 +19,8 @@
 // SOFTWARE.
 
 use crate::renderer::cache::DynamicSurfaceCache;
-use crate::renderer::fallback::FallbackResources;
 use crate::renderer::observer::ObserverPosition;
+use crate::renderer::resources::RendererResources;
 use crate::renderer::settings::ShadowMapPrecision;
 use crate::scene::collider::BitMask;
 use crate::{
@@ -120,7 +120,7 @@ impl SpotShadowMapRenderer {
         cascade: usize,
         shader_cache: &mut ShaderCache,
         texture_cache: &mut TextureCache,
-        fallback_resources: &FallbackResources,
+        renderer_resources: &RendererResources,
         uniform_memory_allocator: &mut UniformMemoryAllocator,
         dynamic_surface_cache: &mut DynamicSurfaceCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
@@ -166,7 +166,7 @@ impl SpotShadowMapRenderer {
                 uniform_memory_allocator,
                 use_pom: false,
                 light_position: &Default::default(),
-                fallback_resources,
+                renderer_resources,
                 ambient_light: Color::WHITE, // TODO
                 scene_depth: None,
             },

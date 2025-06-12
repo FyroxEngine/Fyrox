@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::fallback::FallbackResources;
+use crate::renderer::resources::RendererResources;
 use crate::{
     core::{color::Color, math::Rect, ImmutableString},
     renderer::{
@@ -29,7 +29,6 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, GpuFrameBuffer},
-            geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, PixelKind},
             read_buffer::GpuAsyncReadBuffer,
             server::GraphicsServer,
@@ -80,10 +79,9 @@ impl VisibilityBufferOptimizer {
     pub fn optimize(
         &mut self,
         visibility_buffer: &GpuTexture,
-        unit_quad: &GpuGeometryBuffer,
         tile_size: i32,
         uniform_buffer_cache: &mut UniformBufferCache,
-        fallback_resources: &FallbackResources,
+        renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -100,7 +98,7 @@ impl VisibilityBufferOptimizer {
         let material = RenderMaterial::from([
             binding(
                 "visibilityBuffer",
-                (visibility_buffer, &fallback_resources.nearest_clamp_sampler),
+                (visibility_buffer, &renderer_resources.nearest_clamp_sampler),
             ),
             binding("properties", &properties),
         ]);
@@ -109,7 +107,7 @@ impl VisibilityBufferOptimizer {
             1,
             &ImmutableString::new("Primary"),
             &self.framebuffer,
-            unit_quad,
+            &renderer_resources.quad,
             viewport,
             &material,
             uniform_buffer_cache,

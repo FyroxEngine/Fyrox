@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::fallback::FallbackResources;
+use crate::renderer::resources::RendererResources;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -35,7 +35,6 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
-            geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::GraphicsServer,
         },
@@ -145,9 +144,8 @@ impl HighDynamicRangeRenderer {
     fn calculate_frame_luminance(
         &self,
         scene_frame: &GpuTexture,
-        quad: &GpuGeometryBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
-        fallback_resources: &FallbackResources,
+        renderer_resources: &RendererResources,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         self.frame_luminance.clear();
 
@@ -161,7 +159,7 @@ impl HighDynamicRangeRenderer {
         let material = RenderMaterial::from([
             binding(
                 "frameSampler",
-                (scene_frame, &fallback_resources.nearest_clamp_sampler),
+                (scene_frame, &renderer_resources.nearest_clamp_sampler),
             ),
             binding("properties", &properties),
         ]);
@@ -170,7 +168,7 @@ impl HighDynamicRangeRenderer {
             1,
             &ImmutableString::new("Primary"),
             &self.frame_luminance.framebuffer,
-            quad,
+            &renderer_resources.quad,
             Rect::new(
                 0,
                 0,
@@ -186,9 +184,8 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_avg_frame_luminance(
         &self,
-        quad: &GpuGeometryBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
-        fallback_resources: &FallbackResources,
+        renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -234,7 +231,7 @@ impl HighDynamicRangeRenderer {
                     let material = RenderMaterial::from([
                         binding(
                             "lumSampler",
-                            (prev_luminance, &fallback_resources.nearest_clamp_sampler),
+                            (prev_luminance, &renderer_resources.nearest_clamp_sampler),
                         ),
                         binding("properties", &properties),
                     ]);
@@ -243,7 +240,7 @@ impl HighDynamicRangeRenderer {
                         1,
                         &ImmutableString::new("Primary"),
                         &lum_buffer.framebuffer,
-                        quad,
+                        &renderer_resources.quad,
                         Rect::new(0, 0, lum_buffer.size as i32, lum_buffer.size as i32),
                         &material,
                         uniform_buffer_cache,
@@ -261,10 +258,9 @@ impl HighDynamicRangeRenderer {
 
     fn adaptation(
         &self,
-        quad: &GpuGeometryBuffer,
         dt: f32,
         uniform_buffer_cache: &mut UniformBufferCache,
-        fallback_resources: &FallbackResources,
+        renderer_resources: &RendererResources,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let ctx = self.adaptation_chain.begin();
         let viewport = Rect::new(0, 0, ctx.lum_buffer.size as i32, ctx.lum_buffer.size as i32);
@@ -278,13 +274,13 @@ impl HighDynamicRangeRenderer {
         let material = RenderMaterial::from([
             binding(
                 "oldLumSampler",
-                (&ctx.prev_lum, &fallback_resources.nearest_clamp_sampler),
+                (&ctx.prev_lum, &renderer_resources.nearest_clamp_sampler),
             ),
             binding(
                 "newLumSampler",
                 (
                     self.downscale_chain.last().unwrap().texture(),
-                    &fallback_resources.nearest_clamp_sampler,
+                    &renderer_resources.nearest_clamp_sampler,
                 ),
             ),
             binding("properties", &properties),
@@ -294,7 +290,7 @@ impl HighDynamicRangeRenderer {
             1,
             &ImmutableString::new("Primary"),
             &ctx.lum_buffer.framebuffer,
-            quad,
+            &renderer_resources.quad,
             viewport,
             &material,
             uniform_buffer_cache,
@@ -310,13 +306,12 @@ impl HighDynamicRangeRenderer {
         bloom_texture: &GpuTexture,
         ldr_framebuffer: &GpuFrameBuffer,
         viewport: Rect<i32>,
-        quad: &GpuGeometryBuffer,
         exposure: Exposure,
         color_grading_lut: Option<&ColorGradingLut>,
         use_color_grading: bool,
         texture_cache: &mut TextureCache,
         uniform_buffer_cache: &mut UniformBufferCache,
-        fallback_resources: &FallbackResources,
+        renderer_resources: &RendererResources,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let frame_matrix = make_viewport_matrix(viewport);
 
@@ -326,7 +321,7 @@ impl HighDynamicRangeRenderer {
                     .get(server, l.lut_ref())
                     .map(|t| (&t.gpu_texture, &t.gpu_sampler))
             })
-            .unwrap_or((&self.stub_lut, &fallback_resources.nearest_clamp_sampler));
+            .unwrap_or((&self.stub_lut, &renderer_resources.nearest_clamp_sampler));
 
         let (is_auto, key_value, min_luminance, max_luminance, fixed_exposure) = match exposure {
             Exposure::Auto {
@@ -350,18 +345,18 @@ impl HighDynamicRangeRenderer {
         let material = RenderMaterial::from([
             binding(
                 "hdrSampler",
-                (hdr_scene_frame, &fallback_resources.nearest_clamp_sampler),
+                (hdr_scene_frame, &renderer_resources.nearest_clamp_sampler),
             ),
             binding(
                 "lumSampler",
                 (
                     self.adaptation_chain.avg_lum_texture(),
-                    &fallback_resources.nearest_clamp_sampler,
+                    &renderer_resources.nearest_clamp_sampler,
                 ),
             ),
             binding(
                 "bloomSampler",
-                (bloom_texture, &fallback_resources.linear_clamp_sampler),
+                (bloom_texture, &renderer_resources.linear_clamp_sampler),
             ),
             binding("colorMapSampler", color_grading_lut_tex),
             binding("properties", &properties),
@@ -371,7 +366,7 @@ impl HighDynamicRangeRenderer {
             1,
             &ImmutableString::new("Primary"),
             ldr_framebuffer,
-            quad,
+            &renderer_resources.quad,
             viewport,
             &material,
             uniform_buffer_cache,
@@ -387,38 +382,34 @@ impl HighDynamicRangeRenderer {
         bloom_texture: &GpuTexture,
         ldr_framebuffer: &GpuFrameBuffer,
         viewport: Rect<i32>,
-        quad: &GpuGeometryBuffer,
         dt: f32,
         exposure: Exposure,
         color_grading_lut: Option<&ColorGradingLut>,
         use_color_grading: bool,
         texture_cache: &mut TextureCache,
         uniform_buffer_cache: &mut UniformBufferCache,
-        fallback_resources: &FallbackResources,
+        renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
         stats += self.calculate_frame_luminance(
             hdr_scene_frame,
-            quad,
             uniform_buffer_cache,
-            fallback_resources,
+            renderer_resources,
         )?;
-        stats +=
-            self.calculate_avg_frame_luminance(quad, uniform_buffer_cache, fallback_resources)?;
-        stats += self.adaptation(quad, dt, uniform_buffer_cache, fallback_resources)?;
+        stats += self.calculate_avg_frame_luminance(uniform_buffer_cache, renderer_resources)?;
+        stats += self.adaptation(dt, uniform_buffer_cache, renderer_resources)?;
         stats += self.map_hdr_to_ldr(
             server,
             hdr_scene_frame,
             bloom_texture,
             ldr_framebuffer,
             viewport,
-            quad,
             exposure,
             color_grading_lut,
             use_color_grading,
             texture_cache,
             uniform_buffer_cache,
-            fallback_resources,
+            renderer_resources,
         )?;
         Ok(stats)
     }
