@@ -136,7 +136,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
     }
 
     pub(crate) fn render(
-        &mut self,
+        &self,
         gbuffer: &GBuffer,
         projection_matrix: Matrix4<f32>,
         view_matrix: Matrix3<f32>,

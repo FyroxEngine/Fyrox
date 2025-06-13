@@ -61,7 +61,7 @@ impl Blur {
     }
 
     pub(crate) fn render(
-        &mut self,
+        &self,
         input: GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,

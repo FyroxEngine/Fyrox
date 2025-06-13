@@ -65,7 +65,6 @@ use crate::{
 use fyrox_graphics::gpu_texture::GpuTexture;
 
 pub struct DeferredLightRenderer {
-    pub ssao_renderer: ScreenSpaceAmbientOcclusionRenderer,
     sphere: GpuGeometryBuffer,
     cone: GpuGeometryBuffer,
     skybox: GpuGeometryBuffer,
@@ -94,12 +93,12 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub visibility_cache: &'a mut ObserverVisibilityCache,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
+    pub ssao_renderer: &'a ScreenSpaceAmbientOcclusionRenderer,
 }
 
 impl DeferredLightRenderer {
     pub fn new(
         server: &dyn GraphicsServer,
-        frame_size: (u32, u32),
         settings: &QualitySettings,
     ) -> Result<Self, FrameworkError> {
         let vertices = vec![
@@ -138,11 +137,6 @@ impl DeferredLightRenderer {
         let quality_defaults = QualitySettings::default();
 
         Ok(Self {
-            ssao_renderer: ScreenSpaceAmbientOcclusionRenderer::new(
-                server,
-                frame_size.0 as usize,
-                frame_size.1 as usize,
-            )?,
             skybox: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::new(
                     VertexBuffer::new(vertices.len(), vertices).unwrap(),
@@ -231,20 +225,7 @@ impl DeferredLightRenderer {
                 settings.csm_settings.precision,
             )?;
         }
-        self.ssao_renderer.set_radius(settings.ssao_radius);
-        Ok(())
-    }
 
-    pub fn set_frame_size(
-        &mut self,
-        server: &dyn GraphicsServer,
-        frame_size: (u32, u32),
-    ) -> Result<(), FrameworkError> {
-        self.ssao_renderer = ScreenSpaceAmbientOcclusionRenderer::new(
-            server,
-            frame_size.0 as usize,
-            frame_size.1 as usize,
-        )?;
         Ok(())
     }
 
@@ -273,6 +254,7 @@ impl DeferredLightRenderer {
             visibility_cache,
             uniform_memory_allocator,
             dynamic_surface_cache,
+            ssao_renderer,
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
@@ -295,7 +277,7 @@ impl DeferredLightRenderer {
 
         // Fill SSAO map.
         if settings.use_ssao {
-            pass_stats += self.ssao_renderer.render(
+            pass_stats += ssao_renderer.render(
                 gbuffer,
                 observer.position.projection_matrix,
                 observer.position.view_matrix.basis(),
@@ -354,7 +336,7 @@ impl DeferredLightRenderer {
         let gbuffer_normal_map = gbuffer.normal_texture();
         let gbuffer_material_map = gbuffer.material_texture();
         let gbuffer_ambient_map = gbuffer.ambient_texture();
-        let ao_map = self.ssao_renderer.ao_map();
+        let ao_map = ssao_renderer.ao_map();
 
         let ambient_color = ambient_color.srgb_to_linear_f32();
         let properties = PropertyGroup::from([

@@ -49,6 +49,7 @@ mod settings;
 mod shadow;
 mod ssao;
 
+use crate::renderer::ssao::ScreenSpaceAmbientOcclusionRenderer;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -145,6 +146,14 @@ impl SceneRenderData {
             scene_data: RenderDataContainer::new(server, frame_size, final_frame_texture)?,
         })
     }
+
+    /// Sets the new quality settings.
+    pub fn set_quality_settings(&mut self, settings: &QualitySettings) {
+        for camera_data in self.camera_data.values_mut() {
+            camera_data.set_quality_settings(settings);
+        }
+        self.scene_data.set_quality_settings(settings);
+    }
 }
 
 fn recreate_render_data_if_needed<T: Any>(
@@ -174,6 +183,9 @@ fn recreate_render_data_if_needed<T: Any>(
 
 /// A set of frame buffers and renderers that can be used to render to.
 pub struct RenderDataContainer {
+    /// Screen space ambient occlusion renderer.
+    pub ssao_renderer: ScreenSpaceAmbientOcclusionRenderer,
+
     /// G-Buffer of the container.
     pub gbuffer: GBuffer,
 
@@ -267,6 +279,7 @@ impl RenderDataContainer {
         }
 
         Ok(Self {
+            ssao_renderer: ScreenSpaceAmbientOcclusionRenderer::new(server, width, height)?,
             gbuffer: GBuffer::new(server, width, height)?,
             hdr_renderer: HighDynamicRangeRenderer::new(server)?,
             bloom_renderer: BloomRenderer::new(server, width, height)?,
@@ -310,6 +323,11 @@ impl RenderDataContainer {
     /// Returns low-dynamic range frame buffer texture (accumulation frame).
     pub fn ldr_temp_frame_texture(&self, i: usize) -> &GpuTexture {
         &self.ldr_temp_framebuffer[i].color_attachments()[0].texture
+    }
+
+    /// Sets the new quality settings.
+    pub fn set_quality_settings(&mut self, settings: &QualitySettings) {
+        self.ssao_renderer.set_radius(settings.ssao_radius);
     }
 }
 
@@ -602,8 +620,7 @@ impl Renderer {
         Ok(Self {
             backbuffer: server.back_buffer(),
             frame_size,
-            deferred_light_renderer: DeferredLightRenderer::new(&*server, frame_size, &settings)?,
-
+            deferred_light_renderer: DeferredLightRenderer::new(&*server, &settings)?,
             renderer_resources: RendererResources::new(&*server)?,
             ui_renderer: UiRenderer::new(&*server)?,
             quality_settings: settings,
@@ -687,9 +704,6 @@ impl Renderer {
         self.frame_size.0 = new_size.0.max(1);
         self.frame_size.1 = new_size.1.max(1);
 
-        self.deferred_light_renderer
-            .set_frame_size(&*self.server, new_size)?;
-
         self.graphics_server().set_frame_size(new_size);
 
         Ok(())
@@ -713,6 +727,9 @@ impl Renderer {
         settings: &QualitySettings,
     ) -> Result<(), FrameworkError> {
         self.quality_settings = *settings;
+        for data in self.scene_data_map.values_mut() {
+            data.set_quality_settings(settings);
+        }
         self.deferred_light_renderer
             .set_quality_settings(&*self.server, settings)
     }
@@ -988,6 +1005,7 @@ impl Renderer {
                     visibility_cache,
                     uniform_memory_allocator: &mut self.uniform_memory_allocator,
                     dynamic_surface_cache: &mut self.dynamic_surface_cache,
+                    ssao_renderer: &render_data.ssao_renderer,
                 })?;
 
         render_data.statistics += light_stats;
