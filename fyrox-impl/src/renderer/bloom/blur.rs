@@ -23,7 +23,7 @@ use crate::{
     core::{algebra::Vector2, math::Rect, sstorage::ImmutableString},
     renderer::{
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
         },
         framework::{
@@ -38,7 +38,6 @@ use crate::{
 };
 
 pub struct GaussianBlur {
-    shader: RenderPassContainer,
     h_framebuffer: GpuFrameBuffer,
     v_framebuffer: GpuFrameBuffer,
     width: usize,
@@ -67,10 +66,6 @@ impl GaussianBlur {
         pixel_kind: PixelKind,
     ) -> Result<Self, FrameworkError> {
         Ok(Self {
-            shader: RenderPassContainer::from_str(
-                server,
-                include_str!("../shaders/gaussian_blur.shader"),
-            )?,
             h_framebuffer: create_framebuffer(server, width, height, pixel_kind)?,
             v_framebuffer: create_framebuffer(server, width, height, pixel_kind)?,
             width,
@@ -113,7 +108,7 @@ impl GaussianBlur {
                 binding("properties", &properties),
             ]);
 
-            stats += self.shader.run_pass(
+            stats += renderer_resources.shaders.gaussian_blur.run_pass(
                 1,
                 &ImmutableString::new("Primary"),
                 framebuffer,

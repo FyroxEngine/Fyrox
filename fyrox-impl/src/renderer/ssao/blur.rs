@@ -23,7 +23,7 @@ use crate::{
     core::{math::Rect, ImmutableString},
     renderer::{
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
         },
         framework::{
@@ -37,7 +37,6 @@ use crate::{
 };
 
 pub struct Blur {
-    program: RenderPassContainer,
     framebuffer: GpuFrameBuffer,
     width: usize,
     height: usize,
@@ -50,10 +49,7 @@ impl Blur {
         height: usize,
     ) -> Result<Self, FrameworkError> {
         let frame = server.create_2d_render_target(PixelKind::R32F, width, height)?;
-        let program =
-            RenderPassContainer::from_str(server, include_str!("../shaders/blur.shader"))?;
         Ok(Self {
-            program,
             framebuffer: server.create_frame_buffer(None, vec![Attachment::color(frame)])?,
             width,
             height,
@@ -82,7 +78,7 @@ impl Blur {
             binding("properties", &properties),
         ]);
 
-        self.program.run_pass(
+        renderer_resources.shaders.box_blur.run_pass(
             1,
             &ImmutableString::new("Primary"),
             &self.framebuffer,

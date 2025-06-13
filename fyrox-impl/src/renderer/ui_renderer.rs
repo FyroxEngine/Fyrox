@@ -37,9 +37,7 @@ use crate::{
     renderer::{
         bundle::{self, make_texture_binding},
         cache::{
-            shader::{
-                binding, property, PropertyGroup, RenderMaterial, RenderPassContainer, ShaderCache,
-            },
+            shader::{binding, property, PropertyGroup, RenderMaterial, ShaderCache},
             uniform::UniformBufferCache,
         },
         framework::{
@@ -69,7 +67,6 @@ use uuid::Uuid;
 
 /// User interface renderer allows you to render drawing context in specified render target.
 pub struct UiRenderer {
-    render_passes: RenderPassContainer,
     geometry_buffer: GpuGeometryBuffer,
     clipping_geometry_buffer: GpuGeometryBuffer,
 }
@@ -267,10 +264,6 @@ impl UiRenderer {
             geometry_buffer: server.create_geometry_buffer(geometry_buffer_desc)?,
             clipping_geometry_buffer: server
                 .create_geometry_buffer(clipping_geometry_buffer_desc)?,
-            render_passes: RenderPassContainer::from_str(
-                server,
-                include_str!("../../../fyrox-material/src/shader/standard/widget.shader"),
-            )?,
         })
     }
 
@@ -344,7 +337,7 @@ impl UiRenderer {
                 // Draw
                 let properties = PropertyGroup::from([property("worldViewProjection", &ortho)]);
                 let material = RenderMaterial::from([binding("properties", &properties)]);
-                statistics += self.render_passes.run_pass(
+                statistics += renderer_resources.shaders.ui.run_pass(
                     1,
                     &ImmutableString::new("Clip"),
                     frame_buffer,

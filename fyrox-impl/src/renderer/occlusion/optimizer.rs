@@ -23,7 +23,7 @@ use crate::{
     core::{color::Color, math::Rect, ImmutableString},
     renderer::{
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
         },
         framework::{
@@ -41,7 +41,7 @@ use crate::{
 pub struct VisibilityBufferOptimizer {
     framebuffer: GpuFrameBuffer,
     pixel_buffer: GpuAsyncReadBuffer,
-    shader: RenderPassContainer,
+
     w_tiles: usize,
     h_tiles: usize,
 }
@@ -59,10 +59,6 @@ impl VisibilityBufferOptimizer {
             framebuffer: server
                 .create_frame_buffer(None, vec![Attachment::color(optimized_visibility_buffer)])?,
             pixel_buffer: server.create_async_read_buffer(size_of::<u32>(), w_tiles * h_tiles)?,
-            shader: RenderPassContainer::from_str(
-                server,
-                include_str!("../shaders/visibility_optimizer.shader"),
-            )?,
             w_tiles,
             h_tiles,
         })
@@ -103,7 +99,7 @@ impl VisibilityBufferOptimizer {
             binding("properties", &properties),
         ]);
 
-        stats += self.shader.run_pass(
+        stats += renderer_resources.shaders.visibility_optimizer.run_pass(
             1,
             &ImmutableString::new("Primary"),
             &self.framebuffer,

@@ -20,13 +20,15 @@
 
 //! A set of textures of certain kinds. See [`RendererResources`] docs for more info.
 
-use crate::renderer::framework::GeometryBufferExt;
-use crate::scene::mesh::surface::SurfaceData;
-use fyrox_core::{algebra::Matrix4, array_as_u8_slice};
-use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
+use crate::{
+    core::{algebra::Matrix4, array_as_u8_slice},
+    renderer::{cache::shader::RenderPassContainer, framework::GeometryBufferExt},
+    scene::mesh::surface::SurfaceData,
+};
 use fyrox_graphics::{
     buffer::{BufferKind, BufferUsage, GpuBuffer},
     error::FrameworkError,
+    geometry_buffer::GpuGeometryBuffer,
     gpu_program::SamplerFallback,
     gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
     sampler::{
@@ -35,6 +37,142 @@ use fyrox_graphics::{
     server::GraphicsServer,
 };
 use fyrox_material::shader::ShaderDefinition;
+
+/// A set of standard shaders used by the engine.
+pub struct ShadersContainer {
+    /// A shader that is used to draw deferred decals.
+    pub decal: RenderPassContainer,
+    /// A spotlight shader for deferred renderer.
+    pub spot_light: RenderPassContainer,
+    /// A point light shader for deferred renderer.
+    pub point_light: RenderPassContainer,
+    /// A directional light shader for deferred renderer.
+    pub directional_light: RenderPassContainer,
+    /// A ambient light shader for deferred renderer.
+    pub ambient_light: RenderPassContainer,
+    /// A shader that is used to mark pixels affected by a light source in deferred renderer.
+    pub volume_marker_lit: RenderPassContainer,
+    /// A simple shader that is used to count pixels.
+    pub pixel_counter: RenderPassContainer,
+    /// Debug shader that is used to draw debug geometry.
+    pub debug: RenderPassContainer,
+    /// Fast approximate antialiasing shader.
+    pub fxaa: RenderPassContainer,
+    /// A shader for volumetric spotlight.
+    pub spot_light_volume: RenderPassContainer,
+    /// A shader for volumetric point light.
+    pub point_light_volume: RenderPassContainer,
+    /// A shader that is used to mark pixels affected by a light source when rendering a light
+    /// volume.
+    pub volume_marker_vol: RenderPassContainer,
+    /// A shader that packs the raw visibility buffer into an optimized version.
+    pub visibility_optimizer: RenderPassContainer,
+    /// Screen-space ambient occlusion shader.
+    pub ssao: RenderPassContainer,
+    /// A shader that is used in visibility test for occlusion culling.
+    pub visibility: RenderPassContainer,
+    /// A shader for simple image blitting.
+    pub blit: RenderPassContainer,
+    /// A shader for eye adaptation for high dynamic range rendering.
+    pub hdr_adaptation: RenderPassContainer,
+    /// A shader for frame luminance calculations for high dynamic range rendering.
+    pub hdr_luminance: RenderPassContainer,
+    /// A shader for frame luminance downscaling for high dynamic range rendering.
+    pub hdr_downscale: RenderPassContainer,
+    /// A shader for tone mapping for high dynamic range rendering.
+    pub hdr_map: RenderPassContainer,
+    /// A shader that extracts bright pixels from an image.
+    pub bloom: RenderPassContainer,
+    /// A shader that is used to render a skybox.
+    pub skybox: RenderPassContainer,
+    /// A gaussian blur shader.
+    pub gaussian_blur: RenderPassContainer,
+    /// A simple box blur shader.
+    pub box_blur: RenderPassContainer,
+    /// User interface shader.
+    pub ui: RenderPassContainer,
+}
+
+impl ShadersContainer {
+    /// Creates a new shaders container.
+    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
+        Ok(Self {
+            decal: RenderPassContainer::from_str(server, include_str!("shaders/decal.shader"))?,
+            spot_light: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/deferred_spot_light.shader"),
+            )?,
+            point_light: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/deferred_point_light.shader"),
+            )?,
+            directional_light: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/deferred_directional_light.shader"),
+            )?,
+            ambient_light: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/ambient_light.shader"),
+            )?,
+            volume_marker_lit: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/volume_marker_lit.shader"),
+            )?,
+            pixel_counter: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/pixel_counter.shader"),
+            )?,
+            debug: RenderPassContainer::from_str(server, include_str!("shaders/debug.shader"))?,
+            fxaa: RenderPassContainer::from_str(server, include_str!("shaders/fxaa.shader"))?,
+            spot_light_volume: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/spot_volumetric.shader"),
+            )?,
+            point_light_volume: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/point_volumetric.shader"),
+            )?,
+            volume_marker_vol: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/volume_marker_vol.shader"),
+            )?,
+            visibility_optimizer: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/visibility_optimizer.shader"),
+            )?,
+            ssao: RenderPassContainer::from_str(server, include_str!("shaders/ssao.shader"))?,
+            visibility: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/visibility.shader"),
+            )?,
+            blit: RenderPassContainer::from_str(server, include_str!("shaders/blit.shader"))?,
+            hdr_adaptation: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/hdr_adaptation.shader"),
+            )?,
+            hdr_luminance: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/hdr_luminance.shader"),
+            )?,
+            hdr_downscale: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/hdr_downscale.shader"),
+            )?,
+            hdr_map: RenderPassContainer::from_str(server, include_str!("shaders/hdr_map.shader"))?,
+            bloom: RenderPassContainer::from_str(server, include_str!("shaders/bloom.shader"))?,
+            skybox: RenderPassContainer::from_str(server, include_str!("shaders/skybox.shader"))?,
+            gaussian_blur: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/gaussian_blur.shader"),
+            )?,
+            box_blur: RenderPassContainer::from_str(server, include_str!("shaders/blur.shader"))?,
+            ui: RenderPassContainer::from_str(
+                server,
+                include_str!("../../../fyrox-material/src/shader/standard/widget.shader"),
+            )?,
+        })
+    }
+}
 
 /// A set of textures of certain kinds that could be used as a stub in cases when you don't have
 /// your own texture of this kind.
@@ -70,6 +208,8 @@ pub struct RendererResources {
     pub quad: GpuGeometryBuffer,
     /// Unit cube centered around the origin.
     pub cube: GpuGeometryBuffer,
+    /// A set of standard shaders used by the engine.
+    pub shaders: ShadersContainer,
 }
 
 impl RendererResources {
@@ -190,6 +330,7 @@ impl RendererResources {
                 BufferUsage::StaticDraw,
                 server,
             )?,
+            shaders: ShadersContainer::new(server)?,
         })
     }
 

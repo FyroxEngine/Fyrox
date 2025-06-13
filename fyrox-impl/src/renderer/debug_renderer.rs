@@ -32,7 +32,7 @@ use crate::{
     },
     renderer::{
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
         },
         framework::{
@@ -45,6 +45,7 @@ use crate::{
             },
             server::GraphicsServer,
         },
+        resources::RendererResources,
         RenderPassStatistics,
     },
     scene::debug::Line,
@@ -63,7 +64,6 @@ pub struct DebugRenderer {
     geometry: GpuGeometryBuffer,
     vertices: Vec<Vertex>,
     line_indices: Vec<[u32; 2]>,
-    shader: RenderPassContainer,
 }
 
 /// "Draws" a rectangle into a list of lines.
@@ -111,7 +111,6 @@ impl DebugRenderer {
 
         Ok(Self {
             geometry: server.create_geometry_buffer(desc)?,
-            shader: RenderPassContainer::from_str(server, include_str!("shaders/debug.shader"))?,
             vertices: Default::default(),
             line_indices: Default::default(),
         })
@@ -146,13 +145,14 @@ impl DebugRenderer {
         viewport: Rect<i32>,
         framebuffer: &GpuFrameBuffer,
         view_projection: Matrix4<f32>,
+        renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 
         let properties = PropertyGroup::from([property("worldViewProjection", &view_projection)]);
         let material = RenderMaterial::from([binding("properties", &properties)]);
 
-        statistics += self.shader.run_pass(
+        statistics += renderer_resources.shaders.debug.run_pass(
             1,
             &ImmutableString::new("Primary"),
             framebuffer,

@@ -28,7 +28,7 @@ use crate::{
     },
     renderer::{
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            shader::{binding, property, PropertyGroup, RenderMaterial},
             texture::TextureCache,
             uniform::UniformBufferCache,
         },
@@ -90,10 +90,6 @@ pub struct HighDynamicRangeRenderer {
     adaptation_chain: AdaptationChain,
     downscale_chain: [LumBuffer; 6],
     frame_luminance: LumBuffer,
-    adaptation_shader: RenderPassContainer,
-    luminance_shader: RenderPassContainer,
-    downscale_shader: RenderPassContainer,
-    map_shader: RenderPassContainer,
     stub_lut: GpuTexture,
     lum_calculation_method: LuminanceCalculationMethod,
 }
@@ -111,22 +107,6 @@ impl HighDynamicRangeRenderer {
                 LumBuffer::new(server, 1)?,
             ],
             adaptation_chain: AdaptationChain::new(server)?,
-            adaptation_shader: RenderPassContainer::from_str(
-                server,
-                include_str!("../shaders/hdr_adaptation.shader"),
-            )?,
-            luminance_shader: RenderPassContainer::from_str(
-                server,
-                include_str!("../shaders/hdr_luminance.shader"),
-            )?,
-            downscale_shader: RenderPassContainer::from_str(
-                server,
-                include_str!("../shaders/hdr_downscale.shader"),
-            )?,
-            map_shader: RenderPassContainer::from_str(
-                server,
-                include_str!("../shaders/hdr_map.shader"),
-            )?,
             stub_lut: server.create_texture(GpuTextureDescriptor {
                 kind: GpuTextureKind::Volume {
                     width: 1,
@@ -164,7 +144,7 @@ impl HighDynamicRangeRenderer {
             binding("properties", &properties),
         ]);
 
-        self.luminance_shader.run_pass(
+        renderer_resources.shaders.hdr_luminance.run_pass(
             1,
             &ImmutableString::new("Primary"),
             &self.frame_luminance.framebuffer,
@@ -236,7 +216,7 @@ impl HighDynamicRangeRenderer {
                         binding("properties", &properties),
                     ]);
 
-                    stats += self.downscale_shader.run_pass(
+                    stats += renderer_resources.shaders.hdr_downscale.run_pass(
                         1,
                         &ImmutableString::new("Primary"),
                         &lum_buffer.framebuffer,
@@ -286,7 +266,7 @@ impl HighDynamicRangeRenderer {
             binding("properties", &properties),
         ]);
 
-        self.adaptation_shader.run_pass(
+        renderer_resources.shaders.hdr_adaptation.run_pass(
             1,
             &ImmutableString::new("Primary"),
             &ctx.lum_buffer.framebuffer,
@@ -362,7 +342,7 @@ impl HighDynamicRangeRenderer {
             binding("properties", &properties),
         ]);
 
-        self.map_shader.run_pass(
+        renderer_resources.shaders.hdr_map.run_pass(
             1,
             &ImmutableString::new("Primary"),
             ldr_framebuffer,

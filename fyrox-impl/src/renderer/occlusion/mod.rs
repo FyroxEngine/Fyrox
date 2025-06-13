@@ -35,7 +35,7 @@ use crate::{
     },
     graph::BaseSceneGraph,
     renderer::{
-        cache::shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+        cache::shader::{binding, property, PropertyGroup, RenderMaterial},
         cache::uniform::UniformBufferCache,
         debug_renderer::{self, DebugRenderer},
         framework::{
@@ -46,7 +46,6 @@ use crate::{
             gpu_texture::{GpuTextureKind, PixelKind},
             server::GraphicsServer,
             stats::RenderPassStatistics,
-            GeometryBufferExt,
         },
         occlusion::{
             grid::{GridCache, Visibility},
@@ -63,7 +62,6 @@ pub struct OcclusionTester {
     visibility_mask: GpuTexture,
     tile_buffer: GpuTexture,
     frame_size: Vector2<usize>,
-    shader: RenderPassContainer,
     tile_size: usize,
     w_tiles: usize,
     h_tiles: usize,
@@ -143,10 +141,6 @@ impl OcclusionTester {
             )?,
             visibility_mask,
             frame_size: Vector2::new(width, height),
-            shader: RenderPassContainer::from_str(
-                server,
-                include_str!("../shaders/visibility.shader"),
-            )?,
             tile_size,
             w_tiles,
             tile_buffer,
@@ -379,7 +373,7 @@ impl OcclusionTester {
             binding("properties", &properties),
         ]);
 
-        stats += self.shader.run_pass(
+        stats += renderer_resources.shaders.visibility.run_pass(
             self.objects_to_test.len(),
             &ImmutableString::new("Primary"),
             &self.framebuffer,

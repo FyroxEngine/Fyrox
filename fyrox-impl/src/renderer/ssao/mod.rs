@@ -29,7 +29,7 @@ use crate::{
     rand::Rng,
     renderer::{
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
         },
         framework::{
@@ -55,7 +55,6 @@ const NOISE_SIZE: usize = 4;
 
 pub struct ScreenSpaceAmbientOcclusionRenderer {
     blur: Blur,
-    program: RenderPassContainer,
     framebuffer: GpuFrameBuffer,
     width: i32,
     height: i32,
@@ -81,7 +80,6 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
         Ok(Self {
             blur: Blur::new(server, width, height)?,
-            program: RenderPassContainer::from_str(server, include_str!("../shaders/ssao.shader"))?,
             framebuffer: server.create_frame_buffer(None, vec![Attachment::color(occlusion)])?,
             width: width as i32,
             height: height as i32,
@@ -194,7 +192,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             binding("properties", &properties),
         ]);
 
-        stats += self.program.run_pass(
+        stats += renderer_resources.shaders.ssao.run_pass(
             1,
             &ImmutableString::new("Primary"),
             &self.framebuffer,

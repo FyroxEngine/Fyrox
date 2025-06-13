@@ -18,33 +18,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::resources::RendererResources;
 use crate::{
     core::{algebra::Vector2, math::Rect, sstorage::ImmutableString},
     renderer::{
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
         },
-        framework::{
-            error::FrameworkError, framebuffer::GpuFrameBuffer, gpu_texture::GpuTexture,
-            server::GraphicsServer,
-        },
-        make_viewport_matrix, RenderPassStatistics,
+        framework::{error::FrameworkError, framebuffer::GpuFrameBuffer, gpu_texture::GpuTexture},
+        make_viewport_matrix,
+        resources::RendererResources,
+        RenderPassStatistics,
     },
 };
 
-pub struct FxaaRenderer {
-    shader: RenderPassContainer,
-}
+#[derive(Default)]
+pub struct FxaaRenderer {}
 
 impl FxaaRenderer {
-    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        Ok(Self {
-            shader: RenderPassContainer::from_str(server, include_str!("shaders/fxaa.shader"))?,
-        })
-    }
-
     pub(crate) fn render(
         &self,
         viewport: Rect<i32>,
@@ -70,7 +61,7 @@ impl FxaaRenderer {
             binding("properties", &properties),
         ]);
 
-        statistics += self.shader.run_pass(
+        statistics += renderer_resources.shaders.fxaa.run_pass(
             1,
             &ImmutableString::new("Primary"),
             frame_buffer,

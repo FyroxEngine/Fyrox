@@ -24,7 +24,7 @@ use crate::{
     renderer::{
         bloom::blur::GaussianBlur,
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
         },
         framework::{
@@ -40,7 +40,6 @@ use crate::{
 mod blur;
 
 pub struct BloomRenderer {
-    shader: RenderPassContainer,
     framebuffer: GpuFrameBuffer,
     blur: GaussianBlur,
     width: usize,
@@ -54,7 +53,6 @@ impl BloomRenderer {
         height: usize,
     ) -> Result<Self, FrameworkError> {
         Ok(Self {
-            shader: RenderPassContainer::from_str(server, include_str!("../shaders/bloom.shader"))?,
             blur: GaussianBlur::new(server, width, height, PixelKind::RGBA16F)?,
             framebuffer: server.create_frame_buffer(
                 None,
@@ -97,7 +95,7 @@ impl BloomRenderer {
             binding("properties", &properties),
         ]);
 
-        stats += self.shader.run_pass(
+        stats += renderer_resources.shaders.bloom.run_pass(
             1,
             &ImmutableString::new("Primary"),
             &self.framebuffer,

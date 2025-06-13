@@ -334,14 +334,12 @@ pub struct Renderer {
     backbuffer: GpuFrameBuffer,
     scene_render_passes: Vec<Rc<RefCell<dyn SceneRenderPass>>>,
     deferred_light_renderer: DeferredLightRenderer,
-    blit_shader: RenderPassContainer,
     /// A set of textures of certain kinds that could be used as a stub in cases when you don't have
     /// your own texture of this kind.
     pub renderer_resources: RendererResources,
     /// User interface renderer.
     pub ui_renderer: UiRenderer,
     statistics: Statistics,
-
     frame_size: (u32, u32),
     quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
@@ -605,10 +603,7 @@ impl Renderer {
             backbuffer: server.back_buffer(),
             frame_size,
             deferred_light_renderer: DeferredLightRenderer::new(&*server, frame_size, &settings)?,
-            blit_shader: RenderPassContainer::from_str(
-                &*server,
-                include_str!("shaders/blit.shader"),
-            )?,
+
             renderer_resources: RendererResources::new(&*server)?,
             ui_renderer: UiRenderer::new(&*server)?,
             quality_settings: settings,
@@ -620,7 +615,7 @@ impl Renderer {
             geometry_cache: Default::default(),
             forward_renderer: ForwardRenderer::new(),
             ui_frame_buffers: Default::default(),
-            fxaa_renderer: FxaaRenderer::new(&*server)?,
+            fxaa_renderer: FxaaRenderer::default(),
             statistics: Statistics::default(),
             shader_event_receiver,
             texture_event_receiver,
@@ -1084,7 +1079,7 @@ impl Renderer {
             &mut self.uniform_buffer_cache,
             &render_data.ldr_scene_framebuffer,
             render_data.ldr_temp_frame_texture(src_buf),
-            &self.blit_shader,
+            &self.renderer_resources.shaders.blit,
             observer.viewport,
             &self.renderer_resources,
         )?;
@@ -1096,6 +1091,7 @@ impl Renderer {
             observer.viewport,
             &render_data.ldr_scene_framebuffer,
             observer.position.view_projection_matrix,
+            &self.renderer_resources,
         )?;
 
         for render_pass in self.scene_render_passes.iter() {
@@ -1235,7 +1231,7 @@ impl Renderer {
                 &mut self.uniform_buffer_cache,
                 &self.backbuffer,
                 scene_render_data.scene_data.ldr_scene_frame_texture(),
-                &self.blit_shader,
+                &self.renderer_resources.shaders.blit,
                 window_viewport,
                 &self.renderer_resources,
             )?;
@@ -1316,6 +1312,7 @@ impl Renderer {
             window_viewport,
             &self.backbuffer,
             screen_matrix,
+            &self.renderer_resources,
         )?;
 
         self.statistics.geometry_cache_size = self.geometry_cache.alive_count();

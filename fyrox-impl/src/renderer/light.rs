@@ -32,9 +32,7 @@ use crate::{
     renderer::{
         bundle::{LightSourceKind, RenderDataBundleStorage},
         cache::{
-            shader::{
-                binding, property, PropertyGroup, RenderMaterial, RenderPassContainer, ShaderCache,
-            },
+            shader::{binding, property, PropertyGroup, RenderMaterial, ShaderCache},
             uniform::{UniformBufferCache, UniformMemoryAllocator},
         },
         framework::{
@@ -68,20 +66,13 @@ use fyrox_graphics::gpu_texture::GpuTexture;
 
 pub struct DeferredLightRenderer {
     pub ssao_renderer: ScreenSpaceAmbientOcclusionRenderer,
-    spot_light_shader: RenderPassContainer,
-    point_light_shader: RenderPassContainer,
-    directional_light_shader: RenderPassContainer,
-    ambient_light_shader: RenderPassContainer,
     sphere: GpuGeometryBuffer,
     cone: GpuGeometryBuffer,
     skybox: GpuGeometryBuffer,
-    skybox_shader: RenderPassContainer,
     spot_shadow_map_renderer: SpotShadowMapRenderer,
     point_shadow_map_renderer: PointShadowMapRenderer,
     csm_renderer: CsmRenderer,
     light_volume: LightVolumeRenderer,
-    volume_marker: RenderPassContainer,
-    pixel_counter: RenderPassContainer,
     brdf_lut: GpuTexture,
 }
 
@@ -152,22 +143,6 @@ impl DeferredLightRenderer {
                 frame_size.0 as usize,
                 frame_size.1 as usize,
             )?,
-            spot_light_shader: RenderPassContainer::from_str(
-                server,
-                include_str!("shaders/deferred_spot_light.shader"),
-            )?,
-            point_light_shader: RenderPassContainer::from_str(
-                server,
-                include_str!("shaders/deferred_point_light.shader"),
-            )?,
-            directional_light_shader: RenderPassContainer::from_str(
-                server,
-                include_str!("shaders/deferred_directional_light.shader"),
-            )?,
-            ambient_light_shader: RenderPassContainer::from_str(
-                server,
-                include_str!("shaders/ambient_light.shader"),
-            )?,
             skybox: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::new(
                     VertexBuffer::new(vertices.len(), vertices).unwrap(),
@@ -204,10 +179,6 @@ impl DeferredLightRenderer {
                 BufferUsage::StaticDraw,
                 server,
             )?,
-            skybox_shader: RenderPassContainer::from_str(
-                server,
-                include_str!("shaders/skybox.shader"),
-            )?,
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(
                 server,
                 settings.spot_shadow_map_size,
@@ -223,14 +194,6 @@ impl DeferredLightRenderer {
                 server,
                 quality_defaults.csm_settings.size,
                 quality_defaults.csm_settings.precision,
-            )?,
-            volume_marker: RenderPassContainer::from_str(
-                server,
-                include_str!("shaders/volume_marker_lit.shader"),
-            )?,
-            pixel_counter: RenderPassContainer::from_str(
-                server,
-                include_str!("shaders/pixel_counter.shader"),
             )?,
             brdf_lut: make_brdf_lut(server, 256, 256)?,
         })
@@ -360,7 +323,7 @@ impl DeferredLightRenderer {
                     binding("properties", &properties),
                 ]);
 
-                pass_stats += self.skybox_shader.run_pass(
+                pass_stats += renderer_resources.shaders.skybox.run_pass(
                     1,
                     &ImmutableString::new("Primary"),
                     frame_buffer,
@@ -455,7 +418,7 @@ impl DeferredLightRenderer {
             binding("properties", &properties),
         ]);
 
-        pass_stats += self.ambient_light_shader.run_pass(
+        pass_stats += renderer_resources.shaders.ambient_light.run_pass(
             1,
             &ImmutableString::new("Primary"),
             frame_buffer,
@@ -600,7 +563,7 @@ impl DeferredLightRenderer {
                 let properties =
                     PropertyGroup::from([property("worldViewProjection", &shape_wvp_matrix)]);
                 let material = RenderMaterial::from([binding("properties", &properties)]);
-                pass_stats += self.volume_marker.run_pass(
+                pass_stats += renderer_resources.shaders.volume_marker_lit.run_pass(
                     1,
                     &ImmutableString::new("Primary"),
                     frame_buffer,
@@ -634,7 +597,7 @@ impl DeferredLightRenderer {
                     let properties =
                         PropertyGroup::from([property("worldViewProjection", &frame_matrix)]);
                     let material = RenderMaterial::from([binding("properties", &properties)]);
-                    pass_stats += self.pixel_counter.run_pass(
+                    pass_stats += renderer_resources.shaders.pixel_counter.run_pass(
                         1,
                         &ImmutableString::new("Primary"),
                         frame_buffer,
@@ -840,7 +803,7 @@ impl DeferredLightRenderer {
                             binding("properties", &properties),
                         ]);
 
-                        self.spot_light_shader.run_pass(
+                        renderer_resources.shaders.spot_light.run_pass(
                             1,
                             &ImmutableString::new("Primary"),
                             frame_buffer,
@@ -905,7 +868,7 @@ impl DeferredLightRenderer {
                             binding("properties", &properties),
                         ]);
 
-                        self.point_light_shader.run_pass(
+                        renderer_resources.shaders.point_light.run_pass(
                             1,
                             &ImmutableString::new("Primary"),
                             frame_buffer,
@@ -998,7 +961,7 @@ impl DeferredLightRenderer {
                             binding("properties", &properties),
                         ]);
 
-                        self.directional_light_shader.run_pass(
+                        renderer_resources.shaders.directional_light.run_pass(
                             1,
                             &ImmutableString::new("Primary"),
                             frame_buffer,

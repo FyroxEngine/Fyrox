@@ -34,9 +34,7 @@ use crate::{
     renderer::{
         bundle::{BundleRenderContext, RenderDataBundleStorage, SurfaceInstanceData},
         cache::{
-            shader::{
-                binding, property, PropertyGroup, RenderMaterial, RenderPassContainer, ShaderCache,
-            },
+            shader::{binding, property, PropertyGroup, RenderMaterial, ShaderCache},
             uniform::{UniformBufferCache, UniformMemoryAllocator},
         },
         debug_renderer::DebugRenderer,
@@ -61,7 +59,6 @@ pub struct GBuffer {
     pub width: i32,
     pub height: i32,
 
-    decal_shader: RenderPassContainer,
     render_pass_name: ImmutableString,
     occlusion_tester: OcclusionTester,
 }
@@ -129,11 +126,6 @@ impl GBuffer {
             framebuffer,
             width: width as i32,
             height: height as i32,
-            decal_shader: RenderPassContainer::from_str(
-                server,
-                include_str!("shaders/decal.shader"),
-            )?,
-
             decal_framebuffer,
             render_pass_name: ImmutableString::new("GBuffer"),
             occlusion_tester: OcclusionTester::new(server, width, height, 16)?,
@@ -318,7 +310,7 @@ impl GBuffer {
                 binding("properties", &properties),
             ]);
 
-            statistics += self.decal_shader.run_pass(
+            statistics += renderer_resources.shaders.decal.run_pass(
                 1,
                 &ImmutableString::new("Primary"),
                 &self.decal_framebuffer,

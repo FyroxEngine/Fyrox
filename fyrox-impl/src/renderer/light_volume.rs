@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::resources::RendererResources;
 use crate::{
     core::{
         algebra::{Isometry3, Matrix4, Point3, Translation, Vector3},
@@ -28,7 +27,7 @@ use crate::{
     renderer::{
         bundle::{LightSource, LightSourceKind},
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial, RenderPassContainer},
+            shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
         },
         framework::{
@@ -36,30 +35,21 @@ use crate::{
             geometry_buffer::GpuGeometryBuffer, server::GraphicsServer, GeometryBufferExt,
         },
         gbuffer::GBuffer,
-        make_viewport_matrix, RenderPassStatistics,
+        make_viewport_matrix,
+        resources::RendererResources,
+        RenderPassStatistics,
     },
     scene::{graph::Graph, mesh::surface::SurfaceData},
 };
 
 pub struct LightVolumeRenderer {
-    spot_light_shader: RenderPassContainer,
-    point_light_shader: RenderPassContainer,
     cone: GpuGeometryBuffer,
     sphere: GpuGeometryBuffer,
-    volume_marker: RenderPassContainer,
 }
 
 impl LightVolumeRenderer {
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
-            spot_light_shader: RenderPassContainer::from_str(
-                server,
-                include_str!("shaders/spot_volumetric.shader"),
-            )?,
-            point_light_shader: RenderPassContainer::from_str(
-                server,
-                include_str!("shaders/point_volumetric.shader"),
-            )?,
             cone: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_cone(
                     16,
@@ -74,10 +64,6 @@ impl LightVolumeRenderer {
                 &SurfaceData::make_sphere(8, 8, 1.0, &Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,
-            )?,
-            volume_marker: RenderPassContainer::from_str(
-                server,
-                include_str!("shaders/volume_marker_vol.shader"),
             )?,
         })
     }
@@ -134,7 +120,7 @@ impl LightVolumeRenderer {
 
                 let properties = PropertyGroup::from([property("worldViewProjection", &mvp)]);
                 let material = RenderMaterial::from([binding("properties", &properties)]);
-                stats += self.volume_marker.run_pass(
+                stats += renderer_resources.shaders.volume_marker_vol.run_pass(
                     1,
                     &ImmutableString::new("Primary"),
                     frame_buffer,
@@ -169,7 +155,7 @@ impl LightVolumeRenderer {
                     binding("properties", &properties),
                 ]);
 
-                stats += self.spot_light_shader.run_pass(
+                stats += renderer_resources.shaders.spot_light_volume.run_pass(
                     1,
                     &ImmutableString::new("Primary"),
                     frame_buffer,
@@ -194,7 +180,7 @@ impl LightVolumeRenderer {
 
                 let properties = PropertyGroup::from([property("worldViewProjection", &mvp)]);
                 let material = RenderMaterial::from([binding("properties", &properties)]);
-                stats += self.volume_marker.run_pass(
+                stats += renderer_resources.shaders.volume_marker_vol.run_pass(
                     1,
                     &ImmutableString::new("Primary"),
                     frame_buffer,
@@ -226,7 +212,7 @@ impl LightVolumeRenderer {
                     binding("properties", &properties),
                 ]);
 
-                stats += self.point_light_shader.run_pass(
+                stats += renderer_resources.shaders.point_light_volume.run_pass(
                     1,
                     &ImmutableString::new("Primary"),
                     frame_buffer,
