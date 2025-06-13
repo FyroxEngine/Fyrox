@@ -39,11 +39,9 @@ use crate::{
         cache::uniform::UniformBufferCache,
         debug_renderer::{self, DebugRenderer},
         framework::{
-            buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::Attachment,
             framebuffer::GpuFrameBuffer,
-            geometry_buffer::GpuGeometryBuffer,
             gpu_texture::GpuTexture,
             gpu_texture::{GpuTextureKind, PixelKind},
             server::GraphicsServer,
@@ -56,7 +54,7 @@ use crate::{
         },
         storage::MatrixStorage,
     },
-    scene::{graph::Graph, mesh::surface::SurfaceData, node::Node},
+    scene::{graph::Graph, node::Node},
 };
 use bytemuck::{Pod, Zeroable};
 
@@ -69,7 +67,6 @@ pub struct OcclusionTester {
     tile_size: usize,
     w_tiles: usize,
     h_tiles: usize,
-    cube: GpuGeometryBuffer,
     visibility_buffer_optimizer: VisibilityBufferOptimizer,
     matrix_storage: MatrixStorage,
     objects_to_test: Vec<Handle<Node>>,
@@ -154,11 +151,6 @@ impl OcclusionTester {
             w_tiles,
             tile_buffer,
             h_tiles,
-            cube: GpuGeometryBuffer::from_surface_data(
-                &SurfaceData::make_cube(Matrix4::identity()),
-                BufferUsage::StaticDraw,
-                server,
-            )?,
             visibility_buffer_optimizer: VisibilityBufferOptimizer::new(server, w_tiles, h_tiles)?,
             matrix_storage: MatrixStorage::new(server)?,
             objects_to_test: Default::default(),
@@ -391,7 +383,7 @@ impl OcclusionTester {
             self.objects_to_test.len(),
             &ImmutableString::new("Primary"),
             &self.framebuffer,
-            &self.cube,
+            &renderer_resources.cube,
             viewport,
             &material,
             uniform_buffer_cache,

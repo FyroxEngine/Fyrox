@@ -68,10 +68,12 @@ pub struct RendererResources {
     pub nearest_wrap_sampler: GpuSampler,
     /// Unit oXY-oriented quad.
     pub quad: GpuGeometryBuffer,
+    /// Unit cube centered around the origin.
+    pub cube: GpuGeometryBuffer,
 }
 
 impl RendererResources {
-    /// Creates a new set of fallback resources.
+    /// Creates a new set of renderer resources.
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
             white_dummy: server.create_texture(GpuTextureDescriptor {
@@ -180,6 +182,11 @@ impl RendererResources {
             })?,
             quad: GpuGeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
+                BufferUsage::StaticDraw,
+                server,
+            )?,
+            cube: GpuGeometryBuffer::from_surface_data(
+                &SurfaceData::make_cube(Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,
             )?,

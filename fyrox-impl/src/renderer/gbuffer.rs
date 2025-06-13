@@ -29,15 +29,8 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
-use crate::renderer::observer::Observer;
-use crate::renderer::resources::RendererResources;
 use crate::{
-    core::{
-        algebra::{Matrix4, Vector2},
-        color::Color,
-        math::Rect,
-        sstorage::ImmutableString,
-    },
+    core::{algebra::Vector2, color::Color, math::Rect, sstorage::ImmutableString},
     renderer::{
         bundle::{BundleRenderContext, RenderDataBundleStorage, SurfaceInstanceData},
         cache::{
@@ -48,22 +41,17 @@ use crate::{
         },
         debug_renderer::DebugRenderer,
         framework::{
-            buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{Attachment, GpuFrameBuffer},
-            geometry_buffer::GpuGeometryBuffer,
             gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
-            GeometryBufferExt,
         },
+        observer::Observer,
         occlusion::OcclusionTester,
+        resources::RendererResources,
         GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
-    scene::{
-        decal::Decal,
-        graph::Graph,
-        mesh::{surface::SurfaceData, RenderPath},
-    },
+    scene::{decal::Decal, graph::Graph, mesh::RenderPath},
 };
 use fxhash::FxHashSet;
 
@@ -72,7 +60,7 @@ pub struct GBuffer {
     decal_framebuffer: GpuFrameBuffer,
     pub width: i32,
     pub height: i32,
-    cube: GpuGeometryBuffer,
+
     decal_shader: RenderPassContainer,
     render_pass_name: ImmutableString,
     occlusion_tester: OcclusionTester,
@@ -145,11 +133,7 @@ impl GBuffer {
                 server,
                 include_str!("shaders/decal.shader"),
             )?,
-            cube: GpuGeometryBuffer::from_surface_data(
-                &SurfaceData::make_cube(Matrix4::identity()),
-                BufferUsage::StaticDraw,
-                server,
-            )?,
+
             decal_framebuffer,
             render_pass_name: ImmutableString::new("GBuffer"),
             occlusion_tester: OcclusionTester::new(server, width, height, 16)?,
@@ -279,7 +263,6 @@ impl GBuffer {
         // Render decals after because we need to modify diffuse texture of G-Buffer and use depth texture
         // for rendering. We'll render in the G-Buffer, but depth will be used from final frame, since
         // decals do not modify depth (only diffuse and normal maps).
-        let unit_cube = &self.cube;
         for decal in graph.linear_iter().filter_map(|n| n.cast::<Decal>()) {
             let world_view_proj =
                 observer.position.view_projection_matrix * decal.global_transform();
@@ -339,7 +322,7 @@ impl GBuffer {
                 1,
                 &ImmutableString::new("Primary"),
                 &self.decal_framebuffer,
-                unit_cube,
+                &renderer_resources.cube,
                 viewport,
                 &material,
                 uniform_buffer_cache,
