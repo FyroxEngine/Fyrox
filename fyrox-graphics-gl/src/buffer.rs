@@ -20,6 +20,7 @@
 
 use crate::server::GlGraphicsServer;
 use crate::ToGlConstant;
+use fyrox_graphics::buffer::GpuBufferDescriptor;
 use fyrox_graphics::{
     buffer::{BufferKind, BufferUsage, GpuBufferTrait},
     error::FrameworkError,
@@ -66,25 +67,30 @@ pub struct GlBuffer {
 impl GlBuffer {
     pub fn new(
         server: &GlGraphicsServer,
-        size_bytes: usize,
-        kind: BufferKind,
-        usage: BufferUsage,
+        desc: GpuBufferDescriptor,
     ) -> Result<Self, FrameworkError> {
+        let GpuBufferDescriptor {
+            name,
+            size,
+            kind,
+            usage,
+        } = desc;
         unsafe {
             let gl_kind = kind.into_gl();
             let gl_usage = usage.into_gl();
             let id = server.gl.create_buffer()?;
             server.gl.bind_buffer(gl_kind, Some(id));
-            if size_bytes > 0 {
-                server
-                    .gl
-                    .buffer_data_size(gl_kind, size_bytes as i32, gl_usage);
+            if server.gl.supports_debug() {
+                server.gl.object_label(glow::BUFFER, id.0.get(), Some(name));
+            }
+            if size > 0 {
+                server.gl.buffer_data_size(gl_kind, size as i32, gl_usage);
             }
             server.gl.bind_buffer(gl_kind, None);
             Ok(Self {
                 state: server.weak(),
                 id,
-                size: Cell::new(size_bytes),
+                size: Cell::new(size),
                 kind,
                 usage,
             })

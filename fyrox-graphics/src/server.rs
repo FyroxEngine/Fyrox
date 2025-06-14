@@ -24,10 +24,10 @@
 //! supported by the engine.
 
 use crate::{
-    buffer::{BufferKind, BufferUsage, GpuBuffer},
+    buffer::{GpuBuffer, GpuBufferDescriptor},
     error::FrameworkError,
     framebuffer::{Attachment, GpuFrameBuffer},
-    geometry_buffer::{GeometryBufferDescriptor, GpuGeometryBuffer},
+    geometry_buffer::{GpuGeometryBuffer, GpuGeometryBufferDescriptor},
     gpu_program::{GpuProgram, GpuShader, ShaderKind, ShaderResourceDefinition},
     gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
     query::GpuQuery,
@@ -65,12 +65,7 @@ define_as_any_trait!(GraphicsServerAsAny => GraphicsServer);
 pub trait GraphicsServer: GraphicsServerAsAny {
     /// Creates a GPU buffer with the given size and kind. Usage is a hint to the video driver
     /// that allows to perform some potential performance optimizations.
-    fn create_buffer(
-        &self,
-        size: usize,
-        buffer_kind: BufferKind,
-        buffer_usage: BufferUsage,
-    ) -> Result<GpuBuffer, FrameworkError>;
+    fn create_buffer(&self, desc: GpuBufferDescriptor) -> Result<GpuBuffer, FrameworkError>;
 
     /// Creates a new GPU texture using the given descriptor.
     fn create_texture(&self, desc: GpuTextureDescriptor) -> Result<GpuTexture, FrameworkError>;
@@ -123,6 +118,7 @@ pub trait GraphicsServer: GraphicsServerAsAny {
     /// used to read rendering result from GPU to CPU memory and save the result to disk.
     fn create_async_read_buffer(
         &self,
+        name: &str,
         pixel_size: usize,
         pixel_count: usize,
     ) -> Result<GpuAsyncReadBuffer, FrameworkError>;
@@ -132,7 +128,7 @@ pub trait GraphicsServer: GraphicsServerAsAny {
     /// GPU.
     fn create_geometry_buffer(
         &self,
-        desc: GeometryBufferDescriptor,
+        desc: GpuGeometryBufferDescriptor,
     ) -> Result<GpuGeometryBuffer, FrameworkError>;
 
     /// Creates a weak reference to the shared graphics server.

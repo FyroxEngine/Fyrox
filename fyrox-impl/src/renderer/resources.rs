@@ -25,6 +25,7 @@ use crate::{
     renderer::{cache::shader::RenderPassContainer, framework::GeometryBufferExt},
     scene::mesh::surface::SurfaceData,
 };
+use fyrox_graphics::buffer::GpuBufferDescriptor;
 use fyrox_graphics::{
     buffer::{BufferKind, BufferUsage, GpuBuffer},
     error::FrameworkError,
@@ -282,11 +283,12 @@ impl RendererResources {
                 ..Default::default()
             })?,
             bone_matrices_stub_uniform_buffer: {
-                let buffer = server.create_buffer(
-                    ShaderDefinition::MAX_BONE_MATRICES * size_of::<Matrix4<f32>>(),
-                    BufferKind::Uniform,
-                    BufferUsage::StaticDraw,
-                )?;
+                let buffer = server.create_buffer(GpuBufferDescriptor {
+                    name: "BoneMatricesStubBuffer",
+                    size: ShaderDefinition::MAX_BONE_MATRICES * size_of::<Matrix4<f32>>(),
+                    kind: BufferKind::Uniform,
+                    usage: BufferUsage::StaticDraw,
+                })?;
                 const SIZE: usize = ShaderDefinition::MAX_BONE_MATRICES * size_of::<Matrix4<f32>>();
                 let zeros = [0.0; SIZE];
                 buffer.write_data(array_as_u8_slice(&zeros))?;
@@ -327,11 +329,13 @@ impl RendererResources {
                 ..Default::default()
             })?,
             quad: GpuGeometryBuffer::from_surface_data(
+                "UnitQuad",
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
                 server,
             )?,
             cube: GpuGeometryBuffer::from_surface_data(
+                "UnitCube",
                 &SurfaceData::make_cube(Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,

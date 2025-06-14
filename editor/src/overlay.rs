@@ -55,6 +55,7 @@ impl OverlayRenderPass {
     pub fn new(server: &dyn GraphicsServer) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
             quad: GpuGeometryBuffer::from_surface_data(
+                "Quad",
                 &SurfaceData::make_collapsed_xy_quad(),
                 BufferUsage::StaticDraw,
                 server,

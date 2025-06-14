@@ -45,8 +45,8 @@ use crate::{
             error::FrameworkError,
             framebuffer::GpuFrameBuffer,
             geometry_buffer::{
-                AttributeDefinition, AttributeKind, ElementsDescriptor, GeometryBufferDescriptor,
-                GpuGeometryBuffer, VertexBufferData, VertexBufferDescriptor,
+                AttributeDefinition, AttributeKind, ElementsDescriptor, GpuGeometryBuffer,
+                GpuGeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
             },
             server::GraphicsServer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
@@ -212,7 +212,8 @@ fn write_uniform_blocks(
 
 impl UiRenderer {
     pub(in crate::renderer) fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let geometry_buffer_desc = GeometryBufferDescriptor {
+        let geometry_buffer_desc = GpuGeometryBufferDescriptor {
+            name: "UiGeometryBuffer",
             elements: ElementsDescriptor::Triangles(&[]),
             buffers: &[VertexBufferDescriptor {
                 usage: BufferUsage::DynamicDraw,
@@ -244,7 +245,8 @@ impl UiRenderer {
             usage: BufferUsage::DynamicDraw,
         };
 
-        let clipping_geometry_buffer_desc = GeometryBufferDescriptor {
+        let clipping_geometry_buffer_desc = GpuGeometryBufferDescriptor {
+            name: "UiClippingGeometryBuffer",
             elements: ElementsDescriptor::Triangles(&[]),
             buffers: &[VertexBufferDescriptor {
                 usage: BufferUsage::DynamicDraw,

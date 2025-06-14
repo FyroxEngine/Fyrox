@@ -140,6 +140,7 @@ impl DeferredLightRenderer {
 
         Ok(Self {
             skybox: GpuGeometryBuffer::from_surface_data(
+                "SkyBox",
                 &SurfaceData::new(
                     VertexBuffer::new(vertices.len(), vertices).unwrap(),
                     TriangleBuffer::new(vec![
@@ -161,11 +162,13 @@ impl DeferredLightRenderer {
                 server,
             )?,
             sphere: GpuGeometryBuffer::from_surface_data(
+                "Sphere",
                 &SurfaceData::make_sphere(10, 10, 1.0, &Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,
             )?,
             cone: GpuGeometryBuffer::from_surface_data(
+                "Cone",
                 &SurfaceData::make_cone(
                     16,
                     0.5,

@@ -51,6 +51,7 @@ impl LightVolumeRenderer {
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
             cone: GpuGeometryBuffer::from_surface_data(
+                "Cone",
                 &SurfaceData::make_cone(
                     16,
                     1.0,
@@ -61,6 +62,7 @@ impl LightVolumeRenderer {
                 server,
             )?,
             sphere: GpuGeometryBuffer::from_surface_data(
+                "Sphere",
                 &SurfaceData::make_sphere(8, 8, 1.0, &Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,

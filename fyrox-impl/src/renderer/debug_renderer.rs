@@ -40,8 +40,8 @@ use crate::{
             error::FrameworkError,
             framebuffer::GpuFrameBuffer,
             geometry_buffer::{
-                AttributeDefinition, AttributeKind, ElementsDescriptor, GeometryBufferDescriptor,
-                GpuGeometryBuffer, VertexBufferData, VertexBufferDescriptor,
+                AttributeDefinition, AttributeKind, ElementsDescriptor, GpuGeometryBuffer,
+                GpuGeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
             },
             server::GraphicsServer,
         },
@@ -84,7 +84,8 @@ pub fn draw_rect(rect: &Rect<f32>, lines: &mut Vec<Line>, color: Color) {
 
 impl DebugRenderer {
     pub(crate) fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let desc = GeometryBufferDescriptor {
+        let desc = GpuGeometryBufferDescriptor {
+            name: "DebugGeometryBuffer",
             elements: ElementsDescriptor::Lines(&[]),
             buffers: &[VertexBufferDescriptor {
                 usage: BufferUsage::DynamicDraw,

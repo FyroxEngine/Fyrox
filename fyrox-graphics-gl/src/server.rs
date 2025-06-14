@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::buffer::GlBuffer;
 use crate::{
+    buffer::GlBuffer,
     framebuffer::GlFrameBuffer,
     geometry_buffer::GlGeometryBuffer,
     program::{GlProgram, GlShader},
@@ -30,11 +30,11 @@ use crate::{
     ToGlConstant,
 };
 use fyrox_graphics::{
-    buffer::{BufferKind, BufferUsage, GpuBuffer},
+    buffer::{GpuBuffer, GpuBufferDescriptor},
     core::{color::Color, log::Log, math::Rect},
     error::FrameworkError,
     framebuffer::{Attachment, GpuFrameBuffer},
-    geometry_buffer::{GeometryBufferDescriptor, GpuGeometryBuffer},
+    geometry_buffer::{GpuGeometryBuffer, GpuGeometryBufferDescriptor},
     gpu_program::{GpuProgram, GpuShader, ShaderKind, ShaderResourceDefinition},
     gpu_texture::{GpuTexture, GpuTextureDescriptor},
     query::GpuQuery,
@@ -1001,18 +1001,8 @@ impl GlGraphicsServer {
 }
 
 impl GraphicsServer for GlGraphicsServer {
-    fn create_buffer(
-        &self,
-        size: usize,
-        buffer_kind: BufferKind,
-        buffer_usage: BufferUsage,
-    ) -> Result<GpuBuffer, FrameworkError> {
-        Ok(GpuBuffer(Rc::new(GlBuffer::new(
-            self,
-            size,
-            buffer_kind,
-            buffer_usage,
-        )?)))
+    fn create_buffer(&self, desc: GpuBufferDescriptor) -> Result<GpuBuffer, FrameworkError> {
+        Ok(GpuBuffer(Rc::new(GlBuffer::new(self, desc)?)))
     }
 
     fn create_texture(&self, desc: GpuTextureDescriptor) -> Result<GpuTexture, FrameworkError> {
@@ -1083,11 +1073,13 @@ impl GraphicsServer for GlGraphicsServer {
 
     fn create_async_read_buffer(
         &self,
+        name: &str,
         pixel_size: usize,
         pixel_count: usize,
     ) -> Result<GpuAsyncReadBuffer, FrameworkError> {
         Ok(GpuAsyncReadBuffer(Rc::new(GlAsyncReadBuffer::new(
             self,
+            name,
             pixel_size,
             pixel_count,
         )?)))
@@ -1095,7 +1087,7 @@ impl GraphicsServer for GlGraphicsServer {
 
     fn create_geometry_buffer(
         &self,
-        desc: GeometryBufferDescriptor,
+        desc: GpuGeometryBufferDescriptor,
     ) -> Result<GpuGeometryBuffer, FrameworkError> {
         Ok(GpuGeometryBuffer(Rc::new(GlGeometryBuffer::new(
             self, desc,

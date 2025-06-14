@@ -26,6 +26,13 @@ use crate::error::FrameworkError;
 use bytemuck::Pod;
 use fyrox_core::{array_as_u8_slice, array_as_u8_slice_mut, define_as_any_trait};
 
+pub struct GpuBufferDescriptor<'a> {
+    pub name: &'a str,
+    pub size: usize,
+    pub kind: BufferKind,
+    pub usage: BufferUsage,
+}
+
 /// GPU buffer kind.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum BufferKind {

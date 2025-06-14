@@ -45,8 +45,14 @@ fn create_geometry_buffer(
     data: &SurfaceData,
     server: &dyn GraphicsServer,
 ) -> Result<SurfaceRenderData, FrameworkError> {
-    let geometry_buffer =
-        GpuGeometryBuffer::from_surface_data(data, BufferUsage::StaticDraw, server)?;
+    let geometry_buffer = GpuGeometryBuffer::from_surface_data(
+        // TODO: It might be worth to add more informative name using a combination of the name of
+        // the parent scene node, surface index.
+        "GeometryBuffer",
+        data,
+        BufferUsage::StaticDraw,
+        server,
+    )?;
 
     Ok(SurfaceRenderData {
         buffer: geometry_buffer,

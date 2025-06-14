@@ -29,7 +29,7 @@ use crate::renderer::framework::{
     uniform::{ByteStorage, DynamicUniformBuffer, UniformBuffer},
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::buffer::GpuBuffer;
+use fyrox_graphics::buffer::{GpuBuffer, GpuBufferDescriptor};
 use fyrox_graphics::server::SharedGraphicsServer;
 use std::cell::RefCell;
 
@@ -54,8 +54,12 @@ impl UniformBufferSet {
             self.free += 1;
             Ok(buffer.clone())
         } else {
-            let buffer =
-                server.create_buffer(size, BufferKind::Uniform, BufferUsage::StreamCopy)?;
+            let buffer = server.create_buffer(GpuBufferDescriptor {
+                name: &format!("UniformBuffer{}", self.buffers.len()),
+                size,
+                kind: BufferKind::Uniform,
+                usage: BufferUsage::StreamCopy,
+            })?;
             self.buffers.push(buffer);
             self.free = self.buffers.len();
             Ok(self.buffers.last().unwrap().clone())
@@ -203,11 +207,12 @@ impl UniformMemoryAllocator {
     pub fn upload(&mut self, server: &dyn GraphicsServer) -> Result<(), FrameworkError> {
         if self.gpu_buffers.len() < self.pages.len() {
             for _ in 0..(self.pages.len() - self.gpu_buffers.len()) {
-                let buffer = server.create_buffer(
-                    self.max_uniform_buffer_size,
-                    BufferKind::Uniform,
-                    BufferUsage::StreamCopy,
-                )?;
+                let buffer = server.create_buffer(GpuBufferDescriptor {
+                    name: &format!("UniformMemoryPage{}", self.gpu_buffers.len()),
+                    size: self.max_uniform_buffer_size,
+                    kind: BufferKind::Uniform,
+                    usage: BufferUsage::StreamCopy,
+                })?;
                 self.gpu_buffers.push(buffer);
             }
         }

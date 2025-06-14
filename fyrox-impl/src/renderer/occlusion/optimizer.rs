@@ -62,7 +62,11 @@ impl VisibilityBufferOptimizer {
         Ok(Self {
             framebuffer: server
                 .create_frame_buffer(None, vec![Attachment::color(optimized_visibility_buffer)])?,
-            pixel_buffer: server.create_async_read_buffer(size_of::<u32>(), w_tiles * h_tiles)?,
+            pixel_buffer: server.create_async_read_buffer(
+                "OcclusionReadBuffer",
+                size_of::<u32>(),
+                w_tiles * h_tiles,
+            )?,
             w_tiles,
             h_tiles,
         })
