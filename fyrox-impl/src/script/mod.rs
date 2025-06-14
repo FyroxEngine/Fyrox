@@ -65,7 +65,7 @@ pub type DynamicTypeId = i64;
 /// Use `#[derive(ScriptMessagePayload)]` to implement this trait:
 ///
 /// ```rust
-///     use fyrox::script::ScriptMessagePayload;
+///     use fyrox_impl::script::ScriptMessagePayload;
 ///     #[derive(Debug, ScriptMessagePayload)]
 ///     struct MyStruct {
 ///     }
