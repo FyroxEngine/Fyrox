@@ -272,6 +272,12 @@ impl ResourceManager {
         self.state().resource_path(resource)
     }
 
+    /// Tries to fetch a resource path associated with the given UUID. Returns [`None`] if there's
+    /// no resource with the given UUID.
+    pub fn uuid_to_resource_path(&self, resource_uuid: Uuid) -> Option<PathBuf> {
+        self.state().uuid_to_resource_path(resource_uuid)
+    }
+
     /// Same as [`Self::request`], but returns untyped resource.
     pub fn request_untyped<P>(&self, path: P) -> UntypedResource
     where
@@ -797,6 +803,14 @@ impl ResourceManagerState {
         } else {
             None
         }
+    }
+
+    /// Tries to fetch a resource path associated with the given UUID. Returns [`None`] if there's
+    /// no resource with the given UUID.
+    pub fn uuid_to_resource_path(&self, resource_uuid: Uuid) -> Option<PathBuf> {
+        self.resource_registry
+            .lock()
+            .uuid_to_path_buf(resource_uuid)
     }
 
     /// Adds a new resource loader of the given type.

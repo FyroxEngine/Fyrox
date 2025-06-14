@@ -154,6 +154,23 @@ where
             None
         }
     }
+
+    /// Tries to fetch the underlying data of the resource type. This operation will fail if the
+    /// locked resource is not in [`ResourceState::Ok`] or if its actual data does not match the
+    /// type of the resource.
+    pub fn data_ref_with_id(&self) -> Option<(&T, &Uuid)> {
+        if let ResourceState::Ok {
+            ref data,
+            ref resource_uuid,
+        } = self.guard.state
+        {
+            (&**data as &dyn Any)
+                .downcast_ref::<T>()
+                .map(|typed| (typed, resource_uuid))
+        } else {
+            None
+        }
+    }
 }
 
 /// A resource of particular data type. It is a typed wrapper around [`UntypedResource`] which
