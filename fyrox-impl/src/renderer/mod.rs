@@ -38,6 +38,7 @@ pub mod utils;
 pub mod visibility;
 
 mod bloom;
+mod convolution;
 mod forward_renderer;
 mod fxaa;
 mod gbuffer;
@@ -49,6 +50,7 @@ mod settings;
 mod shadow;
 mod ssao;
 
+use crate::renderer::convolution::EnvironmentMapConvolution;
 use crate::renderer::ssao::ScreenSpaceAmbientOcclusionRenderer;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
@@ -183,6 +185,9 @@ fn recreate_render_data_if_needed<T: Any>(
 
 /// A set of frame buffers and renderers that can be used to render to.
 pub struct RenderDataContainer {
+    /// Prefiltered environment map.
+    pub environment_map_convolution: Rc<RefCell<Option<EnvironmentMapConvolution>>>,
+
     /// Screen space ambient occlusion renderer.
     pub ssao_renderer: ScreenSpaceAmbientOcclusionRenderer,
 
@@ -290,6 +295,7 @@ impl RenderDataContainer {
         }
 
         Ok(Self {
+            environment_map_convolution: Default::default(),
             ssao_renderer: ScreenSpaceAmbientOcclusionRenderer::new(server, width, height)?,
             gbuffer: GBuffer::new(server, width, height)?,
             hdr_renderer: HighDynamicRangeRenderer::new(server)?,
@@ -694,7 +700,7 @@ impl Renderer {
     }
 
     /// Unloads texture from GPU memory.
-    pub fn unload_texture(&mut self, texture: TextureResource) {
+    pub fn unload_texture(&mut self, texture: &TextureResource) {
         self.texture_cache.unload(texture)
     }
 
@@ -941,7 +947,7 @@ impl Renderer {
             if let Some(face) = observer.cube_map_face {
                 observer_render_data
                     .ldr_scene_framebuffer
-                    .set_cubemap_face(0, face);
+                    .set_cubemap_face(0, face, 0);
             }
 
             self.texture_cache.try_register(
@@ -1257,6 +1263,7 @@ impl Renderer {
         // At first, render the reflection probes to off-screen render target and generate mipmaps
         // for the cube maps.
         for observer in observers.reflection_probes.iter() {
+            let server = self.server.clone();
             let render_data = self.render_scene_observer(
                 observer,
                 scene_handle,
@@ -1266,7 +1273,26 @@ impl Renderer {
                 resource_manager,
             )?;
             let probe_cube_map = render_data.ldr_scene_frame_texture().clone();
-            self.server.generate_mipmap(&probe_cube_map);
+            let size = if let GpuTextureKind::Cube { size } = probe_cube_map.kind() {
+                size
+            } else {
+                unreachable!()
+            };
+            let convolution = render_data.environment_map_convolution.clone();
+            let mut convolution = convolution.borrow_mut();
+            if convolution.is_none() || convolution.as_ref().is_some_and(|conv| conv.size != size) {
+                *convolution = Some(EnvironmentMapConvolution::new(&*server, size)?);
+            }
+            let convolution = convolution.as_ref().unwrap();
+            self.statistics += convolution.render(
+                &probe_cube_map,
+                &mut self.uniform_buffer_cache,
+                &self.renderer_resources,
+            )?;
+            let rt = observer.render_target.as_ref().unwrap();
+            self.texture_cache.unload(rt);
+            self.texture_cache
+                .try_register(&*self.server, rt, convolution.cube_map().clone())?;
         }
 
         // Then render everything else.

@@ -26,6 +26,7 @@ use crate::{
     },
     resource::texture::{Texture, TextureResource},
 };
+use fyrox_core::err_once;
 use fyrox_graphics::gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind};
 use fyrox_graphics::sampler::{
     GpuSampler, GpuSamplerDescriptor, MagnificationFilter, MinificationFilter, WrapMode,
@@ -247,13 +248,11 @@ impl TextureCache {
                 }
                 Err(e) => {
                     drop(texture_data_guard);
-                    Log::writeln(
-                        MessageKind::Error,
-                        format!(
-                            "Failed to create GPU texture from {} texture. Reason: {:?}",
-                            texture_resource.kind(),
-                            e
-                        ),
+                    err_once!(
+                        texture_resource.key() as usize,
+                        "Failed to create GPU texture from {} texture. Reason: {:?}",
+                        texture_resource.kind(),
+                        e,
                     );
                 }
             }
@@ -269,7 +268,7 @@ impl TextureCache {
         self.cache.clear();
     }
 
-    pub fn unload(&mut self, texture: TextureResource) {
+    pub fn unload(&mut self, texture: &TextureResource) {
         if let Some(texture) = texture.state().data() {
             self.cache.remove(&texture.cache_index);
         }

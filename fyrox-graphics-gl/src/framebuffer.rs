@@ -192,7 +192,7 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
         self.depth_attachment.as_ref()
     }
 
-    fn set_cubemap_face(&self, attachment_index: usize, face: CubeMapFace) {
+    fn set_cubemap_face(&self, attachment_index: usize, face: CubeMapFace, level: usize) {
         let server = self.state.upgrade().unwrap();
 
         unsafe {
@@ -209,7 +209,7 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
                 glow::COLOR_ATTACHMENT0 + attachment_index as u32,
                 face.into_gl(),
                 Some(texture.id()),
-                0,
+                level as i32,
             );
         }
     }

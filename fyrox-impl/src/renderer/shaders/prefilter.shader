@@ -44,7 +44,6 @@
                 r#"
                     layout (location = 0) in vec3 vertexPosition;
 
-                    out vec4 color;
                     out vec3 localPos;
 
                     void main()
@@ -96,7 +95,6 @@
                         return normalize(sampleVec);
                     }
 
-                    const float PI = 3.14159265359;
 
                     void main()
                     {
@@ -104,7 +102,7 @@
                         vec3 R = N;
                         vec3 V = R;
 
-                        const uint SAMPLE_COUNT = 1024u;
+                        const uint SAMPLE_COUNT = 256u;
                         float totalWeight = 0.0;
                         vec3 prefilteredColor = vec3(0.0);
                         for(uint i = 0u; i < SAMPLE_COUNT; ++i)

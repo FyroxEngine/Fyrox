@@ -213,8 +213,9 @@ pub trait GpuFrameBufferTrait: GpuFrameBufferAsAny {
     /// Returns an optional depth/stencil attachment.
     fn depth_attachment(&self) -> Option<&Attachment>;
 
-    /// Sets an active face of a cube map (only for frame buffers that using cube maps for rendering).
-    fn set_cubemap_face(&self, attachment_index: usize, face: CubeMapFace);
+    /// Sets an active face of a cube map of the given mip level. Only for frame buffers that using
+    /// cube maps for rendering.
+    fn set_cubemap_face(&self, attachment_index: usize, face: CubeMapFace, level: usize);
 
     /// Performs data transfer from one frame buffer to another with scaling. It copies a region
     /// defined by `src_x0`, `src_y0`, `src_x1`, `src_y1` coordinates from the frame buffer and
