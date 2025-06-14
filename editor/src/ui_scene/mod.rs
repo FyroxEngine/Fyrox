@@ -397,6 +397,7 @@ impl SceneController for UiScene {
                     &self.ui.drawing_context,
                     Color::DIM_GRAY,
                     PixelKind::RGBA8,
+                    &engine.resource_manager,
                 ),
         );
     }

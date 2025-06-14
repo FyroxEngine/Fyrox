@@ -78,6 +78,7 @@ use crate::{
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use fyrox_graph::{SceneGraph, SceneGraphNode};
 use fyrox_graphics::gpu_program::{SamplerFallback, ShaderResourceDefinition};
+use fyrox_resource::manager::ResourceManager;
 use std::{
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
@@ -131,6 +132,7 @@ pub struct BundleRenderContext<'a> {
     pub frame_buffer: &'a GpuFrameBuffer,
     pub viewport: Rect<i32>,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
+    pub resource_manager: &'a ResourceManager,
 
     // Built-in uniforms.
     pub use_pom: bool,
@@ -343,6 +345,7 @@ pub fn make_texture_binding(
     resource_definition: &ShaderResourceDefinition,
     renderer_resources: &RendererResources,
     fallback: SamplerFallback,
+    resource_manager: &ResourceManager,
     texture_cache: &mut TextureCache,
 ) -> ResourceBinding {
     let fallback = renderer_resources.sampler_fallback(fallback);
@@ -356,7 +359,7 @@ pub fn make_texture_binding(
                     .as_ref()
                     .and_then(|t| {
                         texture_cache
-                            .get(server, t)
+                            .get(server, resource_manager, t)
                             .map(|t| (&t.gpu_texture, &t.gpu_sampler))
                     })
                     .unwrap_or(fallback)
@@ -620,6 +623,7 @@ impl RenderDataBundle {
                             resource_definition,
                             render_context.renderer_resources,
                             fallback,
+                            render_context.resource_manager,
                             render_context.texture_cache,
                         ));
                     }

@@ -74,7 +74,8 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         let width = (frame_width / 2).max(1);
         let height = (frame_height / 2).max(1);
 
-        let occlusion = server.create_2d_render_target(PixelKind::R32F, width, height)?;
+        let occlusion =
+            server.create_2d_render_target("SsaoTexture", PixelKind::R32F, width, height)?;
 
         let mut rng = crate::rand::thread_rng();
 
@@ -110,6 +111,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     pixel[2] = 0u8; // B
                 }
                 server.create_texture(GpuTextureDescriptor {
+                    name: "SsaoNoise",
                     kind: GpuTextureKind::Rectangle {
                         width: NOISE_SIZE,
                         height: NOISE_SIZE,

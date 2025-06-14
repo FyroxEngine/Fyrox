@@ -234,10 +234,19 @@ impl RenderDataContainer {
             assert_eq!(width, height);
         }
 
-        let depth_stencil = server.create_2d_render_target(PixelKind::D24S8, width, height)?;
+        let depth_stencil = server.create_2d_render_target(
+            "ObserverDepthStencil",
+            PixelKind::D24S8,
+            width,
+            height,
+        )?;
         // Intermediate scene frame will be rendered in HDR render target.
-        let hdr_frame_texture =
-            server.create_2d_render_target(PixelKind::RGBA16F, width, height)?;
+        let hdr_frame_texture = server.create_2d_render_target(
+            "ObserverHdrFrame",
+            PixelKind::RGBA16F,
+            width,
+            height,
+        )?;
 
         let hdr_scene_framebuffer = server.create_frame_buffer(
             Some(Attachment::depth_stencil(depth_stencil.clone())),
@@ -245,6 +254,7 @@ impl RenderDataContainer {
         )?;
 
         let ldr_frame_texture = server.create_texture(GpuTextureDescriptor {
+            name: "LdrFrameTexture",
             kind: match final_frame_texture {
                 FrameTextureKind::Rectangle => GpuTextureKind::Rectangle { width, height },
                 FrameTextureKind::Cube => GpuTextureKind::Cube { size: width },
@@ -266,6 +276,7 @@ impl RenderDataContainer {
             depth_stencil: GpuTexture,
         ) -> Result<GpuFrameBuffer, FrameworkError> {
             let ldr_temp_texture = server.create_texture(GpuTextureDescriptor {
+                name: "LdrTempTexture",
                 kind: GpuTextureKind::Rectangle { width, height },
                 // Final scene frame is in standard sRGB space.
                 pixel_kind: PixelKind::RGBA8,
@@ -396,6 +407,7 @@ fn make_ui_frame_buffer(
     pixel_kind: PixelKind,
 ) -> Result<GpuFrameBuffer, FrameworkError> {
     let color_texture = server.create_texture(GpuTextureDescriptor {
+        name: "UiFbTexture",
         kind: GpuTextureKind::Rectangle {
             width: frame_size.x as usize,
             height: frame_size.y as usize,
@@ -405,6 +417,7 @@ fn make_ui_frame_buffer(
     })?;
 
     let depth_stencil = server.create_2d_render_target(
+        "UiDepthStencil",
         PixelKind::D24S8,
         frame_size.x as usize,
         frame_size.y as usize,
@@ -498,6 +511,9 @@ pub struct SceneRenderPassContext<'a, 'b> {
 
     /// Dynamic surface cache. See [`DynamicSurfaceCache`] docs for more info.
     pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
+
+    /// A reference to the resource manager.
+    pub resource_manager: &'a ResourceManager,
 }
 
 /// A trait for custom scene rendering pass. It could be used to add your own rendering techniques.
@@ -756,6 +772,7 @@ impl Renderer {
         drawing_context: &DrawingContext,
         clear_color: Color,
         pixel_kind: PixelKind,
+        resource_manager: &ResourceManager,
     ) -> Result<(), FrameworkError> {
         let new_width = screen_size.x as usize;
         let new_height = screen_size.y as usize;
@@ -802,6 +819,7 @@ impl Renderer {
             uniform_buffer_cache: &mut self.uniform_buffer_cache,
             render_pass_cache: &mut self.shader_cache,
             uniform_memory_allocator: &mut self.uniform_memory_allocator,
+            resource_manager,
         })?;
 
         // Finally register texture in the cache so it will become available as texture in deferred/forward
@@ -818,7 +836,7 @@ impl Renderer {
         )
     }
 
-    fn update_texture_cache(&mut self, dt: f32) {
+    fn update_texture_cache(&mut self, resource_manager: &ResourceManager, dt: f32) {
         // Maximum amount of textures uploaded to GPU per frame. This defines throughput **only** for
         // requests from resource manager. This is needed to prevent huge lag when there are tons of
         // requests, so this is some kind of work load balancer.
@@ -828,7 +846,10 @@ impl Renderer {
         while let Ok(event) = self.texture_event_receiver.try_recv() {
             if let ResourceEvent::Loaded(resource) | ResourceEvent::Reloaded(resource) = event {
                 if let Some(texture) = resource.try_cast::<Texture>() {
-                    match self.texture_cache.upload(&*self.server, &texture) {
+                    match self
+                        .texture_cache
+                        .upload(&*self.server, resource_manager, &texture)
+                    {
                         Ok(_) => {
                             uploaded += 1;
                             if uploaded >= THROUGHPUT {
@@ -867,8 +888,8 @@ impl Renderer {
     ///
     /// Normally, this is called from `Engine::update()`.
     /// You should only call this manually if you don't use that method.
-    pub fn update_caches(&mut self, dt: f32) {
-        self.update_texture_cache(dt);
+    pub fn update_caches(&mut self, resource_manager: &ResourceManager, dt: f32) {
+        self.update_texture_cache(resource_manager, dt);
         self.update_shader_cache(dt);
         self.geometry_cache.update(dt);
     }
@@ -880,6 +901,7 @@ impl Renderer {
         scene: &Scene,
         elapsed_time: f32,
         dt: f32,
+        resource_manager: &ResourceManager,
     ) -> Result<&mut RenderDataContainer, FrameworkError> {
         let server = &*self.server;
 
@@ -967,6 +989,7 @@ impl Renderer {
             uniform_buffer_cache: &mut self.uniform_buffer_cache,
             uniform_memory_allocator: &mut self.uniform_memory_allocator,
             screen_space_debug_renderer: &mut self.screen_space_debug_renderer,
+            resource_manager,
         })?;
 
         server.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
@@ -1006,6 +1029,7 @@ impl Renderer {
                     uniform_memory_allocator: &mut self.uniform_memory_allocator,
                     dynamic_surface_cache: &mut self.dynamic_surface_cache,
                     ssao_renderer: &render_data.ssao_renderer,
+                    resource_manager,
                 })?;
 
         render_data.statistics += light_stats;
@@ -1026,6 +1050,7 @@ impl Renderer {
             scene_depth: depth,
             ambient_light: scene.rendering_options.ambient_lighting_color,
             uniform_memory_allocator: &mut self.uniform_memory_allocator,
+            resource_manager,
         })?;
 
         for render_pass in self.scene_render_passes.iter() {
@@ -1052,6 +1077,7 @@ impl Renderer {
                         uniform_buffer_cache: &mut self.uniform_buffer_cache,
                         uniform_memory_allocator: &mut self.uniform_memory_allocator,
                         dynamic_surface_cache: &mut self.dynamic_surface_cache,
+                        resource_manager,
                     })?;
         }
 
@@ -1078,6 +1104,7 @@ impl Renderer {
             &mut self.texture_cache,
             &mut self.uniform_buffer_cache,
             &self.renderer_resources,
+            resource_manager,
         )?;
         std::mem::swap(&mut dest_buf, &mut src_buf);
 
@@ -1136,6 +1163,7 @@ impl Renderer {
                         uniform_buffer_cache: &mut self.uniform_buffer_cache,
                         uniform_memory_allocator: &mut self.uniform_memory_allocator,
                         dynamic_surface_cache: &mut self.dynamic_surface_cache,
+                        resource_manager,
                     })?;
         }
 
@@ -1150,6 +1178,7 @@ impl Renderer {
         scene: &Scene,
         elapsed_time: f32,
         dt: f32,
+        resource_manager: &ResourceManager,
     ) -> Result<&SceneRenderData, FrameworkError> {
         let graph = &scene.graph;
 
@@ -1228,15 +1257,28 @@ impl Renderer {
         // At first, render the reflection probes to off-screen render target and generate mipmaps
         // for the cube maps.
         for observer in observers.reflection_probes.iter() {
-            let render_data =
-                self.render_scene_observer(observer, scene_handle, scene, elapsed_time, dt)?;
+            let render_data = self.render_scene_observer(
+                observer,
+                scene_handle,
+                scene,
+                elapsed_time,
+                dt,
+                resource_manager,
+            )?;
             let probe_cube_map = render_data.ldr_scene_frame_texture().clone();
             self.server.generate_mipmap(&probe_cube_map);
         }
 
         // Then render everything else.
         for observer in observers.cameras.iter() {
-            self.render_scene_observer(observer, scene_handle, scene, elapsed_time, dt)?;
+            self.render_scene_observer(
+                observer,
+                scene_handle,
+                scene,
+                elapsed_time,
+                dt,
+                resource_manager,
+            )?;
         }
 
         self.visibility_cache.update(graph);
@@ -1266,6 +1308,7 @@ impl Renderer {
         &mut self,
         scenes: &SceneContainer,
         elapsed_time: f32,
+        resource_manager: &ResourceManager,
         drawing_contexts: impl Iterator<Item = &'a DrawingContext>,
     ) -> Result<(), FrameworkError> {
         if self.frame_size.0 == 0 || self.frame_size.1 == 0 {
@@ -1300,7 +1343,7 @@ impl Renderer {
         let backbuffer_height = self.frame_size.1 as f32;
 
         for (scene_handle, scene) in scenes.pair_iter().filter(|(_, s)| *s.enabled) {
-            self.render_scene(scene_handle, scene, elapsed_time, dt)?;
+            self.render_scene(scene_handle, scene, elapsed_time, dt, resource_manager)?;
         }
 
         self.graphics_server()
@@ -1320,6 +1363,7 @@ impl Renderer {
                 uniform_buffer_cache: &mut self.uniform_buffer_cache,
                 render_pass_cache: &mut self.shader_cache,
                 uniform_memory_allocator: &mut self.uniform_memory_allocator,
+                resource_manager,
             })?;
         }
 
@@ -1347,8 +1391,9 @@ impl Renderer {
         elapsed_time: f32,
         drawing_contexts: impl Iterator<Item = &'a DrawingContext>,
         window: &Window,
+        resource_manager: &ResourceManager,
     ) -> Result<(), FrameworkError> {
-        self.render_frame(scenes, elapsed_time, drawing_contexts)?;
+        self.render_frame(scenes, elapsed_time, resource_manager, drawing_contexts)?;
         self.statistics.end_frame();
         window.pre_present_notify();
         self.graphics_server().swap_buffers()?;

@@ -46,6 +46,7 @@ pub struct GaussianBlur {
 
 fn create_framebuffer(
     server: &dyn GraphicsServer,
+    name: &str,
     width: usize,
     height: usize,
     pixel_kind: PixelKind,
@@ -53,7 +54,7 @@ fn create_framebuffer(
     server.create_frame_buffer(
         None,
         vec![Attachment::color(
-            server.create_2d_render_target(pixel_kind, width, height)?,
+            server.create_2d_render_target(name, pixel_kind, width, height)?,
         )],
     )
 }
@@ -66,8 +67,8 @@ impl GaussianBlur {
         pixel_kind: PixelKind,
     ) -> Result<Self, FrameworkError> {
         Ok(Self {
-            h_framebuffer: create_framebuffer(server, width, height, pixel_kind)?,
-            v_framebuffer: create_framebuffer(server, width, height, pixel_kind)?,
+            h_framebuffer: create_framebuffer(server, "HBlur", width, height, pixel_kind)?,
+            v_framebuffer: create_framebuffer(server, "VBlur", width, height, pixel_kind)?,
             width,
             height,
         })

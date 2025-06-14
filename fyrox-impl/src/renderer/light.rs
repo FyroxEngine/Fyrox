@@ -63,6 +63,7 @@ use crate::{
     },
 };
 use fyrox_graphics::gpu_texture::GpuTexture;
+use fyrox_resource::manager::ResourceManager;
 
 pub struct DeferredLightRenderer {
     sphere: GpuGeometryBuffer,
@@ -94,6 +95,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
     pub ssao_renderer: &'a ScreenSpaceAmbientOcclusionRenderer,
+    pub resource_manager: &'a ResourceManager,
 }
 
 impl DeferredLightRenderer {
@@ -255,6 +257,7 @@ impl DeferredLightRenderer {
             uniform_memory_allocator,
             dynamic_surface_cache,
             ssao_renderer,
+            resource_manager,
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
@@ -288,7 +291,7 @@ impl DeferredLightRenderer {
 
         // Render skybox (if any).
         if let Some(skybox) = scene.skybox_ref().and_then(|s| s.cubemap_ref()) {
-            if let Some(texture_sampler_pair) = textures.get(server, skybox) {
+            if let Some(texture_sampler_pair) = textures.get(server, resource_manager, skybox) {
                 let size = observer.position.z_far / 2.0f32.sqrt();
                 let scale = Matrix4::new_scaling(size);
                 let wvp = Matrix4::new_translation(&observer.position.translation) * scale;
@@ -327,7 +330,11 @@ impl DeferredLightRenderer {
             .as_ref()
             .or(render_data_bundle.environment_map.as_ref())
             .or_else(|| scene.skybox_ref().and_then(|s| s.cubemap_ref()))
-            .and_then(|c| textures.get(server, c).map(|d| &d.gpu_texture))
+            .and_then(|c| {
+                textures
+                    .get(server, resource_manager, c)
+                    .map(|d| &d.gpu_texture)
+            })
             .unwrap_or(&renderer_resources.environment_dummy);
 
         // Ambient light.
@@ -640,6 +647,7 @@ impl DeferredLightRenderer {
                             renderer_resources,
                             uniform_memory_allocator,
                             dynamic_surface_cache,
+                            resource_manager,
                         )?;
 
                         light_stats.spot_shadow_maps_rendered += 1;
@@ -661,6 +669,7 @@ impl DeferredLightRenderer {
                                     renderer_resources,
                                     uniform_memory_allocator,
                                     dynamic_surface_cache,
+                                    resource_manager,
                                 })?;
 
                         light_stats.point_shadow_maps_rendered += 1;
@@ -679,6 +688,7 @@ impl DeferredLightRenderer {
                             renderer_resources,
                             uniform_memory_allocator,
                             dynamic_surface_cache,
+                            resource_manager,
                         })?;
 
                         light_stats.csm_rendered += 1;
@@ -699,19 +709,11 @@ impl DeferredLightRenderer {
                         ref cookie_texture,
                         ..
                     } => {
-                        let (cookie_enabled, cookie_texture) =
-                            if let Some(texture) = cookie_texture.as_ref() {
-                                if let Some(cookie) = textures.get(server, texture) {
-                                    (true, (&cookie.gpu_texture, &cookie.gpu_sampler))
-                                } else {
-                                    (
-                                        false,
-                                        (
-                                            &renderer_resources.white_dummy,
-                                            &renderer_resources.linear_wrap_sampler,
-                                        ),
-                                    )
-                                }
+                        let (cookie_enabled, cookie_texture) = if let Some(texture) =
+                            cookie_texture.as_ref()
+                        {
+                            if let Some(cookie) = textures.get(server, resource_manager, texture) {
+                                (true, (&cookie.gpu_texture, &cookie.gpu_sampler))
                             } else {
                                 (
                                     false,
@@ -720,7 +722,16 @@ impl DeferredLightRenderer {
                                         &renderer_resources.linear_wrap_sampler,
                                     ),
                                 )
-                            };
+                            }
+                        } else {
+                            (
+                                false,
+                                (
+                                    &renderer_resources.white_dummy,
+                                    &renderer_resources.linear_wrap_sampler,
+                                ),
+                            )
+                        };
 
                         light_stats.spot_lights_rendered += 1;
 

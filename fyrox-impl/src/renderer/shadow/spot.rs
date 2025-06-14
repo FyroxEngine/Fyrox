@@ -43,6 +43,7 @@ use crate::{
 };
 use fyrox_graphics::framebuffer::GpuFrameBuffer;
 use fyrox_graphics::gpu_texture::GpuTexture;
+use fyrox_resource::manager::ResourceManager;
 
 pub struct SpotShadowMapRenderer {
     precision: ShadowMapPrecision,
@@ -66,6 +67,7 @@ impl SpotShadowMapRenderer {
             precision: ShadowMapPrecision,
         ) -> Result<GpuFrameBuffer, FrameworkError> {
             let depth = server.create_2d_render_target(
+                "SpotShadowMapCascade",
                 match precision {
                     ShadowMapPrecision::Full => PixelKind::D32F,
                     ShadowMapPrecision::Half => PixelKind::D16,
@@ -123,6 +125,7 @@ impl SpotShadowMapRenderer {
         renderer_resources: &RendererResources,
         uniform_memory_allocator: &mut UniformMemoryAllocator,
         dynamic_surface_cache: &mut DynamicSurfaceCache,
+        resource_manager: &ResourceManager,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 
@@ -164,6 +167,7 @@ impl SpotShadowMapRenderer {
                 frame_buffer: framebuffer,
                 viewport,
                 uniform_memory_allocator,
+                resource_manager,
                 use_pom: false,
                 light_position: &Default::default(),
                 renderer_resources,

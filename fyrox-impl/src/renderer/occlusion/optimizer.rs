@@ -52,8 +52,12 @@ impl VisibilityBufferOptimizer {
         w_tiles: usize,
         h_tiles: usize,
     ) -> Result<Self, FrameworkError> {
-        let optimized_visibility_buffer =
-            server.create_2d_render_target(PixelKind::R32UI, w_tiles, h_tiles)?;
+        let optimized_visibility_buffer = server.create_2d_render_target(
+            "OptimizedVisibilityTexture",
+            PixelKind::R32UI,
+            w_tiles,
+            h_tiles,
+        )?;
 
         Ok(Self {
             framebuffer: server

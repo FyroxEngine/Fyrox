@@ -57,6 +57,7 @@ impl BloomRenderer {
             framebuffer: server.create_frame_buffer(
                 None,
                 vec![Attachment::color(server.create_2d_render_target(
+                    "Bloom",
                     PixelKind::RGBA16F,
                     width,
                     height,

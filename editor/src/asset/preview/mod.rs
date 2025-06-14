@@ -334,11 +334,13 @@ fn render_scene_to_texture(
     scene.update(rt_size, 0.016, Default::default());
 
     let temp_handle = Handle::new(u32::MAX, u32::MAX);
-    if let Ok(scene_data) =
-        graphics_context
-            .renderer
-            .render_scene(temp_handle, scene, elapsed_time, 0.0)
-    {
+    if let Ok(scene_data) = graphics_context.renderer.render_scene(
+        temp_handle,
+        scene,
+        elapsed_time,
+        0.0,
+        &engine.resource_manager,
+    ) {
         let ldr_texture = scene_data.scene_data.ldr_scene_frame_texture();
 
         let (width, height) = match ldr_texture.kind() {
@@ -626,6 +628,7 @@ pub fn render_ui_to_texture(
             ui.draw(),
             Color::opaque(100, 100, 100),
             PixelKind::RGBA8,
+            &engine.resource_manager,
         )
         .ok()?;
 

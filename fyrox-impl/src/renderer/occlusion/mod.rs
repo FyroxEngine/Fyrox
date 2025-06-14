@@ -127,12 +127,26 @@ impl OcclusionTester {
         height: usize,
         tile_size: usize,
     ) -> Result<Self, FrameworkError> {
-        let depth_stencil = server.create_2d_render_target(PixelKind::D24S8, width, height)?;
-        let visibility_mask = server.create_2d_render_target(PixelKind::RGBA8, width, height)?;
+        let depth_stencil = server.create_2d_render_target(
+            "OcclusionTesterDepthStencilTexture",
+            PixelKind::D24S8,
+            width,
+            height,
+        )?;
+        let visibility_mask = server.create_2d_render_target(
+            "OcclusionTesterVisibilityMask",
+            PixelKind::RGBA8,
+            width,
+            height,
+        )?;
         let w_tiles = width / tile_size + 1;
         let h_tiles = height / tile_size + 1;
-        let tile_buffer =
-            server.create_2d_render_target(PixelKind::R32UI, w_tiles * (MAX_BITS + 1), h_tiles)?;
+        let tile_buffer = server.create_2d_render_target(
+            "OcclusionTesterTileBuffer",
+            PixelKind::R32UI,
+            w_tiles * (MAX_BITS + 1),
+            h_tiles,
+        )?;
 
         Ok(Self {
             framebuffer: server.create_frame_buffer(

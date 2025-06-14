@@ -185,6 +185,7 @@ pub fn make_brdf_lut(
     }
 
     server.create_texture(GpuTextureDescriptor {
+        name: "BrdfLut",
         kind: GpuTextureKind::Rectangle {
             width: size,
             height: size,

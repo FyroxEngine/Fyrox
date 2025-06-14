@@ -62,6 +62,7 @@ use fyrox_graphics::{
     gpu_program::ShaderResourceKind,
     uniform::StaticUniformBuffer,
 };
+use fyrox_resource::manager::ResourceManager;
 use fyrox_ui::draw::Command;
 use uuid::Uuid;
 
@@ -95,6 +96,8 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     pub render_pass_cache: &'a mut ShaderCache,
     /// A reference to the uniform memory allocator.
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
+    /// A reference to the resource manager.
+    pub resource_manager: &'a ResourceManager,
 }
 
 fn write_uniform_blocks(
@@ -284,6 +287,7 @@ impl UiRenderer {
             uniform_buffer_cache,
             render_pass_cache,
             uniform_memory_allocator,
+            resource_manager,
         } = args;
 
         let mut statistics = RenderPassStatistics::default();
@@ -430,6 +434,7 @@ impl UiRenderer {
                                                 }
                                                 if let Some(texture) = texture_cache.get(
                                                     server,
+                                                    resource_manager,
                                                     &page
                                                         .texture
                                                         .as_ref()
@@ -446,7 +451,9 @@ impl UiRenderer {
                                         }
                                     }
                                     CommandTexture::Texture(texture) => {
-                                        if let Some(texture) = texture_cache.get(server, texture) {
+                                        if let Some(texture) =
+                                            texture_cache.get(server, resource_manager, texture)
+                                        {
                                             diffuse_texture =
                                                 (&texture.gpu_texture, &texture.gpu_sampler);
                                         }
@@ -466,6 +473,7 @@ impl UiRenderer {
                                     resource,
                                     renderer_resources,
                                     fallback,
+                                    resource_manager,
                                     texture_cache,
                                 ))
                             }

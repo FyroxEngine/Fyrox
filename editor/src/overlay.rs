@@ -100,10 +100,13 @@ impl SceneRenderPass for OverlayRenderPass {
         let camera_side = inv_view.side();
         let sound_icon = ctx
             .texture_cache
-            .get(ctx.server, &self.sound_icon)
+            .get(ctx.server, ctx.resource_manager, &self.sound_icon)
             .cloned()
             .unwrap();
-        let light_icon = ctx.texture_cache.get(ctx.server, &self.light_icon).unwrap();
+        let light_icon = ctx
+            .texture_cache
+            .get(ctx.server, ctx.resource_manager, &self.light_icon)
+            .unwrap();
 
         for node in ctx.scene.graph.linear_iter() {
             let icon =

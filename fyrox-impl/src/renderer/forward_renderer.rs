@@ -33,6 +33,7 @@ use crate::{
 };
 use fyrox_graphics::framebuffer::GpuFrameBuffer;
 use fyrox_graphics::gpu_texture::GpuTexture;
+use fyrox_resource::manager::ResourceManager;
 
 pub(crate) struct ForwardRenderer {
     render_pass_name: ImmutableString,
@@ -51,6 +52,7 @@ pub(crate) struct ForwardRenderContext<'a> {
     pub scene_depth: &'a GpuTexture,
     pub ambient_light: Color,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
+    pub resource_manager: &'a ResourceManager,
 }
 
 impl ForwardRenderer {
@@ -79,6 +81,7 @@ impl ForwardRenderer {
             scene_depth,
             ambient_light,
             uniform_memory_allocator,
+            resource_manager,
         } = args;
 
         statistics += bundle_storage.render_to_frame_buffer(
@@ -93,6 +96,7 @@ impl ForwardRenderer {
                 frame_buffer: framebuffer,
                 viewport,
                 uniform_memory_allocator,
+                resource_manager,
                 use_pom: quality_settings.use_parallax_mapping,
                 light_position: &Default::default(),
                 renderer_resources,

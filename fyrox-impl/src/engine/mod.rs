@@ -1869,7 +1869,7 @@ impl Engine {
         let window_size = if let GraphicsContext::Initialized(ctx) = &mut self.graphics_context {
             let inner_size = ctx.window.inner_size();
             let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
-            ctx.renderer.update_caches(dt);
+            ctx.renderer.update_caches(&self.resource_manager, dt);
             window_size
         } else {
             Vector2::new(1.0, 1.0)
@@ -2349,6 +2349,7 @@ impl Engine {
                 self.elapsed_time,
                 self.user_interfaces.iter().map(|ui| &ui.drawing_context),
                 &ctx.window,
+                &self.resource_manager,
             )?;
         }
 

@@ -176,11 +176,13 @@ pub trait GraphicsServer: GraphicsServerAsAny {
     /// size and pixel kind.
     fn create_2d_render_target(
         &self,
+        name: &str,
         pixel_kind: PixelKind,
         width: usize,
         height: usize,
     ) -> Result<GpuTexture, FrameworkError> {
         self.create_texture(GpuTextureDescriptor {
+            name,
             kind: GpuTextureKind::Rectangle { width, height },
             pixel_kind,
             ..Default::default()
@@ -191,10 +193,12 @@ pub trait GraphicsServer: GraphicsServerAsAny {
     /// size and pixel kind.
     fn create_cube_render_target(
         &self,
+        name: &str,
         pixel_kind: PixelKind,
         size: usize,
     ) -> Result<GpuTexture, FrameworkError> {
         self.create_texture(GpuTextureDescriptor {
+            name,
             kind: GpuTextureKind::Cube { size },
             pixel_kind,
             ..Default::default()

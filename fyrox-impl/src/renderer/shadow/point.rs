@@ -45,6 +45,7 @@ use crate::{
     },
     scene::{collider::BitMask, graph::Graph},
 };
+use fyrox_resource::manager::ResourceManager;
 
 pub struct PointShadowMapRenderer {
     precision: ShadowMapPrecision,
@@ -67,6 +68,7 @@ pub(crate) struct PointShadowMapRenderContext<'a> {
     pub renderer_resources: &'a RendererResources,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
+    pub resource_manager: &'a ResourceManager,
 }
 
 impl PointShadowMapRenderer {
@@ -81,6 +83,7 @@ impl PointShadowMapRenderer {
             precision: ShadowMapPrecision,
         ) -> Result<GpuFrameBuffer, FrameworkError> {
             let depth = server.create_2d_render_target(
+                "PointShadowMapDepthTexture",
                 match precision {
                     ShadowMapPrecision::Full => PixelKind::D32F,
                     ShadowMapPrecision::Half => PixelKind::D16,
@@ -90,6 +93,7 @@ impl PointShadowMapRenderer {
             )?;
 
             let cube_map = server.create_texture(GpuTextureDescriptor {
+                name: "PointLightShadowCubeMap",
                 kind: GpuTextureKind::Cube { size },
                 pixel_kind: PixelKind::R16F,
                 ..Default::default()
@@ -145,6 +149,7 @@ impl PointShadowMapRenderer {
             renderer_resources,
             uniform_memory_allocator,
             dynamic_surface_cache,
+            resource_manager,
         } = args;
 
         let framebuffer = &self.cascades[cascade];
@@ -199,6 +204,7 @@ impl PointShadowMapRenderer {
                     frame_buffer: framebuffer,
                     viewport,
                     uniform_memory_allocator,
+                    resource_manager,
                     use_pom: false,
                     light_position: &light_pos,
                     renderer_resources,

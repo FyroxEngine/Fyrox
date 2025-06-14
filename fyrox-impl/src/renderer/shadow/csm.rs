@@ -52,6 +52,7 @@ use crate::{
 use approx::relative_eq;
 use fyrox_graphics::framebuffer::GpuFrameBuffer;
 use fyrox_graphics::gpu_texture::GpuTexture;
+use fyrox_resource::manager::ResourceManager;
 
 pub struct Cascade {
     pub frame_buffer: GpuFrameBuffer,
@@ -66,6 +67,7 @@ impl Cascade {
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {
         let depth = server.create_2d_render_target(
+            "CsmCascadeTexture",
             match precision {
                 ShadowMapPrecision::Full => PixelKind::D32F,
                 ShadowMapPrecision::Half => PixelKind::D16,
@@ -106,6 +108,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub renderer_resources: &'a RendererResources,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
+    pub resource_manager: &'a ResourceManager,
 }
 
 impl CsmRenderer {
@@ -156,6 +159,7 @@ impl CsmRenderer {
             renderer_resources,
             uniform_memory_allocator,
             dynamic_surface_cache,
+            resource_manager,
         } = ctx;
 
         let LightSourceKind::Directional { ref csm_options } = light.kind else {
@@ -282,6 +286,7 @@ impl CsmRenderer {
                     frame_buffer: framebuffer,
                     viewport,
                     uniform_memory_allocator,
+                    resource_manager,
                     use_pom: false,
                     light_position: &Default::default(),
                     renderer_resources,

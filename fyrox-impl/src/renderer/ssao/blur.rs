@@ -48,7 +48,8 @@ impl Blur {
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {
-        let frame = server.create_2d_render_target(PixelKind::R32F, width, height)?;
+        let frame =
+            server.create_2d_render_target("BlurTexture", PixelKind::R32F, width, height)?;
         Ok(Self {
             framebuffer: server.create_frame_buffer(None, vec![Attachment::color(frame)])?,
             width,

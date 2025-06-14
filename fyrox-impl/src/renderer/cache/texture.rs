@@ -30,10 +30,13 @@ use fyrox_graphics::gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKi
 use fyrox_graphics::sampler::{
     GpuSampler, GpuSamplerDescriptor, MagnificationFilter, MinificationFilter, WrapMode,
 };
+use fyrox_resource::manager::ResourceManager;
 use fyrox_texture::{
     TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
     TextureWrapMode,
 };
+use std::borrow::Cow;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct TextureRenderData {
@@ -149,9 +152,18 @@ fn create_sampler(
 
 fn create_gpu_texture(
     server: &dyn GraphicsServer,
+    resource_manager: &ResourceManager,
+    uuid: &Uuid,
     texture: &Texture,
 ) -> Result<TextureRenderData, FrameworkError> {
+    let path = resource_manager.uuid_to_resource_path(*uuid);
+    let name = path
+        .as_ref()
+        .map(|path| path.to_string_lossy())
+        .unwrap_or_else(|| Cow::Borrowed(""));
+
     let gpu_texture = server.create_texture(GpuTextureDescriptor {
+        name: &name,
         kind: convert_texture_kind(texture.kind()),
         pixel_kind: convert_pixel_kind(texture.pixel_kind()),
         mip_count: texture.mip_count() as usize,
@@ -174,14 +186,15 @@ impl TextureCache {
     pub fn upload(
         &mut self,
         server: &dyn GraphicsServer,
+        resource_manager: &ResourceManager,
         texture: &TextureResource,
     ) -> Result<(), FrameworkError> {
-        let mut texture = texture.state();
-        if let Some(texture) = texture.data() {
+        let texture = texture.state();
+        if let Some((texture, uuid)) = texture.data_ref_with_id() {
             self.cache.get_entry_mut_or_insert_with(
                 &texture.cache_index,
                 Default::default(),
-                || create_gpu_texture(server, texture),
+                || create_gpu_texture(server, resource_manager, uuid, texture),
             )?;
             Ok(())
         } else {
@@ -194,15 +207,15 @@ impl TextureCache {
     pub fn get(
         &mut self,
         server: &dyn GraphicsServer,
+        resource_manager: &ResourceManager,
         texture_resource: &TextureResource,
     ) -> Option<&TextureRenderData> {
-        let mut texture_data_guard = texture_resource.state();
-
-        if let Some(texture) = texture_data_guard.data() {
+        let texture_data_guard = texture_resource.state();
+        if let Some((texture, uuid)) = texture_data_guard.data_ref_with_id() {
             match self.cache.get_mut_or_insert_with(
                 &texture.cache_index,
                 Default::default(),
-                || create_gpu_texture(server, texture),
+                || create_gpu_texture(server, resource_manager, uuid, texture),
             ) {
                 Ok(entry) => {
                     // Check if some value has changed in resource.

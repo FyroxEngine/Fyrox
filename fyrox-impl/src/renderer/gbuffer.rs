@@ -52,6 +52,7 @@ use crate::{
     scene::{decal::Decal, graph::Graph, mesh::RenderPath},
 };
 use fxhash::FxHashSet;
+use fyrox_resource::manager::ResourceManager;
 
 pub struct GBuffer {
     framebuffer: GpuFrameBuffer,
@@ -77,6 +78,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     #[allow(dead_code)]
     pub screen_space_debug_renderer: &'a mut DebugRenderer,
+    pub resource_manager: &'a ResourceManager,
 }
 
 impl GBuffer {
@@ -85,10 +87,21 @@ impl GBuffer {
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {
-        let diffuse_texture = server.create_2d_render_target(PixelKind::RGBA8, width, height)?;
-        let normal_texture = server.create_2d_render_target(PixelKind::RGBA8, width, height)?;
+        let diffuse_texture = server.create_2d_render_target(
+            "GBufferDiffuseTexture",
+            PixelKind::RGBA8,
+            width,
+            height,
+        )?;
+        let normal_texture = server.create_2d_render_target(
+            "GBufferNormalTexture",
+            PixelKind::RGBA8,
+            width,
+            height,
+        )?;
         let framebuffer = server.create_frame_buffer(
             Some(Attachment::depth_stencil(server.create_2d_render_target(
+                "GBufferDepthStencilTexture",
                 PixelKind::D24S8,
                 width,
                 height,
@@ -97,16 +110,19 @@ impl GBuffer {
                 Attachment::color(diffuse_texture.clone()),
                 Attachment::color(normal_texture.clone()),
                 Attachment::color(server.create_2d_render_target(
+                    "GBufferAmbientTexture",
                     PixelKind::RGBA16F,
                     width,
                     height,
                 )?),
                 Attachment::color(server.create_2d_render_target(
+                    "GBufferMaterialTexture",
                     PixelKind::RGBA8,
                     width,
                     height,
                 )?),
                 Attachment::color(server.create_2d_render_target(
+                    "GBufferDecalMaskTexture",
                     PixelKind::R8UI,
                     width,
                     height,
@@ -178,6 +194,7 @@ impl GBuffer {
             graph,
             uniform_buffer_cache,
             uniform_memory_allocator,
+            resource_manager,
             ..
         } = args;
 
@@ -215,6 +232,7 @@ impl GBuffer {
                 frame_buffer: &self.framebuffer,
                 viewport,
                 uniform_memory_allocator,
+                resource_manager,
                 use_pom: quality_settings.use_parallax_mapping,
                 light_position: &Default::default(),
                 renderer_resources,
@@ -263,7 +281,7 @@ impl GBuffer {
                 .diffuse_texture()
                 .and_then(|t| {
                     texture_cache
-                        .get(server, t)
+                        .get(server, resource_manager, t)
                         .map(|t| (t.gpu_texture.clone(), t.gpu_sampler.clone()))
                 })
                 .unwrap_or((
@@ -276,7 +294,7 @@ impl GBuffer {
                 .normal_texture()
                 .and_then(|t| {
                     texture_cache
-                        .get(server, t)
+                        .get(server, resource_manager, t)
                         .map(|t| (t.gpu_texture.clone(), t.gpu_sampler.clone()))
                 })
                 .unwrap_or((

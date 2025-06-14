@@ -287,6 +287,11 @@ impl GlTexture {
             result.set_data(desc.kind, desc.pixel_kind, desc.mip_count, desc.data)?;
 
             let mut binding = result.make_temp_binding();
+            if server.gl.supports_debug() {
+                server
+                    .gl
+                    .object_label(glow::TEXTURE, texture.0.get(), Some(desc.name));
+            }
             binding.set_base_level(desc.base_level);
             binding.set_max_level(desc.max_level);
 

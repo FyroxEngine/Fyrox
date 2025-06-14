@@ -47,6 +47,7 @@ impl MatrixStorage {
         let identity = [Matrix4::<f32>::identity()];
         Ok(Self {
             texture: server.create_texture(GpuTextureDescriptor {
+                name: "MatrixStorage",
                 kind: GpuTextureKind::Rectangle {
                     width: 4,
                     height: 1,

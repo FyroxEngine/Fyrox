@@ -217,6 +217,7 @@ impl RendererResources {
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
             white_dummy: server.create_texture(GpuTextureDescriptor {
+                name: "WhiteDummy",
                 kind: GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -226,6 +227,7 @@ impl RendererResources {
                 ..Default::default()
             })?,
             black_dummy: server.create_texture(GpuTextureDescriptor {
+                name: "BlackDummy",
                 kind: GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -235,6 +237,7 @@ impl RendererResources {
                 ..Default::default()
             })?,
             environment_dummy: server.create_texture(GpuTextureDescriptor {
+                name: "EnvironmentDummy",
                 kind: GpuTextureKind::Cube { size: 1 },
                 pixel_kind: PixelKind::RGBA8,
                 data: Some(&[
@@ -248,6 +251,7 @@ impl RendererResources {
                 ..Default::default()
             })?,
             normal_dummy: server.create_texture(GpuTextureDescriptor {
+                name: "NormalDummy",
                 kind: GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -257,6 +261,7 @@ impl RendererResources {
                 ..Default::default()
             })?,
             metallic_dummy: server.create_texture(GpuTextureDescriptor {
+                name: "MetallicDummy",
                 kind: GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -266,6 +271,7 @@ impl RendererResources {
                 ..Default::default()
             })?,
             volume_dummy: server.create_texture(GpuTextureDescriptor {
+                name: "VolumeDummy",
                 kind: GpuTextureKind::Volume {
                     width: 1,
                     height: 1,
