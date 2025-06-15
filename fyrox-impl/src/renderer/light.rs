@@ -19,6 +19,9 @@
 // SOFTWARE.
 
 use crate::renderer::cache::DynamicSurfaceCache;
+use crate::renderer::convolution::{
+    EnvironmentMapIrradianceConvolution, EnvironmentMapSpecularConvolution,
+};
 use crate::renderer::observer::Observer;
 use crate::renderer::resources::RendererResources;
 use crate::renderer::utils::make_brdf_lut;
@@ -62,7 +65,7 @@ use crate::{
         Scene,
     },
 };
-use fyrox_graphics::gpu_texture::GpuTexture;
+use fyrox_graphics::gpu_texture::{GpuTexture, GpuTextureKind};
 use fyrox_resource::manager::ResourceManager;
 
 pub struct DeferredLightRenderer {
@@ -96,6 +99,9 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
     pub ssao_renderer: &'a ScreenSpaceAmbientOcclusionRenderer,
     pub resource_manager: &'a ResourceManager,
+    pub environment_map_specular_convolution: &'a mut Option<EnvironmentMapSpecularConvolution>,
+    pub environment_map_irradiance_convolution: &'a EnvironmentMapIrradianceConvolution,
+    pub need_recalculate_convolution: &'a mut bool,
 }
 
 impl DeferredLightRenderer {
@@ -261,6 +267,9 @@ impl DeferredLightRenderer {
             dynamic_surface_cache,
             ssao_renderer,
             resource_manager,
+            environment_map_specular_convolution,
+            environment_map_irradiance_convolution,
+            need_recalculate_convolution,
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
@@ -340,6 +349,43 @@ impl DeferredLightRenderer {
             })
             .unwrap_or(&renderer_resources.environment_dummy);
 
+        if *need_recalculate_convolution {
+            // Prepare the specular convolution.
+            let environment_map_size = if let GpuTextureKind::Cube { size } = environment_map.kind()
+            {
+                size
+            } else {
+                1
+            };
+            if environment_map_specular_convolution.is_none()
+                || environment_map_specular_convolution
+                    .as_ref()
+                    .is_some_and(|conv| conv.size != environment_map_size)
+            {
+                *environment_map_specular_convolution = Some(
+                    EnvironmentMapSpecularConvolution::new(server, environment_map_size)?,
+                );
+            }
+            pass_stats += environment_map_specular_convolution
+                .as_ref()
+                .unwrap()
+                .render(environment_map, uniform_buffer_cache, renderer_resources)?;
+
+            // Prepare the irradiance component of the probe.
+            pass_stats += environment_map_irradiance_convolution.render(
+                environment_map,
+                uniform_buffer_cache,
+                renderer_resources,
+            )?;
+
+            *need_recalculate_convolution = false;
+        }
+
+        let specular_convolution = environment_map_specular_convolution
+            .as_ref()
+            .map(|c| c.cube_map())
+            .unwrap_or(&renderer_resources.environment_dummy);
+
         // Ambient light.
         let gbuffer_depth_map = gbuffer.depth();
         let gbuffer_diffuse_map = gbuffer.diffuse_texture();
@@ -397,10 +443,17 @@ impl DeferredLightRenderer {
                 ),
             ),
             binding(
-                "environmentMap",
+                "prefilteredSpecularMap",
                 (
-                    environment_map,
+                    specular_convolution,
                     &renderer_resources.linear_mipmap_linear_clamp_sampler,
+                ),
+            ),
+            binding(
+                "irradianceMap",
+                (
+                    environment_map_irradiance_convolution.cube_map(),
+                    &renderer_resources.linear_clamp_sampler,
                 ),
             ),
             binding(

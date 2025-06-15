@@ -32,14 +32,19 @@
             binding: 5
         ),
         (
-            name: "environmentMap",
+            name: "prefilteredSpecularMap",
             kind: Texture(kind: SamplerCube, fallback: White),
             binding: 6
         ),
         (
+            name: "irradianceMap",
+            kind: Texture(kind: SamplerCube, fallback: White),
+            binding: 7
+        ),
+        (
             name: "brdfLUT",
             kind: Texture(kind: Sampler2D, fallback: White),
-            binding: 7
+            binding: 8
         ),
         (
             name: "properties",
@@ -125,9 +130,9 @@
 
                         float clampedCosViewAngle = max(dot(fragmentNormal, viewVector), 0.0);
 
-                        ivec2 cubeMapSize = textureSize(environmentMap, 0);
+                        ivec2 cubeMapSize = textureSize(prefilteredSpecularMap, 0);
                         float mip = roughness * (floor(log2(max(float(cubeMapSize.x), float(cubeMapSize.y)))) + 1.0);
-                        vec3 reflection = textureLod(environmentMap, reflectionVector, mip).rgb;
+                        vec3 reflection = textureLod(prefilteredSpecularMap, reflectionVector, mip).rgb;
 
                         vec3 F0 = mix(vec3(0.04), albedo.rgb, metallic);
                         vec3 F = S_FresnelSchlickRoughness(clampedCosViewAngle, F0, roughness);
@@ -139,7 +144,8 @@
                         float ambientOcclusion = texture(aoSampler, texCoord).r;
                         vec4 emission = texture(ambientTexture, texCoord);
 
-                        vec3 diffuse = (properties.ambientColor.rgb + emission.rgb) * albedo.rgb;
+                        vec3 irradiance = texture(irradianceMap, fragmentNormal).rgb;
+                        vec3 diffuse = (properties.ambientColor.rgb + emission.rgb) * irradiance * albedo.rgb;
 
                         FragColor.rgb = (kD * diffuse + specular) * ambientOcclusion;
                         FragColor.a = emission.a;

@@ -92,8 +92,10 @@ pub struct ShadersContainer {
     pub box_blur: RenderPassContainer,
     /// User interface shader.
     pub ui: RenderPassContainer,
-    /// Environment map convolution shader.
-    pub environment_map_convolution: RenderPassContainer,
+    /// Environment map specular convolution shader.
+    pub environment_map_specular_convolution: RenderPassContainer,
+    /// Environment map irradiance convolution shader.
+    pub environment_map_irradiance_convolution: RenderPassContainer,
 }
 
 impl ShadersContainer {
@@ -173,9 +175,13 @@ impl ShadersContainer {
                 server,
                 include_str!("../../../fyrox-material/src/shader/standard/widget.shader"),
             )?,
-            environment_map_convolution: RenderPassContainer::from_str(
+            environment_map_specular_convolution: RenderPassContainer::from_str(
                 server,
                 include_str!("shaders/prefilter.shader"),
+            )?,
+            environment_map_irradiance_convolution: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/irradiance.shader"),
             )?,
         })
     }

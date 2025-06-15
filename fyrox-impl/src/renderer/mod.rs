@@ -50,7 +50,9 @@ mod settings;
 mod shadow;
 mod ssao;
 
-use crate::renderer::convolution::EnvironmentMapConvolution;
+use crate::renderer::convolution::{
+    EnvironmentMapIrradianceConvolution, EnvironmentMapSpecularConvolution,
+};
 use crate::renderer::ssao::ScreenSpaceAmbientOcclusionRenderer;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
@@ -185,8 +187,16 @@ fn recreate_render_data_if_needed<T: Any>(
 
 /// A set of frame buffers and renderers that can be used to render to.
 pub struct RenderDataContainer {
-    /// Prefiltered environment map.
-    pub environment_map_convolution: Rc<RefCell<Option<EnvironmentMapConvolution>>>,
+    /// Prefiltered environment map that contains a specular component of the environment map with
+    /// roughness encoded in mip levels.
+    pub environment_map_specular_convolution: Option<EnvironmentMapSpecularConvolution>,
+
+    /// Irradiance cube map. Contains computed the irradiance computed from the environment map.
+    pub environment_map_irradiance_convolution: EnvironmentMapIrradianceConvolution,
+
+    /// A flag that defines whether the renderer must recalculate specular/irradiance convolution
+    /// for environment maps.
+    pub need_recalculate_convolution: bool,
 
     /// Screen space ambient occlusion renderer.
     pub ssao_renderer: ScreenSpaceAmbientOcclusionRenderer,
@@ -295,7 +305,11 @@ impl RenderDataContainer {
         }
 
         Ok(Self {
-            environment_map_convolution: Default::default(),
+            need_recalculate_convolution: true,
+            environment_map_specular_convolution: Default::default(),
+            environment_map_irradiance_convolution: EnvironmentMapIrradianceConvolution::new(
+                server, 32,
+            )?,
             ssao_renderer: ScreenSpaceAmbientOcclusionRenderer::new(server, width, height)?,
             gbuffer: GBuffer::new(server, width, height)?,
             hdr_renderer: HighDynamicRangeRenderer::new(server)?,
@@ -908,6 +922,7 @@ impl Renderer {
         elapsed_time: f32,
         dt: f32,
         resource_manager: &ResourceManager,
+        need_recalculate_convolution: bool,
     ) -> Result<&mut RenderDataContainer, FrameworkError> {
         let server = &*self.server;
 
@@ -960,6 +975,8 @@ impl Renderer {
         } else {
             &mut scene_render_data.scene_data
         };
+
+        render_data.need_recalculate_convolution = need_recalculate_convolution;
 
         let visibility_cache = self
             .visibility_cache
@@ -1036,6 +1053,11 @@ impl Renderer {
                     dynamic_surface_cache: &mut self.dynamic_surface_cache,
                     ssao_renderer: &render_data.ssao_renderer,
                     resource_manager,
+                    environment_map_specular_convolution: &mut render_data
+                        .environment_map_specular_convolution,
+                    environment_map_irradiance_convolution: &render_data
+                        .environment_map_irradiance_convolution,
+                    need_recalculate_convolution: &mut render_data.need_recalculate_convolution,
                 })?;
 
         render_data.statistics += light_stats;
@@ -1260,39 +1282,19 @@ impl Renderer {
 
         let observers = ObserversCollection::from_scene(scene, frame_size);
 
-        // At first, render the reflection probes to off-screen render target and generate mipmaps
-        // for the cube maps.
+        // At first, render the reflection probes to off-screen render target.
+        let mut need_recalculate_convolution = false;
         for observer in observers.reflection_probes.iter() {
-            let server = self.server.clone();
-            let render_data = self.render_scene_observer(
+            self.render_scene_observer(
                 observer,
                 scene_handle,
                 scene,
                 elapsed_time,
                 dt,
                 resource_manager,
+                true,
             )?;
-            let probe_cube_map = render_data.ldr_scene_frame_texture().clone();
-            let size = if let GpuTextureKind::Cube { size } = probe_cube_map.kind() {
-                size
-            } else {
-                unreachable!()
-            };
-            let convolution = render_data.environment_map_convolution.clone();
-            let mut convolution = convolution.borrow_mut();
-            if convolution.is_none() || convolution.as_ref().is_some_and(|conv| conv.size != size) {
-                *convolution = Some(EnvironmentMapConvolution::new(&*server, size)?);
-            }
-            let convolution = convolution.as_ref().unwrap();
-            self.statistics += convolution.render(
-                &probe_cube_map,
-                &mut self.uniform_buffer_cache,
-                &self.renderer_resources,
-            )?;
-            let rt = observer.render_target.as_ref().unwrap();
-            self.texture_cache.unload(rt);
-            self.texture_cache
-                .try_register(&*self.server, rt, convolution.cube_map().clone())?;
+            need_recalculate_convolution = true;
         }
 
         // Then render everything else.
@@ -1304,6 +1306,7 @@ impl Renderer {
                 elapsed_time,
                 dt,
                 resource_manager,
+                need_recalculate_convolution,
             )?;
         }
 
