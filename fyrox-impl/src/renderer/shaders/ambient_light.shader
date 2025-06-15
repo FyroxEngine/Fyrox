@@ -124,6 +124,7 @@
                         vec3 material = texture(materialTexture, texCoord).rgb;
                         float metallic = material.x;
                         float roughness = material.y;
+                        float materialAo = material.z;
 
                         vec3 viewVector = normalize(properties.cameraPosition - fragmentPosition);
                         vec3 reflectionVector = -reflect(viewVector, fragmentNormal);
@@ -141,7 +142,7 @@
                         vec2 envBRDF = texture(brdfLUT, vec2(clampedCosViewAngle, roughness)).rg;
                         vec3 specular = reflection * (F * envBRDF.x + envBRDF.y);
 
-                        float ambientOcclusion = texture(aoSampler, texCoord).r;
+                        float ambientOcclusion = texture(aoSampler, texCoord).r * materialAo;
                         vec4 emission = texture(ambientTexture, texCoord);
 
                         vec3 irradiance = texture(irradianceMap, fragmentNormal).rgb;
