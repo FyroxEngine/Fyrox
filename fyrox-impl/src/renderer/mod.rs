@@ -976,7 +976,7 @@ impl Renderer {
             &mut scene_render_data.scene_data
         };
 
-        render_data.need_recalculate_convolution = need_recalculate_convolution;
+        render_data.need_recalculate_convolution |= need_recalculate_convolution;
 
         let visibility_cache = self
             .visibility_cache
