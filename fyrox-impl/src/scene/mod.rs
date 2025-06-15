@@ -545,7 +545,7 @@ impl Scene {
         let _ = self
             .rendering_options
             .visit("RenderingOptions", &mut region);
-        let _ = self.sky_box.visit("SkyBox", &mut region)?;
+        let _ = self.sky_box.visit("SkyBox", &mut region);
 
         // Backward compatibility.
         let mut navmeshes = NavMeshContainer::default();
