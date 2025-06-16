@@ -132,7 +132,7 @@
                         float clampedCosViewAngle = max(dot(fragmentNormal, viewVector), 0.0);
 
                         ivec2 cubeMapSize = textureSize(prefilteredSpecularMap, 0);
-                        float mip = roughness * (floor(log2(max(float(cubeMapSize.x), float(cubeMapSize.y)))) + 1.0);
+                        float mip = roughness * (floor(log2(float(cubeMapSize.x))) + 1.0);
                         vec3 reflection = textureLod(prefilteredSpecularMap, reflectionVector, mip).rgb;
 
                         vec3 F0 = mix(vec3(0.04), albedo.rgb, metallic);
@@ -150,8 +150,6 @@
 
                         FragColor.rgb = (kD * diffuse + specular) * ambientOcclusion;
                         FragColor.a = emission.a;
-
-                        // TODO: Implement IBL.
                     }
                 "#,
         )
