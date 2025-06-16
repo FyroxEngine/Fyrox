@@ -923,6 +923,7 @@ impl Renderer {
         dt: f32,
         resource_manager: &ResourceManager,
         need_recalculate_convolution: bool,
+        is_reflection_probe: bool,
     ) -> Result<&mut RenderDataContainer, FrameworkError> {
         let server = &*self.server;
 
@@ -982,7 +983,7 @@ impl Renderer {
             .visibility_cache
             .get_or_register(&scene.graph, observer.handle);
 
-        let bundle_storage = RenderDataBundleStorage::from_graph(
+        let mut bundle_storage = RenderDataBundleStorage::from_graph(
             &scene.graph,
             observer.render_mask,
             elapsed_time,
@@ -993,6 +994,9 @@ impl Renderer {
             },
             &mut self.dynamic_surface_cache,
         );
+        if is_reflection_probe {
+            bundle_storage.environment_map = None;
+        }
 
         server.set_polygon_fill_mode(
             PolygonFace::FrontAndBack,
@@ -1293,6 +1297,7 @@ impl Renderer {
                 dt,
                 resource_manager,
                 true,
+                true,
             )?;
             need_recalculate_convolution = true;
         }
@@ -1307,6 +1312,7 @@ impl Renderer {
                 dt,
                 resource_manager,
                 need_recalculate_convolution,
+                false,
             )?;
         }
 
