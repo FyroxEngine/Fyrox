@@ -390,7 +390,7 @@ impl Graph {
                         }
                     })
                 },
-                &[],
+                &[TypeId::of::<UntypedResource>()],
             );
         }
         references
