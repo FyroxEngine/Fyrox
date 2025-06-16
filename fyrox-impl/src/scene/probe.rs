@@ -77,8 +77,11 @@ pub struct ReflectionProbe {
     #[reflect(min_value = 0.0)]
     pub z_far: InheritableVariable<f32>,
     pub update_mode: InheritableVariable<UpdateMode>,
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub need_update: bool,
     #[reflect(hidden)]
+    #[visit(skip)]
     pub(crate) updated: Cell<bool>,
     #[reflect(hidden)]
     render_target: TextureResource,
