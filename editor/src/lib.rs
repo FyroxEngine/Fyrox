@@ -588,6 +588,9 @@ pub struct Editor {
     pub processed_ui_messages: usize,
     pub styles: FxHashMap<EditorStyle, StyleResource>,
     pub running_game_process: Option<(std::process::Child, Arc<AtomicBool>)>,
+    pub user_project_icon: Option<Vec<u8>>,
+    pub user_project_name: String,
+    pub user_project_version: String,
 }
 
 impl Editor {
@@ -1002,6 +1005,9 @@ impl Editor {
             processed_ui_messages: 0,
             styles,
             running_game_process: None,
+            user_project_icon: None,
+            user_project_name: Default::default(),
+            user_project_version: Default::default(),
         };
 
         if let Some(data) = startup_data {
@@ -2183,8 +2189,10 @@ impl Editor {
         let graphics_context = engine.graphics_context.as_initialized_mut();
 
         graphics_context.window.set_title(&format!(
-            "FyroxEd {}: {}",
+            "FyroxEd{} {}{}: {}",
+            self.user_project_name,
             *EDITOR_VERSION,
+            self.user_project_version,
             working_directory.to_string_lossy()
         ));
 
@@ -2719,7 +2727,11 @@ impl Editor {
 
         let graphics_context = engine.graphics_context.as_initialized_mut();
 
-        graphics_context.set_window_icon_from_memory(include_bytes!("../resources/icon.png"));
+        graphics_context.set_window_icon_from_memory(
+            self.user_project_icon
+                .as_deref()
+                .unwrap_or(include_bytes!("../resources/icon.png")),
+        );
 
         // High-DPI screen support
         Log::info(format!(
