@@ -795,11 +795,24 @@ impl ResourceManagerState {
     /// 1) The resource is in invalid state (not in [`ResourceState::Ok`]).
     /// 2) The resource wasn't registered in the resource registry.
     /// 3) The resource registry wasn't loaded.
+    ///
+    /// ## Built-in resources
+    ///
+    /// As a last resort, this method tries to find a built-in resource descriptor corresponding
+    /// to the given resource and returns its "path". In reality, it is just a string id, since
+    /// built-in resources are stored inside the binary.
     pub fn resource_path(&self, resource: &UntypedResource) -> Option<PathBuf> {
         let header = resource.0.lock();
         if let ResourceState::Ok { resource_uuid, .. } = header.state {
             let registry = self.resource_registry.lock();
-            registry.uuid_to_path_buf(resource_uuid)
+            if let Some(path) = registry.uuid_to_path_buf(resource_uuid) {
+                Some(path)
+            } else {
+                drop(header);
+                self.built_in_resources
+                    .find_by_uuid(resource_uuid)
+                    .map(|built_in_resource| built_in_resource.id.clone())
+            }
         } else {
             None
         }
@@ -807,10 +820,24 @@ impl ResourceManagerState {
 
     /// Tries to fetch a resource path associated with the given UUID. Returns [`None`] if there's
     /// no resource with the given UUID.
+    ///
+    /// ## Built-in resources
+    ///
+    /// As a last resort, this method tries to find a built-in resource descriptor corresponding
+    /// to the given resource uuid and returns its "path". In reality, it is just a string id, since
+    /// built-in resources are stored inside the binary.
     pub fn uuid_to_resource_path(&self, resource_uuid: Uuid) -> Option<PathBuf> {
-        self.resource_registry
+        if let Some(path) = self
+            .resource_registry
             .lock()
             .uuid_to_path_buf(resource_uuid)
+        {
+            Some(path)
+        } else {
+            self.built_in_resources
+                .find_by_uuid(resource_uuid)
+                .map(|built_in_resource| built_in_resource.id.clone())
+        }
     }
 
     /// Adds a new resource loader of the given type.
