@@ -325,7 +325,7 @@ where
                     .add_column(Column::auto())
                     .add_column(Column::stretch())
                     .add_column(Column::auto())
-                    .add_row(Row::stretch())
+                    .add_row(Row::auto())
                     .build(ctx),
                 )
                 .with_allow_drop(true)
