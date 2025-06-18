@@ -18,13 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::inspector::{
-    editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
-    InspectorPlugin,
-};
 use crate::{
     asset::item::AssetItem,
     fyrox::{
+        asset::manager::ResourceManager,
         core::{
             algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
             color::Color,
@@ -42,7 +39,10 @@ use crate::{
             dock::DockingManagerMessage,
             grid::{Column, GridBuilder, Row},
             image::{Image, ImageBuilder, ImageMessage},
-            inspector::editors::inherit::InheritablePropertyEditorDefinition,
+            inspector::editors::{
+                inherit::InheritablePropertyEditorDefinition,
+                inspectable::InspectablePropertyEditorDefinition,
+            },
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             matrix::{MatrixEditorBuilder, MatrixEditorMessage},
             menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
@@ -52,9 +52,12 @@ use crate::{
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
             text::TextBuilder,
-            vec::{Vec2EditorMessage, Vec3EditorMessage, Vec4EditorMessage},
-            vec::{VecEditorBuilder, VecEditorMessage},
-            widget::{WidgetBuilder, WidgetMessage},
+            utils::make_simple_tooltip,
+            vec::{
+                Vec2EditorMessage, Vec3EditorMessage, Vec4EditorMessage, VecEditorBuilder,
+                VecEditorMessage,
+            },
+            widget::{WidgetBuilder, WidgetMaterial, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
@@ -74,7 +77,13 @@ use crate::{
     },
     message::MessageSender,
     plugin::EditorPlugin,
-    plugins::material::editor::MaterialPropertyEditorDefinition,
+    plugins::{
+        inspector::{
+            editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
+            InspectorPlugin,
+        },
+        material::editor::MaterialPropertyEditorDefinition,
+    },
     preview::PreviewPanel,
     scene::commands::material::{
         SetMaterialBindingCommand, SetMaterialPropertyGroupPropertyValueCommand,
@@ -82,9 +91,6 @@ use crate::{
     },
     send_sync_message, Editor, Engine, Message,
 };
-use fyrox::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;
-use fyrox::gui::utils::make_simple_tooltip;
-use fyrox::gui::widget::WidgetMaterial;
 use std::sync::Arc;
 
 pub mod editor;
@@ -400,13 +406,17 @@ impl MaterialEditor {
         }
 
         let ui = engine.user_interfaces.first_mut();
-        self.create_property_editors(ui);
+        self.create_property_editors(ui, &engine.resource_manager);
         self.sync_to_model(ui);
     }
 
     /// Creates property editors for each resource descriptor used by material's shader. Fills
     /// the views with default values from the shader.
-    fn create_property_editors(&mut self, ui: &mut UserInterface) {
+    fn create_property_editors(
+        &mut self,
+        ui: &mut UserInterface,
+        resource_manager: &ResourceManager,
+    ) {
         for resource_view in self.resource_views.drain(..) {
             send_sync_message(
                 ui,
@@ -428,22 +438,26 @@ impl MaterialEditor {
             }
 
             let view = match resource.kind {
-                ShaderResourceKind::Texture { .. } => {
+                ShaderResourceKind::Texture { fallback, .. } => {
+                    let path = material
+                        .texture_ref(resource.name.clone())
+                        .and_then(|d| d.value.clone())
+                        .and_then(|tex| resource_manager.resource_path(tex.as_ref()))
+                        .map(|path| path.to_string_lossy().to_string())
+                        .unwrap_or_else(|| fallback.as_ref().to_string());
+                    let ctx = &mut ui.build_ctx();
                     let editor = ImageBuilder::new(
                         WidgetBuilder::new()
                             .with_height(28.0)
                             .with_user_data(Arc::new(Mutex::new(resource.name.clone())))
                             .with_allow_drop(true)
-                            .with_context_menu(self.texture_context_menu.popup.clone()),
+                            .with_context_menu(self.texture_context_menu.popup.clone())
+                            .with_tooltip(make_simple_tooltip(ctx, &path)),
                     )
-                    .build(&mut ui.build_ctx());
+                    .build(ctx);
                     ResourceView {
                         name: resource.name.clone(),
-                        container: make_item_container(
-                            &mut ui.build_ctx(),
-                            resource.name.as_str(),
-                            editor,
-                        ),
+                        container: make_item_container(ctx, resource.name.as_str(), editor),
                         kind: ResourceViewKind::Sampler,
                         editor,
                     }
