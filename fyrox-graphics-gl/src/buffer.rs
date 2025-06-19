@@ -75,6 +75,7 @@ impl GlBuffer {
             kind,
             usage,
         } = desc;
+        server.memory_usage.borrow_mut().buffers += size;
         unsafe {
             let gl_kind = kind.into_gl();
             let gl_usage = usage.into_gl();
@@ -102,6 +103,7 @@ impl Drop for GlBuffer {
     fn drop(&mut self) {
         unsafe {
             if let Some(state) = self.state.upgrade() {
+                state.memory_usage.borrow_mut().buffers -= self.size.get();
                 state.gl.delete_buffer(self.id);
             }
         }

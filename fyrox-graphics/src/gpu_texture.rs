@@ -497,14 +497,15 @@ define_as_any_trait!(GpuTextureAsAny => GpuTextureTrait);
 /// ```
 pub trait GpuTextureTrait: GpuTextureAsAny {
     /// Sets the new data of the texture. This method is also able to change the kind of the texture
-    /// and its pixel kind.
+    /// and its pixel kind. Returns the number of bytes occupied by the texture in the video memory.
+    /// If there's no data specified, the texture will still take the space defined by its metrics.
     fn set_data(
         &self,
         kind: GpuTextureKind,
         pixel_kind: PixelKind,
         mip_count: usize,
         data: Option<&[u8]>,
-    ) -> Result<(), FrameworkError>;
+    ) -> Result<usize, FrameworkError>;
 
     /// Returns kind of the texture.
     fn kind(&self) -> GpuTextureKind;

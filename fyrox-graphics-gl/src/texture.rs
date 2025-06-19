@@ -62,6 +62,7 @@ pub struct GlTexture {
     texture: glow::Texture,
     kind: Cell<GpuTextureKind>,
     pixel_kind: Cell<PixelKind>,
+    size_bytes: Cell<usize>,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
 }
@@ -281,10 +282,14 @@ impl GlTexture {
                 texture,
                 kind: desc.kind.into(),
                 pixel_kind: desc.pixel_kind.into(),
+                size_bytes: Cell::new(0),
                 thread_mark: PhantomData,
             };
 
-            result.set_data(desc.kind, desc.pixel_kind, desc.mip_count, desc.data)?;
+            let byte_count =
+                result.set_data(desc.kind, desc.pixel_kind, desc.mip_count, desc.data)?;
+
+            server.memory_usage.borrow_mut().textures += byte_count;
 
             let mut binding = result.make_temp_binding();
             if server.gl.supports_debug() {
@@ -332,10 +337,61 @@ impl Drop for GlTexture {
     fn drop(&mut self) {
         if let Some(state) = self.state.upgrade() {
             unsafe {
+                state.memory_usage.borrow_mut().textures -= self.size_bytes.get();
                 state.gl.delete_texture(self.texture);
             }
         }
     }
+}
+
+fn desired_byte_count(kind: GpuTextureKind, mip_count: usize, pixel_kind: PixelKind) -> usize {
+    let mut desired_byte_count = 0;
+
+    'mip_loop: for mip in 0..mip_count {
+        match kind {
+            GpuTextureKind::Line { length } => {
+                if let Some(length) = length.checked_shr(mip as u32) {
+                    desired_byte_count += image_1d_size_bytes(pixel_kind, length);
+                } else {
+                    break 'mip_loop;
+                }
+            }
+            GpuTextureKind::Rectangle { width, height } => {
+                if let (Some(width), Some(height)) = (
+                    width.checked_shr(mip as u32),
+                    height.checked_shr(mip as u32),
+                ) {
+                    desired_byte_count += image_2d_size_bytes(pixel_kind, width, height);
+                } else {
+                    break 'mip_loop;
+                }
+            }
+            GpuTextureKind::Cube { size } => {
+                if let Some(size) = size.checked_shr(mip as u32) {
+                    desired_byte_count += 6 * image_2d_size_bytes(pixel_kind, size, size);
+                } else {
+                    break 'mip_loop;
+                }
+            }
+            GpuTextureKind::Volume {
+                width,
+                height,
+                depth,
+            } => {
+                if let (Some(width), Some(height), Some(depth)) = (
+                    width.checked_shr(mip as u32),
+                    height.checked_shr(mip as u32),
+                    depth.checked_shr(mip as u32),
+                ) {
+                    desired_byte_count += image_3d_size_bytes(pixel_kind, width, height, depth);
+                } else {
+                    break 'mip_loop;
+                }
+            }
+        };
+    }
+
+    desired_byte_count
 }
 
 impl GpuTextureTrait for GlTexture {
@@ -345,54 +401,10 @@ impl GpuTextureTrait for GlTexture {
         pixel_kind: PixelKind,
         mip_count: usize,
         data: Option<&[u8]>,
-    ) -> Result<(), FrameworkError> {
+    ) -> Result<usize, FrameworkError> {
         let mip_count = mip_count.max(1);
 
-        let mut desired_byte_count = 0;
-
-        'mip_loop: for mip in 0..mip_count {
-            match kind {
-                GpuTextureKind::Line { length } => {
-                    if let Some(length) = length.checked_shr(mip as u32) {
-                        desired_byte_count += image_1d_size_bytes(pixel_kind, length);
-                    } else {
-                        break 'mip_loop;
-                    }
-                }
-                GpuTextureKind::Rectangle { width, height } => {
-                    if let (Some(width), Some(height)) = (
-                        width.checked_shr(mip as u32),
-                        height.checked_shr(mip as u32),
-                    ) {
-                        desired_byte_count += image_2d_size_bytes(pixel_kind, width, height);
-                    } else {
-                        break 'mip_loop;
-                    }
-                }
-                GpuTextureKind::Cube { size } => {
-                    if let Some(size) = size.checked_shr(mip as u32) {
-                        desired_byte_count += 6 * image_2d_size_bytes(pixel_kind, size, size);
-                    } else {
-                        break 'mip_loop;
-                    }
-                }
-                GpuTextureKind::Volume {
-                    width,
-                    height,
-                    depth,
-                } => {
-                    if let (Some(width), Some(height), Some(depth)) = (
-                        width.checked_shr(mip as u32),
-                        height.checked_shr(mip as u32),
-                        depth.checked_shr(mip as u32),
-                    ) {
-                        desired_byte_count += image_3d_size_bytes(pixel_kind, width, height, depth);
-                    } else {
-                        break 'mip_loop;
-                    }
-                }
-            };
-        }
+        let desired_byte_count = desired_byte_count(kind, mip_count, pixel_kind);
 
         if let Some(data) = data {
             let actual_data_size = data.len();
@@ -403,6 +415,8 @@ impl GpuTextureTrait for GlTexture {
                 });
             }
         }
+
+        self.size_bytes.set(desired_byte_count);
 
         self.kind.set(kind);
         self.pixel_kind.set(pixel_kind);
@@ -616,7 +630,7 @@ impl GpuTextureTrait for GlTexture {
             }
         }
 
-        Ok(())
+        Ok(desired_byte_count)
     }
 
     fn kind(&self) -> GpuTextureKind {

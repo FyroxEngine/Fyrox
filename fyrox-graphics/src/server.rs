@@ -51,6 +51,18 @@ pub struct ServerCapabilities {
     pub max_lod_bias: f32,
 }
 
+/// Contains information about used memory per each category of GPU resource. This is not precise
+/// data; it only calculates total requested memory by the user of a graphics server and does not
+/// include additional memory overhead in the video driver. Yet this information could still be
+/// useful.
+#[derive(Default, Debug, Clone)]
+pub struct ServerMemoryUsage {
+    /// Total number of bytes used by all textures (including render targets).
+    pub textures: usize,
+    /// Total number of bytes used by all buffers (vertex, index, uniform, etc.)
+    pub buffers: usize,
+}
+
 /// A shared reference to a graphics server.
 pub type SharedGraphicsServer = Rc<dyn GraphicsServer>;
 
@@ -167,6 +179,9 @@ pub trait GraphicsServer: GraphicsServerAsAny {
     /// Generates mipmaps for the given texture. Graphics server implementation can pick any desired
     /// way of mipmaps generation, depending on the underlying GAPI capabilities.
     fn generate_mipmap(&self, texture: &GpuTexture);
+
+    /// Fetches the total amount of memory used by the graphics server.
+    fn memory_usage(&self) -> ServerMemoryUsage;
 
     /// A shortcut for [`Self::create_texture`], that creates a rectangular texture with the given
     /// size and pixel kind.

@@ -29,6 +29,7 @@ use crate::{
     texture::GlTexture,
     ToGlConstant,
 };
+use fyrox_graphics::server::ServerMemoryUsage;
 use fyrox_graphics::{
     buffer::{GpuBuffer, GpuBufferDescriptor},
     core::{color::Color, log::Log, math::Rect},
@@ -267,6 +268,7 @@ impl InnerState {
 pub struct GlGraphicsServer {
     pub gl: glow::Context,
     pub(crate) state: RefCell<InnerState>,
+    pub(crate) memory_usage: RefCell<ServerMemoryUsage>,
     this: RefCell<Option<Weak<GlGraphicsServer>>>,
 }
 
@@ -578,6 +580,7 @@ impl GlGraphicsServer {
                 #[cfg(not(target_arch = "wasm32"))]
                 gl_surface,
             )),
+            memory_usage: Default::default(),
             this: Default::default(),
         };
 
@@ -1195,5 +1198,9 @@ impl GraphicsServer for GlGraphicsServer {
                 )
             }
         }
+    }
+
+    fn memory_usage(&self) -> ServerMemoryUsage {
+        self.memory_usage.borrow().clone()
     }
 }
