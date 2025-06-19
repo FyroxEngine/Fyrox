@@ -98,7 +98,7 @@ impl StatisticsWindow {
             if let Some(stats) = graphics_context.renderer.scene_data_map.get(&current_scene) {
                 let global_stats = graphics_context.renderer.get_statistics();
                 let statistics = format!(
-                    "FPS: {}\nFrame Time:{}\n{}\nMemory Usage:{:?}",
+                    "FPS: {}\nFrame Time:{}\n{}\nMemory Usage:\n{}",
                     global_stats.frames_per_second,
                     global_stats.pure_frame_time,
                     stats.scene_data.statistics,

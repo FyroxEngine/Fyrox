@@ -37,6 +37,7 @@ use crate::{
     PolygonFace, PolygonFillMode,
 };
 use fyrox_core::define_as_any_trait;
+use std::fmt::{Display, Formatter};
 use std::rc::{Rc, Weak};
 
 /// Graphics server capabilities.
@@ -61,6 +62,18 @@ pub struct ServerMemoryUsage {
     pub textures: usize,
     /// Total number of bytes used by all buffers (vertex, index, uniform, etc.)
     pub buffers: usize,
+}
+
+impl Display for ServerMemoryUsage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        const MEGABYTE: usize = 1024 * 1024;
+        write!(
+            f,
+            "Textures: {} Mb\nBuffers: {} Mb",
+            self.textures / MEGABYTE,
+            self.buffers / MEGABYTE
+        )
+    }
 }
 
 /// A shared reference to a graphics server.
