@@ -20,7 +20,6 @@
 
 #![allow(missing_docs)] // TODO
 
-use crate::scene::node::UpdateContext;
 use crate::{
     core::{
         algebra::Vector3,
@@ -36,13 +35,17 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{constructor::NodeConstructor, Node, NodeTrait},
+        node::{constructor::NodeConstructor, Node, NodeTrait, UpdateContext},
     },
 };
-use fyrox_texture::{TextureKind, TextureResource, TextureResourceExtension};
-use std::cell::Cell;
-use std::ops::{Deref, DerefMut};
+use fyrox_texture::{TextureResource, TextureResourceExtension};
+use std::{
+    cell::Cell,
+    ops::{Deref, DerefMut},
+};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
+
+const DEFAULT_RESOLUTION: usize = 512;
 
 #[derive(
     Clone,
@@ -72,6 +75,8 @@ pub struct ReflectionProbe {
     #[reflect(min_value = 0.0)]
     pub size: InheritableVariable<Vector3<f32>>,
     pub offset: InheritableVariable<Vector3<f32>>,
+    #[reflect(max_value = 2048.0, min_value = 16.0)]
+    pub resolution: InheritableVariable<usize>,
     #[reflect(min_value = 0.0)]
     pub z_near: InheritableVariable<f32>,
     #[reflect(min_value = 0.0)]
@@ -93,26 +98,25 @@ impl Default for ReflectionProbe {
             base: Default::default(),
             size: Default::default(),
             offset: Default::default(),
+            resolution: DEFAULT_RESOLUTION.into(),
             z_near: 0.001.into(),
             z_far: 128.0.into(),
             update_mode: Default::default(),
             need_update: true,
             updated: Cell::new(false),
-            render_target: Default::default(),
+            render_target: TextureResource::new_cube_render_target(DEFAULT_RESOLUTION as u32),
         }
     }
 }
 
 impl ReflectionProbe {
-    pub fn set_resolution(&mut self, resolution: u32) {
-        self.render_target = TextureResource::new_cube_render_target(resolution);
+    pub fn set_resolution(&mut self, resolution: usize) {
+        self.resolution.set_value_and_mark_modified(resolution);
+        self.render_target = TextureResource::new_cube_render_target(resolution as u32);
     }
 
-    pub fn resolution(&self) -> u32 {
-        match self.render_target.data_ref().kind() {
-            TextureKind::Cube { size } => size,
-            _ => unreachable!(),
-        }
+    pub fn resolution(&self) -> usize {
+        *self.resolution
     }
 
     pub fn render_target(&self) -> &TextureResource {
@@ -184,7 +188,7 @@ pub struct ReflectionProbeBuilder {
     offset: Vector3<f32>,
     z_near: f32,
     z_far: f32,
-    resolution: u32,
+    resolution: usize,
     update_mode: UpdateMode,
 }
 
@@ -197,7 +201,7 @@ impl ReflectionProbeBuilder {
             offset: Default::default(),
             z_near: 0.1,
             z_far: 32.0,
-            resolution: 512,
+            resolution: DEFAULT_RESOLUTION,
             update_mode: Default::default(),
         }
     }
@@ -224,7 +228,7 @@ impl ReflectionProbeBuilder {
         self
     }
 
-    pub fn with_resolution(mut self, resolution: u32) -> Self {
+    pub fn with_resolution(mut self, resolution: usize) -> Self {
         self.resolution = resolution;
         self
     }
@@ -240,12 +244,13 @@ impl ReflectionProbeBuilder {
             base: self.base_builder.build_base(),
             size: self.size.into(),
             offset: self.offset.into(),
+            resolution: self.resolution.into(),
             z_near: self.z_near.into(),
             z_far: self.z_far.into(),
             update_mode: self.update_mode.into(),
             need_update: true,
             updated: Cell::new(false),
-            render_target: TextureResource::new_cube_render_target(self.resolution),
+            render_target: TextureResource::new_cube_render_target(self.resolution as u32),
         })
     }
 
