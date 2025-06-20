@@ -39,7 +39,6 @@ pub mod visibility;
 
 mod bloom;
 mod convolution;
-mod forward_renderer;
 mod fxaa;
 mod gbuffer;
 mod hdr;
@@ -50,10 +49,6 @@ mod settings;
 mod shadow;
 mod ssao;
 
-use crate::renderer::convolution::{
-    EnvironmentMapIrradianceConvolution, EnvironmentMapSpecularConvolution,
-};
-use crate::renderer::ssao::ScreenSpaceAmbientOcclusionRenderer;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -70,7 +65,7 @@ use crate::{
     material::shader::Shader,
     renderer::{
         bloom::BloomRenderer,
-        bundle::{RenderDataBundleStorage, RenderDataBundleStorageOptions},
+        bundle::{BundleRenderContext, RenderDataBundleStorage, RenderDataBundleStorageOptions},
         cache::{
             geometry::GeometryCache,
             shader::{
@@ -79,8 +74,8 @@ use crate::{
             texture::TextureCache,
             uniform::{UniformBufferCache, UniformMemoryAllocator},
         },
+        convolution::{EnvironmentMapIrradianceConvolution, EnvironmentMapSpecularConvolution},
         debug_renderer::DebugRenderer,
-        forward_renderer::{ForwardRenderContext, ForwardRenderer},
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
@@ -92,11 +87,12 @@ use crate::{
         gbuffer::{GBuffer, GBufferRenderContext},
         hdr::HighDynamicRangeRenderer,
         light::{DeferredLightRenderer, DeferredRendererContext},
+        ssao::ScreenSpaceAmbientOcclusionRenderer,
         ui_renderer::{UiRenderContext, UiRenderer},
         visibility::VisibilityCache,
     },
     resource::texture::{Texture, TextureKind, TextureResource},
-    scene::{node::Node, Scene, SceneContainer},
+    scene::{mesh::RenderPath, node::Node, Scene, SceneContainer},
 };
 use cache::DynamicSurfaceCache;
 use fxhash::FxHashMap;
@@ -405,7 +401,6 @@ pub struct Renderer {
     pub uniform_buffer_cache: UniformBufferCache,
     shader_cache: ShaderCache,
     geometry_cache: GeometryCache,
-    forward_renderer: ForwardRenderer,
     fxaa_renderer: FxaaRenderer,
     texture_event_receiver: Receiver<ResourceEvent>,
     shader_event_receiver: Receiver<ResourceEvent>,
@@ -666,7 +661,6 @@ impl Renderer {
             backbuffer_clear_color: Color::BLACK,
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
-            forward_renderer: ForwardRenderer::new(),
             ui_frame_buffers: Default::default(),
             fxaa_renderer: FxaaRenderer::default(),
             statistics: Statistics::default(),
@@ -1069,21 +1063,26 @@ impl Renderer {
 
         let depth = render_data.gbuffer.depth();
 
-        render_data.statistics += self.forward_renderer.render(ForwardRenderContext {
-            state: server,
-            geom_cache: &mut self.geometry_cache,
-            texture_cache: &mut self.texture_cache,
-            shader_cache: &mut self.shader_cache,
-            bundle_storage: &bundle_storage,
-            framebuffer: &render_data.hdr_scene_framebuffer,
-            viewport: observer.viewport,
-            quality_settings: &self.quality_settings,
-            renderer_resources: &self.renderer_resources,
-            scene_depth: depth,
-            ambient_light: scene.rendering_options.ambient_lighting_color,
-            uniform_memory_allocator: &mut self.uniform_memory_allocator,
-            resource_manager,
-        })?;
+        render_data.statistics += bundle_storage.render_to_frame_buffer(
+            server,
+            &mut self.geometry_cache,
+            &mut self.shader_cache,
+            |bundle| bundle.render_path == RenderPath::Forward,
+            |_| true,
+            BundleRenderContext {
+                texture_cache: &mut self.texture_cache,
+                render_pass_name: &ImmutableString::new("Forward"),
+                frame_buffer: &render_data.hdr_scene_framebuffer,
+                viewport: observer.viewport,
+                uniform_memory_allocator: &mut self.uniform_memory_allocator,
+                resource_manager,
+                use_pom: self.quality_settings.use_parallax_mapping,
+                light_position: &Default::default(),
+                renderer_resources: &self.renderer_resources,
+                ambient_light: scene.rendering_options.ambient_lighting_color,
+                scene_depth: Some(depth),
+            },
+        )?;
 
         for render_pass in self.scene_render_passes.iter() {
             render_data.statistics +=
