@@ -106,7 +106,11 @@ impl GlSampler {
             gl.sampler_parameter_f32(id, glow::TEXTURE_LOD_BIAS, lod_bias);
             gl.sampler_parameter_f32(id, glow::TEXTURE_MIN_LOD, min_lod);
             gl.sampler_parameter_f32(id, glow::TEXTURE_MAX_LOD, max_lod);
-            gl.sampler_parameter_f32(id, glow::TEXTURE_MAX_ANISOTROPY, anisotropy);
+            gl.sampler_parameter_f32(
+                id,
+                glow::TEXTURE_MAX_ANISOTROPY,
+                anisotropy.clamp(1.0, 16.0),
+            );
             gl.sampler_parameter_i32(id, glow::TEXTURE_WRAP_S, s_wrap_mode.into_gl() as i32);
             gl.sampler_parameter_i32(id, glow::TEXTURE_WRAP_T, t_wrap_mode.into_gl() as i32);
             gl.sampler_parameter_i32(id, glow::TEXTURE_WRAP_R, r_wrap_mode.into_gl() as i32);
