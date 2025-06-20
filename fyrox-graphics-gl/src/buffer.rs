@@ -141,6 +141,10 @@ impl GpuBufferTrait for GlBuffer {
                 // Update the data.
                 server.gl.buffer_sub_data_u8_slice(gl_kind, 0, data);
             } else {
+                let mut memory_usage = server.memory_usage.borrow_mut();
+                memory_usage.buffers -= self.size.get();
+                memory_usage.buffers += data.len();
+
                 // Realloc the internal storage.
                 server.gl.buffer_data_u8_slice(gl_kind, data, gl_usage);
                 self.size.set(data.len());
