@@ -56,6 +56,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub const DEFAULT_SIZE: f32 = 60.0;
+pub const DEFAULT_VEC_SIZE: Vector2<f32> = Vector2::new(DEFAULT_SIZE, DEFAULT_SIZE);
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AssetItemMessage {
     Select(bool),
@@ -324,8 +327,8 @@ impl AssetItemBuilder {
         let preview = ImageBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(2.0))
-                .with_width(60.0)
-                .with_height(60.0),
+                .with_width(DEFAULT_SIZE)
+                .with_height(DEFAULT_SIZE),
         )
         .with_opt_texture(self.icon)
         .build(ctx);

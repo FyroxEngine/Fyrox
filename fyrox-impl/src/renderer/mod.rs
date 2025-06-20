@@ -409,9 +409,9 @@ pub struct Renderer {
     fxaa_renderer: FxaaRenderer,
     texture_event_receiver: Receiver<ResourceEvent>,
     shader_event_receiver: Receiver<ResourceEvent>,
-    // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
-    // like ones used to render UI instances.
-    ui_frame_buffers: FxHashMap<u64, GpuFrameBuffer>,
+    /// TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
+    /// like ones used to render UI instances.
+    pub ui_frame_buffers: FxHashMap<u64, GpuFrameBuffer>,
     uniform_memory_allocator: UniformMemoryAllocator,
     /// Dynamic surface cache. See [`DynamicSurfaceCache`] docs for more info.
     pub dynamic_surface_cache: DynamicSurfaceCache,

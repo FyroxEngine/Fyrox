@@ -21,6 +21,7 @@
 pub mod cache;
 
 use crate::{
+    asset,
     fyrox::{
         asset::{manager::ResourceManager, untyped::ResourceKind, untyped::UntypedResource},
         core::{
@@ -217,9 +218,9 @@ impl AssetPreviewGenerator for SoundPreview {
     ) -> Option<AssetPreviewTexture> {
         if let Some(buffer) = resource.try_cast::<SoundBuffer>() {
             if let Some(data) = buffer.state().data() {
-                let height = 60.0;
+                let height = asset::item::DEFAULT_SIZE;
                 let half_height = height / 2.0;
-                let width = 60.0;
+                let width = asset::item::DEFAULT_SIZE;
                 let mut image =
                     image::DynamicImage::new(width as u32, height as u32, ColorType::Rgba8);
 
@@ -405,7 +406,7 @@ impl AssetPreviewGenerator for ModelPreview {
         let mut scene = Scene::new();
         scene.rendering_options.ambient_lighting_color = Color::opaque(180, 180, 180);
         model.instantiate(&mut scene);
-        render_scene_to_texture(engine, &mut scene, Vector2::new(128.0, 128.0))
+        render_scene_to_texture(engine, &mut scene, asset::item::DEFAULT_VEC_SIZE)
     }
 
     fn simple_icon(
@@ -446,7 +447,7 @@ impl AssetPreviewGenerator for SurfaceDataPreview {
         MeshBuilder::new(BaseBuilder::new())
             .with_surfaces(vec![SurfaceBuilder::new(surface.clone()).build()])
             .build(&mut scene.graph);
-        render_scene_to_texture(engine, &mut scene, Vector2::new(128.0, 128.0))
+        render_scene_to_texture(engine, &mut scene, asset::item::DEFAULT_VEC_SIZE)
     }
 
     fn simple_icon(
@@ -531,7 +532,7 @@ impl AssetPreviewGenerator for MaterialPreview {
         self.generate_scene(resource, &engine.resource_manager, &mut scene);
         DirectionalLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new()))
             .build(&mut scene.graph);
-        render_scene_to_texture(engine, &mut scene, Vector2::new(128.0, 128.0))
+        render_scene_to_texture(engine, &mut scene, asset::item::DEFAULT_VEC_SIZE)
     }
 
     fn simple_icon(
@@ -619,7 +620,10 @@ pub fn render_ui_to_texture(
     ui.update(screen_size, 0.016, &Default::default());
     while ui.poll_message().is_some() {}
     ui.update(screen_size, 0.016, &Default::default());
-    let render_target = TextureResource::new_render_target(256, 256);
+    let render_target = TextureResource::new_render_target(
+        asset::item::DEFAULT_SIZE as u32,
+        asset::item::DEFAULT_SIZE as u32,
+    );
     graphics_context
         .renderer
         .render_ui_to_texture(
@@ -631,6 +635,12 @@ pub fn render_ui_to_texture(
             &engine.resource_manager,
         )
         .ok()?;
+
+    assert!(graphics_context
+        .renderer
+        .ui_frame_buffers
+        .remove(&render_target.key())
+        .is_some());
 
     Some(AssetPreviewTexture {
         texture: render_target,
@@ -654,7 +664,7 @@ impl AssetPreviewGenerator for FontPreview {
         engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
         if let Some(font) = resource.try_cast::<Font>() {
-            let mut ui = UserInterface::new(Vector2::new(60.0, 60.0));
+            let mut ui = UserInterface::new(asset::item::DEFAULT_VEC_SIZE);
             ScreenBuilder::new(
                 WidgetBuilder::new().with_child(
                     TextBuilder::new(WidgetBuilder::new())
@@ -702,7 +712,7 @@ impl AssetPreviewGenerator for UserInterfacePreview {
     ) -> Option<AssetPreviewTexture> {
         if let Some(ui_resource) = resource.try_cast::<UserInterface>() {
             let mut ui = ui_resource.data_ref().clone();
-            ui.set_screen_size(Vector2::new(256.0, 256.0));
+            ui.set_screen_size(asset::item::DEFAULT_VEC_SIZE);
             render_ui_to_texture(&mut ui, engine)
         } else {
             None
