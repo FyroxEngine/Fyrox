@@ -66,12 +66,12 @@ pub struct ServerMemoryUsage {
 
 impl Display for ServerMemoryUsage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        const MEGABYTE: usize = 1024 * 1024;
+        const MEGABYTE: f32 = 1024.0 * 1024.0;
         write!(
             f,
-            "Textures: {} Mb\nBuffers: {} Mb",
-            self.textures / MEGABYTE,
-            self.buffers / MEGABYTE
+            "Textures: {:.3} Mb\nBuffers: {:.3} Mb",
+            self.textures as f32 / MEGABYTE,
+            self.buffers as f32 / MEGABYTE
         )
     }
 }
