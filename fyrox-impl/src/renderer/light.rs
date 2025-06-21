@@ -421,7 +421,7 @@ impl DeferredLightRenderer {
                 },
             ),
             binding(
-                "ambientTexture",
+                "bakedLightingTexture",
                 (
                     gbuffer_ambient_map,
                     &renderer_resources.nearest_clamp_sampler,

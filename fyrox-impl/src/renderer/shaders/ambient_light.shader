@@ -12,7 +12,7 @@
             binding: 1
         ),
         (
-            name: "ambientTexture",
+            name: "bakedLightingTexture",
             kind: Texture(kind: Sampler2D, fallback: White),
             binding: 2
         ),
@@ -143,13 +143,13 @@
                         vec3 specular = reflection * (F * envBRDF.x + envBRDF.y);
 
                         float ambientOcclusion = texture(aoSampler, texCoord).r * materialAo;
-                        vec4 emission = texture(ambientTexture, texCoord);
+                        vec4 bakedLighting = texture(bakedLightingTexture, texCoord);
 
                         vec3 irradiance = texture(irradianceMap, fragmentNormal).rgb;
-                        vec3 diffuse = (properties.ambientColor.rgb + emission.rgb) * irradiance * albedo.rgb;
+                        vec3 diffuse = irradiance * albedo.rgb;
 
-                        FragColor.rgb = (kD * diffuse + specular) * ambientOcclusion;
-                        FragColor.a = emission.a;
+                        FragColor.rgb = bakedLighting.rgb + (kD * diffuse + specular) * ambientOcclusion;
+                        FragColor.a = bakedLighting.a;
                     }
                 "#,
         )
