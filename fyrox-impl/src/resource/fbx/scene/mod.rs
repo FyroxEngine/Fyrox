@@ -264,6 +264,7 @@ pub enum FbxComponent {
 
 macro_rules! define_as {
     ($self:ident, $name:ident, $ty:ty, $kind:ident) => {
+        #[allow(dead_code)]
         pub fn $name(&$self) -> Result<&$ty, FbxError> {
             if let FbxComponent::$kind(component) = $self {
                 Ok(component)
