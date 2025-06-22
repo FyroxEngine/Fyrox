@@ -48,6 +48,7 @@ use crate::{
 };
 use fxhash::FxHashSet;
 use fyrox_core::{err, info, Uuid};
+use std::time::Duration;
 use std::{
     fmt::{Debug, Display, Formatter},
     marker::PhantomData,
@@ -157,9 +158,17 @@ impl ResourceManager {
         }
     }
 
-    /// Returns a guarded reference to internal state of resource manager.
+    /// Returns a guarded reference to the internal state of resource manager. This is blocking
+    /// method and it may deadlock if used incorrectly (trying to get the state lock one more time
+    /// when there's an existing lock in the same thread, multi-threading-related deadlock and so on).
     pub fn state(&self) -> MutexGuard<'_, ResourceManagerState> {
         self.state.lock()
+    }
+
+    /// Returns a guarded reference to the internal state of resource manager. This method will try
+    /// to acquire the state lock for the given time and if it fails, returns `None`.
+    pub fn try_get_state(&self, timeout: Duration) -> Option<MutexGuard<'_, ResourceManagerState>> {
+        self.state.try_lock_for(timeout)
     }
 
     /// Returns the ResourceIo used by this resource manager
