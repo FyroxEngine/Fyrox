@@ -37,6 +37,7 @@ use fyrox_texture::{
     TextureWrapMode,
 };
 use std::borrow::Cow;
+use std::time::Duration;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -157,7 +158,9 @@ fn create_gpu_texture(
     uuid: &Uuid,
     texture: &Texture,
 ) -> Result<TextureRenderData, FrameworkError> {
-    let path = resource_manager.uuid_to_resource_path(*uuid);
+    let path = resource_manager
+        .try_get_state(Duration::from_millis(1))
+        .and_then(|state| state.uuid_to_resource_path(*uuid));
     let name = path
         .as_ref()
         .map(|path| path.to_string_lossy())
