@@ -104,7 +104,7 @@ impl ObserversCollection {
                     let projection_matrix = projection.matrix(cube_size);
 
                     for cube_face in CubeMapFaceDescriptor::cube_faces() {
-                        let translation = probe.global_position();
+                        let translation = probe.global_rendering_position();
                         let view_matrix = Matrix4::look_at_rh(
                             &Point3::from(translation),
                             &Point3::from(translation + cube_face.look),
