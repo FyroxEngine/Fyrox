@@ -503,7 +503,13 @@ impl GlGraphicsServer {
 
         unsafe {
             context.depth_func(CompareFunc::default().into_gl());
-            context.enable(glow::TEXTURE_CUBE_MAP_SEAMLESS);
+
+            if context
+                .supported_extensions()
+                .contains("GL_ARB_seamless_cubemap_per_texture")
+            {
+                context.enable(glow::TEXTURE_CUBE_MAP_SEAMLESS);
+            }
 
             #[cfg(debug_assertions)]
             {
