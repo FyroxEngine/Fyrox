@@ -70,6 +70,7 @@ impl GlBuffer {
         desc: GpuBufferDescriptor,
     ) -> Result<Self, FrameworkError> {
         let GpuBufferDescriptor {
+            #[allow(unused_variables)]
             name,
             size,
             kind,
