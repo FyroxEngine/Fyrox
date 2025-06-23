@@ -292,6 +292,7 @@ impl GlTexture {
             server.memory_usage.borrow_mut().textures += byte_count;
 
             let mut binding = result.make_temp_binding();
+            #[cfg(not(target_arch = "wasm32"))]
             if server.gl.supports_debug() {
                 server
                     .gl

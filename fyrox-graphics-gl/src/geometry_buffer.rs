@@ -62,6 +62,7 @@ impl GlGeometryBuffer {
         let vao = unsafe { server.gl.create_vertex_array()? };
 
         server.set_vertex_array_object(Some(vao));
+        #[cfg(not(target_arch = "wasm32"))]
         if server.gl.supports_debug() {
             unsafe {
                 server

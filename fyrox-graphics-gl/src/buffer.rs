@@ -81,6 +81,7 @@ impl GlBuffer {
             let gl_usage = usage.into_gl();
             let id = server.gl.create_buffer()?;
             server.gl.bind_buffer(gl_kind, Some(id));
+            #[cfg(not(target_arch = "wasm32"))]
             if server.gl.supports_debug() {
                 server.gl.object_label(glow::BUFFER, id.0.get(), Some(name));
             }
