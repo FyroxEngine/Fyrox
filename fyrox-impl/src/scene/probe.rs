@@ -24,7 +24,7 @@
 
 use crate::{
     core::{
-        algebra::{Point3, Vector3},
+        algebra::Vector3,
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
@@ -228,9 +228,7 @@ impl ReflectionProbe {
 
     /// Calculates position of the rendering point in global coordinates.
     pub fn global_rendering_position(&self) -> Vector3<f32> {
-        self.global_transform()
-            .transform_point(&Point3::from(*self.rendering_position))
-            .coords
+        self.global_position() + *self.rendering_position
     }
 }
 
