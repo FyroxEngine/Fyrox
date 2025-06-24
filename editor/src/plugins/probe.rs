@@ -19,10 +19,18 @@
 // SOFTWARE.
 
 use crate::{
+    camera::PickingOptions,
+    command::SetPropertyCommand,
     fyrox::{
-        core::{pool::Handle, some_or_return},
+        core::{
+            algebra::{Vector2, Vector3},
+            pool::Handle,
+            some_or_return,
+            type_traits::prelude::*,
+            Uuid,
+        },
         engine::Engine,
-        graph::SceneGraph,
+        graph::{BaseSceneGraph, SceneGraph},
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
@@ -30,11 +38,17 @@ use crate::{
             widget::{WidgetBuilder, WidgetMessage},
             BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
-        scene::probe::ReflectionProbe,
+        scene::{probe::ReflectionProbe, Scene},
     },
+    interaction::{
+        calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo,
+        make_interaction_mode_button, plane::PlaneKind, InteractionMode,
+    },
+    message::MessageSender,
     plugin::EditorPlugin,
     plugins::inspector::InspectorPlugin,
-    scene::{GameScene, Selection},
+    scene::{commands::GameSceneContext, controller::SceneController, GameScene, Selection},
+    settings::Settings,
     Editor, Message,
 };
 
@@ -100,6 +114,175 @@ impl ReflectionProbePreviewControlPanel {
     }
 }
 
+struct DragContext {
+    initial_position: Vector3<f32>,
+    new_position: Vector3<f32>,
+    plane_kind: PlaneKind,
+}
+
+#[derive(TypeUuidProvider)]
+#[type_uuid(id = "d8fd164c-523c-447a-93ab-e86f2d71eed6")]
+pub struct ReflectionProbeInteractionMode {
+    probe: Handle<ReflectionProbe>,
+    move_gizmo: MoveGizmo,
+    message_sender: MessageSender,
+    drag_context: Option<DragContext>,
+}
+
+impl ReflectionProbeInteractionMode {
+    fn destroy(self, scene: &mut Scene) {
+        self.move_gizmo.destroy(&mut scene.graph)
+    }
+}
+
+impl InteractionMode for ReflectionProbeInteractionMode {
+    fn on_left_mouse_button_down(
+        &mut self,
+        _editor_selection: &Selection,
+        controller: &mut dyn SceneController,
+        engine: &mut Engine,
+        mouse_position: Vector2<f32>,
+        _frame_size: Vector2<f32>,
+        settings: &Settings,
+    ) {
+        let game_scene = some_or_return!(controller.downcast_mut::<GameScene>());
+
+        let scene = &mut engine.scenes[game_scene.scene];
+
+        if let Some(result) = game_scene.camera_controller.pick(
+            &scene.graph,
+            PickingOptions {
+                cursor_pos: mouse_position,
+                editor_only: true,
+                filter: Some(&mut |handle, _| handle != self.move_gizmo.origin),
+                ignore_back_faces: false,
+                use_picking_loop: false,
+                only_meshes: false,
+                settings: &settings.selection,
+            },
+        ) {
+            if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, &mut scene.graph) {
+                let initial_position = *scene.graph[self.probe].rendering_position;
+                self.drag_context = Some(DragContext {
+                    initial_position,
+                    new_position: initial_position,
+                    plane_kind,
+                })
+            }
+        }
+    }
+
+    fn on_left_mouse_button_up(
+        &mut self,
+        _editor_selection: &Selection,
+        _controller: &mut dyn SceneController,
+        _engine: &mut Engine,
+        _mouse_pos: Vector2<f32>,
+        _frame_size: Vector2<f32>,
+        _settings: &Settings,
+    ) {
+        let drag_context = some_or_return!(self.drag_context.take());
+        let probe = self.probe;
+        let command = SetPropertyCommand::new(
+            ReflectionProbe::RENDERING_POSITION.into(),
+            Box::new(drag_context.new_position),
+            move |ctx| {
+                ctx.get_mut::<GameSceneContext>()
+                    .scene
+                    .graph
+                    .node_mut(probe.transmute())
+            },
+        );
+        self.message_sender.do_command(command);
+    }
+
+    fn on_mouse_move(
+        &mut self,
+        mouse_offset: Vector2<f32>,
+        mouse_position: Vector2<f32>,
+        _editor_selection: &Selection,
+        controller: &mut dyn SceneController,
+        engine: &mut Engine,
+        frame_size: Vector2<f32>,
+        settings: &Settings,
+    ) {
+        let game_scene = some_or_return!(controller.downcast_mut::<GameScene>());
+        let scene = &mut engine.scenes[game_scene.scene];
+
+        self.move_gizmo.reset_state(&mut scene.graph);
+        if let Some(result) = game_scene.camera_controller.pick(
+            &scene.graph,
+            PickingOptions {
+                cursor_pos: mouse_position,
+                editor_only: true,
+                filter: Some(&mut |handle, _| handle != self.move_gizmo.origin),
+                ignore_back_faces: false,
+                use_picking_loop: false,
+                only_meshes: false,
+                settings: &settings.selection,
+            },
+        ) {
+            self.move_gizmo.handle_pick(result.node, &mut scene.graph);
+        }
+
+        if let Some(drag_context) = self.drag_context.as_mut() {
+            let global_offset = self.move_gizmo.calculate_offset(
+                &scene.graph,
+                game_scene.camera_controller.camera,
+                mouse_offset,
+                mouse_position,
+                frame_size,
+                drag_context.plane_kind,
+            );
+            drag_context.new_position = drag_context.initial_position + global_offset;
+            scene.graph[self.probe]
+                .rendering_position
+                .set_value_and_mark_modified(drag_context.new_position);
+        }
+    }
+
+    fn update(
+        &mut self,
+        _editor_selection: &Selection,
+        controller: &mut dyn SceneController,
+        engine: &mut Engine,
+        _settings: &Settings,
+    ) {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
+        let scene = &mut engine.scenes[game_scene.scene];
+
+        let scale = calculate_gizmo_distance_scaling(
+            &scene.graph,
+            game_scene.camera_controller.camera,
+            self.move_gizmo.origin,
+        );
+
+        self.move_gizmo.set_visible(&mut scene.graph, true);
+
+        let position = scene.graph[self.probe].global_rendering_position();
+        self.move_gizmo
+            .transform(&mut scene.graph)
+            .set_position(position)
+            .set_scale(scale);
+    }
+
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+        make_interaction_mode_button(
+            ctx,
+            include_bytes!("../../resources/triangle.png"),
+            "Edit Reflection Probe",
+            selected,
+        )
+    }
+
+    fn uuid(&self) -> Uuid {
+        Self::type_uuid()
+    }
+}
+
 #[derive(Default)]
 pub struct ReflectionProbePlugin {
     panel: Option<ReflectionProbePreviewControlPanel>,
@@ -121,12 +304,27 @@ impl EditorPlugin for ReflectionProbePlugin {
         let scene = &mut editor.engine.scenes[game_scene.scene];
 
         if let Message::SelectionChanged { .. } = message {
-            let has_selected_reflection_probe = selection
+            if let Some(mode) = entry
+                .interaction_modes
+                .remove_typed::<ReflectionProbeInteractionMode>()
+            {
+                mode.destroy(scene);
+            }
+
+            let selected_reflection_probe = selection
                 .nodes()
                 .iter()
-                .any(|h| scene.graph.has_component::<ReflectionProbe>(*h));
+                .find(|h| scene.graph.has_component::<ReflectionProbe>(**h))
+                .cloned();
 
-            if has_selected_reflection_probe {
+            if let Some(selected_reflection_probe) = selected_reflection_probe {
+                entry.interaction_modes.add(ReflectionProbeInteractionMode {
+                    probe: selected_reflection_probe.transmute(),
+                    move_gizmo: MoveGizmo::new(game_scene, &mut editor.engine),
+                    message_sender: editor.message_sender.clone(),
+                    drag_context: None,
+                });
+
                 if self.panel.is_none() {
                     let inspector = editor.plugins.get::<InspectorPlugin>();
                     let ui = editor.engine.user_interfaces.first_mut();
