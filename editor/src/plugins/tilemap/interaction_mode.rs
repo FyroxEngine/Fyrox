@@ -812,10 +812,6 @@ impl InteractionMode for TileMapInteractionMode {
         }
     }
 
-    fn activate(&mut self, _controller: &dyn SceneController, _engine: &mut Engine) {}
-
-    fn deactivate(&mut self, _controller: &dyn SceneController, _engine: &mut Engine) {}
-
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
         make_interaction_mode_button(
             ctx,

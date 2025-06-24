@@ -134,7 +134,12 @@ pub trait InteractionMode: InteractionModeAsAny {
     ) {
     }
 
-    fn deactivate(&mut self,  #[allow(unused_variables)]  controller: &dyn SceneController,  #[allow(unused_variables)]  engine: &mut Engine) {}
+    fn deactivate(
+        &mut self,
+        #[allow(unused_variables)] controller: &dyn SceneController,
+        #[allow(unused_variables)] engine: &mut Engine,
+    ) {
+    }
 
     /// Should return `true` if the `key` was handled in any way, otherwise you may mess up
     /// keyboard message routing. Return `false` if the `key` is unhandled.

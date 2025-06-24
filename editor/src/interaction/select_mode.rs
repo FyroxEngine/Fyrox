@@ -221,8 +221,6 @@ impl InteractionMode for SelectInteractionMode {
     ) {
     }
 
-    fn deactivate(&mut self, _controller: &dyn SceneController, _engine: &mut Engine) {}
-
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
         let select_mode_tooltip = "Select Object(s) - Shortcut: [1]\n\nSelection interaction mode \
         allows you to select an object by a single left mouse button click or multiple objects using either \

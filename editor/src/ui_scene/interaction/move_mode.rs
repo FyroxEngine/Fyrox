@@ -196,8 +196,6 @@ impl InteractionMode for MoveWidgetsInteractionMode {
         }
     }
 
-    fn deactivate(&mut self, _controller: &dyn SceneController, _engine: &mut Engine) {}
-
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
         let move_mode_tooltip =
             "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
