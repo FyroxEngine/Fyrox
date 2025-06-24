@@ -115,7 +115,6 @@ impl ReflectionProbePreviewControlPanel {
 }
 
 struct DragContext {
-    initial_position: Vector3<f32>,
     new_position: Vector3<f32>,
     plane_kind: PlaneKind,
 }
@@ -132,6 +131,12 @@ pub struct ReflectionProbeInteractionMode {
 impl ReflectionProbeInteractionMode {
     fn destroy(self, scene: &mut Scene) {
         self.move_gizmo.destroy(&mut scene.graph)
+    }
+
+    fn set_visible(&self, controller: &dyn SceneController, engine: &mut Engine, visible: bool) {
+        let game_scene = some_or_return!(controller.downcast_ref::<GameScene>());
+        let scene = &mut engine.scenes[game_scene.scene];
+        self.move_gizmo.set_visible(&mut scene.graph, visible);
     }
 }
 
@@ -162,10 +167,8 @@ impl InteractionMode for ReflectionProbeInteractionMode {
             },
         ) {
             if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, &mut scene.graph) {
-                let initial_position = *scene.graph[self.probe].rendering_position;
                 self.drag_context = Some(DragContext {
-                    initial_position,
-                    new_position: initial_position,
+                    new_position: *scene.graph[self.probe].rendering_position,
                     plane_kind,
                 })
             }
@@ -234,7 +237,7 @@ impl InteractionMode for ReflectionProbeInteractionMode {
                 frame_size,
                 drag_context.plane_kind,
             );
-            drag_context.new_position = drag_context.initial_position + global_offset;
+            drag_context.new_position += global_offset;
             scene.graph[self.probe]
                 .rendering_position
                 .set_value_and_mark_modified(drag_context.new_position);
@@ -248,10 +251,7 @@ impl InteractionMode for ReflectionProbeInteractionMode {
         engine: &mut Engine,
         _settings: &Settings,
     ) {
-        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
-            return;
-        };
-
+        let game_scene = some_or_return!(controller.downcast_mut::<GameScene>());
         let scene = &mut engine.scenes[game_scene.scene];
 
         let scale = calculate_gizmo_distance_scaling(
@@ -267,6 +267,14 @@ impl InteractionMode for ReflectionProbeInteractionMode {
             .transform(&mut scene.graph)
             .set_position(position)
             .set_scale(scale);
+    }
+
+    fn activate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
+        self.set_visible(controller, engine, true);
+    }
+
+    fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
+        self.set_visible(controller, engine, false);
     }
 
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
