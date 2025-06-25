@@ -38,6 +38,9 @@ pub struct CommandDescriptor {
     pub command: String,
     pub args: Vec<String>,
     pub environment_variables: Vec<EnvironmentVariable>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    #[serde(default)]
+    pub skip_passthrough_marker: bool,
 }
 
 impl CommandDescriptor {
@@ -109,6 +112,7 @@ impl BuildProfile {
                     "--package".to_string(),
                     "executor".to_string(),
                 ],
+                skip_passthrough_marker: false,
                 environment_variables: vec![],
             }],
             run_command: CommandDescriptor {
@@ -118,6 +122,7 @@ impl BuildProfile {
                     "--package".to_string(),
                     "executor".to_string(),
                 ],
+                skip_passthrough_marker: false,
                 environment_variables: vec![],
             },
         }
@@ -147,6 +152,7 @@ impl BuildProfile {
                         "--profile".to_string(),
                         "dev-hot-reload".to_string(),
                     ],
+                    skip_passthrough_marker: false,
                     environment_variables: vec![EnvironmentVariable {
                         name: "RUSTFLAGS".to_string(),
                         value: "-C prefer-dynamic=yes".to_string(),
@@ -179,6 +185,7 @@ impl BuildProfile {
                 "--profile".to_string(),
                 "dev-hot-reload".to_string(),
             ],
+            skip_passthrough_marker: false,
             environment_variables: vec![EnvironmentVariable {
                 name: "RUSTFLAGS".to_string(),
                 value: "-C prefer-dynamic=yes".to_string(),
@@ -199,6 +206,7 @@ impl BuildProfile {
                 "--profile".to_string(),
                 "dev-hot-reload".to_string(),
             ],
+            skip_passthrough_marker: false,
             environment_variables: vec![EnvironmentVariable {
                 name: "RUSTFLAGS".to_string(),
                 value: "-C prefer-dynamic=yes".to_string(),
@@ -231,6 +239,7 @@ impl BuildProfile {
                     "--package".to_string(),
                     "editor".to_string(),
                 ],
+                skip_passthrough_marker: false,
                 environment_variables: vec![],
             }],
             run_command: CommandDescriptor {
@@ -240,6 +249,7 @@ impl BuildProfile {
                     "--package".to_string(),
                     "editor".to_string(),
                 ],
+                skip_passthrough_marker: false,
                 environment_variables: vec![],
             },
         }

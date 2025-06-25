@@ -1557,11 +1557,11 @@ impl Editor {
 
         let mut command = build_profile.run_command.make_command();
 
-        command
-            .stdout(Stdio::piped())
-            .arg("--")
-            .arg("--override-scene")
-            .arg(path);
+        let command = command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        if !build_profile.run_command.skip_passthrough_marker {
+            command.arg("--");
+        }
+        command.arg("--override-scene").arg(path);
 
         match command.spawn() {
             Ok(mut process) => {

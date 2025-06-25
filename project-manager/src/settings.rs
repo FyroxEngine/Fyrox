@@ -109,6 +109,7 @@ fn default_open_ide_command() -> CommandDescriptor {
         command: "rustrover64".to_string(),
         args: vec![MANIFEST_PATH_VAR.to_string()],
         environment_variables: vec![],
+        skip_passthrough_marker: false,
     }
 }
 
