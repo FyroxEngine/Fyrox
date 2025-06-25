@@ -55,30 +55,49 @@ use crate::{
 pub struct ReflectionProbePreviewControlPanel {
     pub root_widget: Handle<UiNode>,
     update: Handle<UiNode>,
+    adjust: Handle<UiNode>,
 }
 
 impl ReflectionProbePreviewControlPanel {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let update;
-        let root_widget = GridBuilder::new(WidgetBuilder::new().with_child({
-            update = ButtonBuilder::new(
-                WidgetBuilder::new()
-                    .on_row(0)
-                    .on_column(0)
-                    .with_vertical_alignment(VerticalAlignment::Center)
-                    .with_margin(Thickness::uniform(1.0)),
-            )
-            .with_text("Update")
-            .build(ctx);
-            update
-        }))
+        let adjust;
+        let root_widget = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child({
+                    update = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(0)
+                            .on_column(0)
+                            .with_vertical_alignment(VerticalAlignment::Center)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_text("Update")
+                    .build(ctx);
+                    update
+                })
+                .with_child({
+                    adjust = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(0)
+                            .on_column(1)
+                            .with_vertical_alignment(VerticalAlignment::Center)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_text("Adjust")
+                    .build(ctx);
+                    adjust
+                }),
+        )
         .add_row(Row::stretch())
+        .add_column(Column::stretch())
         .add_column(Column::stretch())
         .build(ctx);
 
         Self {
             root_widget,
             update,
+            adjust,
         }
     }
 
@@ -88,6 +107,7 @@ impl ReflectionProbePreviewControlPanel {
         editor_selection: &Selection,
         game_scene: &mut GameScene,
         engine: &mut Engine,
+        sender: &MessageSender,
     ) {
         if let Some(selection) = editor_selection.as_graph() {
             if let Some(ButtonMessage::Click) = message.data() {
@@ -101,6 +121,10 @@ impl ReflectionProbePreviewControlPanel {
                             particle_system.force_update();
                         }
                     }
+                } else if message.destination == self.adjust {
+                    sender.send(Message::SetInteractionMode(
+                        ReflectionProbeInteractionMode::type_uuid(),
+                    ));
                 }
             }
         }
@@ -301,7 +325,13 @@ impl EditorPlugin for ReflectionProbePlugin {
         let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
         let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
         let panel = some_or_return!(self.panel.as_mut());
-        panel.handle_ui_message(message, &entry.selection, game_scene, &mut editor.engine);
+        panel.handle_ui_message(
+            message,
+            &entry.selection,
+            game_scene,
+            &mut editor.engine,
+            &editor.message_sender,
+        );
     }
 
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
