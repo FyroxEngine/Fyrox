@@ -1569,11 +1569,20 @@ impl Editor {
 
                 // Capture output from child process.
                 let mut stdout = process.stdout.take().unwrap();
+                let mut stderr = process.stderr.take().unwrap();
                 let reader_active = active.clone();
                 std::thread::spawn(move || {
                     while reader_active.load(Ordering::SeqCst) {
                         for line in BufReader::new(&mut stdout).lines().take(10).flatten() {
                             Log::info(line);
+                        }
+                    }
+                });
+                let reader_active = active.clone();
+                std::thread::spawn(move || {
+                    while reader_active.load(Ordering::SeqCst) {
+                        for line in BufReader::new(&mut stderr).lines().take(10).flatten() {
+                            Log::err(line);
                         }
                     }
                 });
