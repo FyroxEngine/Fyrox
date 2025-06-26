@@ -67,16 +67,22 @@
                     vec3 right = normalize(cross(up, N));
                     up = normalize(cross(N, right));
 
-                    float sampleDelta = 0.025;
+                    float sampleDelta = 0.1;
                     float nrSamples = 0.0;
                     for(float phi = 0.0; phi < 2.0 * PI; phi += sampleDelta)
                     {
+                        float cosPhi = cos(phi);
+                        float sinPhi = sin(phi);
+
                         for(float theta = 0.0; theta < 0.5 * PI; theta += sampleDelta)
                         {
-                            vec3 tangentSample = vec3(sin(theta) * cos(phi),  sin(theta) * sin(phi), cos(theta));
+                            float cosTheta = cos(theta);
+                            float sinTheta = sin(theta);
+
+                            vec3 tangentSample = vec3(sinTheta * cosPhi, sinTheta * sinPhi, cosTheta);
                             vec3 sampleVec = tangentSample.x * right + tangentSample.y * up + tangentSample.z * N;
 
-                            irradiance += texture(environmentMap, sampleVec).rgb * cos(theta) * sin(theta);
+                            irradiance += texture(environmentMap, sampleVec).rgb * cosTheta * sinTheta;
                             nrSamples++;
                         }
                     }

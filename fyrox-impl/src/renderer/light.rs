@@ -200,7 +200,7 @@ impl DeferredLightRenderer {
                 quality_defaults.csm_settings.size,
                 quality_defaults.csm_settings.precision,
             )?,
-            brdf_lut: make_brdf_lut(server, 256, 256)?,
+            brdf_lut: make_brdf_lut(server, 256, 64)?,
         })
     }
 
