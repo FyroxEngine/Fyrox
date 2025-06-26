@@ -29,6 +29,10 @@ pub struct TypeArgs {
     pub data: ast::Data<VariantArgs, FieldArgs>,
     #[darling(default)]
     pub optional: bool,
+    #[darling(default)]
+    pub pre_visit_method: Option<Ident>,
+    #[darling(default)]
+    pub post_visit_method: Option<Ident>,
 }
 
 /// Parsed from struct's or enum variant's field
