@@ -1557,11 +1557,11 @@ impl Editor {
 
         let mut command = build_profile.run_command.make_command();
 
-        command
-            .stdout(Stdio::piped())
-            .arg("--")
-            .arg("--override-scene")
-            .arg(path);
+        let command = command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        if !build_profile.run_command.skip_passthrough_marker {
+            command.arg("--");
+        }
+        command.arg("--override-scene").arg(path);
 
         match command.spawn() {
             Ok(mut process) => {
@@ -1569,11 +1569,20 @@ impl Editor {
 
                 // Capture output from child process.
                 let mut stdout = process.stdout.take().unwrap();
+                let mut stderr = process.stderr.take().unwrap();
                 let reader_active = active.clone();
                 std::thread::spawn(move || {
                     while reader_active.load(Ordering::SeqCst) {
                         for line in BufReader::new(&mut stdout).lines().take(10).flatten() {
                             Log::info(line);
+                        }
+                    }
+                });
+                let reader_active = active.clone();
+                std::thread::spawn(move || {
+                    while reader_active.load(Ordering::SeqCst) {
+                        for line in BufReader::new(&mut stderr).lines().take(10).flatten() {
+                            Log::err(line);
                         }
                     }
                 });
