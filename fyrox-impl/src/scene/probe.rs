@@ -160,7 +160,8 @@ pub struct ReflectionProbe {
         the overall quality of the image. The larger the value, the more detailed reflections will \
         be. Large values may slow down rendering of the probe.",
         max_value = 2048.0,
-        min_value = 16.0
+        min_value = 16.0,
+        setter = "set_resolution"
     )]
     pub resolution: InheritableVariable<usize>,
 
@@ -205,9 +206,11 @@ impl Default for ReflectionProbe {
 
 impl ReflectionProbe {
     /// Sets the desired resolution of the reflection probe.
-    pub fn set_resolution(&mut self, resolution: usize) {
-        self.resolution.set_value_and_mark_modified(resolution);
+    pub fn set_resolution(&mut self, resolution: usize) -> usize {
+        let old = self.resolution.set_value_and_mark_modified(resolution);
         self.render_target = TextureResource::new_cube_render_target(resolution as u32);
+        self.force_update();
+        old
     }
 
     /// Returns current resolution of the reflection probe.
