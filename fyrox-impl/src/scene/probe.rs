@@ -141,7 +141,7 @@ pub enum UpdateMode {
 #[derive(Clone, Reflect, Debug, Visit, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "7e0c138f-e371-4045-bd2c-ff5b165c7ee6")]
 #[reflect(derived_type = "Node")]
-#[visit(optional)]
+#[visit(optional, post_visit_method = "on_visited")]
 pub struct ReflectionProbe {
     base: Base,
 
@@ -208,8 +208,7 @@ impl ReflectionProbe {
     /// Sets the desired resolution of the reflection probe.
     pub fn set_resolution(&mut self, resolution: usize) -> usize {
         let old = self.resolution.set_value_and_mark_modified(resolution);
-        self.render_target = TextureResource::new_cube_render_target(resolution as u32);
-        self.force_update();
+        self.recreate_render_target();
         old
     }
 
@@ -232,6 +231,17 @@ impl ReflectionProbe {
     /// Calculates position of the rendering point in global coordinates.
     pub fn global_rendering_position(&self) -> Vector3<f32> {
         self.global_position() + *self.rendering_position
+    }
+
+    fn recreate_render_target(&mut self) {
+        self.render_target = TextureResource::new_cube_render_target(*self.resolution as u32);
+        self.force_update();
+    }
+
+    fn on_visited(&mut self, visitor: &mut Visitor) {
+        if visitor.is_reading() {
+            self.recreate_render_target();
+        }
     }
 }
 
