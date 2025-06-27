@@ -87,6 +87,12 @@ pub trait ResourceIo: Send + Sync + 'static {
         dest: &'a Path,
     ) -> ResourceIoFuture<'a, Result<(), FileError>>;
 
+    /// Attempts to delete a file at the given `path` asynchronously.
+    fn delete_file<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, Result<(), FileError>>;
+
+    /// Attempts to delete a file at the given `path` synchronously.
+    fn delete_file_sync(&self, path: &Path) -> Result<(), FileError>;
+
     /// Attempts to copy a file at the given `source` path to the given `dest` path.
     fn copy_file<'a>(
         &'a self,
@@ -205,6 +211,18 @@ impl ResourceIo for FsResourceIo {
             std::fs::rename(source, dest)?;
             Ok(())
         })
+    }
+
+    fn delete_file<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, Result<(), FileError>> {
+        Box::pin(async move {
+            std::fs::remove_file(path)?;
+            Ok(())
+        })
+    }
+
+    fn delete_file_sync(&self, path: &Path) -> Result<(), FileError> {
+        std::fs::remove_file(path)?;
+        Ok(())
     }
 
     fn copy_file<'a>(
