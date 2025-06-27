@@ -216,13 +216,31 @@ pub struct ResourceRegistryRefMut<'a> {
 }
 
 impl ResourceRegistryRefMut<'_> {
-    /// Writes the new metadata file for a resource at the given path.
-    pub fn write_metadata(&mut self, uuid: Uuid, path: impl AsRef<Path>) -> Result<(), FileError> {
+    /// Writes the new metadata file for a resource at the given path and registers the resource
+    /// in the registry.
+    pub fn write_metadata(
+        &mut self,
+        uuid: Uuid,
+        path: impl AsRef<Path>,
+    ) -> Result<Option<PathBuf>, FileError> {
         ResourceMetadata::new_with_random_id().save_sync(
             &append_extension(path.as_ref(), ResourceMetadata::EXTENSION),
             &*self.registry.io,
         )?;
-        self.register(uuid, path.as_ref().to_path_buf());
+
+        Ok(self.register(uuid, path.as_ref().to_path_buf()))
+    }
+
+    /// Unregisters the resource at the given path (if any) from the registry and deletes its
+    /// associated metadata file.
+    pub fn remove_metadata(&mut self, path: impl AsRef<Path>) -> Result<(), FileError> {
+        if let Some(uuid) = self.registry.path_to_uuid(path.as_ref()) {
+            self.unregister(uuid);
+
+            let metadata_path = append_extension(path.as_ref(), ResourceMetadata::EXTENSION);
+
+            self.registry.io.delete_file_sync(&metadata_path)?;
+        }
         Ok(())
     }
 
