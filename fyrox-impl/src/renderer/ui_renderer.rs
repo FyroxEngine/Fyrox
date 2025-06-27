@@ -57,6 +57,7 @@ use crate::{
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
 use fyrox_core::arrayvec::ArrayVec;
+use fyrox_core::some_or_continue;
 use fyrox_graphics::{
     framebuffer::{ResourceBindGroup, ResourceBinding},
     gpu_program::ShaderResourceKind,
@@ -111,9 +112,10 @@ fn write_uniform_blocks(
     for cmd in commands {
         let mut command_block_locations = ArrayVec::<(usize, UniformBlockLocation), 8>::new();
 
-        let material = cmd.material.data_ref();
-        let shader = material.shader();
-        let shader = shader.data_ref();
+        let material_data_guard = cmd.material.data_ref();
+        let material = some_or_continue!(material_data_guard.as_loaded_ref());
+        let shader_data_guard = material.shader().data_ref();
+        let shader = some_or_continue!(shader_data_guard.as_loaded_ref());
 
         for resource in shader.definition.resources.iter() {
             if resource.name.as_str() == "fyrox_widgetData" {
@@ -382,11 +384,12 @@ impl UiRenderer {
                 count: cmd.triangles.end - cmd.triangles.start,
             };
 
-            let material = cmd.material.data_ref();
-            let shader = material.shader();
+            let material_data_guard = cmd.material.data_ref();
+            let material = some_or_continue!(material_data_guard.as_loaded_ref());
 
-            if let Some(render_pass_container) = render_pass_cache.get(server, shader) {
-                let shader = shader.data_ref();
+            if let Some(render_pass_container) = render_pass_cache.get(server, material.shader()) {
+                let shader_data_guard = material.shader().data_ref();
+                let shader = some_or_continue!(shader_data_guard.as_loaded_ref());
 
                 let render_pass = render_pass_container.get(&ImmutableString::new("Forward"))?;
 
