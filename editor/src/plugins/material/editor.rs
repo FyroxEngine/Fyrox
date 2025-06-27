@@ -115,7 +115,7 @@ impl Control for MaterialFieldEditor {
             self.clip_bounds(),
             Brush::Solid(Color::TRANSPARENT),
             CommandTexture::None,
-            &self.material,
+            &self.widget.material,
             None,
         );
     }
