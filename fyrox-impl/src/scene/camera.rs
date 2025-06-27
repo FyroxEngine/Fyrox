@@ -376,7 +376,8 @@ pub struct Camera {
     color_grading_enabled: InheritableVariable<bool>,
 
     #[reflect(setter = "set_render_target")]
-    render_target: InheritableVariable<Option<TextureResource>>,
+    #[visit(skip)]
+    render_target: Option<TextureResource>,
 
     #[visit(skip)]
     #[reflect(hidden)]
@@ -727,17 +728,20 @@ impl Camera {
     ///     camera.set_render_target(Some(render_target));
     /// }
     /// ```
+    ///
+    /// # Serialization
+    ///
+    /// The render target is non-serializable, and you have to re-create it after deserialization.
     pub fn set_render_target(
         &mut self,
         render_target: Option<TextureResource>,
     ) -> Option<TextureResource> {
-        self.render_target
-            .set_value_and_mark_modified(render_target)
+        std::mem::replace(&mut self.render_target, render_target)
     }
 
     /// Returns a reference to the current render target (if any).
     pub fn render_target(&self) -> Option<&TextureResource> {
-        (*self.render_target).as_ref()
+        self.render_target.as_ref()
     }
 }
 
@@ -1101,7 +1105,7 @@ impl CameraBuilder {
             exposure: self.exposure.into(),
             color_grading_lut: self.color_grading_lut.into(),
             color_grading_enabled: self.color_grading_enabled.into(),
-            render_target: None.into(),
+            render_target: self.render_target,
         }
     }
 
