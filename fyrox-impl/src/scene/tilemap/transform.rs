@@ -160,9 +160,9 @@ impl Display for OrthoTransformation {
             _ => unreachable!(),
         };
         if self.is_flipped() {
-            write!(f, "rotate({})(flipped)", rotation)
+            write!(f, "rotate({rotation})(flipped)")
         } else {
-            write!(f, "rotate({})", rotation)
+            write!(f, "rotate({rotation})")
         }
     }
 }
@@ -459,7 +459,7 @@ mod tests {
         let v = Vector2::new(1.0, 0.5);
         let m = trans.matrix().to_homogeneous();
         let p = m.transform_point(&Point2::from(v)).coords;
-        assert_eq!(p, v.transformed(trans), "{}", trans);
+        assert_eq!(p, v.transformed(trans), "{trans}");
     }
     #[test]
     fn matrix() {

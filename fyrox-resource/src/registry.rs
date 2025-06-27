@@ -67,8 +67,7 @@ impl RegistryContainerExt for RegistryContainer {
     fn serialize_to_string(&self) -> Result<String, FileError> {
         ron::ser::to_string_pretty(self, PrettyConfig::default()).map_err(|err| {
             FileError::Custom(format!(
-                "Unable to serialize resource registry! Reason: {}",
-                err
+                "Unable to serialize resource registry! Reason: {err}"
             ))
         })
     }
@@ -77,8 +76,7 @@ impl RegistryContainerExt for RegistryContainer {
         resource_io.load_file(path).await.and_then(|metadata| {
             ron::de::from_bytes::<Self>(&metadata).map_err(|err| {
                 FileError::Custom(format!(
-                    "Unable to deserialize the resource registry. Reason: {:?}",
-                    err
+                    "Unable to deserialize the resource registry. Reason: {err:?}"
                 ))
             })
         })

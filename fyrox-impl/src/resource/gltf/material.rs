@@ -152,7 +152,7 @@ pub async fn import_materials(
         match import_material(mat, textures).await {
             Ok(res) => result.push(res),
             Err(err) => {
-                Log::err(format!("glTF material failed to import. Reason: {:?}", err));
+                Log::err(format!("glTF material failed to import. Reason: {err:?}"));
                 result.push(MaterialResource::new_ok(
                     Uuid::new_v4(),
                     ResourceKind::Embedded,

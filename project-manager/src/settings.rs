@@ -70,7 +70,7 @@ pub static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
             eprintln!("Unable to create config dir: {err:?}",);
         }
     }
-    println!("Config dir: {:?}", config_dir);
+    println!("Config dir: {config_dir:?}");
     config_dir
 });
 
@@ -87,7 +87,7 @@ pub static DATA_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
             eprintln!("Unable to create data dir: {err:?}",);
         }
     }
-    println!("Data dir: {:?}", data_dir);
+    println!("Data dir: {data_dir:?}");
     data_dir
 });
 

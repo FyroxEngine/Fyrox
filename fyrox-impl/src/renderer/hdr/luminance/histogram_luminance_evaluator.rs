@@ -119,7 +119,7 @@ impl Debug for LuminanceHistogram {
             lengths.push(b.len());
         }
 
-        write!(f, "LuminanceHistogram {:?}", lengths)
+        write!(f, "LuminanceHistogram {lengths:?}")
     }
 }
 

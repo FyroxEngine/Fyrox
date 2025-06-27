@@ -186,7 +186,7 @@ impl PanelPreview {
         if let Some(handle) = tile_set.get_transformed_version(transform, handle) {
             handle.to_string()
         } else {
-            format!("{}*", handle)
+            format!("{handle}*")
         }
     }
 }

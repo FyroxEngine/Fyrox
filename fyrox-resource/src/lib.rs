@@ -725,8 +725,7 @@ mod tests {
             resource_io.load_file(path).await.and_then(|metadata| {
                 ron::de::from_bytes::<Self>(&metadata).map_err(|err| {
                     FileError::Custom(format!(
-                        "Unable to deserialize the resource metadata. Reason: {:?}",
-                        err
+                        "Unable to deserialize the resource metadata. Reason: {err:?}"
                     ))
                 })
             })

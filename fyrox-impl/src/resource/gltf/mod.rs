@@ -627,7 +627,7 @@ fn build_node_family(
             // We have a never-seen-before inv_bind_pose, so create a child for that inv_bind_pose.
             let skin_index = pair.skin_index;
             let base_builder = BaseBuilder::new()
-                .with_name(format!("{}:{}", name, skin_index))
+                .with_name(format!("{name}:{skin_index}"))
                 .with_inv_bind_pose_transform(pair.bone.inv_bind_pose);
             let handle: Handle<Node> = graph.add_node(PivotBuilder::new(base_builder).build_node());
             bone_children.push(SkinNodePair {

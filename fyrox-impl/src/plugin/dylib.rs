@@ -182,8 +182,7 @@ impl DyLibDynamicPlugin {
                 .map_err(|e| e.to_string())?;
 
             Log::info(format!(
-                "Watching for changes in plugin {:?}...",
-                source_lib_path
+                "Watching for changes in plugin {source_lib_path:?}..."
             ));
 
             DyLibDynamicPlugin {

@@ -474,7 +474,7 @@ impl UiRenderer {
                             } else {
                                 resource_bindings.push(make_texture_binding(
                                     server,
-                                    &material,
+                                    material,
                                     resource,
                                     renderer_resources,
                                     fallback,

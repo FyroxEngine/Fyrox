@@ -688,7 +688,7 @@ impl AssetBrowser {
             if path.exists() {
                 Log::verify(watcher.watch(path, RecursiveMode::NonRecursive));
             } else {
-                Log::err(format!("cannot watch non-existing path {:?}", path));
+                Log::err(format!("cannot watch non-existing path {path:?}"));
             }
         }
 

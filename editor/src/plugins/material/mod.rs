@@ -579,7 +579,7 @@ impl MaterialEditor {
                     for (property_name, property_value) in group.properties() {
                         let item = *property_views
                             .get(property_name)
-                            .unwrap_or_else(|| panic!("Property not found {}", property_name));
+                            .unwrap_or_else(|| panic!("Property not found {property_name}"));
 
                         match property_value {
                             MaterialProperty::Float(value) => value.send(ui, item),
