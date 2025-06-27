@@ -47,7 +47,7 @@ use crate::{
     Resource, TypedResourceData, UntypedResource,
 };
 use fxhash::FxHashSet;
-use fyrox_core::{err, info, TypeUuidProvider, Uuid};
+use fyrox_core::{err, info, ok_or_continue, TypeUuidProvider, Uuid};
 use std::time::Duration;
 use std::{
     fmt::{Debug, Display, Formatter},
@@ -552,22 +552,62 @@ impl ResourceManagerState {
             let mut changed_resources = FxHashSet::default();
 
             if let Some(evt) = watcher.try_get_event() {
-                if let notify::EventKind::Modify(_) = evt.kind {
-                    for path in evt.paths {
-                        if let Ok(relative_path) = make_relative_path(path) {
-                            let registry = self.resource_registry.lock();
-                            if registry
-                                .excluded_folders
-                                .iter()
-                                .any(|folder| relative_path.starts_with(folder))
-                            {
-                                continue;
-                            }
+                for path in evt.paths {
+                    let relative_path = ok_or_continue!(make_relative_path(path));
 
-                            if self.loaders.lock().is_supported_resource(&relative_path) {
-                                changed_resources.insert(relative_path);
+                    let mut registry = self.resource_registry.lock();
+                    if registry
+                        .excluded_folders
+                        .iter()
+                        .any(|folder| relative_path.starts_with(folder))
+                    {
+                        continue;
+                    }
+
+                    if !self.loaders.lock().is_supported_resource(&relative_path) {
+                        continue;
+                    }
+
+                    match evt.kind {
+                        notify::EventKind::Modify(_) => {
+                            changed_resources.insert(relative_path);
+                        }
+                        notify::EventKind::Remove(_) => {
+                            match registry.modify().remove_metadata(&relative_path) {
+                                Ok(_) => {
+                                    info!(
+                                        "The resource {} was unregistered successfully!",
+                                        relative_path.as_path().display(),
+                                    )
+                                }
+                                Err(err) => {
+                                    err!(
+                                        "Unable to unregister the resource {}. Reason: {err:?}",
+                                        relative_path.as_path().display()
+                                    )
+                                }
                             }
                         }
+                        notify::EventKind::Create(_) => {
+                            let uuid = Uuid::new_v4();
+                            match registry.modify().write_metadata(uuid, &relative_path) {
+                                Ok(old_path) => {
+                                    assert!(old_path.is_none());
+                                    info!(
+                                        "The resource {} was registered successfully with {} id!",
+                                        relative_path.as_path().display(),
+                                        uuid
+                                    )
+                                }
+                                Err(err) => {
+                                    err!(
+                                        "Unable to register the resource {}. Reason: {err:?}",
+                                        relative_path.as_path().display()
+                                    )
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
