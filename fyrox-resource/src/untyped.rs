@@ -474,6 +474,16 @@ impl UntypedResource {
         }
     }
 
+    /// Tries to get an actual unique type id of underlying resource data. Returns `None` if the
+    /// resource cannot be locked or if it is not loaded.
+    pub fn type_uuid_non_blocking(&self) -> Option<Uuid> {
+        let header = self.0.try_lock()?;
+        match header.state {
+            ResourceState::Ok { ref data, .. } => Some(data.type_uuid()),
+            _ => None,
+        }
+    }
+
     /// Tries to get a type name of the resource data. Data type name is available only for fully
     /// loaded resources (in [`ResourceState::Ok`] state).
     pub fn data_type_name(&self) -> Option<String> {
