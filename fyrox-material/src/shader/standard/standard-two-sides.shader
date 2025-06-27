@@ -363,7 +363,7 @@
 
                 void main()
                 {
-                    FragColor = properties.diffuseColor * texture(diffuseTexture, texCoord);
+                    FragColor = properties.diffuseColor * S_SRGBToLinear(texture(diffuseTexture, texCoord));
                 }
                "#,
         ),
