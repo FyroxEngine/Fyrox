@@ -1295,7 +1295,9 @@ impl Renderer {
                 elapsed_time,
                 dt,
                 resource_manager,
-                true,
+                // There's no need to recalculate convolution for the environment map more than once
+                // when rendering reflection probes, because it does not use a dynamic environment map.
+                false,
                 true,
             )?;
             need_recalculate_convolution = true;
