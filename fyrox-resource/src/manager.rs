@@ -47,7 +47,7 @@ use crate::{
     Resource, TypedResourceData, UntypedResource,
 };
 use fxhash::FxHashSet;
-use fyrox_core::{err, info, Uuid};
+use fyrox_core::{err, info, TypeUuidProvider, Uuid};
 use std::time::Duration;
 use std::{
     fmt::{Debug, Display, Formatter},
@@ -235,10 +235,28 @@ impl ResourceManager {
     {
         let mut state = self.state();
 
-        assert!(state
-            .loaders
-            .lock()
-            .is_extension_matches_type::<T>(path.as_ref()));
+        let untyped = state.request(path.as_ref());
+
+        let data_type_uuid_matches = untyped
+            .type_uuid_non_blocking()
+            .is_some_and(|uuid| uuid == <T as TypeUuidProvider>::type_uuid());
+
+        if !data_type_uuid_matches {
+            let has_loader_for_extension = state
+                .loaders
+                .lock()
+                .is_extension_matches_type::<T>(path.as_ref());
+
+            if !has_loader_for_extension {
+                panic!(
+                    "Unable to get a resource of type {} from {} path! The resource has no \
+                    associated loader for its extension and its actual data has some other \
+                    data type!",
+                    <T as TypeUuidProvider>::type_uuid(),
+                    path.as_ref().display()
+                )
+            }
+        }
 
         Resource {
             untyped: state.request(path),
@@ -258,10 +276,13 @@ impl ResourceManager {
     {
         let mut state = self.state();
         let untyped = state.request(path.as_ref());
-        if state
-            .loaders
-            .lock()
-            .is_extension_matches_type::<T>(path.as_ref())
+        if untyped
+            .type_uuid_non_blocking()
+            .is_some_and(|uuid| uuid == <T as TypeUuidProvider>::type_uuid())
+            || state
+                .loaders
+                .lock()
+                .is_extension_matches_type::<T>(path.as_ref())
         {
             Some(Resource {
                 untyped,
