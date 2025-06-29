@@ -37,6 +37,7 @@ use std::sync::mpsc::Receiver;
 pub struct IconRequest {
     pub asset_item: Handle<UiNode>,
     pub resource: UntypedResource,
+    pub force_update: bool,
 }
 
 pub struct AssetPreviewCache {
@@ -63,10 +64,13 @@ impl AssetPreviewCache {
             let IconRequest {
                 asset_item,
                 resource,
+                force_update,
             } = request;
 
             let preview = if let Some(resource_uuid) = resource.resource_uuid() {
-                if let Some(cached_preview) = self.container.get(&resource_uuid) {
+                if let (false, Some(cached_preview)) =
+                    (force_update, self.container.get(&resource_uuid))
+                {
                     Some(cached_preview.clone())
                 } else if let Some(generator) = resource
                     .type_uuid()

@@ -61,7 +61,11 @@ use crate::{
     utils::window_content,
     Mode,
 };
+use fyrox::core::ok_or_continue;
+use fyrox::core::parking_lot::Mutex;
+use fyrox::graph::SceneGraph;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use std::collections::VecDeque;
 use std::{
     ffi::OsStr,
     fs::File,
@@ -300,6 +304,8 @@ impl ContextMenu {
     }
 }
 
+type IconUpdateQueue = Arc<Mutex<VecDeque<PathBuf>>>;
+
 pub struct AssetBrowser {
     pub window: Handle<UiNode>,
     pub docking_manager: Handle<UiNode>,
@@ -323,6 +329,7 @@ pub struct AssetBrowser {
     preview_sender: Sender<IconRequest>,
     need_refresh: Arc<AtomicBool>,
     main_window: Handle<UiNode>,
+    icon_update_queue: IconUpdateQueue,
     pub preview_generators: AssetPreviewGeneratorsCollection,
 }
 
@@ -342,6 +349,7 @@ fn is_supported_resource(ext: &OsStr, resource_manager: &ResourceManager) -> boo
 fn create_file_system_watcher(
     resource_manager: ResourceManager,
     need_refresh_flag: Arc<AtomicBool>,
+    icon_update_queue: IconUpdateQueue,
 ) -> Option<RecommendedWatcher> {
     notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
         let Ok(event) = event else {
@@ -361,6 +369,7 @@ fn create_file_system_watcher(
             };
 
             if is_supported_resource(extension, &resource_manager) {
+                icon_update_queue.lock().push_back(path.clone());
                 need_refresh_flag.store(true, Ordering::Relaxed);
                 break;
             }
@@ -533,9 +542,13 @@ impl AssetBrowser {
 
         let (preview_sender, preview_receiver) = mpsc::channel();
 
+        let icon_update_queue = IconUpdateQueue::default();
         let need_refresh = Arc::new(AtomicBool::new(false));
-        let watcher =
-            create_file_system_watcher(engine.resource_manager.clone(), need_refresh.clone());
+        let watcher = create_file_system_watcher(
+            engine.resource_manager.clone(),
+            need_refresh.clone(),
+            icon_update_queue.clone(),
+        );
 
         Self {
             dependency_viewer,
@@ -557,6 +570,7 @@ impl AssetBrowser {
             preview_sender,
             need_refresh,
             main_window,
+            icon_update_queue,
             preview_generators: AssetPreviewGeneratorsCollection::new(),
             refresh,
             watcher,
@@ -639,6 +653,7 @@ impl AssetBrowser {
                     Log::verify(preview_sender.send(IconRequest {
                         resource,
                         asset_item,
+                        force_update: false,
                     }));
                 }
             });
@@ -1044,7 +1059,33 @@ impl AssetBrowser {
         self.item_to_select = Some(path);
     }
 
+    fn update_icon_queue(&mut self, engine: &mut Engine) {
+        let ui = engine.user_interfaces.first();
+        let mut icon_update_queue = self.icon_update_queue.lock();
+        while let Some(path) = icon_update_queue.pop_front() {
+            let canonical_path = ok_or_continue!(path.canonicalize());
+            for item in self.items.iter() {
+                if let Some(asset_item) = ui.try_get_of_type::<AssetItem>(*item) {
+                    let asset_item_path = ok_or_continue!(asset_item.path.canonicalize());
+                    if asset_item_path == canonical_path {
+                        if let Some(resource) = asset_item.untyped_resource() {
+                            self.preview_sender
+                                .send(IconRequest {
+                                    asset_item: *item,
+                                    resource,
+                                    force_update: true,
+                                })
+                                .unwrap();
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     pub fn update(&mut self, engine: &mut Engine, sender: &MessageSender) {
+        self.update_icon_queue(engine);
         self.preview_cache
             .update(&mut self.preview_generators, engine);
         self.preview.update(engine);
