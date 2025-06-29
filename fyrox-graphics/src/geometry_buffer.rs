@@ -186,6 +186,7 @@ define_as_any_trait!(GpuGeometryBufferAsAny => GpuGeometryBufferTrait);
 ///     let triangles = [TriangleDefinition([0, 1, 2])];
 ///
 ///     server.create_geometry_buffer(GpuGeometryBufferDescriptor {
+///         name: "MyBuffer",
 ///         buffers: &[VertexBufferDescriptor {
 ///             usage: BufferUsage::StaticDraw,
 ///             attributes: &[AttributeDefinition {

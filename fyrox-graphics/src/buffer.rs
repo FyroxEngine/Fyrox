@@ -112,7 +112,9 @@ define_as_any_trait!(GpuBufferAsAny => GpuBufferTrait);
 ///     error::FrameworkError,
 ///     server::GraphicsServer,
 ///     uniform::DynamicUniformBuffer,
-/// };
+/// };///
+///
+/// use fyrox_graphics::buffer::GpuBufferDescriptor;
 ///
 /// fn create_buffer(server: &dyn GraphicsServer) -> Result<GpuBuffer, FrameworkError> {
 ///     let uniforms = DynamicUniformBuffer::new()
@@ -121,8 +123,12 @@ define_as_any_trait!(GpuBufferAsAny => GpuBufferTrait);
 ///         .with(&123.0f32)
 ///         .finish();
 ///
-///     let buffer =
-///         server.create_buffer(uniforms.len(), BufferKind::Uniform, BufferUsage::StaticDraw)?;
+///     let buffer = server.create_buffer(GpuBufferDescriptor{
+///             name: "MyBuffer",
+///             size: uniforms.len(),
+///             kind: BufferKind::Uniform,
+///             usage: BufferUsage::StaticDraw
+///     })?;
 ///
 ///     buffer.write_data(&uniforms)?;
 ///
