@@ -2483,10 +2483,11 @@ impl UserInterface {
                 if self.drag_context.is_dragging
                     && self.nodes.is_valid_handle(self.drag_context.drag_preview)
                 {
+                    let local_position = self.screen_to_root_canvas_space(*position);
                     self.send_message(WidgetMessage::desired_position(
                         self.drag_context.drag_preview,
                         MessageDirection::ToWidget,
-                        *position,
+                        local_position,
                     ));
                 }
 
