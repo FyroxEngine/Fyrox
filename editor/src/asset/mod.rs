@@ -688,6 +688,19 @@ impl AssetBrowser {
         ));
     }
 
+    fn is_current_path_in_registry(&self, resource_manager: &ResourceManager) -> bool {
+        let rm_state = resource_manager.state();
+        let registry = rm_state.resource_registry.lock();
+        if let Some(registry_directory) = registry.directory() {
+            if let Ok(canonical_registry_path) = registry_directory.canonicalize() {
+                if let Ok(canonical_path) = self.current_path.canonicalize() {
+                    return canonical_path.starts_with(canonical_registry_path);
+                }
+            }
+        }
+        false
+    }
+
     fn set_path(
         &mut self,
         path: &Path,
@@ -712,6 +725,11 @@ impl AssetBrowser {
             self.main_window,
             MessageDirection::ToWidget,
             WindowTitle::text(format!("Folder Content - {}", self.current_path.display())),
+        ));
+        ui.send_message(WidgetMessage::enabled(
+            self.add_resource,
+            MessageDirection::ToWidget,
+            self.is_current_path_in_registry(resource_manager),
         ));
         self.refresh(ui, resource_manager, message_sender);
     }
