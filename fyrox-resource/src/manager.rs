@@ -340,51 +340,107 @@ impl ResourceManager {
         self.state().register(resource, path)
     }
 
-    /// Attempts to move a resource from its current location to the new path.
+    /// Tries to move a resource at the given path to the new path. The path of the resource must be
+    /// registered in the resource registry for the resource to be moveable. This method can also be
+    /// used to rename the source file of a resource.
+    pub async fn move_resource_by_path(
+        &self,
+        src_path: impl AsRef<Path>,
+        dest_path: impl AsRef<Path>,
+    ) -> Result<(), FileError> {
+        let state = self.state();
+        let io = state.resource_io.clone();
+        let registry = state.resource_registry.clone();
+        drop(state);
+
+        let relative_src_path = src_path.as_ref();
+        let relative_dest_path = dest_path.as_ref();
+
+        if relative_src_path.has_root() {
+            return Err(FileError::Custom(format!(
+                "Unable to move the {} resource, because the path is not relative!",
+                relative_src_path.display()
+            )));
+        }
+
+        if relative_dest_path.has_root() {
+            return Err(FileError::Custom(format!(
+                "Unable to move the {} resource, because the destination path {} is not relative!",
+                relative_src_path.display(),
+                relative_dest_path.display()
+            )));
+        }
+
+        let mut registry = registry.lock();
+        let absolute_registry_dir = if let Some(directory) = registry.directory() {
+            io.canonicalize_path(directory).await?
+        } else {
+            return Err(FileError::Custom(format!(
+                "Unable to move the {} resource, because the registry is not saved!",
+                relative_src_path.display()
+            )));
+        };
+        let resource_uuid = registry.path_to_uuid(&relative_src_path).ok_or_else(|| {
+            FileError::Custom(format!(
+                "Unable to move the {} resource, because it is not in the registry!",
+                relative_src_path.display()
+            ))
+        })?;
+
+        let relative_dest_dir = relative_dest_path.parent().unwrap_or(&Path::new("."));
+        let absolute_dest_dir = io.canonicalize_path(relative_dest_dir).await?;
+
+        let absolute_src_path = io.canonicalize_path(relative_src_path).await?;
+        if !absolute_dest_dir.starts_with(&absolute_registry_dir) {
+            return Err(FileError::Custom(format!(
+                "Unable to move the {} resource to {} path, because \
+            the new path is located outside the resource registry path {}!",
+                absolute_src_path.display(),
+                absolute_dest_dir.display(),
+                absolute_registry_dir.display()
+            )));
+        }
+
+        // Move the file with its optional import options and mandatory metadata.
+        io.move_file(&relative_src_path, &relative_dest_path)
+            .await?;
+
+        let current_path = registry
+            .modify()
+            .register(resource_uuid, relative_dest_path.to_path_buf());
+        assert_eq!(current_path.as_deref(), Some(relative_src_path));
+
+        let options_path = append_extension(&relative_src_path, OPTIONS_EXTENSION);
+        if io.exists(&options_path).await {
+            let new_options_path = append_extension(&relative_dest_path, OPTIONS_EXTENSION);
+            io.move_file(&options_path, &new_options_path).await?;
+        }
+
+        let metadata_path = append_extension(&relative_src_path, ResourceMetadata::EXTENSION);
+        if io.exists(&metadata_path).await {
+            let new_metadata_path =
+                append_extension(&relative_dest_path, ResourceMetadata::EXTENSION);
+            io.move_file(&metadata_path, &new_metadata_path).await?;
+        }
+
+        Ok(())
+    }
+
+    /// Attempts to move a resource from its current location to the new path. The resource must
+    /// be registered in the resource registry to be moveable. This method can also be used to
+    /// rename the source file of a resource.
     pub async fn move_resource(
         &self,
         resource: &UntypedResource,
         new_path: impl AsRef<Path>,
     ) -> Result<(), FileError> {
-        let resource_uuid = resource
-            .resource_uuid()
-            .ok_or_else(|| FileError::Custom("Unable to move non-loaded resource!".to_string()))?;
+        let resource_path = self.resource_path(resource).ok_or_else(|| {
+            FileError::Custom(
+                "Cannot move the resource because it does not have a path!".to_string(),
+            )
+        })?;
 
-        let new_path = new_path.as_ref().to_owned();
-        let io = self.state().resource_io.clone();
-        let registry = self.state().resource_registry.clone();
-        let existing_path = registry
-            .lock()
-            .uuid_to_path(resource_uuid)
-            .map(|path| path.to_path_buf())
-            .ok_or_else(|| FileError::Custom("Cannot move embedded resource!".to_string()))?;
-
-        // Move the file with its optional import options and mandatory metadata.
-        io.move_file(&existing_path, &new_path).await?;
-
-        // Separate scope to lock the mutex as short as possible.
-        {
-            let mut registry = registry.lock();
-            let mut ctx = registry.modify();
-            assert_eq!(
-                ctx.register(resource_uuid, new_path.clone()).as_ref(),
-                Some(&existing_path)
-            );
-        }
-
-        let options_path = append_extension(&existing_path, OPTIONS_EXTENSION);
-        if io.exists(&options_path).await {
-            let new_options_path = append_extension(&new_path, OPTIONS_EXTENSION);
-            io.move_file(&options_path, &new_options_path).await?;
-        }
-
-        let metadata_path = append_extension(&existing_path, ResourceMetadata::EXTENSION);
-        if io.exists(&metadata_path).await {
-            let new_metadata_path = append_extension(&new_path, ResourceMetadata::EXTENSION);
-            io.move_file(&metadata_path, &new_metadata_path).await?;
-        }
-
-        Ok(())
+        self.move_resource_by_path(resource_path, new_path).await
     }
 
     /// Reloads all loaded resources. Normally it should never be called, because it is **very** heavy
