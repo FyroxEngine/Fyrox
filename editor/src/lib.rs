@@ -2217,7 +2217,7 @@ impl Editor {
         engine.resource_manager.state().destroy_unused_resources();
 
         self.asset_browser
-            .set_working_directory(engine, &working_directory, &self.message_sender);
+            .set_working_directory(engine, &working_directory);
 
         self.world_viewer
             .on_configure(engine.user_interfaces.first(), &self.settings);

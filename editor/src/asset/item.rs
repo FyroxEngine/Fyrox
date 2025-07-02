@@ -181,7 +181,7 @@ impl AssetItem {
     fn try_post_move_to_message(&self, ui: &UserInterface, dropped: Handle<UiNode>) {
         let dropped_item = some_or_return!(ui.try_get_of_type::<Self>(dropped));
 
-        if !dropped_item.path.is_file() || !self.path.is_dir() {
+        if !self.path.is_dir() {
             return;
         }
 

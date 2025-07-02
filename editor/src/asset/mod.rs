@@ -408,6 +408,69 @@ fn try_move_resource(
     }
 }
 
+fn try_move_folder(src_dir: &Path, dest_dir: &Path, resource_manager: &ResourceManager) {
+    if dest_dir.starts_with(src_dir) {
+        // Trying to drop a folder into its own subfolder
+        return;
+    }
+
+    // Early validation to prevent error spam when trying to move a folder out of the
+    // assets directory.
+    if !is_path_in_registry(dest_dir, resource_manager) {
+        return;
+    }
+
+    // At this point we have a folder dropped on some other folder. In this case
+    // we need to move all the assets from the dropped folder to a new subfolder (with the same
+    // name as the dropped folder) of the other folder first. After that we can move the rest
+    // of the files and finally delete the dropped folder.
+    let mut what_where_stack = vec![(src_dir.to_path_buf(), dest_dir.to_path_buf())];
+    let mut any_error = false;
+    while let Some((src_dir, target_dir)) = what_where_stack.pop() {
+        let src_dir_name = some_or_continue!(src_dir.file_name());
+
+        let target_sub_dir = target_dir.join(src_dir_name);
+        if !target_sub_dir.exists() {
+            if let Err(err) = std::fs::create_dir(&target_sub_dir) {
+                err!(
+                    "Unable to create {} directory. Reason: {}",
+                    target_sub_dir.display(),
+                    err
+                );
+                continue;
+            }
+        }
+
+        let target_sub_dir_normalized = ok_or_continue!(make_relative_path(&target_sub_dir));
+
+        for entry in walkdir::WalkDir::new(&src_dir)
+            .max_depth(1)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+            if path.is_file() {
+                let ext = some_or_continue!(path.extension());
+                let file_name = some_or_continue!(path.file_name());
+                if is_supported_resource(ext, resource_manager) {
+                    let dest_path = target_sub_dir_normalized.join(file_name);
+                    if !try_move_resource(path, &dest_path, resource_manager) {
+                        any_error = true;
+                    }
+                }
+            } else if entry.path().is_dir() && entry.path() != src_dir {
+                // Sub-folders will be processed after all assets from current dir
+                // were moved.
+                what_where_stack.push((entry.path().to_path_buf(), target_sub_dir.clone()));
+            }
+        }
+    }
+
+    if !any_error {
+        Log::verify(std::fs::remove_dir_all(src_dir));
+    }
+}
+
 impl AssetBrowser {
     pub fn new(engine: &mut Engine) -> Self {
         let preview = PreviewPanel::new(engine, 250, 250);
@@ -612,38 +675,21 @@ impl AssetBrowser {
         self.preview.clear(engine);
     }
 
-    pub fn set_working_directory(
-        &mut self,
-        engine: &mut Engine,
-        dir: &Path,
-        message_sender: &MessageSender,
-    ) {
+    pub fn set_working_directory(&mut self, engine: &mut Engine, dir: &Path) {
         assert!(dir.is_dir());
 
-        engine
-            .user_interfaces
-            .first_mut()
-            .send_message(FileBrowserMessage::root(
+        let ui = engine.user_interfaces.first_mut();
+
+        ui.send_messages([
+            FileBrowserMessage::root(
                 self.folder_browser,
                 MessageDirection::ToWidget,
                 Some(dir.to_owned()),
-            ));
+            ),
+            FileBrowserMessage::path(self.folder_browser, MessageDirection::ToWidget, "./".into()),
+        ]);
 
-        engine
-            .user_interfaces
-            .first_mut()
-            .send_message(FileBrowserMessage::path(
-                self.folder_browser,
-                MessageDirection::ToWidget,
-                "./".into(),
-            ));
-
-        self.set_path(
-            Path::new("./"),
-            engine.user_interfaces.first_mut(),
-            &engine.resource_manager,
-            message_sender,
-        );
+        self.set_path(Path::new("./"), ui, &engine.resource_manager);
     }
 
     fn add_asset(
@@ -727,7 +773,6 @@ impl AssetBrowser {
         path: &Path,
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
-        message_sender: &MessageSender,
     ) {
         if let Some(watcher) = self.watcher.as_mut() {
             // notify 6.1.1 crashes otherwise
@@ -752,7 +797,7 @@ impl AssetBrowser {
             MessageDirection::ToWidget,
             self.is_current_path_in_registry(resource_manager),
         ));
-        self.refresh(ui, resource_manager, message_sender);
+        self.schedule_refresh();
     }
 
     fn refresh(
@@ -923,11 +968,7 @@ impl AssetBrowser {
         self.inspector.handle_ui_message(message, engine);
         self.preview.handle_message(message, engine);
         if self.context_menu.handle_ui_message(message, engine) {
-            self.refresh(
-                engine.user_interfaces.first_mut(),
-                &engine.resource_manager,
-                &sender,
-            );
+            self.schedule_refresh();
         }
         self.dependency_viewer
             .handle_ui_message(message, engine.user_interfaces.first_mut());
@@ -939,11 +980,7 @@ impl AssetBrowser {
                 &self.current_path,
             );
             if asset_added {
-                self.refresh(
-                    engine.user_interfaces.first_mut(),
-                    &engine.resource_manager,
-                    &sender,
-                );
+                self.schedule_refresh();
             }
         }
 
@@ -961,12 +998,18 @@ impl AssetBrowser {
                     src_item_path,
                     dest_dir,
                 } => {
-                    if let Some(file_name) = src_item_path.file_name() {
+                    if let (Some(file_name), true) =
+                        (src_item_path.file_name(), src_item_path.is_file())
+                    {
                         try_move_resource(
                             src_item_path,
                             &dest_dir.join(file_name),
                             &engine.resource_manager,
                         );
+                        self.schedule_refresh();
+                    } else if src_item_path.is_dir() {
+                        try_move_folder(src_item_path, dest_dir, &engine.resource_manager);
+                        self.schedule_refresh();
                     }
                 }
                 _ => {}
@@ -982,7 +1025,7 @@ impl AssetBrowser {
                             MessageDirection::ToWidget,
                             Default::default(),
                         ));
-                        self.set_path(path, ui, &engine.resource_manager, &sender);
+                        self.set_path(path, ui, &engine.resource_manager);
                     }
                     FileBrowserMessage::Drop {
                         dropped,
@@ -996,7 +1039,6 @@ impl AssetBrowser {
                             dropped_path,
                             ui,
                             &engine.resource_manager,
-                            &sender,
                         );
                     }
                     _ => (),
@@ -1016,7 +1058,7 @@ impl AssetBrowser {
                         PathBuf::from("./")
                     };
                     self.item_to_select = Some(self.selected_item_path.clone());
-                    self.set_path(&path, ui, &engine.resource_manager, &sender);
+                    self.set_path(&path, ui, &engine.resource_manager);
                 } else {
                     self.clear_assets(ui);
                     let search_text = search_text.to_lowercase();
@@ -1110,11 +1152,7 @@ impl AssetBrowser {
 
                 self.resource_creator = Some(resource_creator);
             } else if message.destination() == self.refresh {
-                self.refresh(
-                    engine.user_interfaces.first_mut(),
-                    &engine.resource_manager,
-                    &sender,
-                );
+                self.schedule_refresh();
             }
         }
     }
@@ -1127,6 +1165,10 @@ impl AssetBrowser {
         ));
 
         self.item_to_select = Some(path);
+    }
+
+    fn schedule_refresh(&self) {
+        self.need_refresh.store(true, Ordering::Relaxed);
     }
 
     fn update_icon_queue(&mut self, engine: &mut Engine) {
@@ -1180,80 +1222,18 @@ impl AssetBrowser {
     fn on_file_browser_drop(
         &mut self,
         dropped: Handle<UiNode>,
-        target_dir: &Path,
-        dropped_path: &Path,
+        dest_dir: &Path,
+        src_dir: &Path,
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
-        message_sender: &MessageSender,
     ) {
         if let Some(item) = ui.try_get_of_type::<AssetItem>(dropped) {
             if let Some(file_name) = item.path.file_name() {
-                try_move_resource(&item.path, &target_dir.join(file_name), resource_manager);
+                try_move_resource(&item.path, &dest_dir.join(file_name), resource_manager);
             }
-        } else if dropped_path != Path::new("") {
-            if target_dir.starts_with(dropped_path) {
-                // Trying to drop a folder into its own subfolder
-                return;
-            }
-
-            // Early validation to prevent error spam when trying to move a folder out of the
-            // assets directory.
-            if !is_path_in_registry(target_dir, resource_manager) {
-                return;
-            }
-
-            // At this point we have a folder dropped on some other folder. In this case
-            // we need to move all the assets from the dropped folder to a new subfolder (with the same
-            // name as the dropped folder) of the other folder first. After that we can move the rest
-            // of the files and finally delete the dropped folder.
-            let mut what_where_stack = vec![(dropped_path.to_path_buf(), target_dir.to_path_buf())];
-            let mut any_error = false;
-            while let Some((src_dir, target_dir)) = what_where_stack.pop() {
-                let src_dir_name = some_or_continue!(src_dir.file_name());
-
-                let target_sub_dir = target_dir.join(src_dir_name);
-                if !target_sub_dir.exists() {
-                    if let Err(err) = std::fs::create_dir(&target_sub_dir) {
-                        err!(
-                            "Unable to create {} directory. Reason: {}",
-                            target_sub_dir.display(),
-                            err
-                        );
-                        continue;
-                    }
-                }
-
-                let target_sub_dir_normalized =
-                    ok_or_continue!(make_relative_path(&target_sub_dir));
-
-                for entry in walkdir::WalkDir::new(&src_dir)
-                    .max_depth(1)
-                    .into_iter()
-                    .filter_map(|e| e.ok())
-                {
-                    let path = entry.path();
-                    if path.is_file() {
-                        let ext = some_or_continue!(path.extension());
-                        let file_name = some_or_continue!(path.file_name());
-                        if is_supported_resource(ext, resource_manager) {
-                            let dest_path = target_sub_dir_normalized.join(file_name);
-                            if !try_move_resource(path, &dest_path, resource_manager) {
-                                any_error = true;
-                            }
-                        }
-                    } else if entry.path().is_dir() && entry.path() != src_dir {
-                        // Sub-folders will be processed after all assets from current dir
-                        // were moved.
-                        what_where_stack.push((entry.path().to_path_buf(), target_sub_dir.clone()));
-                    }
-                }
-            }
-
-            if !any_error {
-                Log::verify(std::fs::remove_dir_all(dropped_path));
-            }
-
-            self.refresh(ui, resource_manager, message_sender);
+        } else if src_dir != Path::new("") {
+            try_move_folder(src_dir, dest_dir, resource_manager);
+            self.schedule_refresh();
         }
     }
 }
