@@ -30,7 +30,7 @@ use crate::{
         futures::future::join_all,
         io::FileError,
         log::Log,
-        make_relative_path, notify,
+        notify,
         parking_lot::{Mutex, MutexGuard},
         task::TaskPool,
         watcher::FileSystemWatcher,
@@ -371,9 +371,12 @@ impl ResourceManager {
             )));
         }
 
+        let relative_src_path = fyrox_core::make_relative_path(relative_src_path)?;
+        let relative_dest_path = fyrox_core::make_relative_path(relative_dest_path)?;
+
         let mut registry = registry.lock();
         let absolute_registry_dir = if let Some(directory) = registry.directory() {
-            io.canonicalize_path(directory).await?
+            fyrox_core::replace_slashes(io.canonicalize_path(directory).await?)
         } else {
             return Err(FileError::Custom(format!(
                 "Unable to move the {} resource, because the registry is not saved!",
@@ -388,9 +391,11 @@ impl ResourceManager {
         })?;
 
         let relative_dest_dir = relative_dest_path.parent().unwrap_or(&Path::new("."));
-        let absolute_dest_dir = io.canonicalize_path(relative_dest_dir).await?;
+        let absolute_dest_dir =
+            fyrox_core::replace_slashes(io.canonicalize_path(relative_dest_dir).await?);
 
-        let absolute_src_path = io.canonicalize_path(relative_src_path).await?;
+        let absolute_src_path =
+            fyrox_core::replace_slashes(io.canonicalize_path(&relative_src_path).await?);
         if !absolute_dest_dir.starts_with(&absolute_registry_dir) {
             return Err(FileError::Custom(format!(
                 "Unable to move the {} resource to {} path, because \
@@ -408,7 +413,7 @@ impl ResourceManager {
         let current_path = registry
             .modify()
             .register(resource_uuid, relative_dest_path.to_path_buf());
-        assert_eq!(current_path.as_deref(), Some(relative_src_path));
+        assert_eq!(current_path.as_ref(), Some(&relative_src_path));
 
         let options_path = append_extension(&relative_src_path, OPTIONS_EXTENSION);
         if io.exists(&options_path).await {
@@ -609,7 +614,7 @@ impl ResourceManagerState {
 
             if let Some(evt) = watcher.try_get_event() {
                 for path in evt.paths {
-                    let relative_path = ok_or_continue!(make_relative_path(path));
+                    let relative_path = ok_or_continue!(fyrox_core::make_relative_path(path));
 
                     let mut registry = self.resource_registry.lock();
                     if registry
