@@ -343,6 +343,7 @@ impl ResourceManager {
     /// Tries to move a resource at the given path to the new path. The path of the resource must be
     /// registered in the resource registry for the resource to be moveable. This method can also be
     /// used to rename the source file of a resource.
+    #[allow(clippy::await_holding_lock)]
     pub async fn move_resource_by_path(
         &self,
         src_path: impl AsRef<Path>,
@@ -390,7 +391,7 @@ impl ResourceManager {
             ))
         })?;
 
-        let relative_dest_dir = relative_dest_path.parent().unwrap_or(&Path::new("."));
+        let relative_dest_dir = relative_dest_path.parent().unwrap_or(Path::new("."));
         let absolute_dest_dir =
             fyrox_core::replace_slashes(io.canonicalize_path(relative_dest_dir).await?);
 
