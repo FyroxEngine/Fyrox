@@ -28,6 +28,7 @@ use crate::{
             algebra::Vector2, futures::executor::block_on, make_relative_path, pool::Handle,
             reflect::prelude::*, type_traits::prelude::*, uuid_provider, visitor::prelude::*,
         },
+        graph::SceneGraph,
         gui::{
             border::BorderBuilder,
             define_constructor,
@@ -35,7 +36,7 @@ use crate::{
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
-            message::{MessageDirection, UiMessage},
+            message::{MessageDirection, MouseButton, UiMessage},
             style::{resource::StyleResourceExt, Style},
             text::TextBuilder,
             widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -43,14 +44,13 @@ use crate::{
             UserInterface,
         },
         material::Material,
+        resource::texture::TextureResource,
         scene::tilemap::{brush::TileMapBrush, tileset::TileSet},
     },
     message::MessageSender,
     Message,
 };
-
-use fyrox::gui::message::MouseButton;
-use fyrox::resource::texture::TextureResource;
+use fyrox::core::some_or_return;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -66,11 +66,16 @@ pub enum AssetItemMessage {
         texture: Option<TextureResource>,
         flip_y: bool,
     },
+    MoveTo {
+        src_item_path: PathBuf,
+        dest_dir: PathBuf,
+    },
 }
 
 impl AssetItemMessage {
     define_constructor!(AssetItemMessage:Select => fn select(bool), layout: false);
     define_constructor!(AssetItemMessage:Icon => fn icon(texture: Option<TextureResource>, flip_y: bool), layout: false);
+    define_constructor!(AssetItemMessage:MoveTo => fn move_to(src_item_path: PathBuf, dest_dir: PathBuf), layout: false);
 }
 
 #[allow(dead_code)]
@@ -172,6 +177,21 @@ impl AssetItem {
             open_in_explorer(&self.path)
         }
     }
+
+    fn try_post_move_to_message(&self, ui: &UserInterface, dropped: Handle<UiNode>) {
+        let dropped_item = some_or_return!(ui.try_get_of_type::<Self>(dropped));
+
+        if !dropped_item.path.is_file() || !self.path.is_dir() {
+            return;
+        }
+
+        ui.send_message(AssetItemMessage::move_to(
+            dropped,
+            MessageDirection::FromWidget,
+            dropped_item.path.clone(),
+            self.path.clone(),
+        ));
+    }
 }
 
 impl Deref for AssetItem {
@@ -214,16 +234,27 @@ impl Control for AssetItem {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(WidgetMessage::MouseDown { button, .. }) = message.data::<WidgetMessage>() {
-            if !message.handled() {
-                if *button == MouseButton::Left {
-                    message.set_handled(true);
+        if let Some(msg) = message.data::<WidgetMessage>() {
+            match msg {
+                WidgetMessage::MouseDown { button, .. } => {
+                    if !message.handled() {
+                        if *button == MouseButton::Left {
+                            message.set_handled(true);
+                        }
+                        ui.send_message(AssetItemMessage::select(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
+                    }
                 }
-                ui.send_message(AssetItemMessage::select(
-                    self.handle(),
-                    MessageDirection::ToWidget,
-                    true,
-                ));
+                WidgetMessage::Drop(dropped) => {
+                    self.try_post_move_to_message(ui, *dropped);
+                }
+                WidgetMessage::DoubleClick { .. } => {
+                    self.open();
+                }
+                _ => {}
             }
         } else if let Some(msg) = message.data::<AssetItemMessage>() {
             match msg {
@@ -262,9 +293,8 @@ impl Control for AssetItem {
                         *flip_y,
                     ))
                 }
+                _ => (),
             }
-        } else if let Some(WidgetMessage::DoubleClick { .. }) = message.data() {
-            self.open();
         }
     }
 }
@@ -338,6 +368,7 @@ impl AssetItemBuilder {
                 .widget_builder
                 .with_margin(Thickness::uniform(1.0))
                 .with_allow_drag(true)
+                .with_allow_drop(true)
                 .with_foreground(ctx.style.property(Style::BRUSH_PRIMARY))
                 .with_tooltip(make_tooltip(ctx, &format!("{path:?}")))
                 .with_child(

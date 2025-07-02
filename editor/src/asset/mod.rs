@@ -391,6 +391,23 @@ fn create_file_system_watcher(
     .ok()
 }
 
+fn try_move_resource(
+    src_path: &Path,
+    dest_path: &Path,
+    resource_manager: &ResourceManager,
+) -> bool {
+    if let Err(err) = block_on(resource_manager.move_resource_by_path(src_path, dest_path)) {
+        err!(
+            "An error occurred at the attempt to move a resource.\nReason: {}",
+            err
+        );
+
+        false
+    } else {
+        true
+    }
+}
+
 impl AssetBrowser {
     pub fn new(engine: &mut Engine) -> Self {
         let preview = PreviewPanel::new(engine, 250, 250);
@@ -843,6 +860,60 @@ impl AssetBrowser {
         }
     }
 
+    fn on_asset_selected(
+        &mut self,
+        selected_asset: Handle<UiNode>,
+        sender: MessageSender,
+        engine: &mut Engine,
+    ) {
+        let ui = &mut engine.user_interfaces.first_mut();
+
+        // Deselect other items.
+        for &item in self.items.iter().filter(|i| **i != selected_asset) {
+            ui.send_message(AssetItemMessage::select(
+                item,
+                MessageDirection::ToWidget,
+                false,
+            ))
+        }
+
+        let asset_path = ui
+            .node(selected_asset)
+            .cast::<AssetItem>()
+            .expect("Must be AssetItem")
+            .path
+            .clone();
+
+        self.selected_item_path = asset_path.clone();
+
+        self.inspector.inspect_resource_import_options(
+            &asset_path,
+            ui,
+            sender,
+            &engine.resource_manager,
+        );
+
+        if let Ok(resource) = block_on(engine.resource_manager.request_untyped(asset_path)) {
+            if let Some(preview_generator) = resource
+                .type_uuid()
+                .and_then(|type_uuid| self.preview_generators.map.get_mut(&type_uuid))
+            {
+                let preview_scene = &mut engine.scenes[self.preview.scene()];
+                let preview = preview_generator.generate_scene(
+                    &resource,
+                    &engine.resource_manager,
+                    preview_scene,
+                );
+                ui.send_message(WidgetMessage::visibility(
+                    self.preview.root,
+                    MessageDirection::ToWidget,
+                    preview.is_some(),
+                ));
+                self.preview.set_model(preview, engine);
+            }
+        }
+    }
+
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
@@ -878,50 +949,27 @@ impl AssetBrowser {
 
         let ui = &mut engine.user_interfaces.first_mut();
 
-        if let Some(AssetItemMessage::Select(true)) = message.data::<AssetItemMessage>() {
-            // Deselect other items.
-            for &item in self.items.iter().filter(|i| **i != message.destination()) {
-                ui.send_message(AssetItemMessage::select(
-                    item,
-                    MessageDirection::ToWidget,
-                    false,
-                ))
-            }
-
-            let asset_path = ui
-                .node(message.destination())
-                .cast::<AssetItem>()
-                .expect("Must be AssetItem")
-                .path
-                .clone();
-
-            self.selected_item_path = asset_path.clone();
-
-            self.inspector.inspect_resource_import_options(
-                &asset_path,
-                ui,
-                sender,
-                &engine.resource_manager,
-            );
-
-            if let Ok(resource) = block_on(engine.resource_manager.request_untyped(asset_path)) {
-                if let Some(preview_generator) = resource
-                    .type_uuid()
-                    .and_then(|type_uuid| self.preview_generators.map.get_mut(&type_uuid))
-                {
-                    let preview_scene = &mut engine.scenes[self.preview.scene()];
-                    let preview = preview_generator.generate_scene(
-                        &resource,
-                        &engine.resource_manager,
-                        preview_scene,
-                    );
-                    ui.send_message(WidgetMessage::visibility(
-                        self.preview.root,
-                        MessageDirection::ToWidget,
-                        preview.is_some(),
-                    ));
-                    self.preview.set_model(preview, engine);
+        if let Some(msg) = message.data::<AssetItemMessage>() {
+            let asset_item = message.destination();
+            match msg {
+                AssetItemMessage::Select(true) => {
+                    if ui.has_descendant_or_equal(asset_item, self.content_panel) {
+                        self.on_asset_selected(asset_item, sender.clone(), engine);
+                    }
                 }
+                AssetItemMessage::MoveTo {
+                    src_item_path,
+                    dest_dir,
+                } => {
+                    if let Some(file_name) = src_item_path.file_name() {
+                        try_move_resource(
+                            src_item_path,
+                            &dest_dir.join(file_name),
+                            &engine.resource_manager,
+                        );
+                    }
+                }
+                _ => {}
             }
         } else if let Some(msg) = message.data::<FileBrowserMessage>() {
             if message.destination() == self.folder_browser
@@ -1138,30 +1186,9 @@ impl AssetBrowser {
         resource_manager: &ResourceManager,
         message_sender: &MessageSender,
     ) {
-        fn try_move_resource(
-            src_path: &Path,
-            dest_path: &Path,
-            resource_manager: &ResourceManager,
-        ) -> bool {
-            if let Err(err) = block_on(resource_manager.move_resource_by_path(src_path, dest_path))
-            {
-                err!(
-                    "An error occurred at the attempt to move a resource.\nReason: {}",
-                    err
-                );
-
-                false
-            } else {
-                true
-            }
-        }
-
         if let Some(item) = ui.try_get_of_type::<AssetItem>(dropped) {
-            if let Ok(target_relative_path) = make_relative_path(target_dir) {
-                if let Some(file_name) = item.path.file_name() {
-                    let dest_path = target_relative_path.join(file_name);
-                    try_move_resource(&item.path, &dest_path, resource_manager);
-                }
+            if let Some(file_name) = item.path.file_name() {
+                try_move_resource(&item.path, &target_dir.join(file_name), resource_manager);
             }
         } else if dropped_path != Path::new("") {
             if target_dir.starts_with(dropped_path) {
