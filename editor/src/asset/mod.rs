@@ -61,8 +61,8 @@ use crate::{
     utils::window_content,
     Mode,
 };
-use fyrox::core::ok_or_continue;
 use fyrox::core::parking_lot::Mutex;
+use fyrox::core::{err, ok_or_continue, some_or_continue};
 use fyrox::graph::SceneGraph;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::VecDeque;
@@ -331,6 +331,19 @@ pub struct AssetBrowser {
     main_window: Handle<UiNode>,
     icon_update_queue: IconUpdateQueue,
     pub preview_generators: AssetPreviewGeneratorsCollection,
+}
+
+fn is_path_in_registry(path: &Path, resource_manager: &ResourceManager) -> bool {
+    let rm_state = resource_manager.state();
+    let registry = rm_state.resource_registry.lock();
+    if let Some(registry_directory) = registry.directory() {
+        if let Ok(canonical_registry_path) = registry_directory.canonicalize() {
+            if let Ok(canonical_path) = path.canonicalize() {
+                return canonical_path.starts_with(canonical_registry_path);
+            }
+        }
+    }
+    false
 }
 
 fn is_supported_resource(ext: &OsStr, resource_manager: &ResourceManager) -> bool {
@@ -689,16 +702,7 @@ impl AssetBrowser {
     }
 
     fn is_current_path_in_registry(&self, resource_manager: &ResourceManager) -> bool {
-        let rm_state = resource_manager.state();
-        let registry = rm_state.resource_registry.lock();
-        if let Some(registry_directory) = registry.directory() {
-            if let Ok(canonical_registry_path) = registry_directory.canonicalize() {
-                if let Ok(canonical_path) = self.current_path.canonicalize() {
-                    return canonical_path.starts_with(canonical_registry_path);
-                }
-            }
-        }
-        false
+        is_path_in_registry(&self.current_path, resource_manager)
     }
 
     fn set_path(
@@ -1134,74 +1138,92 @@ impl AssetBrowser {
         resource_manager: &ResourceManager,
         message_sender: &MessageSender,
     ) {
-        if let Some(item) = ui.try_get(dropped).and_then(|n| n.cast::<AssetItem>()) {
-            if let Ok(relative_path) = make_relative_path(target_dir) {
-                if let Ok(resource) = block_on(resource_manager.request_untyped(&item.path)) {
-                    if let Some(path) = resource_manager.resource_path(&resource) {
-                        if let Some(file_name) = path.file_name() {
-                            let new_full_path = relative_path.join(file_name);
-                            Log::verify(block_on(
-                                resource_manager.move_resource(&resource, new_full_path),
-                            ));
+        fn try_move_resource(
+            src_path: &Path,
+            dest_path: &Path,
+            resource_manager: &ResourceManager,
+        ) -> bool {
+            if let Err(err) = block_on(resource_manager.move_resource_by_path(src_path, dest_path))
+            {
+                err!(
+                    "An error occurred at the attempt to move a resource.\nReason: {}",
+                    err
+                );
 
-                            self.refresh(ui, resource_manager, message_sender);
-                        }
-                    }
+                false
+            } else {
+                true
+            }
+        }
+
+        if let Some(item) = ui.try_get_of_type::<AssetItem>(dropped) {
+            if let Ok(target_relative_path) = make_relative_path(target_dir) {
+                if let Some(file_name) = item.path.file_name() {
+                    let dest_path = target_relative_path.join(file_name);
+                    try_move_resource(&item.path, &dest_path, resource_manager);
                 }
             }
         } else if dropped_path != Path::new("") {
             if target_dir.starts_with(dropped_path) {
-                // Trying to drop a folder into it's own subfolder
+                // Trying to drop a folder into its own subfolder
                 return;
             }
+
+            // Early validation to prevent error spam when trying to move a folder out of the
+            // assets directory.
+            if !is_path_in_registry(target_dir, resource_manager) {
+                return;
+            }
+
             // At this point we have a folder dropped on some other folder. In this case
             // we need to move all the assets from the dropped folder to a new subfolder (with the same
             // name as the dropped folder) of the other folder first. After that we can move the rest
             // of the files and finally delete the dropped folder.
             let mut what_where_stack = vec![(dropped_path.to_path_buf(), target_dir.to_path_buf())];
+            let mut any_error = false;
             while let Some((src_dir, target_dir)) = what_where_stack.pop() {
-                if let Some(src_dir_name) = src_dir.file_name() {
-                    let target_sub_dir = target_dir.join(src_dir_name);
-                    if !target_sub_dir.exists() {
-                        Log::verify(std::fs::create_dir(&target_sub_dir));
-                    }
+                let src_dir_name = some_or_continue!(src_dir.file_name());
 
-                    if target_sub_dir.exists() {
-                        for entry in walkdir::WalkDir::new(&src_dir)
-                            .max_depth(1)
-                            .into_iter()
-                            .filter_map(|e| e.ok())
-                        {
-                            if entry.path().is_file() {
-                                if let Ok(target_sub_dir_normalized) =
-                                    make_relative_path(&target_sub_dir)
-                                {
-                                    if let Ok(resource) =
-                                        block_on(resource_manager.request_untyped(entry.path()))
-                                    {
-                                        if let Some(path) =
-                                            resource_manager.resource_path(&resource)
-                                        {
-                                            if let Some(file_name) = path.file_name() {
-                                                let new_full_path =
-                                                    target_sub_dir_normalized.join(file_name);
-                                                Log::verify(block_on(
-                                                    resource_manager
-                                                        .move_resource(&resource, new_full_path),
-                                                ));
-                                            }
-                                        }
-                                    }
-                                }
-                            } else if entry.path().is_dir() && entry.path() != src_dir {
-                                // Sub-folders will be processed after all assets from current dir
-                                // were moved.
-                                what_where_stack
-                                    .push((entry.path().to_path_buf(), target_sub_dir.clone()));
-                            }
-                        }
+                let target_sub_dir = target_dir.join(src_dir_name);
+                if !target_sub_dir.exists() {
+                    if let Err(err) = std::fs::create_dir(&target_sub_dir) {
+                        err!(
+                            "Unable to create {} directory. Reason: {}",
+                            target_sub_dir.display(),
+                            err
+                        );
+                        continue;
                     }
                 }
+
+                let target_sub_dir_normalized =
+                    ok_or_continue!(make_relative_path(&target_sub_dir));
+
+                for entry in walkdir::WalkDir::new(&src_dir)
+                    .max_depth(1)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                {
+                    let path = entry.path();
+                    if path.is_file() {
+                        let ext = some_or_continue!(path.extension());
+                        let file_name = some_or_continue!(path.file_name());
+                        if is_supported_resource(ext, resource_manager) {
+                            let dest_path = target_sub_dir_normalized.join(file_name);
+                            if !try_move_resource(path, &dest_path, resource_manager) {
+                                any_error = true;
+                            }
+                        }
+                    } else if entry.path().is_dir() && entry.path() != src_dir {
+                        // Sub-folders will be processed after all assets from current dir
+                        // were moved.
+                        what_where_stack.push((entry.path().to_path_buf(), target_sub_dir.clone()));
+                    }
+                }
+            }
+
+            if !any_error {
+                Log::verify(std::fs::remove_dir_all(dropped_path));
             }
 
             self.refresh(ui, resource_manager, message_sender);
