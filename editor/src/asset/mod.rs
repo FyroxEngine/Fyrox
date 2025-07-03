@@ -127,8 +127,6 @@ fn show_in_explorer<P: AsRef<Path>>(path: P) {
 fn open_in_explorer<P: AsRef<Path>>(path: P) {
     if let Ok(path) = path.as_ref().canonicalize() {
         Log::verify(open::that(path))
-    } else {
-        Log::err(format!("Failed to canonicalize path {:?}", path.as_ref()))
     }
 }
 
