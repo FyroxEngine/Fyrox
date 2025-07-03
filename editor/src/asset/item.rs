@@ -370,7 +370,6 @@ impl AssetItemBuilder {
                 .with_allow_drag(true)
                 .with_allow_drop(true)
                 .with_foreground(ctx.style.property(Style::BRUSH_PRIMARY))
-                .with_tooltip(make_tooltip(ctx, &format!("{path:?}")))
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
@@ -379,6 +378,7 @@ impl AssetItemBuilder {
                             .with_child(
                                 TextBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_tooltip(make_tooltip(ctx, &format!("{path:?}")))
                                         .with_margin(Thickness::uniform(1.0))
                                         .on_row(1),
                                 )
