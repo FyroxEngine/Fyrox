@@ -25,12 +25,14 @@ use crate::{
     fyrox::{
         asset::{manager::ResourceManager, untyped::UntypedResource, Resource, TypedResourceData},
         core::{
-            algebra::Vector2, futures::executor::block_on, make_relative_path, pool::Handle,
-            reflect::prelude::*, type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+            algebra::Vector2, color::Color, futures::executor::block_on, make_relative_path,
+            pool::Handle, reflect::prelude::*, some_or_return, type_traits::prelude::*,
+            uuid_provider, visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
             border::BorderBuilder,
+            brush::Brush,
             define_constructor,
             draw::{CommandTexture, Draw, DrawingContext},
             formatted_text::WrapMode,
@@ -41,7 +43,7 @@ use crate::{
             text::TextBuilder,
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
-            UserInterface,
+            UserInterface, VerticalAlignment,
         },
         material::Material,
         resource::texture::TextureResource,
@@ -50,7 +52,6 @@ use crate::{
     message::MessageSender,
     Message,
 };
-use fyrox::core::some_or_return;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -86,6 +87,7 @@ pub struct AssetItem {
     pub path: PathBuf,
     preview: Handle<UiNode>,
     selected: bool,
+    text_border: Handle<UiNode>,
     #[visit(skip)]
     #[reflect(hidden)]
     sender: Option<MessageSender>,
@@ -95,9 +97,10 @@ pub struct AssetItem {
 }
 
 impl AssetItem {
-    pub const SELECTED_FOREGROUND: &'static str = "AssetItem.SelectedForeground";
-    pub const SELECTED_BACKGROUND: &'static str = "AssetItem.SelectedBackground";
-    pub const DESELECTED_BRUSH: &'static str = "AssetItem.DeselectedBrush";
+    pub const SELECTED_PREVIEW: &'static str = "AssetItem.SelectedPreview";
+    pub const SELECTED_TEXT_BORDER: &'static str = "AssetItem.SelectedTextBorder";
+    pub const DESELECTED_PREVIEW: &'static str = "AssetItem.DeselectedPreview";
+    pub const DESELECTED_TEXT_BORDER: &'static str = "AssetItem.DeselectedTextBorder";
 
     pub fn relative_path(&self) -> Result<PathBuf, std::io::Error> {
         let Some(resource_manager) = self.resource_manager.as_ref() else {
@@ -192,6 +195,36 @@ impl AssetItem {
             self.path.clone(),
         ));
     }
+
+    fn set_selected(&mut self, selected: bool, ui: &UserInterface) {
+        if self.selected == selected {
+            return;
+        }
+        self.selected = selected;
+
+        let (preview_brush, text_border_brush) = if selected {
+            (
+                ui.style.property(Self::SELECTED_PREVIEW),
+                ui.style.property(Self::SELECTED_TEXT_BORDER),
+            )
+        } else {
+            (
+                ui.style.property(Self::DESELECTED_PREVIEW),
+                ui.style.property(Self::DESELECTED_TEXT_BORDER),
+            )
+        };
+
+        ui.send_message(WidgetMessage::background(
+            self.preview,
+            MessageDirection::ToWidget,
+            preview_brush,
+        ));
+        ui.send_message(WidgetMessage::background(
+            self.text_border,
+            MessageDirection::ToWidget,
+            text_border_brush,
+        ));
+    }
 }
 
 impl Deref for AssetItem {
@@ -212,19 +245,10 @@ uuid_provider!(AssetItem = "54f7d9c1-e707-4c8c-a5c9-3fc5cc80b545");
 
 impl Control for AssetItem {
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.bounding_rect();
-        drawing_context.push_rect_filled(&bounds, None);
+        drawing_context.push_rect_filled(&self.bounding_rect(), None);
         drawing_context.commit(
             self.clip_bounds(),
-            self.background(),
-            CommandTexture::None,
-            &self.material,
-            None,
-        );
-        drawing_context.push_rect(&bounds, 1.0);
-        drawing_context.commit(
-            self.clip_bounds(),
-            self.foreground(),
+            Brush::Solid(Color::TRANSPARENT),
             CommandTexture::None,
             &self.material,
             None,
@@ -259,26 +283,8 @@ impl Control for AssetItem {
         } else if let Some(msg) = message.data::<AssetItemMessage>() {
             match msg {
                 AssetItemMessage::Select(select) => {
-                    if self.selected != *select && message.destination() == self.handle() {
-                        self.selected = *select;
-                        ui.send_message(WidgetMessage::foreground(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            if *select {
-                                ui.style.property(Self::SELECTED_FOREGROUND)
-                            } else {
-                                ui.style.property(Self::DESELECTED_BRUSH)
-                            },
-                        ));
-                        ui.send_message(WidgetMessage::background(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            if *select {
-                                ui.style.property(Self::SELECTED_BACKGROUND)
-                            } else {
-                                ui.style.property(Self::DESELECTED_BRUSH)
-                            },
-                        ));
+                    if message.destination() == self.handle() {
+                        self.set_selected(*select, ui);
                     }
                 }
                 AssetItemMessage::Icon { texture, flip_y } => {
@@ -356,11 +362,30 @@ impl AssetItemBuilder {
 
         let preview = ImageBuilder::new(
             WidgetBuilder::new()
+                .with_background(ctx.style.property(AssetItem::DESELECTED_PREVIEW))
                 .with_margin(Thickness::uniform(2.0))
                 .with_width(DEFAULT_SIZE)
                 .with_height(DEFAULT_SIZE),
         )
         .with_opt_texture(self.icon)
+        .build(ctx);
+
+        let text_border = BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .on_row(1)
+                .with_tooltip(make_tooltip(ctx, &format!("{path:?}")))
+                .with_background(ctx.style.property(AssetItem::DESELECTED_TEXT_BORDER))
+                .with_child(
+                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                        .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                        .with_wrap(WrapMode::Letter)
+                        .with_text(path.file_name().unwrap_or_default().to_string_lossy())
+                        .build(ctx),
+                ),
+        )
+        .with_corner_radius(4.0.into())
         .build(ctx);
 
         let item = AssetItem {
@@ -369,24 +394,12 @@ impl AssetItemBuilder {
                 .with_margin(Thickness::uniform(1.0))
                 .with_allow_drag(true)
                 .with_allow_drop(true)
-                .with_foreground(ctx.style.property(Style::BRUSH_PRIMARY))
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
                             .with_width(64.0)
                             .with_child(preview)
-                            .with_child(
-                                TextBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_tooltip(make_tooltip(ctx, &format!("{path:?}")))
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .on_row(1),
-                                )
-                                .with_wrap(WrapMode::Letter)
-                                .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                                .with_text(path.file_name().unwrap_or_default().to_string_lossy())
-                                .build(ctx),
-                            ),
+                            .with_child(text_border),
                     )
                     .add_column(Column::strict(64.0))
                     .add_row(Row::strict(64.0))
@@ -397,6 +410,7 @@ impl AssetItemBuilder {
             path,
             preview,
             selected: false,
+            text_border,
             sender: Some(message_sender),
             resource_manager: Some(resource_manager),
         };

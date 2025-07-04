@@ -614,15 +614,16 @@ impl Editor {
                 Brush::Solid(Color::opaque(160, 160, 200)),
             )
             .set(
-                AssetItem::SELECTED_FOREGROUND,
-                Brush::Solid(Color::opaque(200, 220, 240)),
+                AssetItem::SELECTED_PREVIEW,
+                Brush::Solid(Color::opaque(217, 230, 255)),
             )
             .set(
-                AssetItem::SELECTED_BACKGROUND,
-                Brush::Solid(Color::opaque(100, 100, 100)),
+                AssetItem::SELECTED_TEXT_BORDER,
+                Brush::Solid(Color::opaque(44, 93, 135)),
             )
+            .set(AssetItem::DESELECTED_PREVIEW, Brush::Solid(Color::WHITE))
             .set(
-                AssetItem::DESELECTED_BRUSH,
+                AssetItem::DESELECTED_TEXT_BORDER,
                 Brush::Solid(Color::TRANSPARENT),
             )
             .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
@@ -643,15 +644,15 @@ impl Editor {
                 Brush::Solid(Color::opaque(70, 70, 120)),
             )
             .set(
-                AssetItem::SELECTED_FOREGROUND,
+                AssetItem::SELECTED_PREVIEW,
                 Brush::Solid(Color::opaque(200, 220, 240)),
             )
             .set(
-                AssetItem::SELECTED_BACKGROUND,
+                AssetItem::SELECTED_TEXT_BORDER,
                 Brush::Solid(Color::opaque(100, 100, 100)),
             )
             .set(
-                AssetItem::DESELECTED_BRUSH,
+                AssetItem::DESELECTED_PREVIEW,
                 Brush::Solid(Color::TRANSPARENT),
             )
             .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
