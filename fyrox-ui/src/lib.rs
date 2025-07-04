@@ -1334,19 +1334,26 @@ impl UserInterface {
 
         self.update_tooltips(dt);
 
-        if !self.drag_context.is_dragging {
-            // Try to fetch new cursor icon starting from current picked node. Traverse
-            // tree up until cursor with different value is found.
-            self.cursor_icon = CursorIcon::default();
-            let mut handle = self.picked_node;
-            while handle.is_some() {
-                let node = &self.nodes[handle];
-                if let Some(cursor) = node.cursor() {
-                    self.cursor_icon = cursor;
-                    break;
+        // Try to fetch new cursor icon starting from current picked node. Traverse
+        // tree up until cursor with different value is found.
+        self.cursor_icon = CursorIcon::default();
+        let mut handle = self.picked_node;
+        while handle.is_some() {
+            let node = &self.nodes[handle];
+            if self.drag_context.is_dragging {
+                if handle != self.drag_context.drag_node {
+                    if node.accepts_drop(self.drag_context.drag_node, self) {
+                        self.cursor_icon = CursorIcon::Crosshair;
+                        break;
+                    } else {
+                        self.cursor_icon = CursorIcon::NoDrop;
+                    }
                 }
-                handle = node.parent();
+            } else if let Some(cursor) = node.cursor() {
+                self.cursor_icon = cursor;
+                break;
             }
+            handle = node.parent();
         }
     }
 
