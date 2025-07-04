@@ -303,6 +303,14 @@ impl Control for AssetItem {
             }
         }
     }
+
+    fn accepts_drop(&self, widget: Handle<UiNode>, ui: &UserInterface) -> bool {
+        ui.try_get_of_type::<Self>(widget)
+            .is_some_and(|asset_item| {
+                asset_item.path.is_file() && self.path.is_dir()
+                    || asset_item.path.is_dir() && self.path.is_dir()
+            })
+    }
 }
 
 pub struct AssetItemBuilder {
