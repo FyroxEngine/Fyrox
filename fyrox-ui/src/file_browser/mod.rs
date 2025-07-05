@@ -593,6 +593,13 @@ impl Control for FileBrowser {
             }
         }
     }
+
+    fn accepts_drop(&self, widget: Handle<UiNode>, ui: &UserInterface) -> bool {
+        ui.node(widget)
+            .user_data
+            .as_ref()
+            .is_some_and(|data| data.lock().downcast_ref::<PathBuf>().is_some())
+    }
 }
 
 fn parent_path(path: &Path) -> PathBuf {
