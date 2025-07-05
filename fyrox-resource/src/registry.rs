@@ -238,8 +238,14 @@ impl ResourceRegistryRefMut<'_> {
             let metadata_path = append_extension(path.as_ref(), ResourceMetadata::EXTENSION);
 
             self.registry.io.delete_file_sync(&metadata_path)?;
+
+            Ok(())
+        } else {
+            Err(FileError::Custom(format!(
+                "The {} resource is not registered in the registry!",
+                path.as_ref().display()
+            )))
         }
-        Ok(())
     }
 
     /// Registers a new pair `UUID -> Path`.
