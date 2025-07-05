@@ -618,12 +618,20 @@ impl Editor {
                 Brush::Solid(Color::opaque(217, 230, 255)),
             )
             .set(
-                AssetItem::SELECTED_TEXT_BORDER,
+                AssetItem::SELECTED_TEXT_BORDER_BACKGROUND,
                 Brush::Solid(Color::opaque(44, 93, 135)),
+            )
+            .set(
+                AssetItem::TEXT_BORDER_DROP_BRUSH,
+                Brush::Solid(Color::opaque(51, 81, 226)),
             )
             .set(AssetItem::DESELECTED_PREVIEW, Brush::Solid(Color::WHITE))
             .set(
-                AssetItem::DESELECTED_TEXT_BORDER,
+                AssetItem::DESELECTED_TEXT_BORDER_BACKGROUND,
+                Brush::Solid(Color::TRANSPARENT),
+            )
+            .set(
+                AssetItem::NORMAL_TEXT_BORDER_BRUSH,
                 Brush::Solid(Color::TRANSPARENT),
             )
             .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
@@ -645,14 +653,23 @@ impl Editor {
             )
             .set(
                 AssetItem::SELECTED_PREVIEW,
-                Brush::Solid(Color::opaque(200, 220, 240)),
+                Brush::Solid(Color::opaque(217, 230, 255)),
             )
             .set(
-                AssetItem::SELECTED_TEXT_BORDER,
-                Brush::Solid(Color::opaque(100, 100, 100)),
+                AssetItem::SELECTED_TEXT_BORDER_BACKGROUND,
+                Brush::Solid(Color::opaque(44, 93, 135)),
             )
             .set(
-                AssetItem::DESELECTED_PREVIEW,
+                AssetItem::TEXT_BORDER_DROP_BRUSH,
+                Brush::Solid(Color::opaque(51, 81, 226)),
+            )
+            .set(AssetItem::DESELECTED_PREVIEW, Brush::Solid(Color::WHITE))
+            .set(
+                AssetItem::DESELECTED_TEXT_BORDER_BACKGROUND,
+                Brush::Solid(Color::TRANSPARENT),
+            )
+            .set(
+                AssetItem::NORMAL_TEXT_BORDER_BRUSH,
                 Brush::Solid(Color::TRANSPARENT),
             )
             .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))

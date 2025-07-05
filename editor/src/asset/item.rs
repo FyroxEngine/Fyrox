@@ -52,6 +52,8 @@ use crate::{
     message::MessageSender,
     Message,
 };
+use fyrox::core::parking_lot::lock_api::Mutex;
+use std::sync::Arc;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -98,9 +100,12 @@ pub struct AssetItem {
 
 impl AssetItem {
     pub const SELECTED_PREVIEW: &'static str = "AssetItem.SelectedPreview";
-    pub const SELECTED_TEXT_BORDER: &'static str = "AssetItem.SelectedTextBorder";
+    pub const SELECTED_TEXT_BORDER_BACKGROUND: &'static str =
+        "AssetItem.SelectedTextBorderBackground";
+    pub const TEXT_BORDER_DROP_BRUSH: &'static str = "AssetItem.TextBorderDropBrush";
     pub const DESELECTED_PREVIEW: &'static str = "AssetItem.DeselectedPreview";
-    pub const DESELECTED_TEXT_BORDER: &'static str = "AssetItem.DeselectedTextBorder";
+    pub const DESELECTED_TEXT_BORDER_BACKGROUND: &'static str = "AssetItem.DeselectedTextBorder";
+    pub const NORMAL_TEXT_BORDER_BRUSH: &'static str = "AssetItem.NormalTextBorderBrush";
 
     pub fn relative_path(&self) -> Result<PathBuf, std::io::Error> {
         let Some(resource_manager) = self.resource_manager.as_ref() else {
@@ -205,12 +210,12 @@ impl AssetItem {
         let (preview_brush, text_border_brush) = if selected {
             (
                 ui.style.property(Self::SELECTED_PREVIEW),
-                ui.style.property(Self::SELECTED_TEXT_BORDER),
+                ui.style.property(Self::SELECTED_TEXT_BORDER_BACKGROUND),
             )
         } else {
             (
                 ui.style.property(Self::DESELECTED_PREVIEW),
-                ui.style.property(Self::DESELECTED_TEXT_BORDER),
+                ui.style.property(Self::DESELECTED_TEXT_BORDER_BACKGROUND),
             )
         };
 
@@ -224,6 +229,10 @@ impl AssetItem {
             MessageDirection::ToWidget,
             text_border_brush,
         ));
+    }
+
+    fn can_be_dropped_to(&self, dest: &AssetItem) -> bool {
+        self.path.is_file() && dest.path.is_dir() || self.path.is_dir() && dest.path.is_dir()
     }
 }
 
@@ -272,6 +281,25 @@ impl Control for AssetItem {
                         ));
                     }
                 }
+                WidgetMessage::DragOver(dropped) => {
+                    if ui
+                        .try_get_of_type::<AssetItem>(*dropped)
+                        .is_some_and(|dropped| dropped.can_be_dropped_to(self))
+                    {
+                        ui.send_message(WidgetMessage::foreground(
+                            self.text_border,
+                            MessageDirection::ToWidget,
+                            ui.style.property(Self::TEXT_BORDER_DROP_BRUSH),
+                        ));
+                    }
+                }
+                WidgetMessage::MouseLeave => {
+                    ui.send_message(WidgetMessage::foreground(
+                        self.text_border,
+                        MessageDirection::ToWidget,
+                        ui.style.property(Self::DESELECTED_TEXT_BORDER_BACKGROUND),
+                    ));
+                }
                 WidgetMessage::Drop(dropped) => {
                     self.try_post_move_to_message(ui, *dropped);
                 }
@@ -306,16 +334,13 @@ impl Control for AssetItem {
 
     fn accepts_drop(&self, widget: Handle<UiNode>, ui: &UserInterface) -> bool {
         ui.try_get_of_type::<Self>(widget)
-            .is_some_and(|asset_item| {
-                asset_item.path.is_file() && self.path.is_dir()
-                    || asset_item.path.is_dir() && self.path.is_dir()
-            })
+            .is_some_and(|asset_item| asset_item.can_be_dropped_to(self))
     }
 }
 
 pub struct AssetItemBuilder {
     widget_builder: WidgetBuilder,
-    path: Option<PathBuf>,
+    path: PathBuf,
     icon: Option<TextureResource>,
 }
 
@@ -345,13 +370,13 @@ impl AssetItemBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            path: None,
+            path: Default::default(),
             icon: None,
         }
     }
 
     pub fn with_path<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.path = Some(path.as_ref().to_owned());
+        self.path = path.as_ref().to_owned();
         self
     }
 
@@ -366,8 +391,6 @@ impl AssetItemBuilder {
         message_sender: MessageSender,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
-        let path = self.path.unwrap_or_default();
-
         let preview = ImageBuilder::new(
             WidgetBuilder::new()
                 .with_background(ctx.style.property(AssetItem::DESELECTED_PREVIEW))
@@ -380,25 +403,31 @@ impl AssetItemBuilder {
 
         let text_border = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_margin(Thickness::uniform(1.0))
                 .on_row(1)
-                .with_tooltip(make_tooltip(ctx, &format!("{path:?}")))
-                .with_background(ctx.style.property(AssetItem::DESELECTED_TEXT_BORDER))
+                .with_tooltip(make_tooltip(ctx, &format!("{}", self.path.display())))
+                .with_foreground(Brush::Solid(Color::TRANSPARENT).into())
+                .with_background(
+                    ctx.style
+                        .property(AssetItem::DESELECTED_TEXT_BORDER_BACKGROUND),
+                )
                 .with_child(
-                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
                         .with_vertical_text_alignment(VerticalAlignment::Center)
                         .with_horizontal_text_alignment(HorizontalAlignment::Center)
                         .with_wrap(WrapMode::Letter)
-                        .with_text(path.file_name().unwrap_or_default().to_string_lossy())
+                        .with_text(self.path.file_name().unwrap_or_default().to_string_lossy())
                         .build(ctx),
                 ),
         )
+        .with_pad_by_corner_radius(false)
+        .with_stroke_thickness(Thickness::uniform(2.0).into())
         .with_corner_radius(4.0.into())
         .build(ctx);
 
         let item = AssetItem {
             widget: self
                 .widget_builder
+                .with_user_data(Arc::new(Mutex::new(self.path.clone())))
                 .with_margin(Thickness::uniform(1.0))
                 .with_allow_drag(true)
                 .with_allow_drop(true)
@@ -415,7 +444,7 @@ impl AssetItemBuilder {
                     .build(ctx),
                 )
                 .build(ctx),
-            path,
+            path: self.path,
             preview,
             selected: false,
             text_border,
