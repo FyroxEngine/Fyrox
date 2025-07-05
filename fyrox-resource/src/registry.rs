@@ -426,6 +426,11 @@ impl ResourceRegistry {
             .find_map(|(k, v)| if v == path { Some(*k) } else { None })
     }
 
+    /// Checks if the path is registered in the resource registry.
+    pub fn is_registered(&self, path: &Path) -> bool {
+        self.path_to_uuid(path).is_some()
+    }
+
     /// Searches for supported resources starting from the given path and builds a mapping `UUID -> Path`.
     /// If a supported resource does not have a metadata file besides it, this method will automatically
     /// add it with a new UUID and add the resource to the registry.

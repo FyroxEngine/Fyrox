@@ -650,7 +650,7 @@ impl ResourceManagerState {
                                 }
                             }
                         }
-                        notify::EventKind::Create(_) => {
+                        notify::EventKind::Create(_) if !registry.is_registered(&relative_path) => {
                             let uuid = Uuid::new_v4();
                             match registry.modify().write_metadata(uuid, &relative_path) {
                                 Ok(old_path) => {
