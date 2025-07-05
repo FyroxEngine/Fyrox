@@ -30,6 +30,7 @@ use crate::{
         },
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         resource::model::{Model, ModelResourceExtension},
+        gui::UserInterface,
         scene::{node::Node, Scene},
     },
     load_image,
@@ -221,7 +222,7 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
         if let Ok(relative_path) = make_relative_path(path) {
             if let Some(model) = self
                 .resource_manager
-                .try_request::<Model>(relative_path)
+                .try_request::<Model>(relative_path.clone())
                 .and_then(|m| block_on(m).ok())
             {
                 // Instantiate the model.
@@ -230,6 +231,33 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
                 self.scene.graph[instance]
                     .local_transform_mut()
                     .set_scale(self.instantiation_scale);
+
+                let sub_graph = self.scene.graph.take_reserve_sub_graph(instance);
+
+                let group = vec![
+                    Command::new(AddModelCommand::new(sub_graph)),
+                    Command::new(LinkNodesCommand::new(instance, node.into())),
+                    Command::new(ChangeSelectionCommand::new(Selection::new(
+                        GraphSelection::single_or_empty(instance),
+                    ))),
+                ];
+
+                self.sender.do_command(CommandGroup::from(group));
+            } else if let Some(ui) = self
+                .resource_manager
+                .try_request::<UserInterface>(relative_path)
+                .and_then(|m| block_on(m).ok())
+            {
+                let name = Path::new(&relative_path)
+                    .file_stem()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("UiScene");
+
+                let instance = self.game_scene.instantiate_ui_as_pivots(
+                    self.scene,
+                    &ui,
+                    name,
+                );
 
                 let sub_graph = self.scene.graph.take_reserve_sub_graph(instance);
 
