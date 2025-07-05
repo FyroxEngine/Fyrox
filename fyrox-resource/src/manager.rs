@@ -150,6 +150,15 @@ impl Display for ResourceRegistrationError {
     }
 }
 
+/// All the required and validated data that is needed to move a resource from the path A to the path B.
+pub struct ResourceMoveContext {
+    relative_src_path: PathBuf,
+    relative_dest_path: PathBuf,
+    io: Arc<dyn ResourceIo>,
+    resource_registry: Arc<Mutex<ResourceRegistry>>,
+    resource_uuid: Uuid,
+}
+
 impl ResourceManager {
     /// Creates a resource manager with default settings and loaders.
     pub fn new(io: Arc<dyn ResourceIo>, task_pool: Arc<TaskPool>) -> Self {
@@ -340,18 +349,15 @@ impl ResourceManager {
         self.state().register(resource, path)
     }
 
-    /// Tries to move a resource at the given path to the new path. The path of the resource must be
-    /// registered in the resource registry for the resource to be moveable. This method can also be
-    /// used to rename the source file of a resource.
-    #[allow(clippy::await_holding_lock)]
-    pub async fn move_resource_by_path(
+    /// Creates a resource movement context.
+    pub async fn make_resource_move_context(
         &self,
         src_path: impl AsRef<Path>,
         dest_path: impl AsRef<Path>,
-    ) -> Result<(), FileError> {
+    ) -> Result<ResourceMoveContext, FileError> {
         let state = self.state();
         let io = state.resource_io.clone();
-        let registry = state.resource_registry.clone();
+        let resource_registry = state.resource_registry.clone();
         drop(state);
 
         let relative_src_path = src_path.as_ref();
@@ -375,8 +381,8 @@ impl ResourceManager {
         let relative_src_path = fyrox_core::make_relative_path(relative_src_path)?;
         let relative_dest_path = fyrox_core::make_relative_path(relative_dest_path)?;
 
-        let mut registry = registry.lock();
-        let absolute_registry_dir = if let Some(directory) = registry.directory() {
+        let registry_lock_guard = resource_registry.lock();
+        let absolute_registry_dir = if let Some(directory) = registry_lock_guard.directory() {
             fyrox_core::replace_slashes(io.canonicalize_path(directory).await?)
         } else {
             return Err(FileError::Custom(format!(
@@ -384,12 +390,14 @@ impl ResourceManager {
                 relative_src_path.display()
             )));
         };
-        let resource_uuid = registry.path_to_uuid(&relative_src_path).ok_or_else(|| {
-            FileError::Custom(format!(
-                "Unable to move the {} resource, because it is not in the registry!",
-                relative_src_path.display()
-            ))
-        })?;
+        let resource_uuid = registry_lock_guard
+            .path_to_uuid(&relative_src_path)
+            .ok_or_else(|| {
+                FileError::Custom(format!(
+                    "Unable to move the {} resource, because it is not in the registry!",
+                    relative_src_path.display()
+                ))
+            })?;
 
         let relative_dest_dir = relative_dest_path.parent().unwrap_or(Path::new("."));
         let absolute_dest_dir =
@@ -407,11 +415,52 @@ impl ResourceManager {
             )));
         }
 
+        drop(registry_lock_guard);
+
+        Ok(ResourceMoveContext {
+            relative_src_path,
+            relative_dest_path,
+            io,
+            resource_registry,
+            resource_uuid,
+        })
+    }
+
+    /// Returns `true` if a resource at the `src_path` can be moved to the `dest_path`, false -
+    /// otherwise. Source path must be a valid resource path, and the dest path must have a valid
+    /// new directory part of the path.
+    pub async fn can_resource_be_moved(
+        &self,
+        src_path: impl AsRef<Path>,
+        dest_path: impl AsRef<Path>,
+    ) -> bool {
+        self.make_resource_move_context(src_path, dest_path)
+            .await
+            .is_ok()
+    }
+
+    /// Tries to move a resource at the given path to the new path. The path of the resource must be
+    /// registered in the resource registry for the resource to be moveable. This method can also be
+    /// used to rename the source file of a resource.
+    pub async fn move_resource_by_path(
+        &self,
+        src_path: impl AsRef<Path>,
+        dest_path: impl AsRef<Path>,
+    ) -> Result<(), FileError> {
+        let ResourceMoveContext {
+            relative_src_path,
+            relative_dest_path,
+            io,
+            resource_registry,
+            resource_uuid,
+        } = self.make_resource_move_context(src_path, dest_path).await?;
+
         // Move the file with its optional import options and mandatory metadata.
         io.move_file(&relative_src_path, &relative_dest_path)
             .await?;
 
-        let current_path = registry
+        let current_path = resource_registry
+            .lock()
             .modify()
             .register(resource_uuid, relative_dest_path.to_path_buf());
         assert_eq!(current_path.as_ref(), Some(&relative_src_path));
