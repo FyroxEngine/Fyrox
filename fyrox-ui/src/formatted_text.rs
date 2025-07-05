@@ -380,13 +380,19 @@ impl FormattedText {
     }
 
     fn position_to_char_index_internal(&self, position: Position, clamp: bool) -> Option<usize> {
-        self.lines.get(position.line).map(|line| {
-            line.begin
-                + position.offset.min(if clamp {
-                    line.len().saturating_sub(1)
-                } else {
-                    line.len()
-                })
+        self.lines.get(position.line).and_then(|line| {
+            if line.is_empty() {
+                None
+            } else {
+                Some(
+                    line.begin
+                        + position.offset.min(if clamp {
+                            line.len().saturating_sub(1)
+                        } else {
+                            line.len()
+                        }),
+                )
+            }
         })
     }
     pub fn position_range_to_char_index_range(&self, range: Range<Position>) -> Range<usize> {
