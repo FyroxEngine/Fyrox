@@ -31,27 +31,27 @@ use crate::{
     },
     fyrox::{
         asset::manager::ResourceManager,
-        core::{futures::executor::block_on, log::Log, make_relative_path, pool::Handle},
+        core::{
+            err, futures::executor::block_on, log::Log, make_relative_path, ok_or_continue,
+            parking_lot::Mutex, pool::Handle, some_or_continue,
+        },
         engine::Engine,
-        graph::BaseSceneGraph,
+        graph::{BaseSceneGraph, SceneGraph},
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             copypasta::ClipboardProvider,
             dock::{DockingManagerBuilder, TileBuilder, TileContent},
             file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
             grid::{Column, GridBuilder, Row},
-            menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
+            menu::MenuItemMessage,
             message::{MessageDirection, UiMessage},
-            popup::{Placement, PopupBuilder, PopupMessage},
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
-            stack_panel::StackPanelBuilder,
             utils::{make_image_button_with_tooltip, make_simple_tooltip},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
-            BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
-            UserInterface, VerticalAlignment,
+            HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         walkdir,
     },
@@ -61,15 +61,11 @@ use crate::{
     utils::window_content,
     Mode,
 };
-use fyrox::core::parking_lot::Mutex;
-use fyrox::core::{err, ok_or_continue, some_or_continue};
-use fyrox::graph::SceneGraph;
+use menu::AssetItemContextMenu;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use std::collections::VecDeque;
 use std::{
+    collections::VecDeque,
     ffi::OsStr,
-    fs::File,
-    io::Write,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -82,19 +78,8 @@ mod creator;
 mod dependency;
 mod inspector;
 pub mod item;
+pub mod menu;
 pub mod preview;
-
-struct ContextMenu {
-    menu: RcUiNodeHandle,
-    open: Handle<UiNode>,
-    duplicate: Handle<UiNode>,
-    copy_path: Handle<UiNode>,
-    copy_file_name: Handle<UiNode>,
-    show_in_explorer: Handle<UiNode>,
-    delete: Handle<UiNode>,
-    placement_target: Handle<UiNode>,
-    dependencies: Handle<UiNode>,
-}
 
 fn show_in_explorer<P: AsRef<Path>>(path: P) {
     // opener crate is bugged on Windows, so using explorer's command directly.
@@ -148,160 +133,6 @@ fn make_unique_path(parent: &Path, stem: &str, ext: &str) -> PathBuf {
     }
 }
 
-impl ContextMenu {
-    pub fn new(ctx: &mut BuildContext) -> Self {
-        let delete;
-        let show_in_explorer;
-        let open;
-        let duplicate;
-        let copy_path;
-        let copy_file_name;
-        let dependencies;
-        let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new()).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            open = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Open"))
-                                .build(ctx);
-                            open
-                        })
-                        .with_child({
-                            duplicate = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Duplicate"))
-                                .build(ctx);
-                            duplicate
-                        })
-                        .with_child({
-                            copy_path = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Copy Full Path"))
-                                .build(ctx);
-                            copy_path
-                        })
-                        .with_child({
-                            copy_file_name = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Copy File Name"))
-                                .build(ctx);
-                            copy_file_name
-                        })
-                        .with_child({
-                            delete = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Delete"))
-                                .build(ctx);
-                            delete
-                        })
-                        .with_child({
-                            show_in_explorer = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Show In Explorer"))
-                                .build(ctx);
-                            show_in_explorer
-                        })
-                        .with_child({
-                            dependencies = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Dependencies"))
-                                .build(ctx);
-                            dependencies
-                        }),
-                )
-                .build(ctx),
-            ),
-        )
-        .build(ctx);
-        let menu = RcUiNodeHandle::new(menu, ctx.sender());
-
-        Self {
-            menu,
-            open,
-            duplicate,
-            copy_path,
-            delete,
-            show_in_explorer,
-            placement_target: Default::default(),
-            copy_file_name,
-            dependencies,
-        }
-    }
-
-    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) -> bool {
-        if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.menu.handle() {
-                self.placement_target = *target;
-            }
-        } else if let Some(MenuItemMessage::Click) = message.data() {
-            if let Some(item) = engine
-                .user_interfaces
-                .first_mut()
-                .try_get(self.placement_target)
-                .and_then(|n| n.cast::<AssetItem>())
-            {
-                if message.destination() == self.delete {
-                    Log::verify(std::fs::remove_file(&item.path));
-                    return true;
-                } else if message.destination() == self.show_in_explorer {
-                    if let Ok(canonical_path) = item.path.canonicalize() {
-                        show_in_explorer(canonical_path)
-                    }
-                } else if message.destination() == self.open {
-                    item.open();
-                } else if message.destination() == self.duplicate {
-                    if let Some(resource) = item.untyped_resource() {
-                        if let Some(path) = engine.resource_manager.resource_path(&resource) {
-                            if let Some(built_in) = engine
-                                .resource_manager
-                                .state()
-                                .built_in_resources
-                                .get(&path)
-                            {
-                                if let Some(data_source) = built_in.data_source.as_ref() {
-                                    let final_copy_path = make_unique_path(
-                                        Path::new("."),
-                                        path.to_str().unwrap(),
-                                        &data_source.extension,
-                                    );
-
-                                    match File::create(&final_copy_path) {
-                                        Ok(mut file) => {
-                                            Log::verify(file.write_all(&data_source.bytes));
-                                        }
-                                        Err(err) => Log::err(format!(
-                                            "Failed to create a file for resource at path {}. \
-                                                Reason: {:?}",
-                                            final_copy_path.display(),
-                                            err
-                                        )),
-                                    }
-                                }
-                            } else if let Ok(canonical_path) = path.canonicalize() {
-                                if let (Some(parent), Some(stem), Some(ext)) = (
-                                    canonical_path.parent(),
-                                    canonical_path.file_stem(),
-                                    canonical_path.extension(),
-                                ) {
-                                    let stem = stem.to_string_lossy().to_string();
-                                    let ext = ext.to_string_lossy().to_string();
-                                    let final_copy_path = make_unique_path(parent, &stem, &ext);
-                                    Log::verify(std::fs::copy(canonical_path, final_copy_path));
-                                }
-                            }
-                        }
-                    }
-                } else if message.destination() == self.copy_path {
-                    if let Ok(canonical_path) = item.path.canonicalize() {
-                        put_path_to_clipboard(engine, canonical_path.as_os_str())
-                    }
-                } else if message.destination() == self.copy_file_name {
-                    if let Some(file_name) = item.path.clone().file_name() {
-                        put_path_to_clipboard(engine, file_name)
-                    }
-                }
-            }
-        }
-
-        false
-    }
-}
-
 type IconUpdateQueue = Arc<Mutex<VecDeque<PathBuf>>>;
 
 pub struct AssetBrowser {
@@ -317,7 +148,7 @@ pub struct AssetBrowser {
     items: Vec<Handle<UiNode>>,
     item_to_select: Option<PathBuf>,
     inspector: AssetInspector,
-    context_menu: ContextMenu,
+    context_menu: AssetItemContextMenu,
     current_path: PathBuf,
     selected_item_path: PathBuf,
     watcher: Option<RecommendedWatcher>,
@@ -627,7 +458,7 @@ impl AssetBrowser {
             .with_content(docking_manager)
             .build(ctx);
 
-        let context_menu = ContextMenu::new(ctx);
+        let context_menu = AssetItemContextMenu::new(ctx);
 
         let dependency_viewer = DependencyViewer::new(ctx);
 
