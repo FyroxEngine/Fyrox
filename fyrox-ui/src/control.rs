@@ -340,13 +340,13 @@ pub trait Control:
     }
 
     /// Checks whether a `widget` will be accepted by the current widget or not when dropped. This
-    /// method is used only to switch the cursor icon. The default implementation returns `true`,
-    /// which means the widget accepts nothing.
+    /// method is used only to switch the cursor icon. The default implementation returns `allow_drop`
+    /// flag of the widget, which, if set to `true`, basically allows unconditional drop of any content.
     fn accepts_drop(
         &self,
         #[allow(unused_variables)] widget: Handle<UiNode>,
         #[allow(unused_variables)] ui: &UserInterface,
     ) -> bool {
-        false
+        *self.allow_drop
     }
 }
