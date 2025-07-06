@@ -884,8 +884,8 @@ mod tests {
         assert_eq!(block_on(res2.clone()).unwrap().data_ref().data, 1);
         let new_res1_path = ResourceRegistry::normalize_path(make_file_path(TEST_FOLDER3, 3));
         let new_res2_path = ResourceRegistry::normalize_path(make_file_path(TEST_FOLDER3, 4));
-        block_on(resource_manager.move_resource(res1.as_ref(), &new_res1_path)).unwrap();
-        block_on(resource_manager.move_resource(res2.as_ref(), &new_res2_path)).unwrap();
+        block_on(resource_manager.move_resource(res1.as_ref(), &new_res1_path, true)).unwrap();
+        block_on(resource_manager.move_resource(res2.as_ref(), &new_res2_path, true)).unwrap();
         assert_eq!(
             resource_manager.resource_path(res1.as_ref()).unwrap(),
             new_res1_path

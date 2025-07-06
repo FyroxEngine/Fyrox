@@ -225,7 +225,7 @@ fn try_move_resource(
     dest_path: &Path,
     resource_manager: &ResourceManager,
 ) -> bool {
-    if let Err(err) = block_on(resource_manager.move_resource_by_path(src_path, dest_path)) {
+    if let Err(err) = block_on(resource_manager.move_resource_by_path(src_path, dest_path, true)) {
         err!(
             "An error occurred at the attempt to move a resource.\nReason: {}",
             err

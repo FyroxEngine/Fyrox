@@ -22,18 +22,19 @@
 //! docs for more info.
 
 pub use crate::builtin::*;
-use crate::state::ResourceDataWrapper;
 use crate::{
     constructor::ResourceConstructorContainer,
     core::{
-        append_extension,
+        append_extension, err,
         futures::future::join_all,
+        info,
         io::FileError,
         log::Log,
-        notify,
+        notify, ok_or_continue,
         parking_lot::{Mutex, MutexGuard},
         task::TaskPool,
         watcher::FileSystemWatcher,
+        TypeUuidProvider, Uuid,
     },
     entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
     event::{ResourceEvent, ResourceEventBroadcaster},
@@ -42,18 +43,18 @@ use crate::{
     metadata::ResourceMetadata,
     options::OPTIONS_EXTENSION,
     registry::{ResourceRegistry, ResourceRegistryStatus},
-    state::{LoadError, ResourceState},
+    state::{LoadError, ResourceDataWrapper, ResourceState},
     untyped::ResourceKind,
     Resource, TypedResourceData, UntypedResource,
 };
 use fxhash::FxHashSet;
-use fyrox_core::{err, info, ok_or_continue, TypeUuidProvider, Uuid};
-use std::time::Duration;
 use std::{
     fmt::{Debug, Display, Formatter},
+    io::Error,
     marker::PhantomData,
     path::{Path, PathBuf},
     sync::Arc,
+    time::Duration,
 };
 
 /// A set of resources that can be waited for.
@@ -157,6 +158,117 @@ pub struct ResourceMoveContext {
     io: Arc<dyn ResourceIo>,
     resource_registry: Arc<Mutex<ResourceRegistry>>,
     resource_uuid: Uuid,
+}
+
+/// A possible set of errors that may occur during resource movement.
+#[derive(Debug)]
+pub enum ResourceMovementError {
+    /// An IO error.
+    Io(std::io::Error),
+    /// A file error.
+    FileError(FileError),
+    /// The resource at the `src_path` already exist at the `dest_path`.
+    AlreadyExist {
+        /// Source path of the resource.
+        src_path: PathBuf,
+        /// The path at which a resource with the same name is located.
+        dest_path: PathBuf,
+    },
+    /// Resource registry location is unknown (the registry wasn't saved yet).
+    ResourceRegistryLocationUnknown {
+        /// A path of the resource being moved.
+        resource_path: PathBuf,
+    },
+    /// The resource is not in the registry.
+    NotInRegistry {
+        /// A path of the resource being moved.
+        resource_path: PathBuf,
+    },
+    /// Attempting to move a resource outside the registry.
+    OutsideOfRegistry {
+        /// An absolute path of the resource being moved.
+        absolute_src_path: PathBuf,
+        /// An absolute path of the destination folder.
+        absolute_dest_dir: PathBuf,
+        /// An absolute path of the resource registry.
+        absolute_registry_dir: PathBuf,
+    },
+    /// A resource has no path. It is either an embedded resource or in an invalid
+    /// state (failed to load or still loading).
+    NoPath(UntypedResource),
+}
+
+impl From<FileError> for ResourceMovementError {
+    fn from(value: FileError) -> Self {
+        Self::FileError(value)
+    }
+}
+
+impl From<std::io::Error> for ResourceMovementError {
+    fn from(value: Error) -> Self {
+        Self::Io(value)
+    }
+}
+
+impl Display for ResourceMovementError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResourceMovementError::Io(err) => {
+                write!(f, "Io error: {err}")
+            }
+            ResourceMovementError::FileError(err) => {
+                write!(f, "File error: {err}")
+            }
+            ResourceMovementError::AlreadyExist {
+                src_path,
+                dest_path,
+            } => {
+                write!(
+                    f,
+                    "Unable to move the {} resource, because the destination \
+                    path {} points to an existing file!",
+                    src_path.display(),
+                    dest_path.display()
+                )
+            }
+            ResourceMovementError::ResourceRegistryLocationUnknown { resource_path } => {
+                write!(
+                    f,
+                    "Unable to move the {} resource, because the registry location is unknown!",
+                    resource_path.display()
+                )
+            }
+            ResourceMovementError::NotInRegistry { resource_path } => {
+                write!(
+                    f,
+                    "Unable to move the {} resource, because it is not in the registry!",
+                    resource_path.display()
+                )
+            }
+            ResourceMovementError::OutsideOfRegistry {
+                absolute_src_path,
+                absolute_dest_dir,
+                absolute_registry_dir,
+            } => {
+                write!(
+                    f,
+                    "Unable to move the {} resource to {} path, because \
+            the new path is located outside the resource registry path {}!",
+                    absolute_src_path.display(),
+                    absolute_dest_dir.display(),
+                    absolute_registry_dir.display()
+                )
+            }
+            ResourceMovementError::NoPath(resource) => {
+                write!(
+                    f,
+                    "Unable to move {} resource, because it does not have a \
+                file system path!",
+                    resource.key()
+                )
+            }
+        }
+    }
 }
 
 impl ResourceManager {
@@ -350,53 +462,43 @@ impl ResourceManager {
     }
 
     /// Creates a resource movement context.
+    #[allow(clippy::await_holding_lock)]
     pub async fn make_resource_move_context(
         &self,
         src_path: impl AsRef<Path>,
         dest_path: impl AsRef<Path>,
-    ) -> Result<ResourceMoveContext, FileError> {
+        overwrite_existing: bool,
+    ) -> Result<ResourceMoveContext, ResourceMovementError> {
         let state = self.state();
         let io = state.resource_io.clone();
         let resource_registry = state.resource_registry.clone();
         drop(state);
 
-        let relative_src_path = src_path.as_ref();
-        let relative_dest_path = dest_path.as_ref();
+        let src_path = src_path.as_ref();
+        let dest_path = dest_path.as_ref();
 
-        if relative_src_path.has_root() {
-            return Err(FileError::Custom(format!(
-                "Unable to move the {} resource, because the path is not relative!",
-                relative_src_path.display()
-            )));
+        let relative_src_path = fyrox_core::make_relative_path(src_path)?;
+        let relative_dest_path = fyrox_core::make_relative_path(dest_path)?;
+
+        if !overwrite_existing && io.exists(&relative_dest_path).await {
+            return Err(ResourceMovementError::AlreadyExist {
+                src_path: relative_src_path.clone(),
+                dest_path: relative_dest_path.clone(),
+            });
         }
-
-        if relative_dest_path.has_root() {
-            return Err(FileError::Custom(format!(
-                "Unable to move the {} resource, because the destination path {} is not relative!",
-                relative_src_path.display(),
-                relative_dest_path.display()
-            )));
-        }
-
-        let relative_src_path = fyrox_core::make_relative_path(relative_src_path)?;
-        let relative_dest_path = fyrox_core::make_relative_path(relative_dest_path)?;
 
         let registry_lock_guard = resource_registry.lock();
         let absolute_registry_dir = if let Some(directory) = registry_lock_guard.directory() {
             fyrox_core::replace_slashes(io.canonicalize_path(directory).await?)
         } else {
-            return Err(FileError::Custom(format!(
-                "Unable to move the {} resource, because the registry is not saved!",
-                relative_src_path.display()
-            )));
+            return Err(ResourceMovementError::ResourceRegistryLocationUnknown {
+                resource_path: relative_src_path.clone(),
+            });
         };
         let resource_uuid = registry_lock_guard
             .path_to_uuid(&relative_src_path)
-            .ok_or_else(|| {
-                FileError::Custom(format!(
-                    "Unable to move the {} resource, because it is not in the registry!",
-                    relative_src_path.display()
-                ))
+            .ok_or_else(|| ResourceMovementError::NotInRegistry {
+                resource_path: relative_src_path.clone(),
             })?;
 
         let relative_dest_dir = relative_dest_path.parent().unwrap_or(Path::new("."));
@@ -406,13 +508,11 @@ impl ResourceManager {
         let absolute_src_path =
             fyrox_core::replace_slashes(io.canonicalize_path(&relative_src_path).await?);
         if !absolute_dest_dir.starts_with(&absolute_registry_dir) {
-            return Err(FileError::Custom(format!(
-                "Unable to move the {} resource to {} path, because \
-            the new path is located outside the resource registry path {}!",
-                absolute_src_path.display(),
-                absolute_dest_dir.display(),
-                absolute_registry_dir.display()
-            )));
+            return Err(ResourceMovementError::OutsideOfRegistry {
+                absolute_src_path,
+                absolute_dest_dir,
+                absolute_registry_dir,
+            });
         }
 
         drop(registry_lock_guard);
@@ -433,8 +533,9 @@ impl ResourceManager {
         &self,
         src_path: impl AsRef<Path>,
         dest_path: impl AsRef<Path>,
+        overwrite_existing: bool,
     ) -> bool {
-        self.make_resource_move_context(src_path, dest_path)
+        self.make_resource_move_context(src_path, dest_path, overwrite_existing)
             .await
             .is_ok()
     }
@@ -446,14 +547,17 @@ impl ResourceManager {
         &self,
         src_path: impl AsRef<Path>,
         dest_path: impl AsRef<Path>,
-    ) -> Result<(), FileError> {
+        overwrite_existing: bool,
+    ) -> Result<(), ResourceMovementError> {
         let ResourceMoveContext {
             relative_src_path,
             relative_dest_path,
             io,
             resource_registry,
             resource_uuid,
-        } = self.make_resource_move_context(src_path, dest_path).await?;
+        } = self
+            .make_resource_move_context(src_path, dest_path, overwrite_existing)
+            .await?;
 
         // Move the file with its optional import options and mandatory metadata.
         io.move_file(&relative_src_path, &relative_dest_path)
@@ -488,14 +592,16 @@ impl ResourceManager {
         &self,
         resource: &UntypedResource,
         new_path: impl AsRef<Path>,
-    ) -> Result<(), FileError> {
+        overwrite_existing: bool,
+    ) -> Result<(), ResourceMovementError> {
         let resource_path = self.resource_path(resource).ok_or_else(|| {
             FileError::Custom(
                 "Cannot move the resource because it does not have a path!".to_string(),
             )
         })?;
 
-        self.move_resource_by_path(resource_path, new_path).await
+        self.move_resource_by_path(resource_path, new_path, overwrite_existing)
+            .await
     }
 
     /// Reloads all loaded resources. Normally it should never be called, because it is **very** heavy
