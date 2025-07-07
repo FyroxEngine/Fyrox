@@ -352,6 +352,11 @@ impl ResourceRegistry {
         replace_slashes(ret)
     }
 
+    /// Returns a reference to the actual container of the resource entries.
+    pub fn inner(&self) -> &RegistryContainer {
+        &self.paths
+    }
+
     /// Sets a new path for the registry, but **does not** saves it.
     pub fn set_path(&mut self, path: impl AsRef<Path>) {
         let path = path.as_ref();
