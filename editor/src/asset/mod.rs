@@ -80,6 +80,7 @@ mod inspector;
 pub mod item;
 pub mod menu;
 pub mod preview;
+pub mod selector;
 
 fn show_in_explorer<P: AsRef<Path>>(path: P) {
     // opener crate is bugged on Windows, so using explorer's command directly.

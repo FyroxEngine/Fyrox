@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::asset::selector::AssetSelectorWindowBuilder;
 use crate::{
     asset::item::AssetItem,
     fyrox::{
@@ -52,6 +53,8 @@ use crate::{
     plugins::inspector::EditorEnvironment,
     Message,
 };
+use fyrox::gui::window::{WindowBuilder, WindowMessage, WindowTitle};
+use std::cell::Cell;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -125,6 +128,8 @@ where
 {
     widget: Widget,
     name: Handle<UiNode>,
+    select: Handle<UiNode>,
+    selector: Cell<Handle<UiNode>>,
     #[visit(skip)]
     #[reflect(hidden)]
     resource_manager: ResourceManager,
@@ -154,6 +159,8 @@ where
         Self {
             widget: self.widget.clone(),
             name: self.name,
+            select: self.select,
+            selector: self.selector.clone(),
             resource_manager: self.resource_manager.clone(),
             resource: self.resource.clone(),
             locate: self.locate,
@@ -242,6 +249,32 @@ where
                         self.sender.send(Message::ShowInAssetBrowser(path));
                     }
                 }
+            } else if message.destination() == self.select {
+                let selector = AssetSelectorWindowBuilder::new(
+                    WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                        .with_title(WindowTitle::text("Select a Resource"))
+                        .with_remove_on_close(true)
+                        .open(false),
+                )
+                .with_asset_types(vec![<T as TypeUuidProvider>::type_uuid()])
+                .build(self.resource_manager.clone(), &mut ui.build_ctx());
+
+                ui.send_message(WindowMessage::open_modal(
+                    selector,
+                    MessageDirection::ToWidget,
+                    true,
+                    true,
+                ));
+
+                self.selector.set(selector);
+            }
+        }
+    }
+
+    fn preview_message(&self, _ui: &UserInterface, message: &mut UiMessage) {
+        if message.destination() == self.selector.get() {
+            if let Some(WindowMessage::Close) = message.data() {
+                self.selector.set(Handle::NONE);
             }
         }
     }
@@ -280,9 +313,11 @@ where
     ) -> Handle<UiNode> {
         let name;
         let locate;
+        let select;
         let field = ResourceField {
             widget: self
                 .widget_builder
+                .with_preview_messages(true)
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
@@ -320,10 +355,22 @@ where
                                 .with_text("<<")
                                 .build(ctx);
                                 locate
+                            })
+                            .with_child({
+                                select = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_width(24.0)
+                                        .on_column(3)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_text("[-]")
+                                .build(ctx);
+                                select
                             }),
                     )
                     .add_column(Column::auto())
                     .add_column(Column::stretch())
+                    .add_column(Column::auto())
                     .add_column(Column::auto())
                     .add_row(Row::auto())
                     .build(ctx),
@@ -331,6 +378,8 @@ where
                 .with_allow_drop(true)
                 .build(ctx),
             name,
+            select,
+            selector: Default::default(),
             resource_manager,
             resource: self.resource,
             locate,
