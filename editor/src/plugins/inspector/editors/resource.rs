@@ -18,9 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::asset::selector::AssetSelectorWindowBuilder;
 use crate::{
-    asset::item::AssetItem,
+    asset::{item::AssetItem, selector::AssetSelectorWindowBuilder},
     fyrox::{
         asset::{manager::ResourceManager, state::LoadError, Resource, TypedResourceData},
         core::{
@@ -45,7 +44,9 @@ use crate::{
             message::{MessageDirection, UiMessage},
             text::{TextBuilder, TextMessage},
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+            VerticalAlignment,
         },
     },
     load_image,
@@ -53,10 +54,9 @@ use crate::{
     plugins::inspector::EditorEnvironment,
     Message,
 };
-use fyrox::gui::window::{WindowBuilder, WindowMessage, WindowTitle};
-use std::cell::Cell;
 use std::{
     any::TypeId,
+    cell::Cell,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     path::Path,
@@ -359,11 +359,20 @@ where
                             .with_child({
                                 select = ButtonBuilder::new(
                                     WidgetBuilder::new()
-                                        .with_width(24.0)
+                                        .with_width(20.0)
+                                        .with_height(20.0)
+                                        .with_vertical_alignment(VerticalAlignment::Center)
+                                        .with_horizontal_alignment(HorizontalAlignment::Center)
                                         .on_column(3)
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_text("[-]")
+                                .with_content(
+                                    ImageBuilder::new(WidgetBuilder::new().with_background(
+                                        Brush::Solid(Color::opaque(0, 180, 0)).into(),
+                                    ))
+                                    .with_opt_texture(load_image!("../../../../resources/pick.png"))
+                                    .build(ctx),
+                                )
                                 .build(ctx);
                                 select
                             }),
