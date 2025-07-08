@@ -24,7 +24,7 @@ use crate::untyped::ResourceKind;
 use crate::{
     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
     manager::ResourceManager,
-    ResourceData, ResourceLoadError,
+    ResourceData, ResourceLoadError, TypedResourceData,
 };
 use fyrox_core::reflect::ReflectHandle;
 use fyrox_core::warn;
@@ -468,6 +468,40 @@ impl ResourceState {
             path,
             error: LoadError::new(error),
         })
+    }
+
+    /// Tries to get the resource data. Will fail if the resource is not in [`ResourceState::Ok`].
+    pub fn data_ref(&self) -> Option<&ResourceDataWrapper> {
+        match self {
+            ResourceState::Pending { .. } | ResourceState::LoadError { .. } => None,
+            ResourceState::Ok { data, .. } => Some(data),
+        }
+    }
+
+    /// Tries to get the resource data. Will fail if the resource is not in [`ResourceState::Ok`].
+    pub fn data_mut(&mut self) -> Option<&mut ResourceDataWrapper> {
+        match self {
+            ResourceState::Pending { .. } | ResourceState::LoadError { .. } => None,
+            ResourceState::Ok { data, .. } => Some(data),
+        }
+    }
+
+    /// Tries to get the resource data of the given type. Will fail if the resource is not in
+    /// [`ResourceState::Ok`].
+    pub fn data_ref_of_type<T: TypedResourceData>(&self) -> Option<&T> {
+        match self {
+            ResourceState::Pending { .. } | ResourceState::LoadError { .. } => None,
+            ResourceState::Ok { data, .. } => (&**data as &dyn Any).downcast_ref::<T>(),
+        }
+    }
+
+    /// Tries to get the resource data of the given type. Will fail if the resource is not in
+    /// [`ResourceState::Ok`].
+    pub fn data_mut_of_type<T: TypedResourceData>(&mut self) -> Option<&mut T> {
+        match self {
+            ResourceState::Pending { .. } | ResourceState::LoadError { .. } => None,
+            ResourceState::Ok { data, .. } => (&mut **data as &mut dyn Any).downcast_mut::<T>(),
+        }
     }
 }
 
