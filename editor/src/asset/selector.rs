@@ -24,26 +24,32 @@
 
 use crate::fyrox::{
     asset::manager::ResourceManager,
-    core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
+    },
     gui::{
+        border::BorderBuilder,
+        decorator::DecoratorBuilder,
         define_widget_deref,
+        draw::DrawingContext,
+        grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         list_view::ListViewBuilder,
-        message::UiMessage,
+        message::{OsEvent, UiMessage},
+        text::TextBuilder,
         widget::{Widget, WidgetBuilder},
+        window::{Window, WindowBuilder},
         wrap_panel::WrapPanelBuilder,
         BuildContext, Control, Thickness, UiNode, UserInterface,
     },
+    gui::{HorizontalAlignment, Orientation, VerticalAlignment},
 };
-use fyrox::core::algebra::Vector2;
-use fyrox::gui::draw::DrawingContext;
-use fyrox::gui::grid::{Column, GridBuilder, Row};
-use fyrox::gui::message::OsEvent;
-use fyrox::gui::text::TextBuilder;
-use fyrox::gui::window::{Window, WindowBuilder};
-use std::ops::{Deref, DerefMut};
-use std::path::PathBuf;
-use std::sync::mpsc::Sender;
+use std::{
+    ops::{Deref, DerefMut},
+    path::PathBuf,
+    sync::mpsc::Sender,
+};
 
 #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "aa4f0726-8d25-4c90-add1-92ba392310c6")]
@@ -82,31 +88,40 @@ impl ItemBuilder {
     fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let image = ImageBuilder::new(
             WidgetBuilder::new()
-                .with_height(40.0)
-                .with_width(40.0)
+                .with_height(64.0)
+                .with_width(64.0)
                 .on_row(0),
         )
+        .build(ctx);
+
+        let content = GridBuilder::new(
+            WidgetBuilder::new().with_child(image).with_child(
+                TextBuilder::new(
+                    WidgetBuilder::new()
+                        .on_row(1)
+                        .with_margin(Thickness::uniform(1.0)),
+                )
+                .with_text(
+                    self.path
+                        .file_name()
+                        .map(|file_name| file_name.to_string_lossy().to_string())
+                        .unwrap_or_default(),
+                )
+                .build(ctx),
+            ),
+        )
+        .add_row(Row::stretch())
+        .add_row(Row::auto())
+        .add_column(Column::stretch())
         .build(ctx);
 
         let item = Item {
             widget: self
                 .widget_builder
                 .with_child(
-                    GridBuilder::new(
-                        WidgetBuilder::new().with_child(image).with_child(
-                            TextBuilder::new(WidgetBuilder::new().on_row(1))
-                                .with_text(
-                                    self.path
-                                        .file_name()
-                                        .map(|file_name| file_name.to_string_lossy().to_string())
-                                        .unwrap_or_default(),
-                                )
-                                .build(ctx),
-                        ),
-                    )
-                    .add_row(Row::stretch())
-                    .add_row(Row::auto())
-                    .add_column(Column::stretch())
+                    DecoratorBuilder::new(BorderBuilder::new(
+                        WidgetBuilder::new().with_child(content),
+                    ))
                     .build(ctx),
                 )
                 .build(ctx),
@@ -159,7 +174,7 @@ impl AssetSelectorBuilder {
         let loaders = state.loaders.lock();
         let registry = state.resource_registry.lock();
 
-        let supported_resource_paths = loaders
+        let mut supported_resource_paths = loaders
             .iter()
             .filter_map(|loader| {
                 if self.asset_types.contains(&loader.data_type_uuid()) {
@@ -185,22 +200,37 @@ impl AssetSelectorBuilder {
             .flatten()
             .collect::<Vec<_>>();
 
+        supported_resource_paths.extend(state.built_in_resources.values().filter_map(|res| {
+            let resource_state = res.resource.0.lock();
+            if self
+                .asset_types
+                .contains(&resource_state.state.data_ref()?.type_uuid())
+            {
+                Some(res.id.clone())
+            } else {
+                None
+            }
+        }));
+
         let items = supported_resource_paths
             .into_iter()
             .map(|path| {
-                ItemBuilder::new(
-                    WidgetBuilder::new()
-                        .with_width(42.0)
-                        .with_height(42.0)
-                        .with_margin(Thickness::uniform(2.0)),
-                )
-                .with_path(path)
-                .build(ctx)
+                ItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
+                    .with_path(path)
+                    .build(ctx)
             })
             .collect::<Vec<_>>();
 
         let list_view = ListViewBuilder::new(WidgetBuilder::new())
-            .with_items_panel(WrapPanelBuilder::new(WidgetBuilder::new()).build(ctx))
+            .with_items_panel(
+                WrapPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_vertical_alignment(VerticalAlignment::Top)
+                        .with_horizontal_alignment(HorizontalAlignment::Stretch),
+                )
+                .with_orientation(Orientation::Horizontal)
+                .build(ctx),
+            )
             .with_items(items)
             .build(ctx);
 
@@ -295,7 +325,9 @@ impl AssetSelectorWindowBuilder {
         resource_manager: ResourceManager,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
-        let selector = AssetSelectorBuilder::new(WidgetBuilder::new()).build(resource_manager, ctx);
+        let selector = AssetSelectorBuilder::new(WidgetBuilder::new())
+            .with_asset_types(self.asset_types)
+            .build(resource_manager, ctx);
 
         let window = AssetSelectorWindow {
             window: self.window_builder.with_content(selector).build_window(ctx),
