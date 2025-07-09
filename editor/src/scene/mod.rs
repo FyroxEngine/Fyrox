@@ -635,7 +635,7 @@ impl SceneController for GameScene {
                         ignore_back_faces: settings.selection.ignore_back_faces,
                         // We need info only about closest intersection.
                         use_picking_loop: false,
-                        only_meshes: false,
+                        method: Default::default(),
                         settings: &settings.selection,
                     },
                 ) {
@@ -722,7 +722,7 @@ impl SceneController for GameScene {
                             filter: None,
                             ignore_back_faces: settings.selection.ignore_back_faces,
                             use_picking_loop: true,
-                            only_meshes: false,
+                            method: Default::default(),
                             settings: &settings.selection,
                         },
                     ) {

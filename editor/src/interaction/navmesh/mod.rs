@@ -269,7 +269,7 @@ impl InteractionMode for EditNavmeshMode {
                     filter: Some(&mut |handle, _| handle != gizmo_origin),
                     ignore_back_faces: false,
                     use_picking_loop: true,
-                    only_meshes: false,
+                    method: Default::default(),
                     settings: &settings.selection,
                 },
             )
@@ -435,7 +435,7 @@ impl InteractionMode for EditNavmeshMode {
                         filter: Some(&mut |handle, _| handle != gizmo_origin),
                         ignore_back_faces: false,
                         use_picking_loop: true,
-                        only_meshes: false,
+                        method: Default::default(),
                         settings: &settings.selection,
                     },
                 )

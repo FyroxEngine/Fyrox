@@ -54,6 +54,7 @@ use crate::{
         Settings,
     },
 };
+use bitflags::bitflags;
 use fyrox::renderer::cache::DynamicSurfaceCache;
 use fyrox::renderer::observer::ObserverPosition;
 use std::{
@@ -120,13 +121,27 @@ struct PickContext {
 
 pub type PickingFilter<'a> = Option<&'a mut dyn FnMut(Handle<Node>, &Node) -> bool>;
 
+bitflags! {
+    pub struct PickMethod: u8 {
+        const DEFAULT = 0b0000_0011;
+        const PRECISE_HULL_RAY_TEST = 0b0000_0001;
+        const COARSE_AABB_RAY_TEST = 0b0000_0010;
+    }
+}
+
+impl Default for PickMethod {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
 pub struct PickingOptions<'a> {
     pub cursor_pos: Vector2<f32>,
     pub editor_only: bool,
     pub filter: PickingFilter<'a>,
     pub ignore_back_faces: bool,
     pub use_picking_loop: bool,
-    pub only_meshes: bool,
+    pub method: PickMethod,
     pub settings: &'a SelectionSettings,
 }
 
@@ -719,30 +734,42 @@ impl CameraController {
                 if ray.aabb_intersection_points(&aabb).is_some() {
                     let result =
                         precise_ray_test(node, camera, graph, ray, options.ignore_back_faces);
-                    if result.has_hull() {
+
+                    let mut added = false;
+                    if options.method.contains(PickMethod::PRECISE_HULL_RAY_TEST)
+                        && result.has_hull()
+                    {
                         if let Some(position) = result.pick_position {
                             picked_meshes.push(CameraPickResult {
                                 position: position.closest_point,
                                 node: handle,
                                 toi: position.closest_distance.max(toi_limit),
                             });
+                            added = true;
                         }
-                    } else if !options.only_meshes && !options.editor_only {
-                        // Hull-less objects (light sources, cameras, etc.) can still be selected
-                        // by coarse intersection test with a simplified bounding box.
-                        let simple_aabb = AxisAlignedBoundingBox::from_radius(
-                            options.settings.hull_less_object_selection_radius,
-                        )
-                        .transform(&node.global_transform());
-                        if let Some(points) = ray.aabb_intersection_points(&simple_aabb) {
-                            let da = points[0].metric_distance(&ray.origin);
-                            let db = points[1].metric_distance(&ray.origin);
-                            let closest_distance = da.min(db);
-                            picked_non_meshes.push(CameraPickResult {
-                                position: if da < db { points[0] } else { points[1] },
-                                node: handle,
-                                toi: closest_distance.max(toi_limit),
-                            });
+                    }
+
+                    if !added {
+                        if options.method.contains(PickMethod::COARSE_AABB_RAY_TEST) {
+                            // Hull-less objects (light sources, cameras, etc.) can still be selected
+                            // by coarse intersection test with a simplified bounding box.
+                            let simple_aabb =
+                                AxisAlignedBoundingBox::from_radius(if options.editor_only {
+                                    1.0
+                                } else {
+                                    options.settings.hull_less_object_selection_radius
+                                })
+                                .transform(&node.global_transform());
+                            if let Some(points) = ray.aabb_intersection_points(&simple_aabb) {
+                                let da = points[0].metric_distance(&ray.origin);
+                                let db = points[1].metric_distance(&ray.origin);
+                                let closest_distance = da.min(db);
+                                picked_non_meshes.push(CameraPickResult {
+                                    position: if da < db { points[0] } else { points[1] },
+                                    node: handle,
+                                    toi: closest_distance.max(toi_limit),
+                                });
+                            }
                         }
                     }
                 }

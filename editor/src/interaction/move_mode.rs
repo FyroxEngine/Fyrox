@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::camera::PickMethod;
 use crate::{
     camera::{CameraController, PickingOptions},
     command::{Command, CommandGroup},
@@ -214,7 +215,7 @@ impl MoveContext {
                 ignore_back_faces: settings.selection.ignore_back_faces,
                 // We need info only about closest intersection.
                 use_picking_loop: false,
-                only_meshes: true,
+                method: PickMethod::PRECISE_HULL_RAY_TEST,
                 settings: &settings.selection,
             },
         ) {
@@ -327,7 +328,7 @@ impl InteractionMode for MoveInteractionMode {
                 filter: Some(&mut |handle, _| handle != self.move_gizmo.origin),
                 ignore_back_faces: false,
                 use_picking_loop: true,
-                only_meshes: false,
+                method: Default::default(),
                 settings: &settings.selection,
             },
         ) {
@@ -406,7 +407,7 @@ impl InteractionMode for MoveInteractionMode {
                         filter: None,
                         ignore_back_faces: settings.selection.ignore_back_faces,
                         use_picking_loop: true,
-                        only_meshes: false,
+                        method: Default::default(),
                         settings: &settings.selection,
                     },
                 )
@@ -472,7 +473,7 @@ impl InteractionMode for MoveInteractionMode {
                         filter: None,
                         ignore_back_faces: false,
                         use_picking_loop: false,
-                        only_meshes: false,
+                        method: Default::default(),
                         settings: &settings.selection,
                     },
                 )

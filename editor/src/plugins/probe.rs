@@ -186,7 +186,7 @@ impl InteractionMode for ReflectionProbeInteractionMode {
                 filter: Some(&mut |handle, _| handle != self.move_gizmo.origin),
                 ignore_back_faces: false,
                 use_picking_loop: false,
-                only_meshes: false,
+                method: Default::default(),
                 settings: &settings.selection,
             },
         ) {
@@ -245,7 +245,7 @@ impl InteractionMode for ReflectionProbeInteractionMode {
                 filter: Some(&mut |handle, _| handle != self.move_gizmo.origin),
                 ignore_back_faces: false,
                 use_picking_loop: false,
-                only_meshes: false,
+                method: Default::default(),
                 settings: &settings.selection,
             },
         ) {

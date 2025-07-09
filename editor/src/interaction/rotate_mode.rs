@@ -96,7 +96,7 @@ impl InteractionMode for RotateInteractionMode {
                 filter: Some(&mut |handle, _| handle != self.rotation_gizmo.origin),
                 ignore_back_faces: false,
                 use_picking_loop: true,
-                only_meshes: false,
+                method: Default::default(),
                 settings: &settings.selection,
             },
         ) {
@@ -163,7 +163,7 @@ impl InteractionMode for RotateInteractionMode {
                         filter: None,
                         ignore_back_faces: settings.selection.ignore_back_faces,
                         use_picking_loop: true,
-                        only_meshes: false,
+                        method: Default::default(),
                         settings: &settings.selection,
                     },
                 )
@@ -249,7 +249,7 @@ impl InteractionMode for RotateInteractionMode {
                             filter: None,
                             ignore_back_faces: false,
                             use_picking_loop: false,
-                            only_meshes: false,
+                            method: Default::default(),
                             settings: &settings.selection,
                         },
                     )
