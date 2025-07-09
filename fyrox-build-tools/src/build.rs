@@ -166,7 +166,7 @@ impl BuildWindow {
                                         stop = ButtonBuilder::new(
                                             WidgetBuilder::new()
                                                 .with_width(100.0)
-                                                .with_margin(Thickness::uniform(1.0)),
+                                                .with_margin(Thickness::uniform(4.0)),
                                         )
                                         .with_text("Stop")
                                         .build(ctx);
