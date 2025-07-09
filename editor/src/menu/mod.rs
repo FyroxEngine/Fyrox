@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::asset::preview::cache::IconRequest;
 use crate::{
     export::ExportWindow,
     fyrox::{
@@ -41,6 +42,7 @@ use crate::{
     Engine, Mode, SceneSettingsWindow,
 };
 use std::path::PathBuf;
+use std::sync::mpsc::Sender;
 
 pub mod create;
 pub mod edit;
@@ -82,6 +84,7 @@ pub struct MenuContext<'a, 'b> {
     pub game_scene: Option<&'b mut EditorSceneEntry>,
     pub panels: Panels<'b>,
     pub settings: &'b mut Settings,
+    pub icon_request_sender: Sender<IconRequest>,
 }
 
 pub fn create_root_menu_item(
@@ -213,6 +216,7 @@ impl Menu {
             ctx.engine,
             ctx.settings,
             &mut ctx.panels,
+            ctx.icon_request_sender.clone(),
         );
         self.view_menu.handle_ui_message(
             message,

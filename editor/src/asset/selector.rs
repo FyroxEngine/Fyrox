@@ -22,30 +22,34 @@
 //! types (more often - of a single type). It can be considered as a "tiny" asset browser, that has
 //! no other functionality but previewing and selection.
 
-use crate::fyrox::{
-    asset::manager::ResourceManager,
-    core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
+use crate::{
+    asset::{item::AssetItemMessage, preview::cache::IconRequest},
+    fyrox::{
+        asset::manager::ResourceManager,
+        core::{
+            algebra::Vector2, futures::executor::block_on, log::Log, pool::Handle,
+            reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
+        },
+        gui::{
+            border::BorderBuilder,
+            decorator::DecoratorBuilder,
+            define_widget_deref,
+            draw::DrawingContext,
+            grid::{Column, GridBuilder, Row},
+            image::{ImageBuilder, ImageMessage},
+            list_view::ListViewBuilder,
+            message::{MessageDirection, OsEvent, UiMessage},
+            text::TextBuilder,
+            widget::{Widget, WidgetBuilder},
+            window::{Window, WindowBuilder},
+            wrap_panel::WrapPanelBuilder,
+            BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode,
+            UserInterface, VerticalAlignment,
+        },
     },
-    gui::{
-        border::BorderBuilder,
-        decorator::DecoratorBuilder,
-        define_widget_deref,
-        draw::DrawingContext,
-        grid::{Column, GridBuilder, Row},
-        image::ImageBuilder,
-        list_view::ListViewBuilder,
-        message::{OsEvent, UiMessage},
-        text::TextBuilder,
-        widget::{Widget, WidgetBuilder},
-        window::{Window, WindowBuilder},
-        wrap_panel::WrapPanelBuilder,
-        BuildContext, Control, Thickness, UiNode, UserInterface,
-    },
-    gui::{HorizontalAlignment, Orientation, VerticalAlignment},
 };
 use std::{
+    cell::Cell,
     ops::{Deref, DerefMut},
     path::PathBuf,
     sync::mpsc::Sender,
@@ -57,26 +61,80 @@ struct Item {
     pub widget: Widget,
     image: Handle<UiNode>,
     path: PathBuf,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    sender: Sender<IconRequest>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    need_request_preview: Cell<bool>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    resource_manager: ResourceManager,
 }
 
 define_widget_deref!(Item);
 
 impl Control for Item {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
-        self.widget.handle_routed_message(ui, message)
+        self.widget.handle_routed_message(ui, message);
+
+        if message.destination() == self.handle {
+            if let Some(AssetItemMessage::Icon { texture, flip_y }) = message.data() {
+                ui.send_message(ImageMessage::texture(
+                    self.image,
+                    MessageDirection::ToWidget,
+                    texture.clone(),
+                ));
+                ui.send_message(ImageMessage::flip(
+                    self.image,
+                    MessageDirection::ToWidget,
+                    *flip_y,
+                ))
+            }
+        }
+    }
+
+    fn update(&mut self, _dt: f32, _ui: &mut UserInterface) {
+        if self.need_request_preview.get() {
+            let screen_bounds = self.screen_bounds();
+            for corner in [
+                screen_bounds.left_top_corner(),
+                screen_bounds.right_top_corner(),
+                screen_bounds.right_bottom_corner(),
+                screen_bounds.left_bottom_corner(),
+            ] {
+                if self.clip_bounds().contains(corner) {
+                    self.need_request_preview.set(false);
+
+                    if let Ok(resource) =
+                        block_on(self.resource_manager.request_untyped(self.path.as_path()))
+                    {
+                        Log::verify(self.sender.send(IconRequest {
+                            asset_item: self.handle,
+                            resource,
+                            force_update: false,
+                        }));
+
+                        break;
+                    }
+                }
+            }
+        }
     }
 }
 
 struct ItemBuilder {
     widget_builder: WidgetBuilder,
     path: PathBuf,
+    sender: Sender<IconRequest>,
 }
 
 impl ItemBuilder {
-    fn new(widget_builder: WidgetBuilder) -> Self {
+    fn new(sender: Sender<IconRequest>, widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             path: Default::default(),
+            sender,
         }
     }
 
@@ -85,7 +143,7 @@ impl ItemBuilder {
         self
     }
 
-    fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    fn build(self, resource_manager: ResourceManager, ctx: &mut BuildContext) -> Handle<UiNode> {
         let image = ImageBuilder::new(
             WidgetBuilder::new()
                 .with_height(64.0)
@@ -118,6 +176,7 @@ impl ItemBuilder {
         let item = Item {
             widget: self
                 .widget_builder
+                .with_need_update(true)
                 .with_child(
                     DecoratorBuilder::new(BorderBuilder::new(
                         WidgetBuilder::new().with_child(content),
@@ -127,6 +186,9 @@ impl ItemBuilder {
                 .build(ctx),
             image,
             path: self.path,
+            sender: self.sender,
+            need_request_preview: Cell::new(true),
+            resource_manager,
         };
         ctx.add_node(UiNode::new(item))
     }
@@ -167,6 +229,7 @@ impl AssetSelectorBuilder {
 
     pub fn build(
         self,
+        icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
@@ -215,9 +278,12 @@ impl AssetSelectorBuilder {
         let items = supported_resource_paths
             .into_iter()
             .map(|path| {
-                ItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
-                    .with_path(path)
-                    .build(ctx)
+                ItemBuilder::new(
+                    icon_request_sender.clone(),
+                    WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                )
+                .with_path(path)
+                .build(resource_manager.clone(), ctx)
             })
             .collect::<Vec<_>>();
 
@@ -322,12 +388,13 @@ impl AssetSelectorWindowBuilder {
 
     pub fn build(
         self,
+        sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
         let selector = AssetSelectorBuilder::new(WidgetBuilder::new())
             .with_asset_types(self.asset_types)
-            .build(resource_manager, ctx);
+            .build(sender, resource_manager, ctx);
 
         let window = AssetSelectorWindow {
             window: self.window_builder.with_content(selector).build_window(ctx),

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::asset::preview::cache::IconRequest;
 use crate::{
     asset::{item::AssetItem, selector::AssetSelectorWindowBuilder},
     fyrox::{
@@ -54,6 +55,7 @@ use crate::{
     plugins::inspector::EditorEnvironment,
     Message,
 };
+use std::sync::mpsc::Sender;
 use std::{
     any::TypeId,
     cell::Cell,
@@ -135,6 +137,9 @@ where
     resource_manager: ResourceManager,
     #[visit(skip)]
     #[reflect(hidden)]
+    icon_request_sender: Sender<IconRequest>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     resource: Option<Resource<T>>,
     locate: Handle<UiNode>,
     #[visit(skip)]
@@ -162,6 +167,7 @@ where
             select: self.select,
             selector: self.selector.clone(),
             resource_manager: self.resource_manager.clone(),
+            icon_request_sender: self.icon_request_sender.clone(),
             resource: self.resource.clone(),
             locate: self.locate,
             sender: self.sender.clone(),
@@ -257,7 +263,11 @@ where
                         .open(false),
                 )
                 .with_asset_types(vec![<T as TypeUuidProvider>::type_uuid()])
-                .build(self.resource_manager.clone(), &mut ui.build_ctx());
+                .build(
+                    self.icon_request_sender.clone(),
+                    self.resource_manager.clone(),
+                    &mut ui.build_ctx(),
+                );
 
                 ui.send_message(WindowMessage::open_modal(
                     selector,
@@ -309,6 +319,7 @@ where
     pub fn build(
         self,
         ctx: &mut BuildContext,
+        icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
     ) -> Handle<UiNode> {
         let name;
@@ -390,6 +401,7 @@ where
             select,
             selector: Default::default(),
             resource_manager,
+            icon_request_sender,
             resource: self.resource,
             locate,
             sender: self.sender,
@@ -446,7 +458,11 @@ where
         Ok(PropertyEditorInstance::Simple {
             editor: ResourceFieldBuilder::new(WidgetBuilder::new(), self.sender.clone())
                 .with_resource(value.clone())
-                .build(ctx.build_context, environment.resource_manager.clone()),
+                .build(
+                    ctx.build_context,
+                    environment.icon_request_sender.clone(),
+                    environment.resource_manager.clone(),
+                ),
         })
     }
 

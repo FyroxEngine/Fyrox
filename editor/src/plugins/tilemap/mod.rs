@@ -822,6 +822,7 @@ impl EditorPlugin for TileMapEditorPlugin {
                     self.brush_macro_list.clone(),
                     editor.message_sender.clone(),
                     editor.engine.resource_manager.clone(),
+                    editor.asset_browser.preview_sender.clone(),
                     &mut ui.build_ctx(),
                 );
                 tile_set_editor.set_tile_resource(&editor.engine.resource_manager, tile_book, ui);

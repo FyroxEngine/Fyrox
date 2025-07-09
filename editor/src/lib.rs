@@ -762,7 +762,11 @@ impl Editor {
         let asset_browser = AssetBrowser::new(&mut engine);
         let menu = Menu::new(&mut engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(&mut engine, message_sender.clone());
-        let audio_panel = AudioPanel::new(&mut engine, message_sender.clone());
+        let audio_panel = AudioPanel::new(
+            &mut engine,
+            message_sender.clone(),
+            asset_browser.preview_sender.clone(),
+        );
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
         let navmesh_panel = NavmeshPanel::new(scene_viewer.frame(), ctx, message_sender.clone());
         let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(
@@ -1348,6 +1352,7 @@ impl Editor {
                     statistics_window: &mut self.statistics_window,
                 },
                 settings: &mut self.settings,
+                icon_request_sender: self.asset_browser.preview_sender.clone(),
             },
         );
 
@@ -1729,6 +1734,7 @@ impl Editor {
                     game_scene,
                     engine,
                     self.message_sender.clone(),
+                    self.asset_browser.preview_sender.clone(),
                 );
                 let sender = &self.message_sender;
                 self.world_viewer.sync_to_model(

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::asset::preview::cache::IconRequest;
 use crate::{
     command::make_command,
     fyrox::{
@@ -56,6 +57,7 @@ use fyrox::{
     graph::SceneGraph,
     gui::{inspector::InspectorContextArgs, window::Window},
 };
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 pub struct SceneSettingsWindow {
@@ -106,7 +108,13 @@ impl SceneSettingsWindow {
         }
     }
 
-    pub fn open(&self, game_scene: &GameScene, engine: &mut Engine, sender: MessageSender) {
+    pub fn open(
+        &self,
+        game_scene: &GameScene,
+        engine: &mut Engine,
+        sender: MessageSender,
+        icon_request_sender: Sender<IconRequest>,
+    ) {
         let ui = engine.user_interfaces.first();
         ui.send_message(WindowMessage::open(
             self.window,
@@ -114,7 +122,7 @@ impl SceneSettingsWindow {
             true,
             true,
         ));
-        self.sync_to_model(true, game_scene, engine, sender);
+        self.sync_to_model(true, game_scene, engine, sender, icon_request_sender);
     }
 
     pub fn sync_to_model(
@@ -123,6 +131,7 @@ impl SceneSettingsWindow {
         game_scene: &GameScene,
         engine: &mut Engine,
         sender: MessageSender,
+        icon_request_sender: Sender<IconRequest>,
     ) {
         let ui = engine.user_interfaces.first_mut();
         if !force
@@ -141,6 +150,7 @@ impl SceneSettingsWindow {
             serialization_context: engine.serialization_context.clone(),
             available_animations: Default::default(),
             sender,
+            icon_request_sender,
         });
 
         let context = InspectorContext::from_object(InspectorContextArgs {

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::asset::preview::cache::IconRequest;
 use crate::{
     fyrox::{
         asset::manager::ResourceManager,
@@ -60,6 +61,7 @@ use fyrox::gui::{
     style::{resource::StyleResourceExt, Style},
     utils::make_image_button_with_tooltip,
 };
+use std::sync::mpsc::Sender;
 use std::{any::Any, sync::Arc};
 
 pub mod editors;
@@ -78,6 +80,7 @@ pub struct EditorEnvironment {
     /// is `AnimationBlendingStateMachine`. The list is filled using ABSM's animation player.
     pub available_animations: Vec<AnimationDefinition>,
     pub sender: MessageSender,
+    pub icon_request_sender: Sender<IconRequest>,
 }
 
 impl EditorEnvironment {
@@ -296,12 +299,14 @@ impl InspectorPlugin {
         serialization_context: Arc<SerializationContext>,
         available_animations: &[AnimationDefinition],
         sender: &MessageSender,
+        icon_request_sender: Sender<IconRequest>,
     ) {
         let environment = Arc::new(EditorEnvironment {
             resource_manager,
             serialization_context,
             available_animations: available_animations.to_vec(),
             sender: sender.clone(),
+            icon_request_sender,
         });
 
         let context = InspectorContext::from_object(InspectorContextArgs {
@@ -378,6 +383,7 @@ impl EditorPlugin for InspectorPlugin {
                             editor.engine.serialization_context.clone(),
                             &available_animations,
                             &editor.message_sender,
+                            editor.asset_browser.preview_sender.clone(),
                         );
 
                         need_clear = false;

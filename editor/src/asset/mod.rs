@@ -156,7 +156,7 @@ pub struct AssetBrowser {
     dependency_viewer: DependencyViewer,
     resource_creator: Option<ResourceCreator>,
     preview_cache: AssetPreviewCache,
-    preview_sender: Sender<IconRequest>,
+    pub preview_sender: Sender<IconRequest>,
     need_refresh: Arc<AtomicBool>,
     main_window: Handle<UiNode>,
     icon_update_queue: IconUpdateQueue,

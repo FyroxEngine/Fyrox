@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::asset::preview::cache::IconRequest;
 use crate::export::ExportWindow;
 use crate::fyrox::{
     core::pool::Handle,
@@ -41,6 +42,7 @@ use crate::{
     Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
 use std::path::PathBuf;
+use std::sync::mpsc::Sender;
 
 pub struct FileMenu {
     pub menu: Handle<UiNode>,
@@ -239,6 +241,7 @@ impl FileMenu {
         engine: &mut Engine,
         settings: &mut Settings,
         panels: &mut Panels,
+        icon_request_sender: Sender<IconRequest>,
     ) {
         if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
             if message.destination() == self.save_file_selector {
@@ -326,9 +329,12 @@ impl FileMenu {
             } else if message.destination() == self.open_scene_settings {
                 if let Some(game_scene) = entry {
                     if let Some(game_scene) = game_scene.controller.downcast_ref::<GameScene>() {
-                        panels
-                            .scene_settings
-                            .open(game_scene, engine, sender.clone());
+                        panels.scene_settings.open(
+                            game_scene,
+                            engine,
+                            sender.clone(),
+                            icon_request_sender,
+                        );
                     }
                 }
             } else if let Some(recent_file) = self

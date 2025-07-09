@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::asset::preview::cache::IconRequest;
 use crate::plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage};
 use crate::{
     audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
@@ -58,6 +59,7 @@ use crate::{
 };
 use fyrox::gui::utils::make_dropdown_list_option;
 use std::cmp::Ordering;
+use std::sync::mpsc::Sender;
 use strum::VariantNames;
 
 mod bus;
@@ -112,7 +114,11 @@ fn audio_bus_effect_names(audio_bus: &AudioBus) -> Vec<String> {
 }
 
 impl AudioPanel {
-    pub fn new(engine: &mut Engine, sender: MessageSender) -> Self {
+    pub fn new(
+        engine: &mut Engine,
+        sender: MessageSender,
+        icon_request_sender: Sender<IconRequest>,
+    ) -> Self {
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
         let add_bus;
@@ -192,7 +198,11 @@ impl AudioPanel {
                                                 WidgetBuilder::new().with_tab_index(Some(2)),
                                                 sender,
                                             )
-                                            .build(ctx, engine.resource_manager.clone());
+                                            .build(
+                                                ctx,
+                                                icon_request_sender,
+                                                engine.resource_manager.clone(),
+                                            );
                                         hrir_resource
                                     }),
                             )

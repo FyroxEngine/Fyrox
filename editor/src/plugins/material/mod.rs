@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::asset::preview::cache::IconRequest;
 use crate::{
     asset::item::AssetItem,
     fyrox::{
@@ -91,6 +92,7 @@ use crate::{
     },
     send_sync_message, Editor, Engine, Message,
 };
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 pub mod editor;
@@ -287,7 +289,11 @@ impl UiView for Color {
 }
 
 impl MaterialEditor {
-    pub fn new(engine: &mut Engine, sender: MessageSender) -> Self {
+    pub fn new(
+        engine: &mut Engine,
+        sender: MessageSender,
+        icon_request_sender: Sender<IconRequest>,
+    ) -> Self {
         let mut preview = PreviewPanel::new(engine, 350, 400);
 
         let graph = &mut engine.scenes[preview.scene()].graph;
@@ -334,7 +340,11 @@ impl MaterialEditor {
                                                 .with_tooltip(shader_tooltip),
                                             sender,
                                         )
-                                        .build(ctx, engine.resource_manager.clone());
+                                        .build(
+                                            ctx,
+                                            icon_request_sender,
+                                            engine.resource_manager.clone(),
+                                        );
                                         shader
                                     }),
                             )
@@ -821,9 +831,13 @@ impl EditorPlugin for MaterialPlugin {
 
         let engine = &mut editor.engine;
 
-        let material_editor = self
-            .material_editor
-            .get_or_insert_with(|| MaterialEditor::new(engine, editor.message_sender.clone()));
+        let material_editor = self.material_editor.get_or_insert_with(|| {
+            MaterialEditor::new(
+                engine,
+                editor.message_sender.clone(),
+                editor.asset_browser.preview_sender.clone(),
+            )
+        });
 
         material_editor.set_material(Some(material.clone()), engine);
 
