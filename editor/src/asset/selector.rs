@@ -25,7 +25,7 @@
 use crate::{
     asset::{item::AssetItemMessage, preview::cache::IconRequest},
     fyrox::{
-        asset::manager::ResourceManager,
+        asset::{manager::ResourceManager, untyped::UntypedResource},
         core::{
             algebra::Vector2, futures::executor::block_on, log::Log, pool::Handle,
             reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
@@ -33,11 +33,12 @@ use crate::{
         gui::{
             border::BorderBuilder,
             decorator::DecoratorBuilder,
-            define_widget_deref,
+            define_constructor, define_widget_deref,
             draw::DrawingContext,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
             list_view::ListViewBuilder,
+            list_view::ListViewMessage,
             message::{MessageDirection, OsEvent, UiMessage},
             text::TextBuilder,
             widget::{Widget, WidgetBuilder},
@@ -54,6 +55,15 @@ use std::{
     path::PathBuf,
     sync::mpsc::Sender,
 };
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AssetSelectorMessage {
+    Select(UntypedResource),
+}
+
+impl AssetSelectorMessage {
+    define_constructor!(AssetSelectorMessage:Select => fn select(UntypedResource), layout: false);
+}
 
 #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "aa4f0726-8d25-4c90-add1-92ba392310c6")]
@@ -199,13 +209,33 @@ impl ItemBuilder {
 pub struct AssetSelector {
     pub widget: Widget,
     list_view: Handle<UiNode>,
+    resources: Vec<PathBuf>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    resource_manager: ResourceManager,
 }
 
 define_widget_deref!(AssetSelector);
 
 impl Control for AssetSelector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
-        self.widget.handle_routed_message(ui, message)
+        self.widget.handle_routed_message(ui, message);
+
+        if message.destination() == self.list_view
+            && message.direction() == MessageDirection::FromWidget
+        {
+            if let Some(ListViewMessage::SelectionChanged(selected)) = message.data() {
+                if let Some(first) = selected.first().cloned() {
+                    if let Some(resource) = self.resources.get(first) {
+                        ui.send_message(AssetSelectorMessage::select(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            self.resource_manager.request_untyped(resource),
+                        ));
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -276,13 +306,13 @@ impl AssetSelectorBuilder {
         }));
 
         let items = supported_resource_paths
-            .into_iter()
+            .iter()
             .map(|path| {
                 ItemBuilder::new(
                     icon_request_sender.clone(),
                     WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                 )
-                .with_path(path)
+                .with_path(path.clone())
                 .build(resource_manager.clone(), ctx)
             })
             .collect::<Vec<_>>();
@@ -303,6 +333,8 @@ impl AssetSelectorBuilder {
         let selector = AssetSelector {
             widget: self.widget_builder.with_child(list_view).build(ctx),
             list_view,
+            resources: supported_resource_paths,
+            resource_manager: resource_manager.clone(),
         };
         ctx.add_node(UiNode::new(selector))
     }
