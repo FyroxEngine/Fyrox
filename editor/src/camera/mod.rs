@@ -749,27 +749,25 @@ impl CameraController {
                         }
                     }
 
-                    if !added {
-                        if options.method.contains(PickMethod::COARSE_AABB_RAY_TEST) {
-                            // Hull-less objects (light sources, cameras, etc.) can still be selected
-                            // by coarse intersection test with a simplified bounding box.
-                            let simple_aabb =
-                                AxisAlignedBoundingBox::from_radius(if options.editor_only {
-                                    1.0
-                                } else {
-                                    options.settings.hull_less_object_selection_radius
-                                })
-                                .transform(&node.global_transform());
-                            if let Some(points) = ray.aabb_intersection_points(&simple_aabb) {
-                                let da = points[0].metric_distance(&ray.origin);
-                                let db = points[1].metric_distance(&ray.origin);
-                                let closest_distance = da.min(db);
-                                picked_non_meshes.push(CameraPickResult {
-                                    position: if da < db { points[0] } else { points[1] },
-                                    node: handle,
-                                    toi: closest_distance.max(toi_limit),
-                                });
-                            }
+                    if !added && options.method.contains(PickMethod::COARSE_AABB_RAY_TEST) {
+                        // Hull-less objects (light sources, cameras, etc.) can still be selected
+                        // by coarse intersection test with a simplified bounding box.
+                        let simple_aabb =
+                            AxisAlignedBoundingBox::from_radius(if options.editor_only {
+                                1.0
+                            } else {
+                                options.settings.hull_less_object_selection_radius
+                            })
+                            .transform(&node.global_transform());
+                        if let Some(points) = ray.aabb_intersection_points(&simple_aabb) {
+                            let da = points[0].metric_distance(&ray.origin);
+                            let db = points[1].metric_distance(&ray.origin);
+                            let closest_distance = da.min(db);
+                            picked_non_meshes.push(CameraPickResult {
+                                position: if da < db { points[0] } else { points[1] },
+                                node: handle,
+                                toi: closest_distance.max(toi_limit),
+                            });
                         }
                     }
                 }

@@ -508,13 +508,16 @@ mod test {
     use fyrox::asset::manager::ResourceManager;
     use fyrox::resource::model::Model;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+    use std::sync::mpsc::channel;
     use std::sync::Arc;
 
     #[test]
     fn test_deletion() {
+        let (sender, _) = channel();
         test_widget_deletion(|ctx| {
             ResourceFieldBuilder::<Model>::new(WidgetBuilder::new(), Default::default()).build(
                 ctx,
+                sender,
                 ResourceManager::new(Arc::new(FsResourceIo), Default::default()),
             )
         });
