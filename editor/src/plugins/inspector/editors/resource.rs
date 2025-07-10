@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::asset::preview::cache::IconRequest;
+use crate::asset::selector::AssetSelectorMessage;
 use crate::{
     asset::{item::AssetItem, selector::AssetSelectorWindowBuilder},
     fyrox::{
@@ -281,10 +282,16 @@ where
         }
     }
 
-    fn preview_message(&self, _ui: &UserInterface, message: &mut UiMessage) {
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if message.destination() == self.selector.get() {
             if let Some(WindowMessage::Close) = message.data() {
                 self.selector.set(Handle::NONE);
+            } else if let Some(AssetSelectorMessage::Select(resource)) = message.data() {
+                ui.send_message(ResourceFieldMessage::value(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    resource.try_cast::<T>(),
+                ))
             }
         }
     }

@@ -32,17 +32,18 @@ use crate::{
         },
         gui::{
             border::BorderBuilder,
+            button::{ButtonBuilder, ButtonMessage},
             decorator::DecoratorBuilder,
             define_constructor, define_widget_deref,
             draw::DrawingContext,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
-            list_view::ListViewBuilder,
-            list_view::ListViewMessage,
+            list_view::{ListViewBuilder, ListViewMessage},
             message::{MessageDirection, OsEvent, UiMessage},
+            stack_panel::StackPanelBuilder,
             text::TextBuilder,
             widget::{Widget, WidgetBuilder},
-            window::{Window, WindowBuilder},
+            window::{Window, WindowBuilder, WindowMessage},
             wrap_panel::WrapPanelBuilder,
             BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode,
             UserInterface, VerticalAlignment,
@@ -221,15 +222,15 @@ impl Control for AssetSelector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination() == self.list_view
-            && message.direction() == MessageDirection::FromWidget
-        {
-            if let Some(ListViewMessage::SelectionChanged(selected)) = message.data() {
+        if let Some(ListViewMessage::SelectionChanged(selected)) = message.data() {
+            if message.destination() == self.list_view
+                && message.direction() == MessageDirection::FromWidget
+            {
                 if let Some(first) = selected.first().cloned() {
                     if let Some(resource) = self.resources.get(first) {
                         ui.send_message(AssetSelectorMessage::select(
                             self.handle(),
-                            MessageDirection::ToWidget,
+                            MessageDirection::FromWidget,
                             self.resource_manager.request_untyped(resource),
                         ));
                     }
@@ -345,6 +346,9 @@ impl AssetSelectorBuilder {
 pub struct AssetSelectorWindow {
     pub window: Window,
     selector: Handle<UiNode>,
+    ok: Handle<UiNode>,
+    cancel: Handle<UiNode>,
+    selected_resource: Option<UntypedResource>,
 }
 
 impl Deref for AssetSelectorWindow {
@@ -384,6 +388,31 @@ impl Control for AssetSelectorWindow {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
+
+        if let Some(AssetSelectorMessage::Select(resource)) = message.data() {
+            if message.destination() == self.selector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                self.selected_resource = Some(resource.clone());
+            }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.ok {
+                if let Some(resource) = self.selected_resource.as_ref().cloned() {
+                    ui.send_message(AssetSelectorMessage::select(
+                        self.handle,
+                        MessageDirection::FromWidget,
+                        resource,
+                    ));
+                }
+            }
+
+            if message.destination() == self.cancel || message.destination() == self.ok {
+                ui.send_message(WindowMessage::close(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                ));
+            }
+        }
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
@@ -424,13 +453,58 @@ impl AssetSelectorWindowBuilder {
         resource_manager: ResourceManager,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
-        let selector = AssetSelectorBuilder::new(WidgetBuilder::new())
+        let selector = AssetSelectorBuilder::new(WidgetBuilder::new().on_row(0))
             .with_asset_types(self.asset_types)
             .build(sender, resource_manager, ctx);
 
+        let ok;
+        let cancel;
+        let buttons = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .on_row(1)
+                .with_horizontal_alignment(HorizontalAlignment::Right)
+                .with_child({
+                    ok = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_width(100.0)
+                            .with_height(22.0)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_text("Select")
+                    .build(ctx);
+                    ok
+                })
+                .with_child({
+                    cancel = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_width(100.0)
+                            .with_height(22.0)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_text("Cancel")
+                    .build(ctx);
+                    cancel
+                }),
+        )
+        .with_orientation(Orientation::Horizontal)
+        .build(ctx);
+
+        let content = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(selector)
+                .with_child(buttons),
+        )
+        .add_row(Row::stretch())
+        .add_row(Row::auto())
+        .add_column(Column::stretch())
+        .build(ctx);
+
         let window = AssetSelectorWindow {
-            window: self.window_builder.with_content(selector).build_window(ctx),
+            window: self.window_builder.with_content(content).build_window(ctx),
             selector,
+            ok,
+            cancel,
+            selected_resource: None,
         };
 
         ctx.add_node(UiNode::new(window))
