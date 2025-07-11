@@ -50,6 +50,8 @@ use crate::{
         },
     },
 };
+use fyrox::asset::TypedResourceData;
+use fyrox::gui::window::WindowTitle;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -508,5 +510,29 @@ impl AssetSelectorWindowBuilder {
         };
 
         ctx.add_node(UiNode::new(window))
+    }
+
+    pub fn build_for_type_and_open<T: TypedResourceData>(
+        icon_request_sender: Sender<IconRequest>,
+        resource_manager: ResourceManager,
+        ui: &mut UserInterface,
+    ) -> Handle<UiNode> {
+        let selector = AssetSelectorWindowBuilder::new(
+            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                .with_title(WindowTitle::text("Select a Resource"))
+                .with_remove_on_close(true)
+                .open(false),
+        )
+        .with_asset_types(vec![<T as TypeUuidProvider>::type_uuid()])
+        .build(icon_request_sender, resource_manager, &mut ui.build_ctx());
+
+        ui.send_message(WindowMessage::open_modal(
+            selector,
+            MessageDirection::ToWidget,
+            true,
+            true,
+        ));
+
+        selector
     }
 }
