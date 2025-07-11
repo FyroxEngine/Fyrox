@@ -38,7 +38,6 @@ use crate::{
             color::{ColorFieldBuilder, ColorFieldMessage},
             dock::DockingManagerMessage,
             grid::{Column, GridBuilder, Row},
-            image::ImageMessage,
             inspector::editors::{
                 inherit::InheritablePropertyEditorDefinition,
                 inspectable::InspectablePropertyEditorDefinition,

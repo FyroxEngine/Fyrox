@@ -25,7 +25,7 @@
 use crate::{
     asset::{item::AssetItemMessage, preview::cache::IconRequest},
     fyrox::{
-        asset::{manager::ResourceManager, untyped::UntypedResource},
+        asset::{manager::ResourceManager, untyped::UntypedResource, TypedResourceData},
         core::{
             algebra::Vector2, futures::executor::block_on, log::Log, pool::Handle,
             reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
@@ -36,6 +36,7 @@ use crate::{
             decorator::DecoratorBuilder,
             define_constructor, define_widget_deref,
             draw::DrawingContext,
+            formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
             list_view::{ListViewBuilder, ListViewMessage},
@@ -43,15 +44,13 @@ use crate::{
             stack_panel::StackPanelBuilder,
             text::TextBuilder,
             widget::{Widget, WidgetBuilder},
-            window::{Window, WindowBuilder, WindowMessage},
+            window::{Window, WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
             BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode,
             UserInterface, VerticalAlignment,
         },
     },
 };
-use fyrox::asset::TypedResourceData;
-use fyrox::gui::window::WindowTitle;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -159,8 +158,10 @@ impl ItemBuilder {
     fn build(self, resource_manager: ResourceManager, ctx: &mut BuildContext) -> Handle<UiNode> {
         let image = ImageBuilder::new(
             WidgetBuilder::new()
+                .with_vertical_alignment(VerticalAlignment::Top)
                 .with_height(64.0)
                 .with_width(64.0)
+                .with_margin(Thickness::uniform(1.0))
                 .on_row(0),
         )
         .build(ctx);
@@ -170,8 +171,12 @@ impl ItemBuilder {
                 TextBuilder::new(
                     WidgetBuilder::new()
                         .on_row(1)
+                        .with_width(64.0)
                         .with_margin(Thickness::uniform(1.0)),
                 )
+                .with_vertical_text_alignment(VerticalAlignment::Top)
+                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                .with_wrap(WrapMode::Letter)
                 .with_text(
                     self.path
                         .file_name()
@@ -181,9 +186,9 @@ impl ItemBuilder {
                 .build(ctx),
             ),
         )
-        .add_row(Row::stretch())
         .add_row(Row::auto())
-        .add_column(Column::stretch())
+        .add_row(Row::auto())
+        .add_column(Column::auto())
         .build(ctx);
 
         let item = Item {
@@ -307,6 +312,8 @@ impl AssetSelectorBuilder {
                 None
             }
         }));
+
+        supported_resource_paths.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
 
         let items = supported_resource_paths
             .iter()
@@ -465,6 +472,7 @@ impl AssetSelectorWindowBuilder {
             WidgetBuilder::new()
                 .on_row(1)
                 .with_horizontal_alignment(HorizontalAlignment::Right)
+                .with_margin(Thickness::uniform(2.0))
                 .with_child({
                     ok = ButtonBuilder::new(
                         WidgetBuilder::new()
