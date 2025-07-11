@@ -18,9 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::asset::preview::cache::IconRequest;
 use crate::{
-    asset::item::AssetItem,
+    asset::preview::cache::IconRequest,
     fyrox::{
         asset::manager::ResourceManager,
         core::{
@@ -32,24 +31,22 @@ use crate::{
             sstorage::ImmutableString,
         },
         fxhash::FxHashMap,
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         gui::{
             border::BorderBuilder,
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             color::{ColorFieldBuilder, ColorFieldMessage},
             dock::DockingManagerMessage,
             grid::{Column, GridBuilder, Row},
-            image::{Image, ImageBuilder, ImageMessage},
+            image::ImageMessage,
             inspector::editors::{
                 inherit::InheritablePropertyEditorDefinition,
                 inspectable::InspectablePropertyEditorDefinition,
             },
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             matrix::{MatrixEditorBuilder, MatrixEditorMessage},
-            menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
             message::{MessageDirection, UiMessage},
             numeric::{NumericUpDownBuilder, NumericUpDownMessage},
-            popup::{Placement, PopupBuilder, PopupMessage},
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
             text::TextBuilder,
@@ -60,14 +57,13 @@ use crate::{
             },
             widget::{WidgetBuilder, WidgetMaterial, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
+            BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         material::{
             shader::{Shader, ShaderResourceKind},
             MaterialProperty, MaterialResource, MaterialResourceBinding, MaterialTextureBinding,
         },
         renderer::framework::gpu_program::{ShaderProperty, ShaderPropertyKind},
-        resource::texture::Texture,
         scene::{
             base::BaseBuilder,
             mesh::{
@@ -80,7 +76,10 @@ use crate::{
     plugin::EditorPlugin,
     plugins::{
         inspector::{
-            editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
+            editors::{
+                resource::{ResourceFieldBuilder, ResourceFieldMessage},
+                texture::{TextureEditorBuilder, TextureEditorMessage},
+            },
             InspectorPlugin,
         },
         material::editor::MaterialPropertyEditorDefinition,
@@ -92,53 +91,9 @@ use crate::{
     },
     send_sync_message, Editor, Engine, Message,
 };
-use std::sync::mpsc::Sender;
-use std::sync::Arc;
+use std::sync::{mpsc::Sender, Arc};
 
 pub mod editor;
-
-struct TextureContextMenu {
-    popup: RcUiNodeHandle,
-    show_in_asset_browser: Handle<UiNode>,
-    unassign: Handle<UiNode>,
-    target: Handle<UiNode>,
-}
-
-impl TextureContextMenu {
-    fn new(ctx: &mut BuildContext) -> Self {
-        let show_in_asset_browser;
-        let unassign;
-        let popup = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            show_in_asset_browser = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Show In Asset Browser"))
-                                .build(ctx);
-                            show_in_asset_browser
-                        })
-                        .with_child({
-                            unassign = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Unassign"))
-                                .build(ctx);
-                            unassign
-                        }),
-                )
-                .build(ctx),
-            ),
-        )
-        .build(ctx);
-        let popup = RcUiNodeHandle::new(popup, ctx.sender());
-
-        Self {
-            popup,
-            show_in_asset_browser,
-            unassign,
-            target: Default::default(),
-        }
-    }
-}
 
 enum ResourceViewKind {
     Sampler,
@@ -161,7 +116,6 @@ pub struct MaterialEditor {
     preview: PreviewPanel,
     material: Option<MaterialResource>,
     shader: Handle<UiNode>,
-    texture_context_menu: TextureContextMenu,
 }
 
 fn make_item_container(ctx: &mut BuildContext, name: &str, item: Handle<UiNode>) -> Handle<UiNode> {
@@ -379,7 +333,6 @@ impl MaterialEditor {
         ctx.link(preview.root, panel);
 
         Self {
-            texture_context_menu: TextureContextMenu::new(ctx),
             window,
             preview,
             properties_panel,
@@ -403,7 +356,13 @@ impl MaterialEditor {
         ));
     }
 
-    pub fn set_material(&mut self, material: Option<MaterialResource>, engine: &mut Engine) {
+    pub fn set_material(
+        &mut self,
+        material: Option<MaterialResource>,
+        sender: &MessageSender,
+        icon_request_sender: &Sender<IconRequest>,
+        engine: &mut Engine,
+    ) {
         self.material = material;
 
         if let Some(material) = self.material.clone() {
@@ -416,7 +375,7 @@ impl MaterialEditor {
         }
 
         let ui = engine.user_interfaces.first_mut();
-        self.create_property_editors(ui, &engine.resource_manager);
+        self.create_property_editors(ui, sender, icon_request_sender, &engine.resource_manager);
         self.sync_to_model(ui);
     }
 
@@ -425,6 +384,8 @@ impl MaterialEditor {
     fn create_property_editors(
         &mut self,
         ui: &mut UserInterface,
+        sender: &MessageSender,
+        icon_request_sender: &Sender<IconRequest>,
         resource_manager: &ResourceManager,
     ) {
         for resource_view in self.resource_views.drain(..) {
@@ -449,22 +410,29 @@ impl MaterialEditor {
 
             let view = match resource.kind {
                 ShaderResourceKind::Texture { fallback, .. } => {
-                    let path = material
+                    let texture = material
                         .texture_ref(resource.name.clone())
-                        .and_then(|d| d.value.clone())
+                        .and_then(|d| d.value.clone());
+                    let path = texture
+                        .as_ref()
                         .and_then(|tex| resource_manager.resource_path(tex.as_ref()))
                         .map(|path| path.to_string_lossy().to_string())
                         .unwrap_or_else(|| fallback.as_ref().to_string());
                     let ctx = &mut ui.build_ctx();
-                    let editor = ImageBuilder::new(
+                    let editor = TextureEditorBuilder::new(
                         WidgetBuilder::new()
                             .with_height(28.0)
                             .with_user_data(Arc::new(Mutex::new(resource.name.clone())))
                             .with_allow_drop(true)
-                            .with_context_menu(self.texture_context_menu.popup.clone())
                             .with_tooltip(make_simple_tooltip(ctx, &path)),
                     )
-                    .build(ctx);
+                    .with_texture(texture)
+                    .build(
+                        ctx,
+                        sender.clone(),
+                        icon_request_sender.clone(),
+                        resource_manager.clone(),
+                    );
                     ResourceView {
                         name: resource.name.clone(),
                         container: make_item_container(ctx, resource.name.as_str(), editor),
@@ -575,7 +543,7 @@ impl MaterialEditor {
             match binding_value {
                 MaterialResourceBinding::Texture(ref binding) => send_sync_message(
                     ui,
-                    ImageMessage::texture(
+                    TextureEditorMessage::texture(
                         view.editor,
                         MessageDirection::ToWidget,
                         binding.value.clone(),
@@ -650,77 +618,21 @@ impl MaterialEditor {
                     ));
                 }
             }
-        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.texture_context_menu.popup.handle() {
-                self.texture_context_menu.target = *target;
-            }
-        } else if let Some(MenuItemMessage::Click) = message.data() {
-            if message.destination() == self.texture_context_menu.show_in_asset_browser
-                && self.texture_context_menu.target.is_some()
-            {
-                let texture = (*engine
-                    .user_interfaces
-                    .first_mut()
-                    .node(self.texture_context_menu.target)
-                    .cast::<Image>()
-                    .unwrap()
-                    .texture)
-                    .clone();
-
-                if let Some(path) =
-                    texture.and_then(|t| engine.resource_manager.resource_path(t.as_ref()))
-                {
-                    sender.send(Message::ShowInAssetBrowser(path));
-                }
-            } else if message.destination() == self.texture_context_menu.unassign
-                && self.texture_context_menu.target.is_some()
-            {
-                if let Some(binding_name) = engine
-                    .user_interfaces
-                    .first_mut()
-                    .node(self.texture_context_menu.target)
-                    .user_data_cloned::<ImmutableString>()
-                {
-                    sender.do_command(SetMaterialBindingCommand::new(
-                        material.clone(),
-                        binding_name.clone(),
-                        MaterialResourceBinding::Texture(MaterialTextureBinding { value: None }),
-                        engine.resource_manager.resource_path(material.as_ref()),
-                    ));
-                }
-            }
         }
 
         for resource_view in self.resource_views.iter() {
             match resource_view.kind {
                 ResourceViewKind::Sampler => {
-                    if let Some(WidgetMessage::Drop(handle)) = message.data() {
-                        if let Some(asset_item) = engine
-                            .user_interfaces
-                            .first_mut()
-                            .node(*handle)
-                            .cast::<AssetItem>()
-                        {
-                            if resource_view.editor == message.destination() {
-                                let texture = asset_item.resource::<Texture>();
-
-                                engine.user_interfaces.first_mut().send_message(
-                                    ImageMessage::texture(
-                                        message.destination(),
-                                        MessageDirection::ToWidget,
-                                        texture.clone(),
-                                    ),
-                                );
-
-                                sender.do_command(SetMaterialBindingCommand::new(
-                                    material.clone(),
-                                    resource_view.name.clone(),
-                                    MaterialResourceBinding::Texture(MaterialTextureBinding {
-                                        value: texture,
-                                    }),
-                                    engine.resource_manager.resource_path(material.as_ref()),
-                                ));
-                            }
+                    if let Some(TextureEditorMessage::Texture(texture)) = message.data() {
+                        if resource_view.editor == message.destination() {
+                            sender.do_command(SetMaterialBindingCommand::new(
+                                material.clone(),
+                                resource_view.name.clone(),
+                                MaterialResourceBinding::Texture(MaterialTextureBinding {
+                                    value: texture.clone(),
+                                }),
+                                engine.resource_manager.resource_path(material.as_ref()),
+                            ));
                         }
                     }
                 }
@@ -839,7 +751,12 @@ impl EditorPlugin for MaterialPlugin {
             )
         });
 
-        material_editor.set_material(Some(material.clone()), engine);
+        material_editor.set_material(
+            Some(material.clone()),
+            &editor.message_sender,
+            &editor.asset_browser.preview_sender,
+            engine,
+        );
 
         let ui = engine.user_interfaces.first_mut();
         ui.send_message(WindowMessage::open(
