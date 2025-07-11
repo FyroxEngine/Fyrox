@@ -18,20 +18,48 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    core::{algebra::Vector2, pool::ErasedHandle, pool::Handle, visitor::Visitor},
-    graph::BaseSceneGraph,
-    gui::{
-        file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
-        message::MessageDirection,
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{Window, WindowBuilder},
-        BuildContext, UiNode, UserInterface,
+use crate::{
+    fyrox::{
+        core::{
+            algebra::Vector2, color::Color, pool::ErasedHandle, pool::Handle, visitor::Visitor,
+        },
+        graph::BaseSceneGraph,
+        gui::{
+            brush::Brush,
+            button::ButtonBuilder,
+            file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
+            image::ImageBuilder,
+            message::MessageDirection,
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{Window, WindowBuilder},
+            BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
+        },
     },
+    load_image,
 };
 use std::{fs::File, path::Path};
 
 pub mod doc;
+
+pub fn make_pick_button(column: usize, ctx: &mut BuildContext) -> Handle<UiNode> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .with_width(20.0)
+            .with_height(20.0)
+            .with_vertical_alignment(VerticalAlignment::Center)
+            .with_horizontal_alignment(HorizontalAlignment::Center)
+            .on_column(column)
+            .with_margin(Thickness::uniform(1.0)),
+    )
+    .with_content(
+        ImageBuilder::new(
+            WidgetBuilder::new().with_background(Brush::Solid(Color::opaque(0, 180, 0)).into()),
+        )
+        .with_opt_texture(load_image!("../../resources/pick.png"))
+        .build(ctx),
+    )
+    .build(ctx)
+}
 
 /// True if `a` and `b` have the same length, and every element of `a` is equal to some element of `b`
 /// and every element of `b` is equal to some element of `a`.
