@@ -18,10 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::asset::preview::cache::IconRequest;
-use crate::asset::selector::AssetSelectorMessage;
 use crate::{
-    asset::{item::AssetItem, selector::AssetSelectorWindowBuilder},
+    asset::{
+        item::AssetItem,
+        preview::cache::IconRequest,
+        selector::{AssetSelectorMessage, AssetSelectorWindowBuilder},
+    },
     fyrox::{
         asset::{manager::ResourceManager, state::LoadError, Resource, TypedResourceData},
         core::{
@@ -46,24 +48,22 @@ use crate::{
             message::{MessageDirection, UiMessage},
             text::{TextBuilder, TextMessage},
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-            VerticalAlignment,
+            window::WindowMessage,
+            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
     },
     load_image,
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
-    Message,
+    utils, Message,
 };
-use std::sync::mpsc::Sender;
 use std::{
     any::TypeId,
     cell::Cell,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     path::Path,
-    sync::Arc,
+    sync::{mpsc::Sender, Arc},
 };
 
 fn resource_path<T>(resource_manager: &ResourceManager, resource: &Option<Resource<T>>) -> String
@@ -257,27 +257,12 @@ where
                     }
                 }
             } else if message.destination() == self.select {
-                let selector = AssetSelectorWindowBuilder::new(
-                    WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                        .with_title(WindowTitle::text("Select a Resource"))
-                        .with_remove_on_close(true)
-                        .open(false),
-                )
-                .with_asset_types(vec![<T as TypeUuidProvider>::type_uuid()])
-                .build(
-                    self.icon_request_sender.clone(),
-                    self.resource_manager.clone(),
-                    &mut ui.build_ctx(),
-                );
-
-                ui.send_message(WindowMessage::open_modal(
-                    selector,
-                    MessageDirection::ToWidget,
-                    true,
-                    true,
-                ));
-
-                self.selector.set(selector);
+                self.selector
+                    .set(AssetSelectorWindowBuilder::build_for_type_and_open::<T>(
+                        self.icon_request_sender.clone(),
+                        self.resource_manager.clone(),
+                        ui,
+                    ));
             }
         }
     }
@@ -375,23 +360,7 @@ where
                                 locate
                             })
                             .with_child({
-                                select = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_width(20.0)
-                                        .with_height(20.0)
-                                        .with_vertical_alignment(VerticalAlignment::Center)
-                                        .with_horizontal_alignment(HorizontalAlignment::Center)
-                                        .on_column(3)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_content(
-                                    ImageBuilder::new(WidgetBuilder::new().with_background(
-                                        Brush::Solid(Color::opaque(0, 180, 0)).into(),
-                                    ))
-                                    .with_opt_texture(load_image!("../../../../resources/pick.png"))
-                                    .build(ctx),
-                                )
-                                .build(ctx);
+                                select = utils::make_pick_button(3, ctx);
                                 select
                             }),
                     )
