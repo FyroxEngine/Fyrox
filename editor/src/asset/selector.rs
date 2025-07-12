@@ -30,6 +30,7 @@ use crate::{
             algebra::Vector2, futures::executor::block_on, log::Log, pool::Handle,
             reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
         },
+        graph::SceneGraph,
         gui::{
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},
@@ -39,11 +40,12 @@ use crate::{
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
-            list_view::{ListViewBuilder, ListViewMessage},
+            list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::{MessageDirection, OsEvent, UiMessage},
+            searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
-            text::TextBuilder,
-            widget::{Widget, WidgetBuilder},
+            text::{Text, TextBuilder},
+            widget::{Widget, WidgetBuilder, WidgetMessage},
             window::{Window, WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
             BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode,
@@ -51,6 +53,7 @@ use crate::{
         },
     },
 };
+use rust_fuzzy_search::fuzzy_compare;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -358,6 +361,7 @@ pub struct AssetSelectorWindow {
     ok: Handle<UiNode>,
     cancel: Handle<UiNode>,
     selected_resource: Option<UntypedResource>,
+    search_bar: Handle<UiNode>,
 }
 
 impl Deref for AssetSelectorWindow {
@@ -421,6 +425,43 @@ impl Control for AssetSelectorWindow {
                     MessageDirection::ToWidget,
                 ));
             }
+        } else if let Some(WindowMessage::Open { .. } | WindowMessage::OpenModal { .. }) =
+            message.data()
+        {
+            if message.destination() == self.handle {
+                ui.send_message(WidgetMessage::focus(
+                    self.search_bar,
+                    MessageDirection::ToWidget,
+                ));
+            }
+        } else if let Some(SearchBarMessage::Text(text)) = message.data() {
+            if message.destination() == self.search_bar
+                && message.direction() == MessageDirection::FromWidget
+            {
+                let selector = ui.try_get_of_type::<AssetSelector>(self.selector).unwrap();
+                let items = &*ui
+                    .try_get_of_type::<ListView>(selector.list_view)
+                    .unwrap()
+                    .items;
+
+                let filter_text = text.to_lowercase();
+
+                for item in items {
+                    let mut matches = false;
+                    for (_, widget) in ui.traverse_iter(*item) {
+                        if let Some(text) = widget.cast::<Text>() {
+                            let text = text.text().to_lowercase();
+                            matches |= text.contains(&filter_text)
+                                || fuzzy_compare(&filter_text, text.as_str()) >= 0.5;
+                        }
+                    }
+                    ui.send_message(WidgetMessage::visibility(
+                        *item,
+                        MessageDirection::ToWidget,
+                        matches || filter_text.is_empty(),
+                    ));
+                }
+            }
         }
     }
 
@@ -462,15 +503,25 @@ impl AssetSelectorWindowBuilder {
         resource_manager: ResourceManager,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
-        let selector = AssetSelectorBuilder::new(WidgetBuilder::new().on_row(0))
-            .with_asset_types(self.asset_types)
-            .build(sender, resource_manager, ctx);
+        let search_bar = SearchBarBuilder::new(
+            WidgetBuilder::new()
+                .on_row(0)
+                .with_margin(Thickness::uniform(2.0))
+                .with_height(22.0)
+                .with_tab_index(Some(0)),
+        )
+        .build(ctx);
+
+        let selector =
+            AssetSelectorBuilder::new(WidgetBuilder::new().on_row(1).with_tab_index(Some(1)))
+                .with_asset_types(self.asset_types)
+                .build(sender, resource_manager, ctx);
 
         let ok;
         let cancel;
         let buttons = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .on_row(1)
+                .on_row(2)
                 .with_horizontal_alignment(HorizontalAlignment::Right)
                 .with_margin(Thickness::uniform(2.0))
                 .with_child({
@@ -478,7 +529,8 @@ impl AssetSelectorWindowBuilder {
                         WidgetBuilder::new()
                             .with_width(100.0)
                             .with_height(22.0)
-                            .with_margin(Thickness::uniform(1.0)),
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_tab_index(Some(2)),
                     )
                     .with_text("Select")
                     .build(ctx);
@@ -489,7 +541,8 @@ impl AssetSelectorWindowBuilder {
                         WidgetBuilder::new()
                             .with_width(100.0)
                             .with_height(22.0)
-                            .with_margin(Thickness::uniform(1.0)),
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_tab_index(Some(3)),
                     )
                     .with_text("Cancel")
                     .build(ctx);
@@ -501,9 +554,11 @@ impl AssetSelectorWindowBuilder {
 
         let content = GridBuilder::new(
             WidgetBuilder::new()
+                .with_child(search_bar)
                 .with_child(selector)
                 .with_child(buttons),
         )
+        .add_row(Row::auto())
         .add_row(Row::stretch())
         .add_row(Row::auto())
         .add_column(Column::stretch())
@@ -515,6 +570,7 @@ impl AssetSelectorWindowBuilder {
             ok,
             cancel,
             selected_resource: None,
+            search_bar,
         };
 
         ctx.add_node(UiNode::new(window))
@@ -538,7 +594,7 @@ impl AssetSelectorWindowBuilder {
             selector,
             MessageDirection::ToWidget,
             true,
-            true,
+            false,
         ));
 
         selector
