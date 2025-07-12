@@ -34,7 +34,7 @@ use crate::{
 use std::sync::mpsc::Receiver;
 
 pub struct IconRequest {
-    pub asset_item: Handle<UiNode>,
+    pub widget_handle: Handle<UiNode>,
     pub resource: UntypedResource,
     pub force_update: bool,
 }
@@ -61,7 +61,7 @@ impl AssetPreviewCache {
     ) {
         for request in self.receiver.try_iter().take(self.throughput) {
             let IconRequest {
-                asset_item,
+                widget_handle: asset_item,
                 resource,
                 force_update,
             } = request;

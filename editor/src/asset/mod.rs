@@ -558,7 +558,7 @@ impl AssetBrowser {
                 if let Ok(resource) = rm.request_untyped(resource_path).await {
                     Log::verify(preview_sender.send(IconRequest {
                         resource,
-                        asset_item,
+                        widget_handle: asset_item,
                         force_update: false,
                     }));
                 }
@@ -1013,7 +1013,7 @@ impl AssetBrowser {
                         if let Some(resource) = asset_item.untyped_resource() {
                             self.preview_sender
                                 .send(IconRequest {
-                                    asset_item: *item,
+                                    widget_handle: *item,
                                     resource,
                                     force_update: true,
                                 })

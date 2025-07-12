@@ -18,13 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::asset::selector::AssetSelectorMixin;
 use crate::{
-    asset::{item::AssetItem, preview::cache::IconRequest},
+    asset::{
+        item::AssetItem, item::AssetItemMessage, preview::cache::IconRequest,
+        selector::AssetSelectorMixin,
+    },
     fyrox::{
         asset::{manager::ResourceManager, state::LoadError, Resource, TypedResourceData},
         core::{
-            color::Color, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
+            color::Color, log::Log, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
             type_traits::prelude::*, uuid::uuid, visitor::prelude::*, PhantomDataSendSync,
         },
         graph::BaseSceneGraph,
@@ -34,7 +36,7 @@ use crate::{
             define_constructor,
             draw::{CommandTexture, Draw, DrawingContext},
             grid::{Column, GridBuilder, Row},
-            image::ImageBuilder,
+            image::{ImageBuilder, ImageMessage},
             inspector::{
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -48,7 +50,6 @@ use crate::{
             BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
     },
-    load_image,
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
     utils, Message,
@@ -134,6 +135,7 @@ where
     #[visit(skip)]
     #[reflect(hidden)]
     sender: MessageSender,
+    image: Handle<UiNode>,
 }
 
 impl<T> Debug for ResourceField<T>
@@ -157,6 +159,7 @@ where
             resource: self.resource.clone(),
             locate: self.locate,
             sender: self.sender.clone(),
+            image: self.image,
         }
     }
 }
@@ -246,6 +249,22 @@ where
                     }
                 }
             }
+        } else if let Some(AssetItemMessage::Icon { texture, flip_y }) = message.data() {
+            if message.destination() == self.handle
+                && message.direction() == MessageDirection::ToWidget
+            {
+                dbg!();
+                ui.send_message(ImageMessage::texture(
+                    self.image,
+                    MessageDirection::ToWidget,
+                    texture.clone(),
+                ));
+                ui.send_message(ImageMessage::flip(
+                    self.image,
+                    MessageDirection::ToWidget,
+                    *flip_y,
+                ));
+            }
         }
 
         self.selector_mixin.handle_ui_message(ui, message);
@@ -298,6 +317,7 @@ where
         let name;
         let locate;
         let select;
+        let image;
         let field = ResourceField {
             widget: self
                 .widget_builder
@@ -305,26 +325,24 @@ where
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
-                            .with_child(
-                                ImageBuilder::new(
+                            .with_child({
+                                image = ImageBuilder::new(
                                     WidgetBuilder::new()
                                         .on_column(0)
                                         .with_width(16.0)
                                         .with_height(16.0)
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_opt_texture(load_image!(
-                                    "../../../../resources/sound_source.png"
-                                ))
-                                .build(ctx),
-                            )
+                                .build(ctx);
+                                image
+                            })
                             .with_child({
                                 name = TextBuilder::new(
                                     WidgetBuilder::new()
                                         .on_column(1)
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_vertical_alignment(VerticalAlignment::Center),
+                                        .with_margin(Thickness::uniform(1.0)),
                                 )
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .with_text(resource_path(&resource_manager, &self.resource))
                                 .build(ctx);
                                 name
@@ -355,13 +373,28 @@ where
                 .with_allow_drop(true)
                 .build(ctx),
             name,
-            selector_mixin: AssetSelectorMixin::new(select, icon_request_sender, resource_manager),
-            resource: self.resource,
+            selector_mixin: AssetSelectorMixin::new(
+                select,
+                icon_request_sender.clone(),
+                resource_manager,
+            ),
+            resource: self.resource.clone(),
             locate,
             sender: self.sender,
+            image,
         };
 
-        ctx.add_node(UiNode::new(field))
+        let handle = ctx.add_node(UiNode::new(field));
+
+        if let Some(resource) = self.resource.as_ref() {
+            Log::verify(icon_request_sender.send(IconRequest {
+                widget_handle: handle,
+                resource: resource.clone().into_untyped(),
+                force_update: false,
+            }));
+        }
+
+        handle
     }
 }
 

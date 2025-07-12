@@ -123,7 +123,7 @@ impl Control for Item {
                     self.need_request_preview.set(false);
 
                     Log::verify(self.sender.send(IconRequest {
-                        asset_item: self.handle,
+                        widget_handle: self.handle,
                         resource: self.resource_manager.request_untyped(self.path.as_path()),
                         force_update: false,
                     }));
