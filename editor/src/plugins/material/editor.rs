@@ -363,17 +363,20 @@ mod test {
     use fyrox::asset::manager::ResourceManager;
     use fyrox::core::task::TaskPool;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+    use std::sync::mpsc::channel;
     use std::sync::Arc;
 
     #[test]
     fn test_deletion() {
         let resource_manager =
             ResourceManager::new(Arc::new(FsResourceIo), Arc::new(TaskPool::new()));
+        let (sender, _) = channel();
         test_widget_deletion(|ctx| {
             MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
                 ctx,
                 Default::default(),
                 Default::default(),
+                sender,
                 resource_manager,
             )
         });

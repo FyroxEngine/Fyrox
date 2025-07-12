@@ -626,7 +626,7 @@ impl<T: TypedResourceData> Clone for AssetSelectorMixin<T> {
     fn clone(&self) -> Self {
         Self {
             selector: self.selector.clone(),
-            select: self.select.clone(),
+            select: self.select,
             icon_request_sender: self.icon_request_sender.clone(),
             resource_manager: self.resource_manager.clone(),
             phantom_data_send_sync: self.phantom_data_send_sync,

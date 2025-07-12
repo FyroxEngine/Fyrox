@@ -18,9 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::inspector::EditorEnvironment;
 use crate::{
-    asset::item::AssetItem,
+    asset::{item::AssetItem, preview::cache::IconRequest, selector::AssetSelectorMixin},
     fyrox::{
         asset::manager::ResourceManager,
         core::{
@@ -47,12 +46,14 @@ use crate::{
         scene::mesh::surface::{SurfaceData, SurfaceResource},
     },
     message::MessageSender,
+    plugins::inspector::EditorEnvironment,
+    utils::make_pick_button,
     Message,
 };
-
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -76,9 +77,7 @@ pub struct SurfaceDataPropertyEditor {
     #[visit(skip)]
     #[reflect(hidden)]
     sender: Option<MessageSender>,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    resource_manager: ResourceManager,
+    asset_selector_mixin: AssetSelectorMixin<SurfaceData>,
 }
 
 define_widget_deref!(SurfaceDataPropertyEditor);
@@ -97,6 +96,7 @@ impl Control for SurfaceDataPropertyEditor {
             if message.destination() == self.handle() {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
                     let path = if self
+                        .asset_selector_mixin
                         .resource_manager
                         .state()
                         .built_in_resources
@@ -108,8 +108,10 @@ impl Control for SurfaceDataPropertyEditor {
                     };
 
                     if let Ok(path) = path {
-                        if let Some(request) =
-                            self.resource_manager.try_request::<SurfaceData>(path)
+                        if let Some(request) = self
+                            .asset_selector_mixin
+                            .resource_manager
+                            .try_request::<SurfaceData>(path)
                         {
                             if let Ok(value) = block_on(request) {
                                 ui.send_message(SurfaceDataPropertyEditorMessage::value(
@@ -133,10 +135,23 @@ impl Control for SurfaceDataPropertyEditor {
                 ui.send_message(TextMessage::text(
                     self.text,
                     MessageDirection::ToWidget,
-                    surface_data_info(&self.resource_manager, value),
+                    surface_data_info(&self.asset_selector_mixin.resource_manager, value),
                 ));
             }
         }
+
+        self.asset_selector_mixin.handle_ui_message(ui, message);
+    }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        self.asset_selector_mixin
+            .preview_ui_message(ui, message, |resource| {
+                SurfaceDataPropertyEditorMessage::value(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    resource.try_cast::<SurfaceData>().unwrap(),
+                )
+            })
     }
 }
 
@@ -161,6 +176,7 @@ impl SurfaceDataPropertyEditor {
         ctx: &mut BuildContext,
         data: SurfaceResource,
         sender: MessageSender,
+        icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
     ) -> Handle<UiNode> {
         let view = ButtonBuilder::new(
@@ -174,6 +190,8 @@ impl SurfaceDataPropertyEditor {
         .with_text("View...")
         .build(ctx);
 
+        let select = make_pick_button(2, ctx);
+
         let text = TextBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
@@ -184,12 +202,19 @@ impl SurfaceDataPropertyEditor {
         .build(ctx);
 
         let widget = WidgetBuilder::new()
+            .with_preview_messages(true)
             .with_child(
-                GridBuilder::new(WidgetBuilder::new().with_child(text).with_child(view))
-                    .add_column(Column::stretch())
-                    .add_column(Column::auto())
-                    .add_row(Row::auto())
-                    .build(ctx),
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(text)
+                        .with_child(view)
+                        .with_child(select),
+                )
+                .add_column(Column::stretch())
+                .add_column(Column::auto())
+                .add_column(Column::auto())
+                .add_row(Row::auto())
+                .build(ctx),
             )
             .with_allow_drop(true)
             .build(ctx);
@@ -199,7 +224,11 @@ impl SurfaceDataPropertyEditor {
             data,
             view,
             sender: Some(sender),
-            resource_manager,
+            asset_selector_mixin: AssetSelectorMixin::new(
+                select,
+                icon_request_sender,
+                resource_manager,
+            ),
             text,
         };
 
@@ -229,6 +258,7 @@ impl PropertyEditorDefinition for SurfaceDataPropertyEditorDefinition {
                 ctx.build_context,
                 value.clone(),
                 self.sender.clone(),
+                environment.icon_request_sender.clone(),
                 environment.resource_manager.clone(),
             ),
         })
