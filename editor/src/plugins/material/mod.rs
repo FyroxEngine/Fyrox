@@ -703,7 +703,6 @@ impl EditorPlugin for MaterialPlugin {
         let container = &editor.plugins.get_mut::<InspectorPlugin>().property_editors;
         container.insert(MaterialPropertyEditorDefinition {
             sender: Mutex::new(editor.message_sender.clone()),
-            resource_manager: editor.engine.resource_manager.clone(),
         });
         container.insert(InheritablePropertyEditorDefinition::<MaterialResource>::new());
         container.insert(InheritablePropertyEditorDefinition::<WidgetMaterial>::new());

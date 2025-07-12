@@ -215,7 +215,7 @@ impl TileSetEditor {
         let tile_set_field =
             ResourceFieldBuilder::<TileSet>::new(WidgetBuilder::new().on_column(1), sender.clone())
                 .with_resource(tile_book.get_tile_set())
-                .build(ctx, icon_request_sender, resource_manager.clone());
+                .build(ctx, icon_request_sender.clone(), resource_manager.clone());
         let tile_set_selector = GridBuilder::new(
             WidgetBuilder::new()
                 .with_visibility(tile_book.is_brush())
@@ -321,6 +321,7 @@ impl TileSetEditor {
             tiles_palette,
             tile_book.clone(),
             sender,
+            icon_request_sender,
             resource_manager.clone(),
             ctx,
         );

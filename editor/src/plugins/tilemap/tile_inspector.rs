@@ -24,8 +24,6 @@
 //! widgets and does its own synchronization and message handling, while
 //! `TileInspector` is just responsible for managing the `TileEditor` objects.
 
-use std::fmt::Debug;
-
 use crate::{
     command::{Command, CommandGroup},
     plugins::material::editor::{MaterialFieldEditorBuilder, MaterialFieldMessage},
@@ -53,8 +51,11 @@ use fyrox::{
     material::{MaterialResource, MaterialResourceExtension},
     scene::tilemap::{brush::*, tileset::*, *},
 };
+use std::fmt::Debug;
+use std::sync::mpsc::Sender;
 
 use super::*;
+use crate::asset::preview::cache::IconRequest;
 use commands::*;
 use palette::*;
 
@@ -794,6 +795,7 @@ impl TileInspector {
         tiles_palette: Handle<UiNode>,
         tile_book: TileBook,
         sender: MessageSender,
+        icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
         ctx: &mut BuildContext,
     ) -> Self {
@@ -807,6 +809,7 @@ impl TileInspector {
             Arc::new(Mutex::new(TileMaterialEditor::new(
                 ctx,
                 sender.clone(),
+                icon_request_sender.clone(),
                 resource_manager.clone(),
             ))) as TileEditorRef,
             Arc::new(Mutex::new(TileColorEditor::new(ctx))) as TileEditorRef,
@@ -864,6 +867,7 @@ impl TileInspector {
                 ctx,
                 sender.clone(),
                 DEFAULT_TILE_MATERIAL.deep_copy(),
+                icon_request_sender,
                 resource_manager,
             );
         let page_material_inspector = InspectorField::new("Material", page_material_field, ctx);

@@ -18,12 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::asset::selector::AssetSelectorMixin;
 use crate::{
-    asset::{
-        item::AssetItem,
-        preview::cache::IconRequest,
-        selector::{AssetSelectorMessage, AssetSelectorWindowBuilder},
-    },
+    asset::{item::AssetItem, preview::cache::IconRequest},
     fyrox::{
         asset::{manager::ResourceManager, state::LoadError, Resource, TypedResourceData},
         core::{
@@ -48,7 +45,6 @@ use crate::{
             message::{MessageDirection, UiMessage},
             text::{TextBuilder, TextMessage},
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            window::WindowMessage,
             BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
     },
@@ -59,7 +55,6 @@ use crate::{
 };
 use std::{
     any::TypeId,
-    cell::Cell,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     path::Path,
@@ -131,14 +126,7 @@ where
 {
     widget: Widget,
     name: Handle<UiNode>,
-    select: Handle<UiNode>,
-    selector: Cell<Handle<UiNode>>,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    resource_manager: ResourceManager,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    icon_request_sender: Sender<IconRequest>,
+    selector_mixin: AssetSelectorMixin<T>,
     #[visit(skip)]
     #[reflect(hidden)]
     resource: Option<Resource<T>>,
@@ -165,10 +153,7 @@ where
         Self {
             widget: self.widget.clone(),
             name: self.name,
-            select: self.select,
-            selector: self.selector.clone(),
-            resource_manager: self.resource_manager.clone(),
-            icon_request_sender: self.icon_request_sender.clone(),
+            selector_mixin: self.selector_mixin.clone(),
             resource: self.resource.clone(),
             locate: self.locate,
             sender: self.sender.clone(),
@@ -244,7 +229,7 @@ where
                 ui.send_message(TextMessage::text(
                     self.name,
                     MessageDirection::ToWidget,
-                    resource_path(&self.resource_manager, resource),
+                    resource_path(&self.selector_mixin.resource_manager, resource),
                 ));
 
                 ui.send_message(message.reverse());
@@ -252,33 +237,29 @@ where
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.locate {
                 if let Some(resource) = self.resource.as_ref() {
-                    if let Some(path) = self.resource_manager.resource_path(resource.as_ref()) {
+                    if let Some(path) = self
+                        .selector_mixin
+                        .resource_manager
+                        .resource_path(resource.as_ref())
+                    {
                         self.sender.send(Message::ShowInAssetBrowser(path));
                     }
                 }
-            } else if message.destination() == self.select {
-                self.selector
-                    .set(AssetSelectorWindowBuilder::build_for_type_and_open::<T>(
-                        self.icon_request_sender.clone(),
-                        self.resource_manager.clone(),
-                        ui,
-                    ));
             }
         }
+
+        self.selector_mixin.handle_ui_message(ui, message);
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if message.destination() == self.selector.get() {
-            if let Some(WindowMessage::Close) = message.data() {
-                self.selector.set(Handle::NONE);
-            } else if let Some(AssetSelectorMessage::Select(resource)) = message.data() {
-                ui.send_message(ResourceFieldMessage::value(
+        self.selector_mixin
+            .preview_ui_message(ui, message, |resource| {
+                ResourceFieldMessage::value(
                     self.handle,
                     MessageDirection::ToWidget,
                     resource.try_cast::<T>(),
-                ))
-            }
-        }
+                )
+            });
     }
 }
 
@@ -374,10 +355,7 @@ where
                 .with_allow_drop(true)
                 .build(ctx),
             name,
-            select,
-            selector: Default::default(),
-            resource_manager,
-            icon_request_sender,
+            selector_mixin: AssetSelectorMixin::new(select, icon_request_sender, resource_manager),
             resource: self.resource,
             locate,
             sender: self.sender,

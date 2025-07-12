@@ -53,6 +53,7 @@ use crate::{
         },
     },
 };
+use fyrox::core::PhantomDataSendSync;
 use rust_fuzzy_search::fuzzy_compare;
 use std::{
     cell::Cell,
@@ -603,5 +604,74 @@ impl AssetSelectorWindowBuilder {
         ));
 
         selector
+    }
+}
+
+#[derive(Reflect, Visit, Debug)]
+pub struct AssetSelectorMixin<T: TypedResourceData> {
+    pub selector: Cell<Handle<UiNode>>,
+    pub select: Handle<UiNode>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub icon_request_sender: Sender<IconRequest>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub resource_manager: ResourceManager,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub phantom_data_send_sync: PhantomDataSendSync<T>,
+}
+
+impl<T: TypedResourceData> Clone for AssetSelectorMixin<T> {
+    fn clone(&self) -> Self {
+        Self {
+            selector: self.selector.clone(),
+            select: self.select.clone(),
+            icon_request_sender: self.icon_request_sender.clone(),
+            resource_manager: self.resource_manager.clone(),
+            phantom_data_send_sync: self.phantom_data_send_sync,
+        }
+    }
+}
+
+impl<T: TypedResourceData> AssetSelectorMixin<T> {
+    pub fn new(
+        select: Handle<UiNode>,
+        icon_request_sender: Sender<IconRequest>,
+        resource_manager: ResourceManager,
+    ) -> Self {
+        Self {
+            selector: Default::default(),
+            select,
+            icon_request_sender,
+            resource_manager,
+            phantom_data_send_sync: Default::default(),
+        }
+    }
+
+    pub fn handle_ui_message(&self, ui: &mut UserInterface, message: &UiMessage) {
+        if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.select {
+                self.selector
+                    .set(AssetSelectorWindowBuilder::build_for_type_and_open::<T>(
+                        self.icon_request_sender.clone(),
+                        self.resource_manager.clone(),
+                        ui,
+                    ));
+            }
+        }
+    }
+
+    pub fn preview_ui_message<F>(&self, ui: &UserInterface, message: &mut UiMessage, converter: F)
+    where
+        F: FnOnce(&UntypedResource) -> UiMessage,
+    {
+        if message.destination() == self.selector.get() {
+            if let Some(WindowMessage::Close) = message.data() {
+                self.selector.set(Handle::NONE);
+            } else if let Some(AssetSelectorMessage::Select(resource)) = message.data() {
+                ui.send_message(converter(resource))
+            }
+        }
     }
 }

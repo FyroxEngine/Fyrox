@@ -18,11 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::asset::selector::AssetSelectorMixin;
 use crate::{
-    asset::{
-        item::AssetItem, preview::cache::IconRequest, selector::AssetSelectorMessage,
-        selector::AssetSelectorWindowBuilder,
-    },
+    asset::{item::AssetItem, preview::cache::IconRequest},
     fyrox::{
         asset::{manager::ResourceManager, untyped::UntypedResource},
         core::{
@@ -31,7 +29,6 @@ use crate::{
         },
         graph::{BaseSceneGraph, SceneGraph},
         gui::{
-            button::ButtonMessage,
             define_constructor,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
@@ -47,7 +44,6 @@ use crate::{
             popup::{PopupBuilder, PopupMessage},
             stack_panel::StackPanelBuilder,
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            window::WindowMessage,
             BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface,
         },
         resource::texture::{Texture, TextureResource},
@@ -58,7 +54,6 @@ use crate::{
 };
 use std::{
     any::TypeId,
-    cell::Cell,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -113,21 +108,14 @@ impl TextureContextMenu {
 pub struct TextureEditor {
     widget: Widget,
     image: Handle<UiNode>,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    resource_manager: ResourceManager,
     texture: Option<TextureResource>,
-    selector: Cell<Handle<UiNode>>,
-    select: Handle<UiNode>,
+    selector_mixin: AssetSelectorMixin<Texture>,
     #[visit(skip)]
     #[reflect(hidden)]
     sender: MessageSender,
     #[visit(skip)]
     #[reflect(hidden)]
     texture_context_menu: Option<TextureContextMenu>,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    icon_request_sender: Sender<IconRequest>,
 }
 
 impl Debug for TextureEditor {
@@ -172,7 +160,9 @@ impl Control for TextureEditor {
                         ui.send_message(TextureEditorMessage::texture(
                             self.handle(),
                             MessageDirection::ToWidget,
-                            self.resource_manager.try_request::<Texture>(relative_path),
+                            self.selector_mixin
+                                .resource_manager
+                                .try_request::<Texture>(relative_path),
                         ));
                     }
                 }
@@ -193,11 +183,11 @@ impl Control for TextureEditor {
             let context_menu = self.texture_context_menu.as_mut().unwrap();
             if let Some(MenuItemMessage::Click) = message.data() {
                 if message.destination() == context_menu.show_in_asset_browser {
-                    if let Some(path) = self
-                        .texture
-                        .as_ref()
-                        .and_then(|t| self.resource_manager.resource_path(t.as_ref()))
-                    {
+                    if let Some(path) = self.texture.as_ref().and_then(|t| {
+                        self.selector_mixin
+                            .resource_manager
+                            .resource_path(t.as_ref())
+                    }) {
                         self.sender.send(Message::ShowInAssetBrowser(path));
                     }
                 } else if message.destination() == context_menu.unassign {
@@ -208,31 +198,20 @@ impl Control for TextureEditor {
                     ));
                 }
             }
-        } else if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.select {
-                self.selector.set(
-                    AssetSelectorWindowBuilder::build_for_type_and_open::<Texture>(
-                        self.icon_request_sender.clone(),
-                        self.resource_manager.clone(),
-                        ui,
-                    ),
-                );
-            }
         }
+
+        self.selector_mixin.handle_ui_message(ui, message);
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if message.destination() == self.selector.get() {
-            if let Some(WindowMessage::Close) = message.data() {
-                self.selector.set(Handle::NONE);
-            } else if let Some(AssetSelectorMessage::Select(resource)) = message.data() {
-                ui.send_message(TextureEditorMessage::texture(
+        self.selector_mixin
+            .preview_ui_message(ui, message, |resource| {
+                TextureEditorMessage::texture(
                     self.handle,
                     MessageDirection::ToWidget,
                     resource.try_cast::<Texture>(),
-                ))
-            }
-        }
+                )
+            });
     }
 }
 
@@ -295,13 +274,10 @@ impl TextureEditorBuilder {
         let editor = TextureEditor {
             widget,
             image,
-            resource_manager,
             texture: None,
-            selector: Default::default(),
-            select,
+            selector_mixin: AssetSelectorMixin::new(select, icon_request_sender, resource_manager),
             sender,
             texture_context_menu: None,
-            icon_request_sender,
         };
 
         let editor = ctx.add_node(UiNode::new(editor));

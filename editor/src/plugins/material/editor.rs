@@ -52,7 +52,12 @@ use crate::{
     Message, MessageDirection,
 };
 
+use crate::asset::preview::cache::IconRequest;
+use crate::asset::selector::AssetSelectorMixin;
+use crate::plugins::inspector::EditorEnvironment;
+use crate::utils::make_pick_button;
 use fyrox::asset::manager::ResourceManager;
+use std::sync::mpsc::Sender;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -79,9 +84,7 @@ pub struct MaterialFieldEditor {
     edit: Handle<UiNode>,
     make_unique: Handle<UiNode>,
     material: MaterialResource,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    resource_manager: ResourceManager,
+    asset_selector_mixin: AssetSelectorMixin<Material>,
 }
 
 impl Debug for MaterialFieldEditor {
@@ -144,7 +147,7 @@ impl Control for MaterialFieldEditor {
                 ui.send_message(TextMessage::text(
                     self.text,
                     MessageDirection::ToWidget,
-                    make_name(&self.resource_manager, &self.material),
+                    make_name(&self.asset_selector_mixin.resource_manager, &self.material),
                 ));
 
                 ui.send_message(message.reverse());
@@ -160,6 +163,19 @@ impl Control for MaterialFieldEditor {
                 }
             }
         }
+
+        self.asset_selector_mixin.handle_ui_message(ui, message);
+    }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        self.asset_selector_mixin
+            .preview_ui_message(ui, message, |resource| {
+                MaterialFieldMessage::material(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    resource.try_cast::<Material>().unwrap(),
+                )
+            });
     }
 }
 
@@ -201,17 +217,55 @@ impl MaterialFieldEditorBuilder {
         ctx: &mut BuildContext,
         sender: MessageSender,
         material: MaterialResource,
+        icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
     ) -> Handle<UiNode> {
         let edit;
         let text;
+        let select;
         let make_unique;
         let make_unique_tooltip = "Creates a deep copy of the material, making a separate version of the material. \
         Useful when you need to change some properties in the material, but only on some nodes that uses the material.";
 
+        let buttons = GridBuilder::new(
+            WidgetBuilder::new()
+                .on_row(1)
+                .with_child({
+                    edit = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_width(40.0)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_text("Edit...")
+                    .build(ctx);
+                    edit
+                })
+                .with_child({
+                    make_unique = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .on_column(1)
+                            .with_tooltip(make_simple_tooltip(ctx, make_unique_tooltip)),
+                    )
+                    .with_text("Make Unique")
+                    .build(ctx);
+                    make_unique
+                })
+                .with_child({
+                    select = make_pick_button(2, ctx);
+                    select
+                }),
+        )
+        .add_row(Row::strict(20.0))
+        .add_column(Column::auto())
+        .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .build(ctx);
+
         let editor = MaterialFieldEditor {
             widget: self
                 .widget_builder
+                .with_preview_messages(true)
                 .with_allow_drop(true)
                 .with_child(
                     GridBuilder::new(
@@ -225,40 +279,7 @@ impl MaterialFieldEditorBuilder {
                                 .build(ctx);
                                 text
                             })
-                            .with_child(
-                                GridBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_row(1)
-                                        .with_child({
-                                            edit = ButtonBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_width(40.0)
-                                                    .with_margin(Thickness::uniform(1.0)),
-                                            )
-                                            .with_text("Edit...")
-                                            .build(ctx);
-                                            edit
-                                        })
-                                        .with_child({
-                                            make_unique = ButtonBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_margin(Thickness::uniform(1.0))
-                                                    .on_column(1)
-                                                    .with_tooltip(make_simple_tooltip(
-                                                        ctx,
-                                                        make_unique_tooltip,
-                                                    )),
-                                            )
-                                            .with_text("Make Unique")
-                                            .build(ctx);
-                                            make_unique
-                                        }),
-                                )
-                                .add_row(Row::strict(20.0))
-                                .add_column(Column::auto())
-                                .add_column(Column::stretch())
-                                .build(ctx),
-                            ),
+                            .with_child(buttons),
                     )
                     .add_row(Row::auto())
                     .add_row(Row::auto())
@@ -271,7 +292,11 @@ impl MaterialFieldEditorBuilder {
             material,
             text,
             make_unique,
-            resource_manager,
+            asset_selector_mixin: AssetSelectorMixin::new(
+                select,
+                icon_request_sender,
+                resource_manager,
+            ),
         };
 
         ctx.add_node(UiNode::new(editor))
@@ -281,7 +306,6 @@ impl MaterialFieldEditorBuilder {
 #[derive(Debug)]
 pub struct MaterialPropertyEditorDefinition {
     pub sender: Mutex<MessageSender>,
-    pub resource_manager: ResourceManager,
 }
 
 impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
@@ -294,12 +318,14 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<MaterialResource>()?;
+        let environment = EditorEnvironment::try_get_from(&ctx.environment)?;
         Ok(PropertyEditorInstance::Simple {
             editor: MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
                 ctx.build_context,
                 self.sender.lock().clone(),
                 value.clone(),
-                self.resource_manager.clone(),
+                environment.icon_request_sender.clone(),
+                environment.resource_manager.clone(),
             ),
         })
     }

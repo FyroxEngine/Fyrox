@@ -25,8 +25,10 @@ use crate::{
     plugins::material::editor::{MaterialFieldEditorBuilder, MaterialFieldMessage},
     send_sync_message, MSG_SYNC_FLAG,
 };
+use std::sync::mpsc::Sender;
 
 use super::*;
+use crate::asset::preview::cache::IconRequest;
 use commands::*;
 use fyrox::{
     fxhash::FxHashMap,
@@ -190,12 +192,19 @@ impl TileMaterialEditor {
     pub fn new(
         ctx: &mut BuildContext,
         sender: MessageSender,
+        icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
     ) -> Self {
         let draw_button = make_draw_button("Apply material to tiles", ctx, None);
         let material = DEFAULT_TILE_MATERIAL.deep_copy();
         let material_field = MaterialFieldEditorBuilder::new(WidgetBuilder::new().on_column(2))
-            .build(ctx, sender, material.clone(), resource_manager);
+            .build(
+                ctx,
+                sender,
+                material.clone(),
+                icon_request_sender,
+                resource_manager,
+            );
         let material_line = make_drawable_field("Material", draw_button, material_field, ctx);
         let bounds_field = TileBoundsEditorBuilder::new(WidgetBuilder::new()).build(ctx);
         Self {
