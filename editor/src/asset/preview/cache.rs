@@ -25,13 +25,12 @@ use crate::{
     },
     fyrox::{
         asset::untyped::UntypedResource,
-        core::pool::Handle,
+        core::{futures::executor::block_on, ok_or_continue, pool::Handle, Uuid},
         engine::Engine,
         fxhash::FxHashMap,
         gui::{message::MessageDirection, UiNode},
     },
 };
-use fyrox::core::Uuid;
 use std::sync::mpsc::Receiver;
 
 pub struct IconRequest {
@@ -66,6 +65,8 @@ impl AssetPreviewCache {
                 resource,
                 force_update,
             } = request;
+
+            let resource = ok_or_continue!(block_on(resource));
 
             let preview = if let Some(resource_uuid) = resource.resource_uuid() {
                 if let (false, Some(cached_preview)) =

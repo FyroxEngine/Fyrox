@@ -27,8 +27,8 @@ use crate::{
     fyrox::{
         asset::{manager::ResourceManager, untyped::UntypedResource, TypedResourceData},
         core::{
-            algebra::Vector2, futures::executor::block_on, log::Log, pool::Handle,
-            reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
+            algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+            visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
@@ -121,17 +121,13 @@ impl Control for Item {
                 if self.clip_bounds().contains(corner) {
                     self.need_request_preview.set(false);
 
-                    if let Ok(resource) =
-                        block_on(self.resource_manager.request_untyped(self.path.as_path()))
-                    {
-                        Log::verify(self.sender.send(IconRequest {
-                            asset_item: self.handle,
-                            resource,
-                            force_update: false,
-                        }));
+                    Log::verify(self.sender.send(IconRequest {
+                        asset_item: self.handle,
+                        resource: self.resource_manager.request_untyped(self.path.as_path()),
+                        force_update: false,
+                    }));
 
-                        break;
-                    }
+                    break;
                 }
             }
         }
