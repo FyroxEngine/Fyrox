@@ -529,6 +529,12 @@ impl Control for ListView {
                         vec![new_selection],
                     ));
 
+                    ui.send_message(ListViewMessage::bring_item_into_view(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        self.items[new_selection],
+                    ));
+
                     message.set_handled(true);
                 }
             }
