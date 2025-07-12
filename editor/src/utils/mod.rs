@@ -53,7 +53,9 @@ pub fn make_pick_button(column: usize, ctx: &mut BuildContext) -> Handle<UiNode>
     )
     .with_content(
         ImageBuilder::new(
-            WidgetBuilder::new().with_background(Brush::Solid(Color::opaque(0, 180, 0)).into()),
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .with_background(Brush::Solid(Color::opaque(0, 180, 0)).into()),
         )
         .with_opt_texture(load_image!("../../resources/pick.png"))
         .build(ctx),
