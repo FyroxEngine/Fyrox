@@ -20,7 +20,7 @@
 
 use crate::{
     asset::{
-        self, item::AssetItem, item::AssetItemMessage, preview::cache::IconRequest,
+        item::AssetItem, item::AssetItemMessage, preview::cache::IconRequest,
         selector::AssetSelectorMixin,
     },
     fyrox::{
@@ -31,7 +31,6 @@ use crate::{
         },
         graph::BaseSceneGraph,
         gui::{
-            border::BorderBuilder,
             brush::Brush,
             button::{ButtonBuilder, ButtonMessage},
             define_constructor,
@@ -46,17 +45,16 @@ use crate::{
                 FieldKind, InspectorError, PropertyChanged,
             },
             message::{MessageDirection, UiMessage},
-            style::{resource::StyleResourceExt, Style},
             text::{TextBuilder, TextMessage},
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface,
-            VerticalAlignment,
+            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
     },
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
     utils, Message,
 };
+use fyrox::gui::utils::make_asset_preview_tooltip;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -320,30 +318,7 @@ where
         icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
     ) -> Handle<UiNode> {
-        let size = asset::item::DEFAULT_SIZE * 2.0;
-        let image_preview;
-        let image_preview_tooltip = BorderBuilder::new(
-            WidgetBuilder::new()
-                .with_visibility(false)
-                .with_hit_test_visibility(false)
-                .with_foreground(ctx.style.property(Style::BRUSH_DARKEST))
-                .with_background(Brush::Solid(Color::opaque(230, 230, 230)).into())
-                .with_width(size + 2.0)
-                .with_height(size + 2.0)
-                .with_child({
-                    image_preview = ImageBuilder::new(
-                        WidgetBuilder::new()
-                            .on_column(0)
-                            .with_width(size)
-                            .with_height(size)
-                            .with_margin(Thickness::uniform(1.0)),
-                    )
-                    .with_sync_with_texture_size(false)
-                    .build(ctx);
-                    image_preview
-                }),
-        )
-        .build(ctx);
+        let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(ctx);
 
         let name;
         let locate;
@@ -363,10 +338,7 @@ where
                                         .with_width(16.0)
                                         .with_height(16.0)
                                         .with_margin(Thickness::uniform(1.0))
-                                        .with_tooltip(RcUiNodeHandle::new(
-                                            image_preview_tooltip,
-                                            ctx.sender(),
-                                        )),
+                                        .with_tooltip(image_preview_tooltip),
                                 )
                                 .with_sync_with_texture_size(false)
                                 .build(ctx);

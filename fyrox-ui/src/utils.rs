@@ -168,6 +168,37 @@ pub fn make_simple_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle
     RcUiNodeHandle::new(handle, ctx.sender())
 }
 
+pub fn make_asset_preview_tooltip(ctx: &mut BuildContext) -> (RcUiNodeHandle, Handle<UiNode>) {
+    let size = 120.0;
+    let image_preview;
+    let image_preview_tooltip = BorderBuilder::new(
+        WidgetBuilder::new()
+            .with_visibility(false)
+            .with_hit_test_visibility(false)
+            .with_foreground(ctx.style.property(Style::BRUSH_DARKEST))
+            .with_background(Brush::Solid(Color::opaque(230, 230, 230)).into())
+            .with_width(size + 2.0)
+            .with_height(size + 2.0)
+            .with_child({
+                image_preview = ImageBuilder::new(
+                    WidgetBuilder::new()
+                        .on_column(0)
+                        .with_width(size)
+                        .with_height(size)
+                        .with_margin(Thickness::uniform(1.0)),
+                )
+                .with_sync_with_texture_size(false)
+                .build(ctx);
+                image_preview
+            }),
+    )
+    .build(ctx);
+    (
+        RcUiNodeHandle::new(image_preview_tooltip, ctx.sender()),
+        image_preview,
+    )
+}
+
 pub fn make_dropdown_list_option_universal<T: Send + 'static>(
     ctx: &mut BuildContext,
     name: &str,

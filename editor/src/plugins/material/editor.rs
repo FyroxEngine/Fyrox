@@ -19,12 +19,16 @@
 // SOFTWARE.
 
 use crate::{
-    asset::item::AssetItem,
+    asset::{
+        item::{AssetItem, AssetItemMessage},
+        preview::cache::IconRequest,
+        selector::AssetSelectorMixin,
+    },
     fyrox::{
-        asset::{core::pool::Handle, state::ResourceState},
+        asset::{core::pool::Handle, manager::ResourceManager, state::ResourceState},
         core::{
-            color::Color, parking_lot::Mutex, reflect::prelude::*, type_traits::prelude::*,
-            uuid_provider, visitor::prelude::*,
+            color::Color, log::Log, parking_lot::Mutex, reflect::prelude::*,
+            type_traits::prelude::*, uuid_provider, visitor::prelude::*,
         },
         graph::BaseSceneGraph,
         gui::{
@@ -33,6 +37,7 @@ use crate::{
             define_constructor,
             draw::{CommandTexture, Draw, DrawingContext},
             grid::{Column, GridBuilder, Row},
+            image::{ImageBuilder, ImageMessage},
             inspector::{
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -42,26 +47,22 @@ use crate::{
             },
             message::UiMessage,
             text::{TextBuilder, TextMessage},
-            utils::make_simple_tooltip,
+            utils::{make_asset_preview_tooltip, make_simple_tooltip},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         material::{Material, MaterialResource, MaterialResourceExtension},
     },
     message::MessageSender,
+    plugins::inspector::EditorEnvironment,
+    utils::make_pick_button,
     Message, MessageDirection,
 };
-
-use crate::asset::preview::cache::IconRequest;
-use crate::asset::selector::AssetSelectorMixin;
-use crate::plugins::inspector::EditorEnvironment;
-use crate::utils::make_pick_button;
-use fyrox::asset::manager::ResourceManager;
-use std::sync::mpsc::Sender;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -84,6 +85,8 @@ pub struct MaterialFieldEditor {
     edit: Handle<UiNode>,
     make_unique: Handle<UiNode>,
     material: MaterialResource,
+    image: Handle<UiNode>,
+    image_preview: Handle<UiNode>,
     asset_selector_mixin: AssetSelectorMixin<Material>,
 }
 
@@ -159,6 +162,23 @@ impl Control for MaterialFieldEditor {
                         self.handle(),
                         MessageDirection::ToWidget,
                         material,
+                    ));
+                }
+            }
+        } else if let Some(AssetItemMessage::Icon { texture, flip_y }) = message.data() {
+            if message.destination() == self.handle
+                && message.direction() == MessageDirection::ToWidget
+            {
+                for widget in [self.image, self.image_preview] {
+                    ui.send_message(ImageMessage::texture(
+                        widget,
+                        MessageDirection::ToWidget,
+                        texture.clone(),
+                    ));
+                    ui.send_message(ImageMessage::flip(
+                        widget,
+                        MessageDirection::ToWidget,
+                        *flip_y,
                     ));
                 }
             }
@@ -262,44 +282,72 @@ impl MaterialFieldEditorBuilder {
         .add_column(Column::auto())
         .build(ctx);
 
+        let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(ctx);
+
+        let image = ImageBuilder::new(
+            WidgetBuilder::new()
+                .on_column(0)
+                .with_width(32.0)
+                .with_height(32.0)
+                .with_tooltip(image_preview_tooltip)
+                .with_margin(Thickness::uniform(1.0)),
+        )
+        .build(ctx);
+
+        let content = GridBuilder::new(
+            WidgetBuilder::new()
+                .on_column(1)
+                .with_child({
+                    text =
+                        TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                            .with_text(make_name(&resource_manager, &material))
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .build(ctx);
+                    text
+                })
+                .with_child(buttons),
+        )
+        .add_row(Row::auto())
+        .add_row(Row::auto())
+        .add_column(Column::auto())
+        .build(ctx);
+
         let editor = MaterialFieldEditor {
             widget: self
                 .widget_builder
                 .with_preview_messages(true)
                 .with_allow_drop(true)
                 .with_child(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child({
-                                text = TextBuilder::new(
-                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text(make_name(&resource_manager, &material))
-                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .build(ctx);
-                                text
-                            })
-                            .with_child(buttons),
-                    )
-                    .add_row(Row::auto())
-                    .add_row(Row::auto())
-                    .add_column(Column::auto())
-                    .build(ctx),
+                    GridBuilder::new(WidgetBuilder::new().with_child(image).with_child(content))
+                        .add_column(Column::auto())
+                        .add_column(Column::stretch())
+                        .add_row(Row::auto())
+                        .build(ctx),
                 )
                 .build(ctx),
             edit,
             sender,
-            material,
+            material: material.clone(),
             text,
             make_unique,
             asset_selector_mixin: AssetSelectorMixin::new(
                 select,
-                icon_request_sender,
+                icon_request_sender.clone(),
                 resource_manager,
             ),
+            image,
+            image_preview,
         };
 
-        ctx.add_node(UiNode::new(editor))
+        let handle = ctx.add_node(UiNode::new(editor));
+
+        Log::verify(icon_request_sender.send(IconRequest {
+            widget_handle: handle,
+            resource: material.into_untyped(),
+            force_update: false,
+        }));
+
+        handle
     }
 }
 
