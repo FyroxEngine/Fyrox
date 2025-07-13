@@ -20,7 +20,7 @@
 
 use crate::{
     asset::{
-        item::AssetItem, item::AssetItemMessage, preview::cache::IconRequest,
+        self, item::AssetItem, item::AssetItemMessage, preview::cache::IconRequest,
         selector::AssetSelectorMixin,
     },
     fyrox::{
@@ -31,6 +31,7 @@ use crate::{
         },
         graph::BaseSceneGraph,
         gui::{
+            border::BorderBuilder,
             brush::Brush,
             button::{ButtonBuilder, ButtonMessage},
             define_constructor,
@@ -45,9 +46,11 @@ use crate::{
                 FieldKind, InspectorError, PropertyChanged,
             },
             message::{MessageDirection, UiMessage},
+            style::{resource::StyleResourceExt, Style},
             text::{TextBuilder, TextMessage},
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
+            BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface,
+            VerticalAlignment,
         },
     },
     message::MessageSender,
@@ -136,6 +139,7 @@ where
     #[reflect(hidden)]
     sender: MessageSender,
     image: Handle<UiNode>,
+    image_preview: Handle<UiNode>,
 }
 
 impl<T> Debug for ResourceField<T>
@@ -160,6 +164,7 @@ where
             locate: self.locate,
             sender: self.sender.clone(),
             image: self.image,
+            image_preview: self.image_preview,
         }
     }
 }
@@ -253,17 +258,18 @@ where
             if message.destination() == self.handle
                 && message.direction() == MessageDirection::ToWidget
             {
-                dbg!();
-                ui.send_message(ImageMessage::texture(
-                    self.image,
-                    MessageDirection::ToWidget,
-                    texture.clone(),
-                ));
-                ui.send_message(ImageMessage::flip(
-                    self.image,
-                    MessageDirection::ToWidget,
-                    *flip_y,
-                ));
+                for widget in [self.image, self.image_preview] {
+                    ui.send_message(ImageMessage::texture(
+                        widget,
+                        MessageDirection::ToWidget,
+                        texture.clone(),
+                    ));
+                    ui.send_message(ImageMessage::flip(
+                        widget,
+                        MessageDirection::ToWidget,
+                        *flip_y,
+                    ));
+                }
             }
         }
 
@@ -314,6 +320,31 @@ where
         icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
     ) -> Handle<UiNode> {
+        let size = asset::item::DEFAULT_SIZE * 2.0;
+        let image_preview;
+        let image_preview_tooltip = BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_visibility(false)
+                .with_hit_test_visibility(false)
+                .with_foreground(ctx.style.property(Style::BRUSH_DARKEST))
+                .with_background(Brush::Solid(Color::opaque(230, 230, 230)).into())
+                .with_width(size + 2.0)
+                .with_height(size + 2.0)
+                .with_child({
+                    image_preview = ImageBuilder::new(
+                        WidgetBuilder::new()
+                            .on_column(0)
+                            .with_width(size)
+                            .with_height(size)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_sync_with_texture_size(false)
+                    .build(ctx);
+                    image_preview
+                }),
+        )
+        .build(ctx);
+
         let name;
         let locate;
         let select;
@@ -331,8 +362,13 @@ where
                                         .on_column(0)
                                         .with_width(16.0)
                                         .with_height(16.0)
-                                        .with_margin(Thickness::uniform(1.0)),
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(RcUiNodeHandle::new(
+                                            image_preview_tooltip,
+                                            ctx.sender(),
+                                        )),
                                 )
+                                .with_sync_with_texture_size(false)
                                 .build(ctx);
                                 image
                             })
@@ -382,6 +418,7 @@ where
             locate,
             sender: self.sender,
             image,
+            image_preview,
         };
 
         let handle = ctx.add_node(UiNode::new(field));
