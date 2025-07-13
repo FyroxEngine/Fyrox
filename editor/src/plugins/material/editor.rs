@@ -287,8 +287,8 @@ impl MaterialFieldEditorBuilder {
         let image = ImageBuilder::new(
             WidgetBuilder::new()
                 .on_column(0)
-                .with_width(32.0)
-                .with_height(32.0)
+                .with_width(52.0)
+                .with_height(52.0)
                 .with_tooltip(image_preview_tooltip)
                 .with_margin(Thickness::uniform(1.0)),
         )
