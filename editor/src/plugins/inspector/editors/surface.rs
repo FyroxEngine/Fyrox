@@ -19,18 +19,23 @@
 // SOFTWARE.
 
 use crate::{
-    asset::{item::AssetItem, preview::cache::IconRequest, selector::AssetSelectorMixin},
+    asset::{
+        item::{AssetItem, AssetItemMessage},
+        preview::cache::IconRequest,
+        selector::AssetSelectorMixin,
+    },
     fyrox::{
         asset::manager::ResourceManager,
         core::{
-            futures::executor::block_on, make_relative_path, pool::Handle, reflect::prelude::*,
-            type_traits::prelude::*, visitor::prelude::*,
+            futures::executor::block_on, log::Log, make_relative_path, pool::Handle,
+            reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
         },
         graph::BaseSceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             define_constructor, define_widget_deref,
             grid::{Column, GridBuilder, Row},
+            image::{ImageBuilder, ImageMessage},
             inspector::{
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -40,6 +45,7 @@ use crate::{
             },
             message::{MessageDirection, UiMessage},
             text::{TextBuilder, TextMessage},
+            utils::make_asset_preview_tooltip,
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, Thickness, UiNode, UserInterface,
         },
@@ -74,6 +80,8 @@ pub struct SurfaceDataPropertyEditor {
     view: Handle<UiNode>,
     data: SurfaceResource,
     text: Handle<UiNode>,
+    image: Handle<UiNode>,
+    image_preview: Handle<UiNode>,
     #[visit(skip)]
     #[reflect(hidden)]
     sender: Option<MessageSender>,
@@ -138,6 +146,23 @@ impl Control for SurfaceDataPropertyEditor {
                     surface_data_info(&self.asset_selector_mixin.resource_manager, value),
                 ));
             }
+        } else if let Some(AssetItemMessage::Icon { texture, flip_y }) = message.data() {
+            if message.destination() == self.handle
+                && message.direction() == MessageDirection::ToWidget
+            {
+                for widget in [self.image, self.image_preview] {
+                    ui.send_message(ImageMessage::texture(
+                        widget,
+                        MessageDirection::ToWidget,
+                        texture.clone(),
+                    ));
+                    ui.send_message(ImageMessage::flip(
+                        widget,
+                        MessageDirection::ToWidget,
+                        *flip_y,
+                    ));
+                }
+            }
         }
 
         self.asset_selector_mixin.handle_ui_message(ui, message);
@@ -201,38 +226,67 @@ impl SurfaceDataPropertyEditor {
         .with_text(surface_data_info(&resource_manager, &data))
         .build(ctx);
 
+        let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(ctx);
+
+        let image = ImageBuilder::new(
+            WidgetBuilder::new()
+                .on_column(0)
+                .with_width(52.0)
+                .with_height(52.0)
+                .with_tooltip(image_preview_tooltip)
+                .with_margin(Thickness::uniform(1.0)),
+        )
+        .build(ctx);
+
+        let content = GridBuilder::new(
+            WidgetBuilder::new()
+                .on_column(1)
+                .with_child(text)
+                .with_child(view)
+                .with_child(select),
+        )
+        .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .add_column(Column::auto())
+        .add_row(Row::auto())
+        .build(ctx);
+
         let widget = WidgetBuilder::new()
             .with_preview_messages(true)
             .with_child(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(text)
-                        .with_child(view)
-                        .with_child(select),
-                )
-                .add_column(Column::stretch())
-                .add_column(Column::auto())
-                .add_column(Column::auto())
-                .add_row(Row::auto())
-                .build(ctx),
+                GridBuilder::new(WidgetBuilder::new().with_child(image).with_child(content))
+                    .add_column(Column::auto())
+                    .add_column(Column::stretch())
+                    .add_row(Row::auto())
+                    .build(ctx),
             )
             .with_allow_drop(true)
             .build(ctx);
 
         let editor = Self {
             widget,
-            data,
+            data: data.clone(),
             view,
             sender: Some(sender),
             asset_selector_mixin: AssetSelectorMixin::new(
                 select,
-                icon_request_sender,
+                icon_request_sender.clone(),
                 resource_manager,
             ),
             text,
+            image,
+            image_preview,
         };
 
-        ctx.add_node(UiNode::new(editor))
+        let handle = ctx.add_node(UiNode::new(editor));
+
+        Log::verify(icon_request_sender.send(IconRequest {
+            widget_handle: handle,
+            resource: data.into_untyped(),
+            force_update: false,
+        }));
+
+        handle
     }
 }
 
