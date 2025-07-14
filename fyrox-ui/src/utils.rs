@@ -168,7 +168,10 @@ pub fn make_simple_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle
     RcUiNodeHandle::new(handle, ctx.sender())
 }
 
-pub fn make_asset_preview_tooltip(ctx: &mut BuildContext) -> (RcUiNodeHandle, Handle<UiNode>) {
+pub fn make_asset_preview_tooltip(
+    texture: Option<TextureResource>,
+    ctx: &mut BuildContext,
+) -> (RcUiNodeHandle, Handle<UiNode>) {
     let size = 120.0;
     let image_preview;
     let image_preview_tooltip = BorderBuilder::new(
@@ -187,6 +190,7 @@ pub fn make_asset_preview_tooltip(ctx: &mut BuildContext) -> (RcUiNodeHandle, Ha
                         .with_height(size)
                         .with_margin(Thickness::uniform(1.0)),
                 )
+                .with_opt_texture(texture)
                 .with_sync_with_texture_size(false)
                 .build(ctx);
                 image_preview

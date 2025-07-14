@@ -18,9 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::asset::selector::AssetSelectorMixin;
 use crate::{
-    asset::{item::AssetItem, preview::cache::IconRequest},
+    asset::{item::AssetItem, preview::cache::IconRequest, selector::AssetSelectorMixin},
     fyrox::{
         asset::{manager::ResourceManager, untyped::UntypedResource},
         core::{
@@ -43,8 +42,11 @@ use crate::{
             message::{MessageDirection, UiMessage},
             popup::{PopupBuilder, PopupMessage},
             stack_panel::StackPanelBuilder,
+            text::TextBuilder,
+            utils::make_asset_preview_tooltip,
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface,
+            VerticalAlignment,
         },
         resource::texture::{Texture, TextureResource},
     },
@@ -251,23 +253,52 @@ impl TextureEditorBuilder {
             WidgetBuilder::new()
                 .on_column(0)
                 .with_margin(Thickness::uniform(1.0))
-                .with_allow_drop(true),
+                .with_allow_drop(true)
+                .with_width(32.0)
+                .with_height(32.0),
         )
         .with_sync_with_texture_size(false)
         .with_checkerboard_background(true)
-        .with_opt_texture(self.texture)
+        .with_opt_texture(self.texture.clone())
         .build(ctx);
 
-        let select = utils::make_pick_button(1, ctx);
+        let (tooltip, _) = make_asset_preview_tooltip(self.texture.clone(), ctx);
 
-        let content = GridBuilder::new(WidgetBuilder::new().with_child(image).with_child(select))
-            .add_row(Row::auto())
-            .add_column(Column::stretch())
-            .add_column(Column::auto())
-            .build(ctx);
+        let select = utils::make_pick_button(2, ctx);
+
+        let path = TextBuilder::new(
+            WidgetBuilder::new()
+                .on_column(1)
+                .with_margin(Thickness::uniform(1.0))
+                .with_vertical_alignment(VerticalAlignment::Center),
+        )
+        .with_text(
+            match self
+                .texture
+                .as_ref()
+                .and_then(|tex| resource_manager.resource_path(&tex.as_ref()))
+            {
+                None => "Unassigned".to_string(),
+                Some(path) => path.to_string_lossy().to_string(),
+            },
+        )
+        .build(ctx);
+
+        let content = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(image)
+                .with_child(path)
+                .with_child(select),
+        )
+        .add_row(Row::auto())
+        .add_column(Column::auto())
+        .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .build(ctx);
 
         let widget = self
             .widget_builder
+            .with_tooltip(tooltip)
             .with_preview_messages(true)
             .with_child(content)
             .build(ctx);

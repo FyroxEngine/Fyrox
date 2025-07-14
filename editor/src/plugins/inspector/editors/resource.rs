@@ -319,7 +319,7 @@ where
         icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
     ) -> Handle<UiNode> {
-        let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(ctx);
+        let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(None, ctx);
 
         let name;
         let locate;

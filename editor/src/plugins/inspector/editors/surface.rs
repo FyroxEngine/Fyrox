@@ -227,7 +227,7 @@ impl SurfaceDataPropertyEditor {
         .with_text(surface_data_info(&resource_manager, &data))
         .build(ctx);
 
-        let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(ctx);
+        let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(None, ctx);
 
         let image = ImageBuilder::new(
             WidgetBuilder::new()
