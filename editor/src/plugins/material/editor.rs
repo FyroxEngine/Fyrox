@@ -184,7 +184,8 @@ impl Control for MaterialFieldEditor {
             }
         }
 
-        self.asset_selector_mixin.handle_ui_message(ui, message);
+        self.asset_selector_mixin
+            .handle_ui_message(Some(&self.material), ui, message);
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {

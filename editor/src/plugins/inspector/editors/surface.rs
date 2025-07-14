@@ -165,7 +165,8 @@ impl Control for SurfaceDataPropertyEditor {
             }
         }
 
-        self.asset_selector_mixin.handle_ui_message(ui, message);
+        self.asset_selector_mixin
+            .handle_ui_message(Some(&self.data), ui, message);
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {

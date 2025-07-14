@@ -271,7 +271,8 @@ where
             }
         }
 
-        self.selector_mixin.handle_ui_message(ui, message);
+        self.selector_mixin
+            .handle_ui_message(self.resource.as_ref(), ui, message);
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {

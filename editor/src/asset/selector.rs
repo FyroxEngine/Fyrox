@@ -53,8 +53,11 @@ use crate::{
         },
     },
 };
+use fyrox::asset::Resource;
 use fyrox::core::PhantomDataSendSync;
 use rust_fuzzy_search::fuzzy_compare;
+use std::borrow::Cow;
+use std::path::Path;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -256,21 +259,28 @@ impl Control for AssetSelector {
     }
 }
 
-pub struct AssetSelectorBuilder {
+pub struct AssetSelectorBuilder<'a> {
     widget_builder: WidgetBuilder,
     asset_types: Vec<Uuid>,
+    selected_asset_path: Cow<'a, Path>,
 }
 
-impl AssetSelectorBuilder {
+impl<'a> AssetSelectorBuilder<'a> {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             asset_types: Default::default(),
+            selected_asset_path: Default::default(),
         }
     }
 
     pub fn with_asset_types(mut self, asset_types: Vec<Uuid>) -> Self {
         self.asset_types = asset_types;
+        self
+    }
+
+    pub fn with_selected_asset_path(mut self, selected_asset_path: Cow<'a, Path>) -> Self {
+        self.selected_asset_path = selected_asset_path;
         self
     }
 
@@ -324,6 +334,12 @@ impl AssetSelectorBuilder {
 
         supported_resource_paths.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
 
+        let selection_index = supported_resource_paths
+            .iter()
+            .enumerate()
+            .find(|(_, path)| path.as_path() == &self.selected_asset_path)
+            .map(|(i, _)| i);
+
         let items = supported_resource_paths
             .iter()
             .map(|path| {
@@ -336,6 +352,8 @@ impl AssetSelectorBuilder {
             })
             .collect::<Vec<_>>();
 
+        let selected_item = selection_index.and_then(|i| items.get(i).cloned());
+
         let list_view = ListViewBuilder::new(WidgetBuilder::new())
             .with_items_panel(
                 WrapPanelBuilder::new(
@@ -346,8 +364,17 @@ impl AssetSelectorBuilder {
                 .with_orientation(Orientation::Horizontal)
                 .build(ctx),
             )
+            .with_selection(selection_index.map(|i| vec![i]).unwrap_or_default())
             .with_items(items)
             .build(ctx);
+
+        if let Some(selected_item) = selected_item {
+            ctx.send_message(ListViewMessage::bring_item_into_view(
+                list_view,
+                MessageDirection::ToWidget,
+                selected_item,
+            ));
+        }
 
         let selector = AssetSelector {
             widget: self.widget_builder.with_child(list_view).build(ctx),
@@ -485,21 +512,28 @@ impl Control for AssetSelectorWindow {
     }
 }
 
-pub struct AssetSelectorWindowBuilder {
+pub struct AssetSelectorWindowBuilder<'a> {
     window_builder: WindowBuilder,
     asset_types: Vec<Uuid>,
+    selected_asset_path: Cow<'a, Path>,
 }
 
-impl AssetSelectorWindowBuilder {
+impl<'a> AssetSelectorWindowBuilder<'a> {
     pub fn new(window_builder: WindowBuilder) -> Self {
         Self {
             window_builder,
             asset_types: Default::default(),
+            selected_asset_path: Default::default(),
         }
     }
 
     pub fn with_asset_types(mut self, asset_types: Vec<Uuid>) -> Self {
         self.asset_types = asset_types;
+        self
+    }
+
+    pub fn with_selected_asset_path(mut self, selected_asset_path: Cow<'a, Path>) -> Self {
+        self.selected_asset_path = selected_asset_path;
         self
     }
 
@@ -520,6 +554,7 @@ impl AssetSelectorWindowBuilder {
 
         let selector =
             AssetSelectorBuilder::new(WidgetBuilder::new().on_row(1).with_tab_index(Some(1)))
+                .with_selected_asset_path(self.selected_asset_path)
                 .with_asset_types(self.asset_types)
                 .build(sender, resource_manager, ctx);
 
@@ -583,6 +618,7 @@ impl AssetSelectorWindowBuilder {
     }
 
     pub fn build_for_type_and_open<T: TypedResourceData>(
+        resource: Option<&Resource<T>>,
         icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
         ui: &mut UserInterface,
@@ -592,6 +628,14 @@ impl AssetSelectorWindowBuilder {
                 .with_title(WindowTitle::text("Select a Resource"))
                 .with_remove_on_close(true)
                 .open(false),
+        )
+        .with_selected_asset_path(
+            resource
+                .and_then(|resource| {
+                    resource_manager.resource_path(&resource.clone().into_untyped())
+                })
+                .unwrap_or_default()
+                .into(),
         )
         .with_asset_types(vec![<T as TypeUuidProvider>::type_uuid()])
         .build(icon_request_sender, resource_manager, &mut ui.build_ctx());
@@ -649,11 +693,17 @@ impl<T: TypedResourceData> AssetSelectorMixin<T> {
         }
     }
 
-    pub fn handle_ui_message(&self, ui: &mut UserInterface, message: &UiMessage) {
+    pub fn handle_ui_message(
+        &self,
+        resource: Option<&Resource<T>>,
+        ui: &mut UserInterface,
+        message: &UiMessage,
+    ) {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.select {
                 self.selector
                     .set(AssetSelectorWindowBuilder::build_for_type_and_open::<T>(
+                        resource,
                         self.icon_request_sender.clone(),
                         self.resource_manager.clone(),
                         ui,
