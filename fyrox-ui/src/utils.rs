@@ -190,6 +190,7 @@ pub fn make_asset_preview_tooltip(
                         .with_height(size)
                         .with_margin(Thickness::uniform(1.0)),
                 )
+                .with_checkerboard_background(true)
                 .with_opt_texture(texture)
                 .with_sync_with_texture_size(false)
                 .build(ctx);
