@@ -26,15 +26,23 @@ use crate::{
         graph::BaseSceneGraph,
         gui::{
             menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
-            message::UiMessage,
+            message::{MessageDirection, UiMessage},
+            messagebox::{
+                MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult,
+            },
             popup::{Placement, PopupBuilder, PopupMessage},
             stack_panel::StackPanelBuilder,
             widget::WidgetBuilder,
+            window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, RcUiNodeHandle, UiNode,
         },
     },
 };
-use std::{fs::File, io::Write, path::Path};
+use std::{
+    fs::File,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 pub struct AssetItemContextMenu {
     pub menu: RcUiNodeHandle,
@@ -46,6 +54,8 @@ pub struct AssetItemContextMenu {
     pub delete: Handle<UiNode>,
     pub placement_target: Handle<UiNode>,
     pub dependencies: Handle<UiNode>,
+    pub delete_confirmation_dialog: Handle<UiNode>,
+    pub path_to_delete: PathBuf,
 }
 
 impl AssetItemContextMenu {
@@ -120,6 +130,8 @@ impl AssetItemContextMenu {
             placement_target: Default::default(),
             copy_file_name,
             dependencies,
+            delete_confirmation_dialog: Default::default(),
+            path_to_delete: Default::default(),
         }
     }
 
@@ -129,14 +141,40 @@ impl AssetItemContextMenu {
                 self.placement_target = *target;
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
-            if let Some(item) = engine
-                .user_interfaces
-                .first_mut()
+            let ui = engine.user_interfaces.first_mut();
+
+            if let Some(item) = ui
                 .try_get(self.placement_target)
                 .and_then(|n| n.cast::<AssetItem>())
             {
                 if message.destination() == self.delete {
-                    Log::verify(std::fs::remove_file(&item.path));
+                    let text = format!(
+                        "Do you really want to delete {} asset? This \
+                    is irreversible operation!",
+                        item.path.display()
+                    );
+
+                    self.path_to_delete = item.path.clone();
+
+                    self.delete_confirmation_dialog = MessageBoxBuilder::new(
+                        WindowBuilder::new(
+                            WidgetBuilder::new().with_width(250.0).with_height(100.0),
+                        )
+                        .open(false)
+                        .with_remove_on_close(true)
+                        .with_title(WindowTitle::text("Confirm Deletion")),
+                    )
+                    .with_text(&text)
+                    .with_buttons(MessageBoxButtons::YesNo)
+                    .build(&mut ui.build_ctx());
+
+                    ui.send_message(WindowMessage::open_modal(
+                        self.delete_confirmation_dialog,
+                        MessageDirection::ToWidget,
+                        true,
+                        true,
+                    ));
+
                     return true;
                 } else if message.destination() == self.show_in_explorer {
                     if let Ok(canonical_path) = item.path.canonicalize() {
@@ -196,6 +234,14 @@ impl AssetItemContextMenu {
                         asset::put_path_to_clipboard(engine, file_name)
                     }
                 }
+            }
+        } else if let Some(MessageBoxMessage::Close(result)) = message.data() {
+            if message.destination() == self.delete_confirmation_dialog {
+                if *result == MessageBoxResult::Yes {
+                    Log::verify(std::fs::remove_file(&self.path_to_delete));
+                }
+
+                self.delete_confirmation_dialog = Handle::NONE;
             }
         }
 

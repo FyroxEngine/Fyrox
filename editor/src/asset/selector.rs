@@ -337,7 +337,7 @@ impl<'a> AssetSelectorBuilder<'a> {
         let selection_index = supported_resource_paths
             .iter()
             .enumerate()
-            .find(|(_, path)| path.as_path() == &self.selected_asset_path)
+            .find(|(_, path)| path.as_path() == self.selected_asset_path)
             .map(|(i, _)| i);
 
         let items = supported_resource_paths

@@ -276,7 +276,7 @@ impl TextureEditorBuilder {
             match self
                 .texture
                 .as_ref()
-                .and_then(|tex| resource_manager.resource_path(&tex.as_ref()))
+                .and_then(|tex| resource_manager.resource_path(tex.as_ref()))
             {
                 None => "Unassigned".to_string(),
                 Some(path) => path.to_string_lossy().to_string(),
