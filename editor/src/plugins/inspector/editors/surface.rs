@@ -78,7 +78,7 @@ impl SurfaceDataPropertyEditorMessage {
 pub struct SurfaceDataPropertyEditor {
     widget: Widget,
     view: Handle<UiNode>,
-    data: SurfaceResource,
+    surface_resource: SurfaceResource,
     text: Handle<UiNode>,
     image: Handle<UiNode>,
     image_preview: Handle<UiNode>,
@@ -97,7 +97,7 @@ impl Control for SurfaceDataPropertyEditor {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination == self.view {
                 if let Some(sender) = self.sender.as_ref() {
-                    sender.send(Message::ViewSurfaceData(self.data.clone()));
+                    sender.send(Message::ViewSurfaceData(self.surface_resource.clone()));
                 }
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
@@ -132,19 +132,27 @@ impl Control for SurfaceDataPropertyEditor {
                     }
                 }
             }
-        } else if let Some(SurfaceDataPropertyEditorMessage::Value(value)) = message.data() {
+        } else if let Some(SurfaceDataPropertyEditorMessage::Value(surface_resource)) =
+            message.data()
+        {
             if message.destination() == self.handle
                 && message.direction() == MessageDirection::ToWidget
-                && &self.data != value
+                && &self.surface_resource != surface_resource
             {
-                self.data = value.clone();
+                self.surface_resource = surface_resource.clone();
                 ui.send_message(message.reverse());
 
                 ui.send_message(TextMessage::text(
                     self.text,
                     MessageDirection::ToWidget,
-                    surface_data_info(&self.asset_selector_mixin.resource_manager, value),
+                    surface_data_info(
+                        &self.asset_selector_mixin.resource_manager,
+                        surface_resource,
+                    ),
                 ));
+
+                self.asset_selector_mixin
+                    .request_preview(self.handle, surface_resource);
             }
         } else if let Some(AssetItemMessage::Icon { texture, flip_y }) = message.data() {
             if message.destination() == self.handle
@@ -166,7 +174,7 @@ impl Control for SurfaceDataPropertyEditor {
         }
 
         self.asset_selector_mixin
-            .handle_ui_message(Some(&self.data), ui, message);
+            .handle_ui_message(Some(&self.surface_resource), ui, message);
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
@@ -200,7 +208,7 @@ fn surface_data_info(resource_manager: &ResourceManager, data: &SurfaceResource)
 impl SurfaceDataPropertyEditor {
     pub fn build(
         ctx: &mut BuildContext,
-        data: SurfaceResource,
+        surface_resource: SurfaceResource,
         sender: MessageSender,
         icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
@@ -224,7 +232,7 @@ impl SurfaceDataPropertyEditor {
                 .on_column(0)
                 .with_margin(Thickness::uniform(1.0)),
         )
-        .with_text(surface_data_info(&resource_manager, &data))
+        .with_text(surface_data_info(&resource_manager, &surface_resource))
         .build(ctx);
 
         let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(None, ctx);
@@ -266,7 +274,7 @@ impl SurfaceDataPropertyEditor {
 
         let editor = Self {
             widget,
-            data: data.clone(),
+            surface_resource: surface_resource.clone(),
             view,
             sender: Some(sender),
             asset_selector_mixin: AssetSelectorMixin::new(
@@ -283,7 +291,7 @@ impl SurfaceDataPropertyEditor {
 
         Log::verify(icon_request_sender.send(IconRequest {
             widget_handle: handle,
-            resource: data.into_untyped(),
+            resource: surface_resource.into_untyped(),
             force_update: false,
         }));
 

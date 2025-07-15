@@ -153,6 +153,9 @@ impl Control for MaterialFieldEditor {
                     make_name(&self.asset_selector_mixin.resource_manager, &self.material),
                 ));
 
+                self.asset_selector_mixin
+                    .request_preview(self.handle, material);
+
                 ui.send_message(message.reverse());
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
@@ -396,7 +399,6 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
             if let Some(MaterialFieldMessage::Material(value)) = ctx.message.data() {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-
                     value: FieldKind::object(value.clone()),
                 });
             }

@@ -724,4 +724,14 @@ impl<T: TypedResourceData> AssetSelectorMixin<T> {
             }
         }
     }
+
+    pub fn request_preview(&self, widget_handle: Handle<UiNode>, resource: &Resource<T>) {
+        self.icon_request_sender
+            .send(IconRequest {
+                widget_handle,
+                resource: resource.clone().into_untyped(),
+                force_update: false,
+            })
+            .unwrap()
+    }
 }
