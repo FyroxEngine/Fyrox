@@ -201,6 +201,8 @@ where
             } else {
                 self.as_mut().unwrap().visit("Data", &mut region)?;
             }
+        } else if region.reading {
+            *self = None;
         }
 
         Ok(())
