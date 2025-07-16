@@ -200,7 +200,8 @@ impl DeferredLightRenderer {
                 quality_defaults.csm_settings.size,
                 quality_defaults.csm_settings.precision,
             )?,
-            brdf_lut: make_brdf_lut(server, 256, 64)?,
+            // Use `test_write_brdf_lut` to re-generate the BRDF if needed.
+            brdf_lut: make_brdf_lut(server, 256, include_bytes!("brdf_256x256_256samples.bin"))?,
         })
     }
 
