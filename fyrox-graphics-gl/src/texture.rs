@@ -293,7 +293,7 @@ impl GlTexture {
 
             let mut binding = result.make_temp_binding();
             #[cfg(not(target_arch = "wasm32"))]
-            if server.gl.supports_debug() {
+            if server.gl.supports_debug() && server.named_objects.get() {
                 server
                     .gl
                     .object_label(glow::TEXTURE, texture.0.get(), Some(desc.name));

@@ -63,7 +63,7 @@ impl GlGeometryBuffer {
 
         server.set_vertex_array_object(Some(vao));
         #[cfg(not(target_arch = "wasm32"))]
-        if server.gl.supports_debug() {
+        if server.gl.supports_debug() && server.named_objects.get() {
             unsafe {
                 server
                     .gl

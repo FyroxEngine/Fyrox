@@ -83,7 +83,7 @@ impl GlBuffer {
             let id = server.gl.create_buffer()?;
             server.gl.bind_buffer(gl_kind, Some(id));
             #[cfg(not(target_arch = "wasm32"))]
-            if server.gl.supports_debug() {
+            if server.gl.supports_debug() && server.named_objects.get() {
                 server.gl.object_label(glow::BUFFER, id.0.get(), Some(name));
             }
             if size > 0 {

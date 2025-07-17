@@ -62,7 +62,7 @@ use glutin::{
 use glutin_winit::{DisplayBuilder, GlWindow};
 #[cfg(not(target_arch = "wasm32"))]
 use raw_window_handle::HasRawWindowHandle;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::ops::DerefMut;
 use std::rc::{Rc, Weak};
 #[cfg(not(target_arch = "wasm32"))]
@@ -267,6 +267,7 @@ impl InnerState {
 
 pub struct GlGraphicsServer {
     pub gl: glow::Context,
+    pub named_objects: Cell<bool>,
     pub(crate) state: RefCell<InnerState>,
     pub(crate) memory_usage: RefCell<ServerMemoryUsage>,
     this: RefCell<Option<Weak<GlGraphicsServer>>>,
@@ -322,6 +323,7 @@ impl GlGraphicsServer {
         #[allow(unused_variables)] msaa_sample_count: Option<u8>,
         window_target: &EventLoopWindowTarget<()>,
         window_builder: WindowBuilder,
+        named_objects: bool,
     ) -> Result<(Window, SharedGraphicsServer), FrameworkError> {
         #[cfg(not(target_arch = "wasm32"))]
         let (window, gl_context, gl_surface, mut context, gl_kind) = {
@@ -579,6 +581,7 @@ impl GlGraphicsServer {
 
         let state = Self {
             gl: context,
+            named_objects: Cell::new(named_objects),
             state: RefCell::new(InnerState::new(
                 gl_kind,
                 #[cfg(not(target_arch = "wasm32"))]

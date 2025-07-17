@@ -130,6 +130,7 @@ impl Executor {
                 vsync: true,
                 msaa_sample_count: None,
                 graphics_server_constructor: Default::default(),
+                named_objects: false,
             },
         )
     }

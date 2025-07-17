@@ -1081,6 +1081,7 @@ pub type GraphicsServerConstructorCallback = dyn Fn(
     &GraphicsContextParams,
     &EventLoopWindowTarget<()>,
     WindowBuilder,
+    bool,
 ) -> GraphicsServerConstructorResult;
 
 /// Graphics server constructor is used to initialize different graphics servers in unified manner.
@@ -1090,14 +1091,17 @@ pub struct GraphicsServerConstructor(Rc<GraphicsServerConstructorCallback>);
 
 impl Default for GraphicsServerConstructor {
     fn default() -> Self {
-        Self(Rc::new(|params, window_target, window_builder| {
-            GlGraphicsServer::new(
-                params.vsync,
-                params.msaa_sample_count,
-                window_target,
-                window_builder,
-            )
-        }))
+        Self(Rc::new(
+            |params, window_target, window_builder, named_objects| {
+                GlGraphicsServer::new(
+                    params.vsync,
+                    params.msaa_sample_count,
+                    window_target,
+                    window_builder,
+                    named_objects,
+                )
+            },
+        ))
     }
 }
 
@@ -1117,6 +1121,11 @@ pub struct GraphicsContextParams {
 
     /// Graphic server constructor. See [`GraphicsServerConstructor`] docs for more info.
     pub graphics_server_constructor: GraphicsServerConstructor,
+
+    /// A flag, that if raised tells the engine to assign meaningful names for GPU objects. This
+    /// option is very useful for debugging. This option is off by default, because if may cause
+    /// crashes on some video driver due to poor implementation in the driver.
+    pub named_objects: bool,
 }
 
 impl Default for GraphicsContextParams {
@@ -1126,6 +1135,7 @@ impl Default for GraphicsContextParams {
             vsync: true,
             msaa_sample_count: None,
             graphics_server_constructor: Default::default(),
+            named_objects: false,
         }
     }
 }
@@ -1406,7 +1416,8 @@ impl Engine {
     ///     window_attributes,
     ///     vsync: true,
     ///     msaa_sample_count: None,
-    ///     graphics_server_constructor: Default::default()
+    ///     graphics_server_constructor: Default::default(),
+    ///     named_objects: false
     /// };
     /// let task_pool = Arc::new(TaskPool::new());
     ///
@@ -1511,8 +1522,12 @@ impl Engine {
                 .with_window_level(params.window_attributes.window_level)
                 .with_active(params.window_attributes.active);
 
-            let (window, server) =
-                params.graphics_server_constructor.0(params, window_target, window_builder)?;
+            let (window, server) = params.graphics_server_constructor.0(
+                params,
+                window_target,
+                window_builder,
+                params.named_objects,
+            )?;
             let frame_size = (window.inner_size().width, window.inner_size().height);
 
             let renderer = Renderer::new(server, frame_size, &self.resource_manager)?;
@@ -1579,6 +1594,7 @@ impl Engine {
                 vsync: params.vsync,
                 msaa_sample_count: params.msaa_sample_count,
                 graphics_server_constructor: params.graphics_server_constructor.clone(),
+                named_objects: params.named_objects,
             });
 
             self.sound_engine.destroy_audio_output_device();
