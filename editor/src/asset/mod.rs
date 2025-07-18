@@ -44,6 +44,7 @@ use crate::{
             file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
             grid::{Column, GridBuilder, Row},
             menu::MenuItemMessage,
+            message::MouseButton,
             message::{MessageDirection, UiMessage},
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
@@ -983,6 +984,25 @@ impl AssetBrowser {
                 self.resource_creator = Some(resource_creator);
             } else if message.destination() == self.refresh {
                 self.schedule_refresh();
+            }
+        } else if let Some(WidgetMessage::MouseDown { button, .. }) = message.data() {
+            if ui.has_descendant_or_equal(message.destination(), self.scroll_panel)
+                && !message.handled()
+            {
+                if let MouseButton::Back = *button {
+                    let mut parent_folder = self
+                        .current_path
+                        .parent()
+                        .map(|p| p.to_path_buf())
+                        .unwrap_or_else(|| PathBuf::from("./"));
+                    if parent_folder == Path::new("") {
+                        parent_folder = PathBuf::from("./");
+                    }
+
+                    self.set_path(&parent_folder, ui, &engine.resource_manager);
+
+                    message.set_handled(true);
+                }
             }
         }
     }

@@ -26,8 +26,8 @@ use crate::{
         asset::{manager::ResourceManager, untyped::UntypedResource, Resource, TypedResourceData},
         core::{
             algebra::Vector2, color::Color, futures::executor::block_on, make_relative_path,
-            pool::Handle, reflect::prelude::*, some_or_return, type_traits::prelude::*,
-            uuid_provider, visitor::prelude::*,
+            parking_lot::lock_api::Mutex, pool::Handle, reflect::prelude::*, some_or_return,
+            type_traits::prelude::*, uuid_provider, visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
@@ -52,11 +52,10 @@ use crate::{
     message::MessageSender,
     Message,
 };
-use fyrox::core::parking_lot::lock_api::Mutex;
-use std::sync::Arc;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 pub const DEFAULT_SIZE: f32 = 60.0;
@@ -277,14 +276,15 @@ impl Control for AssetItem {
             match msg {
                 WidgetMessage::MouseDown { button, .. } => {
                     if !message.handled() {
-                        if *button == MouseButton::Left {
+                        if let MouseButton::Left | MouseButton::Right = *button {
                             message.set_handled(true);
+
+                            ui.send_message(AssetItemMessage::select(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
                         }
-                        ui.send_message(AssetItemMessage::select(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            true,
-                        ));
                     }
                 }
                 WidgetMessage::DragOver(dropped) => {
@@ -309,8 +309,10 @@ impl Control for AssetItem {
                 WidgetMessage::Drop(dropped) => {
                     self.try_post_move_to_message(ui, *dropped);
                 }
-                WidgetMessage::DoubleClick { .. } => {
-                    self.open();
+                WidgetMessage::DoubleClick { button, .. } => {
+                    if *button == MouseButton::Left {
+                        self.open();
+                    }
                 }
                 _ => {}
             }
