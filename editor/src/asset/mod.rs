@@ -38,16 +38,18 @@ use crate::{
         engine::Engine,
         graph::{BaseSceneGraph, SceneGraph},
         gui::{
-            button::{ButtonBuilder, ButtonMessage},
+            border::BorderBuilder,
+            button::{Button, ButtonBuilder, ButtonMessage},
             copypasta::ClipboardProvider,
+            decorator::DecoratorBuilder,
             dock::{DockingManagerBuilder, TileBuilder, TileContent},
             file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
             grid::{Column, GridBuilder, Row},
             menu::MenuItemMessage,
-            message::MouseButton,
-            message::{MessageDirection, UiMessage},
+            message::{MessageDirection, MouseButton, UiMessage},
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
+            style::{resource::StyleResourceExt, Style},
             utils::{make_image_button_with_tooltip, make_simple_tooltip},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -303,6 +305,10 @@ fn try_move_folder(src_dir: &Path, dest_dir: &Path, resource_manager: &ResourceM
 }
 
 impl AssetBrowser {
+    pub const ADD_ASSET_NORMAL_BRUSH: &'static str = "AssetBrowser.AddAssetNormalBrush";
+    pub const ADD_ASSET_HOVER_BRUSH: &'static str = "AssetBrowser.AddAssetHoverBrush";
+    pub const ADD_ASSET_PRESSED_BRUSH: &'static str = "AssetBrowser.AddAssetPressedBrush";
+
     pub fn new(engine: &mut Engine) -> Self {
         let preview = PreviewPanel::new(engine, 250, 250);
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
@@ -316,6 +322,20 @@ impl AssetBrowser {
                 .with_width(24.0)
                 .with_margin(Thickness::uniform(1.0))
                 .with_tooltip(make_simple_tooltip(ctx, "Add New Resource")),
+        )
+        .with_back(
+            DecoratorBuilder::new(
+                BorderBuilder::new(
+                    WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_DARKER)),
+                )
+                .with_pad_by_corner_radius(false)
+                .with_corner_radius(ctx.style.property(Button::CORNER_RADIUS))
+                .with_stroke_thickness(ctx.style.property(Button::BORDER_THICKNESS)),
+            )
+            .with_normal_brush(ctx.style.property(Self::ADD_ASSET_NORMAL_BRUSH))
+            .with_hover_brush(ctx.style.property(Self::ADD_ASSET_HOVER_BRUSH))
+            .with_pressed_brush(ctx.style.property(Self::ADD_ASSET_PRESSED_BRUSH))
+            .build(ctx),
         )
         .with_text("+")
         .build(ctx);

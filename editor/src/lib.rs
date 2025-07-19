@@ -593,6 +593,76 @@ pub struct Editor {
     pub user_project_version: String,
 }
 
+fn make_dark_style() -> StyleResource {
+    let mut dark_style = Style::dark_style();
+    dark_style
+        .set(WorldViewer::INSTANCE_BRUSH, Brush::solid(160, 160, 200))
+        .set(AssetItem::SELECTED_PREVIEW, Brush::solid(217, 230, 255))
+        .set(
+            AssetItem::SELECTED_TEXT_BORDER_BACKGROUND,
+            Brush::solid(44, 93, 135),
+        )
+        .set(AssetItem::TEXT_BORDER_DROP_BRUSH, Brush::solid(51, 81, 226))
+        .set(AssetItem::DESELECTED_PREVIEW, Brush::Solid(Color::WHITE))
+        .set(
+            AssetItem::DESELECTED_TEXT_BORDER_BACKGROUND,
+            Brush::transparent(),
+        )
+        .set(AssetItem::NORMAL_TEXT_BORDER_BRUSH, Brush::transparent())
+        .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
+        .set(AbsmEditor::NORMAL_ROOT_COLOR, Brush::solid(40, 80, 0))
+        .set(AbsmEditor::SELECTED_ROOT_COLOR, Brush::solid(60, 100, 0))
+        .set(
+            AssetBrowser::ADD_ASSET_NORMAL_BRUSH,
+            Brush::solid(23, 123, 53),
+        )
+        .set(
+            AssetBrowser::ADD_ASSET_HOVER_BRUSH,
+            Brush::solid(29, 148, 65),
+        )
+        .set(
+            AssetBrowser::ADD_ASSET_PRESSED_BRUSH,
+            Brush::solid(15, 79, 34),
+        );
+
+    StyleResource::new_embedded(dark_style)
+}
+
+fn make_light_style() -> StyleResource {
+    let mut light_style = Style::light_style();
+    light_style
+        .set(WorldViewer::INSTANCE_BRUSH, Brush::solid(70, 70, 120))
+        .set(AssetItem::SELECTED_PREVIEW, Brush::solid(217, 230, 255))
+        .set(
+            AssetItem::SELECTED_TEXT_BORDER_BACKGROUND,
+            Brush::solid(44, 93, 135),
+        )
+        .set(AssetItem::TEXT_BORDER_DROP_BRUSH, Brush::solid(51, 81, 226))
+        .set(AssetItem::DESELECTED_PREVIEW, Brush::Solid(Color::WHITE))
+        .set(
+            AssetItem::DESELECTED_TEXT_BORDER_BACKGROUND,
+            Brush::transparent(),
+        )
+        .set(AssetItem::NORMAL_TEXT_BORDER_BRUSH, Brush::transparent())
+        .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
+        .set(AbsmEditor::NORMAL_ROOT_COLOR, Brush::solid(40, 80, 0))
+        .set(AbsmEditor::SELECTED_ROOT_COLOR, Brush::solid(60, 100, 0))
+        .set(
+            AssetBrowser::ADD_ASSET_NORMAL_BRUSH,
+            Brush::solid(23, 123, 53),
+        )
+        .set(
+            AssetBrowser::ADD_ASSET_HOVER_BRUSH,
+            Brush::solid(29, 148, 65),
+        )
+        .set(
+            AssetBrowser::ADD_ASSET_PRESSED_BRUSH,
+            Brush::solid(15, 79, 34),
+        );
+
+    StyleResource::new_embedded(light_style)
+}
+
 impl Editor {
     pub fn new(startup_data: Option<StartupData>) -> Self {
         Self::new_with_settings(startup_data, Default::default())
@@ -607,85 +677,9 @@ impl Editor {
 
         Log::add_listener(log_message_sender);
 
-        let mut dark_style = Style::dark_style();
-        dark_style
-            .set(
-                WorldViewer::INSTANCE_BRUSH,
-                Brush::Solid(Color::opaque(160, 160, 200)),
-            )
-            .set(
-                AssetItem::SELECTED_PREVIEW,
-                Brush::Solid(Color::opaque(217, 230, 255)),
-            )
-            .set(
-                AssetItem::SELECTED_TEXT_BORDER_BACKGROUND,
-                Brush::Solid(Color::opaque(44, 93, 135)),
-            )
-            .set(
-                AssetItem::TEXT_BORDER_DROP_BRUSH,
-                Brush::Solid(Color::opaque(51, 81, 226)),
-            )
-            .set(AssetItem::DESELECTED_PREVIEW, Brush::Solid(Color::WHITE))
-            .set(
-                AssetItem::DESELECTED_TEXT_BORDER_BACKGROUND,
-                Brush::Solid(Color::TRANSPARENT),
-            )
-            .set(
-                AssetItem::NORMAL_TEXT_BORDER_BRUSH,
-                Brush::Solid(Color::TRANSPARENT),
-            )
-            .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
-            .set(
-                AbsmEditor::NORMAL_ROOT_COLOR,
-                Brush::Solid(Color::opaque(40, 80, 0)),
-            )
-            .set(
-                AbsmEditor::SELECTED_ROOT_COLOR,
-                Brush::Solid(Color::opaque(60, 100, 0)),
-            );
-
-        let dark_style = StyleResource::new_embedded(dark_style);
-        let mut light_style = Style::light_style();
-        light_style
-            .set(
-                WorldViewer::INSTANCE_BRUSH,
-                Brush::Solid(Color::opaque(70, 70, 120)),
-            )
-            .set(
-                AssetItem::SELECTED_PREVIEW,
-                Brush::Solid(Color::opaque(217, 230, 255)),
-            )
-            .set(
-                AssetItem::SELECTED_TEXT_BORDER_BACKGROUND,
-                Brush::Solid(Color::opaque(44, 93, 135)),
-            )
-            .set(
-                AssetItem::TEXT_BORDER_DROP_BRUSH,
-                Brush::Solid(Color::opaque(51, 81, 226)),
-            )
-            .set(AssetItem::DESELECTED_PREVIEW, Brush::Solid(Color::WHITE))
-            .set(
-                AssetItem::DESELECTED_TEXT_BORDER_BACKGROUND,
-                Brush::Solid(Color::TRANSPARENT),
-            )
-            .set(
-                AssetItem::NORMAL_TEXT_BORDER_BRUSH,
-                Brush::Solid(Color::TRANSPARENT),
-            )
-            .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
-            .set(
-                AbsmEditor::NORMAL_ROOT_COLOR,
-                Brush::Solid(Color::opaque(40, 80, 0)),
-            )
-            .set(
-                AbsmEditor::SELECTED_ROOT_COLOR,
-                Brush::Solid(Color::opaque(60, 100, 0)),
-            );
-
-        let light_style = StyleResource::new_embedded(light_style);
         let styles = [
-            (EditorStyle::Dark, dark_style),
-            (EditorStyle::Light, light_style),
+            (EditorStyle::Dark, make_dark_style()),
+            (EditorStyle::Light, make_light_style()),
         ]
         .into_iter()
         .collect::<FxHashMap<_, _>>();
