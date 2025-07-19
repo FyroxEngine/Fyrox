@@ -20,22 +20,13 @@
 
 use crate::{
     fyrox::{
-        asset::{untyped::UntypedResource, Resource},
-        core::pool::{ErasedHandle, Handle},
-        gui::{
-            self,
-            font::FontResource,
-            inspector::editors::{
-                bit::BitFieldPropertyEditorDefinition,
-                collection::VecCollectionPropertyEditorDefinition,
-                enumeration::EnumPropertyEditorDefinition,
-                inherit::InheritablePropertyEditorDefinition,
-                inspectable::InspectablePropertyEditorDefinition,
-                PropertyEditorDefinitionContainer,
-            },
-            UiNode, UserInterface,
+        asset::{manager::ResourceManager, untyped::UntypedResource, Resource},
+        core::{
+            pool::{ErasedHandle, Handle},
+            reflect::Reflect,
         },
         gui::{
+            self,
             border::Border,
             button::Button,
             canvas::Canvas,
@@ -44,8 +35,17 @@ use crate::{
             dropdown_list::DropdownList,
             dropdown_menu::DropdownMenu,
             expander::Expander,
+            font::FontResource,
             grid::Grid,
             image::Image,
+            inspector::editors::{
+                bit::BitFieldPropertyEditorDefinition,
+                collection::VecCollectionPropertyEditorDefinition,
+                enumeration::EnumPropertyEditorDefinition,
+                inherit::InheritablePropertyEditorDefinition,
+                inspectable::InspectablePropertyEditorDefinition,
+                PropertyEditorDefinitionContainer,
+            },
             key::KeyBindingEditor,
             list_view::{ListView, ListViewItem},
             menu::{ContextMenu, Menu, MenuItem},
@@ -72,6 +72,7 @@ use crate::{
             vector_image::VectorImage,
             window::Window,
             wrap_panel::WrapPanel,
+            UiNode, UserInterface,
         },
         material::shader::{Shader, ShaderResource},
         renderer::framework::PolygonFillMode,
@@ -89,59 +90,62 @@ use crate::{
                 Base, LevelOfDetail, LodGroup, Mobility, Property, PropertyValue, ScriptRecord,
             },
             camera::{
-                ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection,
+                Camera, ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection,
                 Projection,
             },
             collider::{
-                BallShape, BitMask, CapsuleShape, ColliderShape, ConeShape, ConvexPolyhedronShape,
-                CuboidShape, CylinderShape, GeometrySource, HeightfieldShape, InteractionGroups,
-                SegmentShape, TriangleShape, TrimeshShape,
+                BallShape, BitMask, CapsuleShape, Collider, ColliderShape, ConeShape,
+                ConvexPolyhedronShape, CuboidShape, CylinderShape, GeometrySource,
+                HeightfieldShape, InteractionGroups, SegmentShape, TriangleShape, TrimeshShape,
             },
+            decal::Decal,
             dim2,
             graph::physics::CoefficientCombineRule,
             joint::*,
             light::{
-                directional::{CsmOptions, FrustumSplitOptions},
+                directional::{CsmOptions, DirectionalLight, FrustumSplitOptions},
+                point::PointLight,
+                spot::SpotLight,
                 BaseLight,
             },
             mesh::{
                 surface::{BlendShape, Surface, SurfaceResource},
-                BatchingMode, RenderPath,
+                BatchingMode, Mesh, RenderPath,
             },
+            navmesh::NavigationalMesh,
             node::Node,
-            particle_system::CoordinateSystem,
             particle_system::{
                 emitter::{
                     base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
                     sphere::SphereEmitter, Emitter,
                 },
-                ParticleSystemRng,
+                CoordinateSystem, ParticleSystem, ParticleSystemRng,
             },
-            ragdoll::Limb,
-            rigidbody::RigidBodyType,
+            pivot::Pivot,
+            probe::UpdateMode,
+            ragdoll::{Limb, Ragdoll},
+            rigidbody::{RigidBody, RigidBodyMassPropertiesType, RigidBodyType},
+            skybox::SkyBox,
             sound::{
                 self,
                 filter::{
                     AllPassFilterEffect, BandPassFilterEffect, HighPassFilterEffect,
                     HighShelfFilterEffect, LowPassFilterEffect, LowShelfFilterEffect,
                 },
+                listener::Listener,
                 reverb::Reverb,
-                Attenuate, AudioBus, Biquad, DistanceModel, Effect, SoundBuffer,
+                Attenuate, AudioBus, Biquad, DistanceModel, Effect, Sound, SoundBuffer,
                 SoundBufferResource, Status,
             },
-            terrain::{Chunk, Layer},
-            tilemap::brush::{TileMapBrush, TileMapBrushResource},
-            tilemap::TileCollider,
-            tilemap::{tileset::TileSet, Tile},
+            sprite::Sprite,
+            terrain::{Chunk, Layer, Terrain},
+            tilemap::{
+                brush::{TileMapBrush, TileMapBrushResource},
+                tileset::TileSet,
+                Tile, TileCollider, TileDefinitionHandle, TileMap,
+            },
             transform::Transform,
-        },
-        scene::{
-            camera::Camera, collider::Collider, decal::Decal, light::directional::DirectionalLight,
-            light::point::PointLight, light::spot::SpotLight, mesh::Mesh,
-            navmesh::NavigationalMesh, particle_system::ParticleSystem, pivot::Pivot,
-            ragdoll::Ragdoll, rigidbody::RigidBody, rigidbody::RigidBodyMassPropertiesType,
-            sound::listener::Listener, sound::Sound, sprite::Sprite, terrain::Terrain,
-            tilemap::TileDefinitionHandle, tilemap::TileMap,
+            EnvironmentLightingSource,
         },
     },
     message::MessageSender,
@@ -165,10 +169,6 @@ use crate::{
         },
     },
 };
-use fyrox::asset::manager::ResourceManager;
-use fyrox::core::reflect::Reflect;
-use fyrox::scene::probe::UpdateMode;
-use fyrox::scene::skybox::SkyBox;
 
 pub mod animation;
 pub mod font;
@@ -453,6 +453,7 @@ pub fn make_property_editors_container(
     container.register_inheritable_enum::<DistanceModel, _>();
     container.register_inheritable_enum::<sound::Renderer, _>();
     container.register_inheritable_enum::<RenderPath, _>();
+    container.register_inheritable_enum::<EnvironmentLightingSource, _>();
     container.register_inheritable_enum::<CoordinateSystem, _>();
     container.register_inheritable_enum::<UpdateMode, _>();
 

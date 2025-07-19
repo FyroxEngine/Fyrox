@@ -62,6 +62,7 @@ use crate::{
         log::{Log, MessageKind},
         pool::{Handle, Pool, Ticket},
         reflect::prelude::*,
+        type_traits::prelude::*,
         variable::InheritableVariable,
         visitor::{error::VisitError, Visit, VisitResult, Visitor},
     },
@@ -88,6 +89,7 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// A container for navigational meshes.
 #[derive(Default, Clone, Debug, Visit)]
@@ -166,6 +168,30 @@ impl IndexMut<Handle<Navmesh>> for NavMeshContainer {
     }
 }
 
+/// A set of options, that allows selecting the source of environment lighting for a scene. By
+/// default, it is set to [`EnvironmentLightingSource::SkyBox`].
+#[derive(
+    Reflect,
+    Visit,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+    TypeUuidProvider,
+)]
+#[type_uuid(id = "28f22fe7-22ed-47e1-ae43-779866a46cdf")]
+pub enum EnvironmentLightingSource {
+    /// Sky box of a scene will be the source of lighting.
+    #[default]
+    SkyBox,
+    /// Ambient color of the scene will be the source of lighting.
+    AmbientColor,
+}
+
 /// Rendering options of a scene. It allows you to specify a render target to render the scene to, change its clear color, etc.
 #[derive(Debug, Visit, Reflect, PartialEq)]
 pub struct SceneRenderingOptions {
@@ -184,8 +210,13 @@ pub struct SceneRenderingOptions {
     /// [`PolygonFillMode::Line`] could be used to render the scene in wireframe mode.
     pub polygon_rasterization_mode: PolygonFillMode,
 
-    /// Color of the ambient lighting.
+    /// Color of the ambient lighting. This color is only used if `environment_lighting_source`
+    /// is set to [`EnvironmentLightingSource::AmbientColor`].
     pub ambient_lighting_color: Color,
+
+    /// A switch, that allows selecting the source of environment lighting. By default, it is set to
+    /// [`EnvironmentLightingSource::SkyBox`].
+    pub environment_lighting_source: EnvironmentLightingSource,
 }
 
 impl Default for SceneRenderingOptions {
@@ -195,6 +226,7 @@ impl Default for SceneRenderingOptions {
             clear_color: None,
             polygon_rasterization_mode: Default::default(),
             ambient_lighting_color: Color::opaque(100, 100, 100),
+            environment_lighting_source: Default::default(),
         }
     }
 }
@@ -206,6 +238,7 @@ impl Clone for SceneRenderingOptions {
             clear_color: self.clear_color,
             polygon_rasterization_mode: self.polygon_rasterization_mode,
             ambient_lighting_color: self.ambient_lighting_color,
+            environment_lighting_source: Default::default(),
         }
     }
 }

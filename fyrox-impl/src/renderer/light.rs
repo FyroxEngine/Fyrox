@@ -18,13 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::DynamicSurfaceCache;
-use crate::renderer::convolution::{
-    EnvironmentMapIrradianceConvolution, EnvironmentMapSpecularConvolution,
-};
-use crate::renderer::observer::Observer;
-use crate::renderer::resources::RendererResources;
-use crate::renderer::utils::make_brdf_lut;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -37,7 +30,9 @@ use crate::{
         cache::{
             shader::{binding, property, PropertyGroup, RenderMaterial, ShaderCache},
             uniform::{UniformBufferCache, UniformMemoryAllocator},
+            DynamicSurfaceCache,
         },
+        convolution::{EnvironmentMapIrradianceConvolution, EnvironmentMapSpecularConvolution},
         framework::{
             buffer::BufferUsage, error::FrameworkError, framebuffer::GpuFrameBuffer,
             geometry_buffer::GpuGeometryBuffer, server::GraphicsServer, ColorMask, CompareFunc,
@@ -47,12 +42,15 @@ use crate::{
         gbuffer::GBuffer,
         light_volume::LightVolumeRenderer,
         make_viewport_matrix,
+        observer::Observer,
+        resources::RendererResources,
         shadow::{
             csm::{CsmRenderContext, CsmRenderer},
             point::{PointShadowMapRenderContext, PointShadowMapRenderer},
             spot::SpotShadowMapRenderer,
         },
         ssao::ScreenSpaceAmbientOcclusionRenderer,
+        utils::make_brdf_lut,
         visibility::ObserverVisibilityCache,
         GeometryCache, LightingStatistics, QualitySettings, RenderPassStatistics, TextureCache,
     },
@@ -62,7 +60,7 @@ use crate::{
             surface::SurfaceData,
             vertex::SimpleVertex,
         },
-        Scene,
+        EnvironmentLightingSource, Scene,
     },
 };
 use fyrox_graphics::gpu_texture::{GpuTexture, GpuTextureKind};
@@ -86,6 +84,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub observer: &'a Observer,
     pub gbuffer: &'a mut GBuffer,
     pub ambient_color: Color,
+    pub environment_lighting_source: EnvironmentLightingSource,
     pub render_data_bundle: &'a RenderDataBundleStorage,
     pub settings: &'a QualitySettings,
     pub textures: &'a mut TextureCache,
@@ -254,6 +253,7 @@ impl DeferredLightRenderer {
             scene,
             observer,
             gbuffer,
+            environment_lighting_source,
             render_data_bundle,
             shader_cache,
             ambient_color,
@@ -395,12 +395,17 @@ impl DeferredLightRenderer {
         let gbuffer_ambient_map = gbuffer.ambient_texture();
         let ao_map = ssao_renderer.ao_map();
 
+        let skybox_lighting = matches!(
+            environment_lighting_source,
+            EnvironmentLightingSource::SkyBox
+        );
         let ambient_color = ambient_color.srgb_to_linear_f32();
         let properties = PropertyGroup::from([
             property("worldViewProjection", &frame_matrix),
             property("ambientColor", &ambient_color),
             property("cameraPosition", &observer.position.translation),
             property("invViewProj", &inv_view_projection),
+            property("skyboxLighting", &skybox_lighting),
         ]);
         let material = RenderMaterial::from([
             binding(

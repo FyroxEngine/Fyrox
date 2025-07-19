@@ -1038,6 +1038,9 @@ impl Renderer {
                     observer,
                     gbuffer: &mut render_data.gbuffer,
                     ambient_color: scene.rendering_options.ambient_lighting_color,
+                    environment_lighting_source: scene
+                        .rendering_options
+                        .environment_lighting_source,
                     render_data_bundle: &bundle_storage,
                     settings: &self.quality_settings,
                     textures: &mut self.texture_cache,
