@@ -23,7 +23,7 @@ use crate::{
     fyrox::{
         core::{log::Log, pool::Handle},
         engine::Engine,
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
             message::{MessageDirection, UiMessage},
@@ -33,6 +33,7 @@ use crate::{
             popup::{Placement, PopupBuilder, PopupMessage},
             stack_panel::StackPanelBuilder,
             widget::WidgetBuilder,
+            widget::WidgetMessage,
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, RcUiNodeHandle, UiNode,
         },
@@ -136,17 +137,22 @@ impl AssetItemContextMenu {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) -> bool {
+        let ui = engine.user_interfaces.first_mut();
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu.handle() {
                 self.placement_target = *target;
+                if let Some(item) = ui.try_get_of_type::<AssetItem>(self.placement_target) {
+                    for handle in [self.dependencies, self.duplicate] {
+                        ui.send_message(WidgetMessage::enabled(
+                            handle,
+                            MessageDirection::ToWidget,
+                            item.path.is_file(),
+                        ));
+                    }
+                }
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
-            let ui = engine.user_interfaces.first_mut();
-
-            if let Some(item) = ui
-                .try_get(self.placement_target)
-                .and_then(|n| n.cast::<AssetItem>())
-            {
+            if let Some(item) = ui.try_get_mut_of_type::<AssetItem>(self.placement_target) {
                 if message.destination() == self.delete {
                     let text = format!(
                         "Do you really want to delete {} asset? This \
