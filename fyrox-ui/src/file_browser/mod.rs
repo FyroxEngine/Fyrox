@@ -24,6 +24,7 @@
 //! OS file selector.
 
 use crate::{
+    button::{ButtonBuilder, ButtonMessage},
     core::{
         parking_lot::Mutex, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         uuid_provider, visitor::prelude::*,
@@ -31,16 +32,17 @@ use crate::{
     define_constructor,
     file_browser::menu::ItemContextMenu,
     grid::{Column, GridBuilder, Row},
+    image::ImageBuilder,
     message::{MessageDirection, UiMessage},
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
     text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
     tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
+    utils::{load_image, make_simple_tooltip},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use core::time;
-
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
@@ -65,8 +67,6 @@ use sysinfo::{DiskExt, RefreshKind, SystemExt};
 mod menu;
 mod selector;
 
-use crate::button::{ButtonBuilder, ButtonMessage};
-use crate::utils::make_simple_tooltip;
 pub use selector::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -695,6 +695,48 @@ fn build_tree_item<P: AsRef<Path>>(
     expanded: bool,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
+    let content = GridBuilder::new(
+        WidgetBuilder::new()
+            .with_child(if path.as_ref().is_dir() {
+                ImageBuilder::new(
+                    WidgetBuilder::new()
+                        .with_width(16.0)
+                        .with_height(16.0)
+                        .on_column(0)
+                        .with_margin(Thickness {
+                            left: 4.0,
+                            top: 1.0,
+                            right: 1.0,
+                            bottom: 1.0,
+                        }),
+                )
+                .with_opt_texture(load_image(include_bytes!("folder.png")))
+                .build(ctx)
+            } else {
+                Handle::NONE
+            })
+            .with_child(
+                TextBuilder::new(
+                    WidgetBuilder::new()
+                        .with_margin(Thickness::left(4.0))
+                        .on_column(1)
+                        .with_vertical_alignment(VerticalAlignment::Center),
+                )
+                .with_text(
+                    path.as_ref()
+                        .to_string_lossy()
+                        .replace(&parent_path.as_ref().to_string_lossy().to_string(), "")
+                        .replace('\\', ""),
+                )
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .build(ctx),
+            ),
+    )
+    .add_row(Row::auto())
+    .add_column(Column::auto())
+    .add_column(Column::stretch())
+    .build(ctx);
+
     let is_dir_empty = path
         .as_ref()
         .read_dir()
@@ -706,17 +748,7 @@ fn build_tree_item<P: AsRef<Path>>(
     )
     .with_expanded(expanded)
     .with_always_show_expander(!is_dir_empty)
-    .with_content(
-        TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(4.0)))
-            .with_text(
-                path.as_ref()
-                    .to_string_lossy()
-                    .replace(&parent_path.as_ref().to_string_lossy().to_string(), "")
-                    .replace('\\', ""),
-            )
-            .with_vertical_text_alignment(VerticalAlignment::Center)
-            .build(ctx),
-    )
+    .with_content(content)
     .build(ctx)
 }
 
