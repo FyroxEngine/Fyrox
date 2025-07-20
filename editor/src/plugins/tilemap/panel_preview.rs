@@ -230,9 +230,22 @@ impl Control for PanelPreview {
         }
 
         ctx.transform_stack.pop();
+        let position = bounds.right_bottom_corner() - self.handle_text_size;
+        let rect = Rect {
+            position,
+            size: self.handle_text_size,
+        };
+        ctx.push_rect_filled(&rect, None);
+        ctx.commit(
+            self.clip_bounds(),
+            Brush::Solid(Color::from_rgba(0, 0, 0, 200)),
+            CommandTexture::None,
+            &self.material,
+            None,
+        );
         ctx.draw_text(
             self.clip_bounds(),
-            bounds.right_bottom_corner() - self.handle_text_size,
+            position,
             &self.material,
             &self.handle_text,
         );
@@ -270,6 +283,7 @@ impl PanelPreviewBuilder {
             tile_size: Vector2::repeat(32.0),
             transform: Matrix3::identity(),
             handle_text: FormattedTextBuilder::new(ctx.inner().default_font.clone())
+                .with_constraint(Vector2::new(f32::INFINITY, f32::INFINITY))
                 .with_brush(Brush::Solid(Color::WHITE))
                 .build(),
             handle_text_size: Vector2::default(),

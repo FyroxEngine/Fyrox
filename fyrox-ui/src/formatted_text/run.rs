@@ -24,6 +24,9 @@ use crate::font::FontHeight;
 
 use super::*;
 
+#[deprecated]
+pub type RunBuilder = Run;
+
 #[derive(Clone, PartialEq, Debug, Default, Reflect)]
 pub struct RunSet(Vec<Run>);
 
@@ -133,6 +136,18 @@ pub struct Run {
 }
 
 impl Run {
+    pub fn new(range: Range<u32>) -> Self {
+        Self {
+            range,
+            font: None,
+            brush: None,
+            font_size: None,
+            shadow: None,
+            shadow_brush: None,
+            shadow_dilation: None,
+            shadow_offset: None,
+        }
+    }
     /// The font of the characters in this run, or None if the font is unmodified.
     pub fn font(&self) -> Option<&FontResource> {
         self.font.as_ref()
@@ -162,58 +177,9 @@ impl Run {
     pub fn shadow_offset(&self) -> Option<Vector2<f32>> {
         self.shadow_offset
     }
-}
-
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub enum DrawValueLayer {
-    Main,
-    Shadow,
-}
-
-#[derive(Clone, PartialEq, Debug)]
-pub struct GlyphDrawValues {
-    pub atlas_page_index: usize,
-    pub font: FontResource,
-    pub brush: Brush,
-    /// Font size scaled by super sampling scaling to pick correct atlas page.
-    pub height: FontHeight,
-}
-
-pub struct RunBuilder {
-    range: Range<u32>,
-    font: Option<FontResource>,
-    brush: Option<Brush>,
-    font_size: Option<f32>,
-    shadow: Option<bool>,
-    shadow_brush: Option<Brush>,
-    shadow_dilation: Option<f32>,
-    shadow_offset: Option<Vector2<f32>>,
-}
-
-impl RunBuilder {
-    pub fn new(range: Range<u32>) -> Self {
-        Self {
-            range,
-            font: None,
-            brush: None,
-            font_size: None,
-            shadow: None,
-            shadow_brush: None,
-            shadow_dilation: None,
-            shadow_offset: None,
-        }
-    }
-    pub fn build(self) -> Run {
-        Run {
-            range: self.range,
-            font: self.font,
-            brush: self.brush,
-            font_size: self.font_size,
-            shadow: self.shadow,
-            shadow_brush: self.shadow_brush,
-            shadow_dilation: self.shadow_dilation,
-            shadow_offset: self.shadow_offset,
-        }
+    #[deprecated]
+    pub fn build(self) -> Self {
+        self
     }
     /// Set this run to modify the font of the text within the range.
     pub fn with_font(mut self, font: FontResource) -> Self {
@@ -250,4 +216,19 @@ impl RunBuilder {
         self.shadow_offset = Some(offset);
         self
     }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub enum DrawValueLayer {
+    Main,
+    Shadow,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct GlyphDrawValues {
+    pub atlas_page_index: usize,
+    pub font: FontResource,
+    pub brush: Brush,
+    /// Font size scaled by super sampling scaling to pick correct atlas page.
+    pub height: FontHeight,
 }
