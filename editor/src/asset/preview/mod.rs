@@ -40,7 +40,10 @@ use crate::{
             widget::WidgetBuilder, HorizontalAlignment, UserInterface, VerticalAlignment,
         },
         material::{shader::Shader, Material, MaterialResource},
-        renderer::framework::gpu_texture::{GpuTextureKind, PixelKind},
+        renderer::framework::{
+            framebuffer::ReadTarget,
+            gpu_texture::{GpuTextureKind, PixelKind},
+        },
         resource::{
             curve::CurveResourceState,
             model::{Model, ModelResourceExtension},
@@ -57,13 +60,14 @@ use crate::{
                 MeshBuilder, RenderPath,
             },
             node::Node,
+            skybox::SkyBox,
             sound::{HrirSphereResourceData, SoundBuffer, SoundBuilder, Status},
             Scene,
         },
     },
     load_image,
 };
-use fyrox::renderer::framework::framebuffer::ReadTarget;
+use fyrox::scene::EnvironmentLightingSource;
 use image::{ColorType, GenericImage, Rgba};
 
 #[derive(Default)]
@@ -94,6 +98,14 @@ impl AssetPreviewGeneratorsCollection {
     ) -> Option<Box<dyn AssetPreviewGenerator>> {
         self.map.insert(resource_type_uuid, Box::new(generator))
     }
+}
+
+pub fn make_preview_scene() -> Scene {
+    let mut scene = Scene::new();
+    scene.set_skybox(Some(SkyBox::from_single_color(Color::repeat(80))));
+    scene.rendering_options.ambient_lighting_color = Color::opaque(180, 180, 180);
+    scene.rendering_options.environment_lighting_source = EnvironmentLightingSource::AmbientColor;
+    scene
 }
 
 #[derive(Clone)]
@@ -403,8 +415,8 @@ impl AssetPreviewGenerator for ModelPreview {
         engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
         let model = resource.try_cast::<Model>()?;
-        let mut scene = Scene::new();
-        scene.rendering_options.ambient_lighting_color = Color::opaque(180, 180, 180);
+        let mut scene = make_preview_scene();
+
         model.instantiate(&mut scene);
         render_scene_to_texture(engine, &mut scene, asset::item::DEFAULT_VEC_SIZE)
     }
@@ -442,8 +454,7 @@ impl AssetPreviewGenerator for SurfaceDataPreview {
         engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
         let surface = resource.try_cast::<SurfaceData>()?;
-        let mut scene = Scene::new();
-        scene.rendering_options.ambient_lighting_color = Color::opaque(180, 180, 180);
+        let mut scene = make_preview_scene();
         MeshBuilder::new(BaseBuilder::new())
             .with_surfaces(vec![SurfaceBuilder::new(surface.clone()).build()])
             .build(&mut scene.graph);
@@ -528,7 +539,7 @@ impl AssetPreviewGenerator for MaterialPreview {
         resource: &UntypedResource,
         engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
-        let mut scene = Scene::new();
+        let mut scene = make_preview_scene();
         self.generate_scene(resource, &engine.resource_manager, &mut scene);
         DirectionalLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new()))
             .build(&mut scene.graph);
