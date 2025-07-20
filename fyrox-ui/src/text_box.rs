@@ -48,6 +48,7 @@ use crate::{
 };
 use copypasta::ClipboardProvider;
 
+use fyrox_core::some_or_return;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::RefCell,
@@ -902,7 +903,7 @@ impl TextBox {
         if let Some(index) = self.position_to_char_index_clamped(position) {
             let text_ref = self.formatted_text.borrow();
             let text = text_ref.get_raw_text();
-            let search_whitespace = !text[index].is_whitespace();
+            let search_whitespace = !some_or_return!(text.get(index)).is_whitespace();
 
             let mut left_index = index;
             while left_index > 0 {
