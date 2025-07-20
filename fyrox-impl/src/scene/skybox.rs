@@ -24,6 +24,7 @@ use crate::{
     asset::{builtin::BuiltInResource, embedded_data_source, untyped::ResourceKind},
     core::{log::Log, reflect::prelude::*, uuid_provider, visitor::prelude::*},
 };
+use fyrox_core::color::Color;
 use fyrox_texture::{
     CompressionOptions, Texture, TextureImportOptions, TextureKind, TextureMinificationFilter,
     TexturePixelKind, TextureResource, TextureResourceExtension, TextureWrapMode,
@@ -71,6 +72,25 @@ pub struct SkyBox {
 uuid_provider!(SkyBox = "45f359f1-e26f-4ace-81df-097f63474c72");
 
 impl SkyBox {
+    /// Creates a new sky box from a single color.
+    pub fn from_single_color(color: Color) -> Self {
+        let dark_gray_texture = TextureResource::from_bytes(
+            Uuid::new_v4(),
+            TextureKind::Rectangle {
+                width: 1,
+                height: 1,
+            },
+            TexturePixelKind::RGBA8,
+            vec![color.r, color.g, color.b, color.a],
+            ResourceKind::Embedded,
+        )
+        .unwrap();
+
+        SkyBoxBuilder::from_texture(&dark_gray_texture)
+            .build()
+            .unwrap()
+    }
+
     /// Returns cubemap texture
     pub fn cubemap(&self) -> Option<TextureResource> {
         self.cubemap.clone()
@@ -374,6 +394,18 @@ pub struct SkyBoxBuilder {
 }
 
 impl SkyBoxBuilder {
+    /// Creates a new builder, where each texture for each side of the sky box is the same.
+    pub fn from_texture(texture: &TextureResource) -> Self {
+        Self {
+            front: Some(texture.clone()),
+            back: Some(texture.clone()),
+            left: Some(texture.clone()),
+            right: Some(texture.clone()),
+            top: Some(texture.clone()),
+            bottom: Some(texture.clone()),
+        }
+    }
+
     /// Sets desired front face of cubemap.
     pub fn with_front(mut self, texture: TextureResource) -> Self {
         self.front = Some(texture);
