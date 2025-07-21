@@ -29,7 +29,7 @@ use crate::{
     HorizontalAlignment, VerticalAlignment,
 };
 pub use run::*;
-use std::ops::Range;
+use std::ops::{Range, RangeBounds};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 use textwrapper::*;
 
@@ -215,7 +215,8 @@ fn build_glyph(
 
 struct WrapSink<'a> {
     lines: &'a mut Vec<TextLine>,
-    max_width: f32,
+    normal_width: f32,
+    first_width: f32,
 }
 
 impl LineSink for WrapSink<'_> {
@@ -228,7 +229,11 @@ impl LineSink for WrapSink<'_> {
     }
 
     fn max_width(&self) -> f32 {
-        self.max_width
+        if self.lines.is_empty() {
+            self.first_width
+        } else {
+            self.normal_width
+        }
     }
 }
 
@@ -265,6 +270,13 @@ pub struct FormattedText {
     pub shadow_offset: InheritableVariable<Vector2<f32>>,
     #[visit(optional)]
     pub runs: RunSet,
+    /// The indent amount of the first line of the text.
+    /// A negative indent will cause every line except the first to indent.
+    #[visit(optional)]
+    pub line_indent: InheritableVariable<f32>,
+    /// The space between lines.
+    #[visit(optional)]
+    pub line_space: InheritableVariable<f32>,
 }
 
 impl FormattedText {
@@ -436,44 +448,20 @@ impl FormattedText {
     }
 
     pub fn position_to_local(&self, position: Position) -> Vector2<f32> {
-        let mut state = self.font.state();
-        let Some(font) = state.data() else {
+        if self.font.state().data().is_none() {
             return Default::default();
-        };
-        let mut metrics = GlyphMetrics {
-            font,
-            size: **self.font_size,
-        };
-        let mut caret_pos = Vector2::default();
-        let position = self.nearest_valid_position(position);
-
-        let line = self.lines[position.line];
-        let raw_text = self.get_raw_text();
-        caret_pos += Vector2::new(line.x_offset, line.y_offset);
-        for (offset, char_index) in (line.begin..line.end).enumerate() {
-            if offset >= position.offset {
-                break;
-            }
-            if let Some(advance) = raw_text.get(char_index).map(|c| metrics.advance(*c)) {
-                caret_pos.x += advance;
-            } else {
-                caret_pos.x += metrics.size;
-            }
         }
-        caret_pos
+        let position = self.nearest_valid_position(position);
+        let line = &self.lines[position.line];
+        let caret_pos = Vector2::new(line.x_offset, line.y_offset);
+        let range = line.begin..line.begin + position.offset;
+        caret_pos + Vector2::new(self.get_range_width(range), 0.0)
     }
 
     pub fn local_to_position(&self, point: Vector2<f32>) -> Position {
-        let font_size = **self.font_size();
-        let font = self.get_font();
-        let mut state = font.state();
-        let Some(font) = state.data() else {
+        if self.get_font().state().data().is_none() {
             return Position::default();
-        };
-        let mut metrics = GlyphMetrics {
-            font,
-            size: font_size,
-        };
+        }
         let y = point.y;
 
         let Some(line_index) = self
@@ -491,13 +479,8 @@ impl FormattedText {
         let mut glyph_x: f32 = 0.0;
         let mut min_dist: f32 = x.abs();
         let mut min_index: usize = 0;
-        let raw_text = self.get_raw_text();
         for (offset, char_index) in (line.begin..line.end).enumerate() {
-            if let Some(advance) = raw_text.get(char_index).map(|c| metrics.advance(*c)) {
-                glyph_x += advance;
-            } else {
-                glyph_x += font_size;
-            }
+            glyph_x += self.get_char_width(char_index).unwrap_or_default();
             let dist = (x - glyph_x).abs();
             if dist < min_dist {
                 min_dist = dist;
@@ -619,26 +602,66 @@ impl FormattedText {
         self.text[range].iter().collect()
     }
 
+    /// The width of the character at the given index.
+    pub fn get_char_width(&self, index: usize) -> Option<f32> {
+        let glyph = self.text.get(index)?;
+        Some(
+            GlyphMetrics {
+                font: &mut self.font_at(index).data_ref(),
+                size: self.font_size_at(index),
+            }
+            .advance(*glyph),
+        )
+    }
+
+    /// The width of the characters at the indices in the given iterator.
+    /// This is equivalent to calling [`get_char_width`](Self::get_char_width) repeatedly and summing the results.
     pub fn get_range_width<T: IntoIterator<Item = usize>>(&self, range: T) -> f32 {
         let mut width = 0.0;
-        if let Some(font) = self.font.state().data() {
-            let mut metrics = GlyphMetrics {
-                font,
-                size: **self.font_size(),
-            };
-            for index in range {
-                // We can't trust the range values, check to prevent panic.
-                if let Some(glyph) = self.text.get(index) {
-                    width += metrics.advance(*glyph);
-                }
-            }
+        for index in range {
+            width += self.get_char_width(index).unwrap_or_default();
         }
         width
+    }
+
+    /// A rectangle relative to the top-left corner of the text that contains the given
+    /// range of characters on the given line. None is returned if the `line` is out of
+    /// bounds. The `range` is relative to the start of the line, so 0 is the first character
+    /// of the line, not the first character of the text.
+    ///
+    /// This rect is appropriate for drawing a selection or highlight for the text,
+    /// and the lower edge of the rectangle can be used to draw an underline.
+    pub fn text_rect<R: RangeBounds<usize>>(&self, line: usize, range: R) -> Option<Rect<f32>> {
+        let line = self.lines.get(line)?;
+        let x = line.x_offset;
+        let y = line.y_offset;
+        let h = line.height;
+        use std::ops::Bound;
+        let start = match range.start_bound() {
+            Bound::Included(&n) => n,
+            Bound::Excluded(&n) => n + 1,
+            Bound::Unbounded => 0,
+        };
+        let end = match range.end_bound() {
+            Bound::Included(&n) => n + 1,
+            Bound::Excluded(&n) => n,
+            Bound::Unbounded => line.len(),
+        };
+        let start = line.begin + start;
+        let end = line.begin + end;
+        let offset = self.get_range_width(line.begin..start);
+        let w = self.get_range_width(start..end);
+        Some(Rect::new(offset + x, y, w, h))
     }
 
     pub fn set_text<P: AsRef<str>>(&mut self, text: P) -> &mut Self {
         self.text
             .set_value_and_mark_modified(text.as_ref().chars().collect());
+        self
+    }
+
+    pub fn set_chars(&mut self, text: Vec<char>) -> &mut Self {
+        self.text.set_value_and_mark_modified(text);
         self
     }
 
@@ -672,6 +695,58 @@ impl FormattedText {
         self
     }
 
+    /// Runs can optionally modify various style settings for portions of the text.
+    /// Later runs override earlier runs if their ranges overlap and the later run
+    /// sets a property that conflicts with an earlier run.
+    pub fn runs(&self) -> &RunSet {
+        &self.runs
+    }
+
+    /// Modify runs of the text to set the style for portions of the text.
+    /// Later runs potentially override earlier runs if the ranges of the runs overlap and the later run
+    /// sets a property that conflicts with an earlier run.
+    pub fn runs_mut(&mut self) -> &mut RunSet {
+        &mut self.runs
+    }
+
+    /// Replace runs of the text to set the style for portions of the text.
+    /// Later runs potentially override earlier runs if the ranges of the runs overlap and the later run
+    /// sets a property that conflicts with an earlier run.
+    pub fn set_runs(&mut self, runs: RunSet) -> &mut Self {
+        self.runs = runs;
+        self
+    }
+
+    /// The amount of indent of the first line, horizontally separating it
+    /// from the start of the remaining lines.
+    /// If the indent is negative, then the first line will not be indented
+    /// while all the other lines will be indented. By default this is 0.0.
+    pub fn set_line_indent(&mut self, indent: f32) -> &mut Self {
+        self.line_indent.set_value_and_mark_modified(indent);
+        self
+    }
+
+    /// The amount of indent of the first line, horizontally separating it
+    /// from the start of the remaining lines.
+    /// If the indent is negative, then the first line will not be indented
+    /// while all the other lines will be indented. By default this is 0.0.
+    pub fn line_indent(&mut self) -> f32 {
+        *self.line_indent
+    }
+
+    /// The space separating each line from the line above and below.
+    /// By default this is 0.0.
+    pub fn set_line_space(&mut self, space: f32) -> &mut Self {
+        self.line_space.set_value_and_mark_modified(space);
+        self
+    }
+
+    /// The space separating each line from the line above and below.
+    /// By default this is 0.0.
+    pub fn line_space(&self) -> f32 {
+        *self.line_space
+    }
+
     pub fn wrap_mode(&self) -> WrapMode {
         *self.wrap
     }
@@ -702,9 +777,12 @@ impl FormattedText {
     pub fn build(&mut self) -> Vector2<f32> {
         let mut lines = std::mem::take(&mut self.lines);
         lines.clear();
+        let first_indent = self.line_indent.max(0.0);
+        let normal_indent = -self.line_indent.min(0.0);
         let sink = WrapSink {
             lines: &mut lines,
-            max_width: self.constraint.x,
+            normal_width: self.constraint.x - normal_indent,
+            first_width: self.constraint.x - first_indent,
         };
         if let Some(mask) = *self.mask_char {
             let advance = GlyphMetrics {
@@ -740,24 +818,25 @@ impl FormattedText {
 
         let mut total_height = 0.0;
         // Align lines according to desired alignment.
-        for line in lines.iter_mut() {
+        for (i, line) in lines.iter_mut().enumerate() {
+            let indent = if i == 0 { first_indent } else { normal_indent };
             match *self.horizontal_alignment {
-                HorizontalAlignment::Left => line.x_offset = 0.0,
+                HorizontalAlignment::Left => line.x_offset = indent,
                 HorizontalAlignment::Center => {
                     if self.constraint.x.is_infinite() {
-                        line.x_offset = 0.0;
+                        line.x_offset = indent;
                     } else {
                         line.x_offset = 0.5 * (self.constraint.x - line.width).max(0.0);
                     }
                 }
                 HorizontalAlignment::Right => {
                     if self.constraint.x.is_infinite() {
-                        line.x_offset = 0.0;
+                        line.x_offset = indent;
                     } else {
-                        line.x_offset = (self.constraint.x - line.width).max(0.0)
+                        line.x_offset = (self.constraint.x - line.width - indent).max(0.0)
                     }
                 }
-                HorizontalAlignment::Stretch => line.x_offset = 0.0,
+                HorizontalAlignment::Stretch => line.x_offset = indent,
             }
         }
         // Calculate line height
@@ -778,8 +857,9 @@ impl FormattedText {
                     line.height = line.height.max(h);
                 }
             }
-            total_height += line.height;
+            total_height += line.height + self.line_space();
         }
+        total_height -= self.line_space();
 
         // Generate glyphs for each text line.
         self.glyphs.clear();
@@ -844,7 +924,7 @@ impl FormattedText {
                 }
             }
             line.y_offset = y;
-            y += line.height;
+            y += line.height + self.line_space();
         }
 
         let size_x = if self.constraint.x.is_finite() {
@@ -909,7 +989,7 @@ pub struct FormattedTextBuilder {
     font: FontResource,
     brush: Brush,
     constraint: Vector2<f32>,
-    text: String,
+    text: Vec<char>,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
     wrap: WrapMode,
@@ -921,6 +1001,10 @@ pub struct FormattedTextBuilder {
     font_size: StyledProperty<f32>,
     super_sampling_scaling: f32,
     runs: Vec<Run>,
+    /// The amount of indentation on the first line of the text.
+    line_indent: f32,
+    /// The space between lines.
+    line_space: f32,
 }
 
 impl FormattedTextBuilder {
@@ -928,7 +1012,7 @@ impl FormattedTextBuilder {
     pub fn new(font: FontResource) -> FormattedTextBuilder {
         FormattedTextBuilder {
             font,
-            text: "".to_owned(),
+            text: Vec::default(),
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
             brush: Brush::Solid(Color::WHITE),
@@ -942,6 +1026,8 @@ impl FormattedTextBuilder {
             font_size: 14.0f32.into(),
             super_sampling_scaling: 1.0,
             runs: Vec::default(),
+            line_indent: 0.0,
+            line_space: 0.0,
         }
     }
 
@@ -961,6 +1047,11 @@ impl FormattedTextBuilder {
     }
 
     pub fn with_text(mut self, text: String) -> Self {
+        self.text = text.chars().collect();
+        self
+    }
+
+    pub fn with_chars(mut self, text: Vec<char>) -> Self {
         self.text = text;
         self
     }
@@ -1032,9 +1123,25 @@ impl FormattedTextBuilder {
         self
     }
 
+    /// The amount of indent of the first line, horizontally separating it
+    /// from the start of the remaining lines.
+    /// If the indent is negative, then the first line will not be indented
+    /// while all the other lines will be indented. By default this is 0.0.
+    pub fn with_line_indent(mut self, indent: f32) -> Self {
+        self.line_indent = indent;
+        self
+    }
+
+    /// The space separating each line from the line above and below.
+    /// By default this is 0.0.
+    pub fn with_line_space(mut self, space: f32) -> Self {
+        self.line_space = space;
+        self
+    }
+
     pub fn build(self) -> FormattedText {
         FormattedText {
-            text: self.text.chars().collect::<Vec<char>>().into(),
+            text: self.text.into(),
             lines: Vec::new(),
             glyphs: Vec::new(),
             vertical_alignment: self.vertical_alignment.into(),
@@ -1051,6 +1158,8 @@ impl FormattedTextBuilder {
             shadow_dilation: self.shadow_dilation.into(),
             shadow_offset: self.shadow_offset.into(),
             runs: self.runs.into(),
+            line_indent: self.line_indent.into(),
+            line_space: self.line_space.into(),
         }
     }
 }
