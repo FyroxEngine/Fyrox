@@ -113,8 +113,13 @@ impl Control for Item {
         }
     }
 
-    fn update(&mut self, _dt: f32, _ui: &mut UserInterface) {
+    fn update(&mut self, _dt: f32, ui: &mut UserInterface) {
         if self.need_request_preview.get() {
+            let parent_container_bounds = ui
+                .find_up(self.parent, &mut |n| n.has_component::<ListView>())
+                .map(|(_, node)| node.screen_bounds())
+                .unwrap_or_default();
+
             let screen_bounds = self.screen_bounds();
             for corner in [
                 screen_bounds.left_top_corner(),
@@ -122,7 +127,7 @@ impl Control for Item {
                 screen_bounds.right_bottom_corner(),
                 screen_bounds.left_bottom_corner(),
             ] {
-                if self.clip_bounds().contains(corner) {
+                if parent_container_bounds.contains(corner) {
                     self.need_request_preview.set(false);
 
                     Log::verify(self.sender.send(IconRequest {
