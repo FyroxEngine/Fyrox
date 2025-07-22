@@ -287,6 +287,7 @@ impl CameraController {
                 .and_then(|rt| rt.data_ref().kind().rectangle_size())
                 .map(|rs| rs.x as f32 / rs.y as f32)
                 .unwrap_or(1.0),
+            1.0,
         );
 
         match fit_parameters {

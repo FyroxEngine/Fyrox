@@ -337,7 +337,7 @@ fn render_scene_to_texture(
         .unwrap_or_default();
     let camera = scene.graph[camera].as_camera_mut();
     let aspect_ratio = 1.0;
-    match camera.fit(&scene_aabb, aspect_ratio) {
+    match camera.fit(&scene_aabb, aspect_ratio, 1.05) {
         FitParameters::Perspective { position, .. } => {
             camera.local_transform_mut().set_position(position);
         }

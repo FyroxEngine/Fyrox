@@ -600,7 +600,12 @@ impl Camera {
     /// the method returns a set of parameters that can be used as you want.
     #[inline]
     #[must_use]
-    pub fn fit(&self, aabb: &AxisAlignedBoundingBox, aspect_ratio: f32) -> FitParameters {
+    pub fn fit(
+        &self,
+        aabb: &AxisAlignedBoundingBox,
+        aspect_ratio: f32,
+        scale: f32,
+    ) -> FitParameters {
         let look_vector = self
             .look_vector()
             .try_normalize(f32::EPSILON)
@@ -609,7 +614,7 @@ impl Camera {
         match self.projection.deref() {
             Projection::Perspective(perspective) => {
                 let radius = aabb.half_extents().max();
-                let distance = radius / (perspective.fov * 0.5).sin();
+                let distance = radius / (perspective.fov * 0.5).sin() * scale;
 
                 FitParameters::Perspective {
                     position: aabb.center() - look_vector.scale(distance),
@@ -639,8 +644,9 @@ impl Camera {
                 }
 
                 FitParameters::Orthographic {
-                    position: aabb.center() - look_vector.scale((aabb.max - aabb.min).norm()),
-                    vertical_size: (max_y - min_y).max((max_x - min_x) * aspect_ratio),
+                    position: aabb.center()
+                        - look_vector.scale((aabb.max - aabb.min).norm() * scale),
+                    vertical_size: (max_y - min_y).max((max_x - min_x) * aspect_ratio) * scale,
                 }
             }
         }
