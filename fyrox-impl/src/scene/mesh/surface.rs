@@ -737,8 +737,8 @@ impl SurfaceData {
                 let c = ((num_segments + 1) * (j - 1) + i) as u32;
                 let d = ((num_segments + 1) * j + i) as u32;
 
-                triangles.push(TriangleDefinition([a, b, d]));
-                triangles.push(TriangleDefinition([b, c, d]));
+                triangles.push(TriangleDefinition([d, b, a]));
+                triangles.push(TriangleDefinition([d, c, b]));
             }
         }
 
