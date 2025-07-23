@@ -149,6 +149,13 @@ impl AssetItemContextMenu {
                             item.path.is_file(),
                         ));
                     }
+                    if let Some(resource) = item.untyped_resource() {
+                        ui.send_message(WidgetMessage::enabled(
+                            self.delete,
+                            MessageDirection::ToWidget,
+                            !engine.resource_manager.is_built_in_resource(&resource),
+                        ));
+                    }
                 }
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {

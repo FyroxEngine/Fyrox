@@ -244,6 +244,13 @@ impl BuiltInResourcesContainer {
     pub fn find_by_uuid(&self, uuid: Uuid) -> Option<&UntypedBuiltInResource> {
         self.inner.values().find(|r| r.resource_uuid == uuid)
     }
+
+    /// Checks whether the given resource is a built-in resource instance or not.
+    pub fn is_built_in_resource(&self, resource: &UntypedResource) -> bool {
+        self.inner
+            .values()
+            .any(|built_in| &built_in.resource == resource)
+    }
 }
 
 impl Deref for BuiltInResourcesContainer {

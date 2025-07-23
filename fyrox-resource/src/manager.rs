@@ -461,6 +461,13 @@ impl ResourceManager {
         self.state().register(resource, path)
     }
 
+    /// Checks whether the given resource is a built-in resource instance or not.
+    pub fn is_built_in_resource(&self, resource: &UntypedResource) -> bool {
+        self.state()
+            .built_in_resources
+            .is_built_in_resource(resource)
+    }
+
     /// Creates a resource movement context.
     #[allow(clippy::await_holding_lock)]
     pub async fn make_resource_move_context(
