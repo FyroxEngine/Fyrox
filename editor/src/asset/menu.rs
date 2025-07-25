@@ -146,6 +146,13 @@ impl Control for AssetRenameDialog {
                     can_be_moved,
                 ));
             }
+        } else if let Some(WindowMessage::OpenModal { .. }) = message.data() {
+            if message.destination() == self.handle {
+                ui.send_message(WidgetMessage::focus(
+                    self.name_field,
+                    MessageDirection::ToWidget,
+                ));
+            }
         }
     }
 
@@ -202,7 +209,8 @@ impl AssetRenameDialogBuilder {
                     name_field = TextBoxBuilder::new(
                         WidgetBuilder::new()
                             .on_row(1)
-                            .with_margin(Thickness::uniform(1.0)),
+                            .with_margin(Thickness::uniform(2.0))
+                            .with_tab_index(Some(0)),
                     )
                     .with_text(&old_file_name)
                     .with_text_commit_mode(TextCommitMode::Immediate)
@@ -219,7 +227,8 @@ impl AssetRenameDialogBuilder {
                                     WidgetBuilder::new()
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_width(100.0)
-                                        .with_height(24.0),
+                                        .with_height(24.0)
+                                        .with_tab_index(Some(1)),
                                 )
                                 .with_text("Rename")
                                 .build(ctx);
@@ -230,7 +239,8 @@ impl AssetRenameDialogBuilder {
                                     WidgetBuilder::new()
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_width(100.0)
-                                        .with_height(24.0),
+                                        .with_height(24.0)
+                                        .with_tab_index(Some(2)),
                                 )
                                 .with_text("Cancel")
                                 .build(ctx);
@@ -451,6 +461,8 @@ impl AssetItemContextMenu {
                             WindowBuilder::new(
                                 WidgetBuilder::new().with_width(350.0).with_height(100.0),
                             )
+                            .with_title(WindowTitle::text("Rename a Resource"))
+                            .with_remove_on_close(true)
                             .open(false),
                         )
                         .build(
