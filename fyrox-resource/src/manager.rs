@@ -174,6 +174,13 @@ pub enum ResourceMovementError {
         /// The path at which a resource with the same name is located.
         dest_path: PathBuf,
     },
+    /// The new path for a resource is invalid.
+    DestinationPathIsInvalid {
+        /// Source path of the resource.
+        src_path: PathBuf,
+        /// The invalid destination path.
+        dest_path: PathBuf,
+    },
     /// Resource registry location is unknown (the registry wasn't saved yet).
     ResourceRegistryLocationUnknown {
         /// A path of the resource being moved.
@@ -227,6 +234,18 @@ impl Display for ResourceMovementError {
                     f,
                     "Unable to move the {} resource, because the destination \
                     path {} points to an existing file!",
+                    src_path.display(),
+                    dest_path.display()
+                )
+            }
+            ResourceMovementError::DestinationPathIsInvalid {
+                src_path,
+                dest_path,
+            } => {
+                write!(
+                    f,
+                    "Unable to move the {} resource, because the destination \
+                    path {} is invalid!",
                     src_path.display(),
                     dest_path.display()
                 )
@@ -486,6 +505,15 @@ impl ResourceManager {
 
         let relative_src_path = fyrox_core::make_relative_path(src_path)?;
         let relative_dest_path = fyrox_core::make_relative_path(dest_path)?;
+
+        if let Some(file_stem) = relative_dest_path.file_stem() {
+            if !io.is_valid_file_name(file_stem) {
+                return Err(ResourceMovementError::DestinationPathIsInvalid {
+                    src_path: relative_src_path.clone(),
+                    dest_path: relative_dest_path.clone(),
+                });
+            }
+        }
 
         if !overwrite_existing && io.exists(&relative_dest_path).await {
             return Err(ResourceMovementError::AlreadyExist {

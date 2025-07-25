@@ -22,6 +22,7 @@
 //! things such as loading assets within archive files
 
 use fyrox_core::io::FileError;
+use std::ffi::OsStr;
 use std::{
     fmt::Debug,
     fs::File,
@@ -149,6 +150,8 @@ pub trait ResourceIo: Send + Sync + 'static {
             Ok(read)
         })
     }
+
+    fn is_valid_file_name(&self, name: &OsStr) -> bool;
 
     /// Used to check whether a path exists
     fn exists<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, bool>;
@@ -299,6 +302,34 @@ impl ResourceIo for FsResourceIo {
             let read: Box<dyn FileReader> = Box::new(std::io::BufReader::new(file));
             Ok(read)
         })
+    }
+
+    fn is_valid_file_name(&self, name: &OsStr) -> bool {
+        for &byte in name.as_encoded_bytes() {
+            #[cfg(windows)]
+            {
+                if matches!(
+                    byte,
+                    b'<' | b'>' | b':' | b'"' | b'/' | b'\\' | b'|' | b'?' | b'*'
+                ) {
+                    return false;
+                }
+
+                // ASCII control characters
+                if byte < 32 {
+                    return false;
+                }
+            }
+
+            #[cfg(not(windows))]
+            {
+                if matches!(byte, b'0' | b'/') {
+                    return false;
+                }
+            }
+        }
+
+        true
     }
 
     fn exists<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, bool> {
