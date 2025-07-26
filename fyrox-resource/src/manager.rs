@@ -155,8 +155,6 @@ impl Display for ResourceRegistrationError {
 pub struct ResourceMoveContext {
     relative_src_path: PathBuf,
     relative_dest_path: PathBuf,
-    io: Arc<dyn ResourceIo>,
-    resource_registry: Arc<Mutex<ResourceRegistry>>,
     resource_uuid: Uuid,
 }
 
@@ -495,129 +493,39 @@ impl ResourceManager {
         dest_path: impl AsRef<Path>,
         overwrite_existing: bool,
     ) -> Result<ResourceMoveContext, ResourceMovementError> {
-        let state = self.state();
-        let io = state.resource_io.clone();
-        let resource_registry = state.resource_registry.clone();
-        drop(state);
-
-        let src_path = src_path.as_ref();
-        let dest_path = dest_path.as_ref();
-
-        let relative_src_path = fyrox_core::make_relative_path(src_path)?;
-        let relative_dest_path = fyrox_core::make_relative_path(dest_path)?;
-
-        if let Some(file_stem) = relative_dest_path.file_stem() {
-            if !io.is_valid_file_name(file_stem) {
-                return Err(ResourceMovementError::DestinationPathIsInvalid {
-                    src_path: relative_src_path.clone(),
-                    dest_path: relative_dest_path.clone(),
-                });
-            }
-        }
-
-        if !overwrite_existing && io.exists(&relative_dest_path).await {
-            return Err(ResourceMovementError::AlreadyExist {
-                src_path: relative_src_path.clone(),
-                dest_path: relative_dest_path.clone(),
-            });
-        }
-
-        let registry_lock_guard = resource_registry.lock();
-        let absolute_registry_dir = if let Some(directory) = registry_lock_guard.directory() {
-            fyrox_core::replace_slashes(io.canonicalize_path(directory).await?)
-        } else {
-            return Err(ResourceMovementError::ResourceRegistryLocationUnknown {
-                resource_path: relative_src_path.clone(),
-            });
-        };
-        let resource_uuid = registry_lock_guard
-            .path_to_uuid(&relative_src_path)
-            .ok_or_else(|| ResourceMovementError::NotInRegistry {
-                resource_path: relative_src_path.clone(),
-            })?;
-
-        let relative_dest_dir = relative_dest_path.parent().unwrap_or(Path::new("."));
-        let absolute_dest_dir =
-            fyrox_core::replace_slashes(io.canonicalize_path(relative_dest_dir).await?);
-
-        let absolute_src_path =
-            fyrox_core::replace_slashes(io.canonicalize_path(&relative_src_path).await?);
-        if !absolute_dest_dir.starts_with(&absolute_registry_dir) {
-            return Err(ResourceMovementError::OutsideOfRegistry {
-                absolute_src_path,
-                absolute_dest_dir,
-                absolute_registry_dir,
-            });
-        }
-
-        drop(registry_lock_guard);
-
-        Ok(ResourceMoveContext {
-            relative_src_path,
-            relative_dest_path,
-            io,
-            resource_registry,
-            resource_uuid,
-        })
+        self.state()
+            .make_resource_move_context(src_path, dest_path, overwrite_existing)
+            .await
     }
 
     /// Returns `true` if a resource at the `src_path` can be moved to the `dest_path`, false -
     /// otherwise. Source path must be a valid resource path, and the dest path must have a valid
     /// new directory part of the path.
+    #[allow(clippy::await_holding_lock)]
     pub async fn can_resource_be_moved(
         &self,
         src_path: impl AsRef<Path>,
         dest_path: impl AsRef<Path>,
         overwrite_existing: bool,
     ) -> bool {
-        self.make_resource_move_context(src_path, dest_path, overwrite_existing)
+        self.state()
+            .can_resource_be_moved(src_path, dest_path, overwrite_existing)
             .await
-            .is_ok()
     }
 
     /// Tries to move a resource at the given path to the new path. The path of the resource must be
     /// registered in the resource registry for the resource to be moveable. This method can also be
     /// used to rename the source file of a resource.
+    #[allow(clippy::await_holding_lock)]
     pub async fn move_resource_by_path(
         &self,
         src_path: impl AsRef<Path>,
         dest_path: impl AsRef<Path>,
         overwrite_existing: bool,
     ) -> Result<(), ResourceMovementError> {
-        let ResourceMoveContext {
-            relative_src_path,
-            relative_dest_path,
-            io,
-            resource_registry,
-            resource_uuid,
-        } = self
-            .make_resource_move_context(src_path, dest_path, overwrite_existing)
-            .await?;
-
-        // Move the file with its optional import options and mandatory metadata.
-        io.move_file(&relative_src_path, &relative_dest_path)
-            .await?;
-
-        let current_path = resource_registry
-            .lock()
-            .modify()
-            .register(resource_uuid, relative_dest_path.to_path_buf());
-        assert_eq!(current_path.as_ref(), Some(&relative_src_path));
-
-        let options_path = append_extension(&relative_src_path, OPTIONS_EXTENSION);
-        if io.exists(&options_path).await {
-            let new_options_path = append_extension(&relative_dest_path, OPTIONS_EXTENSION);
-            io.move_file(&options_path, &new_options_path).await?;
-        }
-
-        let metadata_path = append_extension(&relative_src_path, ResourceMetadata::EXTENSION);
-        if io.exists(&metadata_path).await {
-            let new_metadata_path =
-                append_extension(&relative_dest_path, ResourceMetadata::EXTENSION);
-            io.move_file(&metadata_path, &new_metadata_path).await?;
-        }
-
-        Ok(())
+        self.state()
+            .move_resource_by_path(src_path, dest_path, overwrite_existing)
+            .await
     }
 
     /// Attempts to move a resource from its current location to the new path. The resource must
@@ -1292,6 +1200,162 @@ impl ResourceManagerState {
                 self.resources.remove(position);
             }
         }
+    }
+
+    /// Creates a resource movement context.
+    #[allow(clippy::await_holding_lock)]
+    pub async fn make_resource_move_context(
+        &self,
+        src_path: impl AsRef<Path>,
+        dest_path: impl AsRef<Path>,
+        overwrite_existing: bool,
+    ) -> Result<ResourceMoveContext, ResourceMovementError> {
+        let src_path = src_path.as_ref();
+        let dest_path = dest_path.as_ref();
+
+        let relative_src_path = fyrox_core::make_relative_path(src_path)?;
+        let relative_dest_path = fyrox_core::make_relative_path(dest_path)?;
+
+        if let Some(file_stem) = relative_dest_path.file_stem() {
+            if !self.resource_io.is_valid_file_name(file_stem) {
+                return Err(ResourceMovementError::DestinationPathIsInvalid {
+                    src_path: relative_src_path.clone(),
+                    dest_path: relative_dest_path.clone(),
+                });
+            }
+        }
+
+        if !overwrite_existing && self.resource_io.exists(&relative_dest_path).await {
+            return Err(ResourceMovementError::AlreadyExist {
+                src_path: relative_src_path.clone(),
+                dest_path: relative_dest_path.clone(),
+            });
+        }
+
+        let registry_lock_guard = self.resource_registry.lock();
+        let absolute_registry_dir = if let Some(directory) = registry_lock_guard.directory() {
+            fyrox_core::replace_slashes(self.resource_io.canonicalize_path(directory).await?)
+        } else {
+            return Err(ResourceMovementError::ResourceRegistryLocationUnknown {
+                resource_path: relative_src_path.clone(),
+            });
+        };
+        let resource_uuid = registry_lock_guard
+            .path_to_uuid(&relative_src_path)
+            .ok_or_else(|| ResourceMovementError::NotInRegistry {
+                resource_path: relative_src_path.clone(),
+            })?;
+
+        let relative_dest_dir = relative_dest_path.parent().unwrap_or(Path::new("."));
+        let absolute_dest_dir = fyrox_core::replace_slashes(
+            self.resource_io
+                .canonicalize_path(relative_dest_dir)
+                .await?,
+        );
+
+        let absolute_src_path = fyrox_core::replace_slashes(
+            self.resource_io
+                .canonicalize_path(&relative_src_path)
+                .await?,
+        );
+        if !absolute_dest_dir.starts_with(&absolute_registry_dir) {
+            return Err(ResourceMovementError::OutsideOfRegistry {
+                absolute_src_path,
+                absolute_dest_dir,
+                absolute_registry_dir,
+            });
+        }
+
+        drop(registry_lock_guard);
+
+        Ok(ResourceMoveContext {
+            relative_src_path,
+            relative_dest_path,
+            resource_uuid,
+        })
+    }
+
+    /// Returns `true` if a resource at the `src_path` can be moved to the `dest_path`, false -
+    /// otherwise. Source path must be a valid resource path, and the dest path must have a valid
+    /// new directory part of the path.
+    pub async fn can_resource_be_moved(
+        &self,
+        src_path: impl AsRef<Path>,
+        dest_path: impl AsRef<Path>,
+        overwrite_existing: bool,
+    ) -> bool {
+        self.make_resource_move_context(src_path, dest_path, overwrite_existing)
+            .await
+            .is_ok()
+    }
+
+    /// Tries to move a resource at the given path to the new path. The path of the resource must be
+    /// registered in the resource registry for the resource to be moveable. This method can also be
+    /// used to rename the source file of a resource.
+    pub async fn move_resource_by_path(
+        &self,
+        src_path: impl AsRef<Path>,
+        dest_path: impl AsRef<Path>,
+        overwrite_existing: bool,
+    ) -> Result<(), ResourceMovementError> {
+        let ResourceMoveContext {
+            relative_src_path,
+            relative_dest_path,
+
+            resource_uuid,
+        } = self
+            .make_resource_move_context(src_path, dest_path, overwrite_existing)
+            .await?;
+
+        // Move the file with its optional import options and mandatory metadata.
+        self.resource_io
+            .move_file(&relative_src_path, &relative_dest_path)
+            .await?;
+
+        let current_path = self
+            .resource_registry
+            .lock()
+            .modify()
+            .register(resource_uuid, relative_dest_path.to_path_buf());
+        assert_eq!(current_path.as_ref(), Some(&relative_src_path));
+
+        let options_path = append_extension(&relative_src_path, OPTIONS_EXTENSION);
+        if self.resource_io.exists(&options_path).await {
+            let new_options_path = append_extension(&relative_dest_path, OPTIONS_EXTENSION);
+            self.resource_io
+                .move_file(&options_path, &new_options_path)
+                .await?;
+        }
+
+        let metadata_path = append_extension(&relative_src_path, ResourceMetadata::EXTENSION);
+        if self.resource_io.exists(&metadata_path).await {
+            let new_metadata_path =
+                append_extension(&relative_dest_path, ResourceMetadata::EXTENSION);
+            self.resource_io
+                .move_file(&metadata_path, &new_metadata_path)
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    /// Attempts to move a resource from its current location to the new path. The resource must
+    /// be registered in the resource registry to be moveable. This method can also be used to
+    /// rename the source file of a resource.
+    pub async fn move_resource(
+        &self,
+        resource: &UntypedResource,
+        new_path: impl AsRef<Path>,
+        overwrite_existing: bool,
+    ) -> Result<(), ResourceMovementError> {
+        let resource_path = self.resource_path(resource).ok_or_else(|| {
+            FileError::Custom(
+                "Cannot move the resource because it does not have a path!".to_string(),
+            )
+        })?;
+
+        self.move_resource_by_path(resource_path, new_path, overwrite_existing)
+            .await
     }
 }
 
