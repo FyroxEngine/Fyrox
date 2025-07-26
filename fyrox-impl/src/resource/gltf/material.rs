@@ -382,7 +382,7 @@ async fn search_for_path(filename: &str, context: &TextureContext<'_>) -> Option
             let io = context.resource_manager.resource_io();
             let mut texture_path = None;
             let path = Path::new(".");
-            if let Ok(iter) = io.walk_directory(path).await {
+            if let Ok(iter) = io.walk_directory(path, usize::MAX).await {
                 for dir in iter {
                     if io.is_dir(&dir).await {
                         let candidate = dir.join(filename);

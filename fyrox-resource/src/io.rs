@@ -130,6 +130,7 @@ pub trait ResourceIo: Send + Sync + 'static {
     fn walk_directory<'a>(
         &'a self,
         #[allow(unused)] path: &'a Path,
+        #[allow(unused)] max_depth: usize,
     ) -> ResourceIoFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileError>> {
         let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(empty());
         Box::pin(ready(Ok(iter)))
@@ -270,11 +271,13 @@ impl ResourceIo for FsResourceIo {
     fn walk_directory<'a>(
         &'a self,
         path: &'a Path,
+        max_depth: usize,
     ) -> ResourceIoFuture<'a, Result<PathIter, FileError>> {
         Box::pin(async move {
             use walkdir::WalkDir;
 
             let iter = WalkDir::new(path)
+                .max_depth(max_depth)
                 .into_iter()
                 .flatten()
                 .map(|value| value.into_path());

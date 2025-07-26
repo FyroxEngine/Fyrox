@@ -331,7 +331,7 @@ async fn create_materials(
 
                                 let path = Path::new(".");
 
-                                if let Ok(iter) = io.walk_directory(path).await {
+                                if let Ok(iter) = io.walk_directory(path, usize::MAX).await {
                                     for dir in iter {
                                         if io.is_dir(&dir).await {
                                             let candidate = dir.join(filename);
