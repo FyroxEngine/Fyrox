@@ -1913,7 +1913,8 @@ impl UserInterface {
                                 self.unlink_node(message.destination());
 
                                 let node = &self.nodes[message.destination()];
-                                let new_position = self.screen_to_root_canvas_space(node.screen_position());
+                                let new_position =
+                                    self.screen_to_root_canvas_space(node.screen_position());
                                 self.send_message(WidgetMessage::desired_position(
                                     message.destination(),
                                     MessageDirection::ToWidget,
