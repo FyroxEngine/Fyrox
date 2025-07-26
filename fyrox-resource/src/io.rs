@@ -151,6 +151,7 @@ pub trait ResourceIo: Send + Sync + 'static {
         })
     }
 
+    /// Checks whether the given file name is valid or not.
     fn is_valid_file_name(&self, name: &OsStr) -> bool;
 
     /// Used to check whether a path exists
