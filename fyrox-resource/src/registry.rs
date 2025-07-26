@@ -359,9 +359,7 @@ impl ResourceRegistry {
 
     /// Sets a new path for the registry, but **does not** saves it.
     pub fn set_path(&mut self, path: impl AsRef<Path>) {
-        let path = path.as_ref();
-        assert!(path.is_file());
-        self.path = path.to_owned();
+        self.path = path.as_ref().to_owned();
     }
 
     /// Returns a path to which the resource registry is (or may) be saved.
