@@ -24,7 +24,7 @@ use crate::{
             manager::ResourceManager,
             untyped::{ResourceKind, UntypedResource},
         },
-        core::{log::Log, pool::Handle, Uuid},
+        core::{log::Log, make_pretty_type_name, pool::Handle, Uuid},
         engine::Engine,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
@@ -66,7 +66,10 @@ impl ResourceCreator {
             let instance = (constructor.callback)();
             if instance.can_be_saved() {
                 supported_resource_data_uuids.push(*uuid);
-                items.push(make_dropdown_list_option(ctx, &constructor.type_name))
+                items.push(make_dropdown_list_option(
+                    ctx,
+                    make_pretty_type_name(&constructor.type_name),
+                ))
             }
         }
 
