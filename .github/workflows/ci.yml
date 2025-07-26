@@ -108,8 +108,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      # Docs.rs uses nightly https://docs.rs/about/builds
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@stable
       # Caching must be after toolchain selection
       - uses: Swatinem/rust-cache@v2
 
