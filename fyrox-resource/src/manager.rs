@@ -48,6 +48,7 @@ use crate::{
     Resource, TypedResourceData, UntypedResource,
 };
 use fxhash::FxHashSet;
+use fyrox_core::{make_relative_path, some_or_continue, some_or_return};
 use std::{
     fmt::{Debug, Display, Formatter},
     io::Error,
@@ -282,6 +283,79 @@ impl Display for ResourceMovementError {
                     "Unable to move {} resource, because it does not have a \
                 file system path!",
                     resource.key()
+                )
+            }
+        }
+    }
+}
+
+/// A set of potential errors that may occur when moving a folder with resources.
+#[derive(Debug)]
+pub enum FolderMovementError {
+    /// An IO error.
+    Io(std::io::Error),
+    /// A file error.
+    FileError(FileError),
+    /// A [`ResourceMovementError`].
+    ResourceMovementError(ResourceMovementError),
+    /// The folder is not in the registry.
+    NotInRegistry {
+        /// A path of the folder being moved.
+        dest_dir: PathBuf,
+    },
+    /// Trying to move a folder into one of its own sub-folders.
+    HierarchyError {
+        /// Path of the folder being moved.
+        src_dir: PathBuf,
+        /// Destination directory.
+        dest_dir: PathBuf,
+    },
+}
+
+impl From<FileError> for FolderMovementError {
+    fn from(value: FileError) -> Self {
+        Self::FileError(value)
+    }
+}
+
+impl From<std::io::Error> for FolderMovementError {
+    fn from(value: Error) -> Self {
+        Self::Io(value)
+    }
+}
+
+impl From<ResourceMovementError> for FolderMovementError {
+    fn from(value: ResourceMovementError) -> Self {
+        Self::ResourceMovementError(value)
+    }
+}
+
+impl Display for FolderMovementError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FolderMovementError::Io(err) => {
+                write!(f, "Io error: {err}")
+            }
+            FolderMovementError::FileError(err) => {
+                write!(f, "File error: {err}")
+            }
+            FolderMovementError::ResourceMovementError(err) => {
+                write!(f, "{err}")
+            }
+            FolderMovementError::NotInRegistry { dest_dir } => {
+                write!(
+                    f,
+                    "Unable to move the {} folder, because it is not in the registry!",
+                    dest_dir.display()
+                )
+            }
+            FolderMovementError::HierarchyError { src_dir, dest_dir } => {
+                write!(
+                    f,
+                    "Trying to move a folder into one of its own sub-folders. \
+                    Source folder is {}, destination folder is {}",
+                    src_dir.display(),
+                    dest_dir.display()
                 )
             }
         }
@@ -553,6 +627,29 @@ impl ResourceManager {
     pub async fn reload_resources(&self) {
         let resources = self.state().reload_resources();
         join_all(resources).await;
+    }
+
+    /// Checks if there's a loader for the given resource path.
+    pub fn is_supported_resource(&self, path: &Path) -> bool {
+        self.state().is_supported_resource(path)
+    }
+
+    /// Checks if the given path is located inside the folder tracked by the resource registry.
+    pub fn is_path_in_registry(&self, path: &Path) -> bool {
+        self.state().is_path_in_registry(path)
+    }
+
+    /// Tries to move a folder to some other folder.
+    #[allow(clippy::await_holding_lock)]
+    pub async fn try_move_folder(
+        &self,
+        src_dir: &Path,
+        dest_dir: &Path,
+        overwrite_existing: bool,
+    ) -> Result<(), FolderMovementError> {
+        self.state()
+            .try_move_folder(src_dir, dest_dir, overwrite_existing)
+            .await
     }
 }
 
@@ -1356,6 +1453,88 @@ impl ResourceManagerState {
 
         self.move_resource_by_path(resource_path, new_path, overwrite_existing)
             .await
+    }
+
+    /// Checks if there's a loader for the given resource path.
+    pub fn is_supported_resource(&self, path: &Path) -> bool {
+        let ext = some_or_return!(path.extension(), false);
+        let ext = some_or_return!(ext.to_str(), false);
+
+        self.loaders
+            .lock()
+            .iter()
+            .any(|loader| loader.supports_extension(ext))
+    }
+
+    /// Checks if the given path is located inside the folder tracked by the resource registry.
+    pub fn is_path_in_registry(&self, path: &Path) -> bool {
+        let registry = self.resource_registry.lock();
+        if let Some(registry_directory) = registry.directory() {
+            if let Ok(canonical_registry_path) = registry_directory.canonicalize() {
+                if let Ok(canonical_path) = path.canonicalize() {
+                    return canonical_path.starts_with(canonical_registry_path);
+                }
+            }
+        }
+        false
+    }
+
+    /// Tries to move a folder to some other folder.
+    pub async fn try_move_folder(
+        &self,
+        src_dir: &Path,
+        dest_dir: &Path,
+        overwrite_existing: bool,
+    ) -> Result<(), FolderMovementError> {
+        if dest_dir.starts_with(src_dir) {
+            return Err(FolderMovementError::HierarchyError {
+                src_dir: src_dir.to_path_buf(),
+                dest_dir: dest_dir.to_path_buf(),
+            });
+        }
+
+        // Early validation to prevent error spam when trying to move a folder out of the
+        // assets directory.
+        if !self.is_path_in_registry(dest_dir) {
+            return Err(FolderMovementError::NotInRegistry {
+                dest_dir: dest_dir.to_path_buf(),
+            });
+        }
+
+        // At this point we have a folder dropped on some other folder. In this case
+        // we need to move all the assets from the dropped folder to a new subfolder (with the same
+        // name as the dropped folder) of the other folder first. After that we can move the rest
+        // of the files and finally delete the dropped folder.
+        let mut what_where_stack = vec![(src_dir.to_path_buf(), dest_dir.to_path_buf())];
+        while let Some((src_dir, target_dir)) = what_where_stack.pop() {
+            let src_dir_name = some_or_continue!(src_dir.file_name());
+
+            let target_sub_dir = target_dir.join(src_dir_name);
+            if !self.resource_io.exists(&target_sub_dir).await {
+                std::fs::create_dir(&target_sub_dir)?;
+            }
+
+            let target_sub_dir_normalized = ok_or_continue!(make_relative_path(&target_sub_dir));
+
+            for path in self.resource_io.walk_directory(&src_dir, 1).await? {
+                if path.is_file() {
+                    let file_name = some_or_continue!(path.file_name());
+                    if self.is_supported_resource(&path) {
+                        let dest_path = target_sub_dir_normalized.join(file_name);
+                        self.move_resource_by_path(path, &dest_path, overwrite_existing)
+                            .await?;
+                    }
+                } else if path.is_dir() && path != src_dir {
+                    // Sub-folders will be processed after all assets from current dir
+                    // were moved.
+                    what_where_stack.push((path, target_sub_dir.clone()));
+                }
+            }
+        }
+
+        std::fs::remove_dir_all(src_dir)?;
+
+        Ok(())
     }
 }
 

@@ -56,7 +56,6 @@ use crate::{
             wrap_panel::WrapPanelBuilder,
             HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
-        walkdir,
     },
     load_image,
     message::MessageSender,
@@ -238,69 +237,6 @@ fn try_move_resource(
         false
     } else {
         true
-    }
-}
-
-fn try_move_folder(src_dir: &Path, dest_dir: &Path, resource_manager: &ResourceManager) {
-    if dest_dir.starts_with(src_dir) {
-        // Trying to drop a folder into its own subfolder
-        return;
-    }
-
-    // Early validation to prevent error spam when trying to move a folder out of the
-    // assets directory.
-    if !is_path_in_registry(dest_dir, resource_manager) {
-        return;
-    }
-
-    // At this point we have a folder dropped on some other folder. In this case
-    // we need to move all the assets from the dropped folder to a new subfolder (with the same
-    // name as the dropped folder) of the other folder first. After that we can move the rest
-    // of the files and finally delete the dropped folder.
-    let mut what_where_stack = vec![(src_dir.to_path_buf(), dest_dir.to_path_buf())];
-    let mut any_error = false;
-    while let Some((src_dir, target_dir)) = what_where_stack.pop() {
-        let src_dir_name = some_or_continue!(src_dir.file_name());
-
-        let target_sub_dir = target_dir.join(src_dir_name);
-        if !target_sub_dir.exists() {
-            if let Err(err) = std::fs::create_dir(&target_sub_dir) {
-                err!(
-                    "Unable to create {} directory. Reason: {}",
-                    target_sub_dir.display(),
-                    err
-                );
-                continue;
-            }
-        }
-
-        let target_sub_dir_normalized = ok_or_continue!(make_relative_path(&target_sub_dir));
-
-        for entry in walkdir::WalkDir::new(&src_dir)
-            .max_depth(1)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            let path = entry.path();
-            if path.is_file() {
-                let ext = some_or_continue!(path.extension());
-                let file_name = some_or_continue!(path.file_name());
-                if is_supported_resource(ext, resource_manager) {
-                    let dest_path = target_sub_dir_normalized.join(file_name);
-                    if !try_move_resource(path, &dest_path, resource_manager) {
-                        any_error = true;
-                    }
-                }
-            } else if entry.path().is_dir() && entry.path() != src_dir {
-                // Sub-folders will be processed after all assets from current dir
-                // were moved.
-                what_where_stack.push((entry.path().to_path_buf(), target_sub_dir.clone()));
-            }
-        }
-    }
-
-    if !any_error {
-        Log::verify(std::fs::remove_dir_all(src_dir));
     }
 }
 
@@ -859,7 +795,11 @@ impl AssetBrowser {
                         );
                         self.schedule_refresh();
                     } else if src_item_path.is_dir() {
-                        try_move_folder(src_item_path, dest_dir, &engine.resource_manager);
+                        Log::verify(block_on(engine.resource_manager.try_move_folder(
+                            src_item_path,
+                            dest_dir,
+                            true,
+                        )));
                         self.schedule_refresh();
                     }
                 }
@@ -1078,7 +1018,9 @@ impl AssetBrowser {
                 try_move_resource(&item.path, &dest_dir.join(file_name), resource_manager);
             }
         } else if src_dir != Path::new("") {
-            try_move_folder(src_dir, dest_dir, resource_manager);
+            Log::verify(block_on(
+                resource_manager.try_move_folder(src_dir, dest_dir, true),
+            ));
             self.schedule_refresh();
         }
     }
