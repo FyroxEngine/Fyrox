@@ -1161,14 +1161,7 @@ pub trait SelectionContainer: BaseSelectionContainer {
         sender: &MessageSender,
     );
 
-    fn paste_property(
-        &mut self,
-        controller: &mut dyn SceneController,
-        path: &str,
-        value: &dyn Reflect,
-        engine: &mut Engine,
-        sender: &MessageSender,
-    );
+    fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender);
 
     fn provide_docs(&self, controller: &dyn SceneController, engine: &Engine) -> Option<String>;
 }
@@ -1304,16 +1297,9 @@ impl Selection {
         }
     }
 
-    pub fn paste_property(
-        &mut self,
-        controller: &mut dyn SceneController,
-        path: &str,
-        value: &dyn Reflect,
-        engine: &mut Engine,
-        sender: &MessageSender,
-    ) {
+    pub fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {
         if let Some(container) = self.0.as_mut() {
-            container.paste_property(controller, path, value, engine, sender);
+            container.paste_property(path, value, sender);
         }
     }
 

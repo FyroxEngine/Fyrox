@@ -441,13 +441,9 @@ impl EditorPlugin for InspectorPlugin {
                     }
                     InspectorMessage::PasteValue { dest } => {
                         if let Some(value) = self.clipboard.as_ref() {
-                            entry.selection.paste_property(
-                                &mut *entry.controller,
-                                dest,
-                                &**value,
-                                &mut editor.engine,
-                                &editor.message_sender,
-                            );
+                            entry
+                                .selection
+                                .paste_property(dest, &**value, &editor.message_sender);
                         }
                     }
                     InspectorMessage::PropertyContextMenuOpened { path } => {

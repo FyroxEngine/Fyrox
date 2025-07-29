@@ -78,27 +78,24 @@ impl SelectionContainer for UiSelection {
             .widgets
             .iter()
             .filter_map(|&node_handle| {
-                if let Some(node) = ui_scene.ui.try_get(node_handle) {
-                    if args.is_inheritable() {
-                        // Prevent reverting property value if there's no parent resource.
-                        if node.resource().is_some() {
-                            Some(Command::new(RevertWidgetPropertyCommand::new(
-                                args.path(),
-                                node_handle,
-                            )))
-                        } else {
-                            None
-                        }
+                let node = ui_scene.ui.try_get(node_handle)?;
+                if args.is_inheritable() {
+                    // Prevent reverting property value if there's no parent resource.
+                    if node.resource().is_some() {
+                        Some(Command::new(RevertWidgetPropertyCommand::new(
+                            args.path(),
+                            node_handle,
+                        )))
                     } else {
-                        make_command(args, move |ctx| {
-                            ctx.get_mut::<UiSceneContext>()
-                                .ui
-                                .try_get_mut(node_handle)
-                                .map(|n| n as &mut dyn Reflect)
-                        })
+                        None
                     }
                 } else {
-                    None
+                    make_command(args, move |ctx| {
+                        ctx.get_mut::<UiSceneContext>()
+                            .ui
+                            .try_get_mut(node_handle)
+                            .map(|n| n as &mut dyn Reflect)
+                    })
                 }
             })
             .collect::<Vec<_>>();
@@ -112,14 +109,7 @@ impl SelectionContainer for UiSelection {
         }
     }
 
-    fn paste_property(
-        &mut self,
-        _controller: &mut dyn SceneController,
-        path: &str,
-        value: &dyn Reflect,
-        _engine: &mut Engine,
-        sender: &MessageSender,
-    ) {
+    fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {
         let group = self
             .widgets
             .iter()

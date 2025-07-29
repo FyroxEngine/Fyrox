@@ -100,14 +100,7 @@ impl SelectionContainer for GraphSelection {
         }
     }
 
-    fn paste_property(
-        &mut self,
-        _controller: &mut dyn SceneController,
-        path: &str,
-        value: &dyn Reflect,
-        _engine: &mut Engine,
-        sender: &MessageSender,
-    ) {
+    fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {
         let group = self
             .nodes
             .iter()

@@ -87,26 +87,18 @@ impl SelectionContainer for NavmeshSelection {
         }
     }
 
-    fn paste_property(
-        &mut self,
-        _controller: &mut dyn SceneController,
-        path: &str,
-        value: &dyn Reflect,
-        _engine: &mut Engine,
-        sender: &MessageSender,
-    ) {
+    fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {
         let navmesh_node = self.navmesh_node;
         if let Some(command) = value.try_clone_box().map(|value| {
             Command::new(SetPropertyCommand::new(
                 path.to_string(),
                 value,
                 move |ctx| {
-                    Some(
-                        ctx.get_mut::<GameSceneContext>()
-                            .scene
-                            .graph
-                            .try_get_mut(navmesh_node)? as &mut dyn Reflect,
-                    )
+                    ctx.get_mut::<GameSceneContext>()
+                        .scene
+                        .graph
+                        .try_get_mut(navmesh_node)
+                        .map(|n| n as &mut dyn Reflect)
                 },
             ))
         }) {

@@ -177,14 +177,7 @@ where
         }
     }
 
-    fn paste_property(
-        &mut self,
-        _controller: &mut dyn SceneController,
-        path: &str,
-        value: &dyn Reflect,
-        _engine: &mut Engine,
-        sender: &MessageSender,
-    ) {
+    fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {
         let animation_player = self.animation_player;
         let animation = self.animation;
         let group = self

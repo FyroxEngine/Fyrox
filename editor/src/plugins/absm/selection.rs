@@ -241,14 +241,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
         }
     }
 
-    fn paste_property(
-        &mut self,
-        _controller: &mut dyn SceneController,
-        path: &str,
-        value: &dyn Reflect,
-        _engine: &mut Engine,
-        sender: &MessageSender,
-    ) {
+    fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {
         let group = if let Some(layer_index) = self.layer {
             let absm_node_handle = self.absm_node_handle;
             self.entities
