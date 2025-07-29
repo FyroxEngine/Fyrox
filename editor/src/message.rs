@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::command::CommandGroup;
 use crate::{
     command::{Command, CommandTrait},
     fyrox::{
@@ -131,5 +132,17 @@ impl MessageSender {
 
     pub fn send(&self, message: Message) {
         Log::verify(self.0.send(message));
+    }
+
+    pub fn send_command(&self, command: Command) {
+        self.send(Message::DoCommand(command))
+    }
+
+    pub fn do_command_group(&self, group: Vec<Command>) {
+        if group.len() == 1 {
+            self.send(Message::DoCommand(group.into_iter().next().unwrap()))
+        } else {
+            self.do_command(CommandGroup::from(group));
+        }
     }
 }

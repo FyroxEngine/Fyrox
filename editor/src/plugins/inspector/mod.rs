@@ -364,8 +364,8 @@ impl EditorPlugin for InspectorPlugin {
             entry.selection.len() > 1,
         ));
 
-        entry.controller.first_selected_entity(
-            &entry.selection,
+        entry.selection.first_selected_entity(
+            &*entry.controller,
             &editor.engine.scenes,
             &mut |entity| {
                 if let Err(errors) = self.sync_to(entity, ui) {
@@ -427,8 +427,8 @@ impl EditorPlugin for InspectorPlugin {
             if let Some(msg) = message.data::<InspectorMessage>() {
                 match msg {
                     InspectorMessage::CopyValue { path } => {
-                        entry.controller.first_selected_entity(
-                            &entry.selection,
+                        entry.selection.first_selected_entity(
+                            &*entry.controller,
                             &editor.engine.scenes,
                             &mut |entity| {
                                 entity.resolve_path(path, &mut |result| {
@@ -441,11 +441,12 @@ impl EditorPlugin for InspectorPlugin {
                     }
                     InspectorMessage::PasteValue { dest } => {
                         if let Some(value) = self.clipboard.as_ref() {
-                            entry.controller.paste_property(
+                            entry.selection.paste_property(
+                                &mut *entry.controller,
                                 dest,
                                 &**value,
-                                &entry.selection,
                                 &mut editor.engine,
+                                &editor.message_sender,
                             );
                         }
                     }
@@ -455,8 +456,8 @@ impl EditorPlugin for InspectorPlugin {
 
                         // TODO: This could work incorrectly in case of multiselection of objects
                         // of different types.
-                        entry.controller.first_selected_entity(
-                            &entry.selection,
+                        entry.selection.first_selected_entity(
+                            &*entry.controller,
                             &editor.engine.scenes,
                             &mut |entity| {
                                 entity.resolve_path(path, &mut |result| {
@@ -496,15 +497,18 @@ impl EditorPlugin for InspectorPlugin {
             if let Some(InspectorMessage::PropertyChanged(args)) =
                 message.data::<InspectorMessage>()
             {
-                entry
-                    .controller
-                    .on_property_changed(args, &entry.selection, &mut editor.engine);
+                entry.selection.on_property_changed(
+                    &mut *entry.controller,
+                    args,
+                    &mut editor.engine,
+                    &editor.message_sender,
+                );
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.docs_button {
                 if let Some(doc) = entry
-                    .controller
-                    .provide_docs(&entry.selection, &editor.engine)
+                    .selection
+                    .provide_docs(&*entry.controller, &editor.engine)
                 {
                     editor.message_sender.send(Message::ShowDocumentation(doc));
                 }

@@ -18,11 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::command::{Command, SetPropertyCommand};
 use crate::fyrox::{
     core::{math::TriangleEdge, pool::Handle},
     scene::node::Node,
 };
-use crate::scene::SelectionContainer;
+use crate::message::MessageSender;
+use crate::scene::commands::GameSceneContext;
+use crate::scene::controller::SceneController;
+use crate::scene::{GameScene, SelectionContainer};
+use fyrox::core::reflect::Reflect;
+use fyrox::core::some_or_return;
+use fyrox::engine::Engine;
+use fyrox::graph::BaseSceneGraph;
+use fyrox::gui::inspector::PropertyChanged;
+use fyrox::scene::SceneContainer;
 use std::{
     cell::{Cell, Ref, RefCell},
     collections::BTreeSet,
@@ -45,6 +55,65 @@ pub struct NavmeshSelection {
 impl SelectionContainer for NavmeshSelection {
     fn len(&self) -> usize {
         self.entities.len()
+    }
+
+    fn first_selected_entity(
+        &self,
+        controller: &dyn SceneController,
+        scenes: &SceneContainer,
+        callback: &mut dyn FnMut(&dyn Reflect),
+    ) {
+        let game_scene = some_or_return!(controller.downcast_ref::<GameScene>());
+        let scene = &scenes[game_scene.scene];
+        (callback)(scene.graph.try_get(self.navmesh_node).unwrap() as &dyn Reflect);
+    }
+
+    fn on_property_changed(
+        &mut self,
+        controller: &mut dyn SceneController,
+        args: &PropertyChanged,
+        engine: &mut Engine,
+        sender: &MessageSender,
+    ) {
+        let game_scene = some_or_return!(controller.downcast_mut::<GameScene>());
+        let scene = &mut engine.scenes[game_scene.scene];
+
+        if let Some(command) = game_scene.node_property_changed_handler.handle(
+            args,
+            self.navmesh_node,
+            &mut scene.graph[self.navmesh_node],
+        ) {
+            sender.send_command(command);
+        }
+    }
+
+    fn paste_property(
+        &mut self,
+        _controller: &mut dyn SceneController,
+        path: &str,
+        value: &dyn Reflect,
+        _engine: &mut Engine,
+        sender: &MessageSender,
+    ) {
+        let navmesh_node = self.navmesh_node;
+        if let Some(command) = value.try_clone_box().map(|value| {
+            Command::new(SetPropertyCommand::new(
+                path.to_string(),
+                value,
+                move |ctx| {
+                    &mut ctx.get_mut::<GameSceneContext>().scene.graph[navmesh_node]
+                        as &mut dyn Reflect
+                },
+            ))
+        }) {
+            sender.send_command(command)
+        }
+    }
+
+    fn provide_docs(&self, controller: &dyn SceneController, engine: &Engine) -> Option<String> {
+        let game_scene = controller.downcast_ref::<GameScene>()?;
+        let scene = &engine.scenes[game_scene.scene];
+        Some(scene.graph[self.navmesh_node()].doc().to_string())
     }
 }
 

@@ -18,11 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::asset::preview::cache::IconRequest;
-use crate::plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage};
+use crate::scene::controller::SceneController;
 use crate::{
+    asset::preview::cache::IconRequest,
     audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
     command::CommandGroup,
+    command::{make_command, SetPropertyCommand},
+    fyrox::core::log::Log,
+    fyrox::core::reflect::Reflect,
+    fyrox::gui::inspector::PropertyChanged,
+    fyrox::gui::utils::make_dropdown_list_option,
+    fyrox::scene::SceneContainer,
     fyrox::{
         core::pool::Handle,
         engine::Engine,
@@ -43,6 +49,8 @@ use crate::{
         scene::sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
     },
     message::MessageSender,
+    plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
+    scene::commands::GameSceneContext,
     scene::{
         commands::{
             effect::{AddAudioBusCommand, LinkAudioBuses, RemoveAudioBusCommand},
@@ -57,7 +65,7 @@ use crate::{
     ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
     UserInterface,
 };
-use fyrox::gui::utils::make_dropdown_list_option;
+use fyrox::core::some_or_return;
 use std::cmp::Ordering;
 use std::sync::mpsc::Sender;
 use strum::VariantNames;
@@ -73,6 +81,109 @@ pub struct AudioBusSelection {
 impl SelectionContainer for AudioBusSelection {
     fn len(&self) -> usize {
         self.buses.len()
+    }
+
+    fn first_selected_entity(
+        &self,
+        controller: &dyn SceneController,
+        scenes: &SceneContainer,
+        callback: &mut dyn FnMut(&dyn Reflect),
+    ) {
+        let game_scene = some_or_return!(controller.downcast_ref::<GameScene>());
+        let scene = &scenes[game_scene.scene];
+        let state = scene.graph.sound_context.state();
+        if let Some(effect) = self
+            .buses
+            .first()
+            .and_then(|handle| state.bus_graph_ref().try_get_bus_ref(*handle))
+        {
+            (callback)(effect as &dyn Reflect);
+        }
+    }
+
+    fn on_property_changed(
+        &mut self,
+        _controller: &mut dyn SceneController,
+        args: &PropertyChanged,
+        _engine: &mut Engine,
+        sender: &MessageSender,
+    ) {
+        let group = self
+            .buses
+            .iter()
+            .filter_map(|&handle| {
+                make_command(args, move |ctx| {
+                    let mut state = ctx
+                        .get_mut::<GameSceneContext>()
+                        .scene
+                        .graph
+                        .sound_context
+                        .state();
+                    let bus = state.bus_graph_mut().try_get_bus_mut(handle).unwrap();
+                    // FIXME: HACK!
+                    unsafe { std::mem::transmute::<&'_ mut AudioBus, &'static mut AudioBus>(bus) }
+                })
+            })
+            .collect::<Vec<_>>();
+
+        if group.is_empty() {
+            if !args.is_inheritable() {
+                Log::err(format!("Failed to handle a property {}", args.path()))
+            }
+        } else {
+            sender.do_command_group(group);
+        }
+    }
+
+    fn paste_property(
+        &mut self,
+        _controller: &mut dyn SceneController,
+        path: &str,
+        value: &dyn Reflect,
+        _engine: &mut Engine,
+        sender: &MessageSender,
+    ) {
+        let group = self
+            .buses
+            .iter()
+            .filter_map(|&handle| {
+                value.try_clone_box().map(|value| {
+                    Command::new(SetPropertyCommand::new(
+                        path.to_string(),
+                        value,
+                        move |ctx| {
+                            let mut state = ctx
+                                .get_mut::<GameSceneContext>()
+                                .scene
+                                .graph
+                                .sound_context
+                                .state();
+                            let bus = state.bus_graph_mut().try_get_bus_mut(handle).unwrap();
+                            // FIXME: HACK!
+                            unsafe {
+                                std::mem::transmute::<&'_ mut AudioBus, &'static mut AudioBus>(bus)
+                            }
+                        },
+                    ))
+                })
+            })
+            .collect::<Vec<_>>();
+
+        sender.do_command_group(group);
+    }
+
+    fn provide_docs(&self, controller: &dyn SceneController, engine: &Engine) -> Option<String> {
+        let game_scene = controller.downcast_ref::<GameScene>()?;
+        let scene = &engine.scenes[game_scene.scene];
+        self.buses.first().and_then(|h| {
+            scene
+                .graph
+                .sound_context
+                .state()
+                .bus_graph_ref()
+                .try_get_bus_ref(*h)
+                .map(|bus| bus.doc().to_string())
+        })
     }
 }
 
