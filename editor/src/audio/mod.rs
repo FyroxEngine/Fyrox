@@ -119,9 +119,11 @@ impl SelectionContainer for AudioBusSelection {
                         .graph
                         .sound_context
                         .state();
-                    let bus = state.bus_graph_mut().try_get_bus_mut(handle).unwrap();
+                    let bus = state.bus_graph_mut().try_get_bus_mut(handle)?;
                     // FIXME: HACK!
-                    unsafe { std::mem::transmute::<&'_ mut AudioBus, &'static mut AudioBus>(bus) }
+                    unsafe {
+                        Some(std::mem::transmute::<&'_ mut AudioBus, &'static mut AudioBus>(bus))
+                    }
                 })
             })
             .collect::<Vec<_>>();
@@ -143,31 +145,34 @@ impl SelectionContainer for AudioBusSelection {
         _engine: &mut Engine,
         sender: &MessageSender,
     ) {
-        let group = self
-            .buses
-            .iter()
-            .filter_map(|&handle| {
-                value.try_clone_box().map(|value| {
-                    Command::new(SetPropertyCommand::new(
-                        path.to_string(),
-                        value,
-                        move |ctx| {
-                            let mut state = ctx
-                                .get_mut::<GameSceneContext>()
-                                .scene
-                                .graph
-                                .sound_context
-                                .state();
-                            let bus = state.bus_graph_mut().try_get_bus_mut(handle).unwrap();
-                            // FIXME: HACK!
-                            unsafe {
-                                std::mem::transmute::<&'_ mut AudioBus, &'static mut AudioBus>(bus)
-                            }
-                        },
-                    ))
+        let group =
+            self.buses
+                .iter()
+                .filter_map(|&handle| {
+                    value.try_clone_box().map(|value| {
+                        Command::new(SetPropertyCommand::new(
+                            path.to_string(),
+                            value,
+                            move |ctx| {
+                                let mut state = ctx
+                                    .get_mut::<GameSceneContext>()
+                                    .scene
+                                    .graph
+                                    .sound_context
+                                    .state();
+                                let bus = state.bus_graph_mut().try_get_bus_mut(handle)?;
+                                // FIXME: HACK!
+                                unsafe {
+                                    Some(std::mem::transmute::<
+                                        &'_ mut AudioBus,
+                                        &'static mut AudioBus,
+                                    >(bus))
+                                }
+                            },
+                        ))
+                    })
                 })
-            })
-            .collect::<Vec<_>>();
+                .collect::<Vec<_>>();
 
         sender.do_command_group(group);
     }

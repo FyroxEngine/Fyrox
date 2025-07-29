@@ -101,8 +101,12 @@ impl SelectionContainer for NavmeshSelection {
                 path.to_string(),
                 value,
                 move |ctx| {
-                    &mut ctx.get_mut::<GameSceneContext>().scene.graph[navmesh_node]
-                        as &mut dyn Reflect
+                    Some(
+                        ctx.get_mut::<GameSceneContext>()
+                            .scene
+                            .graph
+                            .try_get_mut(navmesh_node)? as &mut dyn Reflect,
+                    )
                 },
             ))
         }) {

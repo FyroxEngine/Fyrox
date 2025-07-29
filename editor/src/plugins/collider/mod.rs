@@ -496,7 +496,8 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 ctx.get_mut::<GameSceneContext>()
                     .scene
                     .graph
-                    .node_mut(collider)
+                    .try_get_mut(collider)
+                    .map(|n| n as &mut dyn Reflect)
             });
             self.message_sender.do_command(command);
         }

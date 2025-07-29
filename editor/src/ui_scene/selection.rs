@@ -91,7 +91,10 @@ impl SelectionContainer for UiSelection {
                         }
                     } else {
                         make_command(args, move |ctx| {
-                            ctx.get_mut::<UiSceneContext>().ui.node_mut(node_handle)
+                            ctx.get_mut::<UiSceneContext>()
+                                .ui
+                                .try_get_mut(node_handle)
+                                .map(|n| n as &mut dyn Reflect)
                         })
                     }
                 } else {
@@ -125,7 +128,12 @@ impl SelectionContainer for UiSelection {
                     Command::new(SetPropertyCommand::new(
                         path.to_string(),
                         value,
-                        move |ctx| ctx.get_mut::<UiSceneContext>().ui.node_mut(node_handle),
+                        move |ctx| {
+                            ctx.get_mut::<UiSceneContext>()
+                                .ui
+                                .try_get_mut(node_handle)
+                                .map(|n| n as &mut dyn Reflect)
+                        },
                     ))
                 })
             })

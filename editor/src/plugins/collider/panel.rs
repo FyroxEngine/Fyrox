@@ -62,7 +62,8 @@ fn set_property<T: Reflect>(
             ctx.get_mut::<GameSceneContext>()
                 .scene
                 .graph
-                .node_mut(selected_collider)
+                .try_get_mut(selected_collider)
+                .map(|n| n as &mut dyn Reflect)
         },
     )));
 }

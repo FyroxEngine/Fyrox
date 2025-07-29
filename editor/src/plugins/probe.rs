@@ -30,7 +30,7 @@ use crate::{
             Uuid,
         },
         engine::Engine,
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
@@ -51,6 +51,7 @@ use crate::{
     settings::Settings,
     Editor, Message,
 };
+use fyrox::core::reflect::Reflect;
 
 pub struct ReflectionProbePreviewControlPanel {
     pub root_widget: Handle<UiNode>,
@@ -217,7 +218,8 @@ impl InteractionMode for ReflectionProbeInteractionMode {
                 ctx.get_mut::<GameSceneContext>()
                     .scene
                     .graph
-                    .node_mut(probe.transmute())
+                    .try_get_mut(probe.transmute())
+                    .map(|n| n as &mut dyn Reflect)
             },
         );
         self.message_sender.do_command(command);

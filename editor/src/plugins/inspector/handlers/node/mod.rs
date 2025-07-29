@@ -80,7 +80,11 @@ impl SceneNodePropertyChangedHandler {
                 }
             } else {
                 make_command(args, move |ctx| {
-                    &mut ctx.get_mut::<GameSceneContext>().scene.graph[handle] as &mut dyn Reflect
+                    ctx.get_mut::<GameSceneContext>()
+                        .scene
+                        .graph
+                        .try_get_mut(handle)
+                        .map(|n| n as &mut dyn Reflect)
                 })
             }
         })

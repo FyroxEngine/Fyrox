@@ -201,15 +201,30 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                 .filter_map(|ent| match *ent {
                     SelectedEntity::Transition(transition) => make_command(args, move |ctx| {
                         let machine = fetch_machine(ctx, absm_node_handle);
-                        &mut machine.layers_mut()[layer_index].transitions_mut()[transition]
+                        machine
+                            .layers_mut()
+                            .get_mut(layer_index)?
+                            .transitions_mut()
+                            .try_borrow_mut(transition)
+                            .map(|t| t as &mut dyn Reflect)
                     }),
                     SelectedEntity::State(state) => make_command(args, move |ctx| {
                         let machine = fetch_machine(ctx, absm_node_handle);
-                        &mut machine.layers_mut()[layer_index].states_mut()[state]
+                        machine
+                            .layers_mut()
+                            .get_mut(layer_index)?
+                            .states_mut()
+                            .try_borrow_mut(state)
+                            .map(|s| s as &mut dyn Reflect)
                     }),
                     SelectedEntity::PoseNode(pose) => make_command(args, move |ctx| {
                         let machine = fetch_machine(ctx, absm_node_handle);
-                        &mut machine.layers_mut()[layer_index].nodes_mut()[pose]
+                        machine
+                            .layers_mut()
+                            .get_mut(layer_index)?
+                            .nodes_mut()
+                            .try_borrow_mut(pose)
+                            .map(|p| p as &mut dyn Reflect)
                     }),
                 })
                 .collect()
@@ -245,7 +260,12 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                             value,
                             move |ctx| {
                                 let machine = fetch_machine(ctx, absm_node_handle);
-                                &mut machine.layers_mut()[layer_index].transitions_mut()[transition]
+                                machine
+                                    .layers_mut()
+                                    .get_mut(layer_index)?
+                                    .transitions_mut()
+                                    .try_borrow_mut(transition)
+                                    .map(|t| t as &mut dyn Reflect)
                             },
                         ))
                     }),
@@ -255,7 +275,12 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                             value,
                             move |ctx| {
                                 let machine = fetch_machine(ctx, absm_node_handle);
-                                &mut machine.layers_mut()[layer_index].states_mut()[state]
+                                machine
+                                    .layers_mut()
+                                    .get_mut(layer_index)?
+                                    .states_mut()
+                                    .try_borrow_mut(state)
+                                    .map(|s| s as &mut dyn Reflect)
                             },
                         ))
                     }),
@@ -265,7 +290,12 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                             value,
                             move |ctx| {
                                 let machine = fetch_machine(ctx, absm_node_handle);
-                                &mut machine.layers_mut()[layer_index].nodes_mut()[pose]
+                                machine
+                                    .layers_mut()
+                                    .get_mut(layer_index)?
+                                    .nodes_mut()
+                                    .try_borrow_mut(pose)
+                                    .map(|n| n as &mut dyn Reflect)
                             },
                         ))
                     }),

@@ -102,32 +102,28 @@ impl SelectionContainer for GraphSelection {
 
     fn paste_property(
         &mut self,
-        controller: &mut dyn SceneController,
+        _controller: &mut dyn SceneController,
         path: &str,
         value: &dyn Reflect,
-        engine: &mut Engine,
+        _engine: &mut Engine,
         sender: &MessageSender,
     ) {
-        let game_scene = some_or_return!(controller.downcast_mut::<GameScene>());
-        let scene = &mut engine.scenes[game_scene.scene];
-
         let group = self
             .nodes
             .iter()
             .filter_map(|&node_handle| {
-                value.try_clone_box().and_then(|value| {
-                    if scene.graph.is_valid_handle(node_handle) {
-                        Some(Command::new(SetPropertyCommand::new(
-                            path.to_string(),
-                            value,
-                            move |ctx| {
-                                &mut ctx.get_mut::<GameSceneContext>().scene.graph[node_handle]
-                                    as &mut dyn Reflect
-                            },
-                        )))
-                    } else {
-                        None
-                    }
+                value.try_clone_box().map(|value| {
+                    Command::new(SetPropertyCommand::new(
+                        path.to_string(),
+                        value,
+                        move |ctx| {
+                            ctx.get_mut::<GameSceneContext>()
+                                .scene
+                                .graph
+                                .try_get_mut(node_handle)
+                                .map(|n| n as &mut dyn Reflect)
+                        },
+                    ))
                 })
             })
             .collect::<Vec<_>>();

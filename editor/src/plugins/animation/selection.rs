@@ -160,7 +160,7 @@ where
                             .signals_mut()
                             .iter_mut()
                             .find(|s| s.id == id)
-                            .unwrap()
+                            .map(|s| s as &mut dyn Reflect)
                     })
                 } else {
                     None
@@ -201,7 +201,7 @@ where
                                     .signals_mut()
                                     .iter_mut()
                                     .find(|s| s.id == id)
-                                    .unwrap()
+                                    .map(|s| s as &mut dyn Reflect)
                             },
                         ))
                     })

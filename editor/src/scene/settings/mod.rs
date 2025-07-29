@@ -193,7 +193,7 @@ impl SceneSettingsWindow {
         if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data() {
             if message.destination() == self.inspector {
                 if let Some(command) = make_command(property_changed, |ctx| {
-                    ctx.get_mut::<GameSceneContext>().scene as &mut dyn Reflect
+                    Some(ctx.get_mut::<GameSceneContext>().scene as &mut dyn Reflect)
                 }) {
                     sender.send(Message::DoCommand(command));
                 }
