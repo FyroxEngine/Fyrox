@@ -91,6 +91,7 @@ use crate::{
     send_sync_message, utils,
 };
 
+use crate::scene::selector::AllowedType;
 use fyrox::generic_animation::track::TrackBinding;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -783,6 +784,14 @@ impl TrackList {
                 self.node_selector = NodeSelectorWindowBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                         .with_title(WindowTitle::text("Select a Node To Animate")),
+                )
+                .with_allowed_types(
+                    [AllowedType {
+                        id: TypeId::of::<N>(),
+                        name: std::any::type_name::<N>().to_string(),
+                    }]
+                    .into_iter()
+                    .collect(),
                 )
                 .with_hierarchy(HierarchyNode::from_scene_node(root, Handle::NONE, graph))
                 .build(&mut ui.build_ctx());
