@@ -79,15 +79,11 @@ impl SelectionContainer for GraphSelection {
             .nodes
             .iter()
             .filter_map(|&node_handle| {
-                if scene.graph.is_valid_handle(node_handle) {
-                    game_scene.node_property_changed_handler.handle(
-                        args,
-                        node_handle,
-                        &mut scene.graph[node_handle],
-                    )
-                } else {
-                    None
-                }
+                game_scene.node_property_changed_handler.handle(
+                    args,
+                    node_handle,
+                    scene.graph.try_get_mut(node_handle)?,
+                )
             })
             .collect::<Vec<_>>();
 
