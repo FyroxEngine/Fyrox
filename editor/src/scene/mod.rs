@@ -1241,6 +1241,14 @@ impl Selection {
         self.0.as_ref().is_some_and(|s| s.is_multi_selection())
     }
 
+    pub fn as_ref<N: SelectionContainer>(&self) -> Option<&N> {
+        self.0.as_ref().and_then(|v| v.downcast_ref::<N>())
+    }
+
+    pub fn as_mut<N: SelectionContainer>(&mut self) -> Option<&mut N> {
+        self.0.as_mut().and_then(|v| v.downcast_mut::<N>())
+    }
+
     define_downcast!(GraphSelection, as_graph, as_graph_mut, is_graph);
 
     define_downcast!(NavmeshSelection, as_navmesh, as_navmesh_mut, is_navmesh);
