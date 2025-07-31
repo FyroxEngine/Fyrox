@@ -22,18 +22,18 @@ use crate::{
     asset::{
         creator::ResourceCreator,
         dependency::DependencyViewer,
-        inspector::AssetInspector,
         item::{AssetItem, AssetItemBuilder, AssetItemMessage},
         preview::{
             cache::{AssetPreviewCache, IconRequest},
             AssetPreviewGeneratorsCollection,
         },
+        selection::AssetSelection,
     },
     fyrox::{
-        asset::manager::ResourceManager,
+        asset::{manager::ResourceManager, options::BaseImportOptions},
         core::{
-            err, futures::executor::block_on, log::Log, make_relative_path, ok_or_continue,
-            parking_lot::Mutex, pool::Handle, some_or_continue,
+            append_extension, err, futures::executor::block_on, log::Log, make_relative_path,
+            ok_or_continue, parking_lot::Mutex, pool::Handle, some_or_continue,
         },
         engine::Engine,
         graph::{BaseSceneGraph, SceneGraph},
@@ -49,6 +49,7 @@ use crate::{
             message::{MessageDirection, MouseButton, UiMessage},
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
+            stack_panel::StackPanelBuilder,
             style::{resource::StyleResourceExt, Style},
             utils::{make_image_button_with_tooltip, make_simple_tooltip},
             widget::{WidgetBuilder, WidgetMessage},
@@ -59,9 +60,12 @@ use crate::{
     },
     load_image,
     message::MessageSender,
+    plugin::EditorPluginsContainer,
+    plugins::inspector::InspectorPlugin,
     preview::PreviewPanel,
+    scene::{container::EditorSceneEntry, Selection},
     utils::window_content,
-    Mode,
+    Message, Mode,
 };
 use menu::AssetItemContextMenu;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
@@ -78,10 +82,10 @@ use std::{
 
 mod creator;
 mod dependency;
-mod inspector;
 pub mod item;
 pub mod menu;
 pub mod preview;
+mod selection;
 pub mod selector;
 
 fn show_in_explorer<P: AsRef<Path>>(path: P) {
@@ -138,6 +142,12 @@ fn make_unique_path(parent: &Path, stem: &str, ext: &str) -> PathBuf {
 
 type IconUpdateQueue = Arc<Mutex<VecDeque<PathBuf>>>;
 
+struct InspectorButtons {
+    root: Handle<UiNode>,
+    apply: Handle<UiNode>,
+    revert: Handle<UiNode>,
+}
+
 pub struct AssetBrowser {
     pub window: Handle<UiNode>,
     pub docking_manager: Handle<UiNode>,
@@ -150,10 +160,8 @@ pub struct AssetBrowser {
     preview: PreviewPanel,
     items: Vec<Handle<UiNode>>,
     item_to_select: Option<PathBuf>,
-    inspector: AssetInspector,
     context_menu: AssetItemContextMenu,
     current_path: PathBuf,
-    selected_item_path: PathBuf,
     watcher: Option<RecommendedWatcher>,
     dependency_viewer: DependencyViewer,
     resource_creator: Option<ResourceCreator>,
@@ -163,6 +171,7 @@ pub struct AssetBrowser {
     main_window: Handle<UiNode>,
     icon_update_queue: IconUpdateQueue,
     pub preview_generators: AssetPreviewGeneratorsCollection,
+    inspector_buttons: Option<InspectorButtons>,
 }
 
 fn is_path_in_registry(path: &Path, resource_manager: &ResourceManager) -> bool {
@@ -248,8 +257,6 @@ impl AssetBrowser {
     pub fn new(engine: &mut Engine) -> Self {
         let preview = PreviewPanel::new(engine, 250, 250);
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
-
-        let inspector = AssetInspector::new(ctx, 1, 0);
 
         let add_resource = ButtonBuilder::new(
             WidgetBuilder::new()
@@ -367,17 +374,7 @@ impl AssetBrowser {
             .can_close(false)
             .can_minimize(false)
             .can_maximize(false)
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(preview.root)
-                        .with_child(inspector.container),
-                )
-                .add_column(Column::stretch())
-                .add_row(Row::stretch())
-                .add_row(Row::stretch())
-                .build(ctx),
-            )
+            .with_content(preview.root)
             .build(ctx);
 
         let docking_manager = DockingManagerBuilder::new(
@@ -441,7 +438,6 @@ impl AssetBrowser {
             search_bar,
             items: Default::default(),
             item_to_select: None,
-            inspector,
             context_menu,
             current_path: Default::default(),
             add_resource,
@@ -454,7 +450,7 @@ impl AssetBrowser {
             preview_generators: AssetPreviewGeneratorsCollection::new(),
             refresh,
             watcher,
-            selected_item_path: Default::default(),
+            inspector_buttons: None,
         }
     }
 
@@ -696,18 +692,10 @@ impl AssetBrowser {
         &mut self,
         selected_asset: Handle<UiNode>,
         sender: MessageSender,
+        entry: &mut EditorSceneEntry,
         engine: &mut Engine,
     ) {
         let ui = &mut engine.user_interfaces.first_mut();
-
-        // Deselect other items.
-        for &item in self.items.iter().filter(|i| **i != selected_asset) {
-            ui.send_message(AssetItemMessage::select(
-                item,
-                MessageDirection::ToWidget,
-                false,
-            ))
-        }
 
         let asset_path = ui
             .node(selected_asset)
@@ -716,14 +704,21 @@ impl AssetBrowser {
             .path
             .clone();
 
-        self.selected_item_path = asset_path.clone();
+        if let Some(selection) = entry.selection.as_ref::<AssetSelection>() {
+            if selection.contains(&asset_path) {
+                return;
+            }
+        }
 
-        self.inspector.inspect_resource_import_options(
-            &asset_path,
-            ui,
-            sender,
-            &engine.resource_manager,
+        let old_selection = std::mem::replace(
+            &mut entry.selection,
+            Selection::new(AssetSelection::new(
+                asset_path.clone(),
+                &engine.resource_manager,
+            )),
         );
+        sender.send(Message::SelectionChanged { old_selection });
+        sender.send(Message::ForceSync);
 
         if let Ok(resource) = block_on(engine.resource_manager.request_untyped(asset_path)) {
             if let Some(preview_generator) = resource
@@ -750,9 +745,9 @@ impl AssetBrowser {
         &mut self,
         message: &UiMessage,
         engine: &mut Engine,
+        entry: &mut EditorSceneEntry,
         sender: MessageSender,
     ) {
-        self.inspector.handle_ui_message(message, engine);
         self.preview.handle_message(message, engine);
         if self.context_menu.handle_ui_message(message, engine) {
             self.schedule_refresh();
@@ -771,14 +766,14 @@ impl AssetBrowser {
             }
         }
 
-        let ui = &mut engine.user_interfaces.first_mut();
+        let ui = engine.user_interfaces.first_mut();
 
         if let Some(msg) = message.data::<AssetItemMessage>() {
             let asset_item = message.destination();
             match msg {
                 AssetItemMessage::Select(true) => {
                     if ui.has_descendant_or_equal(asset_item, self.content_panel) {
-                        self.on_asset_selected(asset_item, sender.clone(), engine);
+                        self.on_asset_selected(asset_item, sender.clone(), entry, engine);
                     }
                 }
                 AssetItemMessage::MoveTo {
@@ -840,16 +835,22 @@ impl AssetBrowser {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if search_text.is_empty() {
-                    let path = if self.selected_item_path != PathBuf::default() {
-                        self.selected_item_path
-                            .parent()
-                            .map(|p| p.to_path_buf())
-                            .unwrap_or_else(|| PathBuf::from("./"))
-                    } else {
-                        PathBuf::from("./")
-                    };
-                    self.item_to_select = Some(self.selected_item_path.clone());
-                    self.set_path(&path, ui, &engine.resource_manager);
+                    if let Some(selected_item_path) = entry
+                        .selection
+                        .as_ref::<AssetSelection>()
+                        .and_then(|s| s.selected_path())
+                    {
+                        let path = if selected_item_path != PathBuf::default() {
+                            selected_item_path
+                                .parent()
+                                .map(|p| p.to_path_buf())
+                                .unwrap_or_else(|| PathBuf::from("./"))
+                        } else {
+                            PathBuf::from("./")
+                        };
+                        self.item_to_select = Some(selected_item_path.to_path_buf());
+                        self.set_path(&path, ui, &engine.resource_manager);
+                    }
                 } else {
                     self.clear_assets(ui);
                     let search_text = search_text.to_lowercase();
@@ -920,6 +921,47 @@ impl AssetBrowser {
                 self.resource_creator = Some(resource_creator);
             } else if message.destination() == self.refresh {
                 self.schedule_refresh();
+            }
+
+            if let Some(inspector_buttons) = self.inspector_buttons.as_ref() {
+                fn default_import_options(
+                    extension: &OsStr,
+                    resource_manager: &ResourceManager,
+                ) -> Option<Box<dyn BaseImportOptions>> {
+                    let rm_state = resource_manager.state();
+                    let loaders = rm_state.loaders.lock();
+                    for loader in loaders.iter() {
+                        if loader.supports_extension(&extension.to_string_lossy()) {
+                            return loader.default_import_options();
+                        }
+                    }
+                    None
+                }
+
+                if let Some(selection) = entry.selection.as_ref::<AssetSelection>() {
+                    if let Some(path) = selection.selected_path() {
+                        if let Some(extension) = path.extension() {
+                            let default_import_options =
+                                default_import_options(extension, &engine.resource_manager);
+                            if let Some(mut import_options) = selection.selected_import_options() {
+                                if message.destination() == inspector_buttons.revert {
+                                    if let Some(default_import_options) = default_import_options {
+                                        *import_options = default_import_options;
+                                        sender.send(Message::ForceSync);
+                                    }
+                                } else if message.destination() == inspector_buttons.apply {
+                                    import_options.save(&append_extension(path, "options"));
+
+                                    if let Ok(resource) =
+                                        block_on(engine.resource_manager.request_untyped(path))
+                                    {
+                                        engine.resource_manager.state().reload_resource(resource);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         } else if let Some(WidgetMessage::MouseDown { button, .. }) = message.data() {
             if ui.has_descendant_or_equal(message.destination(), self.scroll_panel)
@@ -1003,6 +1045,91 @@ impl AssetBrowser {
             MessageDirection::ToWidget,
             mode.is_edit(),
         ));
+    }
+
+    pub fn on_message(
+        &mut self,
+        ui: &mut UserInterface,
+        entry: &EditorSceneEntry,
+        message: &Message,
+        editor_plugins_container: &EditorPluginsContainer,
+    ) {
+        if let Message::SelectionChanged { .. } = message {
+            if let Some(selection) = entry.selection.as_ref::<AssetSelection>() {
+                // Deselect other items.
+                for &item_handle in self.items.iter() {
+                    let item = some_or_continue!(ui.try_get_of_type::<AssetItem>(item_handle));
+
+                    ui.send_message(AssetItemMessage::select(
+                        item_handle,
+                        MessageDirection::ToWidget,
+                        selection.contains(&item.path),
+                    ));
+                }
+
+                if let Some(inspector_plugin) =
+                    editor_plugins_container.try_get::<InspectorPlugin>()
+                {
+                    if self.inspector_buttons.is_none() {
+                        let ctx = &mut ui.build_ctx();
+                        let apply;
+                        let revert;
+                        let root = StackPanelBuilder::new(
+                            WidgetBuilder::new()
+                                .with_child({
+                                    apply = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_width(100.0)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("Apply")
+                                    .build(ctx);
+                                    apply
+                                })
+                                .with_child({
+                                    revert = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_width(100.0)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("Revert")
+                                    .build(ctx);
+                                    revert
+                                }),
+                        )
+                        .with_orientation(Orientation::Horizontal)
+                        .build(ctx);
+
+                        ctx.send_message(WidgetMessage::link(
+                            root,
+                            MessageDirection::ToWidget,
+                            inspector_plugin.head,
+                        ));
+
+                        self.inspector_buttons = Some(InspectorButtons {
+                            root,
+                            apply,
+                            revert,
+                        })
+                    }
+                }
+            } else {
+                for &item in self.items.iter() {
+                    ui.send_message(AssetItemMessage::select(
+                        item,
+                        MessageDirection::ToWidget,
+                        false,
+                    ))
+                }
+
+                if let Some(inspector_buttons) = self.inspector_buttons.take() {
+                    ui.send_message(WidgetMessage::remove(
+                        inspector_buttons.root,
+                        MessageDirection::ToWidget,
+                    ));
+                }
+            }
+        }
     }
 
     fn on_file_browser_drop(

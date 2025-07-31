@@ -58,7 +58,6 @@ pub mod world;
 pub use fyrox;
 use fyrox::core::make_relative_path;
 
-use crate::plugins::probe::ReflectionProbePlugin;
 use crate::{
     asset::{item::AssetItem, AssetBrowser},
     audio::{preview::AudioPreviewPanel, AudioPanel},
@@ -67,7 +66,7 @@ use crate::{
     configurator::Configurator,
     export::ExportWindow,
     fyrox::{
-        asset::{io::FsResourceIo, manager::ResourceManager},
+        asset::{io::FsResourceIo, manager::ResourceManager, untyped::ResourceKind},
         core::{
             algebra::{Matrix3, Vector2},
             color::Color,
@@ -81,7 +80,10 @@ use crate::{
             TypeUuidProvider,
         },
         dpi::{PhysicalPosition, PhysicalSize},
-        engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
+        engine::{
+            ApplicationLoopController, Engine, EngineInitParams, GraphicsContextParams,
+            SerializationContext,
+        },
         event::{Event, WindowEvent},
         event_loop::{EventLoop, EventLoopWindowTarget},
         fxhash::FxHashMap,
@@ -141,9 +143,15 @@ use crate::{
     particle::ParticleSystemPreviewControlPanel,
     plugin::{EditorPlugin, EditorPluginsContainer},
     plugins::{
-        absm::AbsmEditor, absm::AbsmEditorPlugin, animation::AnimationEditorPlugin,
-        collider::ColliderPlugin, curve_editor::CurveEditorPlugin, material::MaterialPlugin,
-        ragdoll::RagdollPlugin, settings::SettingsPlugin, stats::UiStatisticsPlugin,
+        absm::{AbsmEditor, AbsmEditorPlugin},
+        animation::AnimationEditorPlugin,
+        collider::ColliderPlugin,
+        curve_editor::CurveEditorPlugin,
+        material::MaterialPlugin,
+        probe::ReflectionProbePlugin,
+        ragdoll::RagdollPlugin,
+        settings::SettingsPlugin,
+        stats::UiStatisticsPlugin,
         tilemap::TileMapEditorPlugin,
     },
     scene::{
@@ -165,8 +173,6 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::EditorSceneWrapper, menu::SceneNodeContextMenu, WorldViewer},
 };
-use fyrox::asset::untyped::ResourceKind;
-use fyrox::engine::ApplicationLoopController;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
@@ -1380,8 +1386,7 @@ impl Editor {
             }
         }
         self.log.handle_ui_message(message, ui);
-        self.asset_browser
-            .handle_ui_message(message, engine, self.message_sender.clone());
+
         self.command_stack_viewer.handle_ui_message(message);
         self.scene_viewer.handle_ui_message(
             message,
@@ -1394,6 +1399,12 @@ impl Editor {
         let current_scene_entry = self.scenes.current_scene_entry_mut();
 
         if let Some(current_scene_entry) = current_scene_entry {
+            self.asset_browser.handle_ui_message(
+                message,
+                engine,
+                current_scene_entry,
+                self.message_sender.clone(),
+            );
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
                 self.particle_system_control_panel.handle_ui_message(
                     message,
@@ -2436,6 +2447,12 @@ impl Editor {
                     .handle_message(&message, &self.message_sender);
 
                 if let Some(entry) = self.scenes.current_scene_entry_mut() {
+                    self.asset_browser.on_message(
+                        self.engine.user_interfaces.first_mut(),
+                        entry,
+                        &message,
+                        &self.plugins,
+                    );
                     if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
                         self.particle_system_control_panel.handle_message(
                             &message,
