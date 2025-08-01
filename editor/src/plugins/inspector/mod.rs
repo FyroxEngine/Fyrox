@@ -55,6 +55,7 @@ use crate::{
     utils::window_content,
     Editor, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
+use fyrox::gui::border::BorderBuilder;
 use fyrox::gui::{
     inspector::InspectorContextArgs,
     stack_panel::StackPanelBuilder,
@@ -191,7 +192,7 @@ impl InspectorPlugin {
             Only common properties will be editable!";
 
         let head = StackPanelBuilder::new(WidgetBuilder::new()).build(ctx);
-        let footer = StackPanelBuilder::new(WidgetBuilder::new().on_row(3)).build(ctx);
+        let footer = BorderBuilder::new(WidgetBuilder::new().on_row(3)).build(ctx);
         let inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
         let content =
             StackPanelBuilder::new(WidgetBuilder::new().with_child(head).with_child(inspector))

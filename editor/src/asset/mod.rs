@@ -1062,7 +1062,7 @@ impl AssetBrowser {
                         .with_orientation(Orientation::Horizontal)
                         .build(ctx);
 
-                        ctx[preview.root].set_row(1);
+                        ctx[preview.root].set_row(1).set_height(300.0);
 
                         let root = GridBuilder::new(
                             WidgetBuilder::new()
@@ -1087,8 +1087,8 @@ impl AssetBrowser {
                             preview,
                         })
                     }
-                    let ui = engine.user_interfaces.first_mut();
                     let inspector_addon = self.inspector_addon.as_mut().unwrap();
+                    let mut has_preview = false;
                     if let Some(asset_path) = selection.selected_path() {
                         if let Ok(resource) =
                             block_on(engine.resource_manager.request_untyped(asset_path))
@@ -1105,15 +1105,19 @@ impl AssetBrowser {
                                     &engine.resource_manager,
                                     preview_scene,
                                 );
-                                ui.send_message(WidgetMessage::visibility(
-                                    inspector_addon.preview.root,
-                                    MessageDirection::ToWidget,
-                                    preview.is_some(),
-                                ));
+                                has_preview = preview.is_some();
                                 inspector_addon.preview.set_model(preview, engine);
                             }
                         }
                     }
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .send_message(WidgetMessage::visibility(
+                            inspector_addon.preview.root,
+                            MessageDirection::ToWidget,
+                            has_preview,
+                        ));
                 }
             } else {
                 for &item in self.items.iter() {
