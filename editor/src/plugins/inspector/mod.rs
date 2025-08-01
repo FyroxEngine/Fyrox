@@ -115,6 +115,7 @@ pub struct InspectorPlugin {
     pub(crate) window: Handle<UiNode>,
     pub inspector: Handle<UiNode>,
     pub head: Handle<UiNode>,
+    pub footer: Handle<UiNode>,
     warning_text: Handle<UiNode>,
     type_name_text: Handle<UiNode>,
     docs_button: Handle<UiNode>,
@@ -190,10 +191,15 @@ impl InspectorPlugin {
             Only common properties will be editable!";
 
         let head = StackPanelBuilder::new(WidgetBuilder::new()).build(ctx);
+        let footer = StackPanelBuilder::new(WidgetBuilder::new()).build(ctx);
         let inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
-        let content =
-            StackPanelBuilder::new(WidgetBuilder::new().with_child(head).with_child(inspector))
-                .build(ctx);
+        let content = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .with_child(head)
+                .with_child(inspector)
+                .with_child(footer),
+        )
+        .build(ctx);
 
         let warning_text;
         let type_name_text;
@@ -273,6 +279,7 @@ impl InspectorPlugin {
             type_name_text,
             docs_button,
             clipboard: None,
+            footer,
         }
     }
 
