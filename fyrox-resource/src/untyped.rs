@@ -245,7 +245,9 @@ impl Visit for ResourceHeader {
         }
 
         self.kind.visit("Kind", &mut region)?;
-        self.state.visit(self.kind, "State", &mut region)?;
+        if !region.is_reading() || region.find_field("TypeUuid").is_some() {
+            self.state.visit(self.kind, "State", &mut region)?;
+        }
 
         Ok(())
     }
