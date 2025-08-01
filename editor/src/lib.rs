@@ -2213,8 +2213,6 @@ impl Editor {
     fn configure(&mut self, working_directory: PathBuf) {
         assert!(self.scenes.is_empty());
 
-        self.asset_browser.clear_preview(&mut self.engine);
-
         let current_working_directory = std::env::current_dir().unwrap();
         if current_working_directory != working_directory {
             std::env::set_current_dir(working_directory.clone()).unwrap();
@@ -2447,12 +2445,8 @@ impl Editor {
                     .handle_message(&message, &self.message_sender);
 
                 if let Some(entry) = self.scenes.current_scene_entry_mut() {
-                    self.asset_browser.on_message(
-                        self.engine.user_interfaces.first_mut(),
-                        entry,
-                        &message,
-                        &self.plugins,
-                    );
+                    self.asset_browser
+                        .on_message(&mut self.engine, entry, &message, &self.plugins);
                     if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
                         self.particle_system_control_panel.handle_message(
                             &message,

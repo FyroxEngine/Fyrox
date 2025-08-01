@@ -142,10 +142,11 @@ fn make_unique_path(parent: &Path, stem: &str, ext: &str) -> PathBuf {
 
 type IconUpdateQueue = Arc<Mutex<VecDeque<PathBuf>>>;
 
-struct InspectorButtons {
+struct InspectorAddon {
     root: Handle<UiNode>,
     apply: Handle<UiNode>,
     revert: Handle<UiNode>,
+    preview: PreviewPanel,
 }
 
 pub struct AssetBrowser {
@@ -157,7 +158,6 @@ pub struct AssetBrowser {
     search_bar: Handle<UiNode>,
     add_resource: Handle<UiNode>,
     refresh: Handle<UiNode>,
-    preview: PreviewPanel,
     items: Vec<Handle<UiNode>>,
     item_to_select: Option<PathBuf>,
     context_menu: AssetItemContextMenu,
@@ -171,7 +171,7 @@ pub struct AssetBrowser {
     main_window: Handle<UiNode>,
     icon_update_queue: IconUpdateQueue,
     pub preview_generators: AssetPreviewGeneratorsCollection,
-    inspector_buttons: Option<InspectorButtons>,
+    inspector_addon: Option<InspectorAddon>,
 }
 
 fn is_path_in_registry(path: &Path, resource_manager: &ResourceManager) -> bool {
@@ -255,7 +255,6 @@ impl AssetBrowser {
     pub const ADD_ASSET_PRESSED_BRUSH: &'static str = "AssetBrowser.AddAssetPressedBrush";
 
     pub fn new(engine: &mut Engine) -> Self {
-        let preview = PreviewPanel::new(engine, 250, 250);
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
         let add_resource = ButtonBuilder::new(
@@ -368,15 +367,6 @@ impl AssetBrowser {
             )
             .build(ctx);
 
-        let preview_window = WindowBuilder::new(WidgetBuilder::new())
-            .with_title(WindowTitle::text("Asset Preview"))
-            .with_tab_label("Preview")
-            .can_close(false)
-            .can_minimize(false)
-            .can_maximize(false)
-            .with_content(preview.root)
-            .build(ctx);
-
         let docking_manager = DockingManagerBuilder::new(
             WidgetBuilder::new().with_child(
                 TileBuilder::new(WidgetBuilder::new())
@@ -387,17 +377,7 @@ impl AssetBrowser {
                                 .with_content(TileContent::Window(folder_browser_window))
                                 .build(ctx),
                             TileBuilder::new(WidgetBuilder::new())
-                                .with_content(TileContent::HorizontalTiles {
-                                    splitter: 0.75,
-                                    tiles: [
-                                        TileBuilder::new(WidgetBuilder::new())
-                                            .with_content(TileContent::Window(main_window))
-                                            .build(ctx),
-                                        TileBuilder::new(WidgetBuilder::new())
-                                            .with_content(TileContent::Window(preview_window))
-                                            .build(ctx),
-                                    ],
-                                })
+                                .with_content(TileContent::Window(main_window))
                                 .build(ctx),
                         ],
                     })
@@ -433,7 +413,6 @@ impl AssetBrowser {
             docking_manager,
             content_panel,
             folder_browser,
-            preview,
             scroll_panel,
             search_bar,
             items: Default::default(),
@@ -450,12 +429,8 @@ impl AssetBrowser {
             preview_generators: AssetPreviewGeneratorsCollection::new(),
             refresh,
             watcher,
-            inspector_buttons: None,
+            inspector_addon: None,
         }
-    }
-
-    pub fn clear_preview(&mut self, engine: &mut Engine) {
-        self.preview.clear(engine);
     }
 
     pub fn set_working_directory(&mut self, engine: &mut Engine, dir: &Path) {
@@ -719,26 +694,6 @@ impl AssetBrowser {
         );
         sender.send(Message::SelectionChanged { old_selection });
         sender.send(Message::ForceSync);
-
-        if let Ok(resource) = block_on(engine.resource_manager.request_untyped(asset_path)) {
-            if let Some(preview_generator) = resource
-                .type_uuid()
-                .and_then(|type_uuid| self.preview_generators.map.get_mut(&type_uuid))
-            {
-                let preview_scene = &mut engine.scenes[self.preview.scene()];
-                let preview = preview_generator.generate_scene(
-                    &resource,
-                    &engine.resource_manager,
-                    preview_scene,
-                );
-                ui.send_message(WidgetMessage::visibility(
-                    self.preview.root,
-                    MessageDirection::ToWidget,
-                    preview.is_some(),
-                ));
-                self.preview.set_model(preview, engine);
-            }
-        }
     }
 
     pub fn handle_ui_message(
@@ -748,7 +703,9 @@ impl AssetBrowser {
         entry: &mut EditorSceneEntry,
         sender: MessageSender,
     ) {
-        self.preview.handle_message(message, engine);
+        if let Some(inspector_addon) = self.inspector_addon.as_mut() {
+            inspector_addon.preview.handle_message(message, engine);
+        }
         if self.context_menu.handle_ui_message(message, engine) {
             self.schedule_refresh();
         }
@@ -923,7 +880,7 @@ impl AssetBrowser {
                 self.schedule_refresh();
             }
 
-            if let Some(inspector_buttons) = self.inspector_buttons.as_ref() {
+            if let Some(inspector_buttons) = self.inspector_addon.as_ref() {
                 fn default_import_options(
                     extension: &OsStr,
                     resource_manager: &ResourceManager,
@@ -1028,7 +985,9 @@ impl AssetBrowser {
         self.update_icon_queue(engine);
         self.preview_cache
             .update(&mut self.preview_generators, engine);
-        self.preview.update(engine);
+        if let Some(inspector_addon) = self.inspector_addon.as_mut() {
+            inspector_addon.preview.update(engine);
+        }
         if self.need_refresh.load(Ordering::Relaxed) {
             self.refresh(
                 engine.user_interfaces.first_mut(),
@@ -1049,11 +1008,12 @@ impl AssetBrowser {
 
     pub fn on_message(
         &mut self,
-        ui: &mut UserInterface,
+        engine: &mut Engine,
         entry: &EditorSceneEntry,
         message: &Message,
         editor_plugins_container: &EditorPluginsContainer,
     ) {
+        let ui = engine.user_interfaces.first_mut();
         if let Message::SelectionChanged { .. } = message {
             if let Some(selection) = entry.selection.as_ref::<AssetSelection>() {
                 // Deselect other items.
@@ -1070,11 +1030,13 @@ impl AssetBrowser {
                 if let Some(inspector_plugin) =
                     editor_plugins_container.try_get::<InspectorPlugin>()
                 {
-                    if self.inspector_buttons.is_none() {
+                    if self.inspector_addon.is_none() {
+                        let preview = PreviewPanel::new(engine, 250, 250);
+                        let ui = engine.user_interfaces.first_mut();
                         let ctx = &mut ui.build_ctx();
                         let apply;
                         let revert;
-                        let root = StackPanelBuilder::new(
+                        let buttons = StackPanelBuilder::new(
                             WidgetBuilder::new()
                                 .with_child({
                                     apply = ButtonBuilder::new(
@@ -1100,17 +1062,57 @@ impl AssetBrowser {
                         .with_orientation(Orientation::Horizontal)
                         .build(ctx);
 
+                        ctx[preview.root].set_row(1);
+
+                        let root = GridBuilder::new(
+                            WidgetBuilder::new()
+                                .with_child(buttons)
+                                .with_child(preview.root),
+                        )
+                        .add_column(Column::stretch())
+                        .add_row(Row::auto())
+                        .add_row(Row::stretch())
+                        .build(ctx);
+
                         ctx.send_message(WidgetMessage::link(
                             root,
                             MessageDirection::ToWidget,
-                            inspector_plugin.head,
+                            inspector_plugin.footer,
                         ));
 
-                        self.inspector_buttons = Some(InspectorButtons {
+                        self.inspector_addon = Some(InspectorAddon {
                             root,
                             apply,
                             revert,
+                            preview,
                         })
+                    }
+                    let ui = engine.user_interfaces.first_mut();
+                    let inspector_addon = self.inspector_addon.as_mut().unwrap();
+                    if let Some(asset_path) = selection.selected_path() {
+                        if let Ok(resource) =
+                            block_on(engine.resource_manager.request_untyped(asset_path))
+                        {
+                            if let Some(preview_generator) =
+                                resource.type_uuid().and_then(|type_uuid| {
+                                    self.preview_generators.map.get_mut(&type_uuid)
+                                })
+                            {
+                                let preview_scene =
+                                    &mut engine.scenes[inspector_addon.preview.scene()];
+                                let preview = preview_generator.generate_scene(
+                                    &resource,
+                                    &engine.resource_manager,
+                                    preview_scene,
+                                );
+                                ui.send_message(WidgetMessage::visibility(
+                                    inspector_addon.preview.root,
+                                    MessageDirection::ToWidget,
+                                    preview.is_some(),
+                                ));
+                                inspector_addon.preview.set_model(preview, engine);
+                            }
+                        }
                     }
                 }
             } else {
@@ -1122,11 +1124,13 @@ impl AssetBrowser {
                     ))
                 }
 
-                if let Some(inspector_buttons) = self.inspector_buttons.take() {
+                if let Some(inspector_addon) = self.inspector_addon.take() {
                     ui.send_message(WidgetMessage::remove(
-                        inspector_buttons.root,
+                        inspector_addon.root,
                         MessageDirection::ToWidget,
                     ));
+
+                    inspector_addon.preview.destroy(engine);
                 }
             }
         }
