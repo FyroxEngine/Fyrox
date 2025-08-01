@@ -191,15 +191,11 @@ impl InspectorPlugin {
             Only common properties will be editable!";
 
         let head = StackPanelBuilder::new(WidgetBuilder::new()).build(ctx);
-        let footer = StackPanelBuilder::new(WidgetBuilder::new()).build(ctx);
+        let footer = StackPanelBuilder::new(WidgetBuilder::new().on_row(3)).build(ctx);
         let inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
-        let content = StackPanelBuilder::new(
-            WidgetBuilder::new()
-                .with_child(head)
-                .with_child(inspector)
-                .with_child(footer),
-        )
-        .build(ctx);
+        let content =
+            StackPanelBuilder::new(WidgetBuilder::new().with_child(head).with_child(inspector))
+                .build(ctx);
 
         let warning_text;
         let type_name_text;
@@ -260,11 +256,13 @@ impl InspectorPlugin {
                             ScrollViewerBuilder::new(WidgetBuilder::new().on_row(2))
                                 .with_content(content)
                                 .build(ctx),
-                        ),
+                        )
+                        .with_child(footer),
                 )
                 .add_row(Row::auto())
                 .add_row(Row::auto())
                 .add_row(Row::stretch())
+                .add_row(Row::auto())
                 .add_column(Column::stretch())
                 .build(ctx),
             )
