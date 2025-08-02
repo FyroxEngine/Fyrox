@@ -333,9 +333,9 @@ impl SceneItemBuilder {
                                     .unwrap_or(ctx.style.property(Style::BRUSH_TEXT)),
                             )
                             .with_margin(Thickness::left(1.0))
-                            .on_column(1)
-                            .with_vertical_alignment(VerticalAlignment::Center),
+                            .on_column(1),
                     )
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
                     .with_text(format!(
                         "{} ({}:{})",
                         self.name,
