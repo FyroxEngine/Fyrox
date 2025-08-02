@@ -18,41 +18,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::scene::SceneRenderingOptions;
-use crate::fyrox::{
-    core::{
-        algebra::{UnitQuaternion, Vector2, Vector3},
-        color::Color,
-        math::aabb::AxisAlignedBoundingBox,
-        pool::Handle,
+use crate::{
+    fyrox::{
+        core::{
+            algebra::{UnitQuaternion, Vector2, Vector3},
+            color::Color,
+            pool::Handle,
+        },
+        graph::BaseSceneGraph,
+        gui::{
+            button::{ButtonBuilder, ButtonMessage},
+            grid::{Column, GridBuilder, Row},
+            image::{Image, ImageBuilder, ImageMessage},
+            message::{CursorIcon, MessageDirection, MouseButton, UiMessage},
+            stack_panel::StackPanelBuilder,
+            widget::{WidgetBuilder, WidgetMessage},
+            HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
+        },
+        resource::{
+            model::{Model, ModelResourceExtension},
+            texture::{TextureKind, TextureResource, TextureResourceExtension},
+        },
+        scene::{
+            base::BaseBuilder,
+            camera::{CameraBuilder, FitParameters},
+            debug::Line,
+            light::{directional::DirectionalLightBuilder, BaseLightBuilder},
+            node::Node,
+            pivot::PivotBuilder,
+            transform::TransformBuilder,
+            Scene, SceneRenderingOptions,
+        },
     },
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        grid::{Column, GridBuilder, Row},
-        image::{Image, ImageBuilder, ImageMessage},
-        message::{CursorIcon, MessageDirection, MouseButton, UiMessage},
-        stack_panel::StackPanelBuilder,
-        widget::{WidgetBuilder, WidgetMessage},
-        HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
-    },
-    resource::{
-        model::{Model, ModelResourceExtension},
-        texture::{TextureKind, TextureResource, TextureResourceExtension},
-    },
-    scene::{
-        base::BaseBuilder,
-        camera::{CameraBuilder, Projection},
-        debug::Line,
-        light::{directional::DirectionalLightBuilder, BaseLightBuilder},
-        mesh::Mesh,
-        node::Node,
-        pivot::PivotBuilder,
-        transform::TransformBuilder,
-        Scene,
-    },
+    load_image, Engine,
 };
-use crate::{load_image, Engine};
 use std::path::Path;
 
 #[derive(Eq, PartialEq, Copy, Clone)]
@@ -69,7 +68,7 @@ pub struct PreviewPanel {
     camera_pivot: Handle<Node>,
     fit: Handle<UiNode>,
     hinge: Handle<Node>,
-    camera: Handle<Node>,
+    pub camera: Handle<Node>,
     prev_mouse_pos: Vector2<f32>,
     yaw: f32,
     pitch: f32,
@@ -264,20 +263,15 @@ impl PreviewPanel {
     }
 
     pub fn fit_to_model(&mut self, scene: &mut Scene) {
-        let mut bounding_box = AxisAlignedBoundingBox::default();
-        for node in scene.graph.linear_iter() {
-            if let Some(mesh) = node.cast::<Mesh>() {
-                bounding_box.add_box(mesh.accurate_world_bounding_box(&scene.graph))
-            }
-        }
-
-        self.yaw = 0.0;
-        self.pitch = -45.0;
-
-        if let Projection::Perspective(proj) = scene.graph[self.camera].as_camera().projection() {
-            let fov = proj.fov;
-            self.position = bounding_box.center();
-            self.distance = (bounding_box.max - bounding_box.min).norm() * (fov * 0.5).tan();
+        let aabb = scene
+            .graph
+            .aabb_of_descendants(self.model, |_, _| true)
+            .unwrap_or_default();
+        if let FitParameters::Perspective { position, distance } =
+            scene.graph[self.camera].as_camera().fit(&aabb, 1.0, 1.0)
+        {
+            self.position = position;
+            self.distance = distance;
         }
     }
 

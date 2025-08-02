@@ -34,7 +34,7 @@ use crate::{
         },
         engine::{Engine, GraphicsContext},
         fxhash::FxHashMap,
-        graph::BaseSceneGraph,
+        graph::{BaseSceneGraph, SceneGraphNode},
         gui::{
             font::Font, formatted_text::WrapMode, screen::ScreenBuilder, text::TextBuilder,
             widget::WidgetBuilder, HorizontalAlignment, UserInterface, VerticalAlignment,
@@ -53,7 +53,7 @@ use crate::{
         },
         scene::{
             base::BaseBuilder,
-            camera::{CameraBuilder, FitParameters, Projection},
+            camera::{Camera, CameraBuilder, FitParameters, Projection},
             light::{directional::DirectionalLightBuilder, BaseLightBuilder},
             mesh::{
                 surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
@@ -62,12 +62,11 @@ use crate::{
             node::Node,
             skybox::SkyBox,
             sound::{HrirSphereResourceData, SoundBuffer, SoundBuilder, Status},
-            Scene,
+            EnvironmentLightingSource, Scene,
         },
     },
     load_image,
 };
-use fyrox::scene::EnvironmentLightingSource;
 use image::{ColorType, GenericImage, Rgba};
 
 #[derive(Default)]
@@ -130,6 +129,7 @@ pub trait AssetPreviewGenerator: Send + Sync + 'static {
         resource: &UntypedResource,
         resource_manager: &ResourceManager,
         scene: &mut Scene,
+        preview_camera: Handle<Node>,
     ) -> Handle<Node>;
 
     /// Generates a preview image for an asset. For example, in case of prefabs, it will be the
@@ -157,6 +157,7 @@ impl AssetPreviewGenerator for TexturePreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         if let Some(texture) = resource.try_cast::<Texture>() {
             let scale = if let Some(size) = texture.data_ref().kind().rectangle_size() {
@@ -220,6 +221,7 @@ impl AssetPreviewGenerator for SoundPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         if let Some(buffer) = resource.try_cast::<SoundBuffer>() {
             SoundBuilder::new(BaseBuilder::new())
@@ -409,9 +411,21 @@ impl AssetPreviewGenerator for ModelPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
+        preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         if let Some(model) = resource.try_cast::<Model>() {
-            model.instantiate(scene)
+            let instance = model.instantiate(scene);
+
+            for camera in scene
+                .graph
+                .pair_iter_mut()
+                .filter(|(h, _)| *h != preview_camera)
+                .filter_map(|(_, n)| n.component_mut::<Camera>())
+            {
+                camera.set_enabled(false);
+            }
+
+            instance
         } else {
             Handle::NONE
         }
@@ -445,6 +459,7 @@ impl AssetPreviewGenerator for SurfaceDataPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         if let Some(surface) = resource.try_cast::<SurfaceData>() {
             MeshBuilder::new(BaseBuilder::new())
@@ -485,6 +500,7 @@ impl AssetPreviewGenerator for ShaderPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         if let Some(shader) = resource.try_cast::<Shader>() {
             let material = MaterialResource::new_embedded(Material::from_shader(shader));
@@ -527,6 +543,7 @@ impl AssetPreviewGenerator for MaterialPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         if let Some(material) = resource.try_cast::<Material>() {
             MeshBuilder::new(BaseBuilder::new())
@@ -547,7 +564,7 @@ impl AssetPreviewGenerator for MaterialPreview {
         engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
         let mut scene = make_preview_scene(true);
-        self.generate_scene(resource, &engine.resource_manager, &mut scene);
+        self.generate_scene(resource, &engine.resource_manager, &mut scene, Handle::NONE);
 
         render_scene_to_texture(engine, &mut scene, asset::item::DEFAULT_VEC_SIZE)
     }
@@ -569,6 +586,7 @@ impl AssetPreviewGenerator for HrirPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         _scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         Handle::NONE
     }
@@ -600,6 +618,7 @@ impl AssetPreviewGenerator for CurvePreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         _scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         Handle::NONE
     }
@@ -671,6 +690,7 @@ impl AssetPreviewGenerator for FontPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         _scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         Handle::NONE
     }
@@ -718,6 +738,7 @@ impl AssetPreviewGenerator for UserInterfacePreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         _scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         Handle::NONE
     }

@@ -38,6 +38,7 @@ impl AssetPreviewGenerator for TileSetPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         _scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         Handle::NONE
     }

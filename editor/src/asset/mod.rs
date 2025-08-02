@@ -1104,6 +1104,7 @@ impl AssetBrowser {
                                     &resource,
                                     &engine.resource_manager,
                                     preview_scene,
+                                    inspector_addon.preview.camera,
                                 );
                                 has_preview = preview.is_some();
                                 inspector_addon.preview.set_model(preview, engine);
