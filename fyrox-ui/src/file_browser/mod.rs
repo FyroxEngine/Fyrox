@@ -719,8 +719,7 @@ fn build_tree_item<P: AsRef<Path>>(
                 TextBuilder::new(
                     WidgetBuilder::new()
                         .with_margin(Thickness::left(4.0))
-                        .on_column(1)
-                        .with_vertical_alignment(VerticalAlignment::Center),
+                        .on_column(1),
                 )
                 .with_text(
                     path.as_ref()
@@ -732,7 +731,7 @@ fn build_tree_item<P: AsRef<Path>>(
                 .build(ctx),
             ),
     )
-    .add_row(Row::auto())
+    .add_row(Row::stretch())
     .add_column(Column::auto())
     .add_column(Column::stretch())
     .build(ctx);
