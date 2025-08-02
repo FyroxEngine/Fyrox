@@ -146,8 +146,8 @@ impl SelectionContainer for AssetSelection {
         _engine: &mut Engine,
         _sender: &MessageSender,
     ) {
-        for resource in self.resources.iter() {
-            if let Some(import_options) = resource.import_options.as_ref() {
+        for selected_resource in self.resources.iter() {
+            if let Some(import_options) = selected_resource.import_options.as_ref() {
                 let mut options = import_options.borrow_mut();
                 let options = &mut **options as &mut dyn Reflect;
                 options.as_reflect_mut(&mut |reflect| {
@@ -159,9 +159,10 @@ impl SelectionContainer for AssetSelection {
                         },
                     );
                 });
-            } else if let Ok(resource) =
-                block_on(self.resource_manager.request_untyped(&resource.path))
-            {
+            } else if let Ok(resource) = block_on(
+                self.resource_manager
+                    .request_untyped(&selected_resource.path),
+            ) {
                 if !self.resource_manager.is_built_in_resource(&resource) {
                     let mut guard = resource.0.lock();
                     if let Some(data) = guard.state.data_mut() {
@@ -174,6 +175,7 @@ impl SelectionContainer for AssetSelection {
                                 },
                             );
                         });
+                        Log::verify(data.save(&selected_resource.path));
                     }
                 }
             }
