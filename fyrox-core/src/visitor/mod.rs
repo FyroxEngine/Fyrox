@@ -523,6 +523,7 @@ impl Visitor {
         }
     }
 
+    /// Tries to find a field by its name.
     pub fn find_field(&mut self, name: &str) -> Option<&mut Field> {
         self.nodes
             .borrow_mut(self.current_node)
