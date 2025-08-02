@@ -2442,6 +2442,10 @@ impl Engine {
             widget_constructors,
             resource_manager,
         });
+
+        // New plugins may add custom resources and we must re-scan the data folder to include
+        // such resources in the registry.
+        resource_manager.update_or_load_registry();
     }
 
     fn register_plugin(&self, plugin: &dyn Plugin) {
