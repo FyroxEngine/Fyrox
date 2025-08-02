@@ -21,7 +21,7 @@
 use crate::{
     fyrox::{
         asset::{manager::ResourceManager, options::BaseImportOptions},
-        core::{futures::executor::block_on, log::Log, reflect::Reflect, some_or_continue},
+        core::{futures::executor::block_on, log::Log, reflect::Reflect},
         engine::Engine,
         gui::inspector::{PropertyAction, PropertyChanged},
         scene::SceneContainer,
@@ -47,9 +47,16 @@ impl PartialEq for SelectedResource {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct AssetSelection {
     resources: Vec<SelectedResource>,
+    resource_manager: ResourceManager,
+}
+
+impl PartialEq for AssetSelection {
+    fn eq(&self, other: &Self) -> bool {
+        self.resources == other.resources
+    }
 }
 
 fn load_import_options_or_default(
@@ -84,6 +91,7 @@ impl AssetSelection {
                     .map(|opt| Rc::new(RefCell::new(opt))),
                 path,
             }],
+            resource_manager: resource_manager.clone(),
         }
     }
 
@@ -114,13 +122,20 @@ impl SelectionContainer for AssetSelection {
         _scenes: &SceneContainer,
         callback: &mut dyn FnMut(&dyn Reflect),
     ) {
-        if let Some(options) = self
-            .resources
-            .first()
-            .and_then(|a| a.import_options.as_ref())
-        {
-            let options = options.borrow();
-            callback(&**options as &dyn Reflect)
+        if let Some(resource) = self.resources.first() {
+            if let Some(options) = resource.import_options.as_ref() {
+                let options = options.borrow();
+                callback(&**options as &dyn Reflect)
+            } else if let Ok(resource) =
+                block_on(self.resource_manager.request_untyped(&resource.path))
+            {
+                if !self.resource_manager.is_built_in_resource(&resource) {
+                    let guard = resource.0.lock();
+                    if let Some(data) = guard.state.data_ref() {
+                        callback(&*data.0 as &dyn Reflect)
+                    }
+                }
+            }
         }
     }
 
@@ -131,18 +146,37 @@ impl SelectionContainer for AssetSelection {
         _engine: &mut Engine,
         _sender: &MessageSender,
     ) {
-        for asset in self.resources.iter() {
-            let mut options = some_or_continue!(asset.import_options.as_ref()).borrow_mut();
-            let options = &mut **options as &mut dyn Reflect;
-            options.as_reflect_mut(&mut |reflect| {
-                PropertyAction::from_field_kind(&args.value).apply(
-                    &args.path(),
-                    reflect,
-                    &mut |result| {
-                        Log::verify(result);
-                    },
-                );
-            });
+        for resource in self.resources.iter() {
+            if let Some(import_options) = resource.import_options.as_ref() {
+                let mut options = import_options.borrow_mut();
+                let options = &mut **options as &mut dyn Reflect;
+                options.as_reflect_mut(&mut |reflect| {
+                    PropertyAction::from_field_kind(&args.value).apply(
+                        &args.path(),
+                        reflect,
+                        &mut |result| {
+                            Log::verify(result);
+                        },
+                    );
+                });
+            } else if let Ok(resource) =
+                block_on(self.resource_manager.request_untyped(&resource.path))
+            {
+                if !self.resource_manager.is_built_in_resource(&resource) {
+                    let mut guard = resource.0.lock();
+                    if let Some(data) = guard.state.data_mut() {
+                        data.0.as_reflect_mut(&mut |reflect| {
+                            PropertyAction::from_field_kind(&args.value).apply(
+                                &args.path(),
+                                reflect,
+                                &mut |result| {
+                                    Log::verify(result);
+                                },
+                            );
+                        });
+                    }
+                }
+            }
         }
     }
 
