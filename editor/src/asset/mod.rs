@@ -63,7 +63,7 @@ use crate::{
     plugin::EditorPluginsContainer,
     plugins::inspector::InspectorPlugin,
     preview::PreviewPanel,
-    scene::{container::EditorSceneEntry, Selection},
+    scene::{commands::ChangeSelectionCommand, container::EditorSceneEntry, Selection},
     utils::window_content,
     Message, Mode,
 };
@@ -684,16 +684,9 @@ impl AssetBrowser {
                 return;
             }
         }
-
-        let old_selection = std::mem::replace(
-            &mut entry.selection,
-            Selection::new(AssetSelection::new(
-                asset_path.clone(),
-                &engine.resource_manager,
-            )),
-        );
-        sender.send(Message::SelectionChanged { old_selection });
-        sender.send(Message::ForceSync);
+        sender.do_command(ChangeSelectionCommand::new(Selection::new(
+            AssetSelection::new(asset_path.clone(), &engine.resource_manager),
+        )));
     }
 
     pub fn handle_ui_message(
