@@ -230,20 +230,19 @@ impl ParticleSystemPreviewControlPanel {
 
         if let Message::SelectionChanged { .. } = message {
             let scene = &engine.scenes[game_scene.scene];
-            if let Some(selection) = editor_selection.as_graph() {
-                let any_particle_system_selected = selection
-                    .nodes
+            let any_particle_system_selected = editor_selection.as_graph().is_some_and(|s| {
+                s.nodes
                     .iter()
-                    .any(|n| scene.graph.try_get_of_type::<ParticleSystem>(*n).is_some());
-                engine
-                    .user_interfaces
-                    .first_mut()
-                    .send_message(WidgetMessage::visibility(
-                        self.root_widget,
-                        MessageDirection::ToWidget,
-                        any_particle_system_selected,
-                    ));
-            }
+                    .any(|n| scene.graph.try_get_of_type::<ParticleSystem>(*n).is_some())
+            });
+            engine
+                .user_interfaces
+                .first_mut()
+                .send_message(WidgetMessage::visibility(
+                    self.root_widget,
+                    MessageDirection::ToWidget,
+                    any_particle_system_selected,
+                ));
         }
     }
 

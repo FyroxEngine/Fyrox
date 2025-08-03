@@ -273,14 +273,12 @@ impl MeshControlPanel {
         };
 
         let scene = &engine.scenes[game_scene.scene];
-        let Some(selection) = editor_selection.as_graph() else {
-            return;
-        };
 
-        let any_mesh = selection
-            .nodes
-            .iter()
-            .any(|n| scene.graph.try_get_of_type::<Mesh>(*n).is_some());
+        let any_mesh = editor_selection.as_graph().is_some_and(|s| {
+            s.nodes()
+                .iter()
+                .any(|n| scene.graph.try_get_of_type::<Mesh>(*n).is_some())
+        });
         engine
             .user_interfaces
             .first_mut()

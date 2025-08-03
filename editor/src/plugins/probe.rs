@@ -338,7 +338,6 @@ impl EditorPlugin for ReflectionProbePlugin {
 
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
         let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
-        let selection = some_or_return!(entry.selection.as_graph());
         let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
 
         let scene = &mut editor.engine.scenes[game_scene.scene];
@@ -351,11 +350,12 @@ impl EditorPlugin for ReflectionProbePlugin {
                 mode.destroy(scene);
             }
 
-            let selected_reflection_probe = selection
-                .nodes()
-                .iter()
-                .find(|h| scene.graph.has_component::<ReflectionProbe>(**h))
-                .cloned();
+            let selected_reflection_probe = entry.selection.as_graph().and_then(|s| {
+                s.nodes()
+                    .iter()
+                    .find(|h| scene.graph.has_component::<ReflectionProbe>(**h))
+                    .cloned()
+            });
 
             if let Some(selected_reflection_probe) = selected_reflection_probe {
                 entry.interaction_modes.add(ReflectionProbeInteractionMode {
