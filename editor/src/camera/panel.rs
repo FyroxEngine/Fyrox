@@ -204,7 +204,9 @@ impl CameraPreviewControlPanel {
         let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
         if let Some((camera_handle, original)) = self.camera_state.take() {
-            scene.graph[camera_handle] = original;
+            if let Some(camera) = scene.graph.try_get_mut(camera_handle) {
+                *camera = original
+            }
 
             assert!(node_overrides.remove(&camera_handle));
         }
