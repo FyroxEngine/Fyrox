@@ -19,18 +19,17 @@
 // SOFTWARE.
 
 use crate::{
-    command::{Command, SetPropertyCommand},
+    command::{make_command, Command, SetPropertyCommand},
     fyrox::{
-        asset::{manager::ResourceManager, options::BaseImportOptions},
-        core::{futures::executor::block_on, log::Log, reflect::Reflect},
+        asset::{manager::ResourceManager, options::BaseImportOptions, ResourceData},
+        core::{futures::executor::block_on, reflect::Reflect},
         engine::Engine,
-        gui::inspector::{PropertyAction, PropertyChanged},
+        gui::inspector::PropertyChanged,
         scene::SceneContainer,
     },
     message::MessageSender,
     scene::{controller::SceneController, SelectionContainer},
 };
-use fyrox::asset::ResourceData;
 use std::{
     cell::{RefCell, RefMut},
     path::{Path, PathBuf},
@@ -146,42 +145,52 @@ impl SelectionContainer for AssetSelection {
         _controller: &mut dyn SceneController,
         args: &PropertyChanged,
         _engine: &mut Engine,
-        _sender: &MessageSender,
+        sender: &MessageSender,
     ) {
-        for selected_resource in self.resources.iter() {
-            if let Some(import_options) = selected_resource.import_options.as_ref() {
-                let mut options = import_options.borrow_mut();
-                let options = &mut **options as &mut dyn Reflect;
-                options.as_reflect_mut(&mut |reflect| {
-                    PropertyAction::from_field_kind(&args.value).apply(
-                        &args.path(),
-                        reflect,
-                        &mut |result| {
-                            Log::verify(result);
-                        },
-                    );
-                });
-            } else if let Ok(resource) = block_on(
-                self.resource_manager
-                    .request_untyped(&selected_resource.path),
-            ) {
-                if !self.resource_manager.is_built_in_resource(&resource) {
-                    let mut guard = resource.0.lock();
-                    if let Some(data) = guard.state.data_mut() {
-                        data.0.as_reflect_mut(&mut |reflect| {
-                            PropertyAction::from_field_kind(&args.value).apply(
-                                &args.path(),
-                                reflect,
-                                &mut |result| {
-                                    Log::verify(result);
-                                },
-                            );
+        let group = self
+            .resources
+            .iter()
+            .filter_map(|selected_resource| {
+                if let Some(import_options) = selected_resource.import_options.as_ref().cloned() {
+                    return make_command(args, move |_| {
+                        let mut options = import_options.borrow_mut();
+                        let options = &mut **options as &mut dyn Reflect;
+                        // SAFETY: This is safe, because the closure owns its own copy of
+                        // import_options, and the entity getter is used only once per
+                        // do/undo/redo calls.
+                        unsafe {
+                            Some(std::mem::transmute::<
+                                &'_ mut dyn Reflect,
+                                &'static mut dyn Reflect,
+                            >(options))
+                        }
+                    });
+                } else if let Ok(resource) = block_on(
+                    self.resource_manager
+                        .request_untyped(&selected_resource.path),
+                ) {
+                    if !self.resource_manager.is_built_in_resource(&resource) {
+                        return make_command(args, move |_| {
+                            let mut guard = resource.0.lock();
+                            let data = &mut **guard.state.data_mut()?;
+                            // SAFETY: This is safe, because the closure owns its own copy of
+                            // resource strong ref, and the entity getter is used only once per
+                            // do/undo/redo calls.
+                            unsafe {
+                                Some(std::mem::transmute::<
+                                    &'_ mut dyn ResourceData,
+                                    &'static mut dyn ResourceData,
+                                >(data))
+                            }
                         });
-                        Log::verify(data.save(&selected_resource.path));
                     }
                 }
-            }
-        }
+
+                None
+            })
+            .collect::<Vec<_>>();
+
+        sender.do_command_group_with_inheritance(group, args);
     }
 
     fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {
