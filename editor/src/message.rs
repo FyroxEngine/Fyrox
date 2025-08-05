@@ -18,25 +18,27 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::CommandGroup;
 use crate::{
-    command::{Command, CommandTrait},
+    command::{Command, CommandGroup, CommandTrait},
     fyrox::{
         core::{
             log::Log,
             pool::{ErasedHandle, Handle},
             uuid::Uuid,
         },
-        gui::UiNode,
+        gui::{inspector::PropertyChanged, UiNode},
         material::MaterialResource,
-        scene::{camera::Projection, mesh::surface::SurfaceResource, node::Node},
+        scene::{
+            camera::Projection,
+            mesh::surface::SurfaceResource,
+            node::Node,
+            tilemap::{brush::TileMapBrushResource, tileset::TileSetResource},
+        },
     },
     scene::Selection,
     SaveSceneConfirmationDialogAction,
 };
-use fyrox::scene::tilemap::{brush::TileMapBrushResource, tileset::TileSetResource};
-use std::sync::mpsc::channel;
-use std::{path::PathBuf, sync::mpsc::Sender};
+use std::{path::PathBuf, sync::mpsc::channel, sync::mpsc::Sender};
 
 #[derive(Debug)]
 pub enum Message {
@@ -143,6 +145,16 @@ impl MessageSender {
             self.send(Message::DoCommand(group.into_iter().next().unwrap()))
         } else {
             self.do_command(CommandGroup::from(group));
+        }
+    }
+
+    pub fn do_command_group_with_inheritance(&self, group: Vec<Command>, args: &PropertyChanged) {
+        if group.is_empty() {
+            if !args.is_inheritable() {
+                Log::err(format!("Failed to handle a property {}", args.path()))
+            }
+        } else {
+            self.do_command_group(group);
         }
     }
 }

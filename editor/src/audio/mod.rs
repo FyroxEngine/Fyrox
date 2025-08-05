@@ -18,46 +18,44 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::controller::SceneController;
 use crate::{
     asset::preview::cache::IconRequest,
     audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
-    command::CommandGroup,
-    command::{make_command, SetPropertyCommand},
-    fyrox::core::log::Log,
-    fyrox::core::reflect::Reflect,
-    fyrox::gui::inspector::PropertyChanged,
-    fyrox::gui::utils::make_dropdown_list_option,
-    fyrox::scene::SceneContainer,
+    command::{make_command, CommandGroup, SetPropertyCommand},
     fyrox::{
-        core::pool::Handle,
+        core::{pool::Handle, reflect::Reflect, some_or_return},
         engine::Engine,
         graph::BaseSceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             dropdown_list::{DropdownListBuilder, DropdownListMessage},
             grid::{Column, Row},
+            inspector::PropertyChanged,
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::UiMessage,
             stack_panel::StackPanelBuilder,
             text::TextBuilder,
-            utils::make_simple_tooltip,
+            utils::{make_dropdown_list_option, make_simple_tooltip},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowTitle},
             Orientation, Thickness, UiNode, VerticalAlignment,
         },
-        scene::sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
+        scene::{
+            sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
+            SceneContainer,
+        },
     },
     message::MessageSender,
     plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
-    scene::commands::GameSceneContext,
     scene::{
         commands::{
             effect::{AddAudioBusCommand, LinkAudioBuses, RemoveAudioBusCommand},
             sound_context::{
                 SetDistanceModelCommand, SetHrtfRendererHrirSphereResource, SetRendererCommand,
             },
+            GameSceneContext,
         },
+        controller::SceneController,
         SelectionContainer,
     },
     send_sync_message,
@@ -65,9 +63,7 @@ use crate::{
     ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
     UserInterface,
 };
-use fyrox::core::some_or_return;
-use std::cmp::Ordering;
-use std::sync::mpsc::Sender;
+use std::{cmp::Ordering, sync::mpsc::Sender};
 use strum::VariantNames;
 
 mod bus;
@@ -128,13 +124,7 @@ impl SelectionContainer for AudioBusSelection {
             })
             .collect::<Vec<_>>();
 
-        if group.is_empty() {
-            if !args.is_inheritable() {
-                Log::err(format!("Failed to handle a property {}", args.path()))
-            }
-        } else {
-            sender.do_command_group(group);
-        }
+        sender.do_command_group_with_inheritance(group, args);
     }
 
     fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {

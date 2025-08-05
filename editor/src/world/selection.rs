@@ -18,13 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::message::MessageSender;
 use crate::{
     command::{Command, SetPropertyCommand},
     fyrox::{
         asset::core::algebra::Vector3,
         core::{
-            algebra::UnitQuaternion, log::Log, math::Matrix4Ext, pool::Handle, reflect::Reflect,
+            algebra::UnitQuaternion, math::Matrix4Ext, pool::Handle, reflect::Reflect,
             some_or_return,
         },
         engine::Engine,
@@ -32,6 +31,7 @@ use crate::{
         gui::inspector::PropertyChanged,
         scene::{graph::Graph, node::Node, SceneContainer},
     },
+    message::MessageSender,
     scene::{
         commands::GameSceneContext, controller::SceneController, GameScene, SelectionContainer,
     },
@@ -87,13 +87,7 @@ impl SelectionContainer for GraphSelection {
             })
             .collect::<Vec<_>>();
 
-        if group.is_empty() {
-            if !args.is_inheritable() {
-                Log::err(format!("Failed to handle a property {}", args.path()))
-            }
-        } else {
-            sender.do_command_group(group);
-        }
+        sender.do_command_group_with_inheritance(group, args);
     }
 
     fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {

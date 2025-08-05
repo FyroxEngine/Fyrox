@@ -21,21 +21,21 @@
 use crate::{
     command::{make_command, Command, SetPropertyCommand},
     fyrox::{
-        core::pool::ErasedHandle,
-        core::variable::InheritableVariable,
-        core::{log::Log, pool::Handle, reflect::Reflect, uuid::Uuid},
+        core::{
+            pool::{ErasedHandle, Handle},
+            reflect::Reflect,
+            uuid::Uuid,
+            variable::InheritableVariable,
+        },
         engine::Engine,
-        generic_animation::Animation,
-        generic_animation::AnimationContainer,
+        generic_animation::{Animation, AnimationContainer},
         graph::{BaseSceneGraph, SceneGraphNode},
         gui::inspector::PropertyChanged,
         scene::SceneContainer,
     },
     message::MessageSender,
     plugins::{animation, animation::command::fetch_animations_container},
-    scene::controller::SceneController,
-    scene::GameScene,
-    scene::SelectionContainer,
+    scene::{controller::SceneController, GameScene, SelectionContainer},
     ui_scene::UiScene,
 };
 use std::fmt::{Debug, Formatter};
@@ -168,13 +168,7 @@ where
             })
             .collect();
 
-        if group.is_empty() {
-            if !args.is_inheritable() {
-                Log::err(format!("Failed to handle a property {}", args.path()))
-            }
-        } else {
-            sender.do_command_group(group);
-        }
+        sender.do_command_group_with_inheritance(group, args);
     }
 
     fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {

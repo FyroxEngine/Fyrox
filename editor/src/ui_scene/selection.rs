@@ -18,29 +18,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::message::MessageSender;
-use crate::scene::controller::SceneController;
-use crate::ui_scene::UiScene;
 use crate::{
-    command::{make_command, SetPropertyCommand},
-    command::{Command, CommandGroup},
+    command::{make_command, Command, CommandGroup, SetPropertyCommand},
     fyrox::{
-        core::log::Log,
-        core::pool::Handle,
-        core::reflect::Reflect,
+        core::{pool::Handle, reflect::Reflect, some_or_return},
         engine::Engine,
-        graph::BaseSceneGraph,
-        gui::inspector::PropertyChanged,
-        gui::{UiNode, UserInterface},
+        graph::{BaseSceneGraph, SceneGraphNode},
+        gui::{inspector::PropertyChanged, UiNode, UserInterface},
         scene::SceneContainer,
     },
-    scene::{commands::ChangeSelectionCommand, SelectionContainer},
-    ui_scene::commands::{
-        graph::DeleteWidgetsSubGraphCommand, widget::RevertWidgetPropertyCommand, UiSceneContext,
+    message::MessageSender,
+    scene::{commands::ChangeSelectionCommand, controller::SceneController, SelectionContainer},
+    ui_scene::{
+        commands::{
+            graph::DeleteWidgetsSubGraphCommand, widget::RevertWidgetPropertyCommand,
+            UiSceneContext,
+        },
+        UiScene,
     },
 };
-use fyrox::core::some_or_return;
-use fyrox::graph::SceneGraphNode;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct UiSelection {
@@ -100,13 +96,7 @@ impl SelectionContainer for UiSelection {
             })
             .collect::<Vec<_>>();
 
-        if group.is_empty() {
-            if !args.is_inheritable() {
-                Log::err(format!("Failed to handle a property {}", args.path()))
-            }
-        } else {
-            sender.do_command_group(group);
-        }
+        sender.do_command_group_with_inheritance(group, args);
     }
 
     fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {
