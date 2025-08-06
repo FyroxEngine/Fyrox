@@ -20,13 +20,14 @@
 
 use crate::fyrox::{
     core::{
-        reflect::{is_path_to_array_element, Reflect, ResolvePath, SetFieldByPathError},
-        ComponentProvider,
+        err,
+        reflect::{
+            is_path_to_array_element, Reflect, ResolvePath, SetFieldByPathError, SetFieldError,
+        },
+        some_or_return, ComponentProvider,
     },
     gui::inspector::{PropertyAction, PropertyChanged},
 };
-use fyrox::core::reflect::SetFieldError;
-use fyrox::core::some_or_return;
 use std::{
     any::{type_name, TypeId},
     fmt::{Debug, Formatter},
@@ -383,7 +384,7 @@ where
     entity.resolve_path_mut(path, &mut |result| match result {
         Ok(field) => func.take().unwrap()(field),
         Err(e) => {
-            fyrox::core::log::Log::err(format!("There is no such property {path}! Reason: {e:?}"))
+            err!("There is no such property {path}! Reason: {e:?}")
         }
     })
 }
@@ -414,23 +415,24 @@ impl<F: EntityGetter> SetPropertyCommand<F> {
             let entity = some_or_return!((self.entity_getter)(ctx));
             entity.resolve_path_mut(&self.path, &mut |result| match result {
                 Err(reason) => {
-                    fyrox::core::log::Log::err(format!(
+                    err!(
                         "Failed to set property {}! Invalid path {:?}!",
-                        self.path, reason
-                    ));
+                        self.path,
+                        reason
+                    );
                 }
                 Ok(property) => match property.set(self.value.take().unwrap()) {
                     Ok(old_value) => {
                         self.value = Some(old_value);
                     }
                     Err(current_value) => {
-                        fyrox::core::log::Log::err(format!(
+                        err!(
                             "Failed to set property {}! Incompatible types. \
                             Target property: {}. Value: {}!",
                             self.path,
                             property.type_name(),
                             current_value.type_name()
-                        ));
+                        );
                         self.value = Some(current_value);
                     }
                 },
@@ -445,10 +447,11 @@ impl<F: EntityGetter> SetPropertyCommand<F> {
                     Err(result) => {
                         let value = match result {
                             SetFieldByPathError::InvalidPath { value, reason } => {
-                                fyrox::core::log::Log::err(format!(
+                                err!(
                                     "Failed to set property {}! Invalid path {:?}!",
-                                    self.path, reason
-                                ));
+                                    self.path,
+                                    reason
+                                );
 
                                 value
                             }
@@ -456,22 +459,22 @@ impl<F: EntityGetter> SetPropertyCommand<F> {
                                 field_type_name,
                                 value,
                             } => {
-                                fyrox::core::log::Log::err(format!(
+                                err!(
                                     "Failed to set property {}! Incompatible types. \
                                     Target property: {}. Value: {}!",
                                     self.path,
                                     field_type_name,
                                     value.type_name()
-                                ));
+                                );
 
                                 value
                             }
                             SetFieldByPathError::SetFieldError(err) => match err {
                                 SetFieldError::NoSuchField { value, .. } => {
-                                    fyrox::core::log::Log::err(format!(
+                                    err!(
                                         "Failed to set property {}, because it does not exist!",
                                         self.path,
-                                    ));
+                                    );
 
                                     value
                                 }
@@ -479,13 +482,13 @@ impl<F: EntityGetter> SetPropertyCommand<F> {
                                     field_type_name,
                                     value,
                                 } => {
-                                    fyrox::core::log::Log::err(format!(
+                                    err!(
                                         "Failed to set property {}! Incompatible types. \
                                     Target property: {}. Value: {}!",
                                         self.path,
                                         field_type_name,
                                         value.type_name()
-                                    ));
+                                    );
 
                                     value
                                 }
@@ -546,19 +549,16 @@ impl<F: EntityGetter> CommandTrait for AddCollectionItemCommand<F> {
             field.as_list_mut(&mut |result| {
                 if let Some(list) = result {
                     if let Err(item) = list.reflect_push(self.item.take().unwrap()) {
-                        fyrox::core::log::Log::err(format!(
+                        err!(
                             "Failed to push item to {} collection. Type mismatch {} and {}!",
                             self.path,
                             item.type_name(),
                             list.type_name()
-                        ));
+                        );
                         self.item = Some(item);
                     }
                 } else {
-                    fyrox::core::log::Log::err(format!(
-                        "Property {} is not a collection!",
-                        self.path
-                    ))
+                    err!("Property {} is not a collection!", self.path)
                 }
             });
         })
@@ -572,16 +572,10 @@ impl<F: EntityGetter> CommandTrait for AddCollectionItemCommand<F> {
                     if let Some(item) = list.reflect_pop() {
                         self.item = Some(item);
                     } else {
-                        fyrox::core::log::Log::err(format!(
-                            "Failed to pop item from {} collection!",
-                            self.path
-                        ))
+                        err!("Failed to pop item from {} collection!", self.path)
                     }
                 } else {
-                    fyrox::core::log::Log::err(format!(
-                        "Property {} is not a collection!",
-                        self.path
-                    ))
+                    err!("Property {} is not a collection!", self.path)
                 }
             });
         })
@@ -624,10 +618,7 @@ impl<F: EntityGetter> CommandTrait for RemoveCollectionItemCommand<F> {
                 if let Some(list) = result {
                     self.value = list.reflect_remove(self.index);
                 } else {
-                    fyrox::core::log::Log::err(format!(
-                        "Property {} is not a collection!",
-                        self.path
-                    ))
+                    err!("Property {} is not a collection!", self.path)
                 }
             })
         })
@@ -640,16 +631,13 @@ impl<F: EntityGetter> CommandTrait for RemoveCollectionItemCommand<F> {
                 if let Some(list) = result {
                     if let Err(item) = list.reflect_insert(self.index, self.value.take().unwrap()) {
                         self.value = Some(item);
-                        fyrox::core::log::Log::err(format!(
+                        err!(
                             "Failed to insert item to {} collection. Type mismatch!",
                             self.path
-                        ))
+                        )
                     }
                 } else {
-                    fyrox::core::log::Log::err(format!(
-                        "Property {} is not a collection!",
-                        self.path
-                    ))
+                    err!("Property {} is not a collection!", self.path)
                 }
             });
         })
