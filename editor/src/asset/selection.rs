@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::command::{CommandContext, CommandTrait};
 use crate::{
     command::{make_command, Command, SetPropertyCommand},
     fyrox::{
@@ -30,6 +31,8 @@ use crate::{
     message::MessageSender,
     scene::{controller::SceneController, SelectionContainer},
 };
+use fyrox::asset::untyped::UntypedResource;
+use fyrox::core::log::Log;
 use std::{
     cell::{RefCell, RefMut},
     path::{Path, PathBuf},
@@ -45,6 +48,35 @@ struct SelectedResource {
 impl PartialEq for SelectedResource {
     fn eq(&self, other: &Self) -> bool {
         self.path == other.path
+    }
+}
+
+#[derive(Debug)]
+struct SaveResourceCommand {
+    resource: UntypedResource,
+    path: PathBuf,
+}
+
+impl SaveResourceCommand {
+    fn save(&self) {
+        let mut guard = self.resource.0.lock();
+        if let Some(data) = guard.state.data_mut() {
+            Log::verify(data.save(&self.path));
+        }
+    }
+}
+
+impl CommandTrait for SaveResourceCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Save Resource".to_string()
+    }
+
+    fn execute(&mut self, _context: &mut dyn CommandContext) {
+        self.save();
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        self.save();
     }
 }
 
@@ -147,48 +179,53 @@ impl SelectionContainer for AssetSelection {
         _engine: &mut Engine,
         sender: &MessageSender,
     ) {
-        let group = self
-            .resources
-            .iter()
-            .filter_map(|selected_resource| {
-                if let Some(import_options) = selected_resource.import_options.as_ref().cloned() {
-                    return make_command(args, move |_| {
-                        let mut options = import_options.borrow_mut();
-                        let options = &mut **options as &mut dyn Reflect;
+        let mut group = Vec::new();
+
+        for selected_resource in self.resources.iter() {
+            if let Some(import_options) = selected_resource.import_options.as_ref().cloned() {
+                if let Some(command) = make_command(args, move |_| {
+                    let mut options = import_options.borrow_mut();
+                    let options = &mut **options as &mut dyn Reflect;
+                    // SAFETY: This is safe, because the closure owns its own copy of
+                    // import_options, and the entity getter is used only once per
+                    // do/undo/redo calls.
+                    unsafe {
+                        Some(std::mem::transmute::<
+                            &'_ mut dyn Reflect,
+                            &'static mut dyn Reflect,
+                        >(options))
+                    }
+                }) {
+                    group.push(command);
+                }
+            } else if let Ok(resource) = block_on(
+                self.resource_manager
+                    .request_untyped(&selected_resource.path),
+            ) {
+                let resource2 = resource.clone();
+                if !self.resource_manager.is_built_in_resource(&resource) {
+                    if let Some(command) = make_command(args, move |_| {
+                        let mut guard = resource.0.lock();
+                        let data = &mut **guard.state.data_mut()?;
                         // SAFETY: This is safe, because the closure owns its own copy of
-                        // import_options, and the entity getter is used only once per
+                        // resource strong ref, and the entity getter is used only once per
                         // do/undo/redo calls.
                         unsafe {
                             Some(std::mem::transmute::<
-                                &'_ mut dyn Reflect,
-                                &'static mut dyn Reflect,
-                            >(options))
+                                &'_ mut dyn ResourceData,
+                                &'static mut dyn ResourceData,
+                            >(data))
                         }
-                    });
-                } else if let Ok(resource) = block_on(
-                    self.resource_manager
-                        .request_untyped(&selected_resource.path),
-                ) {
-                    if !self.resource_manager.is_built_in_resource(&resource) {
-                        return make_command(args, move |_| {
-                            let mut guard = resource.0.lock();
-                            let data = &mut **guard.state.data_mut()?;
-                            // SAFETY: This is safe, because the closure owns its own copy of
-                            // resource strong ref, and the entity getter is used only once per
-                            // do/undo/redo calls.
-                            unsafe {
-                                Some(std::mem::transmute::<
-                                    &'_ mut dyn ResourceData,
-                                    &'static mut dyn ResourceData,
-                                >(data))
-                            }
-                        });
+                    }) {
+                        group.push(command);
                     }
+                    group.push(Command::new(SaveResourceCommand {
+                        resource: resource2,
+                        path: selected_resource.path.clone(),
+                    }));
                 }
-
-                None
-            })
-            .collect::<Vec<_>>();
+            }
+        }
 
         sender.do_command_group_with_inheritance(group, args);
     }
