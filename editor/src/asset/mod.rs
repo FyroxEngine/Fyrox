@@ -180,7 +180,13 @@ fn is_path_in_registry(path: &Path, resource_manager: &ResourceManager) -> bool 
     if let Some(registry_directory) = registry.directory() {
         if let Ok(canonical_registry_path) = registry_directory.canonicalize() {
             if let Ok(canonical_path) = path.canonicalize() {
-                return canonical_path.starts_with(canonical_registry_path);
+                if canonical_path.is_dir() {
+                    return canonical_path.starts_with(canonical_registry_path);
+                } else if let Some(parent) = canonical_registry_path.parent() {
+                    if let Ok(relative) = canonical_path.strip_prefix(parent) {
+                        return registry.is_registered(relative);
+                    }
+                }
             }
         }
     }
@@ -604,14 +610,15 @@ impl AssetBrowser {
 
         // Get all supported assets from folder and generate previews for them.
         if let Ok(dir_iter) = std::fs::read_dir(&self.current_path) {
-            for entry in dir_iter.flatten() {
-                if let Ok(entry_path) = make_relative_path(entry.path()) {
+            for path in dir_iter
+                .flatten()
+                .map(|e| e.path())
+                .filter(|p| is_path_in_registry(p, resource_manager))
+            {
+                if let Ok(entry_path) = make_relative_path(path) {
                     if entry_path.is_dir() {
                         folders.push(entry_path);
-                    } else if entry_path
-                        .extension()
-                        .is_some_and(|ext| is_supported_resource(ext, resource_manager))
-                    {
+                    } else {
                         resources.push(entry_path);
                     }
                 }
