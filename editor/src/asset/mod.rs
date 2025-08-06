@@ -337,6 +337,7 @@ impl AssetBrowser {
                 .with_filter(Filter::new(move |p: &Path| {
                     p.is_dir() && is_path_in_registry(p, &resource_manager)
                 }))
+                .with_root_title(Some("Assets".to_string()))
                 .build(ctx);
                 folder_browser
             })
