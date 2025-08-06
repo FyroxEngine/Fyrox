@@ -329,11 +329,14 @@ impl AssetBrowser {
             .can_minimize(false)
             .can_maximize(false)
             .with_content({
+                let resource_manager = engine.resource_manager.clone();
                 folder_browser = FileBrowserBuilder::new(
                     WidgetBuilder::new().on_column(0).with_tab_index(Some(0)),
                 )
                 .with_show_path(false)
-                .with_filter(Filter::new(|p: &Path| p.is_dir()))
+                .with_filter(Filter::new(move |p: &Path| {
+                    p.is_dir() && is_path_in_registry(p, &resource_manager)
+                }))
                 .build(ctx);
                 folder_browser
             })
