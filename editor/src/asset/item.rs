@@ -350,6 +350,7 @@ pub struct AssetItemBuilder {
     widget_builder: WidgetBuilder,
     path: PathBuf,
     icon: Option<TextureResource>,
+    title: Option<String>,
 }
 
 fn make_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle {
@@ -380,6 +381,7 @@ impl AssetItemBuilder {
             widget_builder,
             path: Default::default(),
             icon: None,
+            title: None,
         }
     }
 
@@ -390,6 +392,11 @@ impl AssetItemBuilder {
 
     pub fn with_icon(mut self, icon: Option<TextureResource>) -> Self {
         self.icon = icon;
+        self
+    }
+
+    pub fn with_title(mut self, title: Option<String>) -> Self {
+        self.title = title;
         self
     }
 
@@ -423,7 +430,13 @@ impl AssetItemBuilder {
                         .with_vertical_text_alignment(VerticalAlignment::Center)
                         .with_horizontal_text_alignment(HorizontalAlignment::Center)
                         .with_wrap(WrapMode::Letter)
-                        .with_text(self.path.file_name().unwrap_or_default().to_string_lossy())
+                        .with_text(self.title.unwrap_or_else(|| {
+                            self.path
+                                .file_name()
+                                .unwrap_or_default()
+                                .to_string_lossy()
+                                .to_string()
+                        }))
                         .build(ctx),
                 ),
         )

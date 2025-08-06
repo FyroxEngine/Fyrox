@@ -584,7 +584,8 @@ impl AssetBrowser {
             .ok()
             .and_then(|path| path.parent().map(|path| path.to_owned()))
         {
-            if parent_path == PathBuf::default() {
+            let is_root_dir = parent_path == PathBuf::default();
+            if is_root_dir {
                 parent_path = "./".into();
             }
 
@@ -593,6 +594,11 @@ impl AssetBrowser {
             )
             .with_icon(load_image!("../../resources/folder_return.png"))
             .with_path(parent_path)
+            .with_title(if is_root_dir {
+                Some("Assets".to_string())
+            } else {
+                None
+            })
             .build(
                 resource_manager.clone(),
                 message_sender.clone(),
