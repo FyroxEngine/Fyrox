@@ -19,4 +19,4 @@ nalgebra = { version = "0.33", features = ["bytemuck"] }
 arrayvec = "0.7.4"
 num-traits = "0.2.18"
 uuid = { version = "1", features = ["v4"] }
-bytemuck = { version = "1.16.1", features = ["derive"] }
+bytemuck = { version = "1.23.2", features = ["derive"] }

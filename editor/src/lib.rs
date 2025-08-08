@@ -26,6 +26,7 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::inconsistent_struct_constructor)]
 #![allow(clippy::mutable_key_type)]
+#![allow(mismatched_lifetime_syntaxes)]
 
 #[macro_use]
 extern crate lazy_static;

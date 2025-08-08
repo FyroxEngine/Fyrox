@@ -48,7 +48,7 @@ uvgen = "0.2.0"
 lightmap = "0.2"
 libloading = "0.8.1"
 gltf = { version = "1.4.0", default-features = false, features = ["names", "utils", "extras"] }
-bytemuck = { version = "1.16.1", features = ["derive"] }
+bytemuck = { version = "1.23.2", features = ["derive"] }
 approx = "0.5.1"
 
 # These dependencies aren't used by the engine, but it is necessary to prevent cargo from rebuilding

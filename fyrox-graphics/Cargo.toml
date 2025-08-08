@@ -17,4 +17,4 @@ fyrox-core = { path = "../fyrox-core", version = "1.0.0-rc.1", features = ["serd
 serde = { version = "1", features = ["derive"] }
 strum = "0.26.1"
 strum_macros = "0.26.1"
-bytemuck = { version = "1.16.1", features = ["derive"] }
+bytemuck = { version = "1.23.2", features = ["derive"] }

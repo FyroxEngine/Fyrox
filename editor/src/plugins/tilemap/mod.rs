@@ -33,7 +33,6 @@ mod handle_field;
 mod interaction_mode;
 mod macro_inspector;
 mod macro_tab;
-mod misc;
 pub mod palette;
 pub mod panel;
 mod panel_preview;
