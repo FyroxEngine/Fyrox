@@ -38,8 +38,8 @@ bitflags = "2.2.1"
 walkdir = "2.3.2"
 ron = "0.8.0"
 fxhash = "0.2.1"
-strum = "0.26.1"
-strum_macros = "0.26.1"
+strum = "0.27"
+strum_macros = "0.27"
 clap = { version = "4", features = ["derive"] }
 winit = { version = "0.29.2", features = ["serde"] }
 half = { version = "2.2.1", features = ["bytemuck"] }

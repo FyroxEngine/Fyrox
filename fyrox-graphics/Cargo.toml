@@ -15,6 +15,6 @@ rust-version = "1.86"
 [dependencies]
 fyrox-core = { path = "../fyrox-core", version = "1.0.0-rc.1", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
-strum = "0.26.1"
-strum_macros = "0.26.1"
+strum = "0.27"
+strum_macros = "0.27"
 bytemuck = { version = "1.23.2", features = ["derive"] }

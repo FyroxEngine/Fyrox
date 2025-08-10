@@ -20,8 +20,8 @@ ron = "0.8.0"
 serde = "^1.0.0"
 toml = { version = "0.8.10", default-features = false, features = ["parse"] }
 toml_edit = "0.22.6"
-strum = "0.26.1"
-strum_macros = "0.26.1"
+strum = "0.27"
+strum_macros = "0.27"
 open = "5"
 opener = { version = "0.7.2", default-features = false, features = ["reveal"] }
 rust-fuzzy-search = "0.1.1"

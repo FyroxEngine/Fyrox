@@ -26,8 +26,8 @@ copypasta = "0.10.1"
 fontdue = "0.9.2"
 notify = "8"
 fxhash = "0.2.1"
-strum = "0.26.1"
-strum_macros = "0.26.1"
+strum = "0.27"
+strum_macros = "0.27"
 serde = { version = "1", features = ["derive"] }
 bytemuck = { version = "1.23.2", features = ["derive"] }
 uuid = { version = "1.7.0", features = ["v4"] }
