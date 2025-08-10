@@ -20,6 +20,7 @@
 
 //! Scene physics module.
 
+use super::collider::GeometrySource;
 use crate::{
     core::{
         algebra::{
@@ -56,6 +57,7 @@ use crate::{
     },
 };
 pub use rapier2d::geometry::shape::*;
+use rapier2d::parry::query::DefaultQueryDispatcher;
 use rapier2d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
@@ -68,18 +70,15 @@ use rapier2d::{
         InteractionGroups, NarrowPhase, Ray, SharedShape,
     },
     parry::query::ShapeCastOptions,
-    pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline, QueryPipeline},
+    pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline},
 };
 use std::{
-    cell::RefCell,
     cmp::Ordering,
     fmt::{Debug, Formatter},
     hash::Hash,
     num::NonZeroUsize,
     sync::Arc,
 };
-
-use super::collider::GeometrySource;
 
 /// A trait for ray cast results storage. It has two implementations: Vec and ArrayVec.
 /// Latter is needed for the cases where you need to avoid runtime memory allocations
@@ -506,9 +505,6 @@ pub struct PhysicsWorld {
     event_handler: Box<dyn EventHandler>,
     #[visit(skip)]
     #[reflect(hidden)]
-    query: RefCell<QueryPipeline>,
-    #[visit(skip)]
-    #[reflect(hidden)]
     debug_render_pipeline: Mutex<DebugRenderPipeline>,
 }
 
@@ -616,7 +612,6 @@ impl PhysicsWorld {
                 map: Default::default(),
             },
             event_handler: Box::new(()),
-            query: RefCell::new(Default::default()),
             performance_statistics: Default::default(),
             debug_render_pipeline: Default::default(),
         }
@@ -657,8 +652,6 @@ impl PhysicsWorld {
                 max_ccd_substeps: self.integration_parameters.max_ccd_substeps as usize,
             };
 
-            let mut query = self.query.borrow_mut();
-
             self.pipeline.step(
                 &self.gravity,
                 &integration_parameters,
@@ -670,7 +663,6 @@ impl PhysicsWorld {
                 &mut self.joints.set,
                 &mut self.multibody_joints.set,
                 &mut self.ccd_solver,
-                Some(&mut query),
                 &(),
                 &*self.event_handler,
             );
@@ -747,7 +739,15 @@ impl PhysicsWorld {
     pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
         let time = instant::Instant::now();
 
-        let query = self.query.borrow_mut();
+        let query = self.broad_phase.as_query_pipeline(
+            &DefaultQueryDispatcher,
+            &self.bodies,
+            &self.colliders,
+            rapier2d::pipeline::QueryFilter::new().groups(InteractionGroups::new(
+                u32_to_group(opts.groups.memberships.0),
+                u32_to_group(opts.groups.filter.0),
+            )),
+        );
 
         query_buffer.clear();
         let ray = Ray::new(
@@ -756,28 +756,15 @@ impl PhysicsWorld {
                 .try_normalize(f32::EPSILON)
                 .unwrap_or_default(),
         );
-        query.intersections_with_ray(
-            &self.bodies,
-            &self.colliders,
-            &ray,
-            opts.max_len,
-            true,
-            rapier2d::pipeline::QueryFilter::new().groups(InteractionGroups::new(
-                u32_to_group(opts.groups.memberships.0),
-                u32_to_group(opts.groups.filter.0),
-            )),
-            |handle, intersection| {
-                query_buffer.push(Intersection {
-                    collider: Handle::decode_from_u128(
-                        self.colliders.get(handle).unwrap().user_data,
-                    ),
-                    normal: intersection.normal,
-                    position: ray.point_at(intersection.time_of_impact),
-                    feature: intersection.feature.into(),
-                    toi: intersection.time_of_impact,
-                })
-            },
-        );
+        for (_, collider, intersection) in query.intersect_ray(ray, opts.max_len, true) {
+            query_buffer.push(Intersection {
+                collider: Handle::decode_from_u128(collider.user_data),
+                normal: intersection.normal,
+                position: ray.point_at(intersection.time_of_impact),
+                feature: intersection.feature.into(),
+                toi: intersection.time_of_impact,
+            });
+        }
         if opts.sort_results {
             query_buffer.sort_intersections_by(|a, b| {
                 if a.toi > b.toi {
@@ -855,7 +842,12 @@ impl PhysicsWorld {
             predicate: Some(&predicate),
         };
 
-        let query = self.query.borrow_mut();
+        let query = self.broad_phase.as_query_pipeline(
+            &DefaultQueryDispatcher,
+            &self.bodies,
+            &self.colliders,
+            filter,
+        );
 
         let opts = ShapeCastOptions {
             max_time_of_impact: max_toi,
@@ -865,15 +857,7 @@ impl PhysicsWorld {
         };
 
         query
-            .cast_shape(
-                &self.bodies,
-                &self.colliders,
-                shape_pos,
-                shape_vel,
-                shape,
-                opts,
-                filter,
-            )
+            .cast_shape(shape_pos, shape_vel, shape, opts)
             .map(|(handle, toi)| {
                 (
                     Handle::decode_from_u128(self.colliders.get(handle).unwrap().user_data),

@@ -27,8 +27,8 @@ fyrox-graphics-gl = { path = "../fyrox-graphics-gl", version = "1.0.0-rc.1" }
 fyrox-texture = { path = "../fyrox-texture", version = "1.0.0-rc.1" }
 fyrox-autotile = { path = "../fyrox-autotile", version = "1.0.0-rc.1" }
 fyrox-material = { path = "../fyrox-material", version = "1.0.0-rc.1" }
-rapier2d = { version = "0.23", features = ["debug-render"] }
-rapier3d = { version = "0.23", features = ["debug-render"] }
+rapier2d = { version = "0.28", features = ["debug-render"] }
+rapier3d = { version = "0.28", features = ["debug-render"] }
 image = { version = "0.25.1", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
 inflate = "0.4.5"
 serde = { version = "1", features = ["derive"] }
@@ -44,8 +44,8 @@ clap = { version = "4", features = ["derive"] }
 winit = { version = "0.29.2", features = ["serde"] }
 half = { version = "2.2.1", features = ["bytemuck"] }
 base64 = "0.22.1"
-uvgen = "0.2.0"
-lightmap = "0.2"
+uvgen = "0.3.0"
+lightmap = "0.3.0"
 libloading = "0.8.1"
 gltf = { version = "1.4.0", default-features = false, features = ["names", "utils", "extras"] }
 bytemuck = { version = "1.23.2", features = ["derive"] }

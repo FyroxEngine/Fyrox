@@ -22,7 +22,7 @@ byteorder = "1.4.3"
 rand = "0.8.4"
 memoffset = "0.9.0"
 lazy_static = "1.4.0"
-nalgebra = { version = "0.33", features = ["bytemuck"] }
+nalgebra = { version = "0.34", features = ["bytemuck"] }
 arrayvec = "0.7.2"
 futures = { version = "0.3.17", features = ["thread-pool"] }
 uuid = { version = "1", features = ["v4", "js"] }
