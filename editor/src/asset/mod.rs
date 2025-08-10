@@ -485,22 +485,11 @@ impl AssetBrowser {
         );
 
         if !is_dir {
-            // Spawn async task, that will load the respective resource and generate preview for it in
-            // a separate thread. This prevents blocking the main thread and thus keeps the editor
-            // responsive.
-            let rm = resource_manager.clone();
-            let resource_path = path.to_path_buf();
-            let preview_sender = self.preview_sender.clone();
-            let task_pool = resource_manager.task_pool();
-            task_pool.spawn_task(async move {
-                if let Ok(resource) = rm.request_untyped(resource_path).await {
-                    Log::verify(preview_sender.send(IconRequest {
-                        resource,
-                        widget_handle: asset_item,
-                        force_update: false,
-                    }));
-                }
-            });
+            Log::verify(self.preview_sender.send(IconRequest {
+                resource: resource_manager.request_untyped(path),
+                widget_handle: asset_item,
+                force_update: false,
+            }));
         }
 
         self.items.push(asset_item);
