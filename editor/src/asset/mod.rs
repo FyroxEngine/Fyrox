@@ -33,7 +33,7 @@ use crate::{
         asset::{manager::ResourceManager, options::BaseImportOptions},
         core::{
             append_extension, err, futures::executor::block_on, log::Log, make_relative_path,
-            ok_or_continue, parking_lot::Mutex, pool::Handle, some_or_continue,
+            ok_or_continue, pool::Handle, some_or_continue,
         },
         engine::Engine,
         graph::{BaseSceneGraph, SceneGraph},
@@ -67,10 +67,11 @@ use crate::{
     utils::window_content,
     Message, Mode,
 };
+use fyrox::asset::event::ResourceEvent;
 use menu::AssetItemContextMenu;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use std::sync::mpsc::Receiver;
 use std::{
-    collections::VecDeque,
     ffi::OsStr,
     path::{Path, PathBuf},
     sync::{
@@ -140,8 +141,6 @@ fn make_unique_path(parent: &Path, stem: &str, ext: &str) -> PathBuf {
     }
 }
 
-type IconUpdateQueue = Arc<Mutex<VecDeque<PathBuf>>>;
-
 struct InspectorAddon {
     root: Handle<UiNode>,
     apply: Handle<UiNode>,
@@ -169,9 +168,9 @@ pub struct AssetBrowser {
     pub preview_sender: Sender<IconRequest>,
     need_refresh: Arc<AtomicBool>,
     main_window: Handle<UiNode>,
-    icon_update_queue: IconUpdateQueue,
     pub preview_generators: AssetPreviewGeneratorsCollection,
     inspector_addon: Option<InspectorAddon>,
+    resource_event_receiver: Receiver<ResourceEvent>,
 }
 
 fn is_path_in_registry(path: &Path, resource_manager: &ResourceManager) -> bool {
@@ -209,7 +208,6 @@ fn is_supported_resource(ext: &OsStr, resource_manager: &ResourceManager) -> boo
 fn create_file_system_watcher(
     resource_manager: ResourceManager,
     need_refresh_flag: Arc<AtomicBool>,
-    icon_update_queue: IconUpdateQueue,
 ) -> Option<RecommendedWatcher> {
     notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
         let Ok(event) = event else {
@@ -229,7 +227,6 @@ fn create_file_system_watcher(
             };
 
             if is_supported_resource(extension, &resource_manager) {
-                icon_update_queue.lock().push_back(path.clone());
                 need_refresh_flag.store(true, Ordering::Relaxed);
                 break;
             }
@@ -261,6 +258,13 @@ impl AssetBrowser {
     pub const ADD_ASSET_PRESSED_BRUSH: &'static str = "AssetBrowser.AddAssetPressedBrush";
 
     pub fn new(engine: &mut Engine) -> Self {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        engine
+            .resource_manager
+            .state()
+            .event_broadcaster
+            .add(sender);
+
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
         let add_resource = ButtonBuilder::new(
@@ -409,13 +413,9 @@ impl AssetBrowser {
 
         let (preview_sender, preview_receiver) = mpsc::channel();
 
-        let icon_update_queue = IconUpdateQueue::default();
         let need_refresh = Arc::new(AtomicBool::new(false));
-        let watcher = create_file_system_watcher(
-            engine.resource_manager.clone(),
-            need_refresh.clone(),
-            icon_update_queue.clone(),
-        );
+        let watcher =
+            create_file_system_watcher(engine.resource_manager.clone(), need_refresh.clone());
 
         Self {
             dependency_viewer,
@@ -435,11 +435,11 @@ impl AssetBrowser {
             preview_sender,
             need_refresh,
             main_window,
-            icon_update_queue,
             preview_generators: AssetPreviewGeneratorsCollection::new(),
             refresh,
             watcher,
             inspector_addon: None,
+            resource_event_receiver: receiver,
         }
     }
 
@@ -968,14 +968,15 @@ impl AssetBrowser {
 
     fn update_icon_queue(&mut self, engine: &mut Engine) {
         let ui = engine.user_interfaces.first();
-        let mut icon_update_queue = self.icon_update_queue.lock();
-        while let Some(path) = icon_update_queue.pop_front() {
-            let canonical_path = ok_or_continue!(path.canonicalize());
-            for item in self.items.iter() {
-                if let Some(asset_item) = ui.try_get_of_type::<AssetItem>(*item) {
-                    let asset_item_path = ok_or_continue!(asset_item.path.canonicalize());
-                    if asset_item_path == canonical_path {
-                        if let Some(resource) = asset_item.untyped_resource() {
+        for event in self.resource_event_receiver.try_iter() {
+            if let ResourceEvent::Reloaded(resource) = event {
+                let resource_path =
+                    some_or_continue!(engine.resource_manager.resource_path(&resource));
+                let canonical_resource_path = ok_or_continue!(resource_path.canonicalize());
+                for item in self.items.iter() {
+                    if let Some(asset_item) = ui.try_get_of_type::<AssetItem>(*item) {
+                        let asset_item_path = ok_or_continue!(asset_item.path.canonicalize());
+                        if asset_item_path == canonical_resource_path {
                             self.preview_sender
                                 .send(IconRequest {
                                     widget_handle: *item,
@@ -983,8 +984,8 @@ impl AssetBrowser {
                                     force_update: true,
                                 })
                                 .unwrap();
+                            break;
                         }
-                        break;
                     }
                 }
             }
