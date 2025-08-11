@@ -33,12 +33,13 @@ use crate::{
             mesh::surface::SurfaceResource,
             node::Node,
             tilemap::{brush::TileMapBrushResource, tileset::TileSetResource},
-            Scene,
         },
     },
     scene::Selection,
     SaveSceneConfirmationDialogAction,
 };
+use fyrox::gui::UserInterface;
+use fyrox::scene::Scene;
 use std::{path::PathBuf, sync::mpsc::channel, sync::mpsc::Sender};
 
 #[derive(Debug)]
@@ -57,6 +58,10 @@ pub enum Message {
     SaveAllScenes,
     AddScene {
         scene: Scene,
+        path: PathBuf,
+    },
+    AddUiScene {
+        ui: UserInterface,
         path: PathBuf,
     },
     LoadScene(PathBuf),

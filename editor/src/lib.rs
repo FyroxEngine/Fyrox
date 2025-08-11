@@ -71,7 +71,6 @@ use crate::{
         core::{
             algebra::{Matrix3, Vector2},
             color::Color,
-            futures::executor::block_on,
             log::{Log, MessageKind},
             parking_lot::Mutex,
             pool::Handle,
@@ -2015,9 +2014,8 @@ impl Editor {
 
         if let Some(ext) = scene_path.extension() {
             if ext == "rgs" {
-                let engine = &mut self.engine;
-                let serialization_context = engine.serialization_context.clone();
-                let resource_manager = engine.resource_manager.clone();
+                let serialization_context = self.engine.serialization_context.clone();
+                let resource_manager = self.engine.resource_manager.clone();
                 let sender = self.message_sender.clone();
                 self.engine.task_pool.inner().spawn_task(async move {
                     let result = SceneLoader::from_file(
@@ -2041,27 +2039,27 @@ impl Editor {
                     }
                 });
             } else if ext == "ui" {
-                match block_on(UserInterface::load_from_file_ex(
-                    &scene_path,
-                    self.engine.widget_constructors.clone(),
-                    self.engine.resource_manager.clone(),
-                    &FsResourceIo,
-                )) {
-                    Ok(ui) => {
-                        let entry = EditorSceneEntry::new_ui_scene(
+                let resource_manager = self.engine.resource_manager.clone();
+                let sender = self.message_sender.clone();
+                let widget_constructors = self.engine.widget_constructors.clone();
+                self.engine.task_pool.inner().spawn_task(async move {
+                    match UserInterface::load_from_file_ex(
+                        &scene_path,
+                        widget_constructors,
+                        resource_manager,
+                        &FsResourceIo,
+                    )
+                    .await
+                    {
+                        Ok(ui) => sender.send(Message::AddUiScene {
                             ui,
-                            Some(scene_path),
-                            self.message_sender.clone(),
-                            &self.scene_viewer,
-                            &mut self.engine,
-                            &self.settings,
-                        );
-                        self.add_scene(entry);
+                            path: scene_path,
+                        }),
+                        Err(e) => {
+                            Log::err(e.to_string());
+                        }
                     }
-                    Err(e) => {
-                        Log::err(e.to_string());
-                    }
-                }
+                });
             } else {
                 Log::err(format!(
                     "{} is not a game scene or UI scene!",
@@ -2508,6 +2506,17 @@ impl Editor {
                         );
                         self.add_scene(entry);
                         needs_sync = true;
+                    }
+                    Message::AddUiScene { ui, path } => {
+                        let entry = EditorSceneEntry::new_ui_scene(
+                            ui,
+                            Some(path),
+                            self.message_sender.clone(),
+                            &self.scene_viewer,
+                            &mut self.engine,
+                            &self.settings,
+                        );
+                        self.add_scene(entry);
                     }
                     Message::LoadScene(scene_path) => {
                         self.load_scene(scene_path);
