@@ -33,6 +33,7 @@ use crate::{
             mesh::surface::SurfaceResource,
             node::Node,
             tilemap::{brush::TileMapBrushResource, tileset::TileSetResource},
+            Scene,
         },
     },
     scene::Selection,
@@ -54,6 +55,10 @@ pub enum Message {
         path: PathBuf,
     },
     SaveAllScenes,
+    AddScene {
+        scene: Scene,
+        path: PathBuf,
+    },
     LoadScene(PathBuf),
     CloseScene(Uuid),
     SetInteractionMode(Uuid),

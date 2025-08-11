@@ -2016,32 +2016,30 @@ impl Editor {
         if let Some(ext) = scene_path.extension() {
             if ext == "rgs" {
                 let engine = &mut self.engine;
-                let result = {
-                    block_on(SceneLoader::from_file(
+                let serialization_context = engine.serialization_context.clone();
+                let resource_manager = engine.resource_manager.clone();
+                let sender = self.message_sender.clone();
+                self.engine.task_pool.inner().spawn_task(async move {
+                    let result = SceneLoader::from_file(
                         &scene_path,
                         &FsResourceIo,
-                        engine.serialization_context.clone(),
-                        engine.resource_manager.clone(),
-                    ))
-                };
-                match result {
-                    Ok(loader) => {
-                        let scene = block_on(loader.0.finish());
-                        let entry = EditorSceneEntry::new_game_scene(
-                            scene,
-                            Some(scene_path),
-                            engine,
-                            &mut self.settings,
-                            self.message_sender.clone(),
-                            &self.scene_viewer,
-                            self.highlighter.clone(),
-                        );
-                        self.add_scene(entry);
+                        serialization_context,
+                        resource_manager,
+                    )
+                    .await;
+                    match result {
+                        Ok(loader) => {
+                            let scene = loader.0.finish().await;
+                            sender.send(Message::AddScene {
+                                scene,
+                                path: scene_path,
+                            })
+                        }
+                        Err(e) => {
+                            Log::err(e.to_string());
+                        }
                     }
-                    Err(e) => {
-                        Log::err(e.to_string());
-                    }
-                }
+                });
             } else if ext == "ui" {
                 match block_on(UserInterface::load_from_file_ex(
                     &scene_path,
@@ -2498,6 +2496,19 @@ impl Editor {
                         self.world_viewer.sync_selection = true;
                     }
                     Message::SaveScene { id: scene, path } => self.save_scene(scene, path),
+                    Message::AddScene { scene, path } => {
+                        let entry = EditorSceneEntry::new_game_scene(
+                            scene,
+                            Some(path),
+                            &mut self.engine,
+                            &mut self.settings,
+                            self.message_sender.clone(),
+                            &self.scene_viewer,
+                            self.highlighter.clone(),
+                        );
+                        self.add_scene(entry);
+                        needs_sync = true;
+                    }
                     Message::LoadScene(scene_path) => {
                         self.load_scene(scene_path);
                         needs_sync = true;
