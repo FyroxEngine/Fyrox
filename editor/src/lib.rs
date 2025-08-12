@@ -173,6 +173,7 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::EditorSceneWrapper, menu::SceneNodeContextMenu, WorldViewer},
 };
+use fyrox::fxhash::FxHashSet;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
@@ -597,6 +598,7 @@ pub struct Editor {
     pub user_project_icon: Option<Vec<u8>>,
     pub user_project_name: String,
     pub user_project_version: String,
+    pub loading_scenes: Arc<Mutex<FxHashSet<PathBuf>>>,
 }
 
 fn make_dark_style() -> StyleResource {
@@ -1031,6 +1033,7 @@ impl Editor {
             user_project_icon: None,
             user_project_name: Default::default(),
             user_project_version: Default::default(),
+            loading_scenes: Default::default(),
         };
 
         if let Some(data) = startup_data {
@@ -2005,6 +2008,13 @@ impl Editor {
             }
         };
 
+        let mut loading_scenes = self.loading_scenes.lock();
+        if loading_scenes.contains(&scene_path) {
+            return;
+        }
+        loading_scenes.insert(scene_path.clone());
+        drop(loading_scenes);
+
         for entry in self.scenes.entries.iter() {
             if entry.path.as_ref() == Some(&scene_path) {
                 self.set_current_scene(entry.id);
@@ -2013,10 +2023,11 @@ impl Editor {
         }
 
         if let Some(ext) = scene_path.extension() {
+            let resource_manager = self.engine.resource_manager.clone();
+            let sender = self.message_sender.clone();
+            let loading_scenes = self.loading_scenes.clone();
             if ext == "rgs" {
                 let serialization_context = self.engine.serialization_context.clone();
-                let resource_manager = self.engine.resource_manager.clone();
-                let sender = self.message_sender.clone();
                 self.engine.task_pool.inner().spawn_task(async move {
                     let result = SceneLoader::from_file(
                         &scene_path,
@@ -2025,6 +2036,7 @@ impl Editor {
                         resource_manager,
                     )
                     .await;
+                    loading_scenes.lock().remove(&scene_path);
                     match result {
                         Ok(loader) => {
                             let scene = loader.0.finish().await;
@@ -2039,18 +2051,17 @@ impl Editor {
                     }
                 });
             } else if ext == "ui" {
-                let resource_manager = self.engine.resource_manager.clone();
-                let sender = self.message_sender.clone();
                 let widget_constructors = self.engine.widget_constructors.clone();
                 self.engine.task_pool.inner().spawn_task(async move {
-                    match UserInterface::load_from_file_ex(
+                    let result = UserInterface::load_from_file_ex(
                         &scene_path,
                         widget_constructors,
                         resource_manager,
                         &FsResourceIo,
                     )
-                    .await
-                    {
+                    .await;
+                    loading_scenes.lock().remove(&scene_path);
+                    match result {
                         Ok(ui) => sender.send(Message::AddUiScene {
                             ui,
                             path: scene_path,
@@ -2778,6 +2789,8 @@ impl Editor {
             && (self.focused || !self.settings.general.suspend_unfocused_editor)
             // Keep the editor active if user holds any mouse button.
             || self.engine.user_interfaces.first().captured_node().is_some()
+            // Keep the editor active until it fully loads all the queued scenes.
+            ||!self.loading_scenes.lock().is_empty()
     }
 
     fn on_resumed(&mut self, evt: &EventLoopWindowTarget<()>) {
