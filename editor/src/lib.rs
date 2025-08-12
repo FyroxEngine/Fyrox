@@ -87,6 +87,7 @@ use crate::{
         event::{Event, WindowEvent},
         event_loop::{EventLoop, EventLoopWindowTarget},
         fxhash::FxHashMap,
+        fxhash::FxHashSet,
         graph::BaseSceneGraph,
         gui::{
             brush::Brush,
@@ -107,11 +108,12 @@ use crate::{
             messagebox::{
                 MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult,
             },
+            stack_panel::StackPanelBuilder,
             style::{resource::StyleResource, Style},
-            text::TextBuilder,
+            text::{TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, UiNode, UserInterface, VerticalAlignment,
+            BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         material::{
             shader::{ShaderResource, ShaderResourceExtension},
@@ -173,7 +175,6 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::EditorSceneWrapper, menu::SceneNodeContextMenu, WorldViewer},
 };
-use fyrox::fxhash::FxHashSet;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
@@ -186,7 +187,7 @@ use std::{
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::{self, channel, Receiver},
+        mpsc::{self, channel, Receiver, Sender},
         Arc, LazyLock,
     },
     time::{Duration, Instant},
@@ -549,6 +550,89 @@ impl UpdateLoopState {
     }
 }
 
+pub struct SceneLoadingWindow {
+    window: Handle<UiNode>,
+    scene_list_text: Handle<UiNode>,
+}
+
+impl SceneLoadingWindow {
+    pub fn new(ctx: &mut BuildContext) -> Self {
+        let scene_list_text = TextBuilder::new(WidgetBuilder::new()).build(ctx);
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(100.0))
+            .with_title(WindowTitle::text("Please wait..."))
+            .can_close(false)
+            .can_minimize(false)
+            .open(false)
+            .can_maximize(false)
+            .with_remove_on_close(true)
+            .with_content(
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_margin(Thickness::uniform(2.0))
+                        .with_child(
+                            TextBuilder::new(
+                                WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                            )
+                            .with_wrap(WrapMode::Word)
+                            .with_text(
+                                "Please wait until the following scene(s) are \
+                                fully loaded.",
+                            )
+                            .build(ctx),
+                        )
+                        .with_child(scene_list_text),
+                )
+                .build(ctx),
+            )
+            .build(ctx);
+
+        ctx.send_message(WindowMessage::open_modal(
+            window,
+            MessageDirection::ToWidget,
+            true,
+            true,
+        ));
+
+        Self {
+            window,
+            scene_list_text,
+        }
+    }
+
+    pub fn handle_ui_message(self, message: &UiMessage) -> Option<Self> {
+        if let Some(WindowMessage::Close) = message.data() {
+            None
+        } else {
+            Some(self)
+        }
+    }
+
+    pub fn set_scenes_list_ex(
+        window: Handle<UiNode>,
+        scene_list_text: Handle<UiNode>,
+        set: &FxHashSet<PathBuf>,
+        sender: Sender<UiMessage>,
+    ) {
+        let list = set.iter().fold(String::new(), |mut str, path| {
+            str.push_str(&path.to_string_lossy());
+            str.push('\n');
+            str
+        });
+        Log::verify(sender.send(TextMessage::text(
+            scene_list_text,
+            MessageDirection::ToWidget,
+            list,
+        )));
+        if set.is_empty() {
+            Log::verify(sender.send(WindowMessage::close(window, MessageDirection::ToWidget)));
+        }
+    }
+
+    pub fn set_scenes_list(&self, set: &FxHashSet<PathBuf>, ui: &UserInterface) {
+        Self::set_scenes_list_ex(self.window, self.scene_list_text, set, ui.sender())
+    }
+}
+
 pub struct Editor {
     pub game_loop_data: GameLoopData,
     pub scenes: SceneContainer,
@@ -599,6 +683,7 @@ pub struct Editor {
     pub user_project_name: String,
     pub user_project_version: String,
     pub loading_scenes: Arc<Mutex<FxHashSet<PathBuf>>>,
+    pub scene_loading_window: Option<SceneLoadingWindow>,
 }
 
 fn make_dark_style() -> StyleResource {
@@ -1034,6 +1119,7 @@ impl Editor {
             user_project_name: Default::default(),
             user_project_version: Default::default(),
             loading_scenes: Default::default(),
+            scene_loading_window: None,
         };
 
         if let Some(data) = startup_data {
@@ -1389,6 +1475,10 @@ impl Editor {
             }
         }
         self.log.handle_ui_message(message, ui);
+
+        if let Some(scene_loading_window) = self.scene_loading_window.take() {
+            self.scene_loading_window = scene_loading_window.handle_ui_message(message);
+        }
 
         self.command_stack_viewer.handle_ui_message(message);
         self.scene_viewer.handle_ui_message(
@@ -2008,13 +2098,6 @@ impl Editor {
             }
         };
 
-        let mut loading_scenes = self.loading_scenes.lock();
-        if loading_scenes.contains(&scene_path) {
-            return;
-        }
-        loading_scenes.insert(scene_path.clone());
-        drop(loading_scenes);
-
         for entry in self.scenes.entries.iter() {
             if entry.path.as_ref() == Some(&scene_path) {
                 self.set_current_scene(entry.id);
@@ -2022,9 +2105,25 @@ impl Editor {
             }
         }
 
+        let mut loading_scenes = self.loading_scenes.lock();
+        if loading_scenes.contains(&scene_path) {
+            return;
+        }
+        loading_scenes.insert(scene_path.clone());
+
+        let ui = self.engine.user_interfaces.first_mut();
+        let scene_loading_window = self
+            .scene_loading_window
+            .get_or_insert_with(|| SceneLoadingWindow::new(&mut ui.build_ctx()));
+        scene_loading_window.set_scenes_list(&loading_scenes, ui);
+        drop(loading_scenes);
+
         if let Some(ext) = scene_path.extension() {
             let resource_manager = self.engine.resource_manager.clone();
             let sender = self.message_sender.clone();
+            let ui_sender = ui.sender();
+            let scene_list_text = scene_loading_window.scene_list_text;
+            let scene_loading_window = scene_loading_window.window;
             let loading_scenes = self.loading_scenes.clone();
             if ext == "rgs" {
                 let serialization_context = self.engine.serialization_context.clone();
@@ -2036,7 +2135,16 @@ impl Editor {
                         resource_manager,
                     )
                     .await;
-                    loading_scenes.lock().remove(&scene_path);
+                    {
+                        let mut loading_scenes = loading_scenes.lock();
+                        loading_scenes.remove(&scene_path);
+                        SceneLoadingWindow::set_scenes_list_ex(
+                            scene_loading_window,
+                            scene_list_text,
+                            &loading_scenes,
+                            ui_sender,
+                        );
+                    }
                     match result {
                         Ok(loader) => {
                             let scene = loader.0.finish().await;
@@ -2060,7 +2168,16 @@ impl Editor {
                         &FsResourceIo,
                     )
                     .await;
-                    loading_scenes.lock().remove(&scene_path);
+                    {
+                        let mut loading_scenes = loading_scenes.lock();
+                        loading_scenes.remove(&scene_path);
+                        SceneLoadingWindow::set_scenes_list_ex(
+                            scene_loading_window,
+                            scene_list_text,
+                            &loading_scenes,
+                            ui_sender,
+                        );
+                    }
                     match result {
                         Ok(ui) => sender.send(Message::AddUiScene {
                             ui,
