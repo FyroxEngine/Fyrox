@@ -178,6 +178,7 @@ use crate::{
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
+use std::sync::atomic::AtomicUsize;
 use std::{
     cell::RefCell,
     collections::VecDeque,
@@ -515,38 +516,47 @@ impl SaveSceneConfirmationDialog {
     }
 }
 
-pub struct UpdateLoopState(u32);
+#[derive(Clone)]
+pub struct UpdateLoopState(Arc<AtomicUsize>);
 
 impl Default for UpdateLoopState {
     fn default() -> Self {
         // Run at least a second from the start to ensure that all OS-specific stuff was done.
-        Self(60)
+        Self(Arc::new(AtomicUsize::new(60)))
     }
 }
 
 impl UpdateLoopState {
-    fn request_update_in_next_frame(&mut self) {
+    fn get(&self) -> usize {
+        self.0.load(Ordering::Relaxed)
+    }
+
+    fn set(&self, value: usize) {
+        self.0.store(value, Ordering::Relaxed)
+    }
+
+    fn request_update_in_next_frame(&self) {
         if !self.is_warming_up() {
-            self.0 = 2;
+            self.set(2);
         }
     }
 
-    fn request_update_in_current_frame(&mut self) {
+    fn request_update_in_current_frame(&self) {
         if !self.is_warming_up() {
-            self.0 = 1;
+            self.set(1);
         }
     }
 
     fn is_warming_up(&self) -> bool {
-        self.0 > 2
+        self.get() > 2
     }
 
     fn decrease_counter(&mut self) {
-        self.0 = self.0.saturating_sub(1);
+        self.set(self.get().saturating_sub(1));
     }
 
     fn is_suspended(&self) -> bool {
-        self.0 == 0
+        self.get() == 0
     }
 }
 
@@ -2116,8 +2126,10 @@ impl Editor {
             .scene_loading_window
             .get_or_insert_with(|| SceneLoadingWindow::new(&mut ui.build_ctx()));
         scene_loading_window.set_scenes_list(&loading_scenes, ui);
+        self.update_loop_state.request_update_in_next_frame();
         drop(loading_scenes);
 
+        let update_loop_state = self.update_loop_state.clone();
         if let Some(ext) = scene_path.extension() {
             let resource_manager = self.engine.resource_manager.clone();
             let sender = self.message_sender.clone();
@@ -2151,7 +2163,8 @@ impl Editor {
                             sender.send(Message::AddScene {
                                 scene,
                                 path: scene_path,
-                            })
+                            });
+                            update_loop_state.request_update_in_next_frame();
                         }
                         Err(e) => {
                             Log::err(e.to_string());
@@ -2179,10 +2192,13 @@ impl Editor {
                         );
                     }
                     match result {
-                        Ok(ui) => sender.send(Message::AddUiScene {
-                            ui,
-                            path: scene_path,
-                        }),
+                        Ok(ui) => {
+                            sender.send(Message::AddUiScene {
+                                ui,
+                                path: scene_path,
+                            });
+                            update_loop_state.request_update_in_next_frame();
+                        }
                         Err(e) => {
                             Log::err(e.to_string());
                         }
@@ -2518,6 +2534,10 @@ impl Editor {
                 // Keep the editor running until the current tooltip is not shown.
                 self.update_loop_state.request_update_in_next_frame();
             }
+        }
+
+        if !self.loading_scenes.lock().is_empty() {
+            self.update_loop_state.request_update_in_next_frame();
         }
 
         self.log.update(self.settings.general.max_log_entries, ui);
