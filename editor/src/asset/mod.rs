@@ -475,7 +475,7 @@ impl AssetBrowser {
         .with_icon(if is_dir {
             load_image!("../../resources/folder.png")
         } else {
-            None
+            load_image!("../../resources/hourglass.png")
         })
         .with_path(path)
         .build(
