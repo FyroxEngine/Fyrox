@@ -30,6 +30,7 @@ use crate::{
         fxhash::FxHashMap,
         gui::{message::MessageDirection, UiNode},
     },
+    load_image,
 };
 use std::{
     collections::VecDeque,
@@ -98,7 +99,10 @@ impl AssetPreviewCache {
             }
         }
 
-        None
+        load_image!("../../../resources/asset.png").map(|placeholder_image| AssetPreviewTexture {
+            texture: placeholder_image,
+            flip_y: false,
+        })
     }
 
     pub fn update(
