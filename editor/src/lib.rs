@@ -178,7 +178,6 @@ use crate::{
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
-use std::sync::atomic::AtomicUsize;
 use std::{
     cell::RefCell,
     collections::VecDeque,
@@ -188,7 +187,7 @@ use std::{
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::{self, channel, Receiver, Sender},
+        mpsc::{self, channel, Receiver},
         Arc, LazyLock,
     },
     time::{Duration, Instant},
@@ -516,47 +515,38 @@ impl SaveSceneConfirmationDialog {
     }
 }
 
-#[derive(Clone)]
-pub struct UpdateLoopState(Arc<AtomicUsize>);
+pub struct UpdateLoopState(u32);
 
 impl Default for UpdateLoopState {
     fn default() -> Self {
         // Run at least a second from the start to ensure that all OS-specific stuff was done.
-        Self(Arc::new(AtomicUsize::new(60)))
+        Self(60)
     }
 }
 
 impl UpdateLoopState {
-    fn get(&self) -> usize {
-        self.0.load(Ordering::Relaxed)
-    }
-
-    fn set(&self, value: usize) {
-        self.0.store(value, Ordering::Relaxed)
-    }
-
-    fn request_update_in_next_frame(&self) {
+    fn request_update_in_next_frame(&mut self) {
         if !self.is_warming_up() {
-            self.set(2);
+            self.0 = self.0.max(2);
         }
     }
 
-    fn request_update_in_current_frame(&self) {
+    fn request_update_in_current_frame(&mut self) {
         if !self.is_warming_up() {
-            self.set(1);
+            self.0 = self.0.max(1);
         }
     }
 
     fn is_warming_up(&self) -> bool {
-        self.get() > 2
+        self.0 > 2
     }
 
     fn decrease_counter(&mut self) {
-        self.set(self.get().saturating_sub(1));
+        self.0 = self.0.saturating_sub(1);
     }
 
     fn is_suspended(&self) -> bool {
-        self.get() == 0
+        self.0 == 0
     }
 }
 
@@ -609,37 +599,27 @@ impl SceneLoadingWindow {
         }
     }
 
-    pub fn handle_ui_message(self, message: &UiMessage) -> Option<Self> {
-        if let Some(WindowMessage::Close) = message.data() {
-            None
-        } else {
-            Some(self)
+    pub fn update(self, set: &FxHashSet<PathBuf>, ui: &UserInterface) -> Option<Self> {
+        if set.is_empty() {
+            ui.send_message(WindowMessage::close(
+                self.window,
+                MessageDirection::ToWidget,
+            ));
+            return None;
         }
-    }
 
-    pub fn set_scenes_list_ex(
-        window: Handle<UiNode>,
-        scene_list_text: Handle<UiNode>,
-        set: &FxHashSet<PathBuf>,
-        sender: Sender<UiMessage>,
-    ) {
         let list = set.iter().fold(String::new(), |mut str, path| {
             str.push_str(&path.to_string_lossy());
             str.push('\n');
             str
         });
-        Log::verify(sender.send(TextMessage::text(
-            scene_list_text,
+        ui.send_message(TextMessage::text(
+            self.scene_list_text,
             MessageDirection::ToWidget,
             list,
-        )));
-        if set.is_empty() {
-            Log::verify(sender.send(WindowMessage::close(window, MessageDirection::ToWidget)));
-        }
-    }
+        ));
 
-    pub fn set_scenes_list(&self, set: &FxHashSet<PathBuf>, ui: &UserInterface) {
-        Self::set_scenes_list_ex(self.window, self.scene_list_text, set, ui.sender())
+        Some(self)
     }
 }
 
@@ -1486,10 +1466,6 @@ impl Editor {
         }
         self.log.handle_ui_message(message, ui);
 
-        if let Some(scene_loading_window) = self.scene_loading_window.take() {
-            self.scene_loading_window = scene_loading_window.handle_ui_message(message);
-        }
-
         self.command_stack_viewer.handle_ui_message(message);
         self.scene_viewer.handle_ui_message(
             message,
@@ -2120,22 +2096,16 @@ impl Editor {
             return;
         }
         loading_scenes.insert(scene_path.clone());
-
-        let ui = self.engine.user_interfaces.first_mut();
-        let scene_loading_window = self
-            .scene_loading_window
-            .get_or_insert_with(|| SceneLoadingWindow::new(&mut ui.build_ctx()));
-        scene_loading_window.set_scenes_list(&loading_scenes, ui);
-        self.update_loop_state.request_update_in_next_frame();
         drop(loading_scenes);
 
-        let update_loop_state = self.update_loop_state.clone();
+        let ui = self.engine.user_interfaces.first_mut();
+        self.scene_loading_window
+            .get_or_insert_with(|| SceneLoadingWindow::new(&mut ui.build_ctx()));
+        self.update_loop_state.request_update_in_next_frame();
+
         if let Some(ext) = scene_path.extension() {
             let resource_manager = self.engine.resource_manager.clone();
             let sender = self.message_sender.clone();
-            let ui_sender = ui.sender();
-            let scene_list_text = scene_loading_window.scene_list_text;
-            let scene_loading_window = scene_loading_window.window;
             let loading_scenes = self.loading_scenes.clone();
             if ext == "rgs" {
                 let serialization_context = self.engine.serialization_context.clone();
@@ -2147,16 +2117,7 @@ impl Editor {
                         resource_manager,
                     )
                     .await;
-                    {
-                        let mut loading_scenes = loading_scenes.lock();
-                        loading_scenes.remove(&scene_path);
-                        SceneLoadingWindow::set_scenes_list_ex(
-                            scene_loading_window,
-                            scene_list_text,
-                            &loading_scenes,
-                            ui_sender,
-                        );
-                    }
+                    loading_scenes.lock().remove(&scene_path);
                     match result {
                         Ok(loader) => {
                             let scene = loader.0.finish().await;
@@ -2164,7 +2125,6 @@ impl Editor {
                                 scene,
                                 path: scene_path,
                             });
-                            update_loop_state.request_update_in_next_frame();
                         }
                         Err(e) => {
                             Log::err(e.to_string());
@@ -2181,23 +2141,13 @@ impl Editor {
                         &FsResourceIo,
                     )
                     .await;
-                    {
-                        let mut loading_scenes = loading_scenes.lock();
-                        loading_scenes.remove(&scene_path);
-                        SceneLoadingWindow::set_scenes_list_ex(
-                            scene_loading_window,
-                            scene_list_text,
-                            &loading_scenes,
-                            ui_sender,
-                        );
-                    }
+                    loading_scenes.lock().remove(&scene_path);
                     match result {
                         Ok(ui) => {
                             sender.send(Message::AddUiScene {
                                 ui,
                                 path: scene_path,
                             });
-                            update_loop_state.request_update_in_next_frame();
                         }
                         Err(e) => {
                             Log::err(e.to_string());
@@ -2528,6 +2478,11 @@ impl Editor {
         self.handle_modes(dt);
 
         let ui = self.engine.user_interfaces.first_mut();
+
+        if let Some(loading_window) = self.scene_loading_window.take() {
+            let set = self.loading_scenes.lock();
+            self.scene_loading_window = loading_window.update(&set, ui);
+        }
 
         if let Some(active_tooltip) = ui.active_tooltip() {
             if !active_tooltip.shown {
