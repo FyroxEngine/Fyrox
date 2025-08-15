@@ -29,21 +29,21 @@ use crate::{
     },
     define_constructor,
     grid::{Column, GridBuilder, Row},
+    image::ImageBuilder,
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        InspectorError, PropertyChanged,
+        FieldKind, InheritableAction, InspectorError, PropertyChanged,
     },
-    inspector::{FieldKind, InheritableAction},
     message::UiMessage,
-    utils::make_simple_tooltip,
+    style::{resource::StyleResourceExt, Style},
+    utils::{load_image, make_simple_tooltip},
     widget::WidgetBuilder,
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, VerticalAlignment,
     Widget, WidgetMessage,
 };
-
 use fyrox_graph::BaseSceneGraph;
 use std::{
     any::TypeId,
@@ -160,14 +160,24 @@ impl InheritablePropertyEditorBuilder {
             revert = ButtonBuilder::new(
                 WidgetBuilder::new()
                     .with_visibility(self.modified)
-                    .with_width(16.0)
-                    .with_height(16.0)
+                    .with_width(20.0)
+                    .with_height(20.0)
                     .with_vertical_alignment(VerticalAlignment::Top)
                     .with_tooltip(make_simple_tooltip(ctx, "Revert To Parent"))
                     .with_margin(Thickness::uniform(1.0))
                     .on_column(1),
             )
-            .with_text("<")
+            .with_content(
+                ImageBuilder::new(
+                    WidgetBuilder::new()
+                        .with_background(ctx.style.property(Style::BRUSH_BRIGHTEST))
+                        .with_margin(Thickness::uniform(1.0))
+                        .with_width(16.0)
+                        .with_height(16.0),
+                )
+                .with_opt_texture(load_image(include_bytes!("revert.png")))
+                .build(ctx),
+            )
             .build(ctx);
             revert
         }))
