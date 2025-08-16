@@ -504,7 +504,7 @@ pub struct Base {
     #[reflect(read_only)]
     pub(crate) is_resource_instance_root: bool,
 
-    #[reflect(hidden)]
+    #[reflect(read_only)]
     pub(crate) global_visibility: Cell<bool>,
 
     #[reflect(hidden)]
@@ -543,7 +543,7 @@ pub struct Base {
     // Use it at your own risk only when you're completely sure what you are doing.
     pub(crate) scripts: Vec<ScriptRecord>,
 
-    #[reflect(hidden)]
+    #[reflect(read_only)]
     pub(crate) global_enabled: Cell<bool>,
 }
 

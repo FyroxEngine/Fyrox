@@ -418,6 +418,7 @@ impl PropertyEditorDefinitionContainer {
         // bool + InheritableVariable<bool>
         container.insert(InheritablePropertyEditorDefinition::<bool>::new());
         container.insert(BoolPropertyEditorDefinition);
+        container.insert(CellPropertyEditorDefinition::<bool>::new());
 
         // String
         container.insert(StringPropertyEditorDefinition);
