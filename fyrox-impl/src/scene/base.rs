@@ -296,7 +296,6 @@ pub enum NodeScriptMessage {
     Deserialize,
 )]
 #[repr(transparent)]
-#[reflect(hide_all)]
 pub struct SceneNodeId(pub Uuid);
 
 impl Visit for SceneNodeId {
@@ -520,8 +519,10 @@ pub struct Base {
     #[reflect(hidden)]
     pub(crate) original_handle_in_resource: Handle<Node>,
 
-    #[reflect(read_only)]
-    #[reflect(hidden)]
+    /// Unique id of a node, that could be used as a reliable "index" of the node. This id is mostly
+    /// useful for network games. Keep in mind, that this id **will** be randomized in case if you're
+    /// instantiating a prefab. In other words, all instances of a prefab will have unique instance
+    /// id.
     pub(crate) instance_id: SceneNodeId,
 
     // Scripts of the scene node.

@@ -169,6 +169,7 @@ use crate::{
         },
     },
 };
+use fyrox::scene::base::SceneNodeId;
 
 pub mod animation;
 pub mod font;
@@ -318,6 +319,8 @@ pub fn make_property_editors_container(
     container.register_inheritable_inspectable::<dim2::collider::GeometrySource>();
 
     container.insert(make_status_enum_editor_definition());
+
+    container.insert(InspectablePropertyEditorDefinition::<SceneNodeId>::new());
 
     container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
     container.insert(InheritablePropertyEditorDefinition::<Option<LodGroup>>::new());
