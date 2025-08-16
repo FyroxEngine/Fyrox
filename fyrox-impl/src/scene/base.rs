@@ -61,18 +61,13 @@ use super::collider::BitMask;
 #[derive(Debug, Default, Clone, Visit, Reflect, PartialEq, TypeUuidProvider)]
 #[type_uuid(id = "576b31a2-2b39-4c79-95dd-26aeaf381d8b")]
 pub struct LevelOfDetail {
-    #[reflect(
-        description = "Beginning of the range in which the level will be visible. \
-    It is expressed in normalized coordinates: where 0.0 - closest to camera, 1.0 - \
-    farthest from camera."
-    )]
+    /// Beginning of the range in which the level will be visible. It is expressed in normalized
+    /// coordinates: where 0.0 - closest to camera, 1.0 - farthest from camera.
     begin: f32,
-    #[reflect(description = "End of the range in which the level will be visible. \
-    It is expressed in normalized coordinates: where 0.0 - closest to camera, 1.0 - \
-    farthest from camera.")]
+    /// End of the range in which the level will be visible. It is expressed in normalized coordinates:
+    /// where 0.0 - closest to camera, 1.0 - farthest from camera.
     end: f32,
-    /// List of objects, where each object represents level of detail of parent's
-    /// LOD group.
+    /// List of objects, where each object represents level of detail of parent's LOD group.
     pub objects: Vec<Handle<Node>>,
 }
 
@@ -467,15 +462,9 @@ pub struct Base {
 
     /// Control whether this node should be rendered. A node should be rendered only if its render mask shares
     /// some set bits in common with the render mask of the camera.
-    #[reflect(
-        description = "Control whether this node should be rendered. A node should be rendered only if its render mask shares\
-        some set bits in common with the render mask of the camera."
-    )]
     pub render_mask: InheritableVariable<BitMask>,
 
-    #[reflect(
-        description = "Maximum amount of Some(time) that node will \"live\" or None if the node has unlimited lifetime."
-    )]
+    /// Maximum amount of Some(time) that node will \"live\" or None if the node has unlimited lifetime.
     pub(crate) lifetime: InheritableVariable<Option<f32>>,
 
     #[reflect(setter = "set_lod_group")]

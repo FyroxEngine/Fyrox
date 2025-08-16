@@ -818,7 +818,7 @@ fn collider_shape_into_native_shape(
 pub struct IntegrationParameters {
     /// The time step length, default is None - this means that physics simulation will use engine's
     /// time step.
-    #[reflect(min_value = 0.0, description = "The time step length (default: None)")]
+    #[reflect(min_value = 0.0)]
     pub dt: Option<f32>,
 
     /// Minimum timestep size when using CCD with multiple substeps (default `1.0 / 60.0 / 100.0`)
@@ -829,22 +829,13 @@ pub struct IntegrationParameters {
     /// Setting this to a large value will reduce the opportunity to performing CCD substepping,
     /// resulting in potentially more time dropped by the motion-clamping mechanism. Setting this
     /// to an very small value may lead to numerical instabilities.
-    #[reflect(
-        min_value = 0.0,
-        description = "Minimum timestep size when using CCD with multiple\
-         substeps (default `1.0 / 60.0 / 100.0`)"
-    )]
+    #[reflect(min_value = 0.0)]
     pub min_ccd_dt: f32,
 
     /// The damping ratio used by the springs for contact constraint stabilization.
     /// Larger values make the constraints more compliant (allowing more visible penetrations
     /// before stabilization). Default `5.0`.
-    #[reflect(
-        min_value = 0.0,
-        description = "The damping ratio used by the springs for contact constraint stabilization.
-Larger values make the constraints more compliant (allowing more visible penetrations
-before stabilization). Default `5.0`."
-    )]
+    #[reflect(min_value = 0.0)]
     pub contact_damping_ratio: f32,
 
     /// The natural frequency used by the springs for contact constraint regularization.
@@ -852,90 +843,50 @@ before stabilization). Default `5.0`."
     /// expense of potential jitter effects due to overshooting. In order to make the simulation
     /// look stiffer, it is recommended to increase the `contact_damping_ratio` instead of this
     /// value. Default: `30.0`
-    #[reflect(
-        min_value = 0.0,
-        description = "The natural frequency used by the springs for contact constraint regularization.
-Increasing this value will make it so that penetrations get fixed more quickly at the
-expense of potential jitter effects due to overshooting. In order to make the simulation
-look stiffer, it is recommended to increase the `contact_damping_ratio` instead of this
-value. Default: `30.0`"
-    )]
+    #[reflect(min_value = 0.0)]
     pub contact_natural_frequency: f32,
 
     /// The natural frequency used by the springs for joint constraint regularization.
     /// Increasing this value will make it so that penetrations get fixed more quickly.
     /// Default: `1.0e6`
-    #[reflect(
-        min_value = 0.0,
-        description = "The natural frequency used by the springs for joint constraint regularization.
-Increasing this value will make it so that penetrations get fixed more quickly. Default: `1.0e6`."
-    )]
+    #[reflect(min_value = 0.0)]
     pub joint_natural_frequency: f32,
 
     /// The fraction of critical damping applied to the joint for constraints regularization.
     /// (default `0.8`).
-    #[reflect(
-        min_value = 0.0,
-        description = "The fraction of critical damping applied to the joint for \
-        constraints regularization (default: `0.8`)."
-    )]
+    #[reflect(min_value = 0.0)]
     pub joint_damping_ratio: f32,
 
     /// Amount of penetration the engine wont attempt to correct (default: `0.002m`).
-    #[reflect(
-        min_value = 0.0,
-        description = "Amount of penetration the engine wont attempt to correct (default: `0.002m`)."
-    )]
+    #[reflect(min_value = 0.0)]
     pub allowed_linear_error: f32,
 
     /// Maximum amount of penetration the solver will attempt to resolve in one timestep (default: `10.0`).
-    #[reflect(
-        min_value = 0.0,
-        description = "Maximum amount of penetration the solver will attempt to resolve in one timestep (default: `10.0`)."
-    )]
+    #[reflect(min_value = 0.0)]
     pub normalized_max_corrective_velocity: f32,
 
     /// The maximal distance separating two objects that will generate predictive contacts (default: `0.002`).
-    #[reflect(
-        min_value = 0.0,
-        description = "The maximal distance separating two objects that will generate \
-        predictive contacts (default: `0.002`)."
-    )]
+    #[reflect(min_value = 0.0)]
     pub prediction_distance: f32,
 
     /// The number of solver iterations run by the constraints solver for calculating forces (default: `4`).
-    #[reflect(
-        min_value = 0.0,
-        description = "The number of solver iterations run by the constraints solver for calculating forces (default: `4`)."
-    )]
+    #[reflect(min_value = 0.0)]
     pub num_solver_iterations: usize,
 
     /// Number of addition friction resolution iteration run during the last solver sub-step (default: `4`).
-    #[reflect(
-        min_value = 0.0,
-        description = "Number of addition friction resolution iteration run during the last solver sub-step (default: `4`)."
-    )]
+    #[reflect(min_value = 0.0)]
     pub num_additional_friction_iterations: usize,
 
     /// Number of internal Project Gauss Seidel (PGS) iterations run at each solver iteration (default: `1`).
-    #[reflect(
-        min_value = 0.0,
-        description = "Number of internal Project Gauss Seidel (PGS) iterations run at each solver iteration (default: `1`)."
-    )]
+    #[reflect(min_value = 0.0)]
     pub num_internal_pgs_iterations: usize,
 
     /// Minimum number of dynamic bodies in each active island (default: `128`).
-    #[reflect(
-        min_value = 0.0,
-        description = "Minimum number of dynamic bodies in each active island (default: `128`)."
-    )]
+    #[reflect(min_value = 0.0)]
     pub min_island_size: u32,
 
     /// Maximum number of substeps performed by the  solver (default: `4`).
-    #[reflect(
-        min_value = 0.0,
-        description = "Maximum number of substeps performed by the  solver (default: `4`)."
-    )]
+    #[reflect(min_value = 0.0)]
     pub max_ccd_substeps: u32,
 
     /// The coefficient in `[0, 1]` applied to warmstart impulses, i.e., impulses that are used as the

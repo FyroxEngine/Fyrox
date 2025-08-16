@@ -93,12 +93,10 @@ pub static DATA_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
 
 #[derive(Default, Serialize, Deserialize, Reflect, Clone, Debug)]
 pub struct SettingsData {
+    /// Defines a command to run an IDE in a project folder. This command should use either
+    /// %MANIFEST_PATH% or %MANIFEST_DIR% built-in variable to provide the selected project path to
+    /// the chosen IDE.
     #[serde(default = "default_open_ide_command")]
-    #[reflect(
-        description = "Defines a command to run an IDE in a project folder. This command \
-    should use either %MANIFEST_PATH% or %MANIFEST_DIR% built-in variable to provide the selected project path to the \
-    chosen IDE."
-    )]
     pub open_ide_command: CommandDescriptor,
     #[reflect(hidden)]
     pub projects: Vec<Project>,

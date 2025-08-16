@@ -58,12 +58,10 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 pub struct BallJoint {
     /// Whether angular limits are enabled or not. Default is `false`
-    #[reflect(description = "Whether angular limits are enabled or not.")]
     #[visit(optional)] // Backward compatibility
     pub limits_enabled: bool,
 
     /// Allowed angles range for the joint (in radians).
-    #[reflect(description = "Allowed angles range for the joint (in radians).")]
     #[visit(optional)] // Backward compatibility
     pub limits_angles: Range<f32>,
 }
@@ -87,14 +85,10 @@ pub struct FixedJoint;
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 pub struct PrismaticJoint {
     /// Whether linear limits along local X axis of the joint are enabled or not. Default is `false`
-    #[reflect(
-        description = "Whether linear limits along local X axis of the joint are enabled or not."
-    )]
     #[visit(optional)] // Backward compatibility
     pub limits_enabled: bool,
 
     /// Allowed linear distance range along local X axis of the joint.
-    #[reflect(description = "Allowed linear distance range along local X axis of the joint.")]
     #[visit(optional)] // Backward compatibility
     pub limits: Range<f32>,
 }

@@ -149,7 +149,6 @@ where
                 max_value: property_info.max_value,
                 step: property_info.step,
                 precision: property_info.precision,
-                description: property_info.description,
                 tag: property_info.tag,
                 doc: property_info.doc,
             };
@@ -337,7 +336,7 @@ where
         let container = make_expander_container(
             ctx.layer_index,
             ctx.property_info.display_name,
-            ctx.property_info.description,
+            ctx.property_info.doc,
             Handle::NONE,
             {
                 editor = ArrayEditorBuilder::new(
@@ -413,7 +412,6 @@ where
                     max_value: property_info.max_value,
                     step: property_info.step,
                     precision: property_info.precision,
-                    description: property_info.description,
                     tag: property_info.tag,
                     doc: property_info.doc,
                 };

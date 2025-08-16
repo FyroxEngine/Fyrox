@@ -44,78 +44,65 @@ use std::ops::Range;
 /// node (or one if its parent nodes).
 #[derive(Visit, Reflect, Debug, Clone)]
 pub struct FlyingCameraController {
-    #[reflect(description = "Current yaw of the camera pivot (in radians).")]
+    /// Current yaw of the camera pivot (in radians).
     #[visit(optional)]
     pub yaw: InheritableVariable<f32>,
 
-    #[reflect(description = "Current pitch of the camera (in radians).")]
+    /// Current pitch of the camera (in radians).
     #[visit(optional)]
     pub pitch: InheritableVariable<f32>,
 
-    #[reflect(description = "Maximum speed of the camera.")]
+    /// Maximum speed of the camera.
     #[visit(optional)]
     pub speed: InheritableVariable<f32>,
 
-    #[reflect(description = "Mouse sensitivity.")]
+    /// Mouse sensitivity.
     #[visit(optional)]
     pub sensitivity: InheritableVariable<f32>,
 
-    #[reflect(description = "Angular limit of the pitch of the camera (in radians).")]
+    /// Angular limit of the pitch of the camera (in radians).
     #[visit(optional)]
     pub pitch_limit: InheritableVariable<Range<f32>>,
 
     // KeyBinding belongs to fyrox-ui which is unideal, this is only used here because it has built-in
     // property editor, so it will be shown in the editor correctly. It might be worth to create a
     // separate property editor for this instead to be able to use KeyCode here.
-    #[reflect(description = "A key, that corresponds to forward movement.")]
+    /// A key, that corresponds to forward movement.
     #[visit(optional)]
     pub move_forward_key: InheritableVariable<KeyBinding>,
 
-    #[reflect(description = "A key, that corresponds to backward movement.")]
+    /// A key, that corresponds to backward movement.
     #[visit(optional)]
     pub move_backward_key: InheritableVariable<KeyBinding>,
 
-    #[reflect(description = "A key, that corresponds to left movement.")]
+    /// A key, that corresponds to left movement.
     #[visit(optional)]
     pub move_left_key: InheritableVariable<KeyBinding>,
 
-    #[reflect(description = "A key, that corresponds to right movement.")]
+    /// A key, that corresponds to right movement.
     #[visit(optional)]
     pub move_right_key: InheritableVariable<KeyBinding>,
 
-    #[reflect(
-        description = "A curve, that defines a how speed of the camera changes when accelerating to the \
-    max speed."
-    )]
+    /// A curve, that defines a how speed of the camera changes when accelerating to the max speed.
     #[visit(optional)]
     pub acceleration_curve: InheritableVariable<Curve>,
 
-    #[reflect(
-        description = "A curve, that defines a how speed of the camera changes when decelerating to the \
-    zero speed."
-    )]
+    /// A curve, that defines a how speed of the camera changes when decelerating to the zero speed.
     #[visit(optional)]
     pub deceleration_curve: InheritableVariable<Curve>,
 
-    #[reflect(
-        description = "Amount of time (in seconds) during which the camera will accelerate to the max speed.",
-        min_value = 0.0
-    )]
+    /// Amount of time (in seconds) during which the camera will accelerate to the max speed.
+    #[reflect(min_value = 0.0)]
     #[visit(optional)]
     pub acceleration_time: InheritableVariable<f32>,
 
-    #[reflect(
-        description = "Amount of time (in seconds) during which the camera will decelerate to the zero speed.",
-        min_value = 0.0
-    )]
+    /// Amount of time (in seconds) during which the camera will decelerate to the zero speed.
+    #[reflect(min_value = 0.0)]
     #[visit(optional)]
     pub deceleration_time: InheritableVariable<f32>,
 
-    #[reflect(
-        description = "A coefficient, that defines how fast the camera will respond to pressed keys.",
-        min_value = 0.01,
-        max_value = 1.0
-    )]
+    /// A coefficient, that defines how fast the camera will respond to pressed keys.
+    #[reflect(min_value = 0.01, max_value = 1.0)]
     #[visit(optional)]
     pub reactivity: InheritableVariable<f32>,
 

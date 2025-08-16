@@ -1057,10 +1057,10 @@ impl InspectorContext {
                     continue;
                 }
 
-                let description = if info.description.is_empty() {
-                    info.display_name.to_string()
+                let description = if info.doc.is_empty() {
+                    info.doc.to_string()
                 } else {
-                    format!("{}\n\n{}", info.display_name, info.description)
+                    format!("{}\n\n{}", info.display_name, info.doc)
                 };
 
                 if let Some(definition) = definition_container

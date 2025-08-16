@@ -147,22 +147,12 @@ pub struct ReflectionProbe {
 
     /// Defines rendering position in local coordinate space of the probe. The scene will be captured
     /// from the point ignoring the orientation of the probe.
-    #[reflect(
-        description = "A point in local coordinates, that defines rendering position of the probe."
-    )]
     pub rendering_position: InheritableVariable<Vector3<f32>>,
 
     /// Resolution of the probe. It defines the size of the cube map face and thus the overall
     /// quality of the image. The larger the value, the more detailed reflections will be. Large
     /// values may slow down rendering of the probe.
-    #[reflect(
-        description = "Resolution of the probe. It defines the size of the cube map face and thus \
-        the overall quality of the image. The larger the value, the more detailed reflections will \
-        be. Large values may slow down rendering of the probe.",
-        max_value = 2048.0,
-        min_value = 16.0,
-        setter = "set_resolution"
-    )]
+    #[reflect(max_value = 2048.0, min_value = 16.0, setter = "set_resolution")]
     pub resolution: InheritableVariable<usize>,
 
     /// Position of the near clipping plane.

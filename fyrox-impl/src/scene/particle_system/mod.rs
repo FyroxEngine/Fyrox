@@ -247,19 +247,15 @@ pub struct ParticleSystem {
     #[reflect(hidden)]
     free_particles: Vec<u32>,
 
-    #[reflect(
-        description = "The maximum distance (in meters) from an observer to the particle system at \
-        which the particle system remains visible. If the distance is larger, then the particle \
-        system will fade out and eventually will be excluded from the rendering. Use this value to \
-        tweak performance. Default is 30.0"
-    )]
+    /// The maximum distance (in meters) from an observer to the particle system at which the
+    /// particle system remains visible. If the distance is larger, then the particle system will
+    /// fade out and eventually will be excluded from the rendering. Use this value to tweak
+    /// performance. Default is 30.0
     visible_distance: InheritableVariable<f32>,
 
-    #[reflect(
-        description = "Defines a coordinate system for particles. Local coordinate space could \
-    be used for particles that must move with the particle system (sparks), world space - for \
-    particles that must be detached from the particle system (smoke trails)"
-    )]
+    /// Defines a coordinate system for particles. Local coordinate space could be used for particles
+    /// that must move with the particle system (sparks), world space - for particles that must be
+    /// detached from the particle system (smoke trails)
     coordinate_system: InheritableVariable<CoordinateSystem>,
 
     rng: ParticleSystemRng,

@@ -98,9 +98,6 @@ pub struct FieldMetadata<'s> {
     /// A human-readable name of the property.
     pub display_name: &'s str,
 
-    /// Description of the property.
-    pub description: &'s str,
-
     /// Tag of the property. Could be used to group properties by a certain criteria or to find a
     /// specific property by its tag.
     pub tag: &'s str,

@@ -32,19 +32,16 @@ macro_rules! define_filter_effect {
         $(#[$attr])*
         #[derive(Clone, Reflect, Visit, Debug, PartialEq)]
         pub struct $name {
-            #[reflect(
-                description = "Cutoff frequency in Hertz.",
-                setter = "set_cutoff_frequency_hz"
-            )]
+            /// Cutoff frequency in Hertz.
+            #[reflect(setter = "set_cutoff_frequency_hz")]
             cutoff_frequency_hz: f32,
 
-            #[reflect(description = "Gain of the effect.", setter = "set_gain")]
+            /// Gain of the effect.
+            #[reflect(setter = "set_gain")]
             gain: f32,
 
-            #[reflect(
-                description = "Band width at the cutoff frequency, the higher the value the wider the band.",
-                setter = "set_quality"
-            )]
+            /// Band width at the cutoff frequency, the higher the value the wider the band.
+            #[reflect(setter = "set_quality")]
             quality: f32,
 
             #[reflect(hidden)]

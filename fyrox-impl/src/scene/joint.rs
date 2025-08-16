@@ -60,32 +60,26 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 pub struct BallJoint {
     /// Whether X angular limits are enabled or not. Default is `false`
-    #[reflect(description = "Whether X angular limits are enabled or not.")]
     #[visit(optional)] // Backward compatibility
     pub x_limits_enabled: bool,
 
     /// Allowed angle range around local X axis of the joint (in radians).
-    #[reflect(description = "Allowed angle range around local X axis of the joint (in radians).")]
     #[visit(optional)] // Backward compatibility
     pub x_limits_angles: Range<f32>,
 
     /// Whether Y angular limits are enabled or not. Default is `false`
-    #[reflect(description = "Whether Y angular limits are enabled or not.")]
     #[visit(optional)] // Backward compatibility
     pub y_limits_enabled: bool,
 
     /// Allowed angle range around local Y axis of the joint (in radians).
-    #[reflect(description = "Allowed angle range around local Y axis of the joint (in radians).")]
     #[visit(optional)] // Backward compatibility
     pub y_limits_angles: Range<f32>,
 
     /// Whether Z angular limits are enabled or not. Default is `false`
-    #[reflect(description = "Whether Z angular limits are enabled or not.")]
     #[visit(optional)] // Backward compatibility
     pub z_limits_enabled: bool,
 
     /// Allowed angle range around local Z axis of the joint (in radians).
-    #[reflect(description = "Allowed angle range around local Z axis of the joint (in radians).")]
     #[visit(optional)] // Backward compatibility
     pub z_limits_angles: Range<f32>,
 }
@@ -113,14 +107,10 @@ pub struct FixedJoint;
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 pub struct PrismaticJoint {
     /// Whether linear limits along local joint X axis are enabled or not. Default is `false`
-    #[reflect(description = "Whether linear limits along local joint X axis are enabled or not.")]
     #[visit(optional)] // Backward compatibility
     pub limits_enabled: bool,
 
     /// The min an max relative position of the attached bodies along local X axis of the joint.
-    #[reflect(
-        description = "The min an max relative position of the attached bodies along local X axis of the joint."
-    )]
     #[visit(optional)] // Backward compatibility
     pub limits: Range<f32>,
 }
@@ -140,14 +130,10 @@ impl Default for PrismaticJoint {
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 pub struct RevoluteJoint {
     /// Whether angular limits around local X axis of the joint are enabled or not. Default is `false`
-    #[reflect(
-        description = "Whether angular limits around local X axis of the joint are enabled or not."
-    )]
     #[visit(optional)] // Backward compatibility
     pub limits_enabled: bool,
 
     /// Allowed angle range around local X axis of the joint (in radians).
-    #[reflect(description = "Allowed angle range around local X axis of the joint (in radians).")]
     #[visit(optional)] // Backward compatibility
     pub limits: Range<f32>,
 }

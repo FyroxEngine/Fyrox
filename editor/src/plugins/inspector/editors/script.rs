@@ -378,7 +378,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
         let container = make_expander_container(
             ctx.layer_index,
             ctx.property_info.display_name,
-            ctx.property_info.description,
+            ctx.property_info.doc,
             script_selector_panel,
             {
                 editor = ScriptPropertyEditorBuilder::new(WidgetBuilder::new()).build(

@@ -327,13 +327,11 @@ pub struct Mesh {
     #[reflect(setter = "set_render_path")]
     render_path: InheritableVariable<RenderPath>,
 
+    /// Enable or disable dynamic batching. It could be useful to reduce amount of draw calls per
+    /// frame if you have lots of meshes with small vertex count. Does not work with meshes, that
+    /// have skin or blend shapes. Such meshes will be drawn in a separate draw call.
     #[visit(optional)]
-    #[reflect(
-        setter = "set_batching_mode",
-        description = "Enable or disable dynamic batching. It could be useful to reduce amount \
-    of draw calls per frame if you have lots of meshes with small vertex count. Does not work with \
-    meshes, that have skin or blend shapes. Such meshes will be drawn in a separate draw call."
-    )]
+    #[reflect(setter = "set_batching_mode")]
     batching_mode: InheritableVariable<BatchingMode>,
 
     #[visit(optional)]
