@@ -513,7 +513,7 @@ pub struct Base {
     #[reflect(hidden)]
     pub(crate) children: Vec<Handle<Node>>,
 
-    #[reflect(hidden)]
+    #[reflect(read_only)]
     pub(crate) global_transform: Cell<Matrix4<f32>>,
 
     // Bone-specific matrix. Non-serializable.
