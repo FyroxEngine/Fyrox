@@ -21,6 +21,7 @@
 //! A collection of [PropertyEditorDefinition] objects for a wide variety of types,
 //! including standard Rust types and Fyrox core types.
 
+use crate::inspector::editors::cell::CellPropertyEditorDefinition;
 use crate::inspector::editors::texture_slice::TextureSlicePropertyEditorDefinition;
 use crate::{
     absm::{EventAction, EventKind},
@@ -108,6 +109,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_animation::machine::Parameter;
+use fyrox_core::algebra::{Matrix2, Matrix3, Matrix4};
 use fyrox_texture::TextureResource;
 use std::{
     any::{Any, TypeId},
@@ -124,6 +126,7 @@ use strum::VariantNames;
 pub mod array;
 pub mod bit;
 pub mod bool;
+pub mod cell;
 pub mod collection;
 pub mod color;
 pub mod curve;
@@ -426,9 +429,10 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InheritablePropertyEditorDefinition::<ImmutableString>::new());
         container.insert(VecCollectionPropertyEditorDefinition::<ImmutableString>::new());
 
-        // NumericType + InheritableVariable<NumericType>
+        // NumericType + InheritableVariable<NumericType> + CellPropertyEditorDefinition<NumericType>
         reg_property_editor! { container, NumericPropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
         reg_property_editor! { container, InheritablePropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
+        reg_property_editor! { container, CellPropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
 
         // Vector4<NumericType> + InheritableVariable<Vector4>
         reg_property_editor! { container, Vec4PropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
@@ -454,6 +458,10 @@ impl PropertyEditorDefinitionContainer {
         reg_matrix_property_editor! { container, MatrixPropertyEditorDefinition[2, 2]: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
         reg_matrix_property_editor! { container, MatrixPropertyEditorDefinition[3, 3]: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
         reg_matrix_property_editor! { container, MatrixPropertyEditorDefinition[4, 4]: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
+
+        container.insert(CellPropertyEditorDefinition::<Matrix2<f32>>::new());
+        container.insert(CellPropertyEditorDefinition::<Matrix3<f32>>::new());
+        container.insert(CellPropertyEditorDefinition::<Matrix4<f32>>::new());
 
         // Range<NumericType> + InheritableVariable<Range<NumericType>>
         reg_property_editor! { container, RangePropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
