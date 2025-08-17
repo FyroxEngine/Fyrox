@@ -350,6 +350,7 @@ impl SceneViewer {
                                     })
                                     .collect::<Vec<_>>(),
                             )
+                            .with_close_on_selection(true)
                             .with_selected(0)
                             .build(ctx);
                     debug_switches
@@ -389,6 +390,7 @@ impl SceneViewer {
                                         .map(|p| make_dropdown_list_option(ctx, &p.name))
                                         .collect::<Vec<_>>(),
                                 )
+                                .with_close_on_selection(true)
                                 .with_selected(settings.build.selected_profile)
                                 .build(ctx);
                                 build_profile
