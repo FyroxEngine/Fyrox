@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! A simple widget that opens a popup when clicked. It could be used to create drop down menus that
+//! A simple widget that opens a popup when clicked. It could be used to create dropdown menus that
 //! consolidates content of a group.
 
 use crate::{
@@ -28,11 +28,12 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
+use std::{
+    ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
+};
 
-use std::ops::{Deref, DerefMut};
-use std::sync::mpsc::Sender;
-
-/// A simple widget that opens a popup when clicked. It could be used to create drop down menus that
+/// A simple widget that opens a popup when clicked. It could be used to create dropdown menus that
 /// consolidates content of a group.
 #[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "c0a4c51b-f041-453b-a89d-7ceb5394e321")]
@@ -72,7 +73,8 @@ impl Control for DropdownMenu {
     }
 }
 
-/// Canvas builder creates new [`DropdownMenu`] widget instances and adds them to the user interface.
+/// Dropdown menu builder creates new [`DropdownMenu`] widget instances and adds them to the
+/// user interface.
 pub struct DropdownMenuBuilder {
     widget_builder: WidgetBuilder,
     header: Handle<UiNode>,

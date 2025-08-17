@@ -189,7 +189,7 @@ impl GridSnappingMenu {
                 .add_row(Row::auto())
                 .add_row(Row::auto())
                 .add_row(Row::auto())
-                .add_column(Column::stretch())
+                .add_column(Column::auto())
                 .add_column(Column::auto())
                 .build(ctx),
             )
