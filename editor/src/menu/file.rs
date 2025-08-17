@@ -18,31 +18,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::asset::preview::cache::IconRequest;
-use crate::export::ExportWindow;
-use crate::fyrox::{
-    core::pool::Handle,
-    gui::{
-        file_browser::{FileSelectorBuilder, FileSelectorMessage},
-        menu::MenuItemMessage,
-        message::{MessageDirection, UiMessage},
-        messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage},
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, UiNode, UserInterface,
-    },
-};
-use crate::scene::GameScene;
 use crate::{
+    asset::preview::cache::IconRequest,
+    export::ExportWindow,
+    fyrox::{
+        core::pool::Handle,
+        gui::{
+            file_browser::{FileSelectorBuilder, FileSelectorMessage},
+            menu,
+            menu::MenuItemMessage,
+            message::{MessageDirection, UiMessage},
+            messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage},
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, UiNode, UserInterface,
+        },
+    },
     make_save_file_selector, make_scene_file_filter,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
-    scene::container::EditorSceneEntry,
+    scene::{container::EditorSceneEntry, GameScene},
     settings::{recent::RecentFiles, Settings},
     Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
-use std::path::PathBuf;
-use std::sync::mpsc::Sender;
+use std::{path::PathBuf, sync::mpsc::Sender};
 
 pub struct FileMenu {
     pub menu: Handle<UiNode>,
@@ -115,6 +114,16 @@ impl FileMenu {
                     new_ui_scene
                 },
                 {
+                    load = create_menu_item_shortcut("Load Scene...", "Ctrl+L", vec![], ctx);
+                    load
+                },
+                {
+                    recent_files_container =
+                        create_menu_item("Open Recent Scene", recent_files.clone(), ctx);
+                    recent_files_container
+                },
+                menu::make_menu_splitter(ctx),
+                {
                     save = create_menu_item_shortcut("Save Scene", "Ctrl+S", vec![], ctx);
                     save
                 },
@@ -127,30 +136,25 @@ impl FileMenu {
                     save_all = create_menu_item_shortcut("Save All", "Ctrl+Alt+S", vec![], ctx);
                     save_all
                 },
+                menu::make_menu_splitter(ctx),
                 {
-                    load = create_menu_item_shortcut("Load Scene...", "Ctrl+L", vec![], ctx);
-                    load
-                },
-                {
-                    close_scene = create_menu_item_shortcut("Close Scene", "Ctrl+Q", vec![], ctx);
+                    close_scene =
+                        create_menu_item_shortcut("Close Current Scene", "Ctrl+Q", vec![], ctx);
                     close_scene
                 },
                 {
-                    open_scene_settings = create_menu_item("Scene Settings...", vec![], ctx);
+                    open_scene_settings =
+                        create_menu_item("Current Scene Settings...", vec![], ctx);
                     open_scene_settings
                 },
+                menu::make_menu_splitter(ctx),
                 {
-                    configure = create_menu_item("Configure...", vec![], ctx);
+                    configure = create_menu_item("Configure Editor...", vec![], ctx);
                     configure
                 },
                 {
                     export_project = create_menu_item("Export Project...", vec![], ctx);
                     export_project
-                },
-                {
-                    recent_files_container =
-                        create_menu_item("Recent Files", recent_files.clone(), ctx);
-                    recent_files_container
                 },
                 {
                     exit = create_menu_item_shortcut("Exit", "Alt+F4", vec![], ctx);

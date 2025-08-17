@@ -34,6 +34,7 @@ use crate::{
     scene::{commands::PasteCommand, GameScene, Selection},
     Engine, Message, Mode,
 };
+use fyrox::gui::menu;
 
 pub struct EditMenu {
     pub menu: Handle<UiNode>,
@@ -60,6 +61,7 @@ impl EditMenu {
                     redo = create_menu_item_shortcut("Redo", "Ctrl+Y", vec![], ctx);
                     redo
                 },
+                menu::make_menu_splitter(ctx),
                 {
                     copy = create_menu_item_shortcut("Copy", "Ctrl+C", vec![], ctx);
                     copy
