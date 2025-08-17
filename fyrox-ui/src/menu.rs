@@ -1098,13 +1098,14 @@ impl MenuItemBuilder {
                 arrow,
             }) => GridBuilder::new(
                 WidgetBuilder::new()
+                    .with_vertical_alignment(VerticalAlignment::Center)
                     .with_child(*icon)
                     .with_child(
                         TextBuilder::new(
                             WidgetBuilder::new()
                                 .with_margin(Thickness::left(2.0))
-                                .on_row(1)
-                                .on_column(1),
+                                .on_column(1)
+                                .with_vertical_alignment(VerticalAlignment::Center),
                         )
                         .with_text(text)
                         .build(ctx),
@@ -1114,7 +1115,6 @@ impl MenuItemBuilder {
                             WidgetBuilder::new()
                                 .with_horizontal_alignment(HorizontalAlignment::Right)
                                 .with_margin(Thickness::uniform(1.0))
-                                .on_row(1)
                                 .on_column(2),
                         )
                         .with_text(shortcut)
@@ -1125,7 +1125,6 @@ impl MenuItemBuilder {
                             VectorImageBuilder::new(
                                 WidgetBuilder::new()
                                     .with_visibility(!self.items.is_empty())
-                                    .on_row(1)
                                     .on_column(3)
                                     .with_width(8.0)
                                     .with_height(8.0)
@@ -1141,9 +1140,7 @@ impl MenuItemBuilder {
                         arrow_widget
                     }),
             )
-            .add_row(Row::stretch())
             .add_row(Row::auto())
-            .add_row(Row::stretch())
             .add_column(Column::auto())
             .add_column(Column::stretch())
             .add_column(Column::auto())
@@ -1450,6 +1447,18 @@ fn keyboard_navigation(
     }
 
     false
+}
+
+/// Creates a menu items splitter. Such splitter could be used to divide a menu into groups with
+/// common semantics (for example: new document, new image; save, save all; close).
+pub fn make_menu_splitter(ctx: &mut BuildContext) -> Handle<UiNode> {
+    BorderBuilder::new(
+        WidgetBuilder::new()
+            .with_height(1.0)
+            .with_margin(Thickness::top_bottom(1.0))
+            .with_foreground(ctx.style.property(Style::BRUSH_LIGHTEST)),
+    )
+    .build(ctx)
 }
 
 #[cfg(test)]
