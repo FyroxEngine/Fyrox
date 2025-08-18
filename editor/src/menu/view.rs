@@ -18,17 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    core::pool::Handle,
-    gui::{
-        menu::MenuItemMessage,
-        message::{MessageDirection, UiMessage},
-        window::WindowMessage,
-        BuildContext, UiNode, UserInterface,
-    },
-};
 use crate::{
+    fyrox::{
+        core::pool::Handle,
+        graph::BaseSceneGraph,
+        gui::{
+            menu::{self, MenuItemMessage},
+            message::{MessageDirection, UiMessage},
+            window::WindowMessage,
+            BuildContext, UiNode, UserInterface,
+        },
+    },
     menu::{create_menu_item, create_root_menu_item, Panels},
     message::MessageSender,
     Message,
@@ -46,6 +46,7 @@ pub struct ViewMenu {
     pub command_stack: Handle<UiNode>,
     pub save_layout: Handle<UiNode>,
     pub load_layout: Handle<UiNode>,
+    pub reset_layout: Handle<UiNode>,
 }
 
 fn switch_window_state(window: Handle<UiNode>, ui: &UserInterface, center: bool) {
@@ -69,6 +70,7 @@ impl ViewMenu {
         let command_stack;
         let save_layout;
         let load_layout;
+        let reset_layout;
         let menu = create_root_menu_item(
             "View",
             vec![
@@ -104,6 +106,7 @@ impl ViewMenu {
                     command_stack = create_menu_item("Command Stack Panel", vec![], ctx);
                     command_stack
                 },
+                menu::make_menu_splitter(ctx),
                 {
                     save_layout = create_menu_item("Save Layout", vec![], ctx);
                     save_layout
@@ -111,6 +114,10 @@ impl ViewMenu {
                 {
                     load_layout = create_menu_item("Load Layout", vec![], ctx);
                     load_layout
+                },
+                {
+                    reset_layout = create_menu_item("Reset Layout", vec![], ctx);
+                    reset_layout
                 },
             ],
             ctx,
@@ -128,6 +135,7 @@ impl ViewMenu {
             command_stack,
             save_layout,
             load_layout,
+            reset_layout,
         }
     }
 
@@ -159,6 +167,8 @@ impl ViewMenu {
                 sender.send(Message::SaveLayout);
             } else if message.destination() == self.load_layout {
                 sender.send(Message::LoadLayout);
+            } else if message.destination() == self.reset_layout {
+                sender.send(Message::ResetLayout);
             }
         }
     }

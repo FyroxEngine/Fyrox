@@ -116,6 +116,7 @@ pub enum Message {
     ShowDocumentation(String),
     SaveLayout,
     LoadLayout,
+    ResetLayout,
     ViewSurfaceData(SurfaceResource),
     SyncInteractionModes,
     SetAssetBrowserCurrentDir(PathBuf),

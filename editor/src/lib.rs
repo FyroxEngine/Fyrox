@@ -57,7 +57,6 @@ pub mod utils;
 pub mod world;
 
 pub use fyrox;
-use fyrox::core::make_relative_path;
 
 use crate::{
     asset::{item::AssetItem, AssetBrowser},
@@ -72,6 +71,7 @@ use crate::{
             algebra::{Matrix3, Vector2},
             color::Color,
             log::{Log, MessageKind},
+            make_relative_path,
             parking_lot::Mutex,
             pool::Handle,
             task::TaskPool,
@@ -86,16 +86,15 @@ use crate::{
         },
         event::{Event, WindowEvent},
         event_loop::{EventLoop, EventLoopWindowTarget},
-        fxhash::FxHashMap,
-        fxhash::FxHashSet,
-        graph::BaseSceneGraph,
+        fxhash::{FxHashMap, FxHashSet},
+        graph::{BaseSceneGraph, SceneGraph},
         gui::{
             brush::Brush,
             button::ButtonBuilder,
             constructor::new_widget_constructor_container,
             dock::{
-                DockingManager, DockingManagerBuilder, DockingManagerMessage, TileBuilder,
-                TileContent,
+                config::DockingManagerLayoutDescriptor, DockingManager, DockingManagerBuilder,
+                DockingManagerMessage, TileBuilder, TileContent,
             },
             dropdown_list::DropdownListBuilder,
             file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
@@ -674,6 +673,7 @@ pub struct Editor {
     pub user_project_version: String,
     pub loading_scenes: Arc<Mutex<FxHashSet<PathBuf>>>,
     pub scene_loading_window: Option<SceneLoadingWindow>,
+    pub default_layout: DockingManagerLayoutDescriptor,
 }
 
 fn make_dark_style() -> StyleResource {
@@ -1031,15 +1031,24 @@ impl Editor {
         .build(ctx);
 
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
+
+        let ui = engine.user_interfaces.first_mut();
+        ui.update(
+            Vector2::new(inner_size.width, inner_size.height),
+            1.0 / 60.0,
+            &Default::default(),
+        );
+        let default_layout = ui
+            .try_get_of_type::<DockingManager>(docking_manager)
+            .unwrap()
+            .layout(ui);
+
         if let Some(layout) = settings.windows.layout.as_ref() {
-            engine
-                .user_interfaces
-                .first_mut()
-                .send_message(DockingManagerMessage::layout(
-                    docking_manager,
-                    MessageDirection::ToWidget,
-                    layout.clone(),
-                ));
+            ui.send_message(DockingManagerMessage::layout(
+                docking_manager,
+                MessageDirection::ToWidget,
+                layout.clone(),
+            ));
         }
 
         let editor = Self {
@@ -1110,6 +1119,7 @@ impl Editor {
             user_project_version: Default::default(),
             loading_scenes: Default::default(),
             scene_loading_window: None,
+            default_layout,
         };
 
         if let Some(data) = startup_data {
@@ -2721,6 +2731,9 @@ impl Editor {
                     Message::LoadLayout => {
                         self.load_layout();
                     }
+                    Message::ResetLayout => {
+                        self.reset_layout();
+                    }
                     Message::ViewSurfaceData(data) => {
                         let mut viewer = SurfaceDataViewer::new(&mut self.engine);
                         viewer.open(data, &mut self.engine);
@@ -2815,6 +2828,17 @@ impl Editor {
                     layout.clone(),
                 ));
         }
+    }
+
+    fn reset_layout(&self) {
+        self.engine
+            .user_interfaces
+            .first()
+            .send_message(DockingManagerMessage::layout(
+                self.docking_manager,
+                MessageDirection::ToWidget,
+                self.default_layout.clone(),
+            ));
     }
 
     pub fn add_game_plugin<P>(&mut self, plugin: P)
