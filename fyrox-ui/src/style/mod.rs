@@ -344,7 +344,7 @@ impl Style {
                 Self::BRUSH_DIM_BLUE,
                 Brush::Solid(Color::opaque(66, 99, 149)),
             )
-            .set(Self::BRUSH_TEXT, Brush::Solid(Color::opaque(220, 220, 220)))
+            .set(Self::BRUSH_TEXT, Brush::Solid(Color::opaque(190, 190, 190)))
             .set(Self::BRUSH_FOREGROUND, Brush::Solid(Color::WHITE))
             .set(Self::BRUSH_INFORMATION, Brush::Solid(Color::ANTIQUE_WHITE))
             .set(Self::BRUSH_WARNING, Brush::Solid(Color::GOLD))

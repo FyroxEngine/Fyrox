@@ -55,6 +55,7 @@ use crate::{
 };
 use fyrox::asset::Resource;
 use fyrox::core::PhantomDataSendSync;
+use fyrox::gui::brush::Brush;
 use rust_fuzzy_search::fuzzy_compare;
 use std::borrow::Cow;
 use std::path::Path;
@@ -98,7 +99,12 @@ impl Control for Item {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle {
-            if let Some(AssetItemMessage::Icon { texture, flip_y }) = message.data() {
+            if let Some(AssetItemMessage::Icon {
+                texture,
+                flip_y,
+                color,
+            }) = message.data()
+            {
                 ui.send_message(ImageMessage::texture(
                     self.image,
                     MessageDirection::ToWidget,
@@ -108,6 +114,11 @@ impl Control for Item {
                     self.image,
                     MessageDirection::ToWidget,
                     *flip_y,
+                ));
+                ui.send_message(WidgetMessage::background(
+                    self.image,
+                    MessageDirection::ToWidget,
+                    Brush::Solid(*color).into(),
                 ))
             }
         }

@@ -119,6 +119,17 @@ pub fn make_preview_scene(lighting: bool) -> Scene {
 pub struct AssetPreviewTexture {
     pub texture: TextureResource,
     pub flip_y: bool,
+    pub color: Color,
+}
+
+impl AssetPreviewTexture {
+    pub fn from_texture_with_gray_tint(texture: TextureResource) -> Self {
+        Self {
+            texture,
+            flip_y: false,
+            color: Color::opaque(190, 190, 190),
+        }
+    }
 }
 
 pub trait AssetPreviewGenerator: Send + Sync + 'static {
@@ -201,6 +212,7 @@ impl AssetPreviewGenerator for TexturePreview {
             .map(|texture| AssetPreviewTexture {
                 texture,
                 flip_y: false,
+                color: Color::WHITE,
             })
     }
 
@@ -298,6 +310,7 @@ impl AssetPreviewGenerator for SoundPreview {
                 .map(|texture| AssetPreviewTexture {
                     texture,
                     flip_y: false,
+                    color: Color::WHITE,
                 });
             }
         }
@@ -397,6 +410,7 @@ fn render_scene_to_texture(
             texture,
             // OpenGL was designed by mathematicians.
             flip_y: true,
+            color: Color::WHITE,
         })
     } else {
         None
@@ -681,6 +695,7 @@ pub fn render_ui_to_texture(
     Some(AssetPreviewTexture {
         texture: render_target,
         flip_y: true,
+        color: Color::WHITE,
     })
 }
 

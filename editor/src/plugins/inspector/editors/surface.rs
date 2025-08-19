@@ -56,6 +56,7 @@ use crate::{
     utils::make_pick_button,
     Message,
 };
+use fyrox::gui::brush::Brush;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -154,7 +155,12 @@ impl Control for SurfaceDataPropertyEditor {
                 self.asset_selector_mixin
                     .request_preview(self.handle, surface_resource);
             }
-        } else if let Some(AssetItemMessage::Icon { texture, flip_y }) = message.data() {
+        } else if let Some(AssetItemMessage::Icon {
+            texture,
+            flip_y,
+            color,
+        }) = message.data()
+        {
             if message.destination() == self.handle
                 && message.direction() == MessageDirection::ToWidget
             {
@@ -169,6 +175,11 @@ impl Control for SurfaceDataPropertyEditor {
                         MessageDirection::ToWidget,
                         *flip_y,
                     ));
+                    ui.send_message(WidgetMessage::background(
+                        widget,
+                        MessageDirection::ToWidget,
+                        Brush::Solid(*color).into(),
+                    ))
                 }
             }
         }

@@ -108,8 +108,8 @@ impl GridSnappingMenu {
             .with_header({
                 button = make_image_button_with_tooltip(
                     ctx,
-                    22.0,
-                    22.0,
+                    20.0,
+                    20.0,
                     load_image!("../../resources/grid_snapping.png"),
                     "Snapping Options",
                     None,
@@ -340,19 +340,22 @@ impl SceneViewer {
                 })
                 .with_child(grid_snap_menu.menu)
                 .with_child({
-                    debug_switches =
-                        DropdownListBuilder::new(WidgetBuilder::new().with_width(120.0))
-                            .with_items(
-                                GraphicsDebugSwitches::iter()
-                                    .zip(GraphicsDebugSwitches::VARIANTS.iter())
-                                    .map(|(variant, v)| {
-                                        make_dropdown_list_option_universal(ctx, v, 22.0, variant)
-                                    })
-                                    .collect::<Vec<_>>(),
-                            )
-                            .with_close_on_selection(true)
-                            .with_selected(0)
-                            .build(ctx);
+                    debug_switches = DropdownListBuilder::new(
+                        WidgetBuilder::new()
+                            .with_width(90.0)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_items(
+                        GraphicsDebugSwitches::iter()
+                            .zip(GraphicsDebugSwitches::VARIANTS.iter())
+                            .map(|(variant, v)| {
+                                make_dropdown_list_option_universal(ctx, v, 22.0, variant)
+                            })
+                            .collect::<Vec<_>>(),
+                    )
+                    .with_close_on_selection(true)
+                    .with_selected(0)
+                    .build(ctx);
                     debug_switches
                 }),
         )

@@ -90,18 +90,14 @@ impl AssetPreviewCache {
                 self.container.insert(resource_uuid, preview.clone());
                 return Some(preview);
             } else if let Some(icon) = generator.simple_icon(resource, &engine.resource_manager) {
-                let preview = AssetPreviewTexture {
-                    texture: icon,
-                    flip_y: false,
-                };
+                let preview = AssetPreviewTexture::from_texture_with_gray_tint(icon);
                 self.container.insert(resource_uuid, preview.clone());
                 return Some(preview);
             }
         }
 
-        load_image!("../../../resources/asset.png").map(|placeholder_image| AssetPreviewTexture {
-            texture: placeholder_image,
-            flip_y: false,
+        load_image!("../../../resources/asset.png").map(|placeholder_image| {
+            AssetPreviewTexture::from_texture_with_gray_tint(placeholder_image)
         })
     }
 
@@ -130,6 +126,7 @@ impl AssetPreviewCache {
                     MessageDirection::ToWidget,
                     Some(preview.texture),
                     preview.flip_y,
+                    preview.color,
                 ));
             }
 

@@ -168,7 +168,12 @@ impl Control for MaterialFieldEditor {
                     ));
                 }
             }
-        } else if let Some(AssetItemMessage::Icon { texture, flip_y }) = message.data() {
+        } else if let Some(AssetItemMessage::Icon {
+            texture,
+            flip_y,
+            color,
+        }) = message.data()
+        {
             if message.destination() == self.handle
                 && message.direction() == MessageDirection::ToWidget
             {
@@ -183,6 +188,11 @@ impl Control for MaterialFieldEditor {
                         MessageDirection::ToWidget,
                         *flip_y,
                     ));
+                    ui.send_message(WidgetMessage::background(
+                        widget,
+                        MessageDirection::ToWidget,
+                        Brush::Solid(*color).into(),
+                    ))
                 }
             }
         }

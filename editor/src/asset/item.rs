@@ -67,6 +67,7 @@ pub enum AssetItemMessage {
     Icon {
         texture: Option<TextureResource>,
         flip_y: bool,
+        color: Color,
     },
     MoveTo {
         src_item_path: PathBuf,
@@ -76,7 +77,7 @@ pub enum AssetItemMessage {
 
 impl AssetItemMessage {
     define_constructor!(AssetItemMessage:Select => fn select(bool), layout: false);
-    define_constructor!(AssetItemMessage:Icon => fn icon(texture: Option<TextureResource>, flip_y: bool), layout: false);
+    define_constructor!(AssetItemMessage:Icon => fn icon(texture: Option<TextureResource>, flip_y: bool, color: Color), layout: false);
     define_constructor!(AssetItemMessage:MoveTo => fn move_to(src_item_path: PathBuf, dest_dir: PathBuf), layout: false);
 }
 
@@ -323,7 +324,11 @@ impl Control for AssetItem {
                         self.set_selected(*select, ui);
                     }
                 }
-                AssetItemMessage::Icon { texture, flip_y } => {
+                AssetItemMessage::Icon {
+                    texture,
+                    flip_y,
+                    color,
+                } => {
                     ui.send_message(ImageMessage::texture(
                         self.preview,
                         MessageDirection::ToWidget,
@@ -333,6 +338,11 @@ impl Control for AssetItem {
                         self.preview,
                         MessageDirection::ToWidget,
                         *flip_y,
+                    ));
+                    ui.send_message(WidgetMessage::background(
+                        self.preview,
+                        MessageDirection::ToWidget,
+                        Brush::Solid(*color).into(),
                     ))
                 }
                 _ => (),
