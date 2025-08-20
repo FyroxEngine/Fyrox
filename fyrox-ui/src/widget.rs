@@ -444,6 +444,10 @@ pub enum WidgetMessage {
 
     /// Applies a style to the widget.
     Style(StyleResource),
+
+    /// Asks a widget to reset its visual state. The actual response to this message is widget-specific.
+    /// In most cases, it does nothing.
+    ResetVisual,
 }
 
 impl WidgetMessage {
@@ -744,6 +748,11 @@ impl WidgetMessage {
     define_constructor!(
         /// Creates [`WidgetMessage::Style`] message.
         WidgetMessage:Style => fn style(StyleResource), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::ResetVisual`] message.
+        WidgetMessage:ResetVisual => fn reset_visual(), layout: false
     );
 }
 

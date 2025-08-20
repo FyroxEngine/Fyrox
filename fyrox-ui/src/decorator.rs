@@ -284,6 +284,14 @@ impl Control for Decorator {
                             ));
                         }
                     }
+                    WidgetMessage::ResetVisual => {
+                        self.is_selected.set_value_and_mark_modified(false);
+                        ui.send_message(WidgetMessage::background(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            (*self.normal_brush).clone(),
+                        ));
+                    }
                     _ => {}
                 }
             }
