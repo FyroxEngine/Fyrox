@@ -422,6 +422,10 @@ impl DropdownList {
                     MessageDirection::ToWidget,
                     Thickness::uniform(0.0),
                 ));
+                ui.send_message(WidgetMessage::reset_visual(
+                    *self.current,
+                    MessageDirection::ToWidget,
+                ));
             } else {
                 self.current.set_value_and_mark_modified(Handle::NONE);
             }
