@@ -436,6 +436,15 @@ pub enum FitParameters {
     },
 }
 
+impl FitParameters {
+    fn fallback_perspective() -> Self {
+        Self::Perspective {
+            position: Default::default(),
+            distance: 1.0,
+        }
+    }
+}
+
 impl Camera {
     /// Explicitly calculates view and projection matrices. Normally, you should not call
     /// this method, it will be called automatically when new frame starts.
@@ -606,6 +615,10 @@ impl Camera {
         aspect_ratio: f32,
         scale: f32,
     ) -> FitParameters {
+        if aabb.is_invalid_or_degenerate() {
+            return FitParameters::fallback_perspective();
+        }
+
         let look_vector = self
             .look_vector()
             .try_normalize(f32::EPSILON)
@@ -614,8 +627,13 @@ impl Camera {
         match self.projection.deref() {
             Projection::Perspective(perspective) => {
                 let radius = aabb.half_extents().max();
-                let distance = radius / (perspective.fov * 0.5).sin() * scale;
 
+                let denominator = (perspective.fov * 0.5).sin();
+                if denominator == 0.0 {
+                    return FitParameters::fallback_perspective();
+                }
+
+                let distance = radius / denominator * scale;
                 FitParameters::Perspective {
                     position: aabb.center() - look_vector.scale(distance),
                     distance,
