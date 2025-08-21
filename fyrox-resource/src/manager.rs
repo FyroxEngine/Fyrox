@@ -829,7 +829,9 @@ impl ResourceManagerState {
                         notify::EventKind::Modify(_) => {
                             changed_resources.insert(relative_path);
                         }
-                        notify::EventKind::Remove(_) => {
+                        // The resource may be moved together with its metadata, so we need to check
+                        // if the resource is actually registered.
+                        notify::EventKind::Remove(_) if registry.is_registered(&relative_path) => {
                             match registry.modify().remove_metadata(&relative_path) {
                                 Ok(_) => {
                                     info!(
