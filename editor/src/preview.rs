@@ -52,6 +52,7 @@ use crate::{
     },
     load_image, Engine,
 };
+use fyrox::core::num_traits::Zero;
 use std::path::Path;
 
 #[derive(Eq, PartialEq, Copy, Clone)]
@@ -397,7 +398,9 @@ impl PreviewPanel {
             .cast::<Image>()
         {
             let frame_size = frame.actual_local_size();
-            if rt_width != frame_size.x as u32 || rt_height != frame_size.y as u32 {
+            if !frame_size.is_zero()
+                && (rt_width != frame_size.x as u32 || rt_height != frame_size.y as u32)
+            {
                 let rt =
                     TextureResource::new_render_target(frame_size.x as u32, frame_size.y as u32);
                 scene.rendering_options.render_target = Some(rt.clone());
