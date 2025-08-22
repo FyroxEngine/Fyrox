@@ -19,9 +19,8 @@
 // SOFTWARE.
 
 use crate::{buffer::GlBuffer, server::GlGraphicsServer, ToGlConstant};
-use fyrox_graphics::buffer::GpuBufferDescriptor;
 use fyrox_graphics::{
-    buffer::{BufferKind, GpuBufferTrait},
+    buffer::{BufferKind, GpuBufferDescriptor, GpuBufferTrait},
     core::{array_as_u8_slice, math::TriangleDefinition},
     error::FrameworkError,
     geometry_buffer::{
@@ -206,10 +205,8 @@ impl GpuGeometryBufferTrait for GlGeometryBuffer {
 impl Drop for GlGeometryBuffer {
     fn drop(&mut self) {
         if let Some(state) = self.state.upgrade() {
-            unsafe {
-                self.buffers.clear();
-                state.gl.delete_vertex_array(self.vertex_array_object);
-            }
+            self.buffers.clear();
+            state.delete_vertex_array_object(self.vertex_array_object);
         }
     }
 }

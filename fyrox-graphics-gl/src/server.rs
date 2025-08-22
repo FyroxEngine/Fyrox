@@ -29,7 +29,6 @@ use crate::{
     texture::GlTexture,
     ToGlConstant,
 };
-use fyrox_graphics::server::ServerMemoryUsage;
 use fyrox_graphics::{
     buffer::{GpuBuffer, GpuBufferDescriptor},
     core::{color::Color, log::Log, math::Rect},
@@ -41,7 +40,7 @@ use fyrox_graphics::{
     query::GpuQuery,
     read_buffer::GpuAsyncReadBuffer,
     sampler::{GpuSampler, GpuSamplerDescriptor},
-    server::{GraphicsServer, ServerCapabilities, SharedGraphicsServer},
+    server::{GraphicsServer, ServerCapabilities, ServerMemoryUsage, SharedGraphicsServer},
     stats::PipelineStatistics,
     BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, CompareFunc, CullFace,
     DrawParameters, PolygonFace, PolygonFillMode, ScissorBox, StencilAction, StencilFunc,
@@ -394,6 +393,36 @@ impl InnerState {
 
             unsafe {
                 gl.use_program(program);
+            }
+        }
+    }
+
+    pub(crate) fn delete_vertex_array_object(
+        &mut self,
+        vao: glow::VertexArray,
+        gl: &glow::Context,
+    ) {
+        if self.vao == Some(vao) {
+            self.vao = None;
+        }
+
+        unsafe {
+            gl.delete_vertex_array(vao);
+        }
+    }
+
+    pub(crate) fn set_vertex_array_object(
+        &mut self,
+        vao: Option<glow::VertexArray>,
+        gl: &glow::Context,
+    ) {
+        if self.vao != vao {
+            self.vao = vao;
+
+            self.frame_statistics.vao_binding_changes += 1;
+
+            unsafe {
+                gl.bind_vertex_array(self.vao);
             }
         }
     }
@@ -1028,17 +1057,16 @@ impl GlGraphicsServer {
         }
     }
 
+    pub(crate) fn delete_vertex_array_object(&self, vao: glow::VertexArray) {
+        self.state
+            .borrow_mut()
+            .delete_vertex_array_object(vao, &self.gl);
+    }
+
     pub(crate) fn set_vertex_array_object(&self, vao: Option<glow::VertexArray>) {
-        let mut state = self.state.borrow_mut();
-        if state.vao != vao {
-            state.vao = vao;
-
-            state.frame_statistics.vao_binding_changes += 1;
-
-            unsafe {
-                self.gl.bind_vertex_array(state.vao);
-            }
-        }
+        self.state
+            .borrow_mut()
+            .set_vertex_array_object(vao, &self.gl);
     }
 
     pub(crate) fn set_scissor_test(&self, scissor_test: bool) {
