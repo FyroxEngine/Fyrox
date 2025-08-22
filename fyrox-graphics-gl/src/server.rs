@@ -195,7 +195,8 @@ pub(crate) struct InnerState {
     polygon_face: PolygonFace,
     polygon_fill_mode: PolygonFillMode,
 
-    framebuffer: Option<glow::Framebuffer>,
+    write_framebuffer: Option<glow::Framebuffer>,
+    read_framebuffer: Option<glow::Framebuffer>,
     viewport: Rect<i32>,
 
     blend_func: BlendFunc,
@@ -242,7 +243,8 @@ impl InnerState {
             scissor_test: false,
             polygon_face: Default::default(),
             polygon_fill_mode: Default::default(),
-            framebuffer: None,
+            read_framebuffer: None,
+            write_framebuffer: None,
             blend_func: Default::default(),
             viewport: Rect::new(0, 0, 1, 1),
             program: Default::default(),
@@ -263,6 +265,69 @@ impl InnerState {
             gl_surface,
         }
     }
+
+    pub(crate) fn delete_framebuffer(
+        &mut self,
+        framebuffer: Option<glow::Framebuffer>,
+        gl: &glow::Context,
+    ) {
+        if self.read_framebuffer == framebuffer {
+            self.set_framebuffer(FrameBufferBindingPoint::Read, None, gl);
+        }
+        if self.write_framebuffer == framebuffer {
+            self.set_framebuffer(FrameBufferBindingPoint::Write, None, gl);
+        }
+
+        if let Some(id) = framebuffer {
+            unsafe {
+                gl.delete_framebuffer(id);
+            }
+        }
+    }
+
+    pub(crate) fn set_framebuffer(
+        &mut self,
+        binding_point: FrameBufferBindingPoint,
+        framebuffer: Option<glow::Framebuffer>,
+        gl: &glow::Context,
+    ) {
+        match binding_point {
+            FrameBufferBindingPoint::Read => {
+                if self.read_framebuffer != framebuffer {
+                    self.read_framebuffer = framebuffer;
+
+                    self.frame_statistics.framebuffer_binding_changes += 1;
+
+                    unsafe { gl.bind_framebuffer(glow::READ_FRAMEBUFFER, self.read_framebuffer) }
+                }
+            }
+            FrameBufferBindingPoint::Write => {
+                if self.write_framebuffer != framebuffer {
+                    self.write_framebuffer = framebuffer;
+
+                    self.frame_statistics.framebuffer_binding_changes += 1;
+
+                    unsafe { gl.bind_framebuffer(glow::DRAW_FRAMEBUFFER, self.write_framebuffer) }
+                }
+            }
+            FrameBufferBindingPoint::ReadWrite => {
+                if self.write_framebuffer != framebuffer || self.read_framebuffer != framebuffer {
+                    self.write_framebuffer = framebuffer;
+                    self.read_framebuffer = framebuffer;
+
+                    self.frame_statistics.framebuffer_binding_changes += 1;
+
+                    unsafe { gl.bind_framebuffer(glow::FRAMEBUFFER, framebuffer) }
+                }
+            }
+        }
+    }
+}
+
+pub enum FrameBufferBindingPoint {
+    Read,
+    Write,
+    ReadWrite,
 }
 
 pub struct GlGraphicsServer {
@@ -622,18 +687,20 @@ impl GlGraphicsServer {
         None
     }
 
-    pub(crate) fn set_framebuffer(&self, framebuffer: Option<glow::Framebuffer>) {
-        let mut state = self.state.borrow_mut();
-        if state.framebuffer != framebuffer {
-            state.framebuffer = framebuffer;
+    pub(crate) fn delete_framebuffer(&self, framebuffer: Option<glow::Framebuffer>) {
+        self.state
+            .borrow_mut()
+            .delete_framebuffer(framebuffer, &self.gl)
+    }
 
-            state.frame_statistics.framebuffer_binding_changes += 1;
-
-            unsafe {
-                self.gl
-                    .bind_framebuffer(glow::FRAMEBUFFER, state.framebuffer)
-            }
-        }
+    pub(crate) fn set_framebuffer(
+        &self,
+        binding_point: FrameBufferBindingPoint,
+        framebuffer: Option<glow::Framebuffer>,
+    ) {
+        self.state
+            .borrow_mut()
+            .set_framebuffer(binding_point, framebuffer, &self.gl)
     }
 
     pub(crate) fn set_viewport(&self, viewport: Rect<i32>) {

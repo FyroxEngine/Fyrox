@@ -18,11 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::texture::PixelDescriptor;
 pub use crate::{
     buffer::GlBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram, sampler::GlSampler,
     server::GlGraphicsServer, texture::GlTexture, ToGlConstant,
 };
+use crate::{server::FrameBufferBindingPoint, texture::PixelDescriptor};
 use fyrox_graphics::{
     buffer::GpuBufferTrait,
     core::{color::Color, math::Rect},
@@ -104,7 +104,7 @@ impl GlFrameBuffer {
         unsafe {
             let fbo = server.gl.create_framebuffer()?;
 
-            server.set_framebuffer(Some(fbo));
+            server.set_framebuffer(FrameBufferBindingPoint::ReadWrite, Some(fbo));
 
             if let Some(depth_attachment) = depth_attachment.as_ref() {
                 let depth_attachment_kind = match depth_attachment.kind {
@@ -157,7 +157,7 @@ impl GlFrameBuffer {
                 return Err(FrameworkError::FailedToConstructFBO);
             }
 
-            server.set_framebuffer(None);
+            server.set_framebuffer(FrameBufferBindingPoint::ReadWrite, None);
 
             Ok(Self {
                 state: server.weak(),
@@ -196,7 +196,7 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
         let server = self.state.upgrade().unwrap();
 
         unsafe {
-            server.set_framebuffer(self.fbo);
+            server.set_framebuffer(FrameBufferBindingPoint::ReadWrite, self.fbo);
 
             let attachment = self.color_attachments.get(attachment_index).unwrap();
             let texture = attachment
@@ -246,12 +246,8 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
         }
 
         unsafe {
-            server
-                .gl
-                .bind_framebuffer(glow::READ_FRAMEBUFFER, source.id());
-            server
-                .gl
-                .bind_framebuffer(glow::DRAW_FRAMEBUFFER, dest.id());
+            server.set_framebuffer(FrameBufferBindingPoint::Read, source.id());
+            server.set_framebuffer(FrameBufferBindingPoint::Write, dest.id());
             server.gl.blit_framebuffer(
                 src_x0,
                 src_y0,
@@ -269,13 +265,8 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
 
     fn read_pixels(&self, read_target: ReadTarget) -> Option<Vec<u8>> {
         let server = self.state.upgrade()?;
-        server.set_framebuffer(self.id());
 
-        unsafe {
-            server
-                .gl
-                .bind_framebuffer(glow::READ_FRAMEBUFFER, self.id());
-        }
+        server.set_framebuffer(FrameBufferBindingPoint::Read, self.id());
 
         let texture = match read_target {
             ReadTarget::Depth | ReadTarget::Stencil => &self.depth_attachment.as_ref()?.texture,
@@ -322,7 +313,7 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
 
         server.set_scissor_test(false);
         server.set_viewport(viewport);
-        server.set_framebuffer(self.id());
+        server.set_framebuffer(FrameBufferBindingPoint::ReadWrite, self.id());
 
         unsafe {
             // Special route for default buffer.
@@ -546,7 +537,7 @@ fn pre_draw(
     params: &DrawParameters,
     resources: &[ResourceBindGroup],
 ) {
-    server.set_framebuffer(fbo);
+    server.set_framebuffer(FrameBufferBindingPoint::ReadWrite, fbo);
     server.set_viewport(viewport);
     server.apply_draw_parameters(params);
     let program = program.as_any().downcast_ref::<GlProgram>().unwrap();
@@ -611,11 +602,7 @@ fn pre_draw(
 impl Drop for GlFrameBuffer {
     fn drop(&mut self) {
         if let Some(state) = self.state.upgrade() {
-            unsafe {
-                if let Some(id) = self.fbo {
-                    state.gl.delete_framebuffer(id);
-                }
-            }
+            state.delete_framebuffer(self.fbo);
         }
     }
 }
