@@ -375,6 +375,28 @@ impl InnerState {
             }
         }
     }
+
+    pub(crate) fn delete_program(&mut self, program: glow::Program, gl: &glow::Context) {
+        if self.program == Some(program) {
+            self.program = None;
+        }
+
+        unsafe {
+            gl.delete_program(program);
+        }
+    }
+
+    pub(crate) fn set_program(&mut self, program: Option<glow::Program>, gl: &glow::Context) {
+        if self.program != program {
+            self.program = program;
+
+            self.frame_statistics.program_binding_changes += 1;
+
+            unsafe {
+                gl.use_program(program);
+            }
+        }
+    }
 }
 
 pub enum FrameBufferBindingPoint {
@@ -956,17 +978,12 @@ impl GlGraphicsServer {
         }
     }
 
+    pub fn delete_program(&self, program: glow::Program) {
+        self.state.borrow_mut().delete_program(program, &self.gl);
+    }
+
     pub(crate) fn set_program(&self, program: Option<glow::Program>) {
-        let mut state = self.state.borrow_mut();
-        if state.program != program {
-            state.program = program;
-
-            state.frame_statistics.program_binding_changes += 1;
-
-            unsafe {
-                self.gl.use_program(state.program);
-            }
-        }
+        self.state.borrow_mut().set_program(program, &self.gl)
     }
 
     pub(crate) fn delete_texture(&self, texture: glow::Texture) {
@@ -1217,8 +1234,6 @@ impl GraphicsServer for GlGraphicsServer {
 
     fn invalidate_resource_bindings_cache(&self) {
         let mut state = self.state.borrow_mut();
-
-        state.program = Default::default();
         state.frame_statistics = Default::default();
     }
 

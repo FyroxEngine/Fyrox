@@ -490,9 +490,7 @@ impl GpuProgramTrait for GlProgram {}
 impl Drop for GlProgram {
     fn drop(&mut self) {
         if let Some(state) = self.state.upgrade() {
-            unsafe {
-                state.gl.delete_program(self.id);
-            }
+            state.delete_program(self.id);
         }
     }
 }
