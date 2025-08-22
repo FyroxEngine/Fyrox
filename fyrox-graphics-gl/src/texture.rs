@@ -337,10 +337,8 @@ impl GlTexture {
 impl Drop for GlTexture {
     fn drop(&mut self) {
         if let Some(state) = self.state.upgrade() {
-            unsafe {
-                state.memory_usage.borrow_mut().textures -= self.size_bytes.get();
-                state.gl.delete_texture(self.texture);
-            }
+            state.memory_usage.borrow_mut().textures -= self.size_bytes.get();
+            state.delete_texture(self.texture)
         }
     }
 }

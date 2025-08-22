@@ -63,7 +63,6 @@ use glutin_winit::{DisplayBuilder, GlWindow};
 #[cfg(not(target_arch = "wasm32"))]
 use raw_window_handle::HasRawWindowHandle;
 use std::cell::{Cell, RefCell};
-use std::ops::DerefMut;
 use std::rc::{Rc, Weak};
 #[cfg(not(target_arch = "wasm32"))]
 use std::{ffi::CString, num::NonZeroU32};
@@ -318,6 +317,60 @@ impl InnerState {
                     self.frame_statistics.framebuffer_binding_changes += 1;
 
                     unsafe { gl.bind_framebuffer(glow::FRAMEBUFFER, framebuffer) }
+                }
+            }
+        }
+    }
+
+    pub(crate) fn delete_texture(&mut self, texture: glow::Texture, gl: &glow::Context) {
+        unsafe {
+            for unit in self.texture_units_storage.units.iter_mut() {
+                for binding in unit.bindings.iter_mut() {
+                    if binding.texture == Some(texture) {
+                        binding.texture = None;
+                    }
+                }
+            }
+
+            gl.delete_texture(texture);
+        }
+    }
+
+    pub(crate) fn set_texture(
+        &mut self,
+        unit_index: u32,
+        target: u32,
+        texture: Option<glow::Texture>,
+        gl: &glow::Context,
+    ) {
+        unsafe fn bind_texture(
+            gl: &glow::Context,
+            target: u32,
+            texture: Option<glow::Texture>,
+            unit_index: u32,
+            active_unit: &mut u32,
+        ) {
+            if *active_unit != unit_index {
+                *active_unit = unit_index;
+                gl.active_texture(glow::TEXTURE0 + unit_index);
+            }
+            gl.bind_texture(target, texture);
+        }
+
+        unsafe {
+            let unit = &mut self.texture_units_storage.units[unit_index as usize];
+            let active_unit = &mut self.texture_units_storage.active_unit;
+            for binding in unit.bindings.iter_mut() {
+                if binding.target == target {
+                    if binding.texture != texture {
+                        binding.texture = texture;
+                        bind_texture(gl, binding.target, texture, unit_index, active_unit);
+                        self.frame_statistics.texture_binding_changes += 1;
+                    }
+                } else if binding.texture.is_some() {
+                    binding.texture = None;
+                    bind_texture(gl, binding.target, None, unit_index, active_unit);
+                    self.frame_statistics.texture_binding_changes += 1;
                 }
             }
         }
@@ -916,41 +969,14 @@ impl GlGraphicsServer {
         }
     }
 
+    pub(crate) fn delete_texture(&self, texture: glow::Texture) {
+        self.state.borrow_mut().delete_texture(texture, &self.gl)
+    }
+
     pub(crate) fn set_texture(&self, unit_index: u32, target: u32, texture: Option<glow::Texture>) {
-        unsafe fn bind_texture(
-            gl: &glow::Context,
-            target: u32,
-            texture: Option<glow::Texture>,
-            unit_index: u32,
-            active_unit: &mut u32,
-        ) {
-            if *active_unit != unit_index {
-                *active_unit = unit_index;
-                gl.active_texture(glow::TEXTURE0 + unit_index);
-            }
-            gl.bind_texture(target, texture);
-        }
-
-        unsafe {
-            let mut state_guard = self.state.borrow_mut();
-            let state = state_guard.deref_mut();
-
-            let unit = &mut state.texture_units_storage.units[unit_index as usize];
-            let active_unit = &mut state.texture_units_storage.active_unit;
-            for binding in unit.bindings.iter_mut() {
-                if binding.target == target {
-                    if binding.texture != texture {
-                        binding.texture = texture;
-                        bind_texture(&self.gl, binding.target, texture, unit_index, active_unit);
-                        state.frame_statistics.texture_binding_changes += 1;
-                    }
-                } else if binding.texture.is_some() {
-                    binding.texture = None;
-                    bind_texture(&self.gl, binding.target, None, unit_index, active_unit);
-                    state.frame_statistics.texture_binding_changes += 1;
-                }
-            }
-        }
+        self.state
+            .borrow_mut()
+            .set_texture(unit_index, target, texture, &self.gl)
     }
 
     pub(crate) fn set_stencil_func(&self, func: StencilFunc) {
@@ -1191,17 +1217,6 @@ impl GraphicsServer for GlGraphicsServer {
 
     fn invalidate_resource_bindings_cache(&self) {
         let mut state = self.state.borrow_mut();
-
-        unsafe {
-            for (unit_index, unit) in state.texture_units_storage.units.iter().enumerate() {
-                self.gl.active_texture(glow::TEXTURE0 + unit_index as u32);
-                for binding in unit.bindings.iter() {
-                    self.gl.bind_texture(binding.target, None)
-                }
-            }
-            self.gl.active_texture(glow::TEXTURE0);
-        }
-        state.texture_units_storage = Default::default();
 
         state.program = Default::default();
         state.frame_statistics = Default::default();
