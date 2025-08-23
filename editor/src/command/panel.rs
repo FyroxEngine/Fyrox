@@ -55,67 +55,64 @@ impl CommandStackViewer {
         let undo;
         let redo;
         let clear;
+        let buttons = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .with_child({
+                    undo = make_image_button_with_tooltip(
+                        ctx,
+                        20.0,
+                        20.0,
+                        load_image!("../../resources/undo.png"),
+                        "Undo The Command",
+                        Some(0),
+                    );
+                    undo
+                })
+                .with_child({
+                    redo = make_image_button_with_tooltip(
+                        ctx,
+                        20.0,
+                        20.0,
+                        load_image!("../../resources/redo.png"),
+                        "Redo The Command",
+                        Some(1),
+                    );
+                    redo
+                })
+                .with_child({
+                    clear = make_image_button_with_tooltip(
+                        ctx,
+                        20.0,
+                        20.0,
+                        load_image!("../../resources/clear.png"),
+                        "Clear Command Stack\nChanges history will be erased.",
+                        Some(2),
+                    );
+                    clear
+                }),
+        )
+        .build(ctx);
+
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("CommandStackPanel"))
             .with_title(WindowTitle::text("Command Stack"))
             .with_tab_label("Commands")
             .with_content(
                 GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
-                            StackPanelBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_child({
-                                        undo = make_image_button_with_tooltip(
-                                            ctx,
-                                            20.0,
-                                            20.0,
-                                            load_image!("../../resources/undo.png"),
-                                            "Undo The Command",
-                                            Some(0),
-                                        );
-                                        undo
-                                    })
-                                    .with_child({
-                                        redo = make_image_button_with_tooltip(
-                                            ctx,
-                                            20.0,
-                                            20.0,
-                                            load_image!("../../resources/redo.png"),
-                                            "Redo The Command",
-                                            Some(1),
-                                        );
-                                        redo
-                                    })
-                                    .with_child({
-                                        clear = make_image_button_with_tooltip(
-                                            ctx,
-                                            20.0,
-                                            20.0,
-                                            load_image!("../../resources/clear.png"),
-                                            "Clear Command Stack\nChanges history will be erased.",
-                                            Some(2),
-                                        );
-                                        clear
-                                    }),
-                            )
-                            .with_orientation(Orientation::Horizontal)
-                            .build(ctx),
+                    WidgetBuilder::new().with_child(buttons).with_child(
+                        ScrollViewerBuilder::new(
+                            WidgetBuilder::new()
+                                .with_margin(Thickness::uniform(1.0))
+                                .on_column(1),
                         )
-                        .with_child(
-                            ScrollViewerBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(1.0))
-                                    .on_row(1),
-                            )
-                            .with_content({
-                                list = ListViewBuilder::new(WidgetBuilder::new()).build(ctx);
-                                list
-                            })
-                            .build(ctx),
-                        ),
+                        .with_content({
+                            list = ListViewBuilder::new(WidgetBuilder::new()).build(ctx);
+                            list
+                        })
+                        .build(ctx),
+                    ),
                 )
+                .add_column(Row::strict(26.0))
                 .add_column(Column::stretch())
-                .add_row(Row::strict(26.0))
                 .add_row(Row::stretch())
                 .build(ctx),
             )
