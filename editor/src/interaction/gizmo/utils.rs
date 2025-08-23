@@ -18,7 +18,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-pub mod move_gizmo;
-pub mod rotate_gizmo;
-pub mod scale_gizmo;
-mod utils;
+use crate::{
+    fyrox::{
+        core::{pool::Handle, some_or_return},
+        scene::{graph::Graph, node::Node},
+    },
+    interaction::calculate_gizmo_distance_scaling,
+    scene::{Selection, SelectionContainer},
+    settings::Settings,
+};
+
+pub fn sync_gizmo_with_selection(
+    gizmo_origin: Handle<Node>,
+    graph: &mut Graph,
+    camera: Handle<Node>,
+    settings: &Settings,
+    selection: &Selection,
+) {
+    graph[gizmo_origin].set_visibility(false);
+
+    let selection = some_or_return!(selection.as_graph());
+    if selection.is_empty() {
+        return;
+    }
+
+    let (rotation, position) = some_or_return!(selection.global_rotation_position(graph));
+
+    let node = &mut graph[gizmo_origin];
+    node.set_visibility(true);
+    node.local_transform_mut()
+        .set_rotation(rotation)
+        .set_position(position);
+    graph.update_hierarchical_data_for_descendants(gizmo_origin);
+    let scale = calculate_gizmo_distance_scaling(graph, camera, gizmo_origin)
+        * settings.graphics.gizmo_scale;
+    graph[gizmo_origin].local_transform_mut().set_scale(scale);
+    graph.update_hierarchical_data_for_descendants(gizmo_origin);
+}

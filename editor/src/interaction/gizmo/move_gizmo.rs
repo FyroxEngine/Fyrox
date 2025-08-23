@@ -18,37 +18,35 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    core::{
-        algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
-        color::Color,
-        math::Matrix4Ext,
-        pool::Handle,
-    },
-    scene::{
-        base::BaseBuilder,
-        graph::Graph,
-        mesh::{
-            surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
-            MeshBuilder, RenderPath,
-        },
-        node::Node,
-        pivot::PivotBuilder,
-        transform::{Transform, TransformBuilder},
-        Scene,
-    },
-};
-use crate::interaction::calculate_gizmo_distance_scaling;
-use crate::scene::SelectionContainer;
-use crate::settings::Settings;
 use crate::{
-    interaction::plane::PlaneKind,
+    fyrox::{
+        core::{
+            algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
+            color::Color,
+            math::Matrix4Ext,
+            pool::Handle,
+        },
+        graph::BaseSceneGraph,
+        scene::{
+            base::BaseBuilder,
+            graph::Graph,
+            mesh::{
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
+                MeshBuilder, RenderPath,
+            },
+            node::Node,
+            pivot::PivotBuilder,
+            transform::{Transform, TransformBuilder},
+            Scene,
+        },
+    },
+    interaction::{gizmo::utils, plane::PlaneKind},
     make_color_material,
     scene::{GameScene, Selection},
-    set_mesh_diffuse_color, Engine,
+    set_mesh_diffuse_color,
+    settings::Settings,
+    Engine,
 };
-use fyrox::core::some_or_return;
 
 pub struct MoveGizmo {
     pub origin: Handle<Node>,
@@ -378,26 +376,7 @@ impl MoveGizmo {
         settings: &Settings,
         selection: &Selection,
     ) {
-        self.set_visible(graph, false);
-
-        let selection = some_or_return!(selection.as_graph());
-        if selection.is_empty() {
-            return;
-        }
-
-        let (rotation, position) = some_or_return!(selection.global_rotation_position(graph));
-
-        let node = &mut graph[self.origin];
-        node.set_visibility(true);
-        node.local_transform_mut()
-            .set_rotation(rotation)
-            .set_position(position);
-        graph.update_hierarchical_data_for_descendants(self.origin);
-        let scale = calculate_gizmo_distance_scaling(graph, camera, self.origin)
-            * settings.graphics.gizmo_scale;
-        graph[self.origin].local_transform_mut().set_scale(scale);
-        self.set_visible(graph, true);
-        graph.update_hierarchical_data_for_descendants(self.origin);
+        utils::sync_gizmo_with_selection(self.origin, graph, camera, settings, selection)
     }
 
     pub fn set_visible(&self, graph: &mut Graph, visible: bool) {
