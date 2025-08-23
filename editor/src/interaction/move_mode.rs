@@ -41,8 +41,8 @@ use crate::{
         },
     },
     interaction::{
-        calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo,
-        make_interaction_mode_button, plane::PlaneKind, InteractionMode,
+        gizmo::move_gizmo::MoveGizmo, make_interaction_mode_button, plane::PlaneKind,
+        InteractionMode,
     },
     message::MessageSender,
     scene::{
@@ -54,6 +54,7 @@ use crate::{
     world::selection::GraphSelection,
     Engine, Message,
 };
+use fyrox::core::some_or_return;
 
 struct Entry {
     node: Handle<Node>,
@@ -488,26 +489,15 @@ impl InteractionMode for MoveInteractionMode {
         editor_selection: &Selection,
         controller: &mut dyn SceneController,
         engine: &mut Engine,
-        _settings: &Settings,
+        settings: &Settings,
     ) {
-        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
-            return;
-        };
-
-        let scene = &mut engine.scenes[game_scene.scene];
-        let graph = &mut scene.graph;
-        if editor_selection.is_empty() {
-            self.move_gizmo.set_visible(graph, false);
-        } else {
-            let scale = calculate_gizmo_distance_scaling(
-                graph,
-                game_scene.camera_controller.camera,
-                self.move_gizmo.origin,
-            ) * _settings.graphics.gizmo_scale;
-            self.move_gizmo.set_visible(graph, true);
-            self.move_gizmo
-                .sync_transform(scene, editor_selection, scale);
-        }
+        let game_scene = some_or_return!(controller.downcast_mut::<GameScene>());
+        self.move_gizmo.sync_with_selection(
+            &mut engine.scenes[game_scene.scene].graph,
+            game_scene.camera_controller.camera,
+            settings,
+            editor_selection,
+        );
     }
 
     fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {

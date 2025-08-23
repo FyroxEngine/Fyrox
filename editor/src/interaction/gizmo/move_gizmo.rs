@@ -39,12 +39,16 @@ use crate::fyrox::{
         Scene,
     },
 };
+use crate::interaction::calculate_gizmo_distance_scaling;
+use crate::scene::SelectionContainer;
+use crate::settings::Settings;
 use crate::{
     interaction::plane::PlaneKind,
     make_color_material,
     scene::{GameScene, Selection},
     set_mesh_diffuse_color, Engine,
 };
+use fyrox::core::some_or_return;
 
 pub struct MoveGizmo {
     pub origin: Handle<Node>,
@@ -367,18 +371,33 @@ impl MoveGizmo {
         node.local_transform_mut().set_position(position);
     }
 
-    pub fn sync_transform(&self, scene: &mut Scene, selection: &Selection, scale: Vector3<f32>) {
-        let graph = &mut scene.graph;
-        if let Some(selection) = selection.as_graph() {
-            if let Some((rotation, position)) = selection.global_rotation_position(graph) {
-                let node = &mut graph[self.origin];
-                node.set_visibility(true);
-                node.local_transform_mut()
-                    .set_rotation(rotation)
-                    .set_position(position)
-                    .set_scale(scale);
-            }
+    pub fn sync_with_selection(
+        &self,
+        graph: &mut Graph,
+        camera: Handle<Node>,
+        settings: &Settings,
+        selection: &Selection,
+    ) {
+        self.set_visible(graph, false);
+
+        let selection = some_or_return!(selection.as_graph());
+        if selection.is_empty() {
+            return;
         }
+
+        let (rotation, position) = some_or_return!(selection.global_rotation_position(graph));
+
+        let node = &mut graph[self.origin];
+        node.set_visibility(true);
+        node.local_transform_mut()
+            .set_rotation(rotation)
+            .set_position(position);
+        graph.update_hierarchical_data_for_descendants(self.origin);
+        let scale = calculate_gizmo_distance_scaling(graph, camera, self.origin)
+            * settings.graphics.gizmo_scale;
+        graph[self.origin].local_transform_mut().set_scale(scale);
+        self.set_visible(graph, true);
+        graph.update_hierarchical_data_for_descendants(self.origin);
     }
 
     pub fn set_visible(&self, graph: &mut Graph, visible: bool) {
