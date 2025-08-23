@@ -525,19 +525,11 @@ impl Default for UpdateLoopState {
 
 impl UpdateLoopState {
     fn request_update_in_next_frame(&mut self) {
-        if !self.is_warming_up() {
-            self.0 = self.0.max(2);
-        }
+        self.0 = self.0.max(3);
     }
 
     fn request_update_in_current_frame(&mut self) {
-        if !self.is_warming_up() {
-            self.0 = self.0.max(1);
-        }
-    }
-
-    fn is_warming_up(&self) -> bool {
-        self.0 > 2
+        self.0 = self.0.max(1);
     }
 
     fn decrease_counter(&mut self) {
