@@ -18,27 +18,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    core::pool::Handle,
-    gui::{
-        button::ButtonMessage,
-        grid::{Column, GridBuilder, Row},
-        list_view::{ListViewBuilder, ListViewMessage},
-        message::{MessageDirection, UiMessage},
-        scroll_viewer::ScrollViewerBuilder,
-        stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowTitle},
-        BuildContext, Orientation, Thickness, UiNode, UserInterface,
-    },
-};
 use crate::{
-    load_image, message::MessageSender, send_sync_message, utils::window_content, Message, Mode,
+    fyrox::{
+        core::pool::Handle,
+        gui::{
+            button::ButtonMessage,
+            grid::{Column, GridBuilder, Row},
+            list_view::{ListViewBuilder, ListViewMessage},
+            message::{MessageDirection, UiMessage},
+            scroll_viewer::ScrollViewerBuilder,
+            stack_panel::StackPanelBuilder,
+            style::{resource::StyleResourceExt, Style},
+            text::TextBuilder,
+            utils::make_image_button_with_tooltip,
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowTitle},
+            BuildContext, Thickness, UiNode, UserInterface,
+        },
+    },
+    load_image,
+    message::MessageSender,
+    send_sync_message,
+    utils::window_content,
+    Message, Mode,
 };
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
-use fyrox::gui::utils::make_image_button_with_tooltip;
 
 pub struct CommandStackViewer {
     pub window: Handle<UiNode>,
