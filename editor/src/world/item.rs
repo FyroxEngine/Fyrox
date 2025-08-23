@@ -320,7 +320,8 @@ impl SceneItemBuilder {
                             .with_height(16.0)
                             .on_column(0)
                             .with_margin(Thickness::left_right(1.0))
-                            .with_visibility(self.icon.is_some()),
+                            .with_visibility(self.icon.is_some())
+                            .with_background(ctx.style.property(Style::BRUSH_TEXT)),
                     )
                     .with_opt_texture(self.icon)
                     .build(ctx),
