@@ -328,7 +328,7 @@ pub struct MessageBoxBuilder<'b> {
 }
 
 impl<'b> MessageBoxBuilder<'b> {
-    /// Creates new builder instace. `window_builder` could be used to customize the look of you message box.
+    /// Creates new builder instance. `window_builder` could be used to customize the look of you message box.
     pub fn new(window_builder: WindowBuilder) -> Self {
         Self {
             window_builder,

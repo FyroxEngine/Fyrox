@@ -344,7 +344,7 @@ pub struct StepIterator {
 }
 
 impl StepIterator {
-    /// Construct an interator that starts at or before `start` and ends at or after `end`.
+    /// Construct an iterator that starts at or before `start` and ends at or after `end`.
     /// The intention is to cover the whole range of `start` to `end` at least.
     pub fn new(step: f32, start: f32, end: f32) -> Self {
         Self {
