@@ -685,7 +685,7 @@ impl Inspector {
     }
 }
 
-/// Default margines for editor containers.
+/// Default margins for editor containers.
 pub const HEADER_MARGIN: Thickness = Thickness {
     left: 2.0,
     top: 1.0,
@@ -1224,7 +1224,7 @@ impl InspectorContext {
         }
     }
 
-    /// Update the widgest to reflect the value of the given object.
+    /// Update the widgets to reflect the value of the given object.
     /// We will iterate through the fields and find the appropriate [PropertyEditorDefinition](editors::PropertyEditorDefinition)
     /// for each field. We call [create_message](editors::PropertyEditorDefinition::create_message) to get each property editor
     /// definition to generate the appropriate message to get the editor widget to update itself, and we set the [flags](UiMessage::flags)

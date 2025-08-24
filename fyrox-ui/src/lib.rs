@@ -135,9 +135,9 @@
 //!
 //! ### Controls
 //!
-//! Control widgets primary purpose is to provide users with intractable UI elements to control some aspect of the program.
+//! Control widgets primary purpose is to provide users with interactable UI elements to control some aspect of the program.
 //!
-//! * [`crate::border::Border`]: The Button provides a press-able control that can contain other UI elements, for example a Text
+//! * [`crate::button::Button`]: The Button provides a press-able control that can contain other UI elements, for example a Text
 //! or Image Widget.
 //! * [`crate::check_box::CheckBox`]: The Check Box is a toggle-able control that can contain other UI elements, for example a Text
 //! or Image Widget.

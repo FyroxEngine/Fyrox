@@ -93,7 +93,7 @@ impl Thickness {
         }
     }
 
-    /// Thickness for the rigth side of a rectangle.
+    /// Thickness for the right side of a rectangle.
     pub fn right(v: f32) -> Self {
         Self {
             left: 0.0,
