@@ -18,6 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! This crate is an abstraction layer for graphical services like OpenGL.
+//! See the [`server::GraphicsServer`] trait for the rendering features that are available through
+//! this abstraction layer.
+//! The `fyrox-graphics-gl` crate provides an OpenGL implementation of `GraphicsServer`.
+
 #![allow(clippy::too_many_arguments)]
 
 pub use fyrox_core as core;
@@ -442,9 +447,16 @@ pub struct StencilOp {
     pub zfail: StencilAction,
     /// An action that happens when the depth test has passed.
     pub zpass: StencilAction,
-    /// A mask that is used to filter out some bits (using `AND` logical operation) from the source
-    /// value before writing it to the stencil buffer.
+    /// Specifies a bit mask to enable and disable writing of individual bits in the stencil planes. Initially, the mask is all 1's,
+    /// which means that all bits of the stencil buffer may be written by the stencil operations specified in `stencil_op`.
+    /// 0 bits protect the corresponding bits of the stencil from changing.
     pub write_mask: u32,
+}
+
+impl StencilOp {
+    pub fn eq_actions(&self, other: &StencilOp) -> bool {
+        self.fail == other.fail && self.zfail == other.zfail && self.zpass == other.zpass
+    }
 }
 
 impl Default for StencilOp {
