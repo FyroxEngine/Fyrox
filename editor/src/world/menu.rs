@@ -124,74 +124,80 @@ impl SceneNodeContextMenu {
             CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
 
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            create_child = MenuItemBuilder::new(
-                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
-                            )
-                            .with_content(MenuItemContent::text("Create Child Node"))
-                            .with_items(create_child_entity_menu.root_items.clone())
-                            .build(ctx);
-                            create_child
-                        })
-                        .with_child({
-                            delete_selection =
-                                create_menu_item_shortcut("Delete Node(s)", "Del", vec![], ctx);
-                            delete_selection
-                        })
-                        .with_child(menu::make_menu_splitter(ctx))
-                        .with_child({
-                            copy_selection =
-                                create_menu_item_shortcut("Copy Node(s)", "Ctrl+C", vec![], ctx);
-                            copy_selection
-                        })
-                        .with_child({
-                            paste = create_menu_item("Paste As Child Node", vec![], ctx);
-                            paste
-                        })
-                        .with_child(menu::make_menu_splitter(ctx))
-                        .with_child({
-                            create_parent = MenuItemBuilder::new(
-                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
-                            )
-                            .with_content(MenuItemContent::text("Create Parent Node"))
-                            .with_items(create_parent_entity_menu.root_items.clone())
-                            .build(ctx);
-                            create_parent
-                        })
-                        .with_child({
-                            replace_with = MenuItemBuilder::new(
-                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
-                            )
-                            .with_content(MenuItemContent::text("Replace With Node"))
-                            .with_items(replace_with_menu.root_items.clone())
-                            .build(ctx);
-                            replace_with
-                        })
-                        .with_child({
-                            make_root = create_menu_item("Set As Root Node", vec![], ctx);
-                            make_root
-                        })
-                        .with_child(menu::make_menu_splitter(ctx))
-                        .with_child({
-                            open_asset = create_menu_item("Open Parent Prefab", vec![], ctx);
-                            open_asset
-                        })
-                        .with_child({
-                            save_as_prefab =
-                                create_menu_item("Save Node(s) As Prefab...", vec![], ctx);
-                            save_as_prefab
-                        })
-                        .with_child({
-                            reset_inheritable_properties =
-                                create_menu_item("Reset Inheritable Properties", vec![], ctx);
-                            reset_inheritable_properties
-                        }),
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+                .with_content(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                create_child = MenuItemBuilder::new(
+                                    WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
+                                )
+                                .with_content(MenuItemContent::text("Create Child Node"))
+                                .with_items(create_child_entity_menu.root_items.clone())
+                                .build(ctx);
+                                create_child
+                            })
+                            .with_child({
+                                delete_selection =
+                                    create_menu_item_shortcut("Delete Node(s)", "Del", vec![], ctx);
+                                delete_selection
+                            })
+                            .with_child(menu::make_menu_splitter(ctx))
+                            .with_child({
+                                copy_selection = create_menu_item_shortcut(
+                                    "Copy Node(s)",
+                                    "Ctrl+C",
+                                    vec![],
+                                    ctx,
+                                );
+                                copy_selection
+                            })
+                            .with_child({
+                                paste = create_menu_item("Paste As Child Node", vec![], ctx);
+                                paste
+                            })
+                            .with_child(menu::make_menu_splitter(ctx))
+                            .with_child({
+                                create_parent = MenuItemBuilder::new(
+                                    WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
+                                )
+                                .with_content(MenuItemContent::text("Create Parent Node"))
+                                .with_items(create_parent_entity_menu.root_items.clone())
+                                .build(ctx);
+                                create_parent
+                            })
+                            .with_child({
+                                replace_with = MenuItemBuilder::new(
+                                    WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
+                                )
+                                .with_content(MenuItemContent::text("Replace With Node"))
+                                .with_items(replace_with_menu.root_items.clone())
+                                .build(ctx);
+                                replace_with
+                            })
+                            .with_child({
+                                make_root = create_menu_item("Set As Root Node", vec![], ctx);
+                                make_root
+                            })
+                            .with_child(menu::make_menu_splitter(ctx))
+                            .with_child({
+                                open_asset = create_menu_item("Open Parent Prefab", vec![], ctx);
+                                open_asset
+                            })
+                            .with_child({
+                                save_as_prefab =
+                                    create_menu_item("Save Node(s) As Prefab...", vec![], ctx);
+                                save_as_prefab
+                            })
+                            .with_child({
+                                reset_inheritable_properties =
+                                    create_menu_item("Reset Inheritable Properties", vec![], ctx);
+                                reset_inheritable_properties
+                            }),
+                    )
+                    .build(ctx),
                 )
-                .build(ctx),
-            ),
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());

@@ -669,7 +669,7 @@ impl PopupBuilder {
             smart_placement: self.smart_placement.into(),
             body: body.into(),
             owner: self.owner,
-            restrict_picking: false.into(),
+            restrict_picking: self.restrict_picking.into(),
         }
     }
 

@@ -90,20 +90,22 @@ impl ContextMenu {
         let add_signal;
         let remove_signal;
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            add_signal = create_menu_item("Add Signal", vec![], ctx);
-                            add_signal
-                        })
-                        .with_child({
-                            remove_signal = create_menu_item("Remove Signal", vec![], ctx);
-                            remove_signal
-                        }),
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+                .with_content(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                add_signal = create_menu_item("Add Signal", vec![], ctx);
+                                add_signal
+                            })
+                            .with_child({
+                                remove_signal = create_menu_item("Remove Signal", vec![], ctx);
+                                remove_signal
+                            }),
+                    )
+                    .build(ctx),
                 )
-                .build(ctx),
-            ),
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());

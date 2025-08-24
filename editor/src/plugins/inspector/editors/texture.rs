@@ -92,6 +92,7 @@ impl TextureContextMenu {
                     )
                     .build(ctx),
                 )
+                .with_restrict_picking(false)
                 .with_owner(owner),
         )
         .build(ctx);

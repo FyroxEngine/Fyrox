@@ -1167,30 +1167,32 @@ impl InspectorContext {
         let copy_value;
         let paste_value;
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            copy_value_as_string = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Copy Value as String"))
-                                .build(ctx);
-                            copy_value_as_string
-                        })
-                        .with_child({
-                            copy_value = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Copy Value"))
-                                .build(ctx);
-                            copy_value
-                        })
-                        .with_child({
-                            paste_value = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Paste Value"))
-                                .build(ctx);
-                            paste_value
-                        }),
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+                .with_content(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                copy_value_as_string = MenuItemBuilder::new(WidgetBuilder::new())
+                                    .with_content(MenuItemContent::text("Copy Value as String"))
+                                    .build(ctx);
+                                copy_value_as_string
+                            })
+                            .with_child({
+                                copy_value = MenuItemBuilder::new(WidgetBuilder::new())
+                                    .with_content(MenuItemContent::text("Copy Value"))
+                                    .build(ctx);
+                                copy_value
+                            })
+                            .with_child({
+                                paste_value = MenuItemBuilder::new(WidgetBuilder::new())
+                                    .with_content(MenuItemContent::text("Paste Value"))
+                                    .build(ctx);
+                                paste_value
+                            }),
+                    )
+                    .build(ctx),
                 )
-                .build(ctx),
-            ),
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());

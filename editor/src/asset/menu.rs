@@ -308,19 +308,21 @@ impl AssetItemContextMenu {
         let rename = item("Rename", ctx);
 
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new()).with_content(
-                StackPanelBuilder::new(WidgetBuilder::new().with_children(vec![
-                    open,
-                    duplicate,
-                    copy_path,
-                    copy_file_name,
-                    delete,
-                    show_in_explorer,
-                    dependencies,
-                    rename,
-                ]))
-                .build(ctx),
-            ),
+            PopupBuilder::new(WidgetBuilder::new())
+                .with_content(
+                    StackPanelBuilder::new(WidgetBuilder::new().with_children(vec![
+                        open,
+                        duplicate,
+                        copy_path,
+                        copy_file_name,
+                        delete,
+                        show_in_explorer,
+                        dependencies,
+                        rename,
+                    ]))
+                    .build(ctx),
+                )
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
