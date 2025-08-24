@@ -268,10 +268,18 @@ impl PreviewPanel {
             .graph
             .aabb_of_descendants(self.model, |_, _| true)
             .unwrap_or_default();
-        if let FitParameters::Perspective { position, distance } =
-            scene.graph[self.camera].as_camera().fit(&aabb, 1.0, 1.0)
+        let aspect_ratio = scene
+            .rendering_options
+            .render_target
+            .as_ref()
+            .and_then(|rt| rt.data_ref().kind().rectangle_size())
+            .map(|rs| rs.x as f32 / rs.y as f32)
+            .unwrap_or(1.0);
+        if let FitParameters::Perspective { distance, .. } = scene.graph[self.camera]
+            .as_camera()
+            .fit(&aabb, aspect_ratio, 1.1)
         {
-            self.position = position;
+            self.position = Default::default();
             self.distance = distance;
         }
     }

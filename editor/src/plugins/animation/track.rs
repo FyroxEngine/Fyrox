@@ -132,28 +132,31 @@ impl TrackContextMenu {
         let rebind;
         let duplicate;
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            remove_track = create_menu_item("Remove Selected Tracks", vec![], ctx);
-                            remove_track
-                        })
-                        .with_child({
-                            set_target = create_menu_item("Set Target...", vec![], ctx);
-                            set_target
-                        })
-                        .with_child({
-                            rebind = create_menu_item("Rebind...", vec![], ctx);
-                            rebind
-                        })
-                        .with_child({
-                            duplicate = create_menu_item("Duplicate", vec![], ctx);
-                            duplicate
-                        }),
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+                .with_content(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                remove_track =
+                                    create_menu_item("Remove Selected Tracks", vec![], ctx);
+                                remove_track
+                            })
+                            .with_child({
+                                set_target = create_menu_item("Set Target...", vec![], ctx);
+                                set_target
+                            })
+                            .with_child({
+                                rebind = create_menu_item("Rebind...", vec![], ctx);
+                                rebind
+                            })
+                            .with_child({
+                                duplicate = create_menu_item("Duplicate", vec![], ctx);
+                                duplicate
+                            }),
+                    )
+                    .build(ctx),
                 )
-                .build(ctx),
-            ),
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());

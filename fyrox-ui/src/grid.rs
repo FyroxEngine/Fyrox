@@ -619,7 +619,7 @@ impl Control for Grid {
             let space_y = calc_avg_size_for_stretch_dim(&self.rows, available_size.y).unwrap();
             // Now that we finally have the vertical stretch amount, we can properly measure group 1 (auto width, stretch height).
             // This is the only time we measure a node twice. The first time was just to discover the width.
-            // This measurement is just for height, now that we can give the node the true available veritical size.
+            // This measurement is just for height, now that we can give the node the true available vertical size.
             self.measure_group_height(&groups[1], ui, Vector2::new(available_size.x, space_y));
             self.measure_group(&groups[3], ui, Vector2::new(space_x, space_y));
         }

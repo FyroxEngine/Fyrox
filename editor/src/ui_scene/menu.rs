@@ -93,35 +93,45 @@ impl WidgetContextMenu {
         let widgets_menu = UiMenu::new(widget_constructors_container, "Create Child Widget", ctx);
 
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            delete_selection =
-                                create_menu_item_shortcut("Delete Selection", "Del", vec![], ctx);
-                            delete_selection
-                        })
-                        .with_child({
-                            copy_selection =
-                                create_menu_item_shortcut("Copy Selection", "Ctrl+C", vec![], ctx);
-                            copy_selection
-                        })
-                        .with_child({
-                            paste = create_menu_item("Paste As Child", vec![], ctx);
-                            paste
-                        })
-                        .with_child({
-                            make_root = create_menu_item("Make Root", vec![], ctx);
-                            make_root
-                        })
-                        .with_child({
-                            open_asset = create_menu_item("Open Asset", vec![], ctx);
-                            open_asset
-                        })
-                        .with_child(widgets_menu.menu),
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+                .with_content(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                delete_selection = create_menu_item_shortcut(
+                                    "Delete Selection",
+                                    "Del",
+                                    vec![],
+                                    ctx,
+                                );
+                                delete_selection
+                            })
+                            .with_child({
+                                copy_selection = create_menu_item_shortcut(
+                                    "Copy Selection",
+                                    "Ctrl+C",
+                                    vec![],
+                                    ctx,
+                                );
+                                copy_selection
+                            })
+                            .with_child({
+                                paste = create_menu_item("Paste As Child", vec![], ctx);
+                                paste
+                            })
+                            .with_child({
+                                make_root = create_menu_item("Make Root", vec![], ctx);
+                                make_root
+                            })
+                            .with_child({
+                                open_asset = create_menu_item("Open Asset", vec![], ctx);
+                                open_asset
+                            })
+                            .with_child(widgets_menu.menu),
+                    )
+                    .build(ctx),
                 )
-                .build(ctx),
-            ),
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());

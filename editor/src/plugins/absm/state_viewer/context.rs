@@ -99,7 +99,8 @@ impl CanvasContextMenu {
                         }),
                 )
                 .build(ctx),
-            ),
+            )
+            .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
@@ -212,20 +213,22 @@ impl NodeContextMenu {
         let remove;
         let set_as_root;
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            set_as_root = create_menu_item("Set As Root", vec![], ctx);
-                            set_as_root
-                        })
-                        .with_child({
-                            remove = create_menu_item("Remove", vec![], ctx);
-                            remove
-                        }),
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+                .with_content(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                set_as_root = create_menu_item("Set As Root", vec![], ctx);
+                                set_as_root
+                            })
+                            .with_child({
+                                remove = create_menu_item("Remove", vec![], ctx);
+                                remove
+                            }),
+                    )
+                    .build(ctx),
                 )
-                .build(ctx),
-            ),
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
@@ -305,13 +308,15 @@ impl ConnectionContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let remove;
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                    remove = create_menu_item("Remove Connection", vec![], ctx);
-                    remove
-                }))
-                .build(ctx),
-            ),
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+                .with_content(
+                    StackPanelBuilder::new(WidgetBuilder::new().with_child({
+                        remove = create_menu_item("Remove Connection", vec![], ctx);
+                        remove
+                    }))
+                    .build(ctx),
+                )
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());

@@ -685,7 +685,7 @@ impl Inspector {
     }
 }
 
-/// Default margines for editor containers.
+/// Default margins for editor containers.
 pub const HEADER_MARGIN: Thickness = Thickness {
     left: 2.0,
     top: 1.0,
@@ -1167,30 +1167,32 @@ impl InspectorContext {
         let copy_value;
         let paste_value;
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            copy_value_as_string = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Copy Value as String"))
-                                .build(ctx);
-                            copy_value_as_string
-                        })
-                        .with_child({
-                            copy_value = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Copy Value"))
-                                .build(ctx);
-                            copy_value
-                        })
-                        .with_child({
-                            paste_value = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Paste Value"))
-                                .build(ctx);
-                            paste_value
-                        }),
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+                .with_content(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                copy_value_as_string = MenuItemBuilder::new(WidgetBuilder::new())
+                                    .with_content(MenuItemContent::text("Copy Value as String"))
+                                    .build(ctx);
+                                copy_value_as_string
+                            })
+                            .with_child({
+                                copy_value = MenuItemBuilder::new(WidgetBuilder::new())
+                                    .with_content(MenuItemContent::text("Copy Value"))
+                                    .build(ctx);
+                                copy_value
+                            })
+                            .with_child({
+                                paste_value = MenuItemBuilder::new(WidgetBuilder::new())
+                                    .with_content(MenuItemContent::text("Paste Value"))
+                                    .build(ctx);
+                                paste_value
+                            }),
+                    )
+                    .build(ctx),
                 )
-                .build(ctx),
-            ),
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
@@ -1224,7 +1226,7 @@ impl InspectorContext {
         }
     }
 
-    /// Update the widgest to reflect the value of the given object.
+    /// Update the widgets to reflect the value of the given object.
     /// We will iterate through the fields and find the appropriate [PropertyEditorDefinition](editors::PropertyEditorDefinition)
     /// for each field. We call [create_message](editors::PropertyEditorDefinition::create_message) to get each property editor
     /// definition to generate the appropriate message to get the editor widget to update itself, and we set the [flags](UiMessage::flags)

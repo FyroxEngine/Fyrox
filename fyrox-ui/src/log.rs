@@ -57,15 +57,17 @@ impl ContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let copy;
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new()).with_content(
-                StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                    copy = MenuItemBuilder::new(WidgetBuilder::new())
-                        .with_content(MenuItemContent::text("Copy"))
-                        .build(ctx);
-                    copy
-                }))
-                .build(ctx),
-            ),
+            PopupBuilder::new(WidgetBuilder::new())
+                .with_content(
+                    StackPanelBuilder::new(WidgetBuilder::new().with_child({
+                        copy = MenuItemBuilder::new(WidgetBuilder::new())
+                            .with_content(MenuItemContent::text("Copy"))
+                            .build(ctx);
+                        copy
+                    }))
+                    .build(ctx),
+                )
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());

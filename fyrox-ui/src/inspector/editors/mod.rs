@@ -210,7 +210,7 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
     /// The layer_index indicates the nesting level of the widget that will receive the created message.
     pub layer_index: usize,
     /// Optional untyped information about the broader application in which
-    /// this proprety is being translated. This allows the created message to
+    /// this property is being translated. This allows the created message to
     /// adapt to the situation if we can successfully cast the given
     /// [InspectorEnvironment] into a specific type.
     pub environment: Option<Arc<dyn InspectorEnvironment>>,
@@ -230,7 +230,7 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
 /// can use to update the inspected property based on the messages from the editor.
 pub struct PropertyEditorTranslationContext<'b, 'c> {
     /// Optional untyped information about the broader application in which
-    /// this proprety is being translated. This allows the translation to
+    /// this property is being translated. This allows the translation to
     /// adapt to the situation if we can successfully cast the given
     /// [InspectorEnvironment] into a specific type.
     ///

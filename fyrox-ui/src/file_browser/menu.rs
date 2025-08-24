@@ -345,7 +345,8 @@ impl ItemContextMenu {
                         }),
                 )
                 .build(ctx),
-            ),
+            )
+            .with_restrict_picking(false),
         )
         .build_context_menu(ctx);
 
