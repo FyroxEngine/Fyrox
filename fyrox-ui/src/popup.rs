@@ -23,8 +23,6 @@
 
 #![warn(missing_docs)]
 
-use crate::style::resource::StyleResourceExt;
-use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     core::{
@@ -33,12 +31,14 @@ use crate::{
     },
     define_constructor,
     message::{ButtonState, KeyCode, MessageDirection, OsEvent, UiMessage},
+    style::{resource::StyleResourceExt, Style},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RestrictionEntry, Thickness, UiNode, UserInterface,
 };
-
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::{
+    constructor::{ConstructorProvider, GraphNodeConstructor},
+    BaseSceneGraph,
+};
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages for [`Popup`] widget.
@@ -323,6 +323,8 @@ pub struct Popup {
     pub smart_placement: InheritableVariable<bool>,
     /// The destination for Event messages that relay messages from the children of this popup.
     pub owner: Handle<UiNode>,
+    /// A flag, that defines whether the popup should restrict all the mouse input or not.
+    pub restrict_picking: InheritableVariable<bool>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for Popup {
@@ -407,10 +409,12 @@ impl Control for Popup {
                                 MessageDirection::ToWidget,
                                 true,
                             ));
-                            ui.push_picking_restriction(RestrictionEntry {
-                                handle: self.handle(),
-                                stop: false,
-                            });
+                            if *self.restrict_picking {
+                                ui.push_picking_restriction(RestrictionEntry {
+                                    handle: self.handle(),
+                                    stop: false,
+                                });
+                            }
                             ui.send_message(WidgetMessage::topmost(
                                 self.handle(),
                                 MessageDirection::ToWidget,
@@ -459,13 +463,16 @@ impl Control for Popup {
                                 MessageDirection::ToWidget,
                                 false,
                             ));
-                            ui.remove_picking_restriction(self.handle());
 
-                            if let Some(top) = ui.top_picking_restriction() {
-                                ui.send_message(WidgetMessage::focus(
-                                    top.handle,
-                                    MessageDirection::ToWidget,
-                                ));
+                            if *self.restrict_picking {
+                                ui.remove_picking_restriction(self.handle());
+
+                                if let Some(top) = ui.top_picking_restriction() {
+                                    ui.send_message(WidgetMessage::focus(
+                                        top.handle,
+                                        MessageDirection::ToWidget,
+                                    ));
+                                }
                             }
 
                             if ui.captured_node() == self.handle() {
@@ -550,19 +557,24 @@ impl Control for Popup {
         event: &OsEvent,
     ) {
         if let OsEvent::MouseInput { state, .. } = event {
-            if let Some(top_restriction) = ui.top_picking_restriction() {
-                if *state == ButtonState::Pressed
-                    && top_restriction.handle == self_handle
-                    && *self.is_open
-                {
-                    let pos = ui.cursor_position();
-                    if !self.widget.screen_bounds().contains(pos) && !*self.stays_open {
-                        ui.send_message(PopupMessage::close(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                        ));
+            if *state != ButtonState::Pressed && !*self.is_open {
+                return;
+            }
+
+            if *self.restrict_picking {
+                if let Some(top_restriction) = ui.top_picking_restriction() {
+                    if top_restriction.handle != self_handle {
+                        return;
                     }
                 }
+            }
+
+            let pos = ui.cursor_position();
+            if !self.widget.screen_bounds().contains(pos) && !*self.stays_open {
+                ui.send_message(PopupMessage::close(
+                    self.handle(),
+                    MessageDirection::ToWidget,
+                ));
             }
         }
     }
@@ -576,6 +588,7 @@ pub struct PopupBuilder {
     content: Handle<UiNode>,
     smart_placement: bool,
     owner: Handle<UiNode>,
+    restrict_picking: bool,
 }
 
 impl PopupBuilder {
@@ -588,6 +601,7 @@ impl PopupBuilder {
             content: Default::default(),
             smart_placement: true,
             owner: Default::default(),
+            restrict_picking: true,
         }
     }
 
@@ -621,6 +635,12 @@ impl PopupBuilder {
         self
     }
 
+    /// Sets a flag, that defines whether the popup should restrict all the mouse input or not.
+    pub fn with_restrict_picking(mut self, restrict: bool) -> Self {
+        self.restrict_picking = restrict;
+        self
+    }
+
     /// Builds the popup widget, but does not add it to the user interface. Could be useful if you're making your
     /// own derived version of the popup.
     pub fn build_popup(self, ctx: &mut BuildContext) -> Popup {
@@ -649,6 +669,7 @@ impl PopupBuilder {
             smart_placement: self.smart_placement.into(),
             body: body.into(),
             owner: self.owner,
+            restrict_picking: false.into(),
         }
     }
 
