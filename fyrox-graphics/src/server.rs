@@ -126,9 +126,9 @@ pub trait GraphicsServer: GraphicsServerAsAny {
         line_offset: isize,
     ) -> Result<GpuShader, FrameworkError>;
 
-    /// Creates a new named GPU program using a pair of vertex and fragment shaders. The name could
-    /// be used for debugging purposes. The implementation of graphics server will generate proper
-    /// resource bindings in the shader code for you.
+    /// Creates a new named GPU program using source code of both vertex and fragment shaders. The
+    /// name could be used for debugging purposes. The implementation of graphics server will generate
+    /// proper resource bindings in the shader code for you.
     fn create_program(
         &self,
         name: &str,
@@ -136,6 +136,17 @@ pub trait GraphicsServer: GraphicsServerAsAny {
         vertex_source_line_offset: isize,
         fragment_source: String,
         fragment_source_line_offset: isize,
+        resources: &[ShaderResourceDefinition],
+    ) -> Result<GpuProgram, FrameworkError>;
+
+    /// Creates a new named GPU program using a pair of vertex and fragment shaders. The name could
+    /// be used for debugging purposes. The implementation of graphics server will generate proper
+    /// resource bindings in the shader code for you.
+    fn create_program_from_shaders(
+        &self,
+        name: &str,
+        vertex_shader: &GpuShader,
+        fragment_shader: &GpuShader,
         resources: &[ShaderResourceDefinition],
     ) -> Result<GpuProgram, FrameworkError>;
 

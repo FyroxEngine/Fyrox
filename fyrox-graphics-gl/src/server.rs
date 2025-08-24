@@ -1221,6 +1221,22 @@ impl GraphicsServer for GlGraphicsServer {
         )?)))
     }
 
+    fn create_program_from_shaders(
+        &self,
+        name: &str,
+        vertex_shader: &GpuShader,
+        fragment_shader: &GpuShader,
+        resources: &[ShaderResourceDefinition],
+    ) -> Result<GpuProgram, FrameworkError> {
+        Ok(GpuProgram(Rc::new(GlProgram::from_shaders_and_resources(
+            self,
+            name,
+            vertex_shader,
+            fragment_shader,
+            resources,
+        )?)))
+    }
+
     fn create_async_read_buffer(
         &self,
         name: &str,
