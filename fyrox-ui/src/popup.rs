@@ -557,7 +557,7 @@ impl Control for Popup {
         event: &OsEvent,
     ) {
         if let OsEvent::MouseInput { state, .. } = event {
-            if *state != ButtonState::Pressed && !*self.is_open {
+            if *state != ButtonState::Pressed || !*self.is_open {
                 return;
             }
 
