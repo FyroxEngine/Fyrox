@@ -21,9 +21,6 @@
 //! Contains all structures and methods to create and manage particle systems. See [`ParticleSystem`] docs for more
 //! info and usage examples.
 
-use crate::scene::node::constructor::NodeConstructor;
-use crate::scene::particle_system::emitter::base::BaseEmitterBuilder;
-use crate::scene::particle_system::emitter::sphere::SphereEmitterBuilder;
 use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
@@ -45,16 +42,15 @@ use crate::{
         base::{Base, BaseBuilder},
         graph::Graph,
         mesh::{buffer::VertexTrait, RenderPath},
-        node::{Node, NodeTrait, RdcControlFlow, UpdateContext},
+        node::{constructor::NodeConstructor, Node, NodeTrait, RdcControlFlow, UpdateContext},
         particle_system::{
             draw::Vertex,
-            emitter::{Emit, Emitter},
+            emitter::{base::BaseEmitterBuilder, sphere::SphereEmitterBuilder, Emit, Emitter},
             particle::Particle,
         },
     },
 };
-use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::{constructor::ConstructorProvider, BaseSceneGraph};
 use std::{
     cmp::Ordering,
     fmt::Debug,
@@ -258,6 +254,10 @@ pub struct ParticleSystem {
     /// detached from the particle system (smoke trails)
     coordinate_system: InheritableVariable<CoordinateSystem>,
 
+    /// A margin value in which the distance fading will occur.
+    #[reflect(min_value = 0.0)]
+    fadeout_margin: InheritableVariable<f32>,
+
     rng: ParticleSystemRng,
 }
 
@@ -313,6 +313,7 @@ impl Visit for ParticleSystem {
         let _ = self
             .coordinate_system
             .visit("CoordinateSystem", &mut region);
+        let _ = self.fadeout_margin.visit("FadeoutMargin", &mut region);
 
         // Backward compatibility.
         if region.is_reading() {
@@ -364,8 +365,6 @@ impl TypeUuidProvider for ParticleSystem {
 }
 
 impl ParticleSystem {
-    const FADEOUT_MARGIN: f32 = 1.5;
-
     /// Returns current acceleration for particles in particle system.
     pub fn acceleration(&self) -> Vector3<f32> {
         *self.acceleration
@@ -533,7 +532,7 @@ impl ParticleSystem {
 
     fn is_distance_clipped(&self, point: &Vector3<f32>) -> bool {
         point.metric_distance(&self.global_position())
-            > (*self.visible_distance + Self::FADEOUT_MARGIN)
+            > (*self.visible_distance + *self.fadeout_margin)
     }
 }
 
@@ -599,7 +598,7 @@ impl NodeTrait for ParticleSystem {
             .metric_distance(&self.global_position());
 
         let particle_alpha_factor = if distance_to_observer >= self.visible_distance() {
-            1.0 - (distance_to_observer - self.visible_distance()) / Self::FADEOUT_MARGIN
+            1.0 - (distance_to_observer - self.visible_distance()) / *self.fadeout_margin
         } else {
             1.0
         };
@@ -731,6 +730,7 @@ pub struct ParticleSystemBuilder {
     rng: ParticleSystemRng,
     visible_distance: f32,
     coordinate_system: CoordinateSystem,
+    fadeout_margin: f32,
 }
 
 impl ParticleSystemBuilder {
@@ -751,6 +751,7 @@ impl ParticleSystemBuilder {
             rng: ParticleSystemRng::default(),
             visible_distance: 30.0,
             coordinate_system: Default::default(),
+            fadeout_margin: 1.5,
         }
     }
 
@@ -810,6 +811,12 @@ impl ParticleSystemBuilder {
         self
     }
 
+    /// Sets a margin value in which the distance fading will occur.
+    pub fn with_fadeout_margin(mut self, margin: f32) -> Self {
+        self.fadeout_margin = margin;
+        self
+    }
+
     fn build_particle_system(self) -> ParticleSystem {
         ParticleSystem {
             base: self.base_builder.build_base(),
@@ -823,6 +830,7 @@ impl ParticleSystemBuilder {
             rng: self.rng,
             visible_distance: self.visible_distance.into(),
             coordinate_system: self.coordinate_system.into(),
+            fadeout_margin: self.fadeout_margin.into(),
         }
     }
 
