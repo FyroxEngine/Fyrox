@@ -28,6 +28,7 @@ pub mod executor;
 pub mod task;
 
 mod hotreload;
+mod wasm_utils;
 
 use crate::scene::skybox::SkyBoxKind;
 use crate::{
@@ -1440,6 +1441,9 @@ impl Engine {
             resource_manager,
             task_pool,
         } = params;
+
+        #[cfg(target_arch = "wasm32")]
+        wasm_utils::set_panic_hook();
 
         initialize_resource_manager_loaders(&resource_manager, serialization_context.clone());
 

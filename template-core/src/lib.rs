@@ -328,47 +328,15 @@ fyrox = {{workspace = true}}
         format!(
             r#"//! Executor with your game connected to it as a plugin.
 #![cfg(target_arch = "wasm32")]
+
 use fyrox::engine::executor::Executor;
 use fyrox::event_loop::EventLoop;
-use {name}::Game;
 use fyrox::core::wasm_bindgen::{{self, prelude::*}};
 
-#[wasm_bindgen]
-extern "C" {{
-    #[wasm_bindgen(js_namespace = console)]
-    fn error(msg: String);
-
-    type Error;
-
-    #[wasm_bindgen(constructor)]
-    fn new() -> Error;
-
-    #[wasm_bindgen(structural, method, getter)]
-    fn stack(error: &Error) -> String;
-}}
-
-fn custom_panic_hook(info: &std::panic::PanicHookInfo) {{
-    let mut msg = info.to_string();
-    msg.push_str("\n\nStack:\n\n");
-    let e = Error::new();
-    let stack = e.stack();
-    msg.push_str(&stack);
-    msg.push_str("\n\n");
-    error(msg);
-}}
-
-#[inline]
-pub fn set_panic_hook() {{
-    use std::sync::Once;
-    static SET_HOOK: Once = Once::new();
-    SET_HOOK.call_once(|| {{
-        std::panic::set_hook(Box::new(custom_panic_hook));
-    }});
-}}
+use {name}::Game;
 
 #[wasm_bindgen]
 pub fn main() {{
-    set_panic_hook();
     let mut executor = Executor::new(Some(EventLoop::new().unwrap()));
     executor.add_plugin(Game::default());
     executor.run()
