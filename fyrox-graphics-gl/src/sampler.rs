@@ -103,7 +103,11 @@ impl GlSampler {
             gl.bind_sampler(0, Some(id));
             gl.sampler_parameter_i32(id, glow::TEXTURE_MAG_FILTER, mag_filter.into_gl() as i32);
             gl.sampler_parameter_i32(id, glow::TEXTURE_MIN_FILTER, min_filter.into_gl() as i32);
+
+            // WebGL2 does not support lod bias.
+            #[cfg(not(target_arch = "wasm32"))]
             gl.sampler_parameter_f32(id, glow::TEXTURE_LOD_BIAS, lod_bias);
+
             gl.sampler_parameter_f32(id, glow::TEXTURE_MIN_LOD, min_lod);
             gl.sampler_parameter_f32(id, glow::TEXTURE_MAX_LOD, max_lod);
             gl.sampler_parameter_f32(
