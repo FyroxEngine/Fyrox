@@ -1170,6 +1170,7 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
         let mut hasher = FxHasher::default();
         hasher.write_u64(material.key());
         layout.hash(&mut hasher);
+        hasher.write_u64(sort_index);
         hasher.write_u32(render_path as u32);
         let key = hasher.finish();
 
