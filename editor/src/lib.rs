@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#![allow(deprecated)] // TODO
 #![allow(irrefutable_let_patterns)]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::large_enum_variant)]
@@ -85,7 +86,7 @@ use crate::{
             SerializationContext,
         },
         event::{Event, WindowEvent},
-        event_loop::{EventLoop, EventLoopWindowTarget},
+        event_loop::EventLoop,
         fxhash::{FxHashMap, FxHashSet},
         graph::{BaseSceneGraph, SceneGraph},
         gui::{
@@ -174,6 +175,7 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::EditorSceneWrapper, menu::SceneNodeContextMenu, WorldViewer},
 };
+use fyrox::event_loop::ActiveEventLoop;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
@@ -2901,10 +2903,10 @@ impl Editor {
             ||!self.loading_scenes.lock().is_empty()
     }
 
-    fn on_resumed(&mut self, evt: &EventLoopWindowTarget<()>) {
+    fn on_resumed(&mut self, event_loop: &ActiveEventLoop) {
         let engine = &mut self.engine;
 
-        engine.initialize_graphics_context(evt).unwrap();
+        engine.initialize_graphics_context(event_loop).unwrap();
 
         let graphics_context = engine.graphics_context.as_initialized_mut();
 
@@ -3118,7 +3120,7 @@ fn set_ui_scaling(ui: &UserInterface, scale: f32) {
     ));
 }
 
-fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
+fn update(editor: &mut Editor, event_loop: &ActiveEventLoop) {
     let elapsed = editor.game_loop_data.clock.elapsed().as_secs_f32();
     editor.game_loop_data.clock = Instant::now();
     editor.game_loop_data.lag += elapsed;
@@ -3161,7 +3163,7 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
 
         editor.engine.pre_update(
             FIXED_TIMESTEP,
-            ApplicationLoopController::WindowTarget(window_target),
+            ApplicationLoopController::ActiveEventLoop(event_loop),
             &mut editor.game_loop_data.lag,
             switches,
         );
@@ -3220,7 +3222,7 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
             FIXED_TIMESTEP,
             &Default::default(),
             &mut editor.game_loop_data.lag,
-            ApplicationLoopController::WindowTarget(window_target),
+            ApplicationLoopController::ActiveEventLoop(event_loop),
         );
 
         if need_reload_plugins {
@@ -3234,7 +3236,7 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
 
             editor.engine.handle_plugins_hot_reloading(
                 FIXED_TIMESTEP,
-                ApplicationLoopController::WindowTarget(window_target),
+                ApplicationLoopController::ActiveEventLoop(event_loop),
                 &mut editor.game_loop_data.lag,
                 on_plugin_reloaded,
             );

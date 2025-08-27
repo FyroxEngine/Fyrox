@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#![allow(deprecated)] // TODO
+
 use crate::{
     buffer::GlBuffer,
     framebuffer::GlFrameBuffer,
@@ -65,10 +67,8 @@ use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 #[cfg(not(target_arch = "wasm32"))]
 use std::{ffi::CString, num::NonZeroU32};
-use winit::{
-    event_loop::EventLoopWindowTarget,
-    window::{Window, WindowBuilder},
-};
+use winit::event_loop::ActiveEventLoop;
+use winit::window::{Window, WindowAttributes};
 
 impl ToGlConstant for PolygonFace {
     fn into_gl(self) -> u32 {
@@ -490,8 +490,8 @@ impl GlGraphicsServer {
     pub fn new(
         #[allow(unused_variables)] vsync: bool,
         #[allow(unused_variables)] msaa_sample_count: Option<u8>,
-        window_target: &EventLoopWindowTarget<()>,
-        window_builder: WindowBuilder,
+        window_target: &ActiveEventLoop,
+        mut window_attributes: WindowAttributes,
         named_objects: bool,
     ) -> Result<(Window, SharedGraphicsServer), FrameworkError> {
         #[cfg(not(target_arch = "wasm32"))]
@@ -506,14 +506,14 @@ impl GlGraphicsServer {
             }
 
             let (opt_window, gl_config) = DisplayBuilder::new()
-                .with_window_builder(Some(window_builder))
+                .with_window_attributes(Some(window_attributes))
                 .build(window_target, template, |mut configs| {
                     configs.next().unwrap()
                 })?;
 
             let window = opt_window.unwrap();
 
-            let raw_window_handle = window.raw_window_handle();
+            let raw_window_handle = window.raw_window_handle().unwrap();
 
             let gl_display = gl_config.display();
 
@@ -536,7 +536,7 @@ impl GlGraphicsServer {
                 .build(Some(raw_window_handle));
 
             unsafe {
-                let attrs = window.build_surface_attributes(Default::default());
+                let attrs = window.build_surface_attributes(Default::default()).unwrap();
 
                 let gl_surface = gl_config
                     .display()
@@ -588,8 +588,8 @@ impl GlGraphicsServer {
                 platform::web::WindowExtWebSys,
             };
 
-            let inner_size = window_builder.window_attributes().inner_size;
-            let window = window_builder.build(window_target).unwrap();
+            let inner_size = window_attributes.inner_size;
+            let window = window_target.create_window(window_attributes).unwrap();
 
             let web_window = fyrox_core::web_sys::window().unwrap();
             let scale_factor = web_window.device_pixel_ratio();

@@ -100,11 +100,12 @@ use crate::{
         Script, ScriptContext, ScriptDeinitContext, ScriptMessage, ScriptMessageContext,
         ScriptMessageKind, ScriptMessageSender, UniversalScriptContext,
     },
-    window::{Window, WindowBuilder},
+    window::Window,
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
 use fyrox_core::visitor::error::VisitError;
+use fyrox_core::warn;
 use fyrox_graphics::server::SharedGraphicsServer;
 use fyrox_graphics_gl::server::GlGraphicsServer;
 use fyrox_sound::{
@@ -127,9 +128,9 @@ use std::{
     time::Duration,
 };
 use uuid::Uuid;
+use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::{
     dpi::{Position, Size},
-    event_loop::EventLoopWindowTarget,
     window::Icon,
     window::WindowAttributes,
 };
@@ -1080,8 +1081,8 @@ pub type GraphicsServerConstructorResult = Result<(Window, SharedGraphicsServer)
 /// as the server.
 pub type GraphicsServerConstructorCallback = dyn Fn(
     &GraphicsContextParams,
-    &EventLoopWindowTarget<()>,
-    WindowBuilder,
+    &ActiveEventLoop,
+    WindowAttributes,
     bool,
 ) -> GraphicsServerConstructorResult;
 
@@ -1374,7 +1375,9 @@ pub enum ApplicationLoopController<'a> {
         running: &'a Cell<bool>,
     },
     /// Normal application loop controller with full window, graphics, sound support.
-    WindowTarget(&'a EventLoopWindowTarget<()>),
+    ActiveEventLoop(&'a ActiveEventLoop),
+    /// Normal application loop controller without a window.
+    EventLoop(&'a EventLoop<()>),
 }
 
 impl ApplicationLoopController<'_> {
@@ -1382,7 +1385,10 @@ impl ApplicationLoopController<'_> {
     pub fn exit(&self) {
         match self {
             ApplicationLoopController::Headless { running } => running.set(false),
-            ApplicationLoopController::WindowTarget(window_target) => window_target.exit(),
+            ApplicationLoopController::ActiveEventLoop(event_loop) => event_loop.exit(),
+            ApplicationLoopController::EventLoop(_) => {
+                warn!("Can't exit the loop until it is activated!")
+            }
         }
     }
 }
@@ -1488,48 +1494,13 @@ impl Engine {
     /// graphics context at all (for example - if you're making game server).
     pub fn initialize_graphics_context(
         &mut self,
-        window_target: &EventLoopWindowTarget<()>,
+        event_loop: &ActiveEventLoop,
     ) -> Result<(), EngineError> {
         if let GraphicsContext::Uninitialized(params) = &self.graphics_context {
-            let mut window_builder = WindowBuilder::new();
-            if let Some(inner_size) = params.window_attributes.inner_size {
-                window_builder = window_builder.with_inner_size(inner_size);
-            }
-            if let Some(min_inner_size) = params.window_attributes.min_inner_size {
-                window_builder = window_builder.with_min_inner_size(min_inner_size);
-            }
-            if let Some(max_inner_size) = params.window_attributes.max_inner_size {
-                window_builder = window_builder.with_min_inner_size(max_inner_size);
-            }
-            if let Some(position) = params.window_attributes.position {
-                window_builder = window_builder.with_position(position);
-            }
-            if let Some(resize_increments) = params.window_attributes.resize_increments {
-                window_builder = window_builder.with_resize_increments(resize_increments);
-            }
-            unsafe {
-                window_builder = window_builder
-                    .with_parent_window(params.window_attributes.parent_window().cloned());
-            }
-            window_builder = window_builder
-                .with_resizable(params.window_attributes.resizable)
-                .with_enabled_buttons(params.window_attributes.enabled_buttons)
-                .with_title(params.window_attributes.title.clone())
-                .with_fullscreen(params.window_attributes.fullscreen().cloned())
-                .with_maximized(params.window_attributes.maximized)
-                .with_visible(params.window_attributes.visible)
-                .with_transparent(params.window_attributes.transparent)
-                .with_decorations(params.window_attributes.decorations)
-                .with_window_icon(params.window_attributes.window_icon.clone())
-                .with_theme(params.window_attributes.preferred_theme)
-                .with_content_protected(params.window_attributes.content_protected)
-                .with_window_level(params.window_attributes.window_level)
-                .with_active(params.window_attributes.active);
-
             let (window, server) = params.graphics_server_constructor.0(
                 params,
-                window_target,
-                window_builder,
+                event_loop,
+                params.window_attributes.clone(),
                 params.named_objects,
             )?;
             let frame_size = (window.inner_size().width, window.inner_size().height);

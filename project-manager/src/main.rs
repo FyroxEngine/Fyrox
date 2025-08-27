@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#![allow(deprecated)]
+
 //! Project manager is used to create, import, rename, delete, run and edit projects built with Fyrox.
 
 mod manager;
@@ -114,25 +116,25 @@ fn main() {
     let mut time_step = 1.0 / 60.0;
 
     event_loop
-        .run(move |event, window_target| {
+        .run(move |event, active_event_loop| {
             if project_manager.mode.is_build() {
                 // Keep updating with reduced rate to keep printing to the build log, but do not
                 // eat as much time as in normal update mode.
                 time_step = 1.0 / 10.0;
 
-                window_target.set_control_flow(ControlFlow::wait_duration(
+                active_event_loop.set_control_flow(ControlFlow::wait_duration(
                     Duration::from_secs_f32(time_step),
                 ));
             } else {
                 // Wait for an event.
-                window_target.set_control_flow(ControlFlow::Wait);
+                active_event_loop.set_control_flow(ControlFlow::Wait);
                 time_step = 1.0 / 60.0;
             }
 
             match event {
                 Event::Resumed => {
                     engine
-                        .initialize_graphics_context(window_target)
+                        .initialize_graphics_context(active_event_loop)
                         .expect("Unable to initialize graphics context!");
                     let graphics_context = engine.graphics_context.as_initialized_mut();
                     graphics_context
@@ -168,7 +170,7 @@ fn main() {
 
                         engine.update(
                             time_step,
-                            ApplicationLoopController::WindowTarget(window_target),
+                            ApplicationLoopController::ActiveEventLoop(active_event_loop),
                             &mut 0.0,
                             Default::default(),
                         );
@@ -192,7 +194,7 @@ fn main() {
                         WindowEvent::Focused(focus) => {
                             project_manager.focused = focus;
                         }
-                        WindowEvent::CloseRequested => window_target.exit(),
+                        WindowEvent::CloseRequested => active_event_loop.exit(),
                         WindowEvent::Resized(size) => {
                             if let Err(e) = engine.set_frame_size(size.into()) {
                                 Log::writeln(
