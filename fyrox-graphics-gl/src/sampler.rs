@@ -98,6 +98,7 @@ impl GlSampler {
                 anisotropy,
                 min_lod,
                 max_lod,
+                #[allow(unused_variables)]
                 lod_bias,
             } = desc;
             gl.bind_sampler(0, Some(id));
