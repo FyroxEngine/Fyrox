@@ -46,7 +46,7 @@ wasm-bindgen-futures = "0.4.26"
 js-sys = "0.3.53"
 
 [target.'cfg(target_os = "android")'.dependencies]
-android-activity = "0.5.0"
+android-activity = "0.6.0"
 
 [features]
 serde = ["nalgebra/serde-serialize", "uuid/serde"]
