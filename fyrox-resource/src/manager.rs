@@ -690,8 +690,7 @@ impl ResourceManagerState {
         );
 
         // Try to update the registry first.
-        // Wasm is an exception, because it does not have a file system.
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
         fyrox_core::futures::executor::block_on(async move {
             let new_data =
                 ResourceRegistry::scan(resource_io.clone(), task_loaders, &path, excluded_folders)
@@ -701,8 +700,7 @@ impl ResourceManagerState {
             registry_status.mark_as_loaded();
         });
 
-        // WASM can only try to asynchronously load the existing registry.
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(any(target_arch = "wasm32", target_os = "android"))]
         self.task_pool.spawn_task(async move {
             use crate::registry::RegistryContainerExt;
             // Then load the registry.

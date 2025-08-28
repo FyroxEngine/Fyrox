@@ -294,7 +294,7 @@ pub struct ResourceRegistry {
 impl ResourceRegistry {
     /// Default path of the registry. It can be overridden on a registry instance using
     /// [`Self::set_path`] method.
-    pub const DEFAULT_PATH: &'static str = "./data/resources.registry";
+    pub const DEFAULT_PATH: &'static str = "data/resources.registry";
 
     /// Creates a new resource registry with the given resource IO.
     pub fn new(io: Arc<dyn ResourceIo>) -> Self {
