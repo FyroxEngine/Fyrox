@@ -141,6 +141,13 @@ impl ToGlConstant for ShaderKind {
 impl GpuShaderTrait for GlShader {}
 
 impl GlShader {
+    /// Generate and compile the source code for a shader.
+    /// * `server`: The OpenGL context that is used to compile the shader.
+    /// * `name`: The name of the shader that will be used to log messages about the compilation and report errors.
+    /// * `kind`: Is this a vertex shader or a fragment shader?
+    /// * `source`: The source code for the shader, excluding the uniform declarations that are automatically generated.
+    /// * `resources`: Resource definitions that are used to automatically generate uniform declarations in the source code before compiling.
+    /// * `line_offset`: The position of the first line of source code in whatever file it came from, for error reporting.
     pub fn new(
         server: &GlGraphicsServer,
         name: String,

@@ -123,8 +123,8 @@ impl GlFrameBuffer {
                     server,
                     depth_attachment_kind,
                     texture,
-                    depth_attachment.level as i32,
-                    depth_attachment.cube_map_face,
+                    depth_attachment.level() as i32,
+                    depth_attachment.cube_map_face(),
                 );
             }
 
@@ -141,8 +141,8 @@ impl GlFrameBuffer {
                     server,
                     color_attachment_kind,
                     texture,
-                    color_attachment.level as i32,
-                    color_attachment.cube_map_face,
+                    color_attachment.level() as i32,
+                    color_attachment.cube_map_face(),
                 );
                 color_buffers.push(color_attachment_kind);
             }
@@ -198,7 +198,9 @@ impl GpuFrameBufferTrait for GlFrameBuffer {
         unsafe {
             server.set_framebuffer(FrameBufferBindingPoint::ReadWrite, self.fbo);
 
-            let attachment = self.color_attachments.get(attachment_index).unwrap();
+            let attachment = &self.color_attachments[attachment_index];
+            attachment.set_cube_map_face(Some(face));
+            attachment.set_level(level);
             let texture = attachment
                 .texture
                 .as_any()

@@ -141,7 +141,11 @@ impl ObserversCollection {
     }
 }
 
+/// An Observer holds all the information required to render a scene from a particular point of view,
+/// including everything except the actual scene to be rendered.
+/// Observers are naturally constructed using the data from some camera in the scene.
 pub struct Observer {
+    /// The handle of the camera that was used to create this Observer.
     pub handle: Handle<Node>,
     pub cube_map_face: Option<CubeMapFace>,
     pub render_target: Option<TextureResource>,

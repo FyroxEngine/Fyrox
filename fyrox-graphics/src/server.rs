@@ -197,7 +197,10 @@ pub trait GraphicsServer: GraphicsServerAsAny {
     /// Returns current capabilities of the graphics server. See [`ServerCapabilities`] for more info.
     fn capabilities(&self) -> ServerCapabilities;
 
-    /// Sets current polygon fill mode. See [`PolygonFace`] and [`PolygonFillMode`] docs for more info.
+    /// Sets current polygon fill mode for front faces, back faces, or both.
+    /// The mode of front faces is controlled separately from the mode of back faces,
+    /// and `polygon_face` determines which mode is set by this method.
+    /// See [`PolygonFace`] and [`PolygonFillMode`] docs for more info.
     fn set_polygon_fill_mode(&self, polygon_face: PolygonFace, polygon_fill_mode: PolygonFillMode);
 
     /// Generates mipmaps for the given texture. Graphics server implementation can pick any desired
