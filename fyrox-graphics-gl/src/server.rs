@@ -902,7 +902,9 @@ impl GlGraphicsServer {
             .delete_framebuffer(framebuffer, &self.gl)
     }
 
-    /// `glBindFramebuffer`
+    /// Choose the current frame buffer for reading or writing. See `glBindFramebuffer` from OpenGL.
+    /// * `binding_point`: Are we going to read from this buffer, write to it, or both?
+    /// * `framebuffer`: The buffer that we are going to use.
     pub(crate) fn set_framebuffer(
         &self,
         binding_point: FrameBufferBindingPoint,
@@ -913,7 +915,7 @@ impl GlGraphicsServer {
             .set_framebuffer(binding_point, framebuffer, &self.gl)
     }
 
-    /// `glViewport`
+    /// Choose a rectangle where rendering will happen. See `glViewport` from OpenGL.
     pub(crate) fn set_viewport(&self, viewport: Rect<i32>) {
         let mut state = self.state.borrow_mut();
         if state.viewport != viewport {
@@ -930,7 +932,8 @@ impl GlGraphicsServer {
         }
     }
 
-    /// 'glEnable(GL_BLEND)` or `glDisable(GL_BLEND)`
+    /// Turn blending on or off, allowing rendered pixels to be influenced by the pixels that
+    /// are already in the frame buffer. See 'glEnable(GL_BLEND)` or `glDisable(GL_BLEND)` from OpenGL.
     pub(crate) fn set_blend(&self, blend: bool) {
         let mut state = self.state.borrow_mut();
         if state.blend != blend {
@@ -948,7 +951,9 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glEnable(GL_DEPTH_TEST)` or `glDisable(GL_DEPTH_TEST)`.
+    /// Turn depth testing on or off, allowing the content of the depth buffer to determine whether
+    /// a rendered pixel will be written to the frame buffer.
+    /// See `glEnable(GL_DEPTH_TEST)` or `glDisable(GL_DEPTH_TEST)` from OpenGL.
     pub(crate) fn set_depth_test(&self, depth_test: bool) {
         let mut state = self.state.borrow_mut();
         if state.depth_test != depth_test {
@@ -964,7 +969,8 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glDepthMask`
+    /// Turn depth writing on or off, allowing the depth buffer to be modified when rendering.
+    /// See `glDepthMask` from OpenGL.
     pub(crate) fn set_depth_write(&self, depth_write: bool) {
         let mut state = self.state.borrow_mut();
         if state.depth_write != depth_write {
@@ -976,7 +982,8 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glColorMask`
+    /// Turn writing to each color channel on or off. For example, writing red values might be disabled.
+    /// See `glColorMask` from OpenGL.
     pub(crate) fn set_color_write(&self, color_write: ColorMask) {
         let mut state = self.state.borrow_mut();
         if state.color_write != color_write {
@@ -993,7 +1000,9 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glEnable(GL_STENCIL_TEST)` or `glDisable(GL_STENCIL_TEST)`.
+    /// Turn stencil testing on or off, allowing the content of the stencil buffer to determine whether
+    /// each rendered pixel will be written.
+    /// See `glEnable(GL_STENCIL_TEST)` or `glDisable(GL_STENCIL_TEST)` from OpenGL.
     pub(crate) fn set_stencil_test(&self, stencil_test: bool) {
         let mut state = self.state.borrow_mut();
         if state.stencil_test != stencil_test {
@@ -1009,7 +1018,7 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glCullFace`
+    /// See `glCullFace` from OpenGL.
     pub(crate) fn set_cull_face(&self, cull_face: CullFace) {
         let mut state = self.state.borrow_mut();
         if state.cull_face != cull_face {
@@ -1019,7 +1028,7 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glEnable(GL_CULL_FACE)` or `glDisable(GL_CULL_FACE)`.
+    /// See `glEnable(GL_CULL_FACE)` or `glDisable(GL_CULL_FACE)` from OpenGL.
     pub(crate) fn set_culling(&self, culling: bool) {
         let mut state = self.state.borrow_mut();
         if state.culling != culling {
@@ -1035,7 +1044,10 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glStencilMask`
+    /// Control which bits of the stencil buffer may be modified.
+    /// Bits of `stencil_mask` that are 1 correspond to bits of the buffer that may be modified.
+    /// If `stencil_mask` is 0 then nothing in the stencil mask can be modified.
+    /// See `glStencilMask` from OpenGL.
     pub(crate) fn set_stencil_mask(&self, stencil_mask: u32) {
         let mut state = self.state.borrow_mut();
         if state.stencil_op.write_mask != stencil_mask {
@@ -1047,7 +1059,7 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glClearColor`. Set the color used when clearing a color buffer.
+    /// Set the color used when clearing a color buffer. See `glClearColor`.
     pub(crate) fn set_clear_color(&self, color: Color) {
         let mut state = self.state.borrow_mut();
         if state.clear_color != color {
@@ -1060,7 +1072,7 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glClearDepth`. Set the depth used when clearing a depth buffer.
+    /// Set the depth used when clearing a depth buffer. See `glClearDepth`.
     pub(crate) fn set_clear_depth(&self, depth: f32) {
         let mut state = self.state.borrow_mut();
         if (state.clear_depth - depth).abs() > f32::EPSILON {
@@ -1072,7 +1084,7 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glClearStencil`. Set the value used when clearing a stencil buffer.
+    /// Set the value used when clearing a stencil buffer. See `glClearStencil`.
     pub(crate) fn set_clear_stencil(&self, stencil: i32) {
         let mut state = self.state.borrow_mut();
         if state.clear_stencil != stencil {
@@ -1084,7 +1096,10 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glBlendFuncSeparate`
+    /// Modify how pixels are blended by changing the factors that multiply the source pixel
+    /// (coming from the fragment shader) and the destination pixel (already in the frame buffer).
+    /// See [`BlendFactor`] for available factors.
+    /// See `glBlendFuncSeparate` from OpenGL.
     pub(crate) fn set_blend_func(&self, func: BlendFunc) {
         let mut state = self.state.borrow_mut();
         if state.blend_func != func {
@@ -1101,7 +1116,9 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glBlendEquationSeparate`
+    /// Modify how pixels are blended by changing the formula that is used to combine the source pixel
+    /// (coming from the fragment shader) and the destination pixel (already in the frame buffer).
+    /// See `glBlendEquationSeparate` from OpenGL.
     pub(crate) fn set_blend_equation(&self, equation: BlendEquation) {
         let mut state = self.state.borrow_mut();
         if state.blend_equation != equation {
@@ -1116,7 +1133,8 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glDepthFunc`
+    /// Set the function used to compare the fragment shader's z to the depth buffer
+    /// and thereby decide whether to render the pixel. See `glDepthFunc` from OpenGL.
     pub(crate) fn set_depth_func(&self, depth_func: CompareFunc) {
         let mut state = self.state.borrow_mut();
         if state.depth_func != depth_func {
@@ -1128,17 +1146,17 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glDeleteProgram`
+    /// Delete the given program. See `glDeleteProgram` from OpenGL.
     pub fn delete_program(&self, program: glow::Program) {
         self.state.borrow_mut().delete_program(program, &self.gl);
     }
 
-    /// `glUseProgram`
+    /// Choose the program to use for the following rendering commands. See `glUseProgram` from OpenGL.
     pub(crate) fn set_program(&self, program: Option<glow::Program>) {
         self.state.borrow_mut().set_program(program, &self.gl)
     }
 
-    /// `glDeleteTextures`
+    /// Delete the given texture. See `glDeleteTextures` from OpenGL.
     pub(crate) fn delete_texture(&self, texture: glow::Texture) {
         self.state.borrow_mut().delete_texture(texture, &self.gl)
     }
@@ -1153,7 +1171,9 @@ impl GlGraphicsServer {
             .set_texture(unit_index, target, texture, &self.gl)
     }
 
-    /// `glStencilFunc`
+    /// Modify how the stencil buffer prevents pixels from being drawn.
+    /// See [`StencilFunc`] for the available options.
+    /// See `glStencilFunc` from OpenGL.
     pub(crate) fn set_stencil_func(&self, func: StencilFunc) {
         let mut state = self.state.borrow_mut();
         if state.stencil_func != func {
@@ -1169,7 +1189,9 @@ impl GlGraphicsServer {
         }
     }
 
-    /// `glStencilOp`
+    /// Modify how the stencil buffer is written to by rendering.
+    /// See [`StencilOp`] for details of the available options.
+    /// See `glStencilOp` and `glStencilMask` from OpenGL.
     pub(crate) fn set_stencil_op(&self, op: StencilOp) {
         let mut state = self.state.borrow_mut();
         let new_mask = op.write_mask;

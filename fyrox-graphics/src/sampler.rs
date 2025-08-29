@@ -18,6 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! A sampler is a GPU entity that defines how texels will be fetched from a texture. See [`GpuSamplerDescriptor`]
+//! docs for more info.
+
 use crate::define_shared_wrapper;
 use fyrox_core::define_as_any_trait;
 use std::fmt::Debug;
@@ -70,6 +73,7 @@ impl Default for GpuSamplerDescriptor {
 }
 
 impl GpuSamplerDescriptor {
+    /// Create a sampler for a rander target.
     pub fn new_rt_sampler() -> Self {
         Self {
             min_filter: MinificationFilter::Nearest,

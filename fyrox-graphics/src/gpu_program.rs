@@ -118,7 +118,7 @@ pub enum SamplerKind {
     /// and where each component of the value is a float.
     #[default]
     Sampler2D,
-    /// A sampler for a 3D texture, a volume of floats that are indexed by three coordinates (x, y, z)
+    /// A sampler for a 3D texture, a volume of values that are indexed by three coordinates (x, y, z)
     /// and where each component of the value is a float.
     Sampler3D,
     /// A sampler for six square 2D images where each image represents one face of a cube.
@@ -129,10 +129,10 @@ pub enum SamplerKind {
     /// A sampler for a 1D linear texture, a series of values that are indexed by a single coordinate
     /// and where each component of the value is an unsigned integer.
     USampler1D,
-    /// A sampler for the usual 2D image texture, a flat area of unsigned integers that are indexed by a pair of coordinates (x, y)
+    /// A sampler for the usual 2D image texture, a flat area of values that are indexed by a pair of coordinates (x, y)
     /// and where each component of the value is an unsigned integer.
     USampler2D,
-    /// A sampler for a 3D texture, a volume of unsigned integers that are indexed by three coordinates (x, y, z)
+    /// A sampler for a 3D texture, a volume of values that are indexed by three coordinates (x, y, z)
     /// and where each component of the value is an unsigned integer.
     USampler3D,
     /// A sampler for six square 2D images where each image represents one face of a cube.
@@ -518,16 +518,23 @@ impl Default for ShaderResourceKind {
 /// Shader resource definition.
 #[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq, Reflect, Visit)]
 pub struct ShaderResourceDefinition {
-    /// A name of the resource.
+    /// The name of the uniform as it appears in the source code, ready to be passed to `glGetUniformLocation`.
+    /// If the name begins with "fyrox_" then Fyrox will treat it specially and try to automatically generate
+    /// the uniform's value based on its name, such as "fyrox_sceneDepth".
     pub name: ImmutableString,
     /// A kind of resource.
     pub kind: ShaderResourceKind,
-    /// Binding points for active uniform blocks are assigned using `glUniformBlockBinding`.
     /// Each of a program's active uniform blocks has a corresponding uniform buffer binding point.
+    /// Binding points for active uniform blocks are assigned using `glUniformBlockBinding`.
+    /// For textures, `glUniform1i` is used to assign the texture's binding point to the texture uniform.
     pub binding: usize,
 }
 
 impl ShaderResourceDefinition {
+    /// Fyrox provides certain resources to shaders automatically, without the resources needing
+    /// to be part of the material. This method is used by the `fyrox-impl` crate to decide whether
+    /// it should look for the resource in the material (if `false`) or whether it should assume
+    /// that this resource will be among the automatically provided resources.
     pub fn is_built_in(&self) -> bool {
         self.name.starts_with("fyrox_")
     }

@@ -18,6 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! Structs to keep count of the numbers of various operations that are performed during
+//! rendering.
+
 use crate::framebuffer::DrawCallStatistics;
 use std::fmt::{Display, Formatter};
 

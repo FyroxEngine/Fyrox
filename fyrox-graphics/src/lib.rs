@@ -24,6 +24,7 @@
 //! The `fyrox-graphics-gl` crate provides an OpenGL implementation of `GraphicsServer`.
 
 #![allow(clippy::too_many_arguments)]
+#![warn(missing_docs)]
 
 pub use fyrox_core as core;
 use std::fmt::Debug;
@@ -45,6 +46,24 @@ pub mod server;
 pub mod stats;
 pub mod uniform;
 
+/// Define a wrapper struct that holds an `Rc` containing the given type.
+/// It implements `Clone` to copy the `Rc` and
+/// implements `Deref` to access the value inside the `Rc`.
+///
+/// For example: `define_shared_wrapper!(Example<usize>)` would expand to:
+/// ```
+/// #[derive(Clone)]
+/// #[doc(hidden)]
+/// pub struct Example(pub std::rc::Rc<usize>);
+///
+/// impl std::ops::Deref for Example {
+///      type Target = usize;
+///
+///      fn deref(&self) -> &Self::Target {
+///         self.0.deref()
+///      }
+/// }
+/// ```
 #[macro_export]
 macro_rules! define_shared_wrapper {
     ($name:ident<$ty:ty>) => {
@@ -138,7 +157,10 @@ pub enum CompareFunc {
     Always,
 }
 
-/// Defines a set values (per color) for blending operation.
+/// Defines how some color will be multiplied before being blended.
+/// The destination color is the color that is currently in the frame buffer,
+/// and the source color is the color that is produced by the fragment shader.
+/// See [`BlendFunc`] for more about how to use these.
 #[derive(
     Copy,
     Clone,
@@ -158,25 +180,45 @@ pub enum CompareFunc {
     Default,
 )]
 pub enum BlendFactor {
+    /// The color is multiplied by zero, turning it black.
     #[default]
     Zero,
+    /// The color is multiplied by one, leaving it unchanged.
     One,
+    /// The color is multiplied by the source color.
     SrcColor,
+    /// The color is multiplied by (1 - src), the inverted source color.
     OneMinusSrcColor,
+    /// The color is multiplied by the destination color.
     DstColor,
+    /// The color is multiplied by (1 - dst), the inverted destination color.
     OneMinusDstColor,
+    /// The color is multiplied by the alpha of the source color.
     SrcAlpha,
+    /// The color is multiplied by (1 - alpha), the inverted alpha of the source color.
     OneMinusSrcAlpha,
+    /// The color is multiplied by the alpha of the destination color.
     DstAlpha,
+    /// The color is multiplied by (1 - alpha), the inverted alpha of the destination color.
     OneMinusDstAlpha,
+    /// The color is multiplied by the blend constant.
     ConstantColor,
+    /// The color is multiplied by (1 - constant), the inverted blend constant.
     OneMinusConstantColor,
+    /// The color is multiplied by the alpha of the blend constant.
     ConstantAlpha,
+    /// The color is multiplied by (1 - alpha), the inverted alpha of the blend constant.
     OneMinusConstantAlpha,
+    /// Red, green, and blue channels are multiplied by min(src alpha, 1 - dst alpha),
+    /// and the alpha channel is multiplied by 1.
     SrcAlphaSaturate,
+    /// The color is multiplied by the color of the second source.
     Src1Color,
+    /// The color is multiplied by (1 - src1), the inverted color of the second source.
     OneMinusSrc1Color,
+    /// The color is multiplied by the alpha of the second source.
     Src1Alpha,
+    /// The color is multiplied by (1 - alpha), the inverted alpha of the second source.
     OneMinusSrc1Alpha,
 }
 
@@ -234,21 +276,21 @@ pub struct BlendEquation {
     pub alpha: BlendMode,
 }
 
-/// Blending function defines sources of data for both operands in blending equation (separately
+/// Blending function defines factors for both operands in blending equation (separately
 /// for RGB and Alpha parts). Default blending function is replacing destination values with the
 /// source ones.
 #[derive(
     Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Serialize, Deserialize, Visit, Debug, Reflect,
 )]
 pub struct BlendFunc {
-    /// Data for source (the value that is produced by a shader) in the blending equation (RGB part).
+    /// Factor for the source (the value that is produced by a shader) in the blending equation (RGB part).
     pub sfactor: BlendFactor,
-    /// Data for destination (the value that is already in a frame buffer) in the blending equation
+    /// Factor for the destination (the value that is already in a frame buffer) in the blending equation
     /// (RGB part).
     pub dfactor: BlendFactor,
-    /// Data for source (the value that is produced by a shader) in the blending equation (alpha part).
+    /// Factor for the source (the value that is produced by a shader) in the blending equation (alpha part).
     pub alpha_sfactor: BlendFactor,
-    /// Data for destination (the value that is already in a frame buffer) in the blending equation
+    /// Factor for the destination (the value that is already in a frame buffer) in the blending equation
     /// (alpha part).
     pub alpha_dfactor: BlendFactor,
 }
@@ -358,12 +400,16 @@ pub enum PolygonFace {
     FrontAndBack,
 }
 
-/// Defines a function that used in a stencil test.
+/// Defines a function that used in a stencil test by comparing the `ref_value` to the stencil buffer.
 #[derive(
     Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
 )]
 pub struct StencilFunc {
-    /// A function that is used to compare two values. Default value is [`CompareFunc::Always`].
+    /// The function that is used to compare the stencil buffer value against `ref_value`.
+    /// In this case the incoming value is `ref_value` and the stored value is the stencil buffer value
+    /// for the pixel. So [`CompareFunc::Less`] which means `ref_value` must be less than the stencil buffer value
+    /// or else the pixel will not draw.
+    /// Default value is [`CompareFunc::Always`], which means draw every pixel.
     pub func: CompareFunc,
     /// Reference value that is used to compare against the current value in the stencil buffer.
     /// Default value is 0.
@@ -454,6 +500,8 @@ pub struct StencilOp {
 }
 
 impl StencilOp {
+    /// Compare the actions of this `StencilOp` with the actions of another `StencilOp`. True if all actions match.
+    /// This comparison ignores the `write_mask`.
     pub fn eq_actions(&self, other: &StencilOp) -> bool {
         self.fail == other.fail && self.zfail == other.zfail && self.zpass == other.zpass
     }
@@ -580,6 +628,7 @@ pub enum ElementKind {
 }
 
 impl ElementKind {
+    /// The number of indices that are required to represent the element.
     pub fn index_per_element(self) -> usize {
         match self {
             ElementKind::Triangle => 3,
