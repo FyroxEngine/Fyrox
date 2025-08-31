@@ -172,18 +172,24 @@ impl Default for SurfaceInstanceData {
 }
 
 /// A set of surface instances that share the same vertex/index data and a material.
+/// Geometry instancing means rendering multiple copies of the same mesh in a scene at once,
+/// reusing the same vertex data but with a different world transform each time.
+/// This technique can be used for objects such as trees that may need to be repeated many times in a scene.
+/// See [`SurfaceInstanceData`] for the properties that can change between instances of the bundle.
 pub struct RenderDataBundle {
-    /// A pointer to shared surface data.
+    /// A pointer to shared surface data, such as vertices, triangle indices, and blend shapes.
     pub data: SurfaceResource,
     /// Amount of time (in seconds) for GPU geometry buffer (vertex + index buffers) generated for
     /// the `data`.
     pub time_to_live: TimeToLive,
-    /// A set of instances.
+    /// A set of instances, each with their own world transform and other properties.
     pub instances: Vec<SurfaceInstanceData>,
     /// A material that is shared across all instances.
     pub material: MaterialResource,
     /// A render path of the bundle.
     pub render_path: RenderPath,
+    /// The priority of this bundle when sorting the bundles to determine which will be rendered
+    /// first. Bundles with lower values are rendered before bundles with higher values.
     sort_index: u64,
 }
 
@@ -210,7 +216,7 @@ pub struct InstanceUniformData {
 /// Describes where to the actual uniform data is located in the memory backed by the uniform
 /// memory allocator on per-bundle basis.
 pub struct BundleUniformData {
-    /// Material info block location.
+    /// Material info block location in the form of (binding point, position within allocator)
     pub material_property_group_blocks: Vec<(usize, UniformBlockLocation)>,
     /// Lights info block location.
     pub light_data_block: UniformBlockLocation,
