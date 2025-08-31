@@ -276,7 +276,7 @@ impl Control for AssetItem {
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::MouseDown { button, .. } => {
-                    if !message.handled() {
+                    if !message.handled() && !ui.keyboard_modifiers().alt {
                         if let MouseButton::Left | MouseButton::Right = *button {
                             message.set_handled(true);
 
