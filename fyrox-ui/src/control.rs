@@ -28,6 +28,7 @@ use crate::{
 };
 use fyrox_core::define_as_any_trait;
 
+use fyrox_core::algebra::Matrix3;
 use std::{
     any::Any,
     ops::{Deref, DerefMut},
@@ -266,7 +267,12 @@ pub trait Control:
     /// for [`DrawingContext`] for more info.
     fn draw(&self, #[allow(unused_variables)] drawing_context: &mut DrawingContext) {}
 
-    fn on_visual_transform_changed(&self) {}
+    fn on_visual_transform_changed(
+        &self,
+        #[allow(unused_variables)] old_transform: &Matrix3<f32>,
+        #[allow(unused_variables)] new_transform: &Matrix3<f32>,
+    ) {
+    }
 
     /// The same as [`Self::draw`], but it runs after all descendant widgets are rendered.
     fn post_draw(&self, #[allow(unused_variables)] drawing_context: &mut DrawingContext) {}

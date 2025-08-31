@@ -559,8 +559,13 @@ impl Control for TextureSliceEditorWindow {
         self.window.draw(drawing_context)
     }
 
-    fn on_visual_transform_changed(&self) {
-        self.window.on_visual_transform_changed()
+    fn on_visual_transform_changed(
+        &self,
+        old_transform: &Matrix3<f32>,
+        new_transform: &Matrix3<f32>,
+    ) {
+        self.window
+            .on_visual_transform_changed(old_transform, new_transform)
     }
 
     fn post_draw(&self, drawing_context: &mut DrawingContext) {

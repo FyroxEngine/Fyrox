@@ -48,6 +48,7 @@ use crate::{
 };
 use copypasta::ClipboardProvider;
 
+use fyrox_core::algebra::Matrix3;
 use fyrox_core::some_or_return;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
@@ -952,11 +953,17 @@ impl Control for TextBox {
             .build()
     }
 
-    fn on_visual_transform_changed(&self) {
-        self.formatted_text
-            .borrow_mut()
-            .set_super_sampling_scale(self.visual_max_scaling())
-            .build();
+    fn on_visual_transform_changed(
+        &self,
+        old_transform: &Matrix3<f32>,
+        new_transform: &Matrix3<f32>,
+    ) {
+        if old_transform != new_transform {
+            self.formatted_text
+                .borrow_mut()
+                .set_super_sampling_scale(self.visual_max_scaling())
+                .build();
+        }
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {

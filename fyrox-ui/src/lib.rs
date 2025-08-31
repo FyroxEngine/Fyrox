@@ -1214,8 +1214,9 @@ impl UserInterface {
                     layout_transform * widget.render_transform
                 };
 
-                widget.visual_transform = visual_transform;
-                widget.on_visual_transform_changed();
+                let old_transform =
+                    std::mem::replace(&mut widget.visual_transform, visual_transform);
+                widget.on_visual_transform_changed(&old_transform, &visual_transform);
             }
         }
     }
