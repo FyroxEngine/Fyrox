@@ -189,6 +189,24 @@
 //! **Important**: This example **does not** include any drawing or OS event processing! It is because this
 //! crate is OS- and GAPI-agnostic and do not create native OS windows and cannot draw anything on screen.
 //! For more specific examples, please see `examples` of the crate.
+//!
+//! ## Keyboard Focus
+//!
+//! Widgets can receive keyboard events, but only one widget at a time can have the keyboard focus.
+//! The focused widget is automatically highlighted by the UI library using a rounded rectangle of
+//! bright-blue color. Such highlighting can be disabled by setting a [`Style::BRUSH_HIGHLIGHT`]
+//! property at the root style of your [`UserInterface`] instance.
+//!
+//! ```rust
+//! use fyrox_core::color::Color;
+//! use fyrox_ui::brush::Brush;
+//! use fyrox_ui::style::Style;
+//! use fyrox_ui::UserInterface;
+//!
+//! fn disable_highlighting(ui: &mut UserInterface) {
+//!     ui.style().data_ref().set(Style::BRUSH_HIGHLIGHT, Brush::Solid(Color::TRANSPARENT));
+//! }
+//! ```
 
 #![forbid(unsafe_code)]
 #![allow(irrefutable_let_patterns)]
