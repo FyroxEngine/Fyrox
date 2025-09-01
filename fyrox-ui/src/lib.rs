@@ -610,6 +610,7 @@ pub enum LayoutEvent {
     ArrangementInvalidated(Handle<UiNode>),
     VisibilityChanged(Handle<UiNode>),
     ZIndexChanged(Handle<UiNode>),
+    TransformChanged(Handle<UiNode>),
 }
 
 #[derive(Clone, Debug, Visit, Reflect, Default)]
@@ -722,7 +723,6 @@ pub struct UserInterface {
     layout_events_receiver: Receiver<LayoutEvent>,
     #[reflect(hidden)]
     layout_events_sender: Sender<LayoutEvent>,
-    need_update_global_transform: bool,
     #[reflect(hidden)]
     z_index_update_set: FxHashSet<Handle<UiNode>>,
     #[reflect(hidden)]
@@ -820,7 +820,6 @@ impl Clone for UserInterface {
             clipboard: Clipboard(ClipboardContext::new().ok().map(RefCell::new)),
             layout_events_receiver,
             layout_events_sender,
-            need_update_global_transform: self.need_update_global_transform,
             z_index_update_set: self.z_index_update_set.clone(),
             default_font: self.default_font.clone(),
             double_click_entries: self.double_click_entries.clone(),
@@ -1082,6 +1081,11 @@ fn remap_handles(old_new_mapping: &NodeHandleMap<UiNode>, ui: &mut UserInterface
     }
 }
 
+struct VisualTransformUpdateData {
+    roots: FxHashSet<Handle<UiNode>>,
+    visited: Vec<bool>,
+}
+
 impl UserInterface {
     pub fn new(screen_size: Vector2<f32>) -> UserInterface {
         let (sender, receiver) = mpsc::channel();
@@ -1122,7 +1126,6 @@ impl UserInterface {
             clipboard: Clipboard(ClipboardContext::new().ok().map(RefCell::new)),
             layout_events_receiver,
             layout_events_sender,
-            need_update_global_transform: Default::default(),
             z_index_update_set: Default::default(),
             default_font: BUILT_IN_FONT.resource(),
             double_click_entries: Default::default(),
@@ -1216,25 +1219,25 @@ impl UserInterface {
                 .nodes
                 .try_borrow_dependant_mut(node_handle, |n| n.parent());
 
-            let widget = widget.unwrap();
+            if let Some(widget) = widget {
+                if widget.is_globally_visible() {
+                    self.stack.extend_from_slice(widget.children());
 
-            if widget.is_globally_visible() {
-                self.stack.extend_from_slice(widget.children());
+                    let mut layout_transform = *widget.layout_transform();
 
-                let mut layout_transform = widget.layout_transform;
+                    layout_transform[6] = widget.actual_local_position().x;
+                    layout_transform[7] = widget.actual_local_position().y;
 
-                layout_transform[6] = widget.actual_local_position().x;
-                layout_transform[7] = widget.actual_local_position().y;
+                    let visual_transform = if let Some(parent) = parent {
+                        parent.visual_transform() * layout_transform * widget.render_transform()
+                    } else {
+                        layout_transform * widget.render_transform()
+                    };
 
-                let visual_transform = if let Some(parent) = parent {
-                    parent.visual_transform * layout_transform * widget.render_transform
-                } else {
-                    layout_transform * widget.render_transform
-                };
-
-                let old_transform =
-                    std::mem::replace(&mut widget.visual_transform, visual_transform);
-                widget.on_visual_transform_changed(&old_transform, &visual_transform);
+                    let old_transform =
+                        std::mem::replace(&mut widget.visual_transform, visual_transform);
+                    widget.on_visual_transform_changed(&old_transform, &visual_transform);
+                }
             }
         }
     }
@@ -1247,7 +1250,7 @@ impl UserInterface {
         self.screen_size = screen_size;
     }
 
-    fn handle_layout_events(&mut self) {
+    fn handle_layout_events(&mut self, data: &mut VisualTransformUpdateData) {
         fn invalidate_recursive_up(
             nodes: &Pool<UiNode, WidgetContainer>,
             node: Handle<UiNode>,
@@ -1272,7 +1275,6 @@ impl UserInterface {
                     invalidate_recursive_up(&self.nodes, node, |node_ref| {
                         node_ref.arrange_valid.set(false)
                     });
-                    self.need_update_global_transform = true;
                 }
                 LayoutEvent::VisibilityChanged(node) => {
                     self.update_global_visibility(node);
@@ -1284,6 +1286,40 @@ impl UserInterface {
                         // performance.
                         self.z_index_update_set.insert(node_ref.parent);
                     }
+                }
+                LayoutEvent::TransformChanged(node) => {
+                    let is_visited = &mut data.visited[node.index() as usize];
+
+                    if *is_visited {
+                        continue;
+                    }
+
+                    *is_visited = true;
+
+                    data.roots.insert(node);
+
+                    // Mark the entire hierarchy as visited.
+                    fn traverse_recursive(
+                        graph: &UserInterface,
+                        from: Handle<UiNode>,
+                        func: &mut impl FnMut(Handle<UiNode>),
+                    ) {
+                        func(from);
+                        if let Some(node) = graph.try_get(from) {
+                            for &child in node.children() {
+                                traverse_recursive(graph, child, func)
+                            }
+                        }
+                    }
+
+                    traverse_recursive(self, node, &mut |h| {
+                        data.visited[h.index() as usize] = true;
+
+                        // Remove a descendant from the list of potential roots.
+                        if h != node && data.roots.contains(&h) {
+                            data.roots.remove(&h);
+                        }
+                    })
                 }
             }
         }
@@ -1308,7 +1344,12 @@ impl UserInterface {
     pub fn update_layout(&mut self, screen_size: Vector2<f32>) {
         self.screen_size = screen_size;
 
-        self.handle_layout_events();
+        let mut data = VisualTransformUpdateData {
+            roots: Default::default(),
+            visited: vec![false; self.nodes.get_capacity() as usize],
+        };
+
+        self.handle_layout_events(&mut data);
 
         self.measure_node(self.root_canvas, screen_size);
         let arrangement_changed = self.arrange_node(
@@ -1316,9 +1357,11 @@ impl UserInterface {
             &Rect::new(0.0, 0.0, screen_size.x, screen_size.y),
         );
 
-        if self.need_update_global_transform {
-            self.update_visual_transform(self.root_canvas);
-            self.need_update_global_transform = false;
+        // Arrange step may produce changes that affects visual transform.
+        self.handle_layout_events(&mut data);
+
+        for root in data.roots {
+            self.update_visual_transform(root);
         }
 
         if arrangement_changed {
@@ -1525,7 +1568,7 @@ impl UserInterface {
                 size.y = node.height();
             }
 
-            size = transform_size(size, &node.layout_transform);
+            size = transform_size(size, node.layout_transform());
 
             if !node.ignore_layout_rounding {
                 size.x = size.x.ceil();
@@ -1538,7 +1581,7 @@ impl UserInterface {
             size.y = size.y.min(final_rect.h());
 
             let transformed_rect =
-                Rect::new(0.0, 0.0, size.x, size.y).transform(&node.layout_transform);
+                Rect::new(0.0, 0.0, size.x, size.y).transform(node.layout_transform());
 
             size = transformed_rect.size;
 
@@ -1600,7 +1643,7 @@ impl UserInterface {
                 },
             );
 
-            size = transform_size(size, &node.layout_transform);
+            size = transform_size(size, node.layout_transform());
 
             if size.x.is_finite() {
                 size.x = size.x.clamp(node.min_size().x, node.max_size().x);
@@ -1612,7 +1655,7 @@ impl UserInterface {
             let mut desired_size = node.measure_override(self, size);
 
             desired_size = Rect::new(0.0, 0.0, desired_size.x, desired_size.y)
-                .transform(&node.layout_transform)
+                .transform(node.layout_transform())
                 .size;
 
             if !node.width().is_nan() {
