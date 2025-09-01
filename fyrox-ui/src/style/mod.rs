@@ -297,6 +297,8 @@ impl Style {
     pub const BRUSH_ERROR: &'static str = "Global.Brush.Error";
     /// The name of the ok brush.
     pub const BRUSH_OK: &'static str = "Global.Brush.Ok";
+    /// The name of the highlight brush used to highlight widgets with keyboard focus.
+    pub const BRUSH_HIGHLIGHT: &'static str = "Global.Brush.Highlight";
     /// The name of the font size property.
     pub const FONT_SIZE: &'static str = "Global.Font.Size";
 
@@ -341,6 +343,10 @@ impl Style {
                 Brush::Solid(Color::opaque(80, 118, 178)),
             )
             .set(
+                Self::BRUSH_HIGHLIGHT,
+                Brush::Solid(Color::opaque(80, 118, 178)),
+            )
+            .set(
                 Self::BRUSH_DIM_BLUE,
                 Brush::Solid(Color::opaque(66, 99, 149)),
             )
@@ -378,6 +384,10 @@ impl Style {
             )
             .set(
                 Self::BRUSH_BRIGHT_BLUE,
+                Brush::Solid(Color::opaque(80, 118, 178)),
+            )
+            .set(
+                Self::BRUSH_HIGHLIGHT,
                 Brush::Solid(Color::opaque(80, 118, 178)),
             )
             .set(

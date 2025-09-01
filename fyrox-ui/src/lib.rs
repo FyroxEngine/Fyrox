@@ -1455,7 +1455,7 @@ impl UserInterface {
                     bounds,
                     DEFAULT_STYLE
                         .resource
-                        .get_or_default(Style::BRUSH_BRIGHT_BLUE),
+                        .get_or_default(Style::BRUSH_HIGHLIGHT),
                     CommandTexture::None,
                     &self.standard_material,
                     None,
