@@ -819,6 +819,9 @@ impl Editor {
             *font_state_data = Font::from_memory(
                 include_bytes!("../resources/Roboto-Regular.ttf").as_slice(),
                 1024,
+                None,
+                None,
+                Vec::default(),
             )
             .unwrap();
         }
