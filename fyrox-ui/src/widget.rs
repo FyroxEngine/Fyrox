@@ -1672,10 +1672,10 @@ impl Widget {
 
     #[inline]
     pub(crate) fn commit_arrange(&self, position: Vector2<f32>, size: Vector2<f32>) {
-        self.actual_local_size.set(size);
+        let old_actual_local_size = self.actual_local_size.replace(size);
         let old_actual_local_position = self.actual_local_position.replace(position);
         self.arrange_valid.set(true);
-        if old_actual_local_position != position {
+        if old_actual_local_position != position || old_actual_local_size != size {
             self.try_send_transform_changed_event();
         }
     }

@@ -1352,7 +1352,7 @@ impl UserInterface {
         self.handle_layout_events(&mut data);
 
         self.measure_node(self.root_canvas, screen_size);
-        let arrangement_changed = self.arrange_node(
+        self.arrange_node(
             self.root_canvas,
             &Rect::new(0.0, 0.0, screen_size.x, screen_size.y),
         );
@@ -1362,13 +1362,18 @@ impl UserInterface {
 
         for root in data.roots {
             self.update_visual_transform(root);
-        }
 
-        if arrangement_changed {
-            self.calculate_clip_bounds(
-                self.root_canvas,
-                Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y),
-            );
+            // Recalculate clip bounds, because they depend on the visual transform.
+            if let Some(root_ref) = self.try_get(root) {
+                self.calculate_clip_bounds(
+                    root,
+                    self.try_get(root_ref.parent())
+                        .map(|c| c.clip_bounds())
+                        .unwrap_or_else(|| {
+                            Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y)
+                        }),
+                );
+            }
         }
     }
 
