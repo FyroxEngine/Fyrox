@@ -243,6 +243,9 @@ impl Control for Border {
                 None,
             );
         } else {
+            let corner_arc_length = std::f32::consts::TAU * **self.corner_radius * (90.0 / 360.0);
+            let corner_subdivisions = ((corner_arc_length as usize) / 2).min(4);
+
             let thickness = self.stroke_thickness.left;
             let half_thickness = thickness / 2.0;
 
@@ -250,7 +253,7 @@ impl Control for Border {
                 drawing_context,
                 &bounds.deflate(half_thickness, half_thickness),
                 **self.corner_radius,
-                16,
+                corner_subdivisions,
             );
             drawing_context.commit(
                 self.clip_bounds(),
@@ -260,7 +263,12 @@ impl Control for Border {
                 None,
             );
 
-            drawing_context.push_rounded_rect(&bounds, thickness, **self.corner_radius, 16);
+            drawing_context.push_rounded_rect(
+                &bounds,
+                thickness,
+                **self.corner_radius,
+                corner_subdivisions,
+            );
             drawing_context.commit(
                 self.clip_bounds(),
                 self.widget.foreground(),
