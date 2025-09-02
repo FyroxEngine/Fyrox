@@ -1,7 +1,9 @@
 [package]
 name = "fyrox-material"
 version = "1.0.0-rc.1"
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
+license = "MIT"
 description = "Material and shader utilities for Fyrox Engine"
 keywords = ["graphics"]
 categories = ["game-development"]
