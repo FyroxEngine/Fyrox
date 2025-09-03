@@ -183,6 +183,11 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
     /// Width of the property name column.
     pub name_column_width: f32,
     pub base_path: String,
+    /// A flag, that defines whether the inspectable object has a parent object from which it can
+    /// obtain initial property values when clicking on "Revert" button. This flag is used only for
+    /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
+    /// when it does nothing (when there's no parent object).
+    pub has_parent_object: bool,
 }
 
 /// This structure is passed to [PropertyEditorDefinition::create_message] in order to generate a message that will
@@ -223,6 +228,11 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
     /// Width of the property name column.
     pub name_column_width: f32,
     pub base_path: String,
+    /// A flag, that defines whether the inspectable object has a parent object from which it can
+    /// obtain initial property values when clicking on "Revert" button. This flag is used only for
+    /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
+    /// when it does nothing (when there's no parent object).
+    pub has_parent_object: bool,
 }
 
 /// The details relevant to translating a message from an editor widget into

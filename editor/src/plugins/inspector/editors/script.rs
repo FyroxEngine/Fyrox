@@ -244,6 +244,7 @@ impl ScriptPropertyEditorBuilder {
         script: &Option<Script>,
         definition_container: Arc<PropertyEditorDefinitionContainer>,
         name_column_width: f32,
+        has_parent_object: bool,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
         let context = script.as_ref().map(|script| {
@@ -258,6 +259,7 @@ impl ScriptPropertyEditorBuilder {
                 filter,
                 name_column_width,
                 base_path: Default::default(),
+                has_parent_object,
             })
         });
 
@@ -393,6 +395,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                     value,
                     ctx.definition_container.clone(),
                     ctx.name_column_width,
+                    ctx.has_parent_object,
                     ctx.build_context,
                 );
                 editor
@@ -486,6 +489,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                         filter: ctx.filter,
                         name_column_width: ctx.name_column_width,
                         base_path: Default::default(),
+                        has_parent_object: ctx.has_parent_object,
                     })
                 })
                 .unwrap_or_default();

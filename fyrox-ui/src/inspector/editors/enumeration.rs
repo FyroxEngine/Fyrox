@@ -110,6 +110,9 @@ pub struct EnumPropertyEditor<T: InspectableEnum> {
     #[visit(skip)]
     #[reflect(hidden)]
     pub base_path: String,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub has_parent_object: bool,
 }
 
 impl<T: InspectableEnum> Debug for EnumPropertyEditor<T> {
@@ -133,6 +136,7 @@ impl<T: InspectableEnum> Clone for EnumPropertyEditor<T> {
             filter: self.filter.clone(),
             name_column_width: self.name_column_width,
             base_path: self.base_path.clone(),
+            has_parent_object: self.has_parent_object,
         }
     }
 }
@@ -186,6 +190,7 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
                     filter: self.filter.clone(),
                     name_column_width: self.name_column_width,
                     base_path: self.base_path.clone(),
+                    has_parent_object: self.has_parent_object,
                 });
 
                 ui.send_message(InspectorMessage::context(
@@ -302,6 +307,7 @@ impl EnumPropertyEditorBuilder {
         value: &T,
         name_column_width: f32,
         base_path: String,
+        has_parent_object: bool,
     ) -> Handle<UiNode> {
         let definition_container = self
             .definition_container
@@ -318,6 +324,7 @@ impl EnumPropertyEditorBuilder {
             filter: self.filter.clone(),
             name_column_width,
             base_path: base_path.clone(),
+            has_parent_object,
         });
 
         let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -341,6 +348,7 @@ impl EnumPropertyEditorBuilder {
             filter: self.filter,
             name_column_width,
             base_path,
+            has_parent_object,
         };
 
         ctx.add_node(UiNode::new(editor))
@@ -473,6 +481,7 @@ where
                         value,
                         ctx.name_column_width,
                         ctx.base_path.clone(),
+                        ctx.has_parent_object,
                     );
                 editor
             },
@@ -533,6 +542,7 @@ where
                 filter: ctx.filter,
                 name_column_width: ctx.name_column_width,
                 base_path: ctx.base_path.clone(),
+                has_parent_object: ctx.has_parent_object,
             });
 
             Ok(Some(InspectorMessage::context(

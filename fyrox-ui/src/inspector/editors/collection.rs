@@ -240,6 +240,7 @@ fn create_items<'a, 'b, T, I>(
     immutable_collection: bool,
     name_column_width: f32,
     base_path: String,
+    has_parent_object: bool,
 ) -> Result<Vec<Item>, InspectorError>
 where
     T: CollectionItem,
@@ -282,6 +283,7 @@ where
                         filter: filter.clone(),
                         name_column_width,
                         base_path: format!("{base_path}[{index}]"),
+                        has_parent_object,
                     })?;
 
             if let PropertyEditorInstance::Simple { editor } = editor {
@@ -388,6 +390,7 @@ where
         sync_flag: u64,
         name_column_width: f32,
         base_path: String,
+        has_parent_object: bool,
     ) -> Result<Handle<UiNode>, InspectorError> {
         let definition_container = self
             .definition_container
@@ -408,6 +411,7 @@ where
                 self.immutable_collection,
                 name_column_width,
                 base_path,
+                has_parent_object,
             )?
         } else {
             Vec::new()
@@ -514,6 +518,7 @@ where
                     ctx.sync_flag,
                     ctx.name_column_width,
                     ctx.base_path.clone(),
+                    ctx.has_parent_object,
                 )?;
                 editor
             },
@@ -540,6 +545,7 @@ where
             filter,
             name_column_width,
             base_path,
+            has_parent_object,
         } = ctx;
 
         let instance_ref = if let Some(instance) = ui.node(instance).cast::<CollectionEditor<T>>() {
@@ -567,6 +573,7 @@ where
                 property_info.immutable_collection,
                 name_column_width,
                 base_path,
+                has_parent_object,
             )?;
 
             Ok(Some(CollectionEditorMessage::items(
@@ -617,6 +624,7 @@ where
                                 filter: filter.clone(),
                                 name_column_width,
                                 base_path: format!("{base_path}[{index}]"),
+                                has_parent_object,
                             })?
                     {
                         ui.send_message(message.with_flags(ctx.sync_flag))

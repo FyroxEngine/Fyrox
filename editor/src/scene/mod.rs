@@ -1150,7 +1150,7 @@ pub trait SelectionContainer: BaseSelectionContainer {
         &self,
         controller: &dyn SceneController,
         scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect),
+        callback: &mut dyn FnMut(&dyn Reflect, bool),
     );
 
     fn on_property_changed(
@@ -1286,7 +1286,7 @@ impl Selection {
         &self,
         controller: &dyn SceneController,
         scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect),
+        callback: &mut dyn FnMut(&dyn Reflect, bool),
     ) {
         if let Some(container) = self.0.as_ref() {
             container.first_selected_entity(controller, scenes, callback);

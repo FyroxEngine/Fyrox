@@ -61,11 +61,12 @@ impl SelectionContainer for NavmeshSelection {
         &self,
         controller: &dyn SceneController,
         scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect),
+        callback: &mut dyn FnMut(&dyn Reflect, bool),
     ) {
         let game_scene = some_or_return!(controller.downcast_ref::<GameScene>());
         let scene = &scenes[game_scene.scene];
-        (callback)(scene.graph.try_get(self.navmesh_node).unwrap() as &dyn Reflect);
+        let node = scene.graph.try_get(self.navmesh_node).unwrap();
+        (callback)(node as &dyn Reflect, node.has_inheritance_parent());
     }
 
     fn on_property_changed(

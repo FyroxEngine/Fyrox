@@ -1693,6 +1693,13 @@ impl Widget {
         self.children = children;
     }
 
+    /// Returns `true` if the widget has a parent object in a resource from which it may restore
+    /// values of its inheritable properties.
+    #[inline]
+    pub fn has_inheritance_parent(&self) -> bool {
+        self.original_handle_in_resource.is_some() && self.resource.is_some()
+    }
+
     /// Returns `true` if the current results of arrangement of the widget are valid, `false` - otherwise.
     #[inline(always)]
     pub fn is_arrange_valid(&self) -> bool {

@@ -83,7 +83,7 @@ impl SelectionContainer for AudioBusSelection {
         &self,
         controller: &dyn SceneController,
         scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect),
+        callback: &mut dyn FnMut(&dyn Reflect, bool),
     ) {
         let game_scene = some_or_return!(controller.downcast_ref::<GameScene>());
         let scene = &scenes[game_scene.scene];
@@ -93,7 +93,7 @@ impl SelectionContainer for AudioBusSelection {
             .first()
             .and_then(|handle| state.bus_graph_ref().try_get_bus_ref(*handle))
         {
-            (callback)(effect as &dyn Reflect);
+            (callback)(effect as &dyn Reflect, false);
         }
     }
 

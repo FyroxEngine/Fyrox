@@ -306,6 +306,7 @@ impl InspectorPlugin {
         available_animations: &[AnimationDefinition],
         sender: &MessageSender,
         icon_request_sender: Sender<IconRequest>,
+        has_parent_object: bool,
     ) {
         let environment = Arc::new(EditorEnvironment {
             resource_manager,
@@ -326,6 +327,7 @@ impl InspectorPlugin {
             filter: Default::default(),
             name_column_width: 150.0,
             base_path: Default::default(),
+            has_parent_object,
         });
 
         ui.send_message(InspectorMessage::context(
@@ -373,7 +375,7 @@ impl EditorPlugin for InspectorPlugin {
         entry.selection.first_selected_entity(
             &*entry.controller,
             &editor.engine.scenes,
-            &mut |entity| {
+            &mut |entity, has_parent_object| {
                 if let Err(errors) = self.sync_to(entity, ui) {
                     if is_out_of_sync(&errors) {
                         let available_animations = fetch_available_animations(
@@ -390,6 +392,7 @@ impl EditorPlugin for InspectorPlugin {
                             &available_animations,
                             &editor.message_sender,
                             editor.asset_browser.preview_sender.clone(),
+                            has_parent_object,
                         );
 
                         need_clear = false;
@@ -436,7 +439,7 @@ impl EditorPlugin for InspectorPlugin {
                         entry.selection.first_selected_entity(
                             &*entry.controller,
                             &editor.engine.scenes,
-                            &mut |entity| {
+                            &mut |entity, _| {
                                 entity.resolve_path(path, &mut |result| {
                                     if let Ok(result) = result {
                                         self.clipboard = result.try_clone_box();
@@ -461,7 +464,7 @@ impl EditorPlugin for InspectorPlugin {
                         entry.selection.first_selected_entity(
                             &*entry.controller,
                             &editor.engine.scenes,
-                            &mut |entity| {
+                            &mut |entity, _| {
                                 entity.resolve_path(path, &mut |result| {
                                     if let Ok(property) = result {
                                         can_copy = property.try_clone_box().is_some();

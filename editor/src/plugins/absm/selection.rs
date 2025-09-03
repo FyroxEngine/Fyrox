@@ -164,7 +164,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
         &self,
         controller: &dyn SceneController,
         scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect),
+        callback: &mut dyn FnMut(&dyn Reflect, bool),
     ) {
         if let Some(machine) = get_machine_ref(controller, self.absm_node_handle, scenes) {
             if let Some(first) = self.entities.first() {
@@ -172,13 +172,13 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                     if let Some(layer) = machine.layers().get(layer_index) {
                         match first {
                             SelectedEntity::Transition(transition) => {
-                                (callback)(&layer.transitions()[*transition] as &dyn Reflect)
+                                (callback)(&layer.transitions()[*transition] as &dyn Reflect, false)
                             }
                             SelectedEntity::State(state) => {
-                                (callback)(&layer.states()[*state] as &dyn Reflect)
+                                (callback)(&layer.states()[*state] as &dyn Reflect, false)
                             }
                             SelectedEntity::PoseNode(pose) => {
-                                (callback)(&layer.nodes()[*pose] as &dyn Reflect)
+                                (callback)(&layer.nodes()[*pose] as &dyn Reflect, false)
                             }
                         };
                     }

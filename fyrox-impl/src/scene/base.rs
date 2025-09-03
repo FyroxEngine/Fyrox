@@ -774,6 +774,13 @@ impl Base {
         self.original_handle_in_resource
     }
 
+    /// Returns `true` if the node has a parent object in a resource from which it may restore
+    /// values of its inheritable properties.
+    #[inline]
+    pub fn has_inheritance_parent(&self) -> bool {
+        self.original_handle_in_resource.is_some() && self.resource.is_some()
+    }
+
     /// Returns position of the node in absolute coordinates.
     #[inline]
     pub fn global_position(&self) -> Vector3<f32> {

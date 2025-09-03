@@ -273,6 +273,7 @@ where
                         filter: ctx.filter,
                         name_column_width: ctx.name_column_width,
                         base_path: ctx.base_path.clone(),
+                        has_parent_object: ctx.has_parent_object,
                     })?;
 
             let wrapper = InheritablePropertyEditorBuilder::new(WidgetBuilder::new())
@@ -285,9 +286,11 @@ where
                     PropertyEditorInstance::Custom { editor, .. } => editor,
                 })
                 .with_modified(
-                    ctx.property_info
-                        .cast_value::<InheritableVariable<T>>()?
-                        .is_modified(),
+                    ctx.has_parent_object
+                        && ctx
+                            .property_info
+                            .cast_value::<InheritableVariable<T>>()?
+                            .is_modified(),
                 )
                 .build(ctx.build_context);
 
@@ -363,6 +366,7 @@ where
                     filter: ctx.filter,
                     name_column_width: ctx.name_column_width,
                     base_path: ctx.base_path.clone(),
+                    has_parent_object: ctx.has_parent_object,
                 });
         }
 

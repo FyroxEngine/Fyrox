@@ -125,7 +125,7 @@ where
         &self,
         controller: &dyn SceneController,
         scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect),
+        callback: &mut dyn FnMut(&dyn Reflect, bool),
     ) {
         if let Some(container) = get_animations_container(self.animation_player, controller, scenes)
         {
@@ -134,7 +134,7 @@ where
                     self.entities.first()
                 {
                     if let Some(signal) = animation.signals().iter().find(|s| s.id == *id) {
-                        (callback)(signal as &dyn Reflect);
+                        (callback)(signal as &dyn Reflect, false);
                     }
                 }
             }

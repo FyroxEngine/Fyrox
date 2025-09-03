@@ -645,6 +645,7 @@ impl Inspector {
                 if pasted {
                     if let Some(inspector) = ui.try_get_of_type::<Inspector>(inspector) {
                         let ctx = inspector.context.clone();
+
                         Log::verify(ctx.sync(
                             object,
                             ui,
@@ -795,6 +796,11 @@ pub struct InspectorContext {
     pub object_type_id: TypeId,
     /// A width of the property name column.
     pub name_column_width: f32,
+    /// A flag, that defines whether the inspectable object has a parent object from which it can
+    /// obtain initial property values when clicking on "Revert" button. This flag is used only for
+    /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
+    /// when it does nothing (when there's no parent object).
+    pub has_parent_object: bool,
 }
 
 impl PartialEq for InspectorContext {
@@ -822,6 +828,7 @@ impl Default for InspectorContext {
             sync_flag: 0,
             object_type_id: ().type_id(),
             name_column_width: 150.0,
+            has_parent_object: false,
         }
     }
 }
@@ -1009,6 +1016,11 @@ pub struct InspectorContextArgs<'a, 'b, 'c> {
     pub filter: PropertyFilter,
     pub name_column_width: f32,
     pub base_path: String,
+    /// A flag, that defines whether the inspectable object has a parent object from which it can
+    /// obtain initial property values when clicking on "Revert" button. This flag is used only for
+    /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
+    /// when it does nothing (when there's no parent object).
+    pub has_parent_object: bool,
 }
 
 impl InspectorContext {
@@ -1040,6 +1052,7 @@ impl InspectorContext {
             filter,
             name_column_width,
             base_path,
+            has_parent_object,
         } = context;
 
         let mut entries = Vec::new();
@@ -1085,6 +1098,7 @@ impl InspectorContext {
                             filter: filter.clone(),
                             name_column_width,
                             base_path: property_path.clone(),
+                            has_parent_object,
                         },
                     ) {
                         Ok(instance) => {
@@ -1223,6 +1237,7 @@ impl InspectorContext {
             environment,
             object_type_id: object_type_id(object),
             name_column_width,
+            has_parent_object,
         }
     }
 
@@ -1276,6 +1291,7 @@ impl InspectorContext {
                             filter: filter.clone(),
                             name_column_width: self.name_column_width,
                             base_path: base_path.clone(),
+                            has_parent_object: self.has_parent_object,
                         };
 
                         match constructor.property_editor.create_message(ctx) {

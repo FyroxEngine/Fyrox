@@ -255,6 +255,7 @@ where
                         filter: ctx.filter,
                         name_column_width: ctx.name_column_width,
                         base_path: ctx.base_path.clone(),
+                        has_parent_object: ctx.has_parent_object,
                     })?;
 
             let wrapper = StyledPropertyEditorBuilder::new(WidgetBuilder::new())
@@ -332,6 +333,7 @@ where
                     filter: ctx.filter,
                     name_column_width: ctx.name_column_width,
                     base_path: ctx.base_path.clone(),
+                    has_parent_object: ctx.has_parent_object,
                 });
         }
 

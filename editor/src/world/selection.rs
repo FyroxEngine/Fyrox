@@ -52,7 +52,7 @@ impl SelectionContainer for GraphSelection {
         &self,
         controller: &dyn SceneController,
         scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect),
+        callback: &mut dyn FnMut(&dyn Reflect, bool),
     ) {
         let game_scene = some_or_return!(controller.downcast_ref::<GameScene>());
         let scene = &scenes[game_scene.scene];
@@ -61,7 +61,7 @@ impl SelectionContainer for GraphSelection {
             .first()
             .and_then(|handle| scene.graph.try_get(*handle))
         {
-            (callback)(node as &dyn Reflect);
+            (callback)(node as &dyn Reflect, node.has_inheritance_parent());
         }
     }
 

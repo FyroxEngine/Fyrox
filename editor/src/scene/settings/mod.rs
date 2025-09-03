@@ -180,6 +180,7 @@ impl SceneSettingsWindow {
             }),
             name_column_width: 150.0,
             base_path: Default::default(),
+            has_parent_object: false,
         });
 
         ui.send_message(InspectorMessage::context(

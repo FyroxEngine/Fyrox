@@ -52,12 +52,12 @@ impl SelectionContainer for UiSelection {
         &self,
         controller: &dyn SceneController,
         _scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect),
+        callback: &mut dyn FnMut(&dyn Reflect, bool),
     ) {
         let ui_scene = some_or_return!(controller.downcast_ref::<UiScene>());
         if let Some(first) = self.widgets.first() {
-            if let Some(node) = ui_scene.ui.try_get(*first).map(|n| n as &dyn Reflect) {
-                (callback)(node)
+            if let Some(node) = ui_scene.ui.try_get(*first) {
+                (callback)(node as &dyn Reflect, node.has_inheritance_parent())
             }
         }
     }
