@@ -134,7 +134,7 @@
 
                         ivec2 cubeMapSize = textureSize(prefilteredSpecularMap, 0);
                         float mip = roughness * (floor(log2(float(cubeMapSize.x))) + 1.0);
-                        vec3 reflection = textureLod(prefilteredSpecularMap, reflectionVector, mip).rgb;
+                        vec3 reflection = properties.skyboxLighting ? textureLod(prefilteredSpecularMap, reflectionVector, mip).rgb : properties.ambientColor.rgb;
 
                         vec3 F0 = mix(vec3(0.04), albedo.rgb, metallic);
                         vec3 F = S_FresnelSchlickRoughness(clampedCosViewAngle, F0, roughness);
