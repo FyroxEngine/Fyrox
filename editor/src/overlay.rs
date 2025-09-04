@@ -20,7 +20,8 @@
 
 use crate::{
     fyrox::{
-        core::{algebra::Matrix4, math::Matrix4Ext, sstorage::ImmutableString},
+        asset::untyped::ResourceKind,
+        core::{algebra::Matrix4, math::Matrix4Ext, pool::Handle, sstorage::ImmutableString, Uuid},
         renderer::{
             cache::shader::{
                 binding, property, PropertyGroup, RenderMaterial, RenderPassContainer,
@@ -35,12 +36,10 @@ use crate::{
             CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
             TextureResourceExtension,
         },
-        scene::mesh::surface::SurfaceData,
+        scene::{mesh::surface::SurfaceData, Scene},
     },
     Editor,
 };
-use fyrox::asset::untyped::ResourceKind;
-use fyrox::core::Uuid;
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 pub struct OverlayRenderPass {
@@ -49,6 +48,7 @@ pub struct OverlayRenderPass {
     sound_icon: TextureResource,
     light_icon: TextureResource,
     pub pictogram_size: f32,
+    pub scene_handle: Handle<Scene>,
 }
 
 impl OverlayRenderPass {
@@ -85,6 +85,7 @@ impl OverlayRenderPass {
             )
             .unwrap(),
             pictogram_size: 0.33,
+            scene_handle: Default::default(),
         }))
     }
 }
@@ -95,6 +96,10 @@ impl SceneRenderPass for OverlayRenderPass {
         ctx: SceneRenderPassContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
+        if ctx.scene_handle != self.scene_handle {
+            return Ok(stats);
+        }
+
         let view_projection = ctx.observer.position.view_projection_matrix;
         let inv_view = ctx.observer.position.view_matrix.try_inverse().unwrap();
         let camera_up = -inv_view.up();

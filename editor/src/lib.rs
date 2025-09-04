@@ -2238,8 +2238,11 @@ impl Editor {
     fn on_scene_changed(&mut self) {
         let ui = &self.engine.user_interfaces.first();
         if let Some(entry) = self.scenes.current_scene_entry_ref() {
-            if entry.controller.downcast_ref::<GameScene>().is_some() {
+            if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
                 self.world_viewer.item_context_menu = Some(self.scene_node_context_menu.clone());
+                if let Some(overlay_pass) = self.overlay_pass.as_ref() {
+                    overlay_pass.borrow_mut().scene_handle = game_scene.scene;
+                }
             } else if entry.controller.downcast_ref::<UiScene>().is_some() {
                 self.world_viewer.item_context_menu = Some(self.widget_context_menu.clone());
             } else {
