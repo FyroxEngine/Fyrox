@@ -327,9 +327,11 @@ where
                 .send_message(InheritablePropertyEditorMessage::modified(
                     instance.handle,
                     MessageDirection::ToWidget,
-                    ctx.property_info
-                        .cast_value::<InheritableVariable<T>>()?
-                        .is_modified(),
+                    ctx.has_parent_object
+                        && ctx
+                            .property_info
+                            .cast_value::<InheritableVariable<T>>()?
+                            .is_modified(),
                 ));
 
             let property_info = ctx.property_info;
