@@ -44,7 +44,7 @@ use crate::fyrox::{
     },
 };
 use crate::scene::GameScene;
-use fyrox::scene::SceneContainer;
+use fyrox::scene::{EnvironmentLightingSource, SceneContainer};
 
 pub struct CameraRotation {
     pub yaw: f32,
@@ -99,6 +99,9 @@ impl SceneGizmo {
         let render_target = TextureResource::new_render_target(85, 85);
         scene.rendering_options.render_target = Some(render_target.clone());
         scene.rendering_options.clear_color = Some(Color::TRANSPARENT);
+        scene.rendering_options.environment_lighting_source =
+            EnvironmentLightingSource::AmbientColor;
+        scene.rendering_options.ambient_lighting_color = Color::repeat_opaque(120);
 
         DirectionalLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new()))
             .build(&mut scene.graph);
