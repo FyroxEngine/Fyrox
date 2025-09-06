@@ -553,7 +553,7 @@ impl ResourceManager {
     }
 
     /// Checks whether the given resource is a built-in resource instance or not.
-    pub fn is_built_in_resource(&self, resource: &UntypedResource) -> bool {
+    pub fn is_built_in_resource(&self, resource: impl AsRef<UntypedResource>) -> bool {
         self.state()
             .built_in_resources
             .is_built_in_resource(resource)
@@ -607,7 +607,7 @@ impl ResourceManager {
     /// rename the source file of a resource.
     pub async fn move_resource(
         &self,
-        resource: &UntypedResource,
+        resource: impl AsRef<UntypedResource>,
         new_path: impl AsRef<Path>,
         overwrite_existing: bool,
     ) -> Result<(), ResourceMovementError> {
@@ -1441,7 +1441,7 @@ impl ResourceManagerState {
     /// rename the source file of a resource.
     pub async fn move_resource(
         &self,
-        resource: &UntypedResource,
+        resource: impl AsRef<UntypedResource>,
         new_path: impl AsRef<Path>,
         overwrite_existing: bool,
     ) -> Result<(), ResourceMovementError> {

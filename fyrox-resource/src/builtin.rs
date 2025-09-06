@@ -246,10 +246,10 @@ impl BuiltInResourcesContainer {
     }
 
     /// Checks whether the given resource is a built-in resource instance or not.
-    pub fn is_built_in_resource(&self, resource: &UntypedResource) -> bool {
+    pub fn is_built_in_resource(&self, resource: impl AsRef<UntypedResource>) -> bool {
         self.inner
             .values()
-            .any(|built_in| &built_in.resource == resource)
+            .any(|built_in| &built_in.resource == resource.as_ref())
     }
 }
 
