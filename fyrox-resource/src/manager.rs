@@ -510,7 +510,7 @@ impl ResourceManager {
     /// 1) The resource is in invalid state (not in [`ResourceState::Ok`]).
     /// 2) The resource wasn't registered in the resource registry.
     /// 3) The resource registry wasn't loaded.
-    pub fn resource_path(&self, resource: &UntypedResource) -> Option<PathBuf> {
+    pub fn resource_path(&self, resource: impl AsRef<UntypedResource>) -> Option<PathBuf> {
         self.state().resource_path(resource)
     }
 
@@ -1128,8 +1128,8 @@ impl ResourceManagerState {
     /// As a last resort, this method tries to find a built-in resource descriptor corresponding
     /// to the given resource and returns its "path". In reality, it is just a string id, since
     /// built-in resources are stored inside the binary.
-    pub fn resource_path(&self, resource: &UntypedResource) -> Option<PathBuf> {
-        let header = resource.0.lock();
+    pub fn resource_path(&self, resource: impl AsRef<UntypedResource>) -> Option<PathBuf> {
+        let header = resource.as_ref().0.lock();
         if let ResourceState::Ok { resource_uuid, .. } = header.state {
             let registry = self.resource_registry.lock();
             if let Some(path) = registry.uuid_to_path_buf(resource_uuid) {

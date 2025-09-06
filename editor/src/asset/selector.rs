@@ -647,9 +647,7 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
         )
         .with_selected_asset_path(
             resource
-                .and_then(|resource| {
-                    resource_manager.resource_path(&resource.clone().into_untyped())
-                })
+                .and_then(|resource| resource_manager.resource_path(resource))
                 .unwrap_or_default()
                 .into(),
         )

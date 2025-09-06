@@ -192,6 +192,12 @@ impl<T: TypedResourceData> AsRef<UntypedResource> for Resource<T> {
     }
 }
 
+impl AsRef<UntypedResource> for UntypedResource {
+    fn as_ref(&self) -> &UntypedResource {
+        self
+    }
+}
+
 impl<T: TypedResourceData> TypeUuidProvider for Resource<T> {
     fn type_uuid() -> Uuid {
         combine_uuids(
