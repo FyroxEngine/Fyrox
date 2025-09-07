@@ -2,173 +2,174 @@
 
 First release-candidate version (unreleased).
 
-- increased window size and inspector name column width in settings
-- fixed scene gizmo lighting
-- fixed incorrect syncing of modified flag in property editor
-- log window improvements + fixes
-- prevent annoying message spam when import options is missing for asset
-- fixed ambient lighting in case of non-skybox lighting
-- render overlay icons only in the scene preview
-- hide "revert" button for inheritable properties when no parent object
-- smart selection of corner arc subdivision when drawing borders
-- added `#[inline]` attributes for ui drawing methods
-- recalculate clip bounds only for changed widgets
-- improved performance of visual transform calculation in ui
-- documented keyboard focus
-- separate brush for highlighting widgets with keyboard focus
-- improved ui performance
-- prevent selection of asset items while holding alt
-- migrate to latest winit/glutin/rapier
-- disable texture lod bias for wasm builds
-- moved `set_panic_hook` to engine initialization for wasm builds
-- fixed blending issues when batching multiple rectangles
-- configurable fadeout margin for particle systems
-- Clarifying fyrox-graphics
-- disable picking restriction for menus and context menus
-- ability to disable picking restricting for popup widget
-- fixed fitting for asset preview
-- ability to create gpu program from shaders
-- fixed visual glitch for scaling, rotation, movement gizmos
-- fixed update loop state in the editor
-- change layout of command stack panel
-- less bright icons for scene nodes
-- fixed deletion of gl vao/gpu programs/textures
-- fixed incorrect caching/binding of gl framebuffer
-- do not recreate render target for asset preview if preview is collapsed
-- handle invalid aabb/division by zero when doing camera fitting
-- explicitly disabled unsupported render passes in standard widget shader
-- reset visual state of a selected option in the dropdown list on select
-- ability to reset widget's visual state via respective message
-- reduced contrast of the text/images in the default dark theme
-- ability to reset editor layout
-- tidy up menus in the editor
-- fixed menu item content alignment + `make_menu_splitter` helper
-- close dropdown lists on selection
-- expose instance id
-- use doc comment for property description
-- expose more properties in the inspector
-- unhide node's global transform in the inspector
-- cell property editor
-- placeholder icon for resources without preview generator
-- added placeholder icon for asset items whose preview is being generated
-- loading scenes list window when loading scenes in the editor
-- keep the editor active until it loads all the queued scenes
-- async loading for ui scenes in the editor
-- async scene loading in the editor
+## Fixed
+
+- Fixed scene gizmo lighting
+- Fixed incorrect syncing of modified flag in property editor
+- Prevent annoying message spam when import options is missing for asset
+- Fixed ambient lighting in case of non-skybox lighting
+- Render overlay icons only in the scene preview
+- Hide "revert" button for inheritable properties when no parent object
+- Improved performance of visual transform calculation in ui
+- Improved ui performance
+- Fixed blending issues when batching multiple rectangles
+- Fixed fitting for asset preview
+- Fixed visual glitch for scaling, rotation, movement gizmos
+- Fixed update loop state in the editor
+- Fixed deletion of gl vao/gpu programs/textures
+- Fixed incorrect caching/binding of gl framebuffer
+- Handle invalid aabb/division by zero when doing camera fitting
+- Fixed menu item content alignment + `make_menu_splitter` helper
+- Reset visual state of a selected option in the dropdown list on select
 - fixed asset preview update when a resource changes
 - significantly reduced annoying visual lag when generating asset previews
-- use special root title for project's root folder in the asset browser
-- ability to specify special title for root item in the filebrowser widget
-- override title for the root item in the asset browser
-- only show folders that in the registry in the asset browser's dir viewer
-- show only content from the resource registry in the asset browser
-- use command-based approach when editing resources in the inspector
-- ability to paste properties in resource inspector
 - correctly detach content of control panels of various entities
-- use respective command to change selection in the asset browser
-- fixed text alignment in file browser items
-- fixed text alignment for world viewer items
-- save the resource data on change in the inspector
-- reload the resource registry when a new plugin is added
-- ability to inspect and edit supported assets in inspector
+- fixed text alignment in various places in the editor
 - fixed asset preview
 - do not stop deserialization on invalid resource refs
-- hide asset previewer for assets without a preview
-- moved asset preview to the inspector
-- footer attachment point for inspector plugin
-- `AssetSelection` + inspect asset import options in standard Inspector
-- helper methods for selection downcasting
 - fixed inability to add animation track for a node
-- simplified `paste_property` method
-- allow entity getter to return Option
-- moved selection-specific code to selection itself
-- ability to move a folder with resource in the resource manager
-- configurable depth for `walk_directory` method
-- show pretty type name in resource creator
-- search in resource registry when searching in the asset browser
-- better validation for file name when doing move
-- asset rename dialog improvements
-- ability to rename assets in the asset browser
-- do not allow to delete built-in resources
-- add small margin for asset preview
 - better lighting for asset preview
 - fixed torus faces orientation
 - fixed deferred preview generation for assets in asset selector
-- Improving FormattedText
-- use flat gray color background for asset previews
+- fixed `Option::None` serialization
+- fixed camera picking issues
+- do not change resource uuid when moving it in the editor
+- Log window improvements + fixes
+- fixed crash when trying to select text in the text box via double click
+- fixed resource movement in the asset browser
+- fixed incorrect position of dragndrop preview when dpi scaling is used
+- update asset preview if the asset changes
+- properly handle added/removed resources to/from the resource registry
+- use correct material in `MaterialFieldEditor`
+- fixed crash in case of invalid material resource used in ui renderer
+- fixed request of built-in resources in the resource manager
+- fixed incorrect color space in standard forward pass of standard shaders
+- fixed black screen bug when saving a scene with active camera preview
+- prevent deadlock when trying to get a debug name for gpu texture
+- fixed incorrect ambient lighting calculation
+
+## Added
+
+- Added `#[inline]` attributes for ui drawing methods
+- Configurable fadeout margin for particle systems
+- Fyrox-graphics documentation
+- Ability to disable picking restriction for popup widget
+- Ability to create gpu program from shaders
+- Ability to reset widget's visual state via respective message
+- Ability to reset editor layout
+- Cell property editor
+- Placeholder icon for resources without preview generator
+- Added placeholder icon for asset items whose preview is being generated
+- Loading scenes list window when loading scenes in the editor
+- async loading for game and ui scenes in the editor
+- ability to specify special title for root item in the filebrowser widget
+- ability to paste properties in resource inspector
+- ability to inspect and edit supported assets in inspector
+- footer attachment point for inspector plugin
+- `AssetSelection` + inspect asset import options in standard Inspector
+- helper methods for selection downcasting
+- ability to move a folder with resource in the resource manager
+- configurable depth for `walk_directory` method
+- asset rename dialog improvements
+- ability to rename assets in the asset browser
+- add small margin for asset preview
 - skybox api improvements
 - added folder icon for file browser
 - ability to select environment light source for scenes
-- green color for `add resource` button
 - `Brush` helper methods
-- disable `duplicate` and `dependencies` context menu items for folders
 - better navigation in the asset browser
 - ability to enable or disable debug names for GPU objects
-- use pre-calculated brdf to speed up engine startup
-- fixed `Option::None` serialization
 - added confirmation dialog for asset deletion
 - use checkerboard background for asset preview tooltips
-- use calculated local instead of screen position when setting new desired position after toggling of a view
 - improved texture property editor
 - increased size of material preview
 - preview for surface data editor
 - preview for material property editor
 - magnified asset preview for resource property editor
 - show asset preview in resource field editor
-- bring selected item into view in the list view when arrow navigating
-- use texture property editor for texture bindings in material editor
-- use helper methods in resource property editor
 - texture property editor improvements
 - `AssetSelectorWindowBuilder::build_for_type_and_open`
-- helper function `make_pick_button`
 - ability to disable size sync of `Image` widget with its texture
-- fixed camera picking issues
+- helper function `make_pick_button`
 - generate preview for items in asset selector
-- increased margin on `Stop` button in build window
-- helper methods for `ResourceState`
 - asset selector
+- helper methods for `ResourceState`
 - direct immutable access to underlying container for ResourceRegistry
-- improved validation when moving a resource
-- return `self.allow_drop` in default impl for `accepts_drop`
-- check if a resource can be moved when moving an asset in asset browser
 - `ResourceManager::can_resource_be_moved`
-- fixed validation for `remove_metadata`
-- do not change resource uuid when moving it in the editor
-- fixed crash when trying to select text in the text box via double click
 - highlight asset item when it accepts drop
 - check for drop content in the file browser to show correct cursor icon
 - custom `accepts_drop` for `AssetItem` that checks if drop is possible
 - allow to define custom drop response method on ui widgets
 - improved visual style of `AssetItem`
-- moved tooltip from asset item to its text field
 - ability to move a folder when dropping it to some other folder
 - ability to move a resource by dropping it to a folder asset item
-- fixed resource movement in the asset browser
-- make paths os-independent and canonical when moving a resource
 - ability to move a resource by path without loading it
 - `impl Display for FileError`
-- do not allow to create a resource outside of the data folder
-- fixed incorrect position of dragndrop preview when dpi scaling is used
-- update asset preview if the asset changes
-- properly handle added/removed resources to/from the resource registry
 - `ResourceRegistry::remove_metadata`
 - `ResourceIo::delete_file+delete_file_sync`
-- use correct material in `MaterialFieldEditor`
-- fixed crash in case of invalid material resource used in ui renderer
 - `UntypedResource::type_uuid_non_blocking`
-- fixed request of built-in resources in the resource manager
-- fixed incorrect color space in standard forward pass of standard shaders
-- fixed black screen bug when saving a scene with active camera preview
 - ability to specify pre and post visit method calls for visitor codegen
-- update render target of a reflection probe when changing its resolution
-- allow to use build tool with executable that doesn't expect "--" as passthrough marker
-- build tools: delegate stderr to Log too
-- `adjust` button to enable reflection probe edit mode
-- removed redundant empty impls of InteractionMode trait
-- prevent deadlock when trying to get a debug name for gpu texture
 - ability to try get resource manager state lock for the given time period
-- fixed incorrect ambient lighting calculation
+
+## Changed
+
+- Increased window size and inspector name column width in settings
+- Smart selection of corner arc subdivision when drawing borders
+- Recalculate clip bounds only for changed widgets
+- Documented keyboard focus
+- Separate brush for highlighting widgets with keyboard focus
+- Prevent selection of asset items while holding alt
+- Migrate to latest winit/glutin/rapier
+- Disable texture lod bias for wasm builds
+- Moved `set_panic_hook` to engine initialization for wasm builds
+- Disable picking restriction for menus and context menus
+- Change layout of command stack panel
+- Less bright icons for scene nodes
+- Do not recreate render target for asset preview if preview is collapsed
+- Explicitly disabled unsupported render passes in standard widget shader
+- Reduced contrast of the text/images in the default dark theme
+- Tidy up menus in the editor
+- Close dropdown lists on selection
+- Expose instance id in the inspector
+- Use doc comment for property description
+- Expose more properties in the inspector
+- Unhide node's global transform in the inspector
+- keep the editor active until it loads all the queued scenes
+- use special root title for project's root folder in the asset browser
+- override title for the root item in the asset browser
+- only show folders that in the registry in the asset browser's dir viewer
+- show only content from the resource registry in the asset browser
+- use command-based approach when editing resources in the inspector
+- use respective command to change selection in the asset browser
+- save the resource data on change in the inspector
+- hide asset previewer for assets without a preview
+- moved asset preview to the inspector
+- moved selection-specific code to selection itself
+- show pretty type name in resource creator
+- search in resource registry when searching in the asset browser
+- better validation for file name when doing move
+- do not allow to delete built-in resources
+- Improved FormattedText
+- use flat gray color background for asset previews
+- green color for `add resource` button
+- disable `duplicate` and `dependencies` context menu items for folders
+- use calculated local instead of screen position when setting new desired position after toggling of a view
+- bring selected item into view in the list view when arrow navigating
+- use texture property editor for texture bindings in material editor
+- use helper methods in resource property editor
+- increased margin on `Stop` button in build window
+- improved validation when moving a resource
+- check if a resource can be moved when moving an asset in asset browser
+- moved tooltip from asset item to its text field
+- make paths os-independent and canonical when moving a resource
+- do not allow to create a resource outside of the data folder
+- allow to use build tool with executable that doesn't expect "--" as passthrough marker
+- build tools: delegate stderr to Log
+- removed redundant empty impls of InteractionMode trait
 - share fbx materials as much as possible
+
+## Removed
+
 - correct memory usage by a buffer when changing its content
 - reduced memory usage when generating asset previews
 - use `f32` to calculate memory usage in megabytes
