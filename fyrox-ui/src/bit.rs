@@ -20,6 +20,7 @@
 
 //! A widget that shows numeric value as a set of individual bits allowing switching separate bits.
 
+use crate::resources::BITS_ICON;
 use crate::{
     brush::Brush,
     core::{
@@ -36,21 +37,15 @@ use crate::{
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     message::{ButtonState, UiMessage},
-    utils::load_image,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, MessageDirection, MouseButton, UiNode, UserInterface, WidgetMessage,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_texture::TextureResource;
 use std::{
     fmt::Debug,
     mem,
     ops::{BitAnd, BitOr, Deref, DerefMut, Not, Shl},
-    sync::LazyLock,
 };
-
-static BIT_ICONS: LazyLock<Option<TextureResource>> =
-    LazyLock::new(|| load_image(include_bytes!("resources/bits.png")));
 
 const BIT_SIZE: f32 = 16.0;
 const BYTE_GAP: f32 = 8.0;
@@ -321,7 +316,7 @@ where
         ctx.commit(
             self.clip_bounds(),
             Brush::Solid(Color::BLACK),
-            CommandTexture::Texture(BIT_ICONS.clone().unwrap()),
+            CommandTexture::Texture(BITS_ICON.clone().unwrap()),
             &self.material,
             None,
         );
@@ -333,7 +328,7 @@ where
         ctx.commit(
             self.clip_bounds(),
             Brush::Solid(Color::GRAY),
-            CommandTexture::Texture(BIT_ICONS.clone().unwrap()),
+            CommandTexture::Texture(BITS_ICON.clone().unwrap()),
             &self.material,
             None,
         );

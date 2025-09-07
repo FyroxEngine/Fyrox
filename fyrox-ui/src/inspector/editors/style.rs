@@ -39,23 +39,19 @@ use crate::{
     },
     message::UiMessage,
     style::{resource::StyleResourceExt, Style, StyledProperty},
-    utils::{load_image, make_simple_tooltip},
+    utils::make_simple_tooltip,
     widget::WidgetBuilder,
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, VerticalAlignment,
     Widget,
 };
 
+use crate::resources::BIND_ICON;
 use fyrox_graph::BaseSceneGraph;
-use fyrox_texture::TextureResource;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::LazyLock,
 };
-
-static BIND_ICON: LazyLock<Option<TextureResource>> =
-    LazyLock::new(|| load_image(include_bytes!("../../resources/chain.png")));
 
 #[derive(Debug, Clone, Visit, Reflect, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "1b8fb74a-3911-4b44-bb71-1a0382ebb9a7")]

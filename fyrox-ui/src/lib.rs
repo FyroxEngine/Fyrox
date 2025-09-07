@@ -266,6 +266,7 @@ pub mod popup;
 pub mod progress_bar;
 pub mod range;
 pub mod rect;
+pub mod resources;
 pub mod screen;
 pub mod scroll_bar;
 pub mod scroll_panel;

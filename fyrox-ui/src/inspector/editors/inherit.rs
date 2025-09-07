@@ -21,6 +21,7 @@
 //! Property editor for [`InheritableVariable`]. It acts like a proxy to inner property, but also
 //! adds special "revert" button that is used to revert value to its parent's value.
 
+use crate::resources::REVERT_ICON;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
@@ -39,7 +40,7 @@ use crate::{
     },
     message::UiMessage,
     style::{resource::StyleResourceExt, Style},
-    utils::{load_image, make_simple_tooltip},
+    utils::make_simple_tooltip,
     widget::WidgetBuilder,
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, VerticalAlignment,
     Widget, WidgetMessage,
@@ -175,7 +176,7 @@ impl InheritablePropertyEditorBuilder {
                         .with_width(16.0)
                         .with_height(16.0),
                 )
-                .with_opt_texture(load_image(include_bytes!("revert.png")))
+                .with_opt_texture(REVERT_ICON.clone())
                 .build(ctx),
             )
             .build(ctx);

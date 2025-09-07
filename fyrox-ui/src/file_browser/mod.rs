@@ -38,7 +38,7 @@ use crate::{
     text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
     tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
-    utils::{load_image, make_simple_tooltip},
+    utils::make_simple_tooltip,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
@@ -67,6 +67,7 @@ use sysinfo::{DiskExt, RefreshKind, SystemExt};
 mod menu;
 mod selector;
 
+use crate::resources::FOLDER_ICON;
 pub use selector::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -717,7 +718,7 @@ fn build_tree_item<P: AsRef<Path>>(
                             bottom: 1.0,
                         }),
                 )
-                .with_opt_texture(load_image(include_bytes!("folder.png")))
+                .with_opt_texture(FOLDER_ICON.clone())
                 .build(ctx)
             } else {
                 Handle::NONE
