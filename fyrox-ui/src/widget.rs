@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::style::DEFAULT_STYLE;
 use crate::{
     brush::Brush,
     core::{
@@ -863,6 +864,8 @@ pub struct Widget {
     pub allow_drag: InheritableVariable<bool>,
     /// A flag, that defines whether the drop from drag'n'drop functionality can be accepted by the widget or not.
     pub allow_drop: InheritableVariable<bool>,
+    /// Style of the widget.
+    pub style: Option<StyleResource>,
     /// Optional, user-defined data.
     #[reflect(hidden)]
     #[visit(skip)]
@@ -1561,6 +1564,7 @@ impl Widget {
                     WidgetMessage::Style(style) => {
                         self.background.update(style);
                         self.foreground.update(style);
+                        self.style = Some(style.clone());
                     }
                     _ => (),
                 }
@@ -1965,6 +1969,8 @@ pub struct WidgetBuilder {
     pub accepts_input: bool,
     /// A material that will be used for rendering.
     pub material: WidgetMaterial,
+    /// Style of the widget.
+    pub style: StyleResource,
 }
 
 impl Default for WidgetBuilder {
@@ -2015,6 +2021,7 @@ impl WidgetBuilder {
             tab_stop: false,
             accepts_input: false,
             material: Default::default(),
+            style: DEFAULT_STYLE.resource.clone(),
         }
     }
 
@@ -2353,6 +2360,7 @@ impl WidgetBuilder {
             resource: None,
             material: self.material.into(),
             original_handle_in_resource: Default::default(),
+            style: Some(ctx.style.clone()),
         }
     }
 }

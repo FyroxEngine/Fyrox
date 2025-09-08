@@ -169,6 +169,8 @@ use crate::{
         },
     },
 };
+use fyrox::gui::style::resource::StyleResource;
+use fyrox::gui::style::Style;
 use fyrox::scene::base::SceneNodeId;
 
 pub mod animation;
@@ -348,6 +350,12 @@ pub fn make_property_editors_container(
         Option<SoundBufferResource>,
     >::new());
     container.register_inheritable_vec_collection::<Option<SoundBufferResource>>();
+
+    container.insert(ResourceFieldPropertyEditorDefinition::<Style>::new(
+        sender.clone(),
+    ));
+    container.insert(InheritablePropertyEditorDefinition::<Option<StyleResource>>::new());
+    container.register_inheritable_vec_collection::<Option<StyleResource>>();
 
     container
         .insert(ResourceFieldPropertyEditorDefinition::<CurveResourceState>::new(sender.clone()));
