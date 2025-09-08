@@ -151,6 +151,7 @@ impl SceneSettingsWindow {
             available_animations: Default::default(),
             sender,
             icon_request_sender,
+            style: None,
         });
 
         let context = InspectorContext::from_object(InspectorContextArgs {

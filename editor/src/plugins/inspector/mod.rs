@@ -55,15 +55,18 @@ use crate::{
     utils::window_content,
     Editor, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
-use fyrox::gui::border::BorderBuilder;
-use fyrox::gui::{
-    inspector::InspectorContextArgs,
-    stack_panel::StackPanelBuilder,
-    style::{resource::StyleResourceExt, Style},
-    utils::make_image_button_with_tooltip,
+use fyrox::gui::style::resource::StyleResource;
+use fyrox::{
+    core::type_traits::prelude::*,
+    gui::{
+        border::BorderBuilder,
+        inspector::InspectorContextArgs,
+        stack_panel::StackPanelBuilder,
+        style::{resource::StyleResourceExt, Style},
+        utils::make_image_button_with_tooltip,
+    },
 };
-use std::sync::mpsc::Sender;
-use std::{any::Any, sync::Arc};
+use std::{any::Any, sync::mpsc::Sender, sync::Arc};
 
 pub mod editors;
 pub mod handlers;
@@ -74,6 +77,7 @@ pub struct AnimationDefinition {
     handle: ErasedHandle,
 }
 
+#[derive(ComponentProvider)]
 pub struct EditorEnvironment {
     pub resource_manager: ResourceManager,
     pub serialization_context: Arc<SerializationContext>,
@@ -82,6 +86,8 @@ pub struct EditorEnvironment {
     pub available_animations: Vec<AnimationDefinition>,
     pub sender: MessageSender,
     pub icon_request_sender: Sender<IconRequest>,
+    #[component(include)]
+    pub style: Option<StyleResource>,
 }
 
 impl EditorEnvironment {
@@ -162,6 +168,21 @@ fn fetch_available_animations(
         }
     }
     Default::default()
+}
+
+fn current_widget_style(
+    selection: &Selection,
+    controller: &dyn SceneController,
+) -> Option<StyleResource> {
+    if let Some(ui_scene) = controller.downcast_ref::<UiScene>() {
+        if let Some(ui_selection) = selection.as_ui() {
+            return ui_scene
+                .ui
+                .try_get(ui_selection.widgets[0])
+                .and_then(|n| n.style.clone());
+        }
+    }
+    None
 }
 
 fn print_errors(sync_errors: &[InspectorError]) {
@@ -307,6 +328,7 @@ impl InspectorPlugin {
         sender: &MessageSender,
         icon_request_sender: Sender<IconRequest>,
         has_parent_object: bool,
+        style: Option<StyleResource>,
     ) {
         let environment = Arc::new(EditorEnvironment {
             resource_manager,
@@ -314,6 +336,7 @@ impl InspectorPlugin {
             available_animations: available_animations.to_vec(),
             sender: sender.clone(),
             icon_request_sender,
+            style,
         });
 
         let context = InspectorContext::from_object(InspectorContextArgs {
@@ -384,6 +407,8 @@ impl EditorPlugin for InspectorPlugin {
                             &editor.engine.scenes,
                         );
 
+                        let style = current_widget_style(&entry.selection, &*entry.controller);
+
                         self.change_context(
                             entity,
                             ui,
@@ -393,6 +418,7 @@ impl EditorPlugin for InspectorPlugin {
                             &editor.message_sender,
                             editor.asset_browser.preview_sender.clone(),
                             has_parent_object,
+                            style,
                         );
 
                         need_clear = false;

@@ -420,7 +420,7 @@ impl InspectorMessage {
 /// [fyroxed_base::inspector::EditorEnvironment](https://docs.rs/fyroxed_base/latest/fyroxed_base/inspector/struct.EditorEnvironment.html).
 /// Instead, when a property editor needs to talk to the application using the Inspector,
 /// it can attempt to cast InspectorEnvironment to whatever type it might be.
-pub trait InspectorEnvironment: Any + Send + Sync {
+pub trait InspectorEnvironment: Any + Send + Sync + ComponentProvider {
     fn name(&self) -> String;
     fn as_any(&self) -> &dyn Any;
 }
