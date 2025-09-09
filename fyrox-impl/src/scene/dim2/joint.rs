@@ -177,6 +177,7 @@ pub struct Joint {
     pub(crate) params: InheritableVariable<JointParams>,
 
     #[reflect(setter = "set_motor_params")]
+    #[visit(optional)] // Backward compatibility
     pub(crate) motor_params: InheritableVariable<JointMotorParams>,
 
     #[reflect(setter = "set_body1")]

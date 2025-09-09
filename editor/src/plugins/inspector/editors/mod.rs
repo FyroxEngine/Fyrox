@@ -494,6 +494,8 @@ pub fn make_property_editors_container(
     container.register_inheritable_inspectable::<dim2::collider::HeightfieldShape>();
     container.register_inheritable_inspectable::<dim2::collider::TileMapShape>();
     container.register_inheritable_inspectable::<ConvexPolyhedronShape>();
+    container.register_inheritable_inspectable::<JointMotorParams>();
+    container.register_inheritable_inspectable::<dim2::joint::JointMotorParams>();
     container.insert(SpriteSheetFramesContainerEditorDefinition);
 
     container.insert(SurfaceDataPropertyEditorDefinition {
