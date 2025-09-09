@@ -826,7 +826,7 @@ mod test {
             let registry = resource_manager.state().resource_registry.clone();
             let mut registry = registry.safe_lock();
             let mut ctx = registry.modify();
-            ctx.write_metadata(Uuid::new_v4(), derived_asset_path)
+            ctx.write_metadata(Uuid::new_v4(), derived_asset_path.to_path_buf())
                 .unwrap();
         }
 

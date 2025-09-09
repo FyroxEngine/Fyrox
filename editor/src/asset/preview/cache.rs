@@ -77,7 +77,7 @@ impl AssetPreviewCache {
         generated_counter: &mut usize,
         engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
-        let resource_uuid = resource.resource_uuid()?;
+        let resource_uuid = resource.resource_uuid();
 
         if let (false, Some(cached_preview)) = (force_update, self.container.get(&resource_uuid)) {
             return Some(cached_preview.clone());

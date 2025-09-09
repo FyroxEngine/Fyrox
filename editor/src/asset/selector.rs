@@ -337,7 +337,7 @@ impl<'a> AssetSelectorBuilder<'a> {
             .collect::<Vec<_>>();
 
         supported_resource_paths.extend(state.built_in_resources.values().filter_map(|res| {
-            let resource_state = res.resource.0.safe_lock();
+            let resource_state = res.resource.lock();
             if self
                 .asset_types
                 .contains(&resource_state.state.data_ref()?.type_uuid())

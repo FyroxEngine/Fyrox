@@ -146,8 +146,6 @@ where
     pub id: PathBuf,
     /// Initial data, from which the resource is created from.
     pub data_source: Option<DataSource>,
-    /// Uuid of the resource.
-    pub resource_uuid: Uuid,
     /// Ready-to-use ("loaded") resource.
     pub resource: Resource<T>,
 }
@@ -157,7 +155,6 @@ impl<T: TypedResourceData> Clone for BuiltInResource<T> {
         Self {
             id: self.id.clone(),
             data_source: self.data_source.clone(),
-            resource_uuid: self.resource_uuid,
             resource: self.resource.clone(),
         }
     }
@@ -173,9 +170,6 @@ impl<T: TypedResourceData> BuiltInResource<T> {
         let resource = make(&data_source.bytes);
         Self {
             id: id.as_ref().to_path_buf(),
-            resource_uuid: resource
-                .resource_uuid()
-                .expect("the resource must be in ok state"),
             resource,
             data_source: Some(data_source),
         }
@@ -186,9 +180,6 @@ impl<T: TypedResourceData> BuiltInResource<T> {
         Self {
             id: id.as_ref().to_path_buf(),
             data_source: None,
-            resource_uuid: resource
-                .resource_uuid()
-                .expect("the resource must be in ok state"),
             resource,
         }
     }
@@ -204,7 +195,7 @@ impl<T: TypedResourceData> From<BuiltInResource<T>> for UntypedBuiltInResource {
         Self {
             id: value.id,
             data_source: value.data_source,
-            resource_uuid: value.resource_uuid,
+            resource_uuid: value.resource.resource_uuid(),
             resource: value.resource.into(),
         }
     }

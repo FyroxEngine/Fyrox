@@ -1273,6 +1273,9 @@ pub trait SceneGraph: BaseSceneGraph {
         instances
     }
 
+    // Iterate through every node and try to find a corresponding node in the parent resource for that node.
+    // If a node has a parent resource but no correspoding node in the parent resource, then delete the node.
+    // Otherwise, use reflection to make the unmodified variables of the node match the values in the corresponding node.
     fn restore_original_handles_and_inherit_properties<F>(
         &mut self,
         ignored_types: &[TypeId],

@@ -32,6 +32,7 @@ use crate::{
         type_traits::prelude::*,
         variable::InheritableVariable,
         visitor::prelude::*,
+        SafeLock,
     },
     graph::{BaseSceneGraph, SceneGraph},
     graphics::ElementRange,
@@ -196,7 +197,7 @@ struct BatchContainerWrapper(Mutex<BatchContainer>);
 
 impl Clone for BatchContainerWrapper {
     fn clone(&self) -> Self {
-        Self(Mutex::new(self.0.lock().clone()))
+        Self(Mutex::new(self.0.safe_lock().clone()))
     }
 }
 
@@ -631,7 +632,7 @@ impl NodeTrait for Mesh {
             let mut bounding_box = AxisAlignedBoundingBox::default();
 
             if let BatchingMode::Static = *self.batching_mode {
-                let container = self.batch_container.0.lock();
+                let container = self.batch_container.0.safe_lock();
                 for batch in container.batches.values() {
                     let data = batch.data.data_ref();
                     extend_aabb_from_vertex_buffer(&data.vertex_buffer, &mut bounding_box);
@@ -698,7 +699,7 @@ impl NodeTrait for Mesh {
         let sorting_index = ctx.calculate_sorting_index(self.global_position());
 
         if let BatchingMode::Static = *self.batching_mode {
-            let mut container = self.batch_container.0.lock();
+            let mut container = self.batch_container.0.safe_lock();
 
             if container.batches.is_empty() {
                 container.fill(self.handle(), ctx);

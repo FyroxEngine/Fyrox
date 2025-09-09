@@ -2313,6 +2313,9 @@ impl Editor {
 
         let current_working_directory = std::env::current_dir().unwrap();
         if current_working_directory != working_directory {
+            Log::info(format!(
+                "Changing working directory to {working_directory:?}"
+            ));
             std::env::set_current_dir(working_directory.clone()).unwrap();
             self.engine.resource_manager.update_or_load_registry();
             self.reload_settings();
@@ -2964,7 +2967,19 @@ impl Editor {
         self.engine.destroy_graphics_context().unwrap();
     }
 
+    fn on_focus_changed(&mut self) {
+        if self.focused {
+            self.engine
+                .resource_manager
+                .state()
+                .process_filesystem_events();
+        }
+    }
+
     pub fn run(mut self, event_loop: EventLoop<()>) {
+        Log::info("Initializing resource registry.");
+        self.engine.resource_manager.update_or_load_registry();
+
         for_each_plugin!(self.plugins => on_start(&mut self));
 
         event_loop
@@ -3041,6 +3056,7 @@ impl Editor {
                         }
                         WindowEvent::Focused(focused) => {
                             self.focused = *focused;
+                            self.on_focus_changed();
                         }
                         WindowEvent::Moved(new_position) => {
                             // Allow the window to go outside the screen bounds by a little. This

@@ -628,6 +628,16 @@ impl Visitor {
         self.version
     }
 
+    /// Returns true of a region with the given name exists as a child of the current node.
+    /// When reading, `has_region` returning true means that `enter_region` will succeed.
+    /// When writing, `has_region` returning true means that `enter_region` will fail.
+    pub fn has_region(&self, name: &str) -> bool {
+        let node = self.nodes.borrow(self.current_node);
+        node.children
+            .iter()
+            .any(|child| self.nodes.borrow(*child).name == name)
+    }
+
     /// If [Visitor::is_reading], find a node with the given name that is a child of the current
     /// node, and return a Visitor for the found node. Return an error if no node with that name exists.
     ///

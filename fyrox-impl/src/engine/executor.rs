@@ -207,6 +207,9 @@ impl Executor {
 
     /// Runs the executor - starts your game.
     pub fn run(self) {
+        Log::info("Initializing resource registry.");
+        self.engine.resource_manager.update_or_load_registry();
+
         let engine = self.engine;
         let event_loop = self.event_loop;
         let throttle_threshold = self.throttle_threshold;

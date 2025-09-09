@@ -24,15 +24,19 @@ use crate::state::ResourceDataWrapper;
 use crate::{
     core::{
         math::curve::Curve, parking_lot::Mutex, reflect::prelude::*, uuid, uuid::Uuid,
-        visitor::prelude::*, visitor::RegionGuard, TypeUuidProvider,
+        visitor::prelude::*, TypeUuidProvider,
     },
     manager::ResourceManager,
-    registry::ResourceRegistryStatus,
     state::{LoadError, ResourceState},
     Resource, ResourceData, ResourceLoadError, TypedResourceData, CURVE_RESOURCE_UUID,
     MODEL_RESOURCE_UUID, SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
 };
-use fyrox_core::err;
+use crate::{ResourceHeaderGuard, FONT_RESOURCE_UUID, HRIR_SPHERE_RESOURCE_UUID};
+use fxhash::FxHasher64;
+use fyrox_core::io::FileError;
+use fyrox_core::log::Log;
+use fyrox_core::parking_lot::MutexGuard;
+use fyrox_core::SafeLock;
 use std::fmt::Write;
 use std::{
     error::Error,
@@ -47,11 +51,167 @@ use std::{
     task::{Context, Poll},
 };
 
+const MISSING_RESOURCE_MANAGER: &str =
+    "Resource data constructor container must be provided when serializing resources!";
+
+/// The UUIDs for resources that cannot be visited as embedded data because none of their
+/// fields are visited. This is used by `LegacyHeader` to avoid mistakenly interpretting
+/// a visitor node as an embedded resource.
+/// Being on this list does *not* prevent future versions of these resources from being
+/// embedded. It is purely a heuristic to assist with reading legacy resources.
+const INVALID_EMBEDDED_RESOURCES: &[Uuid] = &[
+    SOUND_BUFFER_RESOURCE_UUID,
+    MODEL_RESOURCE_UUID,
+    HRIR_SPHERE_RESOURCE_UUID,
+    FONT_RESOURCE_UUID,
+];
+
+#[derive(Default, Debug, Visit, Clone, PartialEq, Eq, Hash)]
+enum OldResourceKind {
+    #[default]
+    Embedded,
+    External(PathBuf),
+}
+
+#[derive(Debug)]
+enum LegacyHeader {
+    Path(PathBuf),
+    Uuid(Uuid),
+    Data(Box<dyn ResourceData>),
+}
+
+impl LegacyHeader {
+    fn visit_path(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut path = PathBuf::default();
+        path.visit(name, visitor)?;
+        if path.as_os_str().is_empty() {
+            return Err(VisitError::FileLoadError(FileError::Custom(
+                "Empty path".to_string(),
+            )));
+        }
+        *self = Self::Path(path);
+        Ok(())
+    }
+    fn visit_details(&mut self, type_uuid: Uuid, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region("Details")?;
+        if type_uuid == SOUND_BUFFER_RESOURCE_UUID {
+            let mut sound_region = region.enter_region("0")?;
+            self.visit_path("Path", &mut sound_region)
+        } else {
+            self.visit_path("Path", &mut region)
+        }
+    }
+    fn take_data(&mut self, uuid: Uuid) -> Option<Box<dyn ResourceData>> {
+        if let Self::Data(data) = std::mem::replace(self, Self::Uuid(uuid)) {
+            Some(data)
+        } else {
+            None
+        }
+    }
+    fn is_valid_embedded_type_uuid(uuid: Uuid) -> bool {
+        INVALID_EMBEDDED_RESOURCES.contains(&uuid)
+    }
+}
+
+impl Default for LegacyHeader {
+    fn default() -> Self {
+        Self::Path(PathBuf::default())
+    }
+}
+
+impl Visit for LegacyHeader {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        assert!(visitor.is_reading());
+        let mut region = visitor.enter_region(name)?;
+
+        let mut type_uuid = Uuid::default();
+        if type_uuid.visit("TypeUuid", &mut region).is_err() {
+            // We might be reading the old version, try to guess an actual type uuid by
+            // the inner content of the resource data.
+            type_uuid = guess_uuid(&mut region);
+        };
+        let resource_manager = region
+            .blackboard
+            .get::<ResourceManager>()
+            .expect(MISSING_RESOURCE_MANAGER);
+        let resource_manager_state = resource_manager.state();
+        let Some(mut instance) = resource_manager_state
+            .constructors_container
+            .try_create(&type_uuid)
+        else {
+            return Err(VisitError::User(format!(
+                "There's no constructor registered for type {type_uuid}!"
+            )));
+        };
+        drop(resource_manager_state);
+
+        let mut id: u32 = 0;
+
+        if id.visit("Id", &mut region).is_ok() {
+            // We're interested only in embedded resources.
+            if id == 2 {
+                let result = self.visit_details(type_uuid, &mut region);
+                if let Err(err0) = result {
+                    if Self::is_valid_embedded_type_uuid(type_uuid) {
+                        let result = instance.visit("Details", &mut region);
+                        if let Err(err1) = result {
+                            let result = instance.visit("State", &mut region);
+                            if let Err(err2) = result {
+                                return Err(err0.multiple(err1).multiple(err2));
+                            }
+                        }
+                        *self = Self::Data(instance);
+                        Ok(())
+                    } else {
+                        Err(err0)
+                    }
+                } else {
+                    result
+                }
+            } else {
+                Err(VisitError::User("Old resource".into()))
+            }
+        } else {
+            let mut uuid = Uuid::default();
+            if uuid.visit("ResourceUuid", &mut region).is_ok() && !uuid.is_nil() {
+                *self = Self::Uuid(uuid);
+                return Ok(());
+            }
+            let mut old_kind = OldResourceKind::Embedded;
+            old_kind.visit("Kind", &mut region)?;
+            match old_kind {
+                OldResourceKind::External(path) => {
+                    if path.as_os_str().is_empty() {
+                        return Err(VisitError::FileLoadError(FileError::Custom(
+                            "Empty path".to_string(),
+                        )));
+                    }
+                    *self = Self::Path(path);
+                }
+                OldResourceKind::Embedded => {
+                    instance.visit("State", &mut region)?;
+                    *self = Self::Data(instance);
+                }
+            }
+            Ok(())
+        }
+    }
+}
+
 // Heuristic function to guess resource uuid based on inner content of a resource.
-fn guess_uuid(region: &mut RegionGuard) -> Uuid {
+fn guess_uuid(region: &mut Visitor) -> Uuid {
     assert!(region.is_reading());
 
-    let mut region = region.enter_region("Details").unwrap();
+    let guard = region.enter_region("Details");
+    let mut region = match guard {
+        Ok(region) => region,
+        Err(ref err) => {
+            Log::err(err.to_string());
+            drop(guard);
+            Log::info(region.debug());
+            return TEXTURE_RESOURCE_UUID;
+        }
+    };
 
     let mut mip_count = 0u32;
     if mip_count.visit("MipCount", &mut region).is_ok() {
@@ -108,13 +268,6 @@ pub enum ResourceKind {
     External,
 }
 
-#[derive(Default, Debug, Visit, Clone, PartialEq, Eq, Hash)]
-enum OldResourceKind {
-    #[default]
-    Embedded,
-    External(PathBuf),
-}
-
 impl ResourceKind {
     /// Switches the resource kind to [`Self::External`].
     #[inline]
@@ -158,23 +311,56 @@ impl Display for ResourceKind {
 /// its kind, etc.
 #[derive(Reflect, Clone, Debug)]
 pub struct ResourceHeader {
+    /// The unique identifier of this resource.
+    pub uuid: Uuid,
     /// Kind of the resource. See [`ResourceKind`] for more info.
     pub kind: ResourceKind,
     /// Actual state of the resource. See [`ResourceState`] for more info.
     pub state: ResourceState,
+}
 
-    // TODO: Remove in Fyrox 1.0
-    old_format_path: Option<PathBuf>,
+impl Default for ResourceHeader {
+    fn default() -> Self {
+        Self {
+            uuid: Uuid::new_v4(),
+            kind: Default::default(),
+            state: Default::default(),
+        }
+    }
+}
+
+impl From<Uuid> for ResourceHeader {
+    fn from(uuid: Uuid) -> Self {
+        Self {
+            uuid,
+            kind: ResourceKind::External,
+            state: ResourceState::Unloaded,
+        }
+    }
+}
+
+impl ResourceHeader {
+    /// The type of the data, if this resource is Ok.
+    pub fn type_uuid(&self) -> Option<Uuid> {
+        if let ResourceState::Ok { data } = &self.state {
+            Some(data.type_uuid())
+        } else {
+            None
+        }
+    }
 }
 
 impl Display for ResourceHeader {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.uuid, f)?;
+        f.write_char(':')?;
         match self.kind {
             ResourceKind::Embedded => f.write_str("Embed")?,
             ResourceKind::External => f.write_str("Extern")?,
         }
         f.write_char(':')?;
         match &self.state {
+            ResourceState::Unloaded => f.write_str("Unloaded"),
             ResourceState::Pending { .. } => f.write_str("Pending"),
             ResourceState::LoadError { path, error } => write!(f, "Error({path:?}, {error})"),
             ResourceState::Ok { .. } => f.write_str("Ok"),
@@ -185,87 +371,44 @@ impl Display for ResourceHeader {
 impl Visit for ResourceHeader {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
-
         if region.is_reading() {
-            let mut id: u32 = 0;
-
-            if id.visit("Id", &mut region).is_ok() {
-                // Reading old version, convert it to the new.
-
-                let mut type_uuid = Uuid::default();
-                if type_uuid.visit("TypeUuid", &mut region).is_err() {
-                    // We might be reading the old version, try to guess an actual type uuid by
-                    // the inner content of the resource data.
-                    type_uuid = guess_uuid(&mut region);
-                };
-
-                // We're interested only in embedded resources.
-                if id == 2 {
-                    let resource_manager = region.blackboard.get::<ResourceManager>().expect(
-                        "Resource data constructor container must be \
-                provided when serializing resources!",
-                    );
-                    let resource_manager_state = resource_manager.state();
-
-                    if let Some(mut instance) = resource_manager_state
-                        .constructors_container
-                        .try_create(&type_uuid)
-                    {
-                        drop(resource_manager_state);
-
-                        if let Ok(mut details_region) = region.enter_region("Details") {
-                            if type_uuid == SOUND_BUFFER_RESOURCE_UUID {
-                                let mut sound_region = details_region.enter_region("0")?;
-                                let mut path = PathBuf::new();
-                                path.visit("Path", &mut sound_region).unwrap();
-                                self.kind.make_external();
-                                self.old_format_path = Some(path);
-                            } else {
-                                let mut path = PathBuf::new();
-                                path.visit("Path", &mut details_region).unwrap();
-                                self.kind.make_external();
-                                self.old_format_path = Some(path);
-                            }
-                        }
-
-                        instance.visit("Details", &mut region)?;
-
-                        self.state = ResourceState::Ok {
-                            data: ResourceDataWrapper(instance),
-                            // The old format does not contain an uuid.
-                            resource_uuid: Uuid::nil(),
-                        };
-
-                        return Ok(());
-                    } else {
-                        return Err(VisitError::User(format!(
-                            "There's no constructor registered for type {type_uuid}!"
-                        )));
-                    }
-                } else {
-                    self.state = ResourceState::LoadError {
-                        path: Default::default(),
-                        error: LoadError::new("Old resource"),
-                    };
+            self.kind = ResourceKind::Embedded;
+            let mut actual_type_uuid = Uuid::default();
+            actual_type_uuid.visit("TypeUuid", &mut region)?;
+            let resource_manager = region
+                .blackboard
+                .get::<ResourceManager>()
+                .expect(MISSING_RESOURCE_MANAGER)
+                .clone();
+            let Some(mut data) = resource_manager
+                .state()
+                .constructors_container
+                .try_create(&actual_type_uuid)
+            else {
+                return Err(VisitError::User(format!(
+                    "There's no constructor registered for type {actual_type_uuid}!"
+                )));
+            };
+            data.visit("Data", &mut region)?;
+            self.state = ResourceState::Ok {
+                data: ResourceDataWrapper(data),
+            };
+            Ok(())
+        } else {
+            match (&self.kind, &mut self.state) {
+                (ResourceKind::Embedded, ResourceState::Ok { data }) => {
+                    let mut type_uuid = data.type_uuid();
+                    type_uuid.visit("TypeUuid", &mut region)?;
+                    data.visit("Data", &mut region)
                 }
-
-                return Ok(());
-            } else {
-                let mut old_kind = OldResourceKind::Embedded;
-                if old_kind.visit("Kind", &mut region).is_ok() {
-                    if let OldResourceKind::External(path) = old_kind {
-                        self.old_format_path = Some(path);
-                    }
+                (ResourceKind::External, _) => {
+                    Err(VisitError::User("Writing an external resource".into()))
                 }
+                _ => Err(VisitError::User(
+                    "Writing an embedded resource that is not ok.".into(),
+                )),
             }
         }
-
-        self.kind.visit("Kind", &mut region)?;
-        if !region.is_reading() || region.find_field("TypeUuid").is_some() {
-            self.state.visit(self.kind, "State", &mut region)?;
-        }
-
-        Ok(())
     }
 }
 
@@ -308,101 +451,21 @@ impl Visit for ResourceHeader {
 /// that the resource is in default state. This is a trade-off to prevent wrapping internals into
 /// `Option`, that in some cases could lead to convoluted code with lots of `unwrap`s and state
 /// assumptions.
-#[derive(Clone, Reflect, TypeUuidProvider)]
+#[derive(Default, Clone, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "21613484-7145-4d1c-87d8-62fa767560ab")]
 pub struct UntypedResource(pub Arc<Mutex<ResourceHeader>>);
 
 impl Visit for UntypedResource {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)?;
-
-        // Try to restore the shallow handle on deserialization for external resources.
-        if visitor.is_reading() {
-            let inner_lock = self.0.lock();
-            if let (ResourceKind::External, &ResourceState::Ok { resource_uuid, .. }) =
-                (inner_lock.kind, &inner_lock.state)
-            {
-                let resource_manager = visitor
-                    .blackboard
-                    .get::<ResourceManager>()
-                    .expect("Resource manager must be available when deserializing resources!");
-
-                let status_flag = resource_manager
-                    .state()
-                    .resource_registry
-                    .lock()
-                    .status_flag();
-
-                // The resource registry **MUST** be loaded at this stage. This assertion should never
-                // trigger in normal circumstances, because resource references normally stored inside
-                // some other resources and resource loading is guarded with `registry.await` that
-                // waits until the registry is fully loaded.
-                //
-                // There are two major ways that will trigger this assertion:
-                // 1) The registry is not loaded.
-                // 2) You're trying to deserialize the resource handle manually without a proper
-                // environment.
-                assert_eq!(
-                    status_flag.status(),
-                    ResourceRegistryStatus::Loaded,
-                    "Resource registry is not loaded"
-                );
-
-                let path = match inner_lock.old_format_path {
-                    None => {
-                        let rm_state = resource_manager.state();
-                        let registry_lock = rm_state.resource_registry.lock();
-                        let path = registry_lock.uuid_to_path_buf(resource_uuid);
-                        // Minimize duration of lock on registry.
-                        drop(registry_lock);
-                        match path {
-                            Some(path) => Some(path),
-                            None => {
-                                // As a last resort - try to find a built-in resource with this id.
-                                // Beware that find_by_uuid causes resource header locking.
-                                rm_state
-                                    .built_in_resources
-                                    .find_by_uuid(resource_uuid)
-                                    .map(|r| r.id.clone())
-                            }
-                        }
-                    }
-                    Some(ref path) => Some(path.clone()),
-                };
-
-                if let Some(path) = path {
-                    drop(inner_lock);
-                    self.0 = resource_manager.request_untyped(path).0;
-                } else {
-                    let kind = inner_lock.kind;
-                    drop(inner_lock);
-
-                    let message = format!(
-                        "Unable to restore resource handle of {resource_uuid} uuid!\
-                        The uuid wasn't found in the resource registry!"
-                    );
-
-                    err!("{}", message);
-
-                    *self = UntypedResource::new_load_error(kind, LoadError::new(message));
-                }
+        let result = self.visit_with_type_uuid(name, None, visitor);
+        if let Err(err) = &result {
+            Log::err(format!("Resource error for untyped resource: {err}"));
+            if let Ok(region) = visitor.enter_region(name) {
+                region.debug();
             }
+            self.commit_error(PathBuf::default(), err.to_string());
         }
-
-        Ok(())
-    }
-}
-
-impl Default for UntypedResource {
-    fn default() -> Self {
-        Self(Arc::new(Mutex::new(ResourceHeader {
-            kind: Default::default(),
-            state: ResourceState::new_load_error(
-                Default::default(),
-                LoadError::new("Default resource state of unknown type."),
-            ),
-            old_format_path: None,
-        })))
+        result
     }
 }
 
@@ -418,13 +481,13 @@ impl Display for UntypedResource {
 
 impl Debug for UntypedResource {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Resource")
+        write!(f, "UntypedResource({self})")
     }
 }
 
 impl PartialEq for UntypedResource {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(&*self.0, &*other.0)
+        Arc::ptr_eq(&self.0, &other.0)
     }
 }
 
@@ -432,18 +495,177 @@ impl Eq for UntypedResource {}
 
 impl Hash for UntypedResource {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(&*self.0 as *const _ as u64)
+        Arc::as_ptr(&self.0).hash(state);
+    }
+}
+
+impl From<Uuid> for UntypedResource {
+    fn from(uuid: Uuid) -> Self {
+        ResourceHeader::from(uuid).into()
+    }
+}
+
+impl From<ResourceHeader> for UntypedResource {
+    fn from(header: ResourceHeader) -> Self {
+        Self(Arc::new(Mutex::new(header)))
     }
 }
 
 impl UntypedResource {
-    /// Creates new untyped resource in pending state using the given path and type uuid.
-    pub fn new_pending(path: PathBuf, kind: ResourceKind) -> Self {
-        Self(Arc::new(Mutex::new(ResourceHeader {
+    /// Visit this resource handle with the given UUID for the type of the resource data.
+    pub fn visit_with_type_uuid(
+        &mut self,
+        name: &str,
+        type_uuid: Option<Uuid>,
+        visitor: &mut Visitor,
+    ) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+        if region.is_reading() {
+            let mut uuid = Uuid::default();
+            match uuid.visit("Uuid", &mut region) {
+                Ok(()) => {
+                    self.read_visit(uuid, type_uuid, &mut region)?;
+                    drop(region);
+                }
+                Err(_) => {
+                    drop(region);
+                    self.legacy_visit(name, visitor)?;
+                }
+            }
+            let resource_manager = visitor
+                .blackboard
+                .get::<ResourceManager>()
+                .expect("Resource manager must be available when deserializing resources!")
+                .clone();
+            resource_manager.state().request_resource(self);
+            Ok(())
+        } else {
+            self.resource_uuid().visit("Uuid", &mut region)?;
+            let header_guard = self.lock();
+            let is_embedded = header_guard.kind.is_embedded();
+            let is_ok = header_guard.state.is_ok();
+            drop(header_guard);
+            if is_embedded && is_ok {
+                self.0.visit("Embedded", &mut region)
+            } else if is_embedded {
+                true.visit("Default", &mut region)
+            } else {
+                Ok(())
+            }
+        }
+    }
+    fn legacy_visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut header: Arc<Mutex<LegacyHeader>> = Default::default();
+        let result = header.visit(name, visitor);
+        if let Err(err1) = result {
+            header = Arc::default();
+            if let Ok(mut region) = visitor.enter_region(name) {
+                let mut region = if region.has_region("Value") {
+                    region.enter_region("Value").unwrap()
+                } else {
+                    region
+                };
+                let result = header.visit("State", &mut region);
+                if let Err(err2) = result {
+                    if let Ok(mut region) = region.enter_region("State") {
+                        let result = header.visit("Data", &mut region);
+                        if let Err(err3) = result {
+                            return Err(err1.multiple(err2).multiple(err3));
+                        }
+                    } else {
+                        return Err(err1.multiple(err2));
+                    }
+                }
+            } else {
+                return Err(err1);
+            }
+        }
+        let resource_manager = visitor
+            .blackboard
+            .get::<ResourceManager>()
+            .expect("Resource manager must be available when deserializing resources!")
+            .clone();
+        let mut state = resource_manager.state();
+        let mut header = header.try_lock().expect("header locked");
+        match *header {
+            LegacyHeader::Path(ref path) => {
+                Log::info(format!("Requesting {path:?}"));
+                *self = state.request(path);
+            }
+            LegacyHeader::Uuid(uuid) => {
+                *self = uuid.into();
+            }
+            LegacyHeader::Data(_) => {
+                let uuid = Uuid::new_v4();
+                let data = header.take_data(uuid).unwrap();
+                *self = UntypedResource::new_ok_untyped(uuid, ResourceKind::Embedded, data);
+            }
+        }
+        Ok(())
+    }
+    fn read_visit(
+        &mut self,
+        resource_uuid: Uuid,
+        type_uuid: Option<Uuid>,
+        visitor: &mut Visitor,
+    ) -> VisitResult {
+        let mut is_default = false;
+        if is_default.visit("Default", visitor).is_ok() && is_default {
+            *self = Self::default();
+            self.lock().uuid = resource_uuid;
+            Ok(())
+        } else if visitor.has_region("Embedded") {
+            self.0.visit("Embedded", visitor)?;
+            self.lock().uuid = resource_uuid;
+            if let (Some(expected), Some(actual)) = (type_uuid, self.lock().type_uuid()) {
+                if expected != actual {
+                    return Err(format!(
+                        "Unable to deserialize untyped resource into its typed \
+                    version, because types do not match! Untyped resource has \
+                    {actual} type, but the required type is {expected}.",
+                    )
+                    .into());
+                }
+            }
+            Ok(())
+        } else {
+            *self = resource_uuid.into();
+            Ok(())
+        }
+    }
+    /// Lock the shared header of this resource.
+    pub fn typed_lock<T: TypedResourceData>(&self) -> ResourceHeaderGuard<'_, T> {
+        self.lock().into()
+    }
+    /// Lock the shared header of this resource.
+    pub fn lock(&self) -> MutexGuard<'_, ResourceHeader> {
+        self.0.safe_lock()
+    }
+    /// Attempt to lock the shared header. None if the header is already locked.
+    pub fn try_typed_lock<T: TypedResourceData>(&self) -> Option<ResourceHeaderGuard<'_, T>> {
+        self.try_lock().map(|g| g.into())
+    }
+    /// Attempt to lock the shared header. None if the header is already locked.
+    pub fn try_lock(&self) -> Option<MutexGuard<'_, ResourceHeader>> {
+        self.0.try_lock()
+    }
+    /// Creates new untyped resource in unloaded state with the given UUID.
+    pub fn new_unloaded(resource_uuid: Uuid) -> Self {
+        ResourceHeader {
+            uuid: resource_uuid,
+            kind: ResourceKind::External,
+            state: ResourceState::Unloaded,
+        }
+        .into()
+    }
+    /// Creates new untyped resource in pending state with the given UUID.
+    pub fn new_pending(resource_uuid: Uuid, kind: ResourceKind) -> Self {
+        ResourceHeader {
+            uuid: resource_uuid,
             kind,
-            state: ResourceState::new_pending(path),
-            old_format_path: None,
-        })))
+            state: ResourceState::new_pending(),
+        }
+        .into()
     }
 
     /// Creates new untyped resource in ok (fully loaded) state using the given data of any type, that
@@ -452,11 +674,12 @@ impl UntypedResource {
     where
         T: ResourceData,
     {
-        Self(Arc::new(Mutex::new(ResourceHeader {
+        ResourceHeader {
+            uuid: resource_uuid,
             kind,
-            state: ResourceState::new_ok(resource_uuid, data),
-            old_format_path: None,
-        })))
+            state: ResourceState::new_ok(data),
+        }
+        .into()
     }
 
     /// Creates new untyped resource in ok (fully loaded) state using the given data.
@@ -465,11 +688,12 @@ impl UntypedResource {
         kind: ResourceKind,
         data: Box<dyn ResourceData>,
     ) -> Self {
-        Self(Arc::new(Mutex::new(ResourceHeader {
+        ResourceHeader {
+            uuid: resource_uuid,
             kind,
-            state: ResourceState::new_ok_untyped(resource_uuid, data),
-            old_format_path: None,
-        })))
+            state: ResourceState::new_ok_untyped(data),
+        }
+        .into()
     }
 
     /// Creates new untyped resource in ok (fully loaded) state using the given data of any type, that
@@ -479,27 +703,24 @@ impl UntypedResource {
     }
 
     /// Creates new untyped resource in error state.
-    pub fn new_load_error(kind: ResourceKind, error: LoadError) -> Self {
-        Self(Arc::new(Mutex::new(ResourceHeader {
+    pub fn new_load_error(kind: ResourceKind, path: PathBuf, error: LoadError) -> Self {
+        ResourceHeader {
+            uuid: Uuid::new_v4(),
             kind,
-            state: ResourceState::new_load_error(Default::default(), error),
-            old_format_path: None,
-        })))
+            state: ResourceState::new_load_error(path, error),
+        }
+        .into()
     }
 
-    /// Tries to get a resource uuid (if any). Uuid is available only for fully loaded resources
-    /// (in [`ResourceState::Ok`] state).
-    pub fn resource_uuid(&self) -> Option<Uuid> {
-        let header = self.0.lock();
-        match header.state {
-            ResourceState::Ok { resource_uuid, .. } => Some(resource_uuid),
-            _ => None,
-        }
+    /// The UUID of the resource. All resources must have a UUID, even if they are not loaded
+    /// because the UUID is how the resource manager knows the path to load from.
+    pub fn resource_uuid(&self) -> Uuid {
+        self.lock().uuid
     }
 
     /// Returns actual unique type id of underlying resource data.
     pub fn type_uuid(&self) -> Option<Uuid> {
-        let header = self.0.lock();
+        let header = self.lock();
         match header.state {
             ResourceState::Ok { ref data, .. } => Some(data.type_uuid()),
             _ => None,
@@ -509,7 +730,7 @@ impl UntypedResource {
     /// Tries to get an actual unique type id of underlying resource data. Returns `None` if the
     /// resource cannot be locked or if it is not loaded.
     pub fn type_uuid_non_blocking(&self) -> Option<Uuid> {
-        let header = self.0.try_lock()?;
+        let header = self.try_lock()?;
         match header.state {
             ResourceState::Ok { ref data, .. } => Some(data.type_uuid()),
             _ => None,
@@ -519,8 +740,7 @@ impl UntypedResource {
     /// Tries to get a type name of the resource data. Data type name is available only for fully
     /// loaded resources (in [`ResourceState::Ok`] state).
     pub fn data_type_name(&self) -> Option<String> {
-        let header = self.0.lock();
-        match header.state {
+        match self.lock().state {
             ResourceState::Ok { ref data, .. } => Some(Reflect::type_name(&**data).to_string()),
             _ => None,
         }
@@ -533,15 +753,29 @@ impl UntypedResource {
             .unwrap_or_else(|| "Unknown".to_string())
     }
 
+    /// Returns true if the resource has not been requested.
+    pub fn is_unloaded(&self) -> bool {
+        matches!(self.lock().state, ResourceState::Unloaded)
+    }
     /// Returns true if the resource is still loading.
     pub fn is_loading(&self) -> bool {
-        matches!(self.0.lock().state, ResourceState::Pending { .. })
+        matches!(self.lock().state, ResourceState::Pending { .. })
+    }
+
+    /// Returns true if the resource is completely loaded.
+    pub fn is_ok(&self) -> bool {
+        matches!(self.lock().state, ResourceState::Ok { .. })
+    }
+
+    /// Returns true if the resource failed to load.
+    pub fn is_failed_to_load(&self) -> bool {
+        matches!(self.lock().state, ResourceState::LoadError { .. })
     }
 
     /// Returns true if the resource is procedural (its data is generated at runtime, not stored in an external
     /// file).
     pub fn is_embedded(&self) -> bool {
-        self.0.lock().kind.is_embedded()
+        self.lock().kind.is_embedded()
     }
 
     /// Returns exact amount of users of the resource.
@@ -552,27 +786,28 @@ impl UntypedResource {
 
     /// Returns a pointer as numeric value which can be used as a hash.
     #[inline]
-    pub fn key(&self) -> usize {
-        (&*self.0 as *const _) as usize
+    pub fn key(&self) -> u64 {
+        let mut hasher = FxHasher64::default();
+        self.hash(&mut hasher);
+        hasher.finish()
     }
 
     /// Returns path of the untyped resource.
     pub fn kind(&self) -> ResourceKind {
-        self.0.lock().kind
+        self.lock().kind
     }
 
     /// Set a new path for the untyped resource.
     pub fn set_kind(&self, new_kind: ResourceKind) {
-        self.0.lock().kind = new_kind;
+        self.lock().kind = new_kind;
     }
 
     /// Tries to save the resource to the specified path.
     pub fn save(&self, path: &Path) -> Result<(), Box<dyn Error>> {
-        let mut guard = self.0.lock();
-        match guard.state {
-            ResourceState::Pending { .. } | ResourceState::LoadError { .. } => {
-                Err("Unable to save unloaded resource!".into())
-            }
+        match self.lock().state {
+            ResourceState::Pending { .. }
+            | ResourceState::LoadError { .. }
+            | ResourceState::Unloaded => Err("Unable to save unloaded resource!".into()),
             ResourceState::Ok { ref mut data, .. } => data.save(path),
         }
     }
@@ -592,22 +827,25 @@ impl UntypedResource {
         }
     }
 
+    /// Modify this resource into the [`ResourceState::Pending`] state.
+    pub fn make_pending(&mut self) {
+        self.lock().state = ResourceState::new_pending();
+    }
     /// Changes ResourceState::Pending state to ResourceState::Ok(data) with given `data`.
-    /// Additionally, it wakes all futures.
+    /// Additionally, it wakes all futures. Panics if the resource is unrequested.
     #[inline]
     pub fn commit(&self, state: ResourceState) {
-        self.0.lock().state.commit(state);
+        self.lock().state.commit(state);
     }
 
-    /// Changes internal state to [`ResourceState::Ok`]
-    pub fn commit_ok<T: ResourceData>(&self, resource_uuid: Uuid, data: T) {
-        let mut guard = self.0.lock();
-        guard.state.commit_ok(resource_uuid, data);
+    /// Changes internal state to [`ResourceState::Ok`]. Panics if the resource is unrequested.
+    pub fn commit_ok<T: ResourceData>(&self, data: T) {
+        self.lock().state.commit_ok(data);
     }
 
     /// Changes internal state to [`ResourceState::LoadError`].
-    pub fn commit_error<E: ResourceLoadError>(&self, path: PathBuf, error: E) {
-        self.0.lock().state.commit_error(path, error);
+    pub fn commit_error<E: ResourceLoadError>(&mut self, path: PathBuf, error: E) {
+        self.lock().state.commit_error(path, error);
     }
 }
 
@@ -615,13 +853,15 @@ impl Future for UntypedResource {
     type Output = Result<Self, LoadError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let state = self.0.clone();
-        let mut guard = state.lock();
+        let mut guard = self.lock();
         match guard.state {
             ResourceState::Pending { ref mut wakers, .. } => {
                 wakers.add_waker(cx.waker());
                 Poll::Pending
             }
+            ResourceState::Unloaded => Poll::Ready(Err(LoadError::new(
+                "Unloaded resource is not loading".to_string(),
+            ))),
             ResourceState::LoadError { ref error, .. } => Poll::Ready(Err(error.clone())),
             ResourceState::Ok { .. } => Poll::Ready(Ok(self.clone())),
         }
@@ -634,6 +874,8 @@ mod test {
     use fyrox_core::futures;
     use std::error::Error;
     use std::task::{self};
+
+    use crate::io::FsResourceIo;
 
     use super::*;
 
@@ -672,13 +914,21 @@ mod test {
         let mut visitor = Visitor::default();
 
         assert!(r.visit("name", &mut visitor).is_ok());
-    }
 
-    #[test]
-    fn debug_for_untyped_resource() {
-        let r = UntypedResource::default();
-
-        assert_eq!(format!("{r:?}"), "Resource\n");
+        let mut cursor = std::io::Cursor::new(Vec::<u8>::new());
+        visitor
+            .save_binary_to_memory(&mut cursor)
+            .expect("Failed to write binary for visitor");
+        cursor.set_position(0);
+        let mut visitor = Visitor::load_binary_from_memory(cursor.get_ref())
+            .expect("Failed to read binary for visitor");
+        visitor.blackboard.register(Arc::new(ResourceManager::new(
+            Arc::new(FsResourceIo),
+            Arc::default(),
+        )));
+        assert!(r.visit("name", &mut visitor).is_ok());
+        assert!(r.is_embedded());
+        assert!(r.is_failed_to_load());
     }
 
     #[test]
@@ -704,24 +954,23 @@ mod test {
         let waker = noop_waker();
         let mut cx = task::Context::from_waker(&waker);
 
-        let mut r = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
+        let mut r = UntypedResource::from(ResourceHeader {
+            uuid: Uuid::new_v4(),
             kind: ResourceKind::External,
             state: ResourceState::Ok {
                 data: ResourceDataWrapper(Box::new(stub)),
-                resource_uuid: Uuid::new_v4(),
             },
-            old_format_path: None,
-        })));
+        });
         assert!(Pin::new(&mut r).poll(&mut cx).is_ready());
 
-        let mut r = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
+        let mut r = UntypedResource::from(ResourceHeader {
+            uuid: Uuid::new_v4(),
             kind: ResourceKind::External,
             state: ResourceState::LoadError {
                 path: Default::default(),
                 error: Default::default(),
             },
-            old_format_path: None,
-        })));
+        });
         assert!(Pin::new(&mut r).poll(&mut cx).is_ready());
     }
 }

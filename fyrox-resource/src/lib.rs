@@ -27,6 +27,7 @@
 
 use crate::{
     core::{
+        combine_uuids,
         parking_lot::MutexGuard,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
@@ -38,17 +39,17 @@ use crate::{
 };
 use fxhash::FxHashSet;
 pub use fyrox_core as core;
-use fyrox_core::{combine_uuids, log::Log, SafeLock};
-use std::path::PathBuf;
-use std::{any::Any, fmt::Display};
 use std::{
+    any::Any,
     error::Error,
+    fmt::Display,
     fmt::{Debug, Formatter},
     future::Future,
     hash::{Hash, Hasher},
     marker::PhantomData,
     ops::{Deref, DerefMut},
     path::Path,
+    path::PathBuf,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -77,6 +78,10 @@ pub const SOUND_BUFFER_RESOURCE_UUID: Uuid = uuid!("f6a077b7-c8ff-4473-a95b-0289
 pub const SHADER_RESOURCE_UUID: Uuid = uuid!("f1346417-b726-492a-b80f-c02096c6c019");
 /// Type UUID of curve resource. It is defined here to load old versions of resources.
 pub const CURVE_RESOURCE_UUID: Uuid = uuid!("f28b949f-28a2-4b68-9089-59c234f58b6b");
+/// Type UUID of HRIR sphere resource. It is defined here to load old versions of resources.
+pub const HRIR_SPHERE_RESOURCE_UUID: Uuid = uuid!("c92a0fa3-0ed3-49a9-be44-8f06271c6be2");
+/// Type UUID of font resource. It is defined here to load old versions of resources.
+pub const FONT_RESOURCE_UUID: Uuid = uuid!("692fec79-103a-483c-bb0b-9fc3a349cb48");
 
 /// A trait for resource data.
 pub trait ResourceData: Debug + Visit + Send + Reflect {
@@ -123,10 +128,27 @@ where
     phantom: PhantomData<T>,
 }
 
+impl<'a, T> From<MutexGuard<'a, ResourceHeader>> for ResourceHeaderGuard<'a, T>
+where
+    T: TypedResourceData,
+{
+    fn from(guard: MutexGuard<'a, ResourceHeader>) -> Self {
+        Self {
+            guard,
+            phantom: PhantomData,
+        }
+    }
+}
+
 impl<T> ResourceHeaderGuard<'_, T>
 where
     T: TypedResourceData,
 {
+    /// The UUID that universally identifies the resource.
+    pub fn resource_uuid(&self) -> Uuid {
+        self.guard.uuid
+    }
+
     /// Returns resource kind of the locked resource.
     pub fn kind(&self) -> ResourceKind {
         self.guard.kind
@@ -158,14 +180,11 @@ where
     /// locked resource is not in [`ResourceState::Ok`] or if its actual data does not match the
     /// type of the resource.
     pub fn data_ref_with_id(&self) -> Option<(&T, &Uuid)> {
-        if let ResourceState::Ok {
-            ref data,
-            ref resource_uuid,
-        } = self.guard.state
-        {
+        let uuid = &self.guard.uuid;
+        if let ResourceState::Ok { ref data } = self.guard.state {
             (&**data as &dyn Any)
                 .downcast_ref::<T>()
-                .map(|typed| (typed, resource_uuid))
+                .map(|typed| (typed, uuid))
         } else {
             None
         }
@@ -222,44 +241,8 @@ where
     T: TypedResourceData,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        // Untyped -> Typed compatibility. Useful in cases when a field was UntypedResource, and
-        // then it changed to the typed version. Strictly speaking, there's no real separation
-        // between typed and untyped resources on serialization/deserialization and this operation
-        // is valid until data types are matching.
-        if visitor.is_reading() {
-            let mut untyped = UntypedResource::default();
-            if untyped.visit(name, visitor).is_ok() {
-                let untyped_data_type = untyped.type_uuid();
-                if untyped_data_type == Some(<T as TypeUuidProvider>::type_uuid()) {
-                    self.untyped = untyped;
-                    return Ok(());
-                } else {
-                    Log::err(format!(
-                        "Unable to deserialize untyped resource into its typed \
-                     version, because types do not match! Untyped resource has \
-                     {:?} type, but the required type is {}",
-                        untyped_data_type,
-                        <T as TypeUuidProvider>::type_uuid(),
-                    ))
-                }
-            }
-        }
-
-        let mut region = visitor.enter_region(name)?;
-
-        // Backward compatibility.
-        if region.is_reading() {
-            let mut old_option_wrapper: Option<UntypedResource> = None;
-            if old_option_wrapper.visit("State", &mut region).is_ok() {
-                self.untyped = old_option_wrapper.unwrap();
-            } else {
-                self.untyped.visit("State", &mut region)?;
-            }
-        } else {
-            self.untyped.visit("State", &mut region)?;
-        }
-
-        Ok(())
+        self.untyped
+            .visit_with_type_uuid(name, Some(<T as TypeUuidProvider>::type_uuid()), visitor)
     }
 }
 
@@ -293,9 +276,9 @@ where
     }
     /// Creates new resource in pending state.
     #[inline]
-    pub fn new_pending(path: PathBuf, kind: ResourceKind) -> Self {
+    pub fn new_pending(uuid: Uuid, kind: ResourceKind) -> Self {
         Self {
-            untyped: UntypedResource::new_pending(path, kind),
+            untyped: UntypedResource::new_pending(uuid, kind),
             phantom: PhantomData,
         }
     }
@@ -320,9 +303,9 @@ where
 
     /// Creates new resource in error state.
     #[inline]
-    pub fn new_load_error(kind: ResourceKind, error: LoadError) -> Self {
+    pub fn new_load_error(kind: ResourceKind, path: PathBuf, error: LoadError) -> Self {
         Self {
-            untyped: UntypedResource::new_load_error(kind, error),
+            untyped: UntypedResource::new_load_error(kind, path, error),
             phantom: PhantomData,
         }
     }
@@ -336,44 +319,37 @@ where
     /// Locks internal mutex provides access to the state.
     #[inline]
     pub fn state(&self) -> ResourceHeaderGuard<'_, T> {
-        let guard = self.untyped.0.lock();
-        ResourceHeaderGuard {
-            guard,
-            phantom: Default::default(),
-        }
+        self.untyped.typed_lock()
     }
 
     /// Tries to lock internal mutex provides access to the state.
     #[inline]
     pub fn try_acquire_state(&self) -> Option<ResourceHeaderGuard<'_, T>> {
-        self.untyped.0.try_lock().map(|guard| ResourceHeaderGuard {
-            guard,
-            phantom: Default::default(),
-        })
+        self.untyped.try_typed_lock()
     }
 
     /// Locks the resource and provides access to its header. See [`ResourceHeader`] docs for more info.
     #[inline]
     pub fn header(&self) -> MutexGuard<'_, ResourceHeader> {
-        self.untyped.0.lock()
+        self.untyped.lock()
     }
 
     /// Returns true if the resource is still loading.
     #[inline]
     pub fn is_loading(&self) -> bool {
-        matches!(self.untyped.0.lock().state, ResourceState::Pending { .. })
+        self.untyped.is_loading()
     }
 
     /// Returns true if the resource is fully loaded and ready for use.
     #[inline]
     pub fn is_ok(&self) -> bool {
-        matches!(self.untyped.0.lock().state, ResourceState::Ok { .. })
+        self.untyped.is_ok()
     }
 
     /// Returns true if the resource is failed to load.
     #[inline]
     pub fn is_failed_to_load(&self) -> bool {
-        matches!(self.untyped.0.lock().state, ResourceState::LoadError { .. })
+        self.untyped.is_failed_to_load()
     }
 
     /// Returns exact amount of users of the resource.
@@ -385,19 +361,19 @@ where
     /// Returns a pointer as numeric value which can be used as a hash.
     #[inline]
     pub fn key(&self) -> u64 {
-        self.untyped.key() as u64
+        self.untyped.key()
     }
 
-    /// Returns kind of the resource.
+    /// Returns kind of the resource, if the resource is registered.
     #[inline]
     pub fn kind(&self) -> ResourceKind {
         self.untyped.kind()
     }
 
-    /// Tries to get a resource uuid (if any). Uuid is available only for fully loaded resources
-    /// (in [`ResourceState::Ok`] state).
+    /// The UUID of the resource. All resources must have a UUID, even if they are not loaded
+    /// because the UUID is how the resource manager knows the path to load from.
     #[inline]
-    pub fn resource_uuid(&self) -> Option<Uuid> {
+    pub fn resource_uuid(&self) -> Uuid {
         self.untyped.resource_uuid()
     }
 
@@ -423,7 +399,7 @@ where
     #[inline]
     pub fn data_ref(&self) -> ResourceDataRef<'_, T> {
         ResourceDataRef {
-            guard: self.untyped.0.safe_lock(),
+            guard: self.untyped.lock(),
             phantom: Default::default(),
         }
     }
@@ -441,7 +417,7 @@ where
     #[inline]
     fn default() -> Self {
         Self {
-            untyped: UntypedResource::new_ok(Default::default(), Default::default(), T::default()),
+            untyped: UntypedResource::new_ok(Uuid::new_v4(), ResourceKind::Embedded, T::default()),
             phantom: Default::default(),
         }
     }
@@ -454,6 +430,15 @@ impl<T: Debug> Clone for Resource<T> {
             untyped: self.untyped.clone(),
             phantom: Default::default(),
         }
+    }
+}
+
+impl<T> From<Uuid> for Resource<T>
+where
+    T: TypedResourceData,
+{
+    fn from(uuid: Uuid) -> Self {
+        UntypedResource::from(uuid).into()
     }
 }
 
@@ -535,6 +520,12 @@ where
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self.guard.state {
+            ResourceState::Unloaded => {
+                write!(
+                    f,
+                    "Attempt to get reference to resource data while it is unloaded!"
+                )
+            }
             ResourceState::Pending { .. } => {
                 write!(
                     f,
@@ -560,6 +551,12 @@ where
 
     fn deref(&self) -> &Self::Target {
         match self.guard.state {
+            ResourceState::Unloaded => {
+                panic!(
+                    "Attempt to get reference to resource data while it is unloaded! Type {}",
+                    std::any::type_name::<T>()
+                )
+            }
             ResourceState::Pending { .. } => {
                 panic!(
                     "Attempt to get reference to resource data while it is loading! Type {}",
@@ -577,7 +574,7 @@ where
                 };
                 panic!("Attempt to get reference to resource data which failed to load! Type {}. Path: {path}. Error: {error:?}", std::any::type_name::<T>())
             }
-            ResourceState::Ok { ref data, .. } => (&**data as &dyn Any)
+            ResourceState::Ok { ref data } => (&**data as &dyn Any)
                 .downcast_ref()
                 .expect("Type mismatch!"),
         }
@@ -591,6 +588,9 @@ where
     fn deref_mut(&mut self) -> &mut Self::Target {
         let header = &mut *self.guard;
         match header.state {
+            ResourceState::Unloaded => {
+                panic!("Attempt to get reference to resource data while it is unloaded!")
+            }
             ResourceState::Pending { .. } => {
                 panic!("Attempt to get reference to resource data while it is loading!")
             }
@@ -704,6 +704,7 @@ pub fn collect_used_resources(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::{
         io::{FsResourceIo, ResourceIo},
         loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader, ResourceLoadersContainer},

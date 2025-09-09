@@ -839,10 +839,10 @@ impl FormattedText {
     pub fn font_loading_summary(&self) -> String {
         use std::fmt::Write;
         let mut result = String::default();
-        writeln!(result, "Primary font: {:?}", self.font.header().state).unwrap();
+        write!(result, "Primary font: {}", self.font.header().state).unwrap();
         for run in self.runs.iter() {
             if let Some(font) = run.font() {
-                writeln!(result, "Run {:?}: {:?}", run.range, font.header().state).unwrap();
+                write!(result, "\nRun {:?}: {}", run.range, font.header().state).unwrap();
             }
         }
         result

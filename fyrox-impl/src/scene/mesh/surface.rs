@@ -1162,7 +1162,11 @@ pub trait SurfaceResourceExtension {
 
 impl SurfaceResourceExtension for SurfaceResource {
     fn deep_clone(&self) -> Self {
-        Self::new_ok(Uuid::new_v4(), self.kind(), self.data_ref().clone())
+        Self::new_ok(
+            Uuid::new_v4(),
+            ResourceKind::Embedded,
+            self.data_ref().clone(),
+        )
     }
 }
 
