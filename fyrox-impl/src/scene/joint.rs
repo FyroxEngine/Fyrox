@@ -325,19 +325,27 @@ impl Joint {
     }
 
     /// Returns a mutable reference to the current joint motor parameters. Obtaining the mutable reference
+    ///
     /// Recommend calling [`Self::set_motor_force_as_prismatic`] or [`Self::set_motor_torque_as_revolute`] for prismatic or revolute joints.
+    ///
     /// Currently we do not support motor forces on more than one axis.
+    ///
     /// If you have more complex needs, you may try to chain different joints together.
-    /// Warning: if the joint is not RevoluteJoint or PrismaticJoint, modifying the motor parameters directly may lead to unexpected behavior.
+    /// # Notice
+    /// If the joint is not RevoluteJoint or PrismaticJoint, modifying the motor parameters directly may lead to unexpected behavior.
     pub fn motor_params_mut(&mut self) -> &mut JointMotorParams {
         self.motor_params.get_value_mut_and_mark_modified()
     }
 
     /// Sets new joint motor parameters.
+    ///
     /// Recommend calling [`Self::set_motor_force_as_prismatic`] or [`Self::set_motor_torque_as_revolute`] for prismatic or revolute joints.
+    ///
     /// Currently we do not support motor forces on more than one axis.
+    ///
     /// If you have more complex needs, you may try to chain different joints together.
-    /// Warning: if the joint is not RevoluteJoint or PrismaticJoint, modifying the motor parameters directly may lead to unexpected behavior.
+    /// # Notice
+    /// If the joint is not RevoluteJoint or PrismaticJoint, modifying the motor parameters directly may lead to unexpected behavior.
     pub fn set_motor_params(&mut self, motor_params: JointMotorParams) -> JointMotorParams {
         // to see how setting these params affect the rapier3d physics engine,
         // go to sync_native function in this file.
@@ -387,10 +395,18 @@ impl Joint {
         *self.auto_rebind
     }
 
-    /// Sets the motor force of the joint assuming it is a PrismaticJoint.
-    /// If the joint is not a PrismaticJoint, this function will do nothing and return an Err.
+    /// Sets the motor force of the joint assuming it is a [`PrismaticJoint`].
+    ///
     /// Call [`Self::disable_motor`] to properly stop the motor and set the joint free.
-    /// Hint: The rigid bodies attached to the joint may fall asleep anytime regardless whether the motor is enabled or not.
+    /// # Arguments
+    /// * `force` - The maximum force this motor can deliver.
+    /// * `max_vel` - The target velocity of the motor.
+    /// * `damping` - Controls how smoothly the motor will reach the target velocity. A higher damping value will result in a smoother transition to the target velocity.
+    /// # Errors
+    /// If the joint is not a [`PrismaticJoint`], this function will do nothing and return an Err.
+    /// # Notice
+    /// The rigid bodies attached to the joint may fall asleep anytime regardless whether the motor is enabled or not.
+    ///
     /// To avoid this behavior, call this function periodically or call [`RigidBody::set_can_sleep`] on the rigid bodies with "false".
     pub fn set_motor_force_as_prismatic(
         &mut self,
@@ -413,10 +429,18 @@ impl Joint {
         Ok(())
     }
 
-    /// Sets the motor torque of the joint assuming it is a RevoluteJoint.
-    /// If the joint is not a RevoluteJoint, this function will do nothing and return an Err.
+    /// Sets the motor torque of the joint assuming it is a [`RevoluteJoint`].
+    ///
     /// Call [`Self::disable_motor`] to properly stop the motor and set the joint free.
-    /// Hint: The rigid bodies attached to the joint may fall asleep anytime regardless whether the motor is enabled or not.
+    /// # Arguments
+    /// * `torque` - The maximum torque this motor can deliver.
+    /// * `max_angular_vel` - The target angular velocity of the motor.
+    /// * `damping` - Controls how smoothly the motor will reach the target angular velocity. A higher damping value will result in a smoother transition to the target angular velocity.
+    /// # Errors
+    /// If the joint is not a [`RevoluteJoint`], this function will do nothing and return an Err.
+    /// # Notice
+    /// The rigid bodies attached to the joint may fall asleep anytime regardless whether the motor is enabled or not.
+    ///
     /// To avoid this behavior, call this function periodically or call [`RigidBody::set_can_sleep`] on the rigid bodies with "false".
     pub fn set_motor_torque_as_revolute(
         &mut self,
@@ -439,11 +463,21 @@ impl Joint {
         Ok(())
     }
 
-    /// Sets the motor target position of the joint assuming it is a PrismaticJoint.
-    /// If the joint is not a PrismaticJoint, the function will do nothing and return an Err.
+    /// Sets the motor target position of the joint assuming it is a [`PrismaticJoint`].
+    ///
     /// After the joint reaches the target position, the joint will act as a spring with the specified stiffness and damping values.
+    ///
     /// Call [`Self::disable_motor`] to stop the motor and remove the spring effect.
-    /// Hint: The rigid bodies attached to the joint may fall asleep anytime regardless whether the motor is enabled or not.
+    /// # Arguments
+    /// * `target_position` - The target position that the joint will try to reach, can be negative.
+    /// * `stiffness` - Controls how fast the joint will try to reach the target position.
+    /// * `max_force` - The maximum force this motor can deliver.
+    /// * `damping` - Controls how much the joint will resist motion when it is moving towards the target position.
+    /// # Errors
+    /// If the joint is not a [`PrismaticJoint`], the function will do nothing and return an Err.
+    /// # Notice
+    /// The rigid bodies attached to the joint may fall asleep anytime regardless whether the motor is enabled or not.
+    ///
     /// To avoid this behavior, call this function periodically or call [`RigidBody::set_can_sleep`] on the rigid bodies with "false".
     pub fn set_motor_target_position_as_prismatic(
         &mut self,
@@ -467,11 +501,21 @@ impl Joint {
         Ok(())
     }
 
-    /// Sets the motor target angle of the joint assuming it is a RevoluteJoint.
-    /// If the joint is not a RevoluteJoint, the function will do nothing and return an Err.
+    /// Sets the motor target angle of the joint assuming it is a [`RevoluteJoint`].
+    ///
     /// After the joint reaches the target angle, the joint will act as a spring with the specified stiffness and damping values.
+    ///
     /// Call [`Self::disable_motor`] to stop the motor and remove the spring effect.
-    /// Hint: The rigid bodies attached to the joint may fall asleep anytime regardless whether the motor is enabled or not.
+    /// # Arguments
+    /// * `target_angle` - The target angle **in radians** that the joint will try to reach, can be negative. If the value is greater than 2π or less than -2π, the joint will turn multiple times to reach the target angle.
+    /// * `stiffness` - Controls how fast the joint will try to reach the target angle.
+    /// * `max_torque` - The maximum torque this motor can deliver.
+    /// * `damping` - Controls how much the joint will resist motion when it is moving towards the target angle.
+    /// # Errors
+    /// If the joint is not a [`RevoluteJoint`], the function will do nothing and return an Err.
+    /// # Notice
+    /// The rigid bodies attached to the joint may fall asleep anytime regardless whether the motor is enabled or not.
+    ///
     /// To avoid this behavior, call this function periodically or call [`RigidBody::set_can_sleep`] on the rigid bodies with "false".
     pub fn set_motor_target_angle_as_revolute(
         &mut self,
@@ -495,9 +539,11 @@ impl Joint {
         Ok(())
     }
 
-    /// Disables the motor of the joint assuming it is a revolute or prismatic joint.
-    /// If the joint is not of these types, the function will do nothing and return an Err.
-    /// After this call, the joint will no longer apply any motor forces or torques to the connected bodies.
+    /// Disables the motor of the joint assuming it is a [`RevoluteJoint`] or [`PrismaticJoint`].
+    ///
+    /// After this call, the joint will no longer apply any motor force or torque to the connected bodies.
+    /// # Errors
+    /// If the joint is not a [`RevoluteJoint`] or [`PrismaticJoint`], the function will do nothing and return an Err.
     pub fn disable_motor(&mut self) -> Result<(), String> {
         if !matches!(
             self.params(),
