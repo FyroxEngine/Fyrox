@@ -589,7 +589,9 @@ impl Joint {
     pub fn disable_motor(&mut self) -> Result<(), String> {
         if !matches!(
             self.params(),
-            JointParams::RevoluteJoint(_) | JointParams::PrismaticJoint(_) | JointParams::BallJoint(_)
+            JointParams::RevoluteJoint(_)
+                | JointParams::PrismaticJoint(_)
+                | JointParams::BallJoint(_)
         ) {
             return Err("Joint is not a RevoluteJoint, PrismaticJoint or BallJoint".to_string());
         }
