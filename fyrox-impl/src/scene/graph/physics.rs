@@ -1806,27 +1806,30 @@ impl PhysicsWorld {
                     convert_joint_params(v, native.data.local_frame1, native.data.local_frame2)
             });
             joint.motor_params.try_sync_model(|v|{
-                // The free axis is defined to be the x axis for both prismatic and revolute joints in fyrox.
+                // For prismatic and revolute joints, the free axis is defined to be the x axis.
                 // If you want the joint to translate / rotate along a different axis, you can rotate the joint itself.
-                let joint_axis = match joint.params.get_value_ref(){
-                    JointParams::PrismaticJoint(_) => JointAxis::LinX,
-                    JointParams::RevoluteJoint(_) => JointAxis::AngX,
+                let joint_axes: &[JointAxis] = match joint.params.get_value_ref(){
+                    JointParams::PrismaticJoint(_) => &[JointAxis::LinX][..], // slice the array to unify arrays of different lengths.
+                    JointParams::RevoluteJoint(_) => &[JointAxis::AngX][..],
+                    JointParams::BallJoint(_) => &[JointAxis::AngX, JointAxis::AngY, JointAxis::AngZ][..],
                     _ => {
                         Log::warn("Try to modify motor parameters for unsupported joint type, this operation will be ignored.");
                         return;
                     }
                 };
-                // Force based motor model is better in the Fyrox's context
-                native.data.set_motor_model(joint_axis, rapier3d::prelude::MotorModel::ForceBased);
-                let JointMotorParams {
-                    target_vel,
-                    target_pos,
-                    stiffness,
-                    damping,
-                    max_force
-                } = v;
-                native.data.set_motor(joint_axis, target_pos, target_vel, stiffness, damping);
-                native.data.set_motor_max_force(joint_axis, max_force);
+                for joint_axis in joint_axes {
+                    // Force based motor model is better in the Fyrox's context
+                    native.data.set_motor_model(*joint_axis, rapier3d::prelude::MotorModel::ForceBased);
+                    let JointMotorParams {
+                        target_vel,
+                        target_pos,
+                        stiffness,
+                        damping,
+                        max_force
+                    } = v;
+                    native.data.set_motor(*joint_axis, target_pos, target_vel, stiffness, damping);
+                    native.data.set_motor_max_force(*joint_axis, max_force);
+                }
                 // wake up the bodies connected to the joint to ensure they respond to the motor changes immediately
                 // however, the rigid bodies may fall asleep any time later unless Joint::set_motor_* functions are called periodically,
                 // or the rigid bodies are set to cannot sleep
