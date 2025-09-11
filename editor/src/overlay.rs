@@ -22,14 +22,15 @@ use crate::{
     fyrox::{
         asset::untyped::ResourceKind,
         core::{algebra::Matrix4, math::Matrix4Ext, pool::Handle, sstorage::ImmutableString, Uuid},
+        graphics::{
+            buffer::BufferUsage, error::FrameworkError, geometry_buffer::GpuGeometryBuffer,
+            server::GraphicsServer,
+        },
         renderer::{
             cache::shader::{
                 binding, property, PropertyGroup, RenderMaterial, RenderPassContainer,
             },
-            framework::{
-                buffer::BufferUsage, error::FrameworkError, geometry_buffer::GpuGeometryBuffer,
-                server::GraphicsServer, GeometryBufferExt,
-            },
+            framework::GeometryBufferExt,
             RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
         },
         resource::texture::{

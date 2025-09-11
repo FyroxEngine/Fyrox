@@ -35,6 +35,18 @@ use crate::{
         sstorage::ImmutableString,
     },
     graph::BaseSceneGraph,
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
+        gpu_program::{
+            SamplerFallback, ShaderProperty, ShaderPropertyKind, ShaderResourceDefinition,
+            ShaderResourceKind,
+        },
+        gpu_texture::GpuTexture,
+        server::GraphicsServer,
+        uniform::{ByteStorage, StaticUniformBuffer, UniformBuffer},
+        ElementRange,
+    },
     material::{self, shader::ShaderDefinition, Material, MaterialPropertyRef, MaterialResource},
     renderer::{
         cache::{
@@ -43,15 +55,6 @@ use crate::{
             texture::TextureCache,
             uniform::{UniformBlockLocation, UniformMemoryAllocator},
             DynamicSurfaceCache, TimeToLive,
-        },
-        framework::{
-            error::FrameworkError,
-            framebuffer::{GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
-            gpu_program::{ShaderProperty, ShaderPropertyKind, ShaderResourceKind},
-            gpu_texture::GpuTexture,
-            server::GraphicsServer,
-            uniform::{ByteStorage, StaticUniformBuffer, UniformBuffer},
-            ElementRange,
         },
         observer::ObserverPosition,
         RenderPassStatistics,
@@ -77,7 +80,6 @@ use crate::{
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use fyrox_graph::{SceneGraph, SceneGraphNode};
-use fyrox_graphics::gpu_program::{SamplerFallback, ShaderResourceDefinition};
 use fyrox_resource::manager::ResourceManager;
 use std::{
     fmt::{Debug, Formatter},

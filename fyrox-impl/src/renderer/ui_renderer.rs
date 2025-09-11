@@ -20,51 +20,46 @@
 
 //! See [`UiRenderer`] docs.
 
-use crate::renderer::cache::uniform::{UniformBlockLocation, UniformMemoryAllocator};
-use crate::renderer::resources::RendererResources;
 use crate::{
-    asset::untyped::ResourceKind,
+    asset::{manager::ResourceManager, untyped::ResourceKind},
     core::{
         algebra::{Matrix4, Vector2, Vector4},
+        arrayvec::ArrayVec,
         color::Color,
         math::Rect,
+        some_or_continue,
         sstorage::ImmutableString,
+    },
+    graphics::{
+        buffer::BufferUsage,
+        error::FrameworkError,
+        framebuffer::{GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
+        geometry_buffer::{
+            AttributeDefinition, AttributeKind, ElementsDescriptor, GpuGeometryBuffer,
+            GpuGeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
+        },
+        gpu_program::ShaderResourceKind,
+        server::GraphicsServer,
+        uniform::StaticUniformBuffer,
+        BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
+        ElementRange, ScissorBox, StencilFunc,
     },
     gui::{
         brush::Brush,
+        draw::Command,
         draw::{CommandTexture, DrawingContext},
     },
     renderer::{
         bundle::{self, make_texture_binding},
         cache::{
             shader::{binding, property, PropertyGroup, RenderMaterial, ShaderCache},
-            uniform::UniformBufferCache,
+            uniform::{UniformBlockLocation, UniformBufferCache, UniformMemoryAllocator},
         },
-        framework::{
-            buffer::BufferUsage,
-            error::FrameworkError,
-            framebuffer::GpuFrameBuffer,
-            geometry_buffer::{
-                AttributeDefinition, AttributeKind, ElementsDescriptor, GpuGeometryBuffer,
-                GpuGeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
-            },
-            server::GraphicsServer,
-            BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
-            ElementRange, ScissorBox, StencilFunc,
-        },
+        resources::RendererResources,
         RenderPassStatistics, TextureCache,
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
-use fyrox_core::arrayvec::ArrayVec;
-use fyrox_core::some_or_continue;
-use fyrox_graphics::{
-    framebuffer::{ResourceBindGroup, ResourceBinding},
-    gpu_program::ShaderResourceKind,
-    uniform::StaticUniformBuffer,
-};
-use fyrox_resource::manager::ResourceManager;
-use fyrox_ui::draw::Command;
 use uuid::Uuid;
 
 /// User interface renderer allows you to render drawing context in specified render target.

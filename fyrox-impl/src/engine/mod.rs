@@ -52,6 +52,7 @@ use crate::{
     engine::{error::EngineError, task::TaskPoolHandler},
     event::Event,
     graph::{BaseSceneGraph, NodeMapping, SceneGraph},
+    graphics::error::FrameworkError,
     gui::{
         constructor::WidgetConstructorContainer,
         font::{loader::FontLoader, Font, BUILT_IN_FONT},
@@ -69,7 +70,7 @@ use crate::{
         dylib::DyLibDynamicPlugin, DynamicPlugin, Plugin, PluginContainer, PluginContext,
         PluginRegistrationContext,
     },
-    renderer::{framework::error::FrameworkError, Renderer},
+    renderer::Renderer,
     resource::{
         curve::{loader::CurveLoader, CurveResourceState},
         model::{loader::ModelLoader, Model, ModelResource},

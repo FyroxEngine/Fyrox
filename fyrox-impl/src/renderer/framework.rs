@@ -21,7 +21,7 @@
 //! Rendering framework.
 
 use crate::{
-    renderer::framework::{
+    graphics::{
         buffer::BufferUsage,
         error::FrameworkError,
         geometry_buffer::{
@@ -33,7 +33,6 @@ use crate::{
     scene::mesh::{buffer::VertexAttributeDataType, surface::SurfaceData},
 };
 use fyrox_graphics::geometry_buffer::{ElementsDescriptor, GpuGeometryBuffer};
-pub use fyrox_graphics::*;
 
 /// Extension trait for [`GpuGeometryBuffer`].
 pub trait GeometryBufferExt {

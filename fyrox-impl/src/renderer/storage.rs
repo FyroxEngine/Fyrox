@@ -22,13 +22,12 @@
 
 use crate::{
     core::algebra::Matrix4,
-    renderer::framework::{
+    graphics::{
         error::FrameworkError,
-        gpu_texture::{GpuTextureDescriptor, GpuTextureKind, PixelKind},
+        gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
         server::GraphicsServer,
     },
 };
-use fyrox_graphics::gpu_texture::GpuTexture;
 
 /// Generic, texture-based, storage for matrices with somewhat unlimited capacity.
 ///

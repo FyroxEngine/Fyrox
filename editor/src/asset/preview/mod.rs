@@ -35,15 +35,15 @@ use crate::{
         engine::{Engine, GraphicsContext},
         fxhash::FxHashMap,
         graph::{BaseSceneGraph, SceneGraphNode},
+        graphics::{
+            framebuffer::ReadTarget,
+            gpu_texture::{GpuTextureKind, PixelKind},
+        },
         gui::{
             font::Font, formatted_text::WrapMode, screen::ScreenBuilder, text::TextBuilder,
             widget::WidgetBuilder, HorizontalAlignment, UserInterface, VerticalAlignment,
         },
         material::{shader::Shader, Material, MaterialResource},
-        renderer::framework::{
-            framebuffer::ReadTarget,
-            gpu_texture::{GpuTextureKind, PixelKind},
-        },
         resource::{
             curve::CurveResourceState,
             model::{Model, ModelResourceExtension},

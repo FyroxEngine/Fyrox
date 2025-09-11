@@ -23,7 +23,6 @@
 mod grid;
 mod optimizer;
 
-use crate::renderer::resources::RendererResources;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -34,19 +33,20 @@ use crate::{
         ImmutableString,
     },
     graph::BaseSceneGraph,
+    graphics::{
+        error::FrameworkError,
+        framebuffer::Attachment,
+        framebuffer::GpuFrameBuffer,
+        gpu_texture::GpuTexture,
+        gpu_texture::{GpuTextureKind, PixelKind},
+        server::GraphicsServer,
+        stats::RenderPassStatistics,
+    },
+    renderer::resources::RendererResources,
     renderer::{
         cache::shader::{binding, property, PropertyGroup, RenderMaterial},
         cache::uniform::UniformBufferCache,
         debug_renderer::{self, DebugRenderer},
-        framework::{
-            error::FrameworkError,
-            framebuffer::Attachment,
-            framebuffer::GpuFrameBuffer,
-            gpu_texture::GpuTexture,
-            gpu_texture::{GpuTextureKind, PixelKind},
-            server::GraphicsServer,
-            stats::RenderPassStatistics,
-        },
         occlusion::{
             grid::{GridCache, Visibility},
             optimizer::VisibilityBufferOptimizer,

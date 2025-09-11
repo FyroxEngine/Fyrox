@@ -23,7 +23,7 @@ use crate::{
         algebra::{Vector2, Vector3, Vector4},
         math::TriangleDefinition,
     },
-    renderer::framework::ElementRange,
+    graphics::ElementRange,
     scene::mesh::{
         buffer::{TriangleBuffer, VertexBuffer},
         surface::{SurfaceData, SurfaceResource},

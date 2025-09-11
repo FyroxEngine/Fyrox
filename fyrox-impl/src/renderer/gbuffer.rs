@@ -31,6 +31,12 @@
 
 use crate::{
     core::{algebra::Vector2, color::Color, math::Rect, sstorage::ImmutableString},
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{Attachment, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, PixelKind},
+        server::GraphicsServer,
+    },
     renderer::{
         bundle::{BundleRenderContext, RenderDataBundleStorage, SurfaceInstanceData},
         cache::{
@@ -38,12 +44,6 @@ use crate::{
             uniform::{UniformBufferCache, UniformMemoryAllocator},
         },
         debug_renderer::DebugRenderer,
-        framework::{
-            error::FrameworkError,
-            framebuffer::{Attachment, GpuFrameBuffer},
-            gpu_texture::{GpuTexture, PixelKind},
-            server::GraphicsServer,
-        },
         observer::Observer,
         occlusion::OcclusionTester,
         resources::RendererResources,

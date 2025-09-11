@@ -67,6 +67,12 @@ pub use fyrox_ui as gui;
 #[doc(inline)]
 pub use fyrox_autotile as autotile;
 
+#[doc(inline)]
+pub use fyrox_graphics as graphics;
+
+#[doc(inline)]
+pub use fyrox_graphics_gl as graphics_gl;
+
 /// Defines a builder's `with_xxx` method.
 #[macro_export]
 macro_rules! define_with {

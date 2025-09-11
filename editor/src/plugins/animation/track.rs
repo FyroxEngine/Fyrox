@@ -20,14 +20,6 @@
 
 #![allow(clippy::manual_map)]
 
-use crate::plugins::animation::{
-    animation_container_ref,
-    command::{
-        AddTrackCommand, RemoveTrackCommand, SetTrackEnabledCommand, SetTrackTargetCommand,
-        SetTrackValueBindingCommand,
-    },
-    selection::{AnimationSelection, SelectedEntity},
-};
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -47,10 +39,12 @@ use crate::{
         generic_animation::{
             container::{TrackDataContainer, TrackValueKind},
             track::Track,
+            track::TrackBinding,
             value::{ValueBinding, ValueType},
             Animation,
         },
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graphics::DrawParameters,
         gui::{
             border::BorderBuilder,
             brush::Brush,
@@ -65,20 +59,32 @@ use crate::{
             popup::PopupBuilder,
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             stack_panel::StackPanelBuilder,
+            style::{resource::StyleResourceExt, Style},
             text::{Text, TextBuilder, TextMessage},
             text_box::{TextBoxBuilder, TextCommitMode},
             tree::{Tree, TreeBuilder, TreeMessage, TreeRootBuilder, TreeRootMessage},
-            utils::{make_cross, make_simple_tooltip},
+            utils::{make_cross, make_image_button_with_tooltip, make_simple_tooltip},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Control, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
             VerticalAlignment,
         },
         resource::texture::TextureBytes,
+        scene::mesh::buffer::{TriangleBuffer, VertexBuffer},
+        scene::sound::Samples,
     },
     load_image,
     menu::create_menu_item,
     message::MessageSender,
+    plugins::animation::{
+        animation_container_ref,
+        command::{
+            AddTrackCommand, RemoveTrackCommand, SetTrackEnabledCommand, SetTrackTargetCommand,
+            SetTrackValueBindingCommand,
+        },
+        selection::{AnimationSelection, SelectedEntity},
+    },
+    scene::selector::AllowedType,
     scene::{
         commands::ChangeSelectionCommand,
         property::{
@@ -90,15 +96,6 @@ use crate::{
     },
     send_sync_message, utils,
 };
-
-use crate::scene::selector::AllowedType;
-use fyrox::generic_animation::track::TrackBinding;
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
-use fyrox::gui::utils::make_image_button_with_tooltip;
-use fyrox::renderer::framework::DrawParameters;
-use fyrox::scene::mesh::buffer::{TriangleBuffer, VertexBuffer};
-use fyrox::scene::sound::Samples;
 use std::{
     any::TypeId,
     cmp::Ordering,

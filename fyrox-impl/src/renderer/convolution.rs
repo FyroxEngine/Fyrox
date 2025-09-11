@@ -25,7 +25,15 @@ use crate::{
         algebra::{Matrix4, Point3},
         color::Color,
         math::Rect,
-        ImmutableString,
+        some_or_break, ImmutableString,
+    },
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{Attachment, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+        server::GraphicsServer,
+        stats::RenderPassStatistics,
+        ElementRange,
     },
     renderer::{
         cache::{
@@ -35,15 +43,6 @@ use crate::{
         resources::RendererResources,
         utils::CubeMapFaceDescriptor,
     },
-};
-use fyrox_core::some_or_break;
-use fyrox_graphics::{
-    error::FrameworkError,
-    framebuffer::{Attachment, GpuFrameBuffer},
-    gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
-    server::GraphicsServer,
-    stats::RenderPassStatistics,
-    ElementRange,
 };
 
 pub struct EnvironmentMapSpecularConvolution {

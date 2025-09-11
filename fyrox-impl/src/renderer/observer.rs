@@ -20,13 +20,14 @@
 
 #![allow(missing_docs)] // TODO
 
-use crate::renderer::utils::CubeMapFaceDescriptor;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         math::{frustum::Frustum, Rect},
         pool::Handle,
     },
+    graphics::gpu_texture::CubeMapFace,
+    renderer::utils::CubeMapFaceDescriptor,
     scene::{
         camera::{Camera, ColorGradingLut, Exposure, PerspectiveProjection, Projection},
         collider::BitMask,
@@ -35,7 +36,6 @@ use crate::{
         Scene,
     },
 };
-use fyrox_graphics::gpu_texture::CubeMapFace;
 use fyrox_texture::TextureResource;
 
 /// Observer position contains all the data, that describes an observer position in 3D space. It

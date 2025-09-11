@@ -19,25 +19,25 @@
 // SOFTWARE.
 
 use crate::{
+    asset::manager::ResourceManager,
+    core::err_once,
     core::log::{Log, MessageKind},
-    renderer::{
-        cache::{TemporaryCache, TimeToLive},
-        framework::{error::FrameworkError, gpu_texture::PixelKind, server::GraphicsServer},
+    graphics::{
+        error::FrameworkError,
+        gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+        sampler::{
+            GpuSampler, GpuSamplerDescriptor, MagnificationFilter, MinificationFilter, WrapMode,
+        },
+        server::GraphicsServer,
     },
+    renderer::cache::{TemporaryCache, TimeToLive},
     resource::texture::{Texture, TextureResource},
 };
-use fyrox_core::err_once;
-use fyrox_graphics::gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind};
-use fyrox_graphics::sampler::{
-    GpuSampler, GpuSamplerDescriptor, MagnificationFilter, MinificationFilter, WrapMode,
-};
-use fyrox_resource::manager::ResourceManager;
 use fyrox_texture::{
     TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
     TextureWrapMode,
 };
-use std::borrow::Cow;
-use std::time::Duration;
+use std::{borrow::Cow, time::Duration};
 use uuid::Uuid;
 
 #[derive(Clone)]

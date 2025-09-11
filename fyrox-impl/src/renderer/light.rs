@@ -19,11 +19,22 @@
 // SOFTWARE.
 
 use crate::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
         color::Color,
         math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
         ImmutableString,
+    },
+    graphics::{
+        buffer::BufferUsage,
+        error::FrameworkError,
+        framebuffer::GpuFrameBuffer,
+        geometry_buffer::GpuGeometryBuffer,
+        gpu_texture::{GpuTexture, GpuTextureKind},
+        server::GraphicsServer,
+        ColorMask, CompareFunc, CullFace, DrawParameters, ElementRange, StencilAction, StencilFunc,
+        StencilOp,
     },
     renderer::{
         bundle::{LightSourceKind, RenderDataBundleStorage},
@@ -33,12 +44,7 @@ use crate::{
             DynamicSurfaceCache,
         },
         convolution::{EnvironmentMapIrradianceConvolution, EnvironmentMapSpecularConvolution},
-        framework::{
-            buffer::BufferUsage, error::FrameworkError, framebuffer::GpuFrameBuffer,
-            geometry_buffer::GpuGeometryBuffer, server::GraphicsServer, ColorMask, CompareFunc,
-            CullFace, DrawParameters, ElementRange, GeometryBufferExt, StencilAction, StencilFunc,
-            StencilOp,
-        },
+        framework::GeometryBufferExt,
         gbuffer::GBuffer,
         light_volume::LightVolumeRenderer,
         make_viewport_matrix,
@@ -63,8 +69,6 @@ use crate::{
         EnvironmentLightingSource, Scene,
     },
 };
-use fyrox_graphics::gpu_texture::{GpuTexture, GpuTextureKind};
-use fyrox_resource::manager::ResourceManager;
 
 pub struct DeferredLightRenderer {
     sphere: GpuGeometryBuffer,

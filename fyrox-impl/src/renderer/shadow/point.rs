@@ -18,13 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::resources::RendererResources;
-use crate::renderer::settings::ShadowMapPrecision;
 use crate::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Point3, Vector3},
         color::Color,
         math::Rect,
+    },
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{Attachment, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+        server::GraphicsServer,
     },
     renderer::{
         bundle::{BundleRenderContext, RenderDataBundleStorage, RenderDataBundleStorageOptions},
@@ -32,20 +37,15 @@ use crate::{
             shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator,
             DynamicSurfaceCache,
         },
-        framework::{
-            error::FrameworkError,
-            framebuffer::{Attachment, GpuFrameBuffer},
-            gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
-            server::GraphicsServer,
-        },
         observer::ObserverPosition,
+        resources::RendererResources,
+        settings::ShadowMapPrecision,
         shadow::cascade_size,
         utils::CubeMapFaceDescriptor,
         GeometryCache, RenderPassStatistics, POINT_SHADOW_PASS_NAME,
     },
     scene::{collider::BitMask, graph::Graph},
 };
-use fyrox_resource::manager::ResourceManager;
 
 pub struct PointShadowMapRenderer {
     precision: ShadowMapPrecision,

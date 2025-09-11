@@ -18,16 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::framework::GeometryBufferExt;
 use crate::{
+    graphics::{
+        buffer::BufferUsage, error::FrameworkError, geometry_buffer::GpuGeometryBuffer,
+        server::GraphicsServer,
+    },
     renderer::{
         cache::{TemporaryCache, TimeToLive},
-        framework::{error::FrameworkError, server::GraphicsServer},
+        framework::GeometryBufferExt,
     },
     scene::mesh::surface::{SurfaceData, SurfaceResource},
 };
-use fyrox_graphics::buffer::BufferUsage;
-use fyrox_graphics::geometry_buffer::GpuGeometryBuffer;
 
 struct SurfaceRenderData {
     buffer: GpuGeometryBuffer,

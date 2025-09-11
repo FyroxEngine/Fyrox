@@ -21,13 +21,6 @@
 //! Contains all structures and methods to create and manage mesh scene graph nodes. See [`Mesh`] docs for more info
 //! and usage examples.
 
-use crate::material::{
-    Material, MaterialResourceBinding, MaterialResourceExtension, MaterialTextureBinding,
-};
-use crate::renderer::cache::DynamicSurfaceCache;
-use crate::resource::texture::PLACEHOLDER;
-use crate::scene::mesh::surface::SurfaceBuilder;
-use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3, Vector4},
@@ -41,12 +34,17 @@ use crate::{
         visitor::prelude::*,
     },
     graph::{BaseSceneGraph, SceneGraph},
-    material::MaterialResource,
+    graphics::ElementRange,
+    material::{
+        Material, MaterialResource, MaterialResourceBinding, MaterialResourceExtension,
+        MaterialTextureBinding,
+    },
     renderer::{
         self,
         bundle::{RenderContext, RenderDataBundleStorageTrait, SurfaceInstanceData},
-        framework::ElementRange,
+        cache::DynamicSurfaceCache,
     },
+    resource::texture::PLACEHOLDER,
     scene::{
         base::{Base, BaseBuilder},
         debug::{Line, SceneDrawingContext},
@@ -57,8 +55,10 @@ use crate::{
                 VertexAttributeUsage, VertexBuffer, VertexBufferRefMut, VertexReadTrait,
                 VertexViewMut, VertexWriteTrait,
             },
+            surface::SurfaceBuilder,
             surface::{BlendShape, Surface, SurfaceData, SurfaceResource},
         },
+        node::constructor::NodeConstructor,
         node::{Node, NodeTrait, RdcControlFlow, SyncContext},
     },
 };

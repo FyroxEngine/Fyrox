@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::resources::RendererResources;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
@@ -26,20 +25,21 @@ use crate::{
         math::{lerpf, Rect},
         sstorage::ImmutableString,
     },
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{Attachment, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+        server::GraphicsServer,
+    },
     rand::Rng,
     renderer::{
         cache::{
             shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
         },
-        framework::{
-            error::FrameworkError,
-            framebuffer::{Attachment, GpuFrameBuffer},
-            gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
-            server::GraphicsServer,
-        },
         gbuffer::GBuffer,
         make_viewport_matrix,
+        resources::RendererResources,
         ssao::blur::Blur,
         RenderPassStatistics,
     },

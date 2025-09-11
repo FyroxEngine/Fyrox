@@ -30,20 +30,20 @@ use crate::{
         math::Rect,
         sstorage::ImmutableString,
     },
+    graphics::{
+        buffer::BufferUsage,
+        error::FrameworkError,
+        framebuffer::GpuFrameBuffer,
+        geometry_buffer::{
+            AttributeDefinition, AttributeKind, ElementsDescriptor, GpuGeometryBuffer,
+            GpuGeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
+        },
+        server::GraphicsServer,
+    },
     renderer::{
         cache::{
             shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
-        },
-        framework::{
-            buffer::BufferUsage,
-            error::FrameworkError,
-            framebuffer::GpuFrameBuffer,
-            geometry_buffer::{
-                AttributeDefinition, AttributeKind, ElementsDescriptor, GpuGeometryBuffer,
-                GpuGeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
-            },
-            server::GraphicsServer,
         },
         resources::RendererResources,
         RenderPassStatistics,

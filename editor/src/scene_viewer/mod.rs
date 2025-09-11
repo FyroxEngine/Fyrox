@@ -24,6 +24,7 @@ use crate::{
         engine::Engine,
         fxhash::FxHashMap,
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graphics::PolygonFillMode,
         gui::{
             border::BorderBuilder,
             brush::Brush,
@@ -52,7 +53,6 @@ use crate::{
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
             VerticalAlignment,
         },
-        renderer::framework::PolygonFillMode,
         resource::texture::TextureResource,
         scene::camera::Projection,
     },

@@ -18,16 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::DynamicSurfaceCache;
-use crate::renderer::observer::Observer;
-use crate::renderer::observer::ObserverPosition;
-use crate::renderer::resources::RendererResources;
-use crate::renderer::settings::ShadowMapPrecision;
 use crate::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         color::Color,
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Rect},
+    },
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{Attachment, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, PixelKind},
+        server::GraphicsServer,
     },
     renderer::{
         bundle::{
@@ -36,12 +38,11 @@ use crate::{
         },
         cache::{
             geometry::GeometryCache, shader::ShaderCache, texture::TextureCache,
-            uniform::UniformMemoryAllocator,
+            uniform::UniformMemoryAllocator, DynamicSurfaceCache,
         },
-        framework::{
-            error::FrameworkError, framebuffer::Attachment, gpu_texture::PixelKind,
-            server::GraphicsServer,
-        },
+        observer::{Observer, ObserverPosition},
+        resources::RendererResources,
+        settings::ShadowMapPrecision,
         RenderPassStatistics, DIRECTIONAL_SHADOW_PASS_NAME,
     },
     scene::{
@@ -50,9 +51,6 @@ use crate::{
     },
 };
 use approx::relative_eq;
-use fyrox_graphics::framebuffer::GpuFrameBuffer;
-use fyrox_graphics::gpu_texture::GpuTexture;
-use fyrox_resource::manager::ResourceManager;
 
 pub struct Cascade {
     pub frame_buffer: GpuFrameBuffer,

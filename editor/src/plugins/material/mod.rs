@@ -32,6 +32,7 @@ use crate::{
         },
         fxhash::FxHashMap,
         graph::SceneGraph,
+        graphics::gpu_program::{ShaderProperty, ShaderPropertyKind},
         gui::{
             border::BorderBuilder,
             check_box::{CheckBoxBuilder, CheckBoxMessage},
@@ -62,7 +63,6 @@ use crate::{
             shader::{Shader, ShaderResourceKind},
             MaterialProperty, MaterialResource, MaterialResourceBinding, MaterialTextureBinding,
         },
-        renderer::framework::gpu_program::{ShaderProperty, ShaderPropertyKind},
         scene::{
             base::BaseBuilder,
             mesh::{

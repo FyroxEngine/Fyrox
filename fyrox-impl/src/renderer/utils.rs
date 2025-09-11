@@ -20,16 +20,18 @@
 
 #![allow(missing_docs)] // TODO
 
+use crate::{
+    core::{
+        algebra::{Vector2, Vector3},
+        array_as_u8_slice,
+    },
+    graphics::{
+        error::FrameworkError,
+        gpu_texture::{CubeMapFace, GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+        server::GraphicsServer,
+    },
+};
 use bytemuck::{Pod, Zeroable};
-use fyrox_core::{
-    algebra::{Vector2, Vector3},
-    array_as_u8_slice,
-};
-use fyrox_graphics::{
-    error::FrameworkError,
-    gpu_texture::{CubeMapFace, GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
-    server::GraphicsServer,
-};
 use half::f16;
 use std::{fs::File, io::Write, path::Path};
 

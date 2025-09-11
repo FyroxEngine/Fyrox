@@ -24,16 +24,17 @@ use crate::{
         math::Rect,
         sstorage::ImmutableString,
     },
+    graphics::{
+        buffer::BufferUsage, error::FrameworkError, framebuffer::GpuFrameBuffer,
+        geometry_buffer::GpuGeometryBuffer, server::GraphicsServer,
+    },
     renderer::{
         bundle::{LightSource, LightSourceKind},
         cache::{
             shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
         },
-        framework::{
-            buffer::BufferUsage, error::FrameworkError, framebuffer::GpuFrameBuffer,
-            geometry_buffer::GpuGeometryBuffer, server::GraphicsServer, GeometryBufferExt,
-        },
+        framework::GeometryBufferExt,
         gbuffer::GBuffer,
         make_viewport_matrix,
         resources::RendererResources,

@@ -68,7 +68,7 @@ use crate::{
     },
     engine::SerializationContext,
     graph::NodeHandleMap,
-    renderer::framework::PolygonFillMode,
+    graphics::PolygonFillMode,
     resource::texture::TextureResource,
     scene::{
         base::BaseBuilder,

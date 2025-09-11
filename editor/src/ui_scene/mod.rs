@@ -25,9 +25,6 @@ pub mod menu;
 pub mod selection;
 pub mod utils;
 
-use crate::plugins::inspector::editors::handle::{
-    HandlePropertyEditorHierarchyMessage, HandlePropertyEditorNameMessage,
-};
 use crate::{
     asset::item::AssetItem,
     command::{Command, CommandGroup, CommandStack},
@@ -44,17 +41,20 @@ use crate::{
         engine::Engine,
         fxhash::FxHashSet,
         graph::{BaseSceneGraph, SceneGraph},
+        graphics::gpu_texture::PixelKind,
         gui::{
             brush::Brush,
             draw::{CommandTexture, Draw},
             message::{KeyCode, MessageDirection, MouseButton},
             UiNode, UiUpdateSwitches, UserInterface, UserInterfaceResourceExtension,
         },
-        renderer::framework::gpu_texture::PixelKind,
         resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
         scene::SceneContainer,
     },
     message::MessageSender,
+    plugins::inspector::editors::handle::{
+        HandlePropertyEditorHierarchyMessage, HandlePropertyEditorNameMessage,
+    },
     scene::{
         commands::ChangeSelectionCommand, controller::SceneController, selector::HierarchyNode,
         Selection,

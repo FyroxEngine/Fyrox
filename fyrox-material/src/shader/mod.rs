@@ -436,6 +436,12 @@
 //!      - Stencil options.
 //!      - **Possible values:** [StencilOp](fyrox_graphics::StencilOp)
 //!
+//!    - `scissor_box`:
+//!       - A rectangle that is used for clipping (screen-space). This value can be redefined when
+//!         issuing a drawing command.
+//!       - `None`
+//!       - `Some(ScissorBox(x: 10, y: 20, width: 100, height: 30))`
+//!
 //! # Standard shader
 //!
 //! By default, Fyrox uses standard material for rendering, it covers 95% of uses cases and it is very

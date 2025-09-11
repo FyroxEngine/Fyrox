@@ -25,6 +25,7 @@ use crate::{
             pool::{ErasedHandle, Handle},
             reflect::Reflect,
         },
+        graphics::PolygonFillMode,
         gui::{
             self,
             border::Border,
@@ -75,7 +76,6 @@ use crate::{
             UiNode, UserInterface,
         },
         material::shader::{Shader, ShaderResource},
-        renderer::framework::PolygonFillMode,
         resource::{
             curve::{CurveResource, CurveResourceState},
             model::{MaterialSearchOptions, Model, ModelResource},

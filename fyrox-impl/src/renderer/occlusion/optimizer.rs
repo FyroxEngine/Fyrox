@@ -18,21 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::resources::RendererResources;
 use crate::{
     core::{color::Color, math::Rect, ImmutableString},
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{Attachment, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, PixelKind},
+        read_buffer::GpuAsyncReadBuffer,
+        server::GraphicsServer,
+        stats::RenderPassStatistics,
+    },
+    renderer::resources::RendererResources,
     renderer::{
         cache::{
             shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
-        },
-        framework::{
-            error::FrameworkError,
-            framebuffer::{Attachment, GpuFrameBuffer},
-            gpu_texture::{GpuTexture, PixelKind},
-            read_buffer::GpuAsyncReadBuffer,
-            server::GraphicsServer,
-            stats::RenderPassStatistics,
         },
         make_viewport_matrix,
     },

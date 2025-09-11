@@ -35,18 +35,18 @@ use crate::{
         variable::InheritableVariable,
         visitor::prelude::*,
     },
+    graphics::ElementRange,
     material::MaterialResourceExtension,
     material::{Material, MaterialProperty, MaterialResource},
     renderer::{
         self,
         bundle::{RenderContext, SurfaceInstanceData},
-        framework::ElementRange,
     },
     resource::texture::{
-        Texture, TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension,
+        Texture, TextureDataRefMut, TextureKind, TextureMagnificationFilter,
+        TextureMinificationFilter, TexturePixelKind, TextureResource, TextureResourceExtension,
         TextureWrapMode,
     },
-    resource::texture::{TextureDataRefMut, TextureMagnificationFilter, TextureMinificationFilter},
     scene::node::RdcControlFlow,
     scene::{
         base::{Base, BaseBuilder},

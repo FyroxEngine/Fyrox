@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::{
-    framework::{error::FrameworkError, gpu_texture::GpuTexture, server::GraphicsServer},
-    hdr::LumBuffer,
+use crate::{
+    graphics::{error::FrameworkError, gpu_texture::GpuTexture, server::GraphicsServer},
+    renderer::hdr::LumBuffer,
 };
 use std::cell::Cell;
 

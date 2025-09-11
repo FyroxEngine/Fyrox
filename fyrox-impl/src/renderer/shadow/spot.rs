@@ -18,32 +18,33 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::DynamicSurfaceCache;
-use crate::renderer::observer::ObserverPosition;
-use crate::renderer::resources::RendererResources;
-use crate::renderer::settings::ShadowMapPrecision;
-use crate::scene::collider::BitMask;
 use crate::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Vector3},
         color::Color,
         math::Rect,
     },
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{Attachment, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, PixelKind},
+        server::GraphicsServer,
+    },
     renderer::{
         bundle::{BundleRenderContext, RenderDataBundleStorage, RenderDataBundleStorageOptions},
-        cache::{shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator},
-        framework::{
-            error::FrameworkError, framebuffer::Attachment, gpu_texture::PixelKind,
-            server::GraphicsServer,
+        cache::{
+            shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator,
+            DynamicSurfaceCache,
         },
+        observer::ObserverPosition,
+        resources::RendererResources,
+        settings::ShadowMapPrecision,
         shadow::cascade_size,
         GeometryCache, RenderPassStatistics, SPOT_SHADOW_PASS_NAME,
     },
-    scene::graph::Graph,
+    scene::{collider::BitMask, graph::Graph},
 };
-use fyrox_graphics::framebuffer::GpuFrameBuffer;
-use fyrox_graphics::gpu_texture::GpuTexture;
-use fyrox_resource::manager::ResourceManager;
 
 pub struct SpotShadowMapRenderer {
     precision: ShadowMapPrecision,

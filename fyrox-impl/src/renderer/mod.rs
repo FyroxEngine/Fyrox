@@ -61,6 +61,13 @@ use crate::{
         sstorage::ImmutableString,
     },
     engine::error::EngineError,
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+        server::{GraphicsServer, SharedGraphicsServer},
+        PolygonFace, PolygonFillMode,
+    },
     gui::draw::DrawingContext,
     material::shader::Shader,
     renderer::{
@@ -76,13 +83,6 @@ use crate::{
         },
         convolution::{EnvironmentMapIrradianceConvolution, EnvironmentMapSpecularConvolution},
         debug_renderer::DebugRenderer,
-        framework::{
-            error::FrameworkError,
-            framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
-            gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
-            server::{GraphicsServer, SharedGraphicsServer},
-            PolygonFace, PolygonFillMode,
-        },
         fxaa::FxaaRenderer,
         gbuffer::{GBuffer, GBufferRenderContext},
         hdr::HighDynamicRangeRenderer,

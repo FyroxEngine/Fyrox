@@ -18,13 +18,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::resources::RendererResources;
 use crate::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Vector2},
         color::Color,
         math::Rect,
         value_as_u8_slice, ImmutableString,
+    },
+    graphics::{
+        error::FrameworkError,
+        framebuffer::ReadTarget,
+        framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+        server::GraphicsServer,
     },
     renderer::{
         cache::{
@@ -32,19 +39,13 @@ use crate::{
             texture::TextureCache,
             uniform::UniformBufferCache,
         },
-        framework::{
-            error::FrameworkError,
-            framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
-            gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
-            server::GraphicsServer,
-        },
         hdr::{adaptation::AdaptationChain, luminance::luminance_evaluator::LuminanceEvaluator},
-        make_viewport_matrix, RenderPassStatistics,
+        make_viewport_matrix,
+        resources::RendererResources,
+        RenderPassStatistics,
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
-use fyrox_graphics::framebuffer::ReadTarget;
-use fyrox_resource::manager::ResourceManager;
 
 mod adaptation;
 mod luminance;
