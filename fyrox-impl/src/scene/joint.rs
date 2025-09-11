@@ -402,7 +402,7 @@ impl Joint {
     /// # Arguments
     /// * `force` - The maximum force this motor can deliver.
     /// * `max_vel` - The target velocity of the motor.
-    /// * `damping` - Controls how smoothly the motor will reach the target velocity. A higher damping value will result in a smoother transition to the target velocity.
+    /// * `damping` - Penalizes high velocities to avoid overshooting the target velocity. A higher damping value will result in a smoother transition to the target velocity.
     /// # Errors
     /// If the joint is not a [`PrismaticJoint`], this function will do nothing and return an Err.
     /// # Notice
@@ -436,7 +436,7 @@ impl Joint {
     /// # Arguments
     /// * `torque` - The maximum torque this motor can deliver.
     /// * `max_angular_vel` - The target angular velocity of the motor.
-    /// * `damping` - Controls how smoothly the motor will reach the target angular velocity. A higher damping value will result in a smoother transition to the target angular velocity.
+    /// * `damping` - Penalizes high angular velocities to avoid overshooting the target angular velocity. A higher damping value will result in a smoother transition to the target angular velocity.
     /// # Errors
     /// If the joint is not a [`RevoluteJoint`], this function will do nothing and return an Err.
     /// # Notice
@@ -473,7 +473,7 @@ impl Joint {
     /// * `target_position` - The target position that the joint will try to reach, can be negative.
     /// * `stiffness` - Controls how fast the joint will try to reach the target position.
     /// * `max_force` - The maximum force this motor can deliver.
-    /// * `damping` - Controls how much the joint will resist motion when it is moving towards the target position.
+    /// * `damping` - Penalizes high velocities to avoid overshooting the target position. A higher damping value will result in a smoother transition to the target position.
     /// # Errors
     /// If the joint is not a [`PrismaticJoint`], the function will do nothing and return an Err.
     /// # Notice
@@ -511,7 +511,7 @@ impl Joint {
     /// * `target_angle` - The target angle **in radians** that the joint will try to reach, can be negative. If the value is greater than 2π or less than -2π, the joint will turn multiple times to reach the target angle.
     /// * `stiffness` - Controls how fast the joint will try to reach the target angle.
     /// * `max_torque` - The maximum torque this motor can deliver.
-    /// * `damping` - Controls how much the joint will resist motion when it is moving towards the target angle.
+    /// * `damping` - Penalizes high angular velocities to avoid overshooting the target angle. A higher damping value will result in a smoother transition to the target angle.
     /// # Errors
     /// If the joint is not a [`RevoluteJoint`], the function will do nothing and return an Err.
     /// # Notice
@@ -540,17 +540,60 @@ impl Joint {
         Ok(())
     }
 
-    /// Disables the motor of the joint assuming it is a [`RevoluteJoint`] or [`PrismaticJoint`].
+    /// Makes the [`BallJoint`] to restore its original orientation with motor torque.
+    ///
+    /// Acts as a flexible fixed joint that tolerates some angular movement and tries to restore the original orientation.
+    ///
+    /// For flexible fixed joints that tolerate some translational movement, consider using a [`PrismaticJoint`] and call [`Self::set_motor_target_position_as_prismatic`].
+    ///
+    /// The motor torque is uniform across all three axes of the joint.
+    ///
+    /// /// Call [`Self::disable_motor`] to stop the motor and remove the spring effect.
+    ///
+    /// # Arguments
+    /// * `stiffness` - Controls how fast the joint will try to restore its original orientation.
+    /// * `max_torque` - The maximum torque this motor can deliver.
+    /// * `damping` - Penalizes high angular velocities to avoid overshooting the original orientation. A higher damping value will result in a smoother transition to the original orientation.
+    /// # Errors
+    /// If the joint is not a [`BallJoint`], the function will do nothing and return an Err.
+    /// # Notice
+    /// The rigid bodies attached to the joint may fall asleep anytime regardless whether the motor is enabled or not.
+    ///
+    /// To avoid this behavior, call this function periodically or call [`RigidBody::set_can_sleep`] on the rigid bodies with "false".
+    pub fn set_motor_resistive_torque_as_ball(
+        &mut self,
+        stiffness: f32,
+        max_torque: f32,
+        damping: f32,
+    ) -> Result<(), String> {
+        let JointParams::BallJoint(_) = self.params() else {
+            return Err("Joint is not a BallJoint".to_string());
+        };
+        let motor_params = JointMotorParams {
+            target_vel: 0.0,
+            target_pos: 0.0,
+            stiffness,
+            damping,
+            max_force: max_torque,
+        };
+        // retrieving the mutable reference to the joint params will cause the engine to do additional calculations to reflect changes to the physics engine.
+        self.set_motor_params(motor_params);
+        Ok(())
+    }
+
+    /// Disables the motor of the joint assuming it is a [`RevoluteJoint`], [`PrismaticJoint`] or [`BallJoint`].
     ///
     /// After this call, the joint will no longer apply any motor force or torque to the connected bodies.
     /// # Errors
-    /// If the joint is not a [`RevoluteJoint`] or [`PrismaticJoint`], the function will do nothing and return an Err.
+    /// If the joint is not a [`RevoluteJoint`], [`PrismaticJoint`] or [`BallJoint`], the function will do nothing and return an Err.
     pub fn disable_motor(&mut self) -> Result<(), String> {
         if !matches!(
             self.params(),
-            JointParams::RevoluteJoint(_) | JointParams::PrismaticJoint(_)
+            JointParams::RevoluteJoint(_)
+                | JointParams::PrismaticJoint(_)
+                | JointParams::BallJoint(_)
         ) {
-            return Err("Joint is not a RevoluteJoint or PrismaticJoint".to_string());
+            return Err("Joint is not a RevoluteJoint, PrismaticJoint or BallJoint".to_string());
         }
         let motor_params = JointMotorParams {
             target_vel: 0.0,
