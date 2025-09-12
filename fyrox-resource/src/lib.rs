@@ -21,7 +21,6 @@
 //! Resource management
 
 #![forbid(unsafe_code)]
-#![allow(missing_docs)]
 #![allow(clippy::doc_lazy_continuation)]
 #![allow(clippy::mutable_key_type)]
 #![warn(missing_docs)]

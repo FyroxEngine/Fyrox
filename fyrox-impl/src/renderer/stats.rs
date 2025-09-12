@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#![allow(missing_docs)] // TODO
+//! Contains all entities that are used to collect rendering statistics.
 
 use fyrox_core::instant;
 use fyrox_graphics::framebuffer::DrawCallStatistics;
@@ -35,9 +35,9 @@ pub struct LightingStatistics {
     pub point_shadow_maps_rendered: usize,
     /// How many cascaded shadow maps were rendered.
     pub csm_rendered: usize,
-    /// How many spot lights were rendered.
+    /// How many spotlights were rendered.
     pub spot_lights_rendered: usize,
-    /// How many spot light shadow maps were rendered.
+    /// How many spotlight shadow maps were rendered.
     pub spot_shadow_maps_rendered: usize,
     /// How many directional lights were rendered.
     pub directional_lights_rendered: usize,
@@ -123,7 +123,7 @@ impl AddAssign<LightingStatistics> for SceneStatistics {
 }
 
 /// Renderer statistics for one frame, also includes current frames per second
-/// amount.
+/// number.
 #[derive(Debug, Copy, Clone)]
 pub struct Statistics {
     /// Shows how many pipeline state changes was made per frame.
@@ -132,21 +132,21 @@ pub struct Statistics {
     pub lighting: LightingStatistics,
     /// Shows how many draw calls was made and how many triangles were rendered.
     pub geometry: RenderPassStatistics,
-    /// Real time consumed to render frame. Time given in **seconds**.
+    /// Real time consumed to render a frame. Time given in **seconds**.
     pub pure_frame_time: f32,
-    /// Total time renderer took to process single frame, usually includes
-    /// time renderer spend to wait to buffers swap (can include vsync).
+    /// Total time renderer took to process single frame, usually includes time the renderer spent
+    /// waiting until the swap of the back and front buffers (can include vsync).
     /// Time given in **seconds**.
     pub capped_frame_time: f32,
-    /// Total amount of frames been rendered in one second.
+    /// The total number of frames been rendered in one second.
     pub frames_per_second: usize,
-    /// Total amount of textures in the textures cache.
+    /// The total number of textures in the textures cache.
     pub texture_cache_size: usize,
-    /// Total amount of vertex+index buffers pairs in the geometry cache.
+    /// The total number of vertex+index buffers pairs in the geometry cache.
     pub geometry_cache_size: usize,
-    /// Total amount of shaders in the shaders cache.
+    /// The total number of shaders in the shaders cache.
     pub shader_cache_size: usize,
-    /// Total amount of uniform buffers in the cache.
+    /// The total number of uniform buffers in the cache.
     pub uniform_buffer_cache_size: usize,
     pub(super) frame_counter: usize,
     pub(super) frame_start_time: instant::Instant,

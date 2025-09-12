@@ -22,8 +22,6 @@
 //! from top-left corner. It is used to provide basic scrolling functionality. See [`ScrollPanel`] docs for more
 //! info and usage examples.
 
-#![allow(missing_docs)]
-
 use crate::{
     brush::Brush,
     core::{
