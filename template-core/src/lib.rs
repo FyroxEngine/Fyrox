@@ -623,6 +623,12 @@ opt-level = 3
         )?;
     }
 
+    // Write flake.nix for nixOS
+    write_file_binary(
+        base_path.join("flake.nix"),
+        include_bytes!("nixos/flake.nix"),
+    )?;
+
     Ok(())
 }
 
