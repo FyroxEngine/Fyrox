@@ -24,6 +24,13 @@
 
 pub mod constructor;
 
+pub mod prelude {
+    pub use crate::{
+        AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, LinkScheme, NodeHandleMap,
+        NodeMapping, PrefabData, SceneGraph, SceneGraphNode,
+    };
+}
+
 use fxhash::FxHashMap;
 use fyrox_core::pool::{BorrowAs, ErasedHandle, PayloadContainer};
 use fyrox_core::reflect::ReflectHandle;
@@ -703,10 +710,10 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
     fn set_root(&mut self, root: Handle<Self::Node>);
 
     /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
-    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node>;
+    fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node>;
 
     /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
-    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node>;
+    fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node>;
 
     /// Checks whether the given node handle is valid or not.
     fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool;
@@ -729,12 +736,14 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
 
     /// Borrows a node by its handle.
     fn node(&self, handle: Handle<Self::Node>) -> &Self::Node {
-        self.try_get(handle).expect("The handle must be valid!")
+        self.try_get_node(handle)
+            .expect("The handle must be valid!")
     }
 
     /// Borrows a node by its handle.
     fn node_mut(&mut self, handle: Handle<Self::Node>) -> &mut Self::Node {
-        self.try_get_mut(handle).expect("The handle must be valid!")
+        self.try_get_node_mut(handle)
+            .expect("The handle must be valid!")
     }
 
     /// Reorders the node hierarchy so the `new_root` becomes the root node for the entire hierarchy
@@ -757,7 +766,7 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
     ///   |_A_
     ///   |   |_B
     ///   |_Root
-    /// ```    
+    /// ```
     ///
     /// This method returns an instance of [`LinkScheme`], that could be used to revert the hierarchy
     /// back to its original. See [`Self::apply_link_scheme`] for more info.
@@ -830,6 +839,9 @@ pub trait SceneGraph: BaseSceneGraph {
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)>;
 
+    /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
+    fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Self::Node>, &mut Self::Node)>;
+
     /// Creates an iterator that has linear iteration order over internal collection
     /// of nodes. It does *not* perform any tree traversal!
     fn linear_iter(&self) -> impl Iterator<Item = &Self::Node>;
@@ -838,15 +850,17 @@ pub trait SceneGraph: BaseSceneGraph {
     /// of nodes. It does *not* perform any tree traversal!
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
 
-    fn typed_ref<Ref>(
+    /// Get the reference to the object with the type specified by the handle.
+    fn try_get<T>(
         &self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&Ref>;
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = T>,
+    ) -> Option<&T>;
 
-    fn typed_mut<Ref>(
+    /// Get the mutable reference to the object with the type specified by the handle.
+    fn try_get_mut<T>(
         &mut self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&mut Ref>;
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = T>,
+    ) -> Option<&mut T>;
 
     /// Tries to borrow a node and fetch its component of specified type.
     #[inline]
@@ -854,7 +868,7 @@ pub trait SceneGraph: BaseSceneGraph {
     where
         T: 'static,
     {
-        self.try_get(handle)
+        self.try_get_node(handle)
             .and_then(|n| n.query_component_ref(TypeId::of::<T>()))
             .and_then(|c| c.downcast_ref())
     }
@@ -865,7 +879,7 @@ pub trait SceneGraph: BaseSceneGraph {
     where
         T: 'static,
     {
-        self.try_get_mut(handle)
+        self.try_get_node_mut(handle)
             .and_then(|n| n.query_component_mut(TypeId::of::<T>()))
             .and_then(|c| c.downcast_mut())
     }
@@ -892,7 +906,7 @@ pub trait SceneGraph: BaseSceneGraph {
         C: FnMut(&Self::Node) -> Option<&T>,
         T: ?Sized,
     {
-        self.try_get(root_node).and_then(|root| {
+        self.try_get_node(root_node).and_then(|root| {
             if let Some(x) = cmp(root) {
                 Some((root_node, x))
             } else {
@@ -913,7 +927,7 @@ pub trait SceneGraph: BaseSceneGraph {
         C: FnMut(&Self::Node) -> bool,
     {
         let mut handle = root_node;
-        while let Some(node) = self.try_get(handle) {
+        while let Some(node) = self.try_get_node(handle) {
             if cmp(node) {
                 return Some((handle, node));
             }
@@ -972,7 +986,7 @@ pub trait SceneGraph: BaseSceneGraph {
         T: ?Sized,
     {
         let mut handle = root_node;
-        while let Some(node) = self.try_get(handle) {
+        while let Some(node) = self.try_get_node(handle) {
             if let Some(x) = cmp(node) {
                 return Some((handle, x));
             }
@@ -1039,7 +1053,7 @@ pub trait SceneGraph: BaseSceneGraph {
     where
         C: FnMut(&Self::Node) -> bool,
     {
-        self.try_get(root_node).and_then(|root| {
+        self.try_get_node(root_node).and_then(|root| {
             if cmp(root) {
                 Some((root_node, root))
             } else {
@@ -1078,8 +1092,8 @@ pub trait SceneGraph: BaseSceneGraph {
         child: Handle<Self::Node>,
         offset: isize,
     ) -> Option<(Handle<Self::Node>, usize)> {
-        let parents_parent_handle = self.try_get(child)?.parent();
-        let parents_parent_ref = self.try_get(parents_parent_handle)?;
+        let parents_parent_handle = self.try_get_node(child)?.parent();
+        let parents_parent_ref = self.try_get_node(parents_parent_handle)?;
         let position = parents_parent_ref.child_position(child)?;
         Some((
             parents_parent_handle,
@@ -1302,7 +1316,7 @@ pub trait SceneGraph: BaseSceneGraph {
                         NodeMapping::UseHandles => {
                             // Use original handle directly.
                             resource_graph
-                                .try_get(node.original_handle_in_resource())
+                                .try_get_node(node.original_handle_in_resource())
                                 .map(|resource_node| {
                                     (resource_node, node.original_handle_in_resource())
                                 })
@@ -1853,11 +1867,11 @@ mod test {
             }
         }
 
-        fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+        fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
             self.nodes.try_borrow(handle)
         }
 
-        fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+        fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
             self.nodes.try_borrow_mut(handle)
         }
 
@@ -1885,6 +1899,10 @@ mod test {
             self.nodes.pair_iter()
         }
 
+        fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Node>, &mut Node)> {
+            self.nodes.pair_iter_mut()
+        }
+
         fn linear_iter(&self) -> impl Iterator<Item = &Self::Node> {
             self.nodes.iter()
         }
@@ -1893,14 +1911,14 @@ mod test {
             self.nodes.iter_mut()
         }
 
-        fn typed_ref<Ref>(
+        fn try_get<Ref>(
             &self,
             handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
         ) -> Option<&Ref> {
             self.nodes.typed_ref(handle)
         }
 
-        fn typed_mut<Ref>(
+        fn try_get_mut<Ref>(
             &mut self,
             handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
         ) -> Option<&mut Ref> {

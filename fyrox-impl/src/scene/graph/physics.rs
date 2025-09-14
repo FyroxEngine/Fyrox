@@ -1320,12 +1320,12 @@ impl PhysicsWorld {
             }),
             exclude_collider: filter
                 .exclude_collider
-                .and_then(|h| graph.try_get(h))
+                .and_then(|h| graph.try_get_node(h))
                 .and_then(|n| n.component_ref::<collider::Collider>())
                 .map(|c| c.native.get()),
             exclude_rigid_body: filter
                 .exclude_collider
-                .and_then(|h| graph.try_get(h))
+                .and_then(|h| graph.try_get_node(h))
                 .and_then(|n| n.component_ref::<rigidbody::RigidBody>())
                 .map(|c| c.native.get()),
             predicate: Some(&predicate),

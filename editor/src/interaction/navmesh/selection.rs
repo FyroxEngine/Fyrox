@@ -65,7 +65,7 @@ impl SelectionContainer for NavmeshSelection {
     ) {
         let game_scene = some_or_return!(controller.downcast_ref::<GameScene>());
         let scene = &scenes[game_scene.scene];
-        let node = scene.graph.try_get(self.navmesh_node).unwrap();
+        let node = scene.graph.try_get_node(self.navmesh_node).unwrap();
         (callback)(node as &dyn Reflect, node.has_inheritance_parent());
     }
 
@@ -98,7 +98,7 @@ impl SelectionContainer for NavmeshSelection {
                     ctx.get_mut::<GameSceneContext>()
                         .scene
                         .graph
-                        .try_get_mut(navmesh_node)
+                        .try_get_node_mut(navmesh_node)
                         .map(|n| n as &mut dyn Reflect)
                 },
             ))

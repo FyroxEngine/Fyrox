@@ -67,14 +67,14 @@ impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
 
     fn children_of(&self, node: ErasedHandle) -> Vec<ErasedHandle> {
         self.ui
-            .try_get(node.into())
+            .try_get_node(node.into())
             .map(|n| n.children.iter().map(|c| (*c).into()).collect::<Vec<_>>())
             .unwrap_or_default()
     }
 
     fn child_count_of(&self, node: ErasedHandle) -> usize {
         self.ui
-            .try_get(node.into())
+            .try_get_node(node.into())
             .map(|n| n.children.len())
             .unwrap_or_default()
     }
@@ -91,19 +91,19 @@ impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
 
     fn is_node_has_child(&self, node: ErasedHandle, child: ErasedHandle) -> bool {
         self.ui
-            .try_get(node.into())
+            .try_get_node(node.into())
             .is_some_and(|n| n.children().iter().any(|c| *c == child.into()))
     }
 
     fn parent_of(&self, node: ErasedHandle) -> ErasedHandle {
         self.ui
-            .try_get(node.into())
+            .try_get_node(node.into())
             .map(|n| n.parent().into())
             .unwrap_or_default()
     }
 
     fn name_of(&self, node: ErasedHandle) -> Option<Cow<str>> {
-        self.ui.try_get(node.into()).map(|n| {
+        self.ui.try_get_node(node.into()).map(|n| {
             Cow::Owned(format!(
                 "{} [{}]",
                 n.name(),
@@ -113,11 +113,11 @@ impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
     }
 
     fn is_valid_handle(&self, node: ErasedHandle) -> bool {
-        self.ui.try_get(node.into()).is_some()
+        self.ui.try_get_node(node.into()).is_some()
     }
 
     fn icon_of(&self, node: ErasedHandle) -> Option<TextureResource> {
-        let node: &UiNode = self.ui.try_get(node.into()).unwrap();
+        let node: &UiNode = self.ui.try_get_node(node.into()).unwrap();
 
         // all icons are able to be used freely
         // todo: add more icons
@@ -166,7 +166,7 @@ impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
 
     fn is_instance(&self, node: ErasedHandle) -> bool {
         self.ui
-            .try_get(node.into())
+            .try_get_node(node.into())
             .is_some_and(|n| n.resource().is_some())
     }
 
@@ -211,7 +211,7 @@ impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
                             if let Some((parents_parent, position)) =
                                 self.ui.relative_position(parent, index_offset)
                             {
-                                if let Some(node) = self.ui.try_get(widget_handle) {
+                                if let Some(node) = self.ui.try_get_node(widget_handle) {
                                     if node.parent() != parents_parent {
                                         commands.push(LinkWidgetsCommand::new(
                                             widget_handle,

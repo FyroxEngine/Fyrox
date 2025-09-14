@@ -1314,7 +1314,7 @@ impl Control for ContextMenu {
 
         if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
             if !message.handled() {
-                if let Some(parent_menu_item) = ui.try_get(self.parent_menu_item) {
+                if let Some(parent_menu_item) = ui.try_get_node(self.parent_menu_item) {
                     if keyboard_navigation(
                         ui,
                         *key_code,

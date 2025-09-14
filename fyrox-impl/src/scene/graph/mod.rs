@@ -496,7 +496,7 @@ impl Graph {
 
     /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
     #[inline]
-    pub fn try_get_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
+    pub fn try_get_node_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
         self.pool.try_borrow_mut(handle)
     }
 
@@ -884,7 +884,7 @@ impl Graph {
         where
             F: FnMut(Handle<Node>, &Node) -> bool,
         {
-            graph.try_get(node).and_then(|n| {
+            graph.try_get_node(node).and_then(|n| {
                 if filter(node, n) {
                     let mut aabb = n.local_bounding_box();
                     if aabb.is_invalid_or_degenerate() {
@@ -1094,7 +1094,7 @@ impl Graph {
                 func: &mut impl FnMut(Handle<Node>),
             ) {
                 func(from);
-                if let Some(node) = graph.try_get(from) {
+                if let Some(node) = graph.try_get_node(from) {
                     for &child in node.children() {
                         traverse_recursive(graph, child, func)
                     }
@@ -1302,12 +1302,6 @@ impl Graph {
     #[inline]
     pub fn linear_iter(&self) -> impl Iterator<Item = &Node> {
         self.pool.iter()
-    }
-
-    /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
-    #[inline]
-    pub fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Node>, &mut Node)> {
-        self.pool.pair_iter_mut()
     }
 
     /// Extracts node from graph and reserves its handle. It is used to temporarily take
@@ -1545,7 +1539,7 @@ impl Graph {
     #[inline]
     pub fn global_scale(&self, mut node: Handle<Node>) -> Vector3<f32> {
         let mut global_scale = Vector3::repeat(1.0);
-        while let Some(node_ref) = self.try_get(node) {
+        while let Some(node_ref) = self.try_get_node(node) {
             global_scale = global_scale.component_mul(node_ref.local_transform().scale());
             node = node_ref.parent;
         }
@@ -1559,7 +1553,7 @@ impl Graph {
     where
         T: ScriptTrait,
     {
-        self.try_get(node)
+        self.try_get_node(node)
             .and_then(|node| node.try_get_script::<T>())
     }
 
@@ -1571,7 +1565,7 @@ impl Graph {
         &self,
         node: Handle<Node>,
     ) -> Option<impl Iterator<Item = &T>> {
-        self.try_get(node).map(|n| n.try_get_scripts())
+        self.try_get_node(node).map(|n| n.try_get_scripts())
     }
 
     /// Tries to borrow a node using the given handle and searches the script buffer for a script
@@ -1581,7 +1575,7 @@ impl Graph {
     where
         T: ScriptTrait,
     {
-        self.try_get_mut(node)
+        self.try_get_node_mut(node)
             .and_then(|node| node.try_get_script_mut::<T>())
     }
 
@@ -1593,7 +1587,7 @@ impl Graph {
         &mut self,
         node: Handle<Node>,
     ) -> Option<impl Iterator<Item = &mut T>> {
-        self.try_get_mut(node).map(|n| n.try_get_scripts_mut())
+        self.try_get_node_mut(node).map(|n| n.try_get_scripts_mut())
     }
 
     /// Tries to borrow a node and find a component of the given type `C` across **all** available
@@ -1604,7 +1598,7 @@ impl Graph {
     where
         C: Any,
     {
-        self.try_get(node)
+        self.try_get_node(node)
             .and_then(|node| node.try_get_script_component())
     }
 
@@ -1616,7 +1610,7 @@ impl Graph {
     where
         C: Any,
     {
-        self.try_get_mut(node)
+        self.try_get_node_mut(node)
             .and_then(|node| node.try_get_script_component_mut())
     }
 
@@ -1645,7 +1639,7 @@ impl<T, B: BorrowAs<Node, NodeContainer, Target = T>> Index<B> for Graph {
 
     #[inline]
     fn index(&self, typed_handle: B) -> &Self::Output {
-        self.typed_ref(typed_handle)
+        self.try_get(typed_handle)
             .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
@@ -1653,7 +1647,7 @@ impl<T, B: BorrowAs<Node, NodeContainer, Target = T>> Index<B> for Graph {
 impl<T, B: BorrowAs<Node, NodeContainer, Target = T>> IndexMut<B> for Graph {
     #[inline]
     fn index_mut(&mut self, typed_handle: B) -> &mut Self::Output {
-        self.typed_mut(typed_handle)
+        self.try_get_mut(typed_handle)
             .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
@@ -1819,12 +1813,12 @@ impl BaseSceneGraph for Graph {
     }
 
     #[inline]
-    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+    fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
         self.pool.try_borrow(handle)
     }
 
     #[inline]
-    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+    fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
         self.pool.try_borrow_mut(handle)
     }
 
@@ -1848,6 +1842,11 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
+    fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Node>, &mut Node)> {
+        self.pool.pair_iter_mut()
+    }
+
+    #[inline]
     fn linear_iter(&self) -> impl Iterator<Item = &Self::Node> {
         self.pool.iter()
     }
@@ -1856,18 +1855,18 @@ impl SceneGraph for Graph {
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
         self.pool.iter_mut()
     }
-
-    fn typed_ref<Ref>(
+    
+    fn try_get<T>(
         &self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&Ref> {
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = T>,
+    ) -> Option<&T> {
         self.pool.typed_ref(handle)
     }
 
-    fn typed_mut<Ref>(
+    fn try_get_mut<T>(
         &mut self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&mut Ref> {
+        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = T>,
+    ) -> Option<&mut T> {
         self.pool.typed_mut(handle)
     }
 }

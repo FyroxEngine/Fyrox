@@ -1042,7 +1042,7 @@ impl Control for TreeRoot {
                     KeyCode::ArrowLeft => {
                         if let Some(selection) = self.selected.first() {
                             if let Some(item) = ui
-                                .try_get(*selection)
+                                .try_get_node(*selection)
                                 .and_then(|n| n.component_ref::<Tree>())
                             {
                                 if item.is_expanded {
@@ -1109,7 +1109,7 @@ impl TreeRoot {
     fn move_selection(&self, ui: &UserInterface, direction: Direction, expand: bool) {
         if let Some(selected_item) = self.selected.first() {
             let Some(item) = ui
-                .try_get(*selected_item)
+                .try_get_node(*selected_item)
                 .and_then(|n| n.component_ref::<Tree>())
             else {
                 return;

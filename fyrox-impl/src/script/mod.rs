@@ -415,7 +415,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
 
 impl UniversalScriptContext for ScriptContext<'_, '_, '_> {
     fn node(&mut self) -> Option<&mut Node> {
-        self.scene.graph.try_get_mut(self.handle)
+        self.scene.graph.try_get_node_mut(self.handle)
     }
 
     fn destroy_script_deferred(&self, script: Script, index: usize) {
@@ -491,7 +491,7 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
 
 impl UniversalScriptContext for ScriptMessageContext<'_, '_, '_> {
     fn node(&mut self) -> Option<&mut Node> {
-        self.scene.graph.try_get_mut(self.handle)
+        self.scene.graph.try_get_node_mut(self.handle)
     }
 
     fn destroy_script_deferred(&self, script: Script, index: usize) {
@@ -558,7 +558,7 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
 
 impl UniversalScriptContext for ScriptDeinitContext<'_, '_, '_> {
     fn node(&mut self) -> Option<&mut Node> {
-        self.scene.graph.try_get_mut(self.node_handle)
+        self.scene.graph.try_get_node_mut(self.node_handle)
     }
 
     fn destroy_script_deferred(&self, script: Script, index: usize) {

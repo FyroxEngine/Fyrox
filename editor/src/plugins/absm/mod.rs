@@ -130,7 +130,7 @@ where
     N: SceneGraphNode<SceneGraph = G>,
 {
     graph
-        .try_get_mut(handle)
+        .try_get_node_mut(handle)
         .and_then(|n| n.component_mut::<InheritableVariable<Machine<Handle<N>>>>())
         .map(|v| v.get_value_mut_silent())
 }
@@ -144,12 +144,12 @@ where
     N: SceneGraphNode<SceneGraph = G>,
 {
     let animation_player_handle = *graph
-        .try_get(handle)
+        .try_get_node(handle)
         .and_then(|n| n.component_ref::<InheritableVariable<Handle<N>>>())
         .cloned()?;
 
     graph
-        .try_get_mut(animation_player_handle)
+        .try_get_node_mut(animation_player_handle)
         .and_then(|n| n.component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
         .map(|ac| (animation_player_handle, ac.get_value_mut_silent()))
 }
@@ -160,7 +160,7 @@ where
     N: SceneGraphNode<SceneGraph = G>,
 {
     graph
-        .try_get(handle)
+        .try_get_node(handle)
         .and_then(|n| n.component_ref::<InheritableVariable<Machine<Handle<N>>>>())
         .map(|v| v.get_value_ref())
 }
@@ -174,11 +174,11 @@ where
     N: SceneGraphNode<SceneGraph = G>,
 {
     graph
-        .try_get(handle)
+        .try_get_node(handle)
         .and_then(|n| n.component_ref::<InheritableVariable<Handle<N>>>())
         .and_then(|ap| {
             graph
-                .try_get(**ap)
+                .try_get_node(**ap)
                 .and_then(|n| {
                     n.component_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
                 })

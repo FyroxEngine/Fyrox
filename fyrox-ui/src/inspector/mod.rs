@@ -673,7 +673,7 @@ impl Inspector {
     ) -> Option<&ContextEntry> {
         let mut parent_handle = from;
 
-        while let Some(parent) = ui.try_get(parent_handle) {
+        while let Some(parent) = ui.try_get_node(parent_handle) {
             for entry in self.context.entries.iter() {
                 if entry.property_container == parent_handle {
                     return Some(entry);

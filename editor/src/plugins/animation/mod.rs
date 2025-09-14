@@ -178,7 +178,7 @@ where
     N: SceneGraphNode<SceneGraph = G>,
 {
     graph
-        .try_get_mut(handle)
+        .try_get_node_mut(handle)
         .and_then(|n| n.component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
         .map(|v| v.get_value_mut_silent())
 }
@@ -192,7 +192,7 @@ where
     N: SceneGraphNode<SceneGraph = G>,
 {
     graph
-        .try_get(handle)
+        .try_get_node(handle)
         .and_then(|n| {
             n.query_component_ref(TypeId::of::<
                 InheritableVariable<AnimationContainer<Handle<N>>>,
@@ -454,7 +454,7 @@ impl AnimationEditor {
                     assert!(node_overrides.insert(selection.animation_player));
 
                     let animation_player_node =
-                        graph.try_get_mut(selection.animation_player).unwrap();
+                        graph.try_get_node_mut(selection.animation_player).unwrap();
 
                     // HACK. This is unreliable to just use `bool` here. It should be wrapped into
                     // newtype or something.

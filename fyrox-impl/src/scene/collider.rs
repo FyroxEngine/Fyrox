@@ -1044,7 +1044,7 @@ impl NodeTrait for Collider {
 
         if scene
             .graph
-            .try_get(self.parent())
+            .try_get_node(self.parent())
             .and_then(|p| p.component_ref::<RigidBody>())
             .is_none()
         {
