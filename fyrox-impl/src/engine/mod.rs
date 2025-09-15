@@ -25,11 +25,13 @@
 
 pub mod error;
 pub mod executor;
+pub mod input;
 pub mod task;
 
 mod hotreload;
 mod wasm_utils;
 
+use crate::engine::input::InputState;
 use crate::scene::skybox::SkyBoxKind;
 use crate::{
     asset::{
@@ -129,6 +131,7 @@ use std::{
     time::Duration,
 };
 use uuid::Uuid;
+use winit::event::{DeviceEvent, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::{
     dpi::{Position, Size},
@@ -493,6 +496,8 @@ pub struct Engine {
 
     // Amount of time (in seconds) that passed from creation of the engine.
     elapsed_time: f32,
+
+    input_state: InputState,
 
     /// A special container that is able to create nodes by their type UUID. Use a copy of this
     /// value whenever you need it as a parameter in other parts of the engine.
@@ -1483,6 +1488,7 @@ impl Engine {
             plugins_enabled: false,
             elapsed_time: 0.0,
             task_pool: TaskPoolHandler::new(task_pool),
+            input_state: Default::default(),
         })
     }
 
@@ -1683,6 +1689,7 @@ impl Engine {
                             async_scene_loader: &mut self.async_scene_loader,
                             loop_controller: controller,
                             task_pool: &mut self.task_pool,
+                            input_state: &self.input_state,
                         };
 
                         for plugin in self.plugins.iter_mut() {
@@ -1716,6 +1723,7 @@ impl Engine {
                     async_scene_loader: &mut self.async_scene_loader,
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
+                    input_state: &self.input_state,
                 };
 
                 match loading_result.result {
@@ -1912,6 +1920,8 @@ impl Engine {
             self.elapsed_time += dt;
 
             self.post_update_plugins(dt, controller, lag);
+
+            self.input_state.mouse.speed = Vector2::default();
         }
     }
 
@@ -1970,6 +1980,7 @@ impl Engine {
                         async_scene_loader: &mut self.async_scene_loader,
                         loop_controller: controller,
                         task_pool: &mut self.task_pool,
+                        input_state: &self.input_state,
                     },
                 )
             } else if let Some(node_task_handler) = self.task_pool.pop_node_task_handler(result.id)
@@ -2059,6 +2070,7 @@ impl Engine {
                 async_scene_loader: &mut self.async_scene_loader,
                 loop_controller: controller,
                 task_pool: &mut self.task_pool,
+                input_state: &self.input_state,
             };
 
             for plugin in self.plugins.iter_mut() {
@@ -2092,6 +2104,7 @@ impl Engine {
                         async_scene_loader: &mut self.async_scene_loader,
                         loop_controller: controller,
                         task_pool: &mut self.task_pool,
+                        input_state: &self.input_state,
                     };
 
                     for plugin in self.plugins.iter_mut() {
@@ -2128,6 +2141,7 @@ impl Engine {
                 async_scene_loader: &mut self.async_scene_loader,
                 loop_controller: controller,
                 task_pool: &mut self.task_pool,
+                input_state: &self.input_state,
             };
 
             for plugin in self.plugins.iter_mut() {
@@ -2138,13 +2152,40 @@ impl Engine {
         self.performance_statistics.plugins_time += instant::Instant::now() - time;
     }
 
-    pub(crate) fn handle_os_event_by_plugins(
+    /// Should be called on every OS event to update the internal state of the engine accordingly.
+    pub fn handle_os_events(
         &mut self,
         event: &Event<()>,
         dt: f32,
         controller: ApplicationLoopController,
         lag: &mut f32,
     ) {
+        match event {
+            Event::WindowEvent { event, .. } => match event {
+                WindowEvent::KeyboardInput { event, .. } => {
+                    self.input_state
+                        .keyboard
+                        .keys
+                        .insert(event.physical_key, event.state);
+                }
+                WindowEvent::CursorMoved { position, .. } => {
+                    self.input_state.mouse.position =
+                        Vector2::new(position.x as f32, position.y as f32);
+                }
+                _ => (),
+            },
+            Event::DeviceEvent { event, .. } => match event {
+                DeviceEvent::MouseMotion { delta } => {
+                    self.input_state.mouse.speed = Vector2::new(delta.0 as f32, delta.1 as f32);
+                }
+                DeviceEvent::Button { button, state } => {
+                    self.input_state.mouse.buttons_state.insert(*button, *state);
+                }
+                _ => (),
+            },
+            _ => (),
+        }
+
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
                 plugin.on_os_event(
@@ -2164,6 +2205,7 @@ impl Engine {
                         async_scene_loader: &mut self.async_scene_loader,
                         loop_controller: controller,
                         task_pool: &mut self.task_pool,
+                        input_state: &self.input_state,
                     },
                 );
             }
@@ -2193,6 +2235,7 @@ impl Engine {
                     async_scene_loader: &mut self.async_scene_loader,
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
+                    input_state: &self.input_state,
                 });
             }
         }
@@ -2221,6 +2264,7 @@ impl Engine {
                     async_scene_loader: &mut self.async_scene_loader,
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
+                    input_state: &self.input_state,
                 });
             }
         }
@@ -2249,6 +2293,7 @@ impl Engine {
                     async_scene_loader: &mut self.async_scene_loader,
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
+                    input_state: &self.input_state,
                 });
             }
         }
@@ -2378,6 +2423,7 @@ impl Engine {
                             async_scene_loader: &mut self.async_scene_loader,
                             loop_controller: controller,
                             task_pool: &mut self.task_pool,
+                            input_state: &self.input_state,
                         },
                     );
                 }
@@ -2401,6 +2447,7 @@ impl Engine {
                         async_scene_loader: &mut self.async_scene_loader,
                         loop_controller: controller,
                         task_pool: &mut self.task_pool,
+                        input_state: &self.input_state,
                     });
                 }
             }
@@ -2710,6 +2757,7 @@ impl Engine {
             async_scene_loader: &mut self.async_scene_loader,
             loop_controller: controller,
             task_pool: &mut self.task_pool,
+            input_state: &self.input_state,
         });
 
         Log::info(format!("Plugin {plugin_index} was successfully reloaded!"));
