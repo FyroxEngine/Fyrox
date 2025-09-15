@@ -218,7 +218,7 @@ impl InteractionMode for ReflectionProbeInteractionMode {
                 ctx.get_mut::<GameSceneContext>()
                     .scene
                     .graph
-                    .try_get_node_mut(probe.transmute())
+                    .try_get_node_mut(probe)
                     .map(|n| n as &mut dyn Reflect)
             },
         );
@@ -359,7 +359,7 @@ impl EditorPlugin for ReflectionProbePlugin {
 
             if let Some(selected_reflection_probe) = selected_reflection_probe {
                 entry.interaction_modes.add(ReflectionProbeInteractionMode {
-                    probe: selected_reflection_probe.transmute(),
+                    probe: selected_reflection_probe.cast(),
                     move_gizmo: MoveGizmo::new(game_scene, &mut editor.engine),
                     message_sender: editor.message_sender.clone(),
                     drag_context: None,

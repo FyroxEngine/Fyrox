@@ -271,6 +271,11 @@ impl<T> Handle<T> {
         }
     }
 
+    #[deprecated(
+        note = "The term 'transmute' is not appropriate for describing the conversion between different handle types
+     since 'transmute' in Rust refers to a more dangerous type casting that interprets the underlying fields differently,
+     while in the case of handle only the nominal generic type is changed. 'cast' is a more suitable term according to ChatGPT."
+    )]
     #[inline(always)]
     pub fn transmute<U>(&self) -> Handle<U> {
         Handle {
@@ -693,9 +698,9 @@ mod test {
     }
 
     #[test]
-    fn handle_transmute() {
+    fn handle_cast() {
         assert_eq!(
-            Handle::<u32>::default().transmute::<f32>(),
+            Handle::<u32>::default().cast::<f32>(),
             Handle::<f32>::default()
         );
     }

@@ -76,7 +76,15 @@ where
 
 pub trait BorrowAs<Object, Container: PayloadContainer<Element = Object>> {
     type Target;
+    #[deprecated(
+        note = "This trait adds a lot of confusion regarding the object reference retrieving system.
+    Potentially leads to logical circular dependencies. For example, pool.typed_ref calls handle.borrow_as_ref, which calls pool.try_borrow."
+    )]
     fn borrow_as_ref(self, pool: &Pool<Object, Container>) -> Option<&Self::Target>;
+    #[deprecated(
+        note = "This trait adds a lot of confusion regarding the object reference retrieving system.
+    Potentially leads to logical circular dependencies. For example, pool.typed_ref calls handle.borrow_as_ref, which calls pool.try_borrow."
+    )]
     fn borrow_as_mut(self, pool: &mut Pool<Object, Container>) -> Option<&mut Self::Target>;
 }
 
@@ -413,11 +421,13 @@ where
         self.records.get_mut(index)
     }
 
+    #[deprecated(note = "Inconsistent and ambiguous method naming. Implementation involves a confusing detour.")]
     #[inline]
     pub fn typed_ref<Ref>(&self, handle: impl BorrowAs<T, P, Target = Ref>) -> Option<&Ref> {
         handle.borrow_as_ref(self)
     }
 
+    #[deprecated(note = "Inconsistent and ambiguous method naming. Implementation involves a confusing detour.")]
     #[inline]
     pub fn typed_mut<Ref>(
         &mut self,

@@ -1855,7 +1855,7 @@ impl SceneGraph for Graph {
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
         self.pool.iter_mut()
     }
-    
+
     fn try_get<T>(
         &self,
         handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = T>,
@@ -2377,20 +2377,20 @@ mod test {
         let rigid_body = RigidBodyBuilder::new(BaseBuilder::new()).build(&mut graph);
 
         assert!(graph.pool.typed_ref(pivot).is_some());
-        assert!(graph.pool.typed_ref(pivot.transmute::<Pivot>()).is_some());
+        assert!(graph.pool.typed_ref(pivot.cast::<Pivot>()).is_some());
         assert!(graph
             .pool
-            .typed_ref(pivot.transmute::<RigidBody>())
+            .typed_ref(pivot.cast::<RigidBody>())
             .is_none());
 
         assert!(graph.pool.typed_ref(rigid_body).is_some());
         assert!(graph
             .pool
-            .typed_ref(rigid_body.transmute::<RigidBody>())
+            .typed_ref(rigid_body.cast::<RigidBody>())
             .is_some());
         assert!(graph
             .pool
-            .typed_ref(rigid_body.transmute::<Pivot>())
+            .typed_ref(rigid_body.cast::<Pivot>())
             .is_none());
     }
 }

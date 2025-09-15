@@ -2111,8 +2111,8 @@ mod test {
         let rigid_body2 = prefab_graph.add_node(Node::new(RigidBody::default()));
         let joint = prefab_graph.add_node(Node::new(Joint {
             base: Base::default(),
-            connected_body1: rigid_body.transmute(),
-            connected_body2: rigid_body2.transmute(),
+            connected_body1: rigid_body.cast(),
+            connected_body2: rigid_body2.cast(),
         }));
 
         let mut scene_graph = Graph::default();
@@ -2124,13 +2124,13 @@ mod test {
             .get(&rigid_body)
             .cloned()
             .unwrap()
-            .transmute::<RigidBody>();
+            .cast::<RigidBody>();
         let rigid_body2_copy = mapping
             .inner()
             .get(&rigid_body2)
             .cloned()
             .unwrap()
-            .transmute::<RigidBody>();
+            .cast::<RigidBody>();
         let joint_copy = mapping.inner().get(&joint).cloned().unwrap();
         Reflect::as_any(&scene_graph.nodes[joint_copy], &mut |any| {
             let joint_copy_ref = any.downcast_ref::<Joint>().unwrap();
