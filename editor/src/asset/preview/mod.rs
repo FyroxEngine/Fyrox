@@ -34,7 +34,7 @@ use crate::{
         },
         engine::{Engine, GraphicsContext},
         fxhash::FxHashMap,
-        graph::{BaseSceneGraph, SceneGraphNode},
+        graph::{BaseSceneGraph, SceneGraphNode, SceneGraph},
         graphics::{
             framebuffer::ReadTarget,
             gpu_texture::{GpuTextureKind, PixelKind},

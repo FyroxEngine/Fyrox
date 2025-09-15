@@ -142,12 +142,12 @@ pub fn get_machine_ref<'a, N: Reflect>(
     if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
         scene_container[game_scene.scene]
             .graph
-            .node(ErasedHandle::from(node_handle).into())
+            .node(node_handle.cast())
             .component_ref::<InheritableVariable<Machine<Handle<N>>>>()
             .map(|v| v.deref())
     } else if let Some(ui) = controller.downcast_ref::<UiScene>() {
         ui.ui
-            .node(ErasedHandle::from(node_handle).into())
+            .node(node_handle.cast())
             .component_ref::<InheritableVariable<Machine<Handle<N>>>>()
             .map(|v| v.deref())
     } else {

@@ -293,6 +293,16 @@ impl<T> Handle<T> {
     pub fn encode_to_u128(&self) -> u128 {
         (self.index as u128) | ((self.generation as u128) << 32)
     }
+
+    /// Converts the handle to another type **without checks**.
+    #[inline(always)]
+    pub fn cast<U>(&self) -> Handle<U> {
+        Handle {
+            index: self.index,
+            generation: self.generation,
+            type_marker: Default::default(),
+        }
+    }
 }
 
 impl<T> TypeUuidProvider for Handle<T>

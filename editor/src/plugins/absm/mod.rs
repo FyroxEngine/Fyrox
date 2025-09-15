@@ -97,20 +97,15 @@ where
     } else if let Some(selection) = editor_selection.as_graph() {
         // Only some AnimationPlayer in a graph is selected.
         AbsmSelection {
-            absm_node_handle: ErasedHandle::from(
-                selection.nodes.first().cloned().unwrap_or_default(),
-            )
-            .into(),
+            absm_node_handle: selection.nodes.first().cloned().unwrap_or_default().cast(),
+
             layer: None,
             entities: vec![],
         }
     } else if let Some(selection) = editor_selection.as_ui() {
         // Only some AnimationPlayer in a UI is selected.
         AbsmSelection {
-            absm_node_handle: ErasedHandle::from(
-                selection.widgets.first().cloned().unwrap_or_default(),
-            )
-            .into(),
+            absm_node_handle: selection.widgets.first().cloned().unwrap_or_default().cast(),
             layer: None,
             entities: vec![],
         }

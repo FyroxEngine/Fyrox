@@ -102,11 +102,11 @@ pub fn get_animations_container<'a, N: Reflect>(
     if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
         scenes[game_scene.scene]
             .graph
-            .node(ErasedHandle::from(handle).into())
+            .node(handle.cast())
             .component_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
     } else if let Some(ui) = controller.downcast_ref::<UiScene>() {
         ui.ui
-            .node(ErasedHandle::from(handle).into())
+            .node(handle.cast())
             .component_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
     } else {
         None
@@ -206,14 +206,14 @@ where
             Some(
                 engine.scenes[game_scene.scene]
                     .graph
-                    .node(ErasedHandle::from(self.animation_player).into())
+                    .node(self.animation_player.cast())
                     .doc()
                     .to_string(),
             )
         } else {
             controller.downcast_ref::<UiScene>().map(|ui| {
                 ui.ui
-                    .node(ErasedHandle::from(self.animation_player).into())
+                    .node(self.animation_player.cast())
                     .doc()
                     .to_string()
             })

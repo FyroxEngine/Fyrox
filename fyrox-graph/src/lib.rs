@@ -682,7 +682,13 @@ impl<N> Default for LinkScheme<N> {
 }
 
 pub trait AbstractSceneGraph: 'static {
+    #[deprecated(
+        note = "AbstractSceneNode is essentially Node or UiNode, in either case you can use try_get_node for the same utility"
+    )]
     fn try_get_node_untyped(&self, handle: ErasedHandle) -> Option<&dyn AbstractSceneNode>;
+    #[deprecated(
+        note = "AbstractSceneNode is essentially Node or UiNode, in either case you can use try_get_node_mut for the same utility"
+    )]
     fn try_get_node_untyped_mut(
         &mut self,
         handle: ErasedHandle,

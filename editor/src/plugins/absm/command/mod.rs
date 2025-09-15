@@ -199,12 +199,12 @@ pub fn fetch_machine<N: Reflect>(
         game_scene
             .scene
             .graph
-            .node_mut(ErasedHandle::from(node_handle).into())
+            .node_mut(node_handle.cast())
             .component_mut::<InheritableVariable<Machine<Handle<N>>>>()
             .unwrap()
     } else if let Some(ui) = context2.component_mut::<UiSceneContext>() {
         ui.ui
-            .node_mut(ErasedHandle::from(node_handle).into())
+            .node_mut(node_handle.cast())
             .component_mut::<InheritableVariable<Machine<Handle<N>>>>()
             .unwrap()
     } else {

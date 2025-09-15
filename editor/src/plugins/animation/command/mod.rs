@@ -59,12 +59,12 @@ pub fn fetch_animations_container<N: Reflect>(
         game_scene
             .scene
             .graph
-            .node_mut(ErasedHandle::from(handle).into())
+            .node_mut(handle.cast())
             .component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>()
             .unwrap()
     } else if let Some(ui) = context2.component_mut::<UiSceneContext>() {
         ui.ui
-            .node_mut(ErasedHandle::from(handle).into())
+            .node_mut(handle.cast())
             .component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>()
             .unwrap()
     } else {
