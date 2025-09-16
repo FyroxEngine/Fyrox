@@ -186,6 +186,8 @@ pub struct HotKeyEditor {
     editing: InheritableVariable<bool>,
 }
 
+impl NodeVariant<UiNode> for HotKeyEditor {}
+
 impl ConstructorProvider<UiNode, UserInterface> for HotKeyEditor {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
@@ -416,6 +418,8 @@ pub struct KeyBindingEditor {
     value: InheritableVariable<KeyBinding>,
     editing: InheritableVariable<bool>,
 }
+
+impl NodeVariant<UiNode> for KeyBindingEditor {}
 
 impl ConstructorProvider<UiNode, UserInterface> for KeyBindingEditor {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

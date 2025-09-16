@@ -74,6 +74,7 @@ struct AssetRenameDialog {
     #[reflect(hidden)]
     resource_manager: ResourceManager,
 }
+impl NodeVariant<UiNode> for AssetRenameDialog {}
 
 impl Deref for AssetRenameDialog {
     type Target = Widget;

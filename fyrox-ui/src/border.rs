@@ -117,6 +117,8 @@ pub struct Border {
     pub pad_by_corner_radius: InheritableVariable<bool>,
 }
 
+impl NodeVariant<UiNode> for Border {}
+
 impl ConstructorProvider<UiNode, UserInterface> for Border {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

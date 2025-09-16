@@ -169,6 +169,8 @@ pub struct AnimationPlayer {
     auto_apply: bool,
 }
 
+impl NodeVariant<UiNode> for AnimationPlayer {}
+
 impl ConstructorProvider<UiNode, UserInterface> for AnimationPlayer {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

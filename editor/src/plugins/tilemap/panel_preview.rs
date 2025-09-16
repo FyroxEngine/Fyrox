@@ -75,6 +75,8 @@ pub struct PanelPreview {
     handle_text_size: Vector2<f32>,
 }
 
+impl NodeVariant<UiNode> for PanelPreview {}
+
 define_widget_deref!(PanelPreview);
 
 fn draw_tile(

@@ -86,6 +86,8 @@ pub struct ScriptPropertyEditor {
     need_context_update: Cell<bool>,
 }
 
+impl NodeVariant<UiNode> for ScriptPropertyEditor {}
+
 impl Deref for ScriptPropertyEditor {
     type Target = Widget;
 

@@ -90,6 +90,8 @@ pub struct MaterialFieldEditor {
     asset_selector_mixin: AssetSelectorMixin<Material>,
 }
 
+impl NodeVariant<UiNode> for MaterialFieldEditor {}
+
 impl Debug for MaterialFieldEditor {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "MaterialFieldEditor")

@@ -200,6 +200,8 @@ pub struct Image {
     pub sync_with_texture_size: InheritableVariable<bool>,
 }
 
+impl NodeVariant<UiNode> for Image {}
+
 impl ConstructorProvider<UiNode, UserInterface> for Image {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

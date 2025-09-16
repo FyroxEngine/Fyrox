@@ -267,7 +267,7 @@ impl Sound {
         *self.panning
     }
 
-    /// Sets playback status.    
+    /// Sets playback status.
     pub fn set_status(&mut self, status: Status) -> Status {
         let prev = self.status();
         match status {

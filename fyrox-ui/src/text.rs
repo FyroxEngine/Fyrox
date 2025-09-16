@@ -337,6 +337,8 @@ pub struct Text {
     pub formatted_text: RefCell<FormattedText>,
 }
 
+impl NodeVariant<UiNode> for Text {}
+
 impl ConstructorProvider<UiNode, UserInterface> for Text {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

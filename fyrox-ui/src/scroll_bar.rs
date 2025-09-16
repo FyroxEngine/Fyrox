@@ -184,6 +184,8 @@ pub struct ScrollBar {
     pub value_precision: InheritableVariable<usize>,
 }
 
+impl NodeVariant<UiNode> for ScrollBar {}
+
 impl ConstructorProvider<UiNode, UserInterface> for ScrollBar {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

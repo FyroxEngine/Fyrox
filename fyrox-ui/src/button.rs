@@ -137,6 +137,8 @@ pub struct Button {
     pub repeat_clicks_on_hold: InheritableVariable<bool>,
 }
 
+impl NodeVariant<UiNode> for Button {}
+
 impl Button {
     /// A name of style property, that defines corner radius of a button.
     pub const CORNER_RADIUS: &'static str = "Button.CornerRadius";

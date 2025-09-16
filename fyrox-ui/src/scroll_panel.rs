@@ -178,6 +178,8 @@ pub struct ScrollPanel {
     pub horizontal_scroll_allowed: bool,
 }
 
+impl NodeVariant<UiNode> for ScrollPanel {}
+
 impl ConstructorProvider<UiNode, UserInterface> for ScrollPanel {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

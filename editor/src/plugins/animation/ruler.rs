@@ -184,6 +184,8 @@ pub struct Ruler {
     context_menu: ContextMenu,
 }
 
+impl NodeVariant<UiNode> for Ruler {}
+
 impl Debug for Ruler {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Ruler")

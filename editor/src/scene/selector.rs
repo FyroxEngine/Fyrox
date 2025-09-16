@@ -219,6 +219,8 @@ pub struct NodeSelector {
     allowed_types: FxHashSet<AllowedType>,
 }
 
+impl NodeVariant<UiNode> for NodeSelector {}
+
 define_widget_deref!(NodeSelector);
 
 fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface) -> bool {
@@ -467,6 +469,8 @@ pub struct NodeSelectorWindow {
     #[reflect(hidden)]
     allowed_types: FxHashSet<AllowedType>,
 }
+
+impl NodeVariant<UiNode> for NodeSelectorWindow {}
 
 impl Deref for NodeSelectorWindow {
     type Target = Widget;

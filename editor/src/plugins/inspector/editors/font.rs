@@ -65,6 +65,8 @@ pub struct FontField {
     resource_manager: ResourceManager,
 }
 
+impl NodeVariant<UiNode> for FontField {}
+
 impl Debug for FontField {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "TextureEditor")

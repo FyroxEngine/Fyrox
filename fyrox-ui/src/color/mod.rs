@@ -134,6 +134,8 @@ pub struct AlphaBar {
     pub is_picking: bool,
 }
 
+impl NodeVariant<UiNode> for AlphaBar {}
+
 impl ConstructorProvider<UiNode, UserInterface> for AlphaBar {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
@@ -414,6 +416,8 @@ pub struct HueBar {
     pub hue: f32,
 }
 
+impl NodeVariant<UiNode> for HueBar {}
+
 impl ConstructorProvider<UiNode, UserInterface> for HueBar {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
@@ -579,6 +583,8 @@ pub struct SaturationBrightnessField {
     pub saturation: f32,
     pub brightness: f32,
 }
+
+impl NodeVariant<UiNode> for SaturationBrightnessField {}
 
 impl ConstructorProvider<UiNode, UserInterface> for SaturationBrightnessField {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
@@ -805,6 +811,8 @@ pub struct ColorPicker {
     pub color: Color,
     pub hsv: Hsv,
 }
+
+impl NodeVariant<UiNode> for ColorPicker {}
 
 impl ConstructorProvider<UiNode, UserInterface> for ColorPicker {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
@@ -1223,6 +1231,8 @@ pub struct ColorField {
     pub picker: Handle<UiNode>,
     pub color: Color,
 }
+
+impl NodeVariant<UiNode> for ColorField {}
 
 impl ConstructorProvider<UiNode, UserInterface> for ColorField {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

@@ -89,6 +89,8 @@ pub struct SurfaceDataPropertyEditor {
     asset_selector_mixin: AssetSelectorMixin<SurfaceData>,
 }
 
+impl NodeVariant<UiNode> for SurfaceDataPropertyEditor {}
+
 define_widget_deref!(SurfaceDataPropertyEditor);
 
 impl Control for SurfaceDataPropertyEditor {

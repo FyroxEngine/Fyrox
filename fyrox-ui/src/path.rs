@@ -97,6 +97,8 @@ pub struct PathEditor {
     pub path: InheritableVariable<PathBuf>,
 }
 
+impl NodeVariant<UiNode> for PathEditor {}
+
 impl ConstructorProvider<UiNode, UserInterface> for PathEditor {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

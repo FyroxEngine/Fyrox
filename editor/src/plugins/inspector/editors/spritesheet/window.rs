@@ -69,6 +69,8 @@ pub struct SpriteSheetFramesEditorWindow {
     preview_image: Handle<UiNode>,
 }
 
+impl NodeVariant<UiNode> for SpriteSheetFramesEditorWindow {}
+
 impl Deref for SpriteSheetFramesEditorWindow {
     type Target = Widget;
 

@@ -53,6 +53,8 @@ pub struct Thumb {
     pub click_pos: Vector2<f32>,
 }
 
+impl NodeVariant<UiNode> for Thumb {}
+
 impl ConstructorProvider<UiNode, UserInterface> for Thumb {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

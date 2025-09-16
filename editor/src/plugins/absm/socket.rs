@@ -70,6 +70,8 @@ pub struct Socket {
     pub index: usize,
 }
 
+impl NodeVariant<UiNode> for Socket {}
+
 define_widget_deref!(Socket);
 
 const RADIUS: f32 = 8.0;

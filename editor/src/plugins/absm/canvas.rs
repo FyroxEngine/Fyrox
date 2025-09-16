@@ -133,6 +133,8 @@ pub struct AbsmCanvas {
     lmb_released_node: Cell<Handle<UiNode>>,
 }
 
+impl NodeVariant<UiNode> for AbsmCanvas {}
+
 define_widget_deref!(AbsmCanvas);
 
 impl AbsmCanvas {

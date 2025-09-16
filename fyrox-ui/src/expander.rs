@@ -168,6 +168,8 @@ pub struct Expander {
     pub is_expanded: InheritableVariable<bool>,
 }
 
+impl NodeVariant<UiNode> for Expander {}
+
 impl ConstructorProvider<UiNode, UserInterface> for Expander {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

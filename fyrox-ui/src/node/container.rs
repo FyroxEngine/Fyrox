@@ -21,102 +21,76 @@
 //! A wrapper for node pool record that allows to define custom visit method to have full
 //! control over instantiation process at deserialization.
 
-use crate::{
-    constructor::WidgetConstructorContainer,
-    core::{
-        pool::PayloadContainer,
-        reflect::prelude::*,
-        uuid::Uuid,
-        visitor::{Visit, VisitResult, Visitor},
-    },
-    UiNode,
-};
-use fyrox_core::visitor::error::VisitError;
+// Since Pool<UiNode> uses WidgetContainer exclusively,
+// we just pass the Visit implementation to the UiNode.
+// See impl Visit for UiNode.
 
-/// A wrapper for widget pool record that allows to define custom visit method to have full
-/// control over instantiation process at deserialization.
-#[derive(Debug, Clone, Default, Reflect)]
-pub struct WidgetContainer(Option<UiNode>);
+// use crate::{
+//     constructor::WidgetConstructorContainer,
+//     core::{
+//         reflect::prelude::*,
+//         uuid::Uuid,
+//         visitor::{Visit, VisitResult, Visitor},
+//     },
+//     UiNode,
+// };
+// use fyrox_core::{pool::payload::Payload, visitor::error::VisitError};
 
-fn read_widget(name: &str, visitor: &mut Visitor) -> Result<UiNode, VisitError> {
-    let mut region = visitor.enter_region(name)?;
+// /// A wrapper for widget pool record that allows to define custom visit method to have full
+// /// control over instantiation process at deserialization.
+// #[derive(Debug, Clone, Default, Reflect)]
+// pub struct WidgetContainer(Option<UiNode>);
 
-    let mut id = Uuid::default();
-    id.visit("TypeUuid", &mut region)?;
+// // type WidgetPayload = Payload<UiNode>;
 
-    let serialization_context = region
-        .blackboard
-        .get::<WidgetConstructorContainer>()
-        .expect("Visitor environment must contain serialization context!");
 
-    let mut widget = serialization_context
-        .try_create(&id)
-        .ok_or_else(|| panic!("Unknown widget type uuid {id}!"))
-        .unwrap();
+// impl Visit for WidgetContainer {
+//     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+//         let mut region = visitor.enter_region(name)?;
 
-    widget.visit("WidgetData", &mut region)?;
+//         let mut is_some = u8::from(self.is_some());
+//         is_some.visit("IsSome", &mut region)?;
 
-    Ok(widget)
-}
+//         if is_some != 0 {
+//             if region.is_reading() {
+//                 *self = WidgetContainer(Some(read_widget("Data", &mut region)?));
+//             } else {
+//                 write_widget("Data", self.0.as_mut().unwrap(), &mut region)?;
+//             }
+//         }
 
-fn write_widget(name: &str, widget: &mut UiNode, visitor: &mut Visitor) -> VisitResult {
-    let mut region = visitor.enter_region(name)?;
+//         Ok(())
+//     }
+// }
 
-    let mut id = widget.id();
-    id.visit("TypeUuid", &mut region)?;
+// impl PayloadContainer for WidgetContainer {
+//     type Element = UiNode;
 
-    widget.visit("WidgetData", &mut region)?;
+//     fn new_empty() -> Self {
+//         Self(None)
+//     }
 
-    Ok(())
-}
+//     fn new(element: Self::Element) -> Self {
+//         Self(Some(element))
+//     }
 
-impl Visit for WidgetContainer {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
+//     fn is_some(&self) -> bool {
+//         self.0.is_some()
+//     }
 
-        let mut is_some = u8::from(self.is_some());
-        is_some.visit("IsSome", &mut region)?;
+//     fn as_ref(&self) -> Option<&Self::Element> {
+//         self.0.as_ref()
+//     }
 
-        if is_some != 0 {
-            if region.is_reading() {
-                *self = WidgetContainer(Some(read_widget("Data", &mut region)?));
-            } else {
-                write_widget("Data", self.0.as_mut().unwrap(), &mut region)?;
-            }
-        }
+//     fn as_mut(&mut self) -> Option<&mut Self::Element> {
+//         self.0.as_mut()
+//     }
 
-        Ok(())
-    }
-}
+//     fn replace(&mut self, element: Self::Element) -> Option<Self::Element> {
+//         self.0.replace(element)
+//     }
 
-impl PayloadContainer for WidgetContainer {
-    type Element = UiNode;
-
-    fn new_empty() -> Self {
-        Self(None)
-    }
-
-    fn new(element: Self::Element) -> Self {
-        Self(Some(element))
-    }
-
-    fn is_some(&self) -> bool {
-        self.0.is_some()
-    }
-
-    fn as_ref(&self) -> Option<&Self::Element> {
-        self.0.as_ref()
-    }
-
-    fn as_mut(&mut self) -> Option<&mut Self::Element> {
-        self.0.as_mut()
-    }
-
-    fn replace(&mut self, element: Self::Element) -> Option<Self::Element> {
-        self.0.replace(element)
-    }
-
-    fn take(&mut self) -> Option<Self::Element> {
-        self.0.take()
-    }
-}
+//     fn take(&mut self) -> Option<Self::Element> {
+//         self.0.take()
+//     }
+// }

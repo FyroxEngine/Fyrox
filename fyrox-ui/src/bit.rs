@@ -137,6 +137,8 @@ where
     current_value: bool,
 }
 
+impl<T: BitContainer> NodeVariant<UiNode> for BitField<T> {}
+
 impl<T> Deref for BitField<T>
 where
     T: BitContainer,

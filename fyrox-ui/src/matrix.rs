@@ -101,6 +101,8 @@ where
     pub step: SMatrix<T, R, C>,
 }
 
+impl<const R: usize, const C: usize, T> NodeVariant<UiNode> for MatrixEditor<R, C, T> {}
+
 impl<const R: usize, const C: usize, T> Default for MatrixEditor<R, C, T>
 where
     T: NumericType,

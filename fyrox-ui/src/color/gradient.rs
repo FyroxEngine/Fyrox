@@ -68,6 +68,8 @@ pub struct ColorGradientField {
     color_gradient: ColorGradient,
 }
 
+impl NodeVariant<UiNode> for ColorGradientField {}
+
 impl ConstructorProvider<UiNode, UserInterface> for ColorGradientField {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
@@ -202,6 +204,8 @@ pub struct ColorGradientEditor {
     context_menu_target: Cell<Handle<UiNode>>,
     context_menu_open_position: Cell<Vector2<f32>>,
 }
+
+impl NodeVariant<UiNode> for ColorGradientEditor {}
 
 impl ConstructorProvider<UiNode, UserInterface> for ColorGradientEditor {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
@@ -527,6 +531,8 @@ pub struct ColorPoint {
     pub dragging: bool,
 }
 
+impl NodeVariant<UiNode> for ColorPoint {}
+
 impl ConstructorProvider<UiNode, UserInterface> for ColorPoint {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
@@ -666,6 +672,8 @@ impl ColorPointBuilder {
 struct ColorPointsCanvas {
     widget: Widget,
 }
+
+impl NodeVariant<UiNode> for ColorPointsCanvas {}
 
 define_widget_deref!(ColorPointsCanvas);
 

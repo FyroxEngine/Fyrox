@@ -89,6 +89,8 @@ pub struct StyledPropertySelector {
     property_list: Vec<ImmutableString>,
 }
 
+impl NodeVariant<UiNode> for StyledPropertySelector {}
+
 impl Deref for StyledPropertySelector {
     type Target = Widget;
 
@@ -289,6 +291,8 @@ pub struct StyledPropertyEditor {
     #[reflect(hidden)]
     target_type_id: TypeId,
 }
+
+impl NodeVariant<UiNode> for StyledPropertyEditor {}
 
 define_widget_deref!(StyledPropertyEditor);
 

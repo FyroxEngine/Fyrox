@@ -68,6 +68,8 @@ pub struct Thumb {
     position: f32,
 }
 
+impl NodeVariant<UiNode> for Thumb {}
+
 define_widget_deref!(Thumb);
 
 impl Thumb {

@@ -295,6 +295,8 @@ pub struct TabControl {
     pub active_tab_brush: InheritableVariable<StyledProperty<Brush>>,
 }
 
+impl NodeVariant<UiNode> for TabControl {}
+
 impl ConstructorProvider<UiNode, UserInterface> for TabControl {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

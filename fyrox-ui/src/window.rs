@@ -354,6 +354,8 @@ pub struct Window {
     pub remove_on_close: bool,
 }
 
+impl NodeVariant<UiNode> for Window {}
+
 impl ConstructorProvider<UiNode, UserInterface> for Window {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

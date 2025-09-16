@@ -80,6 +80,8 @@ pub struct DockingManager {
     pub floating_windows: RefCell<Vec<Handle<UiNode>>>,
 }
 
+impl NodeVariant<UiNode> for DockingManager {}
+
 impl ConstructorProvider<UiNode, UserInterface> for DockingManager {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

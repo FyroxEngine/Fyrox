@@ -140,6 +140,8 @@ where
     image_preview: Handle<UiNode>,
 }
 
+impl<T: TypedResourceData> NodeVariant<UiNode> for ResourceField<T> {}
+
 impl<T> Debug for ResourceField<T>
 where
     T: TypedResourceData,

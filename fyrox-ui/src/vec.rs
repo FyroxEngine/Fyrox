@@ -117,6 +117,8 @@ where
     pub step: SVector<T, D>,
 }
 
+impl<T: NumericType, const D: usize> NodeVariant<UiNode> for VecEditor<T, D> {}
+
 impl<T: NumericType, const D: usize> ConstructorProvider<UiNode, UserInterface>
     for VecEditor<T, D>
 {

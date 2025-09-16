@@ -77,6 +77,8 @@ pub struct FileSelector {
     pub cancel: Handle<UiNode>,
 }
 
+impl NodeVariant<UiNode> for FileSelector {}
+
 impl ConstructorProvider<UiNode, UserInterface> for FileSelector {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
@@ -340,6 +342,8 @@ pub struct FileSelectorField {
     select: Handle<UiNode>,
     file_selector: Handle<UiNode>,
 }
+
+impl NodeVariant<UiNode> for FileSelectorField {}
 
 impl ConstructorProvider<UiNode, UserInterface> for FileSelectorField {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

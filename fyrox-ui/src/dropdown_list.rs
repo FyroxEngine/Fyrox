@@ -188,7 +188,7 @@ impl DropdownListMessage {
 /// ## Opening and Closing
 ///
 /// A dropdown list could be opened and closed manually using [`DropdownListMessage::Open`] and
-/// [`DropdownListMessage::Close`] messages.  
+/// [`DropdownListMessage::Close`] messages.
 #[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
 pub struct DropdownList {
@@ -209,6 +209,8 @@ pub struct DropdownList {
     /// A handle to an inner Grid widget, that holds currently selected item and other decorators.
     pub main_grid: InheritableVariable<Handle<UiNode>>,
 }
+
+impl NodeVariant<UiNode> for DropdownList {}
 
 impl ConstructorProvider<UiNode, UserInterface> for DropdownList {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

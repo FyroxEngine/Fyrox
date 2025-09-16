@@ -300,6 +300,8 @@ pub struct Tile {
     pub drop_anchor: Cell<Handle<UiNode>>,
 }
 
+impl NodeVariant<UiNode> for Tile {}
+
 impl ConstructorProvider<UiNode, UserInterface> for Tile {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

@@ -51,7 +51,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
-use fyrox_core::{err, log::Log};
+use fyrox_core::{err, log::Log, pool::NodeVariant};
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph, SceneGraph,
@@ -515,6 +515,8 @@ pub struct Inspector {
     #[visit(skip)]
     pub context: InspectorContext,
 }
+
+impl NodeVariant<UiNode> for Inspector {}
 
 impl ConstructorProvider<UiNode, UserInterface> for Inspector {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

@@ -121,6 +121,8 @@ pub struct TextureEditor {
     texture_context_menu: Option<TextureContextMenu>,
 }
 
+impl NodeVariant<UiNode> for TextureEditor {}
+
 impl Debug for TextureEditor {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "TextureEditor")

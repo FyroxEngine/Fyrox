@@ -208,6 +208,8 @@ pub struct VectorImage {
     pub primitives: InheritableVariable<Vec<Primitive>>,
 }
 
+impl NodeVariant<UiNode> for VectorImage {}
+
 impl ConstructorProvider<UiNode, UserInterface> for VectorImage {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

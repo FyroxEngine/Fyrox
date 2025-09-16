@@ -196,6 +196,8 @@ pub struct ScrollViewer {
     pub h_scroll_speed: f32,
 }
 
+impl NodeVariant<UiNode> for ScrollViewer {}
+
 impl ConstructorProvider<UiNode, UserInterface> for ScrollViewer {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

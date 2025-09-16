@@ -79,6 +79,8 @@ pub struct UuidEditor {
     generate: Handle<UiNode>,
 }
 
+impl NodeVariant<UiNode> for UuidEditor {}
+
 impl ConstructorProvider<UiNode, UserInterface> for UuidEditor {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

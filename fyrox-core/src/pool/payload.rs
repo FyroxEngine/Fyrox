@@ -20,94 +20,94 @@
 
 use std::cell::UnsafeCell;
 
-pub trait PayloadContainer: Sized {
-    type Element: Sized;
+use crate::visitor::{Visit, VisitResult, Visitor};
 
-    fn new_empty() -> Self;
+// pub trait PayloadContainer: Sized {
+//     type Element: Sized;
 
-    fn new(element: Self::Element) -> Self;
+//     fn new_empty() -> Self;
 
-    fn is_some(&self) -> bool;
+//     fn new(element: Self::Element) -> Self;
 
-    fn as_ref(&self) -> Option<&Self::Element>;
+//     fn is_some(&self) -> bool;
 
-    fn as_mut(&mut self) -> Option<&mut Self::Element>;
+//     fn as_ref(&self) -> Option<&Self::Element>;
 
-    fn replace(&mut self, element: Self::Element) -> Option<Self::Element>;
+//     fn as_mut(&mut self) -> Option<&mut Self::Element>;
 
-    fn take(&mut self) -> Option<Self::Element>;
-}
+//     fn replace(&mut self, element: Self::Element) -> Option<Self::Element>;
 
-impl<T> PayloadContainer for Option<T> {
-    type Element = T;
+//     fn take(&mut self) -> Option<Self::Element>;
+// }
 
-    #[inline]
-    fn new_empty() -> Self {
-        Self::None
-    }
+// impl<T> PayloadContainer for Option<T> {
+//     type Element = T;
 
-    #[inline]
-    fn new(element: Self::Element) -> Self {
-        Self::Some(element)
-    }
+//     #[inline]
+//     fn new_empty() -> Self {
+//         Self::None
+//     }
 
-    #[inline]
-    fn is_some(&self) -> bool {
-        Option::is_some(self)
-    }
+//     #[inline]
+//     fn new(element: Self::Element) -> Self {
+//         Self::Some(element)
+//     }
 
-    #[inline]
-    fn as_ref(&self) -> Option<&Self::Element> {
-        Option::as_ref(self)
-    }
+//     #[inline]
+//     fn is_some(&self) -> bool {
+//         Option::is_some(self)
+//     }
 
-    #[inline]
-    fn as_mut(&mut self) -> Option<&mut Self::Element> {
-        Option::as_mut(self)
-    }
+//     #[inline]
+//     fn as_ref(&self) -> Option<&Self::Element> {
+//         Option::as_ref(self)
+//     }
 
-    #[inline]
-    fn replace(&mut self, element: Self::Element) -> Option<Self::Element> {
-        Option::replace(self, element)
-    }
+//     #[inline]
+//     fn as_mut(&mut self) -> Option<&mut Self::Element> {
+//         Option::as_mut(self)
+//     }
 
-    #[inline]
-    fn take(&mut self) -> Option<Self::Element> {
-        Option::take(self)
-    }
-}
+//     #[inline]
+//     fn replace(&mut self, element: Self::Element) -> Option<Self::Element> {
+//         Option::replace(self, element)
+//     }
+
+//     #[inline]
+//     fn take(&mut self) -> Option<Self::Element> {
+//         Option::take(self)
+//     }
+// }
 
 #[derive(Debug)]
-pub struct Payload<P>(pub UnsafeCell<P>);
+pub struct Payload<T>(pub UnsafeCell<Option<T>>);
 
-impl<T, P> Clone for Payload<P>
+impl<T> Clone for Payload<T>
 where
-    T: Sized,
-    P: PayloadContainer<Element = T> + Clone,
+    T: Sized + Clone, // Sized: pool record needs a known size; Clone: for implementing Reflect
 {
     fn clone(&self) -> Self {
         Self(UnsafeCell::new(self.get().clone()))
     }
 }
 
-impl<T, P> Payload<P>
+impl<T> Payload<T>
 where
-    T: Sized,
-    P: PayloadContainer<Element = T>,
+    T: Sized, // Sized: pool record needs a known size; Clone: for implementing Reflect
 {
     pub fn new(data: T) -> Self {
-        Self(UnsafeCell::new(P::new(data)))
+        Self(UnsafeCell::new(Some(data)))
     }
 
     pub fn new_empty() -> Self {
-        Self(UnsafeCell::new(P::new_empty()))
+        Self(UnsafeCell::new(None))
     }
 
-    pub fn get(&self) -> &P {
+    pub fn get(&self) -> &Option<T> {
         unsafe { &*self.0.get() }
     }
 
-    pub fn get_mut(&mut self) -> &mut P {
+    pub fn get_mut(&mut self) -> &mut Option<T> {
         self.0.get_mut()
     }
 
@@ -134,18 +134,16 @@ where
 
 // SAFETY: This is safe, because Payload is never directly exposed to the call site. It is always
 // accessed using a sort of read-write lock that forces borrowing rules at runtime.
-unsafe impl<T, P> Sync for Payload<P>
+unsafe impl<T> Sync for Payload<T>
 where
-    T: Sized,
-    P: PayloadContainer<Element = T>,
+    T: Sized + Clone, // Sized: pool record needs a known size; Clone: for implementing Reflect
 {
 }
 
 // SAFETY: This is safe, because Payload is never directly exposed to the call site. It is always
 // accessed using a sort of read-write lock that forces borrowing rules at runtime.
-unsafe impl<T, P> Send for Payload<P>
+unsafe impl<T> Send for Payload<T>
 where
-    T: Sized,
-    P: PayloadContainer<Element = T>,
+    T: Sized + Clone, // Sized: pool record needs a known size; Clone: for implementing Reflect
 {
 }

@@ -192,6 +192,8 @@ pub struct MessageBox {
     pub text: InheritableVariable<Handle<UiNode>>,
 }
 
+impl NodeVariant<UiNode> for MessageBox {}
+
 impl ConstructorProvider<UiNode, UserInterface> for MessageBox {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

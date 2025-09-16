@@ -33,6 +33,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_animation::machine::Parameter;
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{SceneGraph, SceneGraphNode};
 use std::ops::{Deref, DerefMut};
@@ -132,6 +133,8 @@ pub struct AnimationBlendingStateMachine {
     #[component(include)]
     animation_player: InheritableVariable<Handle<UiNode>>,
 }
+
+impl NodeVariant<UiNode> for AnimationBlendingStateMachine {}
 
 impl ConstructorProvider<UiNode, UserInterface> for AnimationBlendingStateMachine {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
@@ -296,6 +299,8 @@ pub struct AbsmEventProvider {
     actions: InheritableVariable<Vec<EventAction>>,
     absm: InheritableVariable<Handle<UiNode>>,
 }
+
+impl NodeVariant<UiNode> for AbsmEventProvider {}
 
 impl ConstructorProvider<UiNode, UserInterface> for AbsmEventProvider {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

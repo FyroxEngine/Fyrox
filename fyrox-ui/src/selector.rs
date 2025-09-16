@@ -78,6 +78,8 @@ pub struct Selector {
     next: InheritableVariable<Handle<UiNode>>,
 }
 
+impl NodeVariant<UiNode> for Selector {}
+
 impl ConstructorProvider<UiNode, UserInterface> for Selector {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

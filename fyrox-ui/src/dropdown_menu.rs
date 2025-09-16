@@ -45,6 +45,8 @@ pub struct DropdownMenu {
     pub popup: Handle<UiNode>,
 }
 
+impl NodeVariant<UiNode> for DropdownMenu {}
+
 crate::define_widget_deref!(DropdownMenu);
 
 impl Control for DropdownMenu {

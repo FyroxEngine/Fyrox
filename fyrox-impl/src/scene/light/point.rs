@@ -99,7 +99,7 @@ impl TypeUuidProvider for PointLight {
 }
 
 impl PointLight {
-    /// Returns a reference to base light.    
+    /// Returns a reference to base light.
     pub fn base_light_ref(&self) -> &BaseLight {
         &self.base_light
     }

@@ -70,6 +70,8 @@ pub struct TileHandleField {
     goto_button: Handle<UiNode>,
 }
 
+impl NodeVariant<UiNode> for TileHandleField {}
+
 define_widget_deref!(TileHandleField);
 
 fn value_to_string(value: Option<TileDefinitionHandle>) -> String {

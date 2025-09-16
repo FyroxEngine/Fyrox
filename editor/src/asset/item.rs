@@ -97,6 +97,7 @@ pub struct AssetItem {
     #[reflect(hidden)]
     resource_manager: Option<ResourceManager>,
 }
+impl NodeVariant<UiNode> for AssetItem {}
 
 impl AssetItem {
     pub const SELECTED_PREVIEW: &'static str = "AssetItem.SelectedPreview";

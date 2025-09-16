@@ -40,6 +40,7 @@
 //! indirections that might cause cache invalidation. This is the so called cache
 //! friendliness.
 
+use crate::pool::payload::Payload;
 use crate::{reflect::prelude::*, visitor::prelude::*, ComponentProvider};
 use std::cell::UnsafeCell;
 use std::{
@@ -56,7 +57,7 @@ pub mod payload;
 
 pub use handle::*;
 pub use multiborrow::*;
-pub use payload::*;
+// pub use payload::*;
 
 const INVALID_GENERATION: u32 = 0;
 
@@ -65,48 +66,45 @@ const INVALID_GENERATION: u32 = 0;
 /// be allocated on heap. Also since objects stored in contiguous memory block
 /// they can be effectively accessed because such memory layout is cache-friendly.
 #[derive(Debug)]
-pub struct Pool<T, P = Option<T>>
+pub struct Pool<T>
 where
     T: Sized,
-    P: PayloadContainer<Element = T>,
 {
-    records: Vec<PoolRecord<T, P>>,
+    records: Vec<PoolRecord<T>>,
     free_stack: Vec<u32>,
 }
 
-pub trait BorrowAs<Object, Container: PayloadContainer<Element = Object>> {
-    type Target;
-    #[deprecated(
-        note = "This trait adds a lot of confusion regarding the object reference retrieving system.
-    Potentially leads to logical circular dependencies. For example, pool.typed_ref calls handle.borrow_as_ref, which calls pool.try_borrow."
-    )]
-    fn borrow_as_ref(self, pool: &Pool<Object, Container>) -> Option<&Self::Target>;
-    #[deprecated(
-        note = "This trait adds a lot of confusion regarding the object reference retrieving system.
-    Potentially leads to logical circular dependencies. For example, pool.typed_ref calls handle.borrow_as_ref, which calls pool.try_borrow."
-    )]
-    fn borrow_as_mut(self, pool: &mut Pool<Object, Container>) -> Option<&mut Self::Target>;
-}
+// pub trait BorrowAs<Object> {
+//     type Target;
+//     #[deprecated(
+//         note = "This trait adds a lot of confusion regarding the object reference retrieving system.
+//     Potentially leads to logical circular dependencies. For example, pool.typed_ref calls handle.borrow_as_ref, which calls pool.try_borrow."
+//     )]
+//     fn borrow_as_ref(self, pool: &Pool<Object>) -> Option<&Self::Target>;
+//     #[deprecated(
+//         note = "This trait adds a lot of confusion regarding the object reference retrieving system.
+//     Potentially leads to logical circular dependencies. For example, pool.typed_ref calls handle.borrow_as_ref, which calls pool.try_borrow."
+//     )]
+//     fn borrow_as_mut(self, pool: &mut Pool<Object>) -> Option<&mut Self::Target>;
+// }
 
-impl<Object, Container: PayloadContainer<Element = Object> + 'static> BorrowAs<Object, Container>
-    for Handle<Object>
-{
-    type Target = Object;
+// impl<Object> BorrowAs<Object> for Handle<Object>
+// {
+//     type Target = Object;
 
-    fn borrow_as_ref(self, pool: &Pool<Object, Container>) -> Option<&Object> {
-        pool.try_borrow(self)
-    }
+//     fn borrow_as_ref(self, pool: &Pool<Object>) -> Option<&Object> {
+//         pool.try_borrow(self)
+//     }
 
-    fn borrow_as_mut(self, pool: &mut Pool<Object, Container>) -> Option<&mut Object> {
-        pool.try_borrow_mut(self)
-    }
-}
+//     fn borrow_as_mut(self, pool: &mut Pool<Object>) -> Option<&mut Object> {
+//         pool.try_borrow_mut(self)
+//     }
+// }
 
-impl<T, P> Reflect for Pool<T, P>
+impl<T> Reflect for Pool<T>
 where
-    T: Reflect,
-    P: PayloadContainer<Element = T> + Reflect,
-    Pool<T, P>: Clone,
+    T: Clone + Reflect,
+    Pool<T>: Clone,
 {
     #[inline]
     fn source_path() -> &'static str {
@@ -198,11 +196,9 @@ where
     }
 }
 
-impl<T, P> ReflectArray for Pool<T, P>
+impl<T> ReflectArray for Pool<T>
 where
-    T: Reflect,
-    P: PayloadContainer<Element = T> + Reflect,
-    Pool<T, P>: Clone,
+    T: Clone + Reflect,
 {
     #[inline]
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
@@ -220,10 +216,9 @@ where
     }
 }
 
-impl<T, P> PartialEq for Pool<T, P>
+impl<T> PartialEq for Pool<T>
 where
-    T: PartialEq,
-    P: PayloadContainer<Element = T> + PartialEq,
+    T: Clone + PartialEq,
 {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
@@ -254,10 +249,12 @@ impl RefCounter {
 }
 
 #[derive(Debug)]
-struct PoolRecord<T, P = Option<T>>
+struct PayloadContainer<T>(Option<T>);
+
+#[derive(Debug)]
+struct PoolRecord<T>
 where
     T: Sized,
-    P: PayloadContainer<Element = T>,
 {
     ref_counter: RefCounter,
     // Generation number, used to keep info about lifetime. The handle is valid
@@ -265,13 +262,12 @@ where
     // Notes: Zero is unknown generation used for None handles.
     generation: u32,
     // Actual payload.
-    payload: Payload<P>,
+    payload: Payload<T>,
 }
 
-impl<T, P> PartialEq for PoolRecord<T, P>
+impl<T> PartialEq for PoolRecord<T>
 where
     T: PartialEq,
-    P: PayloadContainer<Element = T> + PartialEq,
 {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
@@ -279,9 +275,9 @@ where
     }
 }
 
-impl<T, P> Default for PoolRecord<T, P>
+impl<T> Default for PoolRecord<T>
 where
-    P: PayloadContainer<Element = T> + 'static,
+    T: Sized,
 {
     #[inline]
     fn default() -> Self {
@@ -293,10 +289,10 @@ where
     }
 }
 
-impl<T, P> Visit for PoolRecord<T, P>
+impl<T> Visit for PoolRecord<T>
 where
     T: Visit + 'static,
-    P: PayloadContainer<Element = T> + Visit,
+    // P: PayloadContainer<Element = T> + Visit,
 {
     #[inline]
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -316,10 +312,9 @@ impl<T> Clone for Handle<T> {
     }
 }
 
-impl<T, P> Visit for Pool<T, P>
+impl<T> Visit for Pool<T>
 where
     T: Visit + 'static,
-    P: PayloadContainer<Element = T> + Default + Visit + 'static,
 {
     #[inline]
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -330,11 +325,7 @@ where
     }
 }
 
-impl<T, P> Default for Pool<T, P>
-where
-    T: 'static,
-    P: PayloadContainer<Element = T> + 'static,
-{
+impl<T> Default for Pool<T> {
     #[inline]
     fn default() -> Self {
         Self::new()
@@ -357,10 +348,9 @@ impl<T> Drop for Ticket<T> {
     }
 }
 
-impl<T, P> Clone for PoolRecord<T, P>
+impl<T> Clone for PoolRecord<T>
 where
     T: Clone,
-    P: PayloadContainer<Element = T> + Clone + 'static,
 {
     #[inline]
     fn clone(&self) -> Self {
@@ -372,10 +362,9 @@ where
     }
 }
 
-impl<T, P> Clone for Pool<T, P>
+impl<T> Clone for Pool<T>
 where
-    P: PayloadContainer<Element = T> + Clone + 'static,
-    T: Clone,
+    T: Sized + Clone,
 {
     #[inline]
     fn clone(&self) -> Self {
@@ -386,10 +375,7 @@ where
     }
 }
 
-impl<T, P> Pool<T, P>
-where
-    P: PayloadContainer<Element = T> + 'static,
-{
+impl<T> Pool<T> {
     #[inline]
     pub fn new() -> Self {
         Pool {
@@ -411,29 +397,36 @@ where
         u32::try_from(self.records.len()).expect("Number of records overflowed u32")
     }
 
-    fn records_get(&self, index: u32) -> Option<&PoolRecord<T, P>> {
+    fn records_get(&self, index: u32) -> Option<&PoolRecord<T>> {
         let index = usize::try_from(index).expect("Index overflowed usize");
         self.records.get(index)
     }
 
-    fn records_get_mut(&mut self, index: u32) -> Option<&mut PoolRecord<T, P>> {
+    fn records_get_mut(&mut self, index: u32) -> Option<&mut PoolRecord<T>> {
         let index = usize::try_from(index).expect("Index overflowed usize");
         self.records.get_mut(index)
     }
 
-    #[deprecated(note = "Inconsistent and ambiguous method naming. Implementation involves a confusing detour.")]
+    #[deprecated(
+        note = "Inconsistent and ambiguous method naming. Implementation involves a confusing detour."
+    )]
     #[inline]
-    pub fn typed_ref<Ref>(&self, handle: impl BorrowAs<T, P, Target = Ref>) -> Option<&Ref> {
-        handle.borrow_as_ref(self)
+    pub fn typed_ref<U>(&self, handle: Handle<U>) -> Option<&U> {
+        panic!("It is hard to implement this method elegantly without a 'BorrowAs' detour.
+        The previous implementation was ambiguous regarding the method's behavior, introduced a ton of intermediate methods of similar functionality, and hard to read.
+        This function behaved differently according to whether T == U: Node or T: NodeTrait, controlled by the BorrowAs trait passed in as Handle.
+        Since Pool::typed_ref is not exposed to the public API, we can use different naming for existing code.")
     }
 
-    #[deprecated(note = "Inconsistent and ambiguous method naming. Implementation involves a confusing detour.")]
+    #[deprecated(
+        note = "Inconsistent and ambiguous method naming. Implementation involves a confusing detour."
+    )]
     #[inline]
-    pub fn typed_mut<Ref>(
-        &mut self,
-        handle: impl BorrowAs<T, P, Target = Ref>,
-    ) -> Option<&mut Ref> {
-        handle.borrow_as_mut(self)
+    pub fn typed_mut<U>(&mut self, handle: Handle<U>) -> Option<&mut U> {
+        panic!("It is hard to implement this method elegantly without a 'BorrowAs' detour.
+        The previous implementation was ambiguous regarding the method's behavior, introduced a ton of intermediate methods of similar functionality, and hard to read.
+        This function behaved differently according to whether T == U: Node or T: NodeTrait, controlled by the BorrowAs trait passed in as Handle.
+        Since Pool::typed_ref is not exposed to the public API, we can use different naming for existing code.")
     }
 
     #[inline]
@@ -902,7 +895,7 @@ where
     where
         F: FnOnce(&T) -> Handle<T>,
     {
-        let this = unsafe { &mut *(self as *mut Pool<T, P>) };
+        let this = unsafe { &mut *(self as *mut Pool<T>) };
         let first = self.try_borrow_mut(handle);
         if let Some(first_object) = first.as_ref() {
             let second_handle = func(first_object);
@@ -1203,7 +1196,7 @@ where
     /// ```
     #[must_use]
     #[inline]
-    pub fn iter(&self) -> PoolIterator<T, P> {
+    pub fn iter(&self) -> PoolIterator<T> {
         unsafe {
             PoolIterator {
                 ptr: self.records.as_ptr(),
@@ -1217,7 +1210,7 @@ where
     /// Can be useful when there is a need to iterate over pool records and know a handle of
     /// that record.
     #[inline]
-    pub fn pair_iter(&self) -> PoolPairIterator<T, P> {
+    pub fn pair_iter(&self) -> PoolPairIterator<T> {
         PoolPairIterator {
             pool: self,
             current: 0,
@@ -1240,7 +1233,7 @@ where
     /// ```
     #[must_use]
     #[inline]
-    pub fn iter_mut(&mut self) -> PoolIteratorMut<T, P> {
+    pub fn iter_mut(&mut self) -> PoolIteratorMut<T> {
         unsafe {
             PoolIteratorMut {
                 ptr: self.records.as_mut_ptr(),
@@ -1254,7 +1247,7 @@ where
     /// Can be useful when there is a need to iterate over pool records and know a handle of
     /// that record.
     #[inline]
-    pub fn pair_iter_mut(&mut self) -> PoolPairIteratorMut<T, P> {
+    pub fn pair_iter_mut(&mut self) -> PoolPairIteratorMut<T> {
         unsafe {
             PoolPairIteratorMut {
                 current: 0,
@@ -1293,7 +1286,7 @@ where
     /// Begins multi-borrow that allows you to borrow as many (`N`) **unique** references to the pool
     /// elements as you need. See [`MultiBorrowContext::try_get`] for more info.
     #[inline]
-    pub fn begin_multi_borrow(&mut self) -> MultiBorrowContext<T, P> {
+    pub fn begin_multi_borrow(&mut self) -> MultiBorrowContext<T> {
         MultiBorrowContext::new(self)
     }
 
@@ -1304,11 +1297,11 @@ where
         self.records.drain(..).filter_map(|mut r| r.payload.take())
     }
 
-    fn end(&self) -> *const PoolRecord<T, P> {
+    fn end(&self) -> *const PoolRecord<T> {
         unsafe { self.records.as_ptr().add(self.records.len()) }
     }
 
-    fn begin(&self) -> *const PoolRecord<T, P> {
+    fn begin(&self) -> *const PoolRecord<T> {
         self.records.as_ptr()
     }
 
@@ -1330,10 +1323,9 @@ where
     }
 }
 
-impl<T, P> Pool<T, P>
+impl<T> Pool<T>
 where
     T: ComponentProvider,
-    P: PayloadContainer<Element = T> + 'static,
 {
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
@@ -1358,6 +1350,37 @@ where
     }
 }
 
+pub trait NodeVariant<NodeType>: 'static {}
+
+pub trait BorrowNodeVariant: Sized {
+    fn borrow_variant<T: NodeVariant<Self> >(&self) -> Option<&T>;
+    fn borrow_variant_mut<T: NodeVariant<Self> >(&mut self) -> Option<&mut T>;
+}
+
+// impl<NodeType: BorrowNodeVariant> Pool<NodeType> {
+//     pub fn try_borrow_variant<T: NodeVariant<NodeType> >(
+//         &self,
+//         handle: Handle<T>,
+//     ) -> Option<&T> {
+//         self.try_borrow(handle.cast())
+//             .and_then(|n| n.borrow_variant())
+//     }
+//     pub fn try_borrow_variant_mut<T: NodeVariant<NodeType> >(
+//         &mut self,
+//         handle: Handle<T>,
+//     ) -> Option<&mut T> {
+//         self.try_borrow_mut(handle.cast())
+//             .and_then(|n| n.borrow_variant_mut())
+//     }
+// }
+
+// impl Pool<UiNode>{
+//     pub fn try_borrow_variant<T: Control>(&self, handle: Handle<T>) -> Option<&T> {
+//         self.try_borrow(self.transmute())
+//             .and_then(|n| ControlAsAny::as_any(n.0.deref()).downcast_ref::<T>())
+//     }
+// }
+
 impl<T> FromIterator<T> for Pool<T>
 where
     T: 'static,
@@ -1377,38 +1400,31 @@ where
     }
 }
 
-impl<Object, Container, Borrow, Ref> Index<Borrow> for Pool<Object, Container>
+impl<T> Index<Handle<T>> for Pool<T>
 where
-    Object: 'static,
-    Container: PayloadContainer<Element = Object> + 'static,
-    Borrow: BorrowAs<Object, Container, Target = Ref>,
+    T: 'static,
 {
-    type Output = Ref;
-
+    type Output = T;
     #[inline]
-    fn index(&self, index: Borrow) -> &Self::Output {
-        self.typed_ref(index).expect("The handle must be valid!")
+    fn index(&self, index: Handle<T>) -> &Self::Output {
+        self.try_borrow(index).expect("The handle must be valid!")
     }
 }
 
-impl<Object, Container, Borrow, Ref> IndexMut<Borrow> for Pool<Object, Container>
+impl<T> IndexMut<Handle<T>> for Pool<T>
 where
-    Object: 'static,
-    Container: PayloadContainer<Element = Object> + 'static,
-    Borrow: BorrowAs<Object, Container, Target = Ref>,
+    T: 'static,
 {
     #[inline]
-    fn index_mut(&mut self, index: Borrow) -> &mut Self::Output {
-        self.typed_mut(index).expect("The handle must be valid!")
+    fn index_mut(&mut self, index: Handle<T>) -> &mut Self::Output {
+        self.try_borrow_mut(index)
+            .expect("The handle must be valid!")
     }
 }
 
-impl<'a, T, P> IntoIterator for &'a Pool<T, P>
-where
-    P: PayloadContainer<Element = T> + 'static,
-{
+impl<'a, T> IntoIterator for &'a Pool<T> {
     type Item = &'a T;
-    type IntoIter = PoolIterator<'a, T, P>;
+    type IntoIter = PoolIterator<'a, T>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -1416,12 +1432,9 @@ where
     }
 }
 
-impl<'a, T, P> IntoIterator for &'a mut Pool<T, P>
-where
-    P: PayloadContainer<Element = T> + 'static,
-{
+impl<'a, T> IntoIterator for &'a mut Pool<T> {
     type Item = &'a mut T;
-    type IntoIter = PoolIteratorMut<'a, T, P>;
+    type IntoIter = PoolIteratorMut<'a, T>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -1429,19 +1442,13 @@ where
     }
 }
 
-pub struct PoolIterator<'a, T, P>
-where
-    P: PayloadContainer<Element = T>,
-{
-    ptr: *const PoolRecord<T, P>,
-    end: *const PoolRecord<T, P>,
+pub struct PoolIterator<'a, T> {
+    ptr: *const PoolRecord<T>,
+    end: *const PoolRecord<T>,
     marker: PhantomData<&'a T>,
 }
 
-impl<'a, T, P> Iterator for PoolIterator<'a, T, P>
-where
-    P: PayloadContainer<Element = T> + 'static,
-{
+impl<'a, T> Iterator for PoolIterator<'a, T> {
     type Item = &'a T;
 
     #[inline]
@@ -1461,15 +1468,12 @@ where
     }
 }
 
-pub struct PoolPairIterator<'a, T, P: PayloadContainer<Element = T>> {
-    pool: &'a Pool<T, P>,
+pub struct PoolPairIterator<'a, T> {
+    pool: &'a Pool<T>,
     current: usize,
 }
 
-impl<'a, T, P> Iterator for PoolPairIterator<'a, T, P>
-where
-    P: PayloadContainer<Element = T>,
-{
+impl<'a, T> Iterator for PoolPairIterator<'a, T> {
     type Item = (Handle<T>, &'a T);
 
     #[inline]
@@ -1490,19 +1494,13 @@ where
     }
 }
 
-pub struct PoolIteratorMut<'a, T, P>
-where
-    P: PayloadContainer<Element = T>,
-{
-    ptr: *mut PoolRecord<T, P>,
-    end: *mut PoolRecord<T, P>,
+pub struct PoolIteratorMut<'a, T> {
+    ptr: *mut PoolRecord<T>,
+    end: *mut PoolRecord<T>,
     marker: PhantomData<&'a mut T>,
 }
 
-impl<'a, T, P> Iterator for PoolIteratorMut<'a, T, P>
-where
-    P: PayloadContainer<Element = T> + 'static,
-{
+impl<'a, T> Iterator for PoolIteratorMut<'a, T> {
     type Item = &'a mut T;
 
     #[inline]
@@ -1522,20 +1520,14 @@ where
     }
 }
 
-pub struct PoolPairIteratorMut<'a, T, P>
-where
-    P: PayloadContainer<Element = T>,
-{
-    ptr: *mut PoolRecord<T, P>,
-    end: *mut PoolRecord<T, P>,
+pub struct PoolPairIteratorMut<'a, T> {
+    ptr: *mut PoolRecord<T>,
+    end: *mut PoolRecord<T>,
     marker: PhantomData<&'a mut T>,
     current: usize,
 }
 
-impl<'a, T, P> Iterator for PoolPairIteratorMut<'a, T, P>
-where
-    P: PayloadContainer<Element = T> + 'static,
-{
+impl<'a, T> Iterator for PoolPairIteratorMut<'a, T> {
     type Item = (Handle<T>, &'a mut T);
 
     #[inline]

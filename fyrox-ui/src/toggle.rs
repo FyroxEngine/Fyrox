@@ -42,6 +42,8 @@ pub struct ToggleButton {
     pub content: Handle<UiNode>,
 }
 
+impl NodeVariant<UiNode> for ToggleButton {}
+
 /// Messages that can be emitted by [`ToggleButton`] widget (or can be sent to the widget).
 #[derive(Debug, Clone, PartialEq)]
 pub enum ToggleButtonMessage {

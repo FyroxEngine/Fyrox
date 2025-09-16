@@ -91,6 +91,8 @@ pub struct SceneItem {
     pub drop_anchor: DropAnchor,
 }
 
+impl NodeVariant<UiNode> for SceneItem {}
+
 impl SceneItem {
     pub fn name(&self) -> &str {
         &self.name_value

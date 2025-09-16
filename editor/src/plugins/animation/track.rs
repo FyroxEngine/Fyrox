@@ -294,6 +294,8 @@ struct TrackView {
     name_text: Handle<UiNode>,
 }
 
+impl NodeVariant<UiNode> for TrackView {}
+
 impl Deref for TrackView {
     type Target = Widget;
 

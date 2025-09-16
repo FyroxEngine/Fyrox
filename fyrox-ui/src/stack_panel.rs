@@ -87,7 +87,7 @@ impl StackPanelMessage {
 ///             )
 ///     )
 ///         .build(ctx)
-///     
+///
 /// }
 /// ```
 ///
@@ -125,6 +125,8 @@ pub struct StackPanel {
     /// Current orientation of the stack panel.
     pub orientation: InheritableVariable<Orientation>,
 }
+
+impl NodeVariant<UiNode> for StackPanel {}
 
 impl ConstructorProvider<UiNode, UserInterface> for StackPanel {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

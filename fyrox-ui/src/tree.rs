@@ -44,7 +44,7 @@ use crate::{
     BuildContext, Control, MouseButton, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
-use fyrox_core::uuid_provider;
+use fyrox_core::{pool::NodeVariant, uuid_provider};
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
 use std::collections::VecDeque;
@@ -381,6 +381,8 @@ pub struct Tree {
     /// children elements, or not.
     pub always_show_expander: bool,
 }
+
+impl NodeVariant<UiNode> for Tree {}
 
 impl ConstructorProvider<UiNode, UserInterface> for Tree {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
@@ -920,6 +922,8 @@ pub struct TreeRoot {
     /// Selected items of the tree root.
     pub selected: Vec<Handle<UiNode>>,
 }
+
+impl NodeVariant<UiNode> for TreeRoot {}
 
 impl ConstructorProvider<UiNode, UserInterface> for TreeRoot {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

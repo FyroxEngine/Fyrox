@@ -111,6 +111,8 @@ pub struct SearchBar {
     pub clear: InheritableVariable<Handle<UiNode>>,
 }
 
+impl NodeVariant<UiNode> for SearchBar {}
+
 impl ConstructorProvider<UiNode, UserInterface> for SearchBar {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

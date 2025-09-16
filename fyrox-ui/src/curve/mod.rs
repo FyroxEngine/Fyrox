@@ -461,6 +461,8 @@ pub struct CurveEditor {
     clipboard: Vec<(Vector2<f32>, CurveKeyKind)>,
 }
 
+impl NodeVariant<UiNode> for CurveEditor {}
+
 impl ConstructorProvider<UiNode, UserInterface> for CurveEditor {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

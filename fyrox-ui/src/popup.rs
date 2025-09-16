@@ -35,6 +35,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RestrictionEntry, Thickness, UiNode, UserInterface,
 };
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
@@ -326,6 +327,10 @@ pub struct Popup {
     /// A flag, that defines whether the popup should restrict all the mouse input or not.
     pub restrict_picking: InheritableVariable<bool>,
 }
+
+impl NodeVariant<UiNode> for Popup {}
+
+impl NodeVariant<UiNode> for Popup {}
 
 impl ConstructorProvider<UiNode, UserInterface> for Popup {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

@@ -753,7 +753,9 @@ impl NodeTrait for Mesh {
                                     .bones
                                     .iter()
                                     .map(|bone_handle| {
-                                        if let Some(bone_node) = ctx.graph.try_get_node(*bone_handle) {
+                                        if let Some(bone_node) =
+                                            ctx.graph.try_get_node(*bone_handle)
+                                        {
                                             bone_node.global_transform()
                                                 * bone_node.inv_bind_pose_transform()
                                         } else {

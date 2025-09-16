@@ -106,6 +106,8 @@ pub struct ProgressBar {
     pub body: InheritableVariable<Handle<UiNode>>,
 }
 
+impl NodeVariant<UiNode> for ProgressBar {}
+
 impl ConstructorProvider<UiNode, UserInterface> for ProgressBar {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

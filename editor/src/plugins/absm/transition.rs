@@ -70,6 +70,8 @@ pub struct TransitionView {
     activity_factor: f32,
 }
 
+impl NodeVariant<UiNode> for TransitionView {}
+
 impl TransitionView {
     fn handle_selection_change(&self, ui: &UserInterface) {
         ui.send_message(WidgetMessage::foreground(

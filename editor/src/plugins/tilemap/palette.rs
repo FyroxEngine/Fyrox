@@ -293,6 +293,8 @@ pub struct PaletteWidget {
     collider_triangles: RefCell<PaletteTriangleData>,
 }
 
+impl NodeVariant<UiNode> for PaletteWidget {}
+
 define_widget_deref!(PaletteWidget);
 
 impl Debug for PaletteWidget {

@@ -199,6 +199,8 @@ pub struct NinePatch {
     pub stretch_mode: InheritableVariable<StretchMode>,
 }
 
+impl NodeVariant<UiNode> for NinePatch {}
+
 impl NinePatch {
     pub fn set_texture(&mut self, texture: Option<TextureResource>) {
         self.texture.set_value_and_mark_modified(texture.clone());

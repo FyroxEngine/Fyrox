@@ -101,6 +101,8 @@ pub struct TextureSliceEditor {
     scale: f32,
 }
 
+impl NodeVariant<UiNode> for TextureSliceEditor {}
+
 impl TextureSliceEditor {
     fn sync_thumbs(&self, ui: &UserInterface) {
         for (thumb, position) in [
@@ -498,6 +500,8 @@ pub struct TextureSliceEditorWindow {
     region: Handle<UiNode>,
 }
 
+impl NodeVariant<UiNode> for TextureSliceEditorWindow {}
+
 impl TextureSliceEditorWindow {
     fn on_slice_changed(&self, ui: &UserInterface) {
         ui.send_message(RectEditorMessage::value(
@@ -780,6 +784,8 @@ pub struct TextureSliceFieldEditor {
     edit: Handle<UiNode>,
     editor: Handle<UiNode>,
 }
+
+impl NodeVariant<UiNode> for TextureSliceFieldEditor {}
 
 define_widget_deref!(TextureSliceFieldEditor);
 

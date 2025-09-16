@@ -71,6 +71,8 @@ pub struct AudioBusView {
     name: Handle<UiNode>,
 }
 
+impl NodeVariant<UiNode> for AudioBusView {}
+
 define_widget_deref!(AudioBusView);
 
 uuid_provider!(AudioBusView = "5439e3a9-096a-4155-922c-ed57a76a46f3");

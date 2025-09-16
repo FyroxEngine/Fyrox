@@ -76,6 +76,8 @@ pub struct CollectionEditor<T: CollectionItem> {
     pub phantom: PhantomData<T>,
 }
 
+impl<T: CollectionItem> NodeVariant<UiNode> for CollectionEditor<T> {}
+
 impl<T: CollectionItem> Clone for CollectionEditor<T> {
     fn clone(&self) -> Self {
         Self {

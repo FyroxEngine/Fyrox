@@ -50,6 +50,8 @@ pub struct Connection {
     pub dest_node: Handle<UiNode>,
 }
 
+impl NodeVariant<UiNode> for Connection {}
+
 define_widget_deref!(Connection);
 
 pub fn draw_connection(

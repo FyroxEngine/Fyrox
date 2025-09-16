@@ -69,6 +69,8 @@ pub struct ArrayEditor {
     pub items: Vec<Item>,
 }
 
+impl NodeVariant<UiNode> for ArrayEditor {}
+
 crate::define_widget_deref!(ArrayEditor);
 
 uuid_provider!(ArrayEditor = "5c6e4785-8e2d-441f-8478-523900394b93");

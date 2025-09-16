@@ -32,7 +32,7 @@ pub mod prelude {
 }
 
 use fxhash::FxHashMap;
-use fyrox_core::pool::{BorrowAs, ErasedHandle, PayloadContainer};
+use fyrox_core::pool::{BorrowNodeVariant, ErasedHandle, NodeVariant};
 use fyrox_core::reflect::ReflectHandle;
 use fyrox_core::{
     log::{Log, MessageKind},
@@ -49,6 +49,7 @@ use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
 };
+// use crate::test::NodeTrait;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Reflect)]
 #[repr(u32)]
@@ -697,7 +698,6 @@ pub trait AbstractSceneGraph: 'static {
 
 pub trait BaseSceneGraph: AbstractSceneGraph {
     type Prefab: PrefabData<Graph = Self>;
-    type NodeContainer: PayloadContainer<Element = Self::Node>;
     type Node: SceneGraphNode<SceneGraph = Self, ResourceData = Self::Prefab>;
 
     /// Returns actual type id of the node.
@@ -842,6 +842,7 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
 }
 
 pub trait SceneGraph: BaseSceneGraph {
+    type NodeType: BorrowNodeVariant;
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)>;
 
@@ -857,34 +858,47 @@ pub trait SceneGraph: BaseSceneGraph {
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
 
     /// Get the reference to the object with the type specified by the handle.
-    fn try_get<T>(
-        &self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = T>,
-    ) -> Option<&T>;
+    fn try_get<T: NodeVariant<Self::NodeType>>(&self, handle: Handle<T>) -> Option<&T>;
 
     /// Get the mutable reference to the object with the type specified by the handle.
-    fn try_get_mut<T>(
-        &mut self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = T>,
-    ) -> Option<&mut T>;
+    fn try_get_mut<T: NodeVariant<Self::NodeType>>(&mut self, handle: Handle<T>) -> Option<&mut T>;
 
     /// Tries to borrow a node and fetch its component of specified type.
     #[inline]
-    fn try_get_of_type<T>(&self, handle: Handle<Self::Node>) -> Option<&T>
+    fn try_get_of_type<T: NodeVariant<Self::NodeType>>(&self, handle: Handle<Self::Node>) -> Option<&T>
     where
         T: 'static,
     {
+        // self.try_get_node(handle)
+        //     .and_then(|n| n.query_component_ref(TypeId::of::<T>()))
+        //     .and_then(|c| c.downcast_ref())
+        self.try_get(handle.cast())
+    }
+
+    /// Tries to mutably borrow a node and fetch its component of specified type.
+    #[inline]
+    fn try_get_mut_of_type<T: NodeVariant<Self::NodeType>>(
+        &mut self,
+        handle: Handle<Self::Node>,
+    ) -> Option<&mut T>
+    where
+        T: 'static,
+    {
+        // self.try_get_node_mut(handle)
+        //     .and_then(|n| n.query_component_mut(TypeId::of::<T>()))
+        //     .and_then(|c| c.downcast_mut())
+        self.try_get_mut(handle.cast())
+    }
+
+    #[inline]
+    fn try_get_component<T: 'static>(&self, handle: Handle<Self::Node>) -> Option<&T>{
         self.try_get_node(handle)
             .and_then(|n| n.query_component_ref(TypeId::of::<T>()))
             .and_then(|c| c.downcast_ref())
     }
 
-    /// Tries to mutably borrow a node and fetch its component of specified type.
     #[inline]
-    fn try_get_mut_of_type<T>(&mut self, handle: Handle<Self::Node>) -> Option<&mut T>
-    where
-        T: 'static,
-    {
+    fn try_get_component_mut<T: 'static>(&mut self, handle: Handle<Self::Node>) -> Option<&mut T>{
         self.try_get_node_mut(handle)
             .and_then(|n| n.query_component_mut(TypeId::of::<T>()))
             .and_then(|c| c.downcast_mut())
@@ -897,7 +911,7 @@ pub trait SceneGraph: BaseSceneGraph {
     where
         T: 'static,
     {
-        self.try_get_of_type::<T>(handle).is_some()
+        self.try_get_component::<T>(handle).is_some()
     }
 
     /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
@@ -1470,10 +1484,9 @@ mod test {
         AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping,
         PrefabData, SceneGraph, SceneGraphNode,
     };
-    use fyrox_core::pool::BorrowAs;
     use fyrox_core::{
         define_as_any_trait,
-        pool::{ErasedHandle, Handle, PayloadContainer, Pool},
+        pool::{BorrowNodeVariant, ErasedHandle, Handle, NodeVariant, Pool},
         reflect::prelude::*,
         type_traits::prelude::*,
         visitor::prelude::*,
@@ -1518,7 +1531,10 @@ mod test {
 
     define_as_any_trait!(NodeAsAny => NodeTrait);
 
-    pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider + NodeAsAny {}
+    pub trait NodeTrait:
+        NodeVariant<Node> + BaseNodeTrait + Reflect + Visit + ComponentProvider + NodeAsAny
+    {
+    }
 
     #[derive(ComponentProvider, Debug)]
     pub struct Node(Box<dyn NodeTrait>);
@@ -1532,6 +1548,17 @@ mod test {
     impl Node {
         fn new(node: impl NodeTrait) -> Self {
             Self(Box::new(node))
+        }
+    }
+
+    impl BorrowNodeVariant for Node {
+        fn borrow_variant<T: fyrox_core::pool::NodeVariant<Self>>(&self) -> Option<&T> {
+            NodeAsAny::as_any(self.0.deref()).downcast_ref()
+        }
+        fn borrow_variant_mut<T: fyrox_core::pool::NodeVariant<Self>>(
+            &mut self,
+        ) -> Option<&mut T> {
+            NodeAsAny::as_any_mut(self.0.deref_mut()).downcast_mut()
         }
     }
 
@@ -1646,47 +1673,47 @@ mod test {
 
     /// A wrapper for node pool record that allows to define custom visit method to have full
     /// control over instantiation process at deserialization.
-    #[derive(Debug, Default, Clone, Reflect)]
-    pub struct NodeContainer(Option<Node>);
+    // #[derive(Debug, Default, Clone, Reflect)]
+    // pub struct NodeContainer(Option<Node>);
 
-    impl Visit for NodeContainer {
-        fn visit(&mut self, _name: &str, _visitor: &mut Visitor) -> VisitResult {
-            // Dummy impl.
-            Ok(())
-        }
-    }
+    // impl Visit for NodeContainer {
+    //     fn visit(&mut self, _name: &str, _visitor: &mut Visitor) -> VisitResult {
+    //         // Dummy impl.
+    //         Ok(())
+    //     }
+    // }
 
-    impl PayloadContainer for NodeContainer {
-        type Element = Node;
+    // impl PayloadContainer for NodeContainer {
+    //     type Element = Node;
 
-        fn new_empty() -> Self {
-            Self(None)
-        }
+    //     fn new_empty() -> Self {
+    //         Self(None)
+    //     }
 
-        fn new(element: Self::Element) -> Self {
-            Self(Some(element))
-        }
+    //     fn new(element: Self::Element) -> Self {
+    //         Self(Some(element))
+    //     }
 
-        fn is_some(&self) -> bool {
-            self.0.is_some()
-        }
+    //     fn is_some(&self) -> bool {
+    //         self.0.is_some()
+    //     }
 
-        fn as_ref(&self) -> Option<&Self::Element> {
-            self.0.as_ref()
-        }
+    //     fn as_ref(&self) -> Option<&Self::Element> {
+    //         self.0.as_ref()
+    //     }
 
-        fn as_mut(&mut self) -> Option<&mut Self::Element> {
-            self.0.as_mut()
-        }
+    //     fn as_mut(&mut self) -> Option<&mut Self::Element> {
+    //         self.0.as_mut()
+    //     }
 
-        fn replace(&mut self, element: Self::Element) -> Option<Self::Element> {
-            self.0.replace(element)
-        }
+    //     fn replace(&mut self, element: Self::Element) -> Option<Self::Element> {
+    //         self.0.replace(element)
+    //     }
 
-        fn take(&mut self) -> Option<Self::Element> {
-            self.0.take()
-        }
-    }
+    //     fn take(&mut self) -> Option<Self::Element> {
+    //         self.0.take()
+    //     }
+    // }
 
     impl SceneGraphNode for Node {
         type Base = Base;
@@ -1739,7 +1766,7 @@ mod test {
     #[type_uuid(id = "fc887063-7780-44af-8710-5e0bcf9a83fd")]
     pub struct Graph {
         root: Handle<Node>,
-        nodes: Pool<Node, NodeContainer>,
+        nodes: Pool<Node>,
     }
 
     impl ResourceData for Graph {
@@ -1807,7 +1834,6 @@ mod test {
 
     impl BaseSceneGraph for Graph {
         type Prefab = Graph;
-        type NodeContainer = NodeContainer;
         type Node = Node;
 
         fn root(&self) -> Handle<Self::Node> {
@@ -1901,6 +1927,7 @@ mod test {
     }
 
     impl SceneGraph for Graph {
+        type NodeType = Node;
         fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
             self.nodes.pair_iter()
         }
@@ -1917,18 +1944,16 @@ mod test {
             self.nodes.iter_mut()
         }
 
-        fn try_get<Ref>(
-            &self,
-            handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-        ) -> Option<&Ref> {
-            self.nodes.typed_ref(handle)
+        fn try_get<T: NodeVariant<Node>>(&self, handle: Handle<T>) -> Option<&T> {
+            // self.nodes.try_borrow_variant(handle)
+            self.try_get_node(handle.cast())
+                .and_then(|node| node.borrow_variant())
         }
 
-        fn try_get_mut<Ref>(
-            &mut self,
-            handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-        ) -> Option<&mut Ref> {
-            self.nodes.typed_mut(handle)
+        fn try_get_mut<T: NodeVariant<Node>>(&mut self, handle: Handle<T>) -> Option<&mut T> {
+            // self.nodes.try_borrow_variant_mut(handle)
+            self.try_get_node_mut(handle.cast())
+                .and_then(|node| node.borrow_variant_mut())
         }
     }
 
@@ -1988,7 +2013,7 @@ mod test {
     pub struct Pivot {
         base: Base,
     }
-
+    impl NodeVariant<Node> for Pivot {}
     impl NodeTrait for Pivot {}
 
     impl Deref for Pivot {
@@ -2010,7 +2035,7 @@ mod test {
     pub struct RigidBody {
         base: Base,
     }
-
+    impl NodeVariant<Node> for RigidBody {}
     impl NodeTrait for RigidBody {}
 
     impl Deref for RigidBody {
@@ -2034,7 +2059,7 @@ mod test {
         connected_body1: Handle<RigidBody>,
         connected_body2: Handle<RigidBody>,
     }
-
+    impl NodeVariant<Node> for Joint {}
     impl NodeTrait for Joint {}
 
     impl Deref for Joint {

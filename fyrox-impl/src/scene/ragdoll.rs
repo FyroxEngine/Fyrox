@@ -279,7 +279,7 @@ impl Limb {
 /// Manual creation of such ragdoll is very tedious and counterproductive. That's why the best way
 /// to create a ragdoll is to use the editor, and the ragdoll wizard in particular. However, if
 /// you're brave enough you can read this code <https://github.com/FyroxEngine/Fyrox/blob/master/editor/src/utils/ragdoll.rs> -
-/// it creates a ragdoll using a humanoid skeleton.  
+/// it creates a ragdoll using a humanoid skeleton.
 #[derive(Clone, Reflect, Visit, Debug, Default, ComponentProvider)]
 #[reflect(derived_type = "Node")]
 #[visit(optional)]

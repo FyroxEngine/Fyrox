@@ -118,6 +118,8 @@ pub struct HandlePropertyEditor<T: Reflect> {
     pick: Handle<UiNode>,
 }
 
+impl<T: Reflect> NodeVariant<UiNode> for HandlePropertyEditor<T> {}
+
 impl<T: Reflect> Debug for HandlePropertyEditor<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "HandlePropertyEditor")

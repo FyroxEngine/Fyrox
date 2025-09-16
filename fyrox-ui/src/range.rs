@@ -133,6 +133,8 @@ where
     pub end: InheritableVariable<Handle<UiNode>>,
 }
 
+impl<T: NumericType> NodeVariant<UiNode> for RangeEditor<T> {}
+
 impl<T: NumericType> ConstructorProvider<UiNode, UserInterface> for RangeEditor<T> {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

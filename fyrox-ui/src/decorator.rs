@@ -132,6 +132,8 @@ pub struct Decorator {
     pub is_pressable: InheritableVariable<bool>,
 }
 
+impl NodeVariant<UiNode> for Decorator {}
+
 impl ConstructorProvider<UiNode, UserInterface> for Decorator {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

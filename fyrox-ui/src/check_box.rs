@@ -165,6 +165,8 @@ pub struct CheckBox {
     pub undefined_mark: InheritableVariable<Handle<UiNode>>,
 }
 
+impl NodeVariant<UiNode> for CheckBox {}
+
 impl CheckBox {
     /// A name of style property, that defines corner radius of a checkbox.
     pub const CORNER_RADIUS: &'static str = "CheckBox.CornerRadius";

@@ -124,12 +124,11 @@ where
 
 /// Multi-borrow context allows you to get as many **unique** references to elements in
 /// a pool as you want.
-pub struct MultiBorrowContext<'a, T, P = Option<T>>
+pub struct MultiBorrowContext<'a, T>
 where
     T: Sized,
-    P: PayloadContainer<Element = T> + 'static,
 {
-    pool: &'a mut Pool<T, P>,
+    pool: &'a mut Pool<T>,
     free_indices: RefCell<Vec<u32>>,
 }
 
@@ -193,10 +192,9 @@ impl<T> Display for MultiBorrowError<T> {
     }
 }
 
-impl<T, P> Drop for MultiBorrowContext<'_, T, P>
+impl<T> Drop for MultiBorrowContext<'_, T>
 where
     T: Sized,
-    P: PayloadContainer<Element = T> + 'static,
 {
     fn drop(&mut self) {
         self.pool
@@ -205,13 +203,12 @@ where
     }
 }
 
-impl<'a, T, P> MultiBorrowContext<'a, T, P>
+impl<'a, T> MultiBorrowContext<'a, T>
 where
     T: Sized,
-    P: PayloadContainer<Element = T> + 'static,
 {
     #[inline]
-    pub fn new(pool: &'a mut Pool<T, P>) -> Self {
+    pub fn new(pool: &'a mut Pool<T>) -> Self {
         Self {
             pool,
             free_indices: Default::default(),
@@ -381,10 +378,9 @@ where
     }
 }
 
-impl<'a, T, P> MultiBorrowContext<'a, T, P>
+impl<'a, T> MultiBorrowContext<'a, T>
 where
     T: Sized + ComponentProvider,
-    P: PayloadContainer<Element = T> + 'static,
 {
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]

@@ -127,6 +127,8 @@ pub struct Screen {
     pub last_visual_transform: Matrix3<f32>,
 }
 
+impl NodeVariant<UiNode> for Screen {}
+
 impl ConstructorProvider<UiNode, UserInterface> for Screen {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

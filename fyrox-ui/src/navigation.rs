@@ -90,6 +90,8 @@ pub struct NavigationLayer {
     pub bring_into_view: InheritableVariable<bool>,
 }
 
+impl NodeVariant<UiNode> for NavigationLayer {}
+
 crate::define_widget_deref!(NavigationLayer);
 
 #[derive(Debug)]

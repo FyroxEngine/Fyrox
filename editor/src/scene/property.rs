@@ -308,6 +308,8 @@ pub struct PropertySelector {
     scroll_viewer: Handle<UiNode>,
 }
 
+impl NodeVariant<UiNode> for PropertySelector {}
+
 define_widget_deref!(PropertySelector);
 
 uuid_provider!(PropertySelector = "8e58e123-48a1-4e18-9e90-fd35a1669bdc");
@@ -512,6 +514,8 @@ pub struct PropertySelectorWindow {
     #[visit(skip)]
     allowed_types: Option<FxHashSet<TypeId>>,
 }
+
+impl NodeVariant<UiNode> for PropertySelectorWindow {}
 
 impl Deref for PropertySelectorWindow {
     type Target = Widget;

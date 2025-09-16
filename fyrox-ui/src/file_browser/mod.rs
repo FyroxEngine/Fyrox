@@ -166,6 +166,8 @@ pub struct FileBrowser {
     pub root_title: Option<String>,
 }
 
+impl NodeVariant<UiNode> for FileBrowser {}
+
 impl ConstructorProvider<UiNode, UserInterface> for FileBrowser {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

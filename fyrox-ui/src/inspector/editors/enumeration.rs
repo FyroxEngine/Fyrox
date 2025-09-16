@@ -115,6 +115,8 @@ pub struct EnumPropertyEditor<T: InspectableEnum> {
     pub has_parent_object: bool,
 }
 
+impl<T: InspectableEnum> NodeVariant<UiNode> for EnumPropertyEditor<T> {}
+
 impl<T: InspectableEnum> Debug for EnumPropertyEditor<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "EnumPropertyEditor")

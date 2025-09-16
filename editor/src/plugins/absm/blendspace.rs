@@ -130,6 +130,8 @@ struct BlendSpaceField {
     field_context_menu: ContextMenu,
 }
 
+impl NodeVariant<UiNode> for BlendSpaceField {}
+
 impl Debug for BlendSpaceField {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "BlendSpaceField")
@@ -575,6 +577,8 @@ struct BlendSpaceFieldPoint {
     widget: Widget,
     selected: bool,
 }
+
+impl NodeVariant<UiNode> for BlendSpaceFieldPoint {}
 
 define_widget_deref!(BlendSpaceFieldPoint);
 

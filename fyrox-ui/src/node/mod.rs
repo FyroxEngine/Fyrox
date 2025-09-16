@@ -21,16 +21,16 @@
 //! UI node is a type-agnostic wrapper for any widget type. See [`UiNode`] docs for more info.
 
 use crate::{
-    core::{
+    constructor::WidgetConstructorContainer, core::{
         pool::Handle, reflect::prelude::*, uuid_provider, variable, visitor::prelude::*,
         ComponentProvider, NameProvider,
-    },
-    widget::Widget,
-    Control, ControlAsAny, UserInterface,
+    }, widget::Widget, Control, ControlAsAny, UserInterface
 };
 
+use fyrox_core::pool::BorrowNodeVariant;
 use fyrox_graph::SceneGraphNode;
 use fyrox_resource::{untyped::UntypedResource, Resource};
+use uuid::Uuid;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -272,9 +272,60 @@ impl UiNode {
     }
 }
 
+impl BorrowNodeVariant for UiNode{
+    fn borrow_variant<T: fyrox_core::pool::NodeVariant<Self>>(&self) -> Option<&T> {
+        ControlAsAny::as_any(self.0.deref()).downcast_ref()
+    }
+    fn borrow_variant_mut<T: fyrox_core::pool::NodeVariant<Self>>(&mut self) -> Option<&mut T> {
+        ControlAsAny::as_any_mut(self.0.deref_mut()).downcast_mut()
+    }
+}
+
+
+fn read_widget(name: &str, visitor: &mut Visitor) -> Result<UiNode, VisitError> {
+    let mut region = visitor.enter_region(name)?;
+
+    let mut id = Uuid::default();
+    id.visit("TypeUuid", &mut region)?;
+
+    let serialization_context = region
+        .blackboard
+        .get::<WidgetConstructorContainer>()
+        .expect("Visitor environment must contain serialization context!");
+
+    let mut widget = serialization_context
+        .try_create(&id)
+        .ok_or_else(|| panic!("Unknown widget type uuid {id}!"))
+        .unwrap();
+
+    widget.visit("WidgetData", &mut region)?;
+
+    Ok(widget)
+}
+
+fn write_widget(name: &str, widget: &mut UiNode, visitor: &mut Visitor) -> VisitResult {
+    let mut region = visitor.enter_region(name)?;
+
+    let mut id = widget.id();
+    id.visit("TypeUuid", &mut region)?;
+
+    widget.visit("WidgetData", &mut region)?;
+
+    Ok(())
+}
+
 impl Visit for UiNode {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
+        // previous implementation (read and write widget delegated to WidgetContainer):
+        // self.0.visit(name, visitor)
+        // current implementation may cause some backward compatibility issue
+        let mut region = visitor.enter_region(name)?;
+        if region.is_reading(){
+            *self = read_widget("Data", &mut region)?;
+        } else {
+            write_widget("Data", self, &mut region)?;
+        }
+        Ok(())
     }
 }
 

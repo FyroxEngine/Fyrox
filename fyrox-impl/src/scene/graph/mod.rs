@@ -124,21 +124,21 @@ impl GraphPerformanceStatistics {
 }
 
 /// A helper type alias for node pool.
-pub type NodePool = Pool<Node, NodeContainer>;
+// pub type NodePool = Pool<Node, NodeContainer>;
 
-impl<T: NodeTrait> BorrowAs<Node, NodeContainer> for Handle<T> {
-    type Target = T;
+// impl<T: NodeTrait> BorrowAs<Node, NodeContainer> for Handle<T> {
+//     type Target = T;
 
-    fn borrow_as_ref(self, pool: &NodePool) -> Option<&T> {
-        pool.try_borrow(self.transmute())
-            .and_then(|n| NodeAsAny::as_any(n.0.deref()).downcast_ref::<T>())
-    }
+//     fn borrow_as_ref(self, pool: &NodePool) -> Option<&T> {
+//         pool.try_borrow(self.transmute())
+//             .and_then(|n| NodeAsAny::as_any(n.0.deref()).downcast_ref::<T>())
+//     }
 
-    fn borrow_as_mut(self, pool: &mut NodePool) -> Option<&mut T> {
-        pool.try_borrow_mut(self.transmute())
-            .and_then(|n| NodeAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
-    }
-}
+//     fn borrow_as_mut(self, pool: &mut NodePool) -> Option<&mut T> {
+//         pool.try_borrow_mut(self.transmute())
+//             .and_then(|n| NodeAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
+//     }
+// }
 
 /// See module docs.
 #[derive(Debug, Reflect)]
@@ -1691,7 +1691,6 @@ impl AbstractSceneGraph for Graph {
 
 impl BaseSceneGraph for Graph {
     type Prefab = Model;
-    type NodeContainer = NodeContainer;
     type Node = Node;
 
     #[inline]
@@ -1836,6 +1835,7 @@ impl BaseSceneGraph for Graph {
 }
 
 impl SceneGraph for Graph {
+    type NodeType = Node;
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.pool.pair_iter()
@@ -1860,7 +1860,8 @@ impl SceneGraph for Graph {
         &self,
         handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = T>,
     ) -> Option<&T> {
-        self.pool.typed_ref(handle)
+        self.try_get_node(handle.cast())
+            .and_then(|node| node.borrow_variant())
     }
 
     fn try_get_mut<T>(
@@ -2378,19 +2379,13 @@ mod test {
 
         assert!(graph.pool.typed_ref(pivot).is_some());
         assert!(graph.pool.typed_ref(pivot.cast::<Pivot>()).is_some());
-        assert!(graph
-            .pool
-            .typed_ref(pivot.cast::<RigidBody>())
-            .is_none());
+        assert!(graph.pool.typed_ref(pivot.cast::<RigidBody>()).is_none());
 
         assert!(graph.pool.typed_ref(rigid_body).is_some());
         assert!(graph
             .pool
             .typed_ref(rigid_body.cast::<RigidBody>())
             .is_some());
-        assert!(graph
-            .pool
-            .typed_ref(rigid_body.cast::<Pivot>())
-            .is_none());
+        assert!(graph.pool.typed_ref(rigid_body.cast::<Pivot>()).is_none());
     }
 }

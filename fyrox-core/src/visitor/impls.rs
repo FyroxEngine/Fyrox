@@ -26,6 +26,7 @@ use crate::{
     },
 };
 use nalgebra::{Matrix2, Matrix3, Matrix4, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4};
+use std::mem::MaybeUninit;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -185,7 +186,7 @@ where
 
 impl<T> Visit for Option<T>
 where
-    T: Default + Visit + 'static,
+    T: Visit + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
@@ -195,9 +196,25 @@ where
 
         if is_some != 0 {
             if region.reading {
-                let mut value = T::default();
-                value.visit("Data", &mut region)?;
-                *self = Some(value);
+                // before introducing unsafe (needs T: Default):
+                // let mut value = T::default();
+                // value.visit("Data", &mut region)?;
+                // *self = Some(value);
+
+                // after introducing unsafe:
+                let mut value = MaybeUninit::<T>::uninit();
+                let value_ptr = value.as_mut_ptr();
+                // SAFETY: this piece of code block creates an unitialized T,
+                // let T::visit to fill it entirely, and then moves it into self.
+                // This will break if and only if all the following is satisfied:
+                // 1. T::visit does not initialize the whole T, which could be reasonable if T is the top level structure to deserialize, but not reasonable inside an Option<T>.
+                // 2. T contains handles, references, pointers, etc. However, it's not reasonable for such type to implement Visit.
+                // 3. T is not a primitive or common type, and Visit trait is implemented manually for it.
+                // Therefore, it is very hard for user to break the safety unless they do it on purpose.
+                unsafe {
+                    (*value_ptr).visit("Data", &mut region)?;
+                    *self = Some(value.assume_init());
+                }
             } else {
                 self.as_mut().unwrap().visit("Data", &mut region)?;
             }

@@ -99,6 +99,8 @@ pub struct TileDefinitionHandleEditor {
     allow_none: bool,
 }
 
+impl NodeVariant<UiNode> for TileDefinitionHandleEditor {}
+
 define_widget_deref!(TileDefinitionHandleEditor);
 
 fn value_to_string(value: Option<TileDefinitionHandle>) -> String {

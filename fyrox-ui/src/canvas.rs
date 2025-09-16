@@ -77,6 +77,8 @@ pub struct Canvas {
     pub widget: Widget,
 }
 
+impl NodeVariant<UiNode> for Canvas {}
+
 impl ConstructorProvider<UiNode, UserInterface> for Canvas {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

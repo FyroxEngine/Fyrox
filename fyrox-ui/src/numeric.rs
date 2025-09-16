@@ -297,6 +297,8 @@ pub struct NumericUpDown<T: NumericType> {
     pub drag_value_scaling: InheritableVariable<f32>,
 }
 
+impl<T: NumericType> NodeVariant<UiNode> for NumericUpDown<T> {}
+
 impl<T: NumericType> ConstructorProvider<UiNode, UserInterface> for NumericUpDown<T> {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

@@ -100,6 +100,8 @@ pub struct WrapPanel {
     pub lines: RefCell<Vec<Line>>,
 }
 
+impl NodeVariant<UiNode> for WrapPanel {}
+
 impl ConstructorProvider<UiNode, UserInterface> for WrapPanel {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

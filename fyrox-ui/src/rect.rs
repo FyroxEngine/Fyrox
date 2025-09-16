@@ -141,6 +141,8 @@ where
     pub value: InheritableVariable<Rect<T>>,
 }
 
+impl<T: NumericType> NodeVariant<UiNode> for RectEditor<T> {}
+
 impl<T: NumericType> ConstructorProvider<UiNode, UserInterface> for RectEditor<T> {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

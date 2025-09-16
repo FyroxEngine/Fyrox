@@ -71,6 +71,8 @@ pub struct SpriteSheetFramesPropertyEditor {
     container: SpriteSheetFramesContainer,
 }
 
+impl NodeVariant<UiNode> for SpriteSheetFramesPropertyEditor {}
+
 define_widget_deref!(SpriteSheetFramesPropertyEditor);
 
 uuid_provider!(SpriteSheetFramesPropertyEditor = "8994228d-6106-4e41-872c-5191840badcc");

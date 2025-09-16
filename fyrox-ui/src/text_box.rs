@@ -464,6 +464,8 @@ pub struct TextBox {
     pub recent: Vec<char>,
 }
 
+impl NodeVariant<UiNode> for TextBox {}
+
 impl ConstructorProvider<UiNode, UserInterface> for TextBox {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

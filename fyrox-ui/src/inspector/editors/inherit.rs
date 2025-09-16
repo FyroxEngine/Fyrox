@@ -71,6 +71,8 @@ pub struct InheritablePropertyEditor {
     inner_editor: Handle<UiNode>,
 }
 
+impl NodeVariant<UiNode> for InheritablePropertyEditor {}
+
 impl Deref for InheritablePropertyEditor {
     type Target = Widget;
 

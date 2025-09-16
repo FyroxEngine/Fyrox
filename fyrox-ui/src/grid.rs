@@ -264,6 +264,8 @@ pub struct Grid {
     pub groups: RefCell<[Vec<usize>; 4]>,
 }
 
+impl NodeVariant<UiNode> for Grid {}
+
 impl ConstructorProvider<UiNode, UserInterface> for Grid {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()

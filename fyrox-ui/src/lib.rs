@@ -294,7 +294,6 @@ use crate::{
     brush::Brush,
     canvas::Canvas,
     constructor::WidgetConstructorContainer,
-    container::WidgetContainer,
     core::{
         algebra::{Matrix3, Vector2},
         color::Color,
@@ -355,7 +354,7 @@ use crate::style::resource::{StyleResource, StyleResourceExt};
 use crate::style::{Style, DEFAULT_STYLE};
 use crate::widget::WidgetMaterial;
 pub use fyrox_animation as generic_animation;
-use fyrox_core::pool::{BorrowAs, ErasedHandle};
+use fyrox_core::pool::{ErasedHandle};
 use fyrox_resource::untyped::ResourceKind;
 pub use fyrox_texture as texture;
 
@@ -672,21 +671,21 @@ pub struct UiUpdateSwitches {
     pub node_overrides: Option<FxHashSet<Handle<UiNode>>>,
 }
 
-pub type WidgetPool = Pool<UiNode, WidgetContainer>;
+pub type WidgetPool = Pool<UiNode>;
 
-impl<T: Control> BorrowAs<UiNode, WidgetContainer> for Handle<T> {
-    type Target = T;
+// impl<T: Control> BorrowAs<UiNode> for Handle<T> {
+//     type Target = T;
 
-    fn borrow_as_ref(self, pool: &WidgetPool) -> Option<&T> {
-        pool.try_borrow(self.transmute())
-            .and_then(|n| ControlAsAny::as_any(n.0.deref()).downcast_ref::<T>())
-    }
+//     fn borrow_as_ref(self, pool: &WidgetPool) -> Option<&T> {
+//         pool.try_borrow(self.transmute())
+//             .and_then(|n| ControlAsAny::as_any(n.0.deref()).downcast_ref::<T>())
+//     }
 
-    fn borrow_as_mut(self, pool: &mut WidgetPool) -> Option<&mut T> {
-        pool.try_borrow_mut(self.transmute())
-            .and_then(|n| ControlAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
-    }
-}
+//     fn borrow_as_mut(self, pool: &mut WidgetPool) -> Option<&mut T> {
+//         pool.try_borrow_mut(self.transmute())
+//             .and_then(|n| ControlAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
+//     }
+// }
 
 #[derive(Reflect, Debug)]
 pub struct UserInterface {
@@ -970,7 +969,7 @@ impl IndexMut<Handle<UserInterface>> for UiContainer {
     }
 }
 
-fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode, WidgetContainer>) -> bool {
+fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode>) -> bool {
     // Crawl up on tree and check if current bounds are intersects with every screen bound
     // of parents chain. This is needed because some control can move their children outside of
     // their bounds (like scroll viewer, etc.) and single intersection test of parent bounds with
@@ -988,7 +987,7 @@ fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode, WidgetContainer>) -> bool {
 }
 
 fn draw_node(
-    nodes: &Pool<UiNode, WidgetContainer>,
+    nodes: &Pool<UiNode>,
     node_handle: Handle<UiNode>,
     drawing_context: &mut DrawingContext,
 ) {
@@ -1048,7 +1047,7 @@ fn draw_node(
     }
 }
 
-fn is_node_enabled(nodes: &Pool<UiNode, WidgetContainer>, handle: Handle<UiNode>) -> bool {
+fn is_node_enabled(nodes: &Pool<UiNode>, handle: Handle<UiNode>) -> bool {
     let root_node = &nodes[handle];
     let mut enabled = root_node.enabled();
     let mut parent = root_node.parent();
@@ -1253,7 +1252,7 @@ impl UserInterface {
 
     fn handle_layout_events(&mut self, data: &mut VisualTransformUpdateData) {
         fn invalidate_recursive_up(
-            nodes: &Pool<UiNode, WidgetContainer>,
+            nodes: &Pool<UiNode>,
             node: Handle<UiNode>,
             callback: fn(&UiNode),
         ) {
@@ -2853,7 +2852,7 @@ impl UserInterface {
         event_processed
     }
 
-    pub fn nodes(&self) -> &Pool<UiNode, WidgetContainer> {
+    pub fn nodes(&self) -> &Pool<UiNode> {
         &self.nodes
     }
 
@@ -3255,7 +3254,6 @@ impl AbstractSceneGraph for UserInterface {
 
 impl BaseSceneGraph for UserInterface {
     type Prefab = Self;
-    type NodeContainer = WidgetContainer;
     type Node = UiNode;
 
     #[inline]
@@ -3383,6 +3381,7 @@ impl BaseSceneGraph for UserInterface {
 }
 
 impl SceneGraph for UserInterface {
+    type NodeType = UiNode;
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.nodes.pair_iter()
@@ -3403,17 +3402,17 @@ impl SceneGraph for UserInterface {
         self.nodes.iter_mut()
     }
 
-    fn try_get<Ref>(
+    fn try_get<T>(
         &self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&Ref> {
+        handle: Handle<T>,
+    ) -> Option<&T> {
         self.nodes.typed_ref(handle)
     }
 
-    fn try_get_mut<Ref>(
+    fn try_get_mut<T>(
         &mut self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&mut Ref> {
+        handle: Handle<T>,
+    ) -> Option<&mut T> {
         self.nodes.typed_mut(handle)
     }
 }

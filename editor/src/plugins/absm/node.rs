@@ -75,6 +75,8 @@ where
     edit: Handle<UiNode>,
 }
 
+impl NodeVariant<UiNode> for AbsmNode<fyrox::scene::node::Node> {}
+
 impl<T: Reflect> Debug for AbsmNode<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "AbsmNode")

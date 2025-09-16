@@ -257,6 +257,8 @@ pub struct ListView {
     pub scroll_viewer: InheritableVariable<Handle<UiNode>>,
 }
 
+impl NodeVariant<UiNode> for ListView {}
+
 impl ConstructorProvider<UiNode, UserInterface> for ListView {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
@@ -340,6 +342,8 @@ pub struct ListViewItem {
     /// Base widget of the list view item.
     pub widget: Widget,
 }
+
+impl NodeVariant<UiNode> for ListViewItem {}
 
 impl ConstructorProvider<UiNode, UserInterface> for ListViewItem {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

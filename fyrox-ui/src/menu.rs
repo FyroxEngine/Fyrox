@@ -45,6 +45,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
     UserInterface, VerticalAlignment,
 };
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph, SceneGraph, SceneGraphNode,
@@ -249,6 +250,8 @@ pub struct Menu {
     /// A flag, that defines whether the menu should restrict all the mouse input or not.
     pub restrict_picking: InheritableVariable<bool>,
 }
+
+impl NodeVariant<UiNode> for Menu {}
 
 impl ConstructorProvider<UiNode, UserInterface> for Menu {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
@@ -480,6 +483,8 @@ pub struct MenuItem {
     /// Content of the menu item with which it was created.
     pub content: InheritableVariable<Option<MenuItemContent>>,
 }
+
+impl NodeVariant<UiNode> for MenuItem {}
 
 impl ConstructorProvider<UiNode, UserInterface> for MenuItem {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
@@ -1254,6 +1259,8 @@ pub struct ContextMenu {
     /// Parent menu item of the context menu. Allows you to build chained context menus.
     pub parent_menu_item: Handle<UiNode>,
 }
+
+impl NodeVariant<UiNode> for ContextMenu{}
 
 impl ConstructorProvider<UiNode, UserInterface> for ContextMenu {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

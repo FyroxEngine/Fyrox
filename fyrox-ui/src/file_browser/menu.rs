@@ -67,6 +67,8 @@ pub struct ItemContextMenu {
     pub folder_name_dialog: RefCell<Option<FolderNameDialog>>,
 }
 
+impl NodeVariant<UiNode> for ItemContextMenu {}
+
 impl Deref for ItemContextMenu {
     type Target = Widget;
 

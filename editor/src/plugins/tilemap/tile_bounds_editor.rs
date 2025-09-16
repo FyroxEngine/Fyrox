@@ -68,6 +68,8 @@ pub struct TileBoundsEditor {
     pub button_flip_y: Handle<UiNode>,
 }
 
+impl NodeVariant<UiNode> for TileBoundsEditor {}
+
 define_widget_deref!(TileBoundsEditor);
 
 impl TileBoundsEditor {
