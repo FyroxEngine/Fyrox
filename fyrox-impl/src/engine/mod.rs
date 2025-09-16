@@ -588,6 +588,7 @@ impl ScriptMessageDispatcher {
         user_interfaces: &mut UiContainer,
         graphics_context: &mut GraphicsContext,
         task_pool: &mut TaskPoolHandler,
+        input_state: &InputState,
     ) {
         while let Ok(message) = self.message_receiver.try_recv() {
             let type_id = match message.payload.get_dynamic_type_id() {
@@ -622,6 +623,7 @@ impl ScriptMessageDispatcher {
                                 graphics_context,
                                 user_interfaces,
                                 script_index: 0,
+                                input_state,
                             };
 
                             process_node_scripts(&mut context, &mut |s, ctx| {
@@ -648,6 +650,7 @@ impl ScriptMessageDispatcher {
                                     graphics_context,
                                     user_interfaces,
                                     script_index: 0,
+                                    input_state,
                                 };
 
                                 if receivers.contains(&node) {
@@ -674,6 +677,7 @@ impl ScriptMessageDispatcher {
                                     graphics_context,
                                     user_interfaces,
                                     script_index: 0,
+                                    input_state,
                                 };
 
                                 if receivers.contains(&node) {
@@ -699,6 +703,7 @@ impl ScriptMessageDispatcher {
                                 graphics_context,
                                 user_interfaces,
                                 script_index: 0,
+                                input_state,
                             };
 
                             process_node_scripts(&mut context, &mut |s, ctx| {
@@ -763,6 +768,7 @@ impl ScriptProcessor {
         user_interfaces: &mut UiContainer,
         dt: f32,
         elapsed_time: f32,
+        input_state: &InputState,
     ) {
         self.wait_list
             .retain_mut(|context| !context.is_all_loaded());
@@ -834,6 +840,7 @@ impl ScriptProcessor {
                     graphics_context,
                     user_interfaces,
                     script_index: 0,
+                    input_state,
                 };
 
                 'init_loop: for init_loop_iteration in 0..max_iterations {
@@ -944,6 +951,7 @@ impl ScriptProcessor {
                 user_interfaces,
                 graphics_context,
                 task_pool,
+                input_state,
             );
 
             // As the last step, destroy queued scripts.
@@ -959,6 +967,7 @@ impl ScriptProcessor {
                 graphics_context,
                 task_pool,
                 script_index: 0,
+                input_state,
             };
             while let Some((handle, mut script, index)) = destruction_queue.pop_front() {
                 context.node_handle = handle;
@@ -988,6 +997,7 @@ impl ScriptProcessor {
                     graphics_context,
                     user_interfaces,
                     script_index: 0,
+                    input_state,
                 };
 
                 // Destroy every script instance from nodes that were still alive.
@@ -1244,6 +1254,7 @@ pub(crate) fn process_scripts<T>(
     user_interfaces: &mut UiContainer,
     dt: f32,
     elapsed_time: f32,
+    input_state: &InputState,
     mut func: T,
 ) where
     T: FnMut(&mut Script, &mut ScriptContext),
@@ -1262,6 +1273,7 @@ pub(crate) fn process_scripts<T>(
         graphics_context,
         user_interfaces,
         script_index: 0,
+        input_state,
     };
 
     for node_index in 0..context.scene.graph.capacity() {
@@ -1948,6 +1960,7 @@ impl Engine {
             &mut self.user_interfaces,
             dt,
             self.elapsed_time,
+            &self.input_state,
         );
 
         self.performance_statistics.scripts_time = instant::Instant::now() - time;
@@ -2017,6 +2030,7 @@ impl Engine {
                                         graphics_context: &mut self.graphics_context,
                                         user_interfaces: &mut self.user_interfaces,
                                         script_index: node_task_handler.script_index,
+                                        input_state: &self.input_state,
                                     },
                                 );
 
@@ -2332,6 +2346,7 @@ impl Engine {
                     &mut self.user_interfaces,
                     dt,
                     self.elapsed_time,
+                    &self.input_state,
                     |script, context| {
                         if script.initialized && script.started {
                             script.on_os_event(event, context);
@@ -3045,6 +3060,7 @@ mod test {
                 &mut user_interfaces,
                 0.0,
                 0.0,
+                &Default::default(),
             );
 
             match iteration {
@@ -3211,6 +3227,7 @@ mod test {
                 &mut user_interfaces,
                 0.0,
                 0.0,
+                &Default::default(),
             );
 
             match iteration {
@@ -3482,6 +3499,7 @@ mod test {
                 &mut user_interfaces,
                 0.0,
                 0.0,
+                &Default::default(),
             );
 
             match iteration {
