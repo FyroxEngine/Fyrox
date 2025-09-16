@@ -136,7 +136,7 @@ where
 // accessed using a sort of read-write lock that forces borrowing rules at runtime.
 unsafe impl<T> Sync for Payload<T>
 where
-    T: Sized + Clone, // Sized: pool record needs a known size; Clone: for implementing Reflect
+    T: Sized, // Sized: pool record needs a known size; Clone: for implementing Reflect
 {
 }
 
@@ -144,6 +144,6 @@ where
 // accessed using a sort of read-write lock that forces borrowing rules at runtime.
 unsafe impl<T> Send for Payload<T>
 where
-    T: Sized + Clone, // Sized: pool record needs a known size; Clone: for implementing Reflect
+    T: Sized, // Sized: pool record needs a known size; Clone: for implementing Reflect
 {
 }

@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 //! A widget for showing handles in the tile set editor.
-
+use fyrox::core::pool::NodeVariant;
 use crate::{
     fyrox::gui::{
         button::ButtonMessage,

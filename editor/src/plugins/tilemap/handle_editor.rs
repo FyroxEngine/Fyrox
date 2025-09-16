@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 //! Give the Fyrox Inspector the ability to edit [`TileDefinitionHandle`] properties.
-
+use fyrox::core::pool::NodeVariant;
 use std::any::TypeId;
 use std::ops::{Deref, DerefMut};
 

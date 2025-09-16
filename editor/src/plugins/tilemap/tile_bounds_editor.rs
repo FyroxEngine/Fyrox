@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use super::*;
-
+use fyrox::core::pool::NodeVariant;
 use fyrox::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     gui::{

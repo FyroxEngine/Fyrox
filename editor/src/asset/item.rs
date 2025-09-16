@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::core::log::Log;
+use fyrox::core::{log::Log, pool::NodeVariant};
 
 use crate::{
     asset::open_in_explorer,

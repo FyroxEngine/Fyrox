@@ -41,7 +41,7 @@ use crate::{
             dim2,
             graph::{
                 physics::{IntegrationParameters, PhysicsWorld},
-                Graph, NodePool,
+                Graph,
             },
             SceneRenderingOptions,
         },
@@ -52,6 +52,8 @@ use crate::{
     scene::commands::GameSceneContext,
     GameScene, Message, MessageDirection, MSG_SYNC_FLAG,
 };
+use fyrox::core::pool::Pool;
+use fyrox::scene::node::Node;
 use fyrox::{
     asset::manager::ResourceManager,
     graph::SceneGraph,
@@ -165,7 +167,7 @@ impl SceneSettingsWindow {
             filter: PropertyFilter::new(|property| {
                 let mut pass = true;
 
-                property.downcast_ref::<NodePool>(&mut |v| {
+                property.downcast_ref::<Pool<Node>>(&mut |v| {
                     if v.is_some() {
                         pass = false;
                     }

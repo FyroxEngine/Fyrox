@@ -1658,14 +1658,31 @@ impl Index<Handle<Node>> for Graph {
 
     #[inline]
     fn index(&self, index: Handle<Node>) -> &Self::Output {
-        &self.pool[index]
+        self.try_get_node(index).expect("The handle must be valid!")
     }
 }
 
 impl IndexMut<Handle<Node>> for Graph {
     #[inline]
     fn index_mut(&mut self, index: Handle<Node>) -> &mut Self::Output {
-        &mut self.pool[index]
+        self.try_get_node_mut(index).expect("The handle must be valid!")
+    }
+}
+
+impl<T: NodeVariant<Node>> Index<Handle<T>> for Graph
+{
+    type Output = T;
+    #[inline]
+    fn index(&self, index: Handle<T>) -> &Self::Output {
+        self.try_get(index).expect("The handle must be valid!")
+    }
+}
+
+impl<T: NodeVariant<Node>> IndexMut<Handle<T>> for Graph
+{
+    #[inline]
+    fn index_mut(&mut self, index: Handle<T>) -> &mut Self::Output {
+        self.try_get_mut(index).expect("The handle must be valid!")
     }
 }
 

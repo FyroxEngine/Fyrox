@@ -20,6 +20,7 @@
 
 #![allow(clippy::manual_map)]
 
+use fyrox::core::pool::NodeVariant;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{

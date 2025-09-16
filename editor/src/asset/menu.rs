@@ -48,7 +48,7 @@ use crate::{
         },
     },
 };
-use fyrox::gui::formatted_text::WrapMode;
+use fyrox::{core::pool::NodeVariant, gui::formatted_text::WrapMode};
 use std::{
     fs::File,
     io::Write,

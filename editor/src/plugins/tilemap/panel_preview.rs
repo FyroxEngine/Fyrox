@@ -21,7 +21,7 @@
 //! The preview widget of the tile map control panel. This allows the user to see the
 //! currently selected tile stamp, including whatever transformations have been applied
 //! to the stamp.
-
+use fyrox::core::pool::NodeVariant;
 use super::*;
 use crate::fyrox::{
     core::{

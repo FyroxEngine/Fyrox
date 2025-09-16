@@ -191,6 +191,8 @@ impl InteractionMode for ReflectionProbeInteractionMode {
                 settings: &settings.selection,
             },
         ) {
+            fn is_static<T: 'static>() {}
+            is_static::<ReflectionProbe>();
             if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, &mut scene.graph) {
                 self.drag_context = Some(DragContext {
                     new_position: *scene.graph[self.probe].rendering_position,

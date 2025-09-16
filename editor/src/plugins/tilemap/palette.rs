@@ -21,7 +21,7 @@
 //! The [`PaletteWidget`] is the core of the tile set editor, because this widget
 //! is responsible for displaying a grid of tiles where the user may select tiles,
 //! drag tiles, and use drawing tools upon the tiles.
-
+use fyrox::core::pool::NodeVariant;
 use fyrox::scene::tilemap::brush::TileMapBrushResource;
 use fyrox::scene::tilemap::tileset::OptionTileSet;
 use fyrox::scene::tilemap::{ResourceTilePosition, RotTileHandle};
