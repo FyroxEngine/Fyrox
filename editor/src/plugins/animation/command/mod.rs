@@ -22,7 +22,7 @@ use crate::fyrox::{
     core::{
         log::Log,
         math::curve::Curve,
-        pool::{ErasedHandle, Handle, Ticket},
+        pool::{Handle, Ticket},
         uuid::Uuid,
         variable::InheritableVariable,
     },

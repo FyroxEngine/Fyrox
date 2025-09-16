@@ -22,7 +22,6 @@
 //! more info and usage examples.
 
 #![warn(missing_docs)]
-use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
@@ -33,6 +32,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;

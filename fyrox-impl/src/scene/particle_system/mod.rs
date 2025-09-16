@@ -21,7 +21,6 @@
 //! Contains all structures and methods to create and manage particle systems. See [`ParticleSystem`] docs for more
 //! info and usage examples.
 
-use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
@@ -51,6 +50,7 @@ use crate::{
         },
     },
 };
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::{constructor::ConstructorProvider, BaseSceneGraph};
 use std::{
     cmp::Ordering,

@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 //! Joint is used to restrict motion of two rigid bodies.
-use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -42,6 +41,7 @@ use crate::{
     },
 };
 use fyrox_core::algebra::{Isometry3, Vector3};
+use fyrox_core::pool::NodeVariant;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::{BaseSceneGraph, SceneGraph};

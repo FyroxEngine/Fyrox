@@ -17,7 +17,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-use fyrox::core::pool::NodeVariant;
 use crate::{
     asset::{
         item::{AssetItem, AssetItemMessage},
@@ -58,6 +57,7 @@ use crate::{
     utils::make_pick_button,
     Message, MessageDirection,
 };
+use fyrox::core::pool::NodeVariant;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},

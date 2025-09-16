@@ -22,7 +22,6 @@
 //! examples.
 
 #![warn(missing_docs)]
-use fyrox_core::pool::NodeVariant;
 use crate::formatted_text::Run;
 use crate::style::StyledProperty;
 use crate::{
@@ -40,6 +39,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_core::algebra::Matrix3;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};

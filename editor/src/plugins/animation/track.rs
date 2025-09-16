@@ -20,7 +20,6 @@
 
 #![allow(clippy::manual_map)]
 
-use fyrox::core::pool::NodeVariant;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -97,6 +96,7 @@ use crate::{
     },
     send_sync_message, utils,
 };
+use fyrox::core::pool::NodeVariant;
 use std::{
     any::TypeId,
     cmp::Ordering,

@@ -21,21 +21,24 @@
 //! UI node is a type-agnostic wrapper for any widget type. See [`UiNode`] docs for more info.
 
 use crate::{
-    constructor::WidgetConstructorContainer, core::{
+    constructor::WidgetConstructorContainer,
+    core::{
         pool::Handle, reflect::prelude::*, uuid_provider, variable, visitor::prelude::*,
         ComponentProvider, NameProvider,
-    }, widget::Widget, Control, ControlAsAny, UserInterface
+    },
+    widget::Widget,
+    Control, ControlAsAny, UserInterface,
 };
 
 use fyrox_core::pool::BorrowNodeVariant;
 use fyrox_graph::SceneGraphNode;
 use fyrox_resource::{untyped::UntypedResource, Resource};
-use uuid::Uuid;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
+use uuid::Uuid;
 
 pub mod constructor;
 pub mod container;
@@ -272,7 +275,7 @@ impl UiNode {
     }
 }
 
-impl BorrowNodeVariant for UiNode{
+impl BorrowNodeVariant for UiNode {
     fn borrow_variant<T: fyrox_core::pool::NodeVariant<Self>>(&self) -> Option<&T> {
         ControlAsAny::as_any(self.0.deref()).downcast_ref()
     }
@@ -280,7 +283,6 @@ impl BorrowNodeVariant for UiNode{
         ControlAsAny::as_any_mut(self.0.deref_mut()).downcast_mut()
     }
 }
-
 
 fn read_widget(name: &str, visitor: &mut Visitor) -> Result<UiNode, VisitError> {
     let mut region = visitor.enter_region(name)?;
@@ -320,7 +322,7 @@ impl Visit for UiNode {
         // self.0.visit(name, visitor)
         // current implementation may cause some backward compatibility issue
         let mut region = visitor.enter_region(name)?;
-        if region.is_reading(){
+        if region.is_reading() {
             *self = read_widget("Data", &mut region)?;
         } else {
             write_widget("Data", self, &mut region)?;

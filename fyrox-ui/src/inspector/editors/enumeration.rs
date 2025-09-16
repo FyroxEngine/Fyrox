@@ -17,7 +17,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-use fyrox_core::pool::NodeVariant;
 use crate::{
     border::BorderBuilder,
     core::{
@@ -47,6 +46,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::pool::NodeVariant;
 
 use crate::inspector::InspectorContextArgs;
 use fyrox_core::ComponentProvider;

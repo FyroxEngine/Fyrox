@@ -20,7 +20,6 @@
 
 //! Everything related to terrains. See [`Terrain`] docs for more info.
 
-use fyrox_core::pool::NodeVariant;
 use crate::{
     asset::{Resource, ResourceDataRef},
     core::{
@@ -60,6 +59,7 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_core::pool::NodeVariant;
 use fyrox_core::{uuid_provider, warn};
 use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::untyped::ResourceKind;

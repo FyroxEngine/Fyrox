@@ -18,8 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-
-use fyrox::core::pool::NodeVariant;
 use crate::fyrox::{
     core::{
         color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid::uuid,
@@ -41,6 +39,7 @@ use crate::fyrox::{
     },
 };
 use crate::plugins::absm::selectable::{Selectable, SelectableMessage};
+use fyrox::core::pool::NodeVariant;
 
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::{Style, StyledProperty};

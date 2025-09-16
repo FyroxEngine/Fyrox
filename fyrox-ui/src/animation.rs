@@ -24,9 +24,9 @@
 use crate::MessageDirection;
 use crate::{
     core::{
-        pool::NodeVariant,
         log::{Log, MessageKind},
         pool::Handle,
+        pool::NodeVariant,
         reflect::prelude::*,
         type_traits::prelude::*,
         variable::InheritableVariable,
@@ -39,7 +39,6 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, PartialEq)]

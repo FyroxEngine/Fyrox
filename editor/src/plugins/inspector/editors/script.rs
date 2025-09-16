@@ -17,7 +17,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-use fyrox::core::pool::NodeVariant;
 use crate::fyrox::{
     core::{
         log::Log, parking_lot::Mutex, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
@@ -54,6 +53,7 @@ use crate::{
     settings::{general::ScriptEditor, SettingsData},
     DropdownListBuilder, MSG_SYNC_FLAG,
 };
+use fyrox::core::pool::NodeVariant;
 
 use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox::gui::utils::make_dropdown_list_option;

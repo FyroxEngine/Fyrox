@@ -21,7 +21,6 @@
 //! Scroll panel widget is used to arrange its children widgets, so they can be offset by a certain amount of units
 //! from top-left corner. It is used to provide basic scrolling functionality. See [`ScrollPanel`] docs for more
 //! info and usage examples.
-use fyrox_core::pool::NodeVariant;
 use crate::{
     brush::Brush,
     core::{
@@ -34,6 +33,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};

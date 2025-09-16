@@ -79,7 +79,7 @@ use fxhash::{FxHashMap, FxHashSet};
 use fyrox_core::pool::{BorrowNodeVariant, NodeVariant};
 // use fyrox_core::pool::BorrowAs;
 use fyrox_graph::SceneGraphNode;
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -1665,12 +1665,12 @@ impl Index<Handle<Node>> for Graph {
 impl IndexMut<Handle<Node>> for Graph {
     #[inline]
     fn index_mut(&mut self, index: Handle<Node>) -> &mut Self::Output {
-        self.try_get_node_mut(index).expect("The handle must be valid!")
+        self.try_get_node_mut(index)
+            .expect("The handle must be valid!")
     }
 }
 
-impl<T: NodeVariant<Node>> Index<Handle<T>> for Graph
-{
+impl<T: NodeVariant<Node>> Index<Handle<T>> for Graph {
     type Output = T;
     #[inline]
     fn index(&self, index: Handle<T>) -> &Self::Output {
@@ -1678,8 +1678,7 @@ impl<T: NodeVariant<Node>> Index<Handle<T>> for Graph
     }
 }
 
-impl<T: NodeVariant<Node>> IndexMut<Handle<T>> for Graph
-{
+impl<T: NodeVariant<Node>> IndexMut<Handle<T>> for Graph {
     #[inline]
     fn index_mut(&mut self, index: Handle<T>) -> &mut Self::Output {
         self.try_get_mut(index).expect("The handle must be valid!")

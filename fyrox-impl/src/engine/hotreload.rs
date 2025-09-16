@@ -32,7 +32,7 @@ use crate::{
     resource::model::ModelResource,
     scene::{
         base::{visit_opt_script, NodeScriptMessage},
-        node::{Node},
+        node::Node,
         Scene,
     },
     script::Script,

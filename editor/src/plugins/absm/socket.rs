@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::core::pool::NodeVariant;
 use crate::fyrox::core::pool::ErasedHandle;
 use crate::fyrox::{
     core::{
@@ -36,6 +35,7 @@ use crate::fyrox::{
         BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
+use fyrox::core::pool::NodeVariant;
 
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;

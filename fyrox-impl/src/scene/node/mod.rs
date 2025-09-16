@@ -25,16 +25,23 @@
 #![warn(missing_docs)]
 
 use crate::{
-    asset::{untyped::UntypedResource, Resource}, core::{
+    asset::{untyped::UntypedResource, Resource},
+    core::{
         algebra::{Matrix4, Vector2},
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
         pool::Handle,
         reflect::prelude::*,
         uuid::Uuid,
-        uuid_provider, variable::{self, mark_inheritable_properties_non_modified},
+        uuid_provider,
+        variable::{self, mark_inheritable_properties_non_modified},
         visitor::{Visit, VisitResult, Visitor},
         ComponentProvider, NameProvider,
-    }, engine::SerializationContext, graph::SceneGraphNode, renderer::bundle::RenderContext, resource::model::{Model, ModelResource}, scene::{
+    },
+    engine::SerializationContext,
+    graph::SceneGraphNode,
+    renderer::bundle::RenderContext,
+    resource::model::{Model, ModelResource},
+    scene::{
         self,
         animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
         base::Base,
@@ -53,9 +60,13 @@ use crate::{
         sprite::Sprite,
         terrain::Terrain,
         Scene,
-    }
+    },
 };
-use fyrox_core::{define_as_any_trait, pool::{BorrowNodeVariant, Pool}, visitor::error::VisitError};
+use fyrox_core::{
+    define_as_any_trait,
+    pool::{BorrowNodeVariant, Pool},
+    visitor::error::VisitError,
+};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -316,9 +327,7 @@ impl BorrowNodeVariant for Node {
     fn borrow_variant<T: fyrox_core::pool::NodeVariant<Self>>(&self) -> Option<&T> {
         NodeAsAny::as_any(self.0.deref()).downcast_ref()
     }
-    fn borrow_variant_mut<T: fyrox_core::pool::NodeVariant<Self>>(
-        &mut self,
-    ) -> Option<&mut T> {
+    fn borrow_variant_mut<T: fyrox_core::pool::NodeVariant<Self>>(&mut self) -> Option<&mut T> {
         NodeAsAny::as_any_mut(self.0.deref_mut()).downcast_mut()
     }
 }

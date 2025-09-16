@@ -21,7 +21,6 @@
 //! Animation player is a node that contains multiple animations. It updates and plays all the animations.
 //! See [`AnimationPlayer`] docs for more info.
 
-use fyrox_core::pool::{NodeVariant, Pool};
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -37,10 +36,11 @@ use crate::{
     generic_animation::value::{BoundValueCollection, TrackValue, ValueBinding},
     scene::{
         base::{Base, BaseBuilder},
-        graph::{Graph},
+        graph::Graph,
         node::{Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_core::pool::{NodeVariant, Pool};
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};

@@ -22,7 +22,6 @@
 //! info and usage examples.
 
 #![warn(missing_docs)]
-use fyrox_core::pool::NodeVariant;
 use crate::{
     brush::Brush,
     core::{
@@ -47,6 +46,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_core::algebra::Matrix3;
 use fyrox_core::some_or_return;

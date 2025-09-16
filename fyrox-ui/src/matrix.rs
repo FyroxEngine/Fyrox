@@ -17,7 +17,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         num_traits, pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
@@ -30,6 +29,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, Widget,
 };
 use fyrox_core::algebra::SMatrix;
+use fyrox_core::pool::NodeVariant;
 
 use std::ops::{Deref, DerefMut};
 

@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::core::pool::NodeVariant;
 use crate::fyrox::graph::BaseSceneGraph;
 use crate::fyrox::{
     core::{
@@ -44,6 +43,7 @@ use crate::fyrox::{
     },
 };
 use crate::menu::create_menu_item;
+use fyrox::core::pool::NodeVariant;
 
 use fyrox::gui::curve::{CurveTransformCell, STANDARD_GRID_SIZE};
 use fyrox::gui::menu::ContextMenuBuilder;

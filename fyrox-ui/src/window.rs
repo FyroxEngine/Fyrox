@@ -20,7 +20,6 @@
 
 //! The Window widget provides a standard window that can contain another widget. See [`Window`] docs
 //! for more info and usage examples.
-use fyrox_core::pool::NodeVariant;
 use crate::style::StyledProperty;
 use crate::{
     border::BorderBuilder,
@@ -44,6 +43,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, RestrictionEntry, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_core::log::Log;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};

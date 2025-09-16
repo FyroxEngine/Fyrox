@@ -58,9 +58,9 @@ use crate::plugins::absm::{
 };
 use crate::{menu::create_menu_item, message::MessageSender, send_sync_message};
 
-use fyrox::{core::pool::NodeVariant, gui::menu::ContextMenuBuilder};
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::{core::pool::NodeVariant, gui::menu::ContextMenuBuilder};
 use std::{
     cell::Cell,
     fmt::{Debug, Formatter},

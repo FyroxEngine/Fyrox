@@ -22,7 +22,6 @@
 //! here because the node is actually a 3D node, like everything else in the engine.
 //!
 //! See [`Rectangle`] docs for more info.
-use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -49,6 +48,7 @@ use crate::{
     },
 };
 use bytemuck::{Pod, Zeroable};
+use fyrox_core::pool::NodeVariant;
 use fyrox_core::value_as_u8_slice;
 
 use fyrox_graph::constructor::ConstructorProvider;

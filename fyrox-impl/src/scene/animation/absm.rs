@@ -20,7 +20,6 @@
 
 //! Animation blending state machine is a node that takes multiple animations from an animation player and
 //! mixes them in arbitrary way into one animation. See [`AnimationBlendingStateMachine`] docs for more info.
-use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -40,6 +39,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
 use std::ops::{Deref, DerefMut};

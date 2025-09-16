@@ -20,7 +20,6 @@
 
 //! Collider is a geometric entity that can be attached to a rigid body to allow participate it
 //! participate in contact generation, collision response and proximity queries.
-use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -47,6 +46,7 @@ use crate::{
     },
 };
 use fyrox_core::algebra::{Isometry3, Translation3};
+use fyrox_core::pool::NodeVariant;
 use fyrox_core::uuid_provider;
 
 use fyrox_graph::constructor::ConstructorProvider;

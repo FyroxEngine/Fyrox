@@ -29,7 +29,6 @@
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
 
-use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -53,6 +52,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::{BaseSceneGraph, SceneGraph};

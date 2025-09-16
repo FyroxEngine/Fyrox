@@ -22,8 +22,6 @@
 //! It is made as a separate widget to be able to draw it on top of curve editor,
 //! dope sheet and time ruler.
 
-
-use fyrox::core::pool::NodeVariant;
 use crate::fyrox::{
     core::{
         algebra::{Point2, Vector2},
@@ -41,6 +39,7 @@ use crate::fyrox::{
         BuildContext, Control, UiNode, UserInterface,
     },
 };
+use fyrox::core::pool::NodeVariant;
 
 use fyrox::gui::curve::CurveTransformCell;
 use fyrox::gui::style::resource::StyleResourceExt;

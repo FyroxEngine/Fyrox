@@ -40,9 +40,9 @@ use crate::fyrox::{
     scene::sound::{AudioBus, AudioBusGraph},
 };
 
-use fyrox::{core::pool::NodeVariant, gui::style::resource::StyleResourceExt};
 use fyrox::gui::style::Style;
 use fyrox::gui::utils::make_dropdown_list_option;
+use fyrox::{core::pool::NodeVariant, gui::style::resource::StyleResourceExt};
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, PartialEq)]

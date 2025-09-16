@@ -23,7 +23,6 @@
 
 #![warn(missing_docs)]
 
-use fyrox_core::pool::NodeVariant;
 use crate::{
     check_box::{CheckBoxBuilder, CheckBoxMessage},
     core::pool::Handle,
@@ -35,6 +34,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;

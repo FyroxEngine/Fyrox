@@ -23,7 +23,6 @@
 //! aliasing issues. See [`VectorImage`] docs for more info and usage examples.
 
 #![warn(missing_docs)]
-use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::Vector2, color::Color, math::Rect, math::Vector2Ext, pool::Handle,
@@ -34,6 +33,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;

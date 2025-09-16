@@ -339,8 +339,11 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
-use fyrox_core::futures::future::join_all;
 use fyrox_core::log::Log;
+use fyrox_core::{
+    futures::future::join_all,
+    pool::{BorrowNodeVariant, NodeVariant},
+};
 use fyrox_graph::{
     AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping, PrefabData,
     SceneGraph, SceneGraphNode,
@@ -354,7 +357,7 @@ use crate::style::resource::{StyleResource, StyleResourceExt};
 use crate::style::{Style, DEFAULT_STYLE};
 use crate::widget::WidgetMaterial;
 pub use fyrox_animation as generic_animation;
-use fyrox_core::pool::{ErasedHandle};
+use fyrox_core::pool::ErasedHandle;
 use fyrox_resource::untyped::ResourceKind;
 pub use fyrox_texture as texture;
 
@@ -3402,18 +3405,14 @@ impl SceneGraph for UserInterface {
         self.nodes.iter_mut()
     }
 
-    fn try_get<T>(
-        &self,
-        handle: Handle<T>,
-    ) -> Option<&T> {
-        self.nodes.typed_ref(handle)
+    fn try_get<T: NodeVariant<UiNode>>(&self, handle: Handle<T>) -> Option<&T> {
+        self.try_get_node(handle.cast())
+            .and_then(|node| node.borrow_variant())
     }
 
-    fn try_get_mut<T>(
-        &mut self,
-        handle: Handle<T>,
-    ) -> Option<&mut T> {
-        self.nodes.typed_mut(handle)
+    fn try_get_mut<T: NodeVariant<UiNode>>(&mut self, handle: Handle<T>) -> Option<&mut T> {
+        self.try_get_node_mut(handle.cast())
+            .and_then(|node| node.borrow_variant_mut())
     }
 }
 

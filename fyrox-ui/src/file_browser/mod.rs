@@ -22,7 +22,6 @@
 //!
 //! File selector is dialog window with file browser, it somewhat similar to standard
 //! OS file selector.
-use fyrox_core::pool::NodeVariant;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
@@ -43,6 +42,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use core::time;
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,

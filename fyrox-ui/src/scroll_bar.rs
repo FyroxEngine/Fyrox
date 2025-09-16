@@ -22,7 +22,6 @@
 //! on the bar. See [`ScrollBar`] docs for more info and usage examples.
 
 #![warn(missing_docs)]
-use fyrox_core::pool::NodeVariant;
 use crate::font::FontResource;
 use crate::style::resource::StyleResourceExt;
 use crate::style::{Style, StyledProperty};
@@ -45,6 +44,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;

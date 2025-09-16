@@ -22,7 +22,6 @@
 //! of a rect, two for its size. See [`RectEditor`] docs for more info and usage examples.
 
 #![warn(missing_docs)]
-use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
@@ -37,6 +36,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};

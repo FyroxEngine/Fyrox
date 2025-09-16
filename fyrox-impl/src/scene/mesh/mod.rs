@@ -21,7 +21,6 @@
 //! Contains all structures and methods to create and manage mesh scene graph nodes. See [`Mesh`] docs for more info
 //! and usage examples.
 
-use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3, Vector4},
@@ -64,6 +63,7 @@ use crate::{
     },
 };
 use fxhash::{FxHashMap, FxHasher};
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_resource::untyped::ResourceKind;
 use std::{

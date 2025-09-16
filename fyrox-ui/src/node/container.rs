@@ -43,7 +43,6 @@
 
 // // type WidgetPayload = Payload<UiNode>;
 
-
 // impl Visit for WidgetContainer {
 //     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
 //         let mut region = visitor.enter_region(name)?;

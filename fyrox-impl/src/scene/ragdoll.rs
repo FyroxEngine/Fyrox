@@ -21,7 +21,6 @@
 //! Ragdoll is a set of rigid bodies linked with various joints, which can control a set of bones
 //! of a mesh. Ragdolls are used mostly for body physics. See [`Ragdoll`] docs for more info and
 //! usage examples.
-use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -44,6 +43,7 @@ use crate::{
         rigidbody::{RigidBody, RigidBodyType},
     },
 };
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraphNode;
 use std::{

@@ -81,7 +81,7 @@ use crate::{
     },
     scene::{
         base::NodeScriptMessage,
-        graph::{GraphUpdateSwitches},
+        graph::GraphUpdateSwitches,
         mesh::surface::{self, SurfaceData, SurfaceDataLoader},
         navmesh,
         node::{

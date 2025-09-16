@@ -20,7 +20,6 @@
 
 //! Navigational mesh (navmesh for short) is a surface which can be used for path finding. See [`NavigationalMesh`] docs
 //! for more info and usage examples.
-use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -45,6 +44,7 @@ use crate::{
 use fyrox_core::algebra::Vector3;
 use fyrox_core::math::TriangleDefinition;
 use fyrox_core::parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::{

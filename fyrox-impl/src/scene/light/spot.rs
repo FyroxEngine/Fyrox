@@ -42,7 +42,6 @@
 //! Light scattering feature may significantly impact performance on low-end
 //! hardware!
 
-use fyrox_core::pool::NodeVariant;
 use crate::scene::base::BaseBuilder;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
@@ -66,6 +65,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};

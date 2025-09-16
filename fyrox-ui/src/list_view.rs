@@ -22,7 +22,6 @@
 //! vertically.
 
 #![warn(missing_docs)]
-use fyrox_core::pool::NodeVariant;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -40,6 +39,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},

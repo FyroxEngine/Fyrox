@@ -20,7 +20,6 @@
 
 //! Property editor for [`InheritableVariable`]. It acts like a proxy to inner property, but also
 //! adds special "revert" button that is used to revert value to its parent's value.
-use fyrox_core::pool::NodeVariant;
 use crate::resources::REVERT_ICON;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
@@ -45,6 +44,7 @@ use crate::{
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, VerticalAlignment,
     Widget, WidgetMessage,
 };
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     any::TypeId,

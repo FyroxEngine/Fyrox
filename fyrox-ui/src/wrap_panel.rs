@@ -23,7 +23,6 @@
 
 #![warn(missing_docs)]
 #![allow(clippy::reversed_empty_ranges)]
-use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
@@ -34,6 +33,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
+use fyrox_core::pool::NodeVariant;
 
 use core::f32;
 use fyrox_core::uuid_provider;

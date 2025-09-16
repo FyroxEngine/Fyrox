@@ -22,7 +22,6 @@ use crate::{
     command::{make_command, Command, SetPropertyCommand},
     fyrox::{
         core::log::Log,
-        core::pool::ErasedHandle,
         core::pool::Handle,
         core::reflect::Reflect,
         core::variable::InheritableVariable,

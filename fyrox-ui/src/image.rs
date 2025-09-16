@@ -22,7 +22,6 @@
 //! and usage examples.
 
 #![warn(missing_docs)]
-use fyrox_core::pool::NodeVariant;
 use crate::{
     brush::Brush,
     color::draw_checker_board,
@@ -36,6 +35,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_texture::{TextureKind, TextureResource};

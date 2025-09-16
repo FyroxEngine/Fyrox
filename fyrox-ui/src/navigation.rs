@@ -22,7 +22,6 @@
 //! docs for more info and usage examples.
 
 #![warn(missing_docs)]
-use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         pool::Handle, reflect::prelude::*, type_traits::prelude::*, variable::InheritableVariable,
@@ -33,6 +32,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};

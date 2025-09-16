@@ -20,7 +20,6 @@
 
 //! Everything related to sound in the engine.
 
-use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::Matrix4,
@@ -39,6 +38,7 @@ use crate::{
         node::{Node, NodeTrait, SyncContext, UpdateContext},
     },
 };
+use fyrox_core::pool::NodeVariant;
 
 // Re-export some the fyrox_sound entities.
 pub use fyrox_sound::{

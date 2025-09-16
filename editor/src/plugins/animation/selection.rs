@@ -21,12 +21,7 @@
 use crate::{
     command::{make_command, Command, SetPropertyCommand},
     fyrox::{
-        core::{
-            pool::{ErasedHandle, Handle},
-            reflect::Reflect,
-            uuid::Uuid,
-            variable::InheritableVariable,
-        },
+        core::{pool::Handle, reflect::Reflect, uuid::Uuid, variable::InheritableVariable},
         engine::Engine,
         generic_animation::{Animation, AnimationContainer},
         graph::{BaseSceneGraph, SceneGraphNode},
@@ -211,12 +206,9 @@ where
                     .to_string(),
             )
         } else {
-            controller.downcast_ref::<UiScene>().map(|ui| {
-                ui.ui
-                    .node(self.animation_player.cast())
-                    .doc()
-                    .to_string()
-            })
+            controller
+                .downcast_ref::<UiScene>()
+                .map(|ui| ui.ui.node(self.animation_player.cast()).doc().to_string())
         }
     }
 }

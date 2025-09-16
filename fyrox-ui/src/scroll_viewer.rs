@@ -23,7 +23,6 @@
 //! info and usage examples.
 
 #![warn(missing_docs)]
-use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
@@ -37,6 +36,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},

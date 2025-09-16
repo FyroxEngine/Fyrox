@@ -18,8 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-
-use fyrox::core::pool::NodeVariant;
 use crate::fyrox::{
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
@@ -36,6 +34,7 @@ use crate::fyrox::{
 };
 use crate::plugins::absm::segment::Segment;
 use crate::utils::fetch_node_screen_center;
+use fyrox::core::pool::NodeVariant;
 
 use fyrox::material::MaterialResource;
 use std::ops::{Deref, DerefMut};

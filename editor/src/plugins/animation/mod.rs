@@ -142,15 +142,19 @@ fn inner_fetch_selection<N: Reflect>(editor_selection: &Selection) -> AnimationS
     } else if let Some(selection) = editor_selection.as_graph() {
         // Only some AnimationPlayer in Game Scene is selected.
         AnimationSelection {
-            animation_player:
-                selection.nodes.first().cloned().unwrap_or_default().cast(),
+            animation_player: selection.nodes.first().cloned().unwrap_or_default().cast(),
             animation: Default::default(),
             entities: vec![],
         }
     } else if let Some(selection) = editor_selection.as_ui() {
         // Only some AnimationPlayer in UI Scene is selected.
         AnimationSelection {
-            animation_player: selection.widgets.first().cloned().unwrap_or_default().cast(),
+            animation_player: selection
+                .widgets
+                .first()
+                .cloned()
+                .unwrap_or_default()
+                .cast(),
             animation: Default::default(),
             entities: vec![],
         }

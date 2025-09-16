@@ -1792,12 +1792,12 @@ impl PhysicsWorld {
 
         if let Some(native) = self.joints.set.get_mut(joint.native.get(), false) {
             joint.body1.try_sync_model(|v| {
-                if let Some(rigid_body_node) = nodes.typed_ref(v) {
+                if let Some(rigid_body_node) = nodes.try_borrow_variant(v) {
                     native.body1 = rigid_body_node.native.get();
                 }
             });
             joint.body2.try_sync_model(|v| {
-                if let Some(rigid_body_node) = nodes.typed_ref(v) {
+                if let Some(rigid_body_node) = nodes.try_borrow_variant(v) {
                     native.body2 = rigid_body_node.native.get();
                 }
             });
@@ -1850,8 +1850,8 @@ impl PhysicsWorld {
             let mut local_frames = joint.local_frames.borrow_mut();
             if local_frames.is_none() {
                 if let (Some(body1), Some(body2)) = (
-                    nodes.typed_ref(joint.body1()),
-                    nodes.typed_ref(joint.body2()),
+                    nodes.try_borrow_variant(joint.body1()),
+                    nodes.try_borrow_variant(joint.body2()),
                 ) {
                     let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
                     native.data =
@@ -1868,10 +1868,10 @@ impl PhysicsWorld {
             // native bodies exists.
             if let (Some(body1), Some(body2)) = (
                 nodes
-                    .typed_ref(body1_handle)
+                    .try_borrow_variant(body1_handle)
                     .filter(|b| self.bodies.get(b.native.get()).is_some()),
                 nodes
-                    .typed_ref(body2_handle)
+                    .try_borrow_variant(body2_handle)
                     .filter(|b| self.bodies.get(b.native.get()).is_some()),
             ) {
                 // Calculate local frames first (if needed).

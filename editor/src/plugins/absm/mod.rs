@@ -105,7 +105,12 @@ where
     } else if let Some(selection) = editor_selection.as_ui() {
         // Only some AnimationPlayer in a UI is selected.
         AbsmSelection {
-            absm_node_handle: selection.widgets.first().cloned().unwrap_or_default().cast(),
+            absm_node_handle: selection
+                .widgets
+                .first()
+                .cloned()
+                .unwrap_or_default()
+                .cast(),
             layer: None,
             entities: vec![],
         }

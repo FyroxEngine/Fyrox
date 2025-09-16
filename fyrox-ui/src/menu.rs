@@ -1260,7 +1260,7 @@ pub struct ContextMenu {
     pub parent_menu_item: Handle<UiNode>,
 }
 
-impl NodeVariant<UiNode> for ContextMenu{}
+impl NodeVariant<UiNode> for ContextMenu {}
 
 impl ConstructorProvider<UiNode, UserInterface> for ContextMenu {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {

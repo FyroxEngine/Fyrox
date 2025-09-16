@@ -22,7 +22,6 @@
 //! docs for [`Screen`] for more info and usage examples.
 
 #![warn(missing_docs)]
-use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
@@ -32,6 +31,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_core::algebra::Matrix3;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};

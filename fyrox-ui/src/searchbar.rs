@@ -23,7 +23,6 @@
 //! for more info and usage examples.
 
 #![warn(missing_docs)]
-use fyrox_core::pool::NodeVariant;
 use crate::style::resource::StyleResourceExt;
 use crate::style::Style;
 use crate::widget::WidgetMessage;
@@ -47,6 +46,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};

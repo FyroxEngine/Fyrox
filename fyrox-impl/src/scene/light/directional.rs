@@ -26,8 +26,6 @@
 //! Directional light sources uses cascaded shadow maps for shadows. Each cascade has different position
 //! on the viewing frustum and overall split options can be changed by using [`FrustumSplitOptions`].
 
-
-use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -50,6 +48,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};

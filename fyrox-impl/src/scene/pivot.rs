@@ -20,7 +20,6 @@
 
 //! A simplest possible node which represents point in space.
 
-use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -37,6 +36,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};

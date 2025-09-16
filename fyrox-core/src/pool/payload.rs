@@ -20,8 +20,6 @@
 
 use std::cell::UnsafeCell;
 
-use crate::visitor::{Visit, VisitResult, Visitor};
-
 // pub trait PayloadContainer: Sized {
 //     type Element: Sized;
 
@@ -134,16 +132,14 @@ where
 
 // SAFETY: This is safe, because Payload is never directly exposed to the call site. It is always
 // accessed using a sort of read-write lock that forces borrowing rules at runtime.
-unsafe impl<T> Sync for Payload<T>
-where
-    T: Sized, // Sized: pool record needs a known size; Clone: for implementing Reflect
+unsafe impl<T> Sync for Payload<T> where
+    T: Sized // Sized: pool record needs a known size; Clone: for implementing Reflect
 {
 }
 
 // SAFETY: This is safe, because Payload is never directly exposed to the call site. It is always
 // accessed using a sort of read-write lock that forces borrowing rules at runtime.
-unsafe impl<T> Send for Payload<T>
-where
-    T: Sized, // Sized: pool record needs a known size; Clone: for implementing Reflect
+unsafe impl<T> Send for Payload<T> where
+    T: Sized // Sized: pool record needs a known size; Clone: for implementing Reflect
 {
 }

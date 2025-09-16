@@ -43,8 +43,6 @@
 // #[derive(Debug, Clone, Default, Reflect)]
 // pub struct NodeContainer(Option<Node>);
 
-
-
 // impl Visit for NodeContainer {
 //     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
 //         let mut region = visitor.enter_region(name)?;

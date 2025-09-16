@@ -22,7 +22,6 @@
 //! more info and usage examples.
 
 #![warn(missing_docs)]
-use fyrox_core::pool::NodeVariant;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
@@ -33,6 +32,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};

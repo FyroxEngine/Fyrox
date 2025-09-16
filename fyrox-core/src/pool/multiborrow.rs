@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use super::{Handle, PayloadContainer, Pool, RefCounter};
+use super::{Handle, Pool, RefCounter};
 use crate::ComponentProvider;
 use std::{
     any::TypeId,

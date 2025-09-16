@@ -24,12 +24,12 @@ use crate::resources::BITS_ICON;
 use crate::{
     brush::Brush,
     core::{
-        pool::NodeVariant,
         algebra::Vector2,
         color::Color,
         math::Rect,
         num_traits::{Euclid, NumCast, One, Zero},
         pool::Handle,
+        pool::NodeVariant,
         reflect::prelude::*,
         type_traits::prelude::*,
         uuid::uuid,

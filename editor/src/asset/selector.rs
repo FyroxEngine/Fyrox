@@ -53,9 +53,9 @@ use crate::{
         },
     },
 };
-use fyrox::{asset::Resource, core::pool::NodeVariant};
 use fyrox::core::PhantomDataSendSync;
 use fyrox::gui::brush::Brush;
+use fyrox::{asset::Resource, core::pool::NodeVariant};
 use rust_fuzzy_search::fuzzy_compare;
 use std::borrow::Cow;
 use std::path::Path;

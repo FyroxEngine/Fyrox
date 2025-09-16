@@ -21,7 +21,6 @@
 //! Decal is an image that gets projected to a geometry of a scene.
 //!
 //! For more info see [`Decal`]
-use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         color::Color,
@@ -41,6 +40,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;

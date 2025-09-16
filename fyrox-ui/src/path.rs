@@ -22,7 +22,6 @@
 //! selector. See [`PathEditor`] docs for more info and usage examples.
 
 #![warn(missing_docs)]
-use fyrox_core::pool::NodeVariant;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
@@ -36,6 +35,7 @@ use crate::{
     window::{WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
+use fyrox_core::pool::NodeVariant;
 
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;

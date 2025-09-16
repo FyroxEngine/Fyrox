@@ -21,7 +21,6 @@
 //! Contains all structures and methods to create and manage sprites.
 //!
 //! For more info see [`Sprite`].
-use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::scene::node::RdcControlFlow;
 use crate::{
@@ -53,6 +52,7 @@ use crate::{
     },
 };
 use bytemuck::{Pod, Zeroable};
+use fyrox_core::pool::NodeVariant;
 use fyrox_core::value_as_u8_slice;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;

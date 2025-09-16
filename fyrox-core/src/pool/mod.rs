@@ -248,8 +248,8 @@ impl RefCounter {
     }
 }
 
-#[derive(Debug)]
-struct PayloadContainer<T>(Option<T>);
+// #[derive(Debug)]
+// struct PayloadContainer<T>(Option<T>);
 
 #[derive(Debug)]
 struct PoolRecord<T>
@@ -411,7 +411,7 @@ impl<T> Pool<T> {
         note = "Inconsistent and ambiguous method naming. Implementation involves a confusing detour."
     )]
     #[inline]
-    pub fn typed_ref<U>(&self, handle: Handle<U>) -> Option<&U> {
+    pub fn typed_ref<U>(&self, _handle: Handle<U>) -> Option<&U> {
         panic!("It is hard to implement this method elegantly without a 'BorrowAs' detour.
         The previous implementation was ambiguous regarding the method's behavior, introduced a ton of intermediate methods of similar functionality, and hard to read.
         This function behaved differently according to whether T == U: Node or T: NodeTrait, controlled by the BorrowAs trait passed in as Handle.
@@ -422,7 +422,7 @@ impl<T> Pool<T> {
         note = "Inconsistent and ambiguous method naming. Implementation involves a confusing detour."
     )]
     #[inline]
-    pub fn typed_mut<U>(&mut self, handle: Handle<U>) -> Option<&mut U> {
+    pub fn typed_mut<U>(&mut self, _handle: Handle<U>) -> Option<&mut U> {
         panic!("It is hard to implement this method elegantly without a 'BorrowAs' detour.
         The previous implementation was ambiguous regarding the method's behavior, introduced a ton of intermediate methods of similar functionality, and hard to read.
         This function behaved differently according to whether T == U: Node or T: NodeTrait, controlled by the BorrowAs trait passed in as Handle.
@@ -1353,26 +1353,23 @@ where
 pub trait NodeVariant<NodeType>: 'static {}
 
 pub trait BorrowNodeVariant: Sized {
-    fn borrow_variant<T: NodeVariant<Self> >(&self) -> Option<&T>;
-    fn borrow_variant_mut<T: NodeVariant<Self> >(&mut self) -> Option<&mut T>;
+    fn borrow_variant<T: NodeVariant<Self>>(&self) -> Option<&T>;
+    fn borrow_variant_mut<T: NodeVariant<Self>>(&mut self) -> Option<&mut T>;
 }
 
-// impl<NodeType: BorrowNodeVariant> Pool<NodeType> {
-//     pub fn try_borrow_variant<T: NodeVariant<NodeType> >(
-//         &self,
-//         handle: Handle<T>,
-//     ) -> Option<&T> {
-//         self.try_borrow(handle.cast())
-//             .and_then(|n| n.borrow_variant())
-//     }
-//     pub fn try_borrow_variant_mut<T: NodeVariant<NodeType> >(
-//         &mut self,
-//         handle: Handle<T>,
-//     ) -> Option<&mut T> {
-//         self.try_borrow_mut(handle.cast())
-//             .and_then(|n| n.borrow_variant_mut())
-//     }
-// }
+impl<NodeType: BorrowNodeVariant> Pool<NodeType> {
+    pub fn try_borrow_variant<T: NodeVariant<NodeType>>(&self, handle: Handle<T>) -> Option<&T> {
+        self.try_borrow(handle.cast())
+            .and_then(|n| n.borrow_variant())
+    }
+    pub fn try_borrow_variant_mut<T: NodeVariant<NodeType>>(
+        &mut self,
+        handle: Handle<T>,
+    ) -> Option<&mut T> {
+        self.try_borrow_mut(handle.cast())
+            .and_then(|n| n.borrow_variant_mut())
+    }
+}
 
 // impl Pool<UiNode>{
 //     pub fn try_borrow_variant<T: Control>(&self, handle: Handle<T>) -> Option<&T> {

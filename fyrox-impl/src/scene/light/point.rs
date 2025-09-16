@@ -37,7 +37,6 @@
 //! can easily ruin performance of your game, especially on low-end hardware. Light
 //! scattering is relatively heavy too.
 
-use fyrox_core::pool::NodeVariant;
 use crate::scene::base::BaseBuilder;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
@@ -59,6 +58,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};

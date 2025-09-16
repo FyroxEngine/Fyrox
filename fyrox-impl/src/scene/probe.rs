@@ -21,7 +21,6 @@
 //! Reflection probe is an object that allows "capturing" a scene content in a cube texture, that
 //! can later be used to render reflections and be used as a source of ambient lighting for a scene.
 //! See [`ReflectionProbe`] docs for more info.
-use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::Vector3,
@@ -40,6 +39,7 @@ use crate::{
         node::{constructor::NodeConstructor, Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_core::pool::NodeVariant;
 use fyrox_texture::{TextureResource, TextureResourceExtension};
 use std::{
     cell::Cell,

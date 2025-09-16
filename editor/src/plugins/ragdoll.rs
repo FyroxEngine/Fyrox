@@ -458,7 +458,8 @@ impl RagdollPreset {
             (self.left_fore_arm, self.left_hand),
             (self.left_fore_arm, self.right_hand),
         ] {
-            if let (Some(upper_ref), Some(lower_ref)) = (graph.try_get_node(upper), graph.try_get_node(lower))
+            if let (Some(upper_ref), Some(lower_ref)) =
+                (graph.try_get_node(upper), graph.try_get_node(lower))
             {
                 base_size = (upper_ref.global_position() - lower_ref.global_position()).norm();
                 break;
