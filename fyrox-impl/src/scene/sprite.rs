@@ -21,7 +21,7 @@
 //! Contains all structures and methods to create and manage sprites.
 //!
 //! For more info see [`Sprite`].
-
+use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::scene::node::RdcControlFlow;
 use crate::{
@@ -176,6 +176,8 @@ pub struct Sprite {
     #[reflect(setter = "set_rotation")]
     rotation: InheritableVariable<f32>,
 }
+
+impl NodeVariant<Node> for Sprite {}
 
 impl Visit for Sprite {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {

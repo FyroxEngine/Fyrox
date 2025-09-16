@@ -20,7 +20,7 @@
 
 //! Navigational mesh (navmesh for short) is a surface which can be used for path finding. See [`NavigationalMesh`] docs
 //! for more info and usage examples.
-
+use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -161,6 +161,8 @@ pub struct NavigationalMesh {
     #[reflect(read_only)]
     navmesh: InheritableVariable<Container>,
 }
+
+impl NodeVariant<Node> for NavigationalMesh {}
 
 impl TypeUuidProvider for NavigationalMesh {
     fn type_uuid() -> Uuid {

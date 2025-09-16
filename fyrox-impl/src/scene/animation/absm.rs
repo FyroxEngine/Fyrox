@@ -20,7 +20,7 @@
 
 //! Animation blending state machine is a node that takes multiple animations from an animation player and
 //! mixes them in arbitrary way into one animation. See [`AnimationBlendingStateMachine`] docs for more info.
-
+use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -226,6 +226,8 @@ pub struct AnimationBlendingStateMachine {
     #[component(include)]
     animation_player: InheritableVariable<Handle<Node>>,
 }
+
+impl NodeVariant<Node> for AnimationBlendingStateMachine {}
 
 impl AnimationBlendingStateMachine {
     /// Sets new state machine to the node.

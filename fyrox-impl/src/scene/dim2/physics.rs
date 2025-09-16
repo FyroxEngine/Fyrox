@@ -52,12 +52,13 @@ use crate::{
         graph::{
             isometric_global_transform,
             physics::{FeatureId, IntegrationParameters, PhysicsPerformanceStatistics},
-            Graph, NodePool,
+            Graph,
         },
         node::{Node, NodeTrait},
         tilemap::TileMap,
     },
 };
+use fyrox_core::pool::Pool;
 pub use rapier2d::geometry::shape::*;
 use rapier2d::parry::query::DefaultQueryDispatcher;
 use rapier2d::{
@@ -359,7 +360,7 @@ fn convert_joint_params(
 fn tile_map_to_collider_shape(
     tile_map: &GeometrySource,
     owner_inv_transform: Matrix4<f32>,
-    nodes: &NodePool,
+    nodes: &Pool<Node>,
     collider_name: &ImmutableString,
 ) -> Option<SharedShape> {
     let tile_map = nodes.try_borrow(tile_map.0)?.component_ref::<TileMap>()?;
@@ -401,7 +402,7 @@ fn tile_map_to_collider_shape(
 fn collider_shape_into_native_shape(
     shape: &ColliderShape,
     owner_inv_transform: Matrix4<f32>,
-    nodes: &NodePool,
+    nodes: &Pool<Node>,
 ) -> Option<SharedShape> {
     match shape {
         ColliderShape::Ball(ball) => Some(SharedShape::ball(ball.radius)),
@@ -1089,7 +1090,7 @@ impl PhysicsWorld {
 
     pub(crate) fn sync_to_collider_node(
         &mut self,
-        nodes: &NodePool,
+        nodes: &Pool<Node>,
         handle: Handle<Node>,
         collider_node: &scene::dim2::collider::Collider,
     ) {
@@ -1216,7 +1217,7 @@ impl PhysicsWorld {
 
     pub(crate) fn sync_to_joint_node(
         &mut self,
-        nodes: &NodePool,
+        nodes: &Pool<Node>,
         handle: Handle<Node>,
         joint: &scene::dim2::joint::Joint,
     ) {

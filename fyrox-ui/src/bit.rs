@@ -24,6 +24,7 @@ use crate::resources::BITS_ICON;
 use crate::{
     brush::Brush,
     core::{
+        pool::NodeVariant,
         algebra::Vector2,
         color::Color,
         math::Rect,

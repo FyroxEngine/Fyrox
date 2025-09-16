@@ -22,7 +22,7 @@
 //! here because the node is actually a 3D node, like everything else in the engine.
 //!
 //! See [`Rectangle`] docs for more info.
-
+use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -178,6 +178,8 @@ pub struct Rectangle {
 
     material: InheritableVariable<MaterialResource>,
 }
+
+impl NodeVariant<Node> for Rectangle {}
 
 impl Visit for Rectangle {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {

@@ -40,6 +40,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 
+use fyrox_core::pool::NodeVariant;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};

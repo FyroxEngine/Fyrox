@@ -41,6 +41,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,

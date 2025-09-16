@@ -20,7 +20,7 @@
 
 //! Property editor for [`StyledProperty`]. It acts like a proxy to inner property, but also
 //! adds a special "bind" button used to change style binding of the property.
-
+use fyrox_core::pool::NodeVariant;
 use crate::inspector::FieldKind;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},

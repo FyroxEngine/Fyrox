@@ -25,22 +25,16 @@
 #![warn(missing_docs)]
 
 use crate::{
-    asset::{untyped::UntypedResource, Resource},
-    core::{
+    asset::{untyped::UntypedResource, Resource}, core::{
         algebra::{Matrix4, Vector2},
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
         pool::Handle,
         reflect::prelude::*,
         uuid::Uuid,
-        uuid_provider, variable,
-        variable::mark_inheritable_properties_non_modified,
+        uuid_provider, variable::{self, mark_inheritable_properties_non_modified},
         visitor::{Visit, VisitResult, Visitor},
         ComponentProvider, NameProvider,
-    },
-    graph::SceneGraphNode,
-    renderer::bundle::RenderContext,
-    resource::model::{Model, ModelResource},
-    scene::{
+    }, engine::SerializationContext, graph::SceneGraphNode, renderer::bundle::RenderContext, resource::model::{Model, ModelResource}, scene::{
         self,
         animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
         base::Base,
@@ -48,7 +42,7 @@ use crate::{
         debug::SceneDrawingContext,
         decal::Decal,
         dim2::{self, rectangle::Rectangle},
-        graph::{self, Graph, GraphUpdateSwitches, NodePool},
+        graph::{self, Graph, GraphUpdateSwitches},
         light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         mesh::Mesh,
         navmesh::NavigationalMesh,
@@ -59,9 +53,9 @@ use crate::{
         sprite::Sprite,
         terrain::Terrain,
         Scene,
-    },
+    }
 };
-use fyrox_core::define_as_any_trait;
+use fyrox_core::{define_as_any_trait, pool::{BorrowNodeVariant, Pool}, visitor::error::VisitError};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -95,7 +89,7 @@ where
 /// A data for synchronization. See [`NodeTrait::sync_native`] for more info.
 pub struct SyncContext<'a, 'b> {
     /// A reference to a pool with nodes from a scene graph.
-    pub nodes: &'a NodePool,
+    pub nodes: &'a Pool<Node>,
     /// A mutable reference to 3D physics world.
     pub physics: &'a mut graph::physics::PhysicsWorld,
     /// A mutable reference to 2D physics world.
@@ -113,7 +107,7 @@ pub struct UpdateContext<'a> {
     /// A time that have passed since last update call.
     pub dt: f32,
     /// A reference to a pool with nodes from a scene graph.
-    pub nodes: &'a mut NodePool,
+    pub nodes: &'a mut Pool<Node>,
     /// A mutable reference to 3D physics world.
     pub physics: &'a mut graph::physics::PhysicsWorld,
     /// A mutable reference to 2D physics world.
@@ -317,6 +311,17 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
 /// consumption, only disk space usage is reduced.
 #[derive(Debug)]
 pub struct Node(pub(crate) Box<dyn NodeTrait>);
+
+impl BorrowNodeVariant for Node {
+    fn borrow_variant<T: fyrox_core::pool::NodeVariant<Self>>(&self) -> Option<&T> {
+        NodeAsAny::as_any(self.0.deref()).downcast_ref()
+    }
+    fn borrow_variant_mut<T: fyrox_core::pool::NodeVariant<Self>>(
+        &mut self,
+    ) -> Option<&mut T> {
+        NodeAsAny::as_any_mut(self.0.deref_mut()).downcast_mut()
+    }
+}
 
 impl<T: NodeTrait> From<T> for Node {
     fn from(value: T) -> Self {
@@ -528,9 +533,50 @@ impl Node {
     define_is_as!(Ragdoll => fn is_ragdoll, fn as_ragdoll, fn as_ragdoll_mut);
 }
 
+fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
+    let mut region = visitor.enter_region(name)?;
+
+    let mut id = Uuid::default();
+    id.visit("TypeUuid", &mut region)?;
+
+    let serialization_context = region
+        .blackboard
+        .get::<SerializationContext>()
+        .expect("Visitor environment must contain serialization context!");
+
+    let mut node = serialization_context
+        .node_constructors
+        .try_create(&id)
+        .ok_or_else(|| VisitError::User(format!("Unknown node type uuid {id}!")))?;
+
+    node.visit("NodeData", &mut region)?;
+
+    Ok(node)
+}
+
+fn write_node(name: &str, node: &mut Node, visitor: &mut Visitor) -> VisitResult {
+    let mut region = visitor.enter_region(name)?;
+
+    let mut id = node.id();
+    id.visit("TypeUuid", &mut region)?;
+
+    node.visit("NodeData", &mut region)?;
+
+    Ok(())
+}
+
 impl Visit for Node {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
+        // previous implementation:
+        // self.0.visit(name, visitor)
+        // current implementation may cause some backward compatibility issue
+        let mut region = visitor.enter_region(name)?;
+        if region.is_reading() {
+            *self = read_node("Data", &mut region)?;
+        } else {
+            write_node("Data", self, &mut region)?;
+        }
+        Ok(())
     }
 }
 

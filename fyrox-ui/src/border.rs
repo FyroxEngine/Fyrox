@@ -25,6 +25,7 @@
 
 use crate::{
     core::{
+        pool::NodeVariant,
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         variable::InheritableVariable, visitor::prelude::*,
     },

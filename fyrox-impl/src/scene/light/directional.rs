@@ -26,6 +26,8 @@
 //! Directional light sources uses cascaded shadow maps for shadows. Each cascade has different position
 //! on the viewing frustum and overall split options can be changed by using [`FrustumSplitOptions`].
 
+
+use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -135,6 +137,8 @@ pub struct DirectionalLight {
     /// See [`CsmOptions`].
     pub csm_options: InheritableVariable<CsmOptions>,
 }
+
+impl NodeVariant<Node> for DirectionalLight {}
 
 impl From<BaseLight> for DirectionalLight {
     fn from(base_light: BaseLight) -> Self {

@@ -21,6 +21,8 @@
 //! A simple widget that opens a popup when clicked. It could be used to create dropdown menus that
 //! consolidates content of a group.
 
+use fyrox_core::pool::NodeVariant;
+
 use crate::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     message::{MessageDirection, MouseButton, UiMessage},

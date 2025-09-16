@@ -91,6 +91,8 @@ use std::{
     path::PathBuf,
 };
 
+use fyrox_core::pool::NodeVariant;
+
 /// Current implementation version marker.
 pub const VERSION: u8 = 1;
 
@@ -974,6 +976,8 @@ pub struct TileMap {
     #[reflect(hidden)]
     pub after_effects: Vec<TileMapEffectRef>,
 }
+
+impl NodeVariant<Node> for TileMap {}
 
 impl Visit for TileMap {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {

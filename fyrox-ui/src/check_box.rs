@@ -40,6 +40,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, MouseButton, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 

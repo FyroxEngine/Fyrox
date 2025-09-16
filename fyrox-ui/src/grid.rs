@@ -22,7 +22,7 @@
 //! [`Grid`] doc for more info and usage examples.
 
 #![warn(missing_docs)]
-
+use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::Vector2, log::Log, math::Rect, pool::Handle, reflect::prelude::*,

@@ -22,7 +22,7 @@
 //! of a rect, two for its size. See [`RectEditor`] docs for more info and usage examples.
 
 #![warn(missing_docs)]
-
+use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,

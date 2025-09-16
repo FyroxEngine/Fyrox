@@ -23,6 +23,7 @@
 //!
 //! See [`Listener`] docs for more info.
 
+use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -62,6 +63,8 @@ use std::ops::{Deref, DerefMut};
 pub struct Listener {
     base: Base,
 }
+
+impl NodeVariant<Node> for Listener {}
 
 impl Deref for Listener {
     type Target = Base;

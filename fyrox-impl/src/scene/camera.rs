@@ -46,6 +46,7 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_core::pool::NodeVariant;
 use fyrox_graph::constructor::ConstructorProvider;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -387,6 +388,8 @@ pub struct Camera {
     #[reflect(hidden)]
     projection_matrix: Matrix4<f32>,
 }
+
+impl NodeVariant<Node> for Camera {}
 
 impl Deref for Camera {
     type Target = Base;

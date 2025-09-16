@@ -20,103 +20,78 @@
 
 //! A wrapper for node pool record that allows to define custom visit method to have full
 //! control over instantiation process at deserialization.
+//!
 
-use crate::{
-    core::{
-        pool::PayloadContainer,
-        reflect::prelude::*,
-        uuid::Uuid,
-        visitor::{Visit, VisitResult, Visitor},
-    },
-    engine::SerializationContext,
-    scene::node::Node,
-};
-use fyrox_core::visitor::error::VisitError;
+// Since Pool<Node> uses NodeContainer exclusively,
+// we just pass the Visit implementation to the Node.
+// See impl Visit for Node in fyrpx-impl/src/scene/graph/mod.rs.
+// (not fyrox-graph/src/lib.rs, which is just for testing)
 
-/// A wrapper for node pool record that allows to define custom visit method to have full
-/// control over instantiation process at deserialization.
-#[derive(Debug, Clone, Default, Reflect)]
-pub struct NodeContainer(Option<Node>);
+// use crate::{
+//     core::{
+//         reflect::prelude::*,
+//         uuid::Uuid,
+//         visitor::{Visit, VisitResult, Visitor},
+//     },
+//     engine::SerializationContext,
+//     scene::node::Node,
+// };
+// use fyrox_core::visitor::error::VisitError;
 
-fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
-    let mut region = visitor.enter_region(name)?;
+// /// A wrapper for node pool record that allows to define custom visit method to have full
+// /// control over instantiation process at deserialization.
+// #[derive(Debug, Clone, Default, Reflect)]
+// pub struct NodeContainer(Option<Node>);
 
-    let mut id = Uuid::default();
-    id.visit("TypeUuid", &mut region)?;
 
-    let serialization_context = region
-        .blackboard
-        .get::<SerializationContext>()
-        .expect("Visitor environment must contain serialization context!");
 
-    let mut node = serialization_context
-        .node_constructors
-        .try_create(&id)
-        .ok_or_else(|| VisitError::User(format!("Unknown node type uuid {id}!")))?;
+// impl Visit for NodeContainer {
+//     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+//         let mut region = visitor.enter_region(name)?;
 
-    node.visit("NodeData", &mut region)?;
+//         let mut is_some = u8::from(self.is_some());
+//         is_some.visit("IsSome", &mut region)?;
 
-    Ok(node)
-}
+//         if is_some != 0 {
+//             if region.is_reading() {
+//                 *self = NodeContainer(Some(read_node("Data", &mut region)?));
+//             } else {
+//                 write_node("Data", self.0.as_mut().unwrap(), &mut region)?;
+//             }
+//         }
 
-fn write_node(name: &str, node: &mut Node, visitor: &mut Visitor) -> VisitResult {
-    let mut region = visitor.enter_region(name)?;
+//         Ok(())
+//     }
+// }
 
-    let mut id = node.id();
-    id.visit("TypeUuid", &mut region)?;
+// impl PayloadContainer for NodeContainer {
+//     type Element = Node;
 
-    node.visit("NodeData", &mut region)?;
+//     fn new_empty() -> Self {
+//         Self(None)
+//     }
 
-    Ok(())
-}
+//     fn new(element: Self::Element) -> Self {
+//         Self(Some(element))
+//     }
 
-impl Visit for NodeContainer {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
+//     fn is_some(&self) -> bool {
+//         self.0.is_some()
+//     }
 
-        let mut is_some = u8::from(self.is_some());
-        is_some.visit("IsSome", &mut region)?;
+//     fn as_ref(&self) -> Option<&Self::Element> {
+//         self.0.as_ref()
+//     }
 
-        if is_some != 0 {
-            if region.is_reading() {
-                *self = NodeContainer(Some(read_node("Data", &mut region)?));
-            } else {
-                write_node("Data", self.0.as_mut().unwrap(), &mut region)?;
-            }
-        }
+//     fn as_mut(&mut self) -> Option<&mut Self::Element> {
+//         self.0.as_mut()
+//     }
 
-        Ok(())
-    }
-}
+//     fn replace(&mut self, element: Self::Element) -> Option<Self::Element> {
+//         self.0.replace(element)
+//     }
 
-impl PayloadContainer for NodeContainer {
-    type Element = Node;
-
-    fn new_empty() -> Self {
-        Self(None)
-    }
-
-    fn new(element: Self::Element) -> Self {
-        Self(Some(element))
-    }
-
-    fn is_some(&self) -> bool {
-        self.0.is_some()
-    }
-
-    fn as_ref(&self) -> Option<&Self::Element> {
-        self.0.as_ref()
-    }
-
-    fn as_mut(&mut self) -> Option<&mut Self::Element> {
-        self.0.as_mut()
-    }
-
-    fn replace(&mut self, element: Self::Element) -> Option<Self::Element> {
-        self.0.replace(element)
-    }
-
-    fn take(&mut self) -> Option<Self::Element> {
-        self.0.take()
-    }
-}
+//     fn take(&mut self) -> Option<Self::Element> {
+//         self.0.take()
+//     }
+// }

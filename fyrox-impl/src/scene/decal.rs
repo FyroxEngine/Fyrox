@@ -21,7 +21,7 @@
 //! Decal is an image that gets projected to a geometry of a scene.
 //!
 //! For more info see [`Decal`]
-
+use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         color::Color,
@@ -125,6 +125,8 @@ pub struct Decal {
     #[reflect(setter = "set_layer")]
     layer: InheritableVariable<u8>,
 }
+
+impl NodeVariant<Node> for Decal {}
 
 impl Deref for Decal {
     type Target = Base;

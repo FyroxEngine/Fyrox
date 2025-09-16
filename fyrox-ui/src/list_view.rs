@@ -22,7 +22,7 @@
 //! vertically.
 
 #![warn(missing_docs)]
-
+use fyrox_core::pool::NodeVariant;
 use crate::{
     border::BorderBuilder,
     brush::Brush,

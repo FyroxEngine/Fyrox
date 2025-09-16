@@ -28,6 +28,8 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
+
+use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -236,6 +238,8 @@ pub struct RigidBody {
     #[reflect(hidden)]
     pub(crate) actions: Mutex<VecDeque<ApplyAction>>,
 }
+
+impl NodeVariant<Node> for RigidBody {}
 
 impl Debug for RigidBody {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

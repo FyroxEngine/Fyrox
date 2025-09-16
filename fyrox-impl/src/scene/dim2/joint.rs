@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 //! Joint is used to restrict motion of two rigid bodies.
-
+use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -198,6 +198,8 @@ pub struct Joint {
     #[reflect(hidden)]
     pub(crate) native: Cell<ImpulseJointHandle>,
 }
+
+impl NodeVariant<Node> for Joint {}
 
 impl Default for Joint {
     fn default() -> Self {

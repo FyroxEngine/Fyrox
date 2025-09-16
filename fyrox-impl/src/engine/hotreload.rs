@@ -23,7 +23,7 @@ use crate::{
     asset::manager::ResourceManager,
     core::{
         log::Log,
-        pool::{Handle, PayloadContainer, Ticket},
+        pool::{Handle, Ticket},
         visitor::{Visit, Visitor, VisitorFlags},
     },
     engine::SerializationContext,
@@ -32,7 +32,7 @@ use crate::{
     resource::model::ModelResource,
     scene::{
         base::{visit_opt_script, NodeScriptMessage},
-        node::{container::NodeContainer, Node},
+        node::{Node},
         Scene,
     },
     script::Script,

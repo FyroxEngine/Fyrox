@@ -20,6 +20,7 @@
 
 //! Everything related to sound in the engine.
 
+use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::Matrix4,
@@ -129,6 +130,8 @@ pub struct Sound {
     #[visit(skip)]
     pub(crate) native: Cell<Handle<SoundSource>>,
 }
+
+impl NodeVariant<Node> for Sound {}
 
 impl Deref for Sound {
     type Target = Base;

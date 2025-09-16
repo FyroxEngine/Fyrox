@@ -20,6 +20,7 @@
 
 //! Everything related to terrains. See [`Terrain`] docs for more info.
 
+use fyrox_core::pool::NodeVariant;
 use crate::{
     asset::{Resource, ResourceDataRef},
     core::{
@@ -1126,6 +1127,8 @@ pub struct Terrain {
     #[reflect(hidden)]
     geometry: TerrainGeometry,
 }
+
+impl NodeVariant<Node> for Terrain {}
 
 impl Default for Terrain {
     fn default() -> Self {

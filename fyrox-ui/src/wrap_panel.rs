@@ -23,7 +23,7 @@
 
 #![warn(missing_docs)]
 #![allow(clippy::reversed_empty_ranges)]
-
+use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,

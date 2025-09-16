@@ -24,7 +24,7 @@
 //!
 //! Docking manager can hold any types of UI elements, but dragging works only
 //! for windows.
-
+use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,

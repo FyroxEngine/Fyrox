@@ -23,7 +23,7 @@
 //! [`MessageBox`] docs for more info and usage examples.
 
 #![warn(missing_docs)]
-
+use fyrox_core::pool::NodeVariant;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{

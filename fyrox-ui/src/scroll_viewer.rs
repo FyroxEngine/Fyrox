@@ -23,7 +23,7 @@
 //! info and usage examples.
 
 #![warn(missing_docs)]
-
+use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,

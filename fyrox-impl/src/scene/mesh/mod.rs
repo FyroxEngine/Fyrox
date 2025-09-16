@@ -21,6 +21,7 @@
 //! Contains all structures and methods to create and manage mesh scene graph nodes. See [`Mesh`] docs for more info
 //! and usage examples.
 
+use fyrox_core::pool::NodeVariant;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3, Vector4},
@@ -356,6 +357,8 @@ pub struct Mesh {
     #[visit(skip)]
     batch_container: BatchContainerWrapper,
 }
+
+impl NodeVariant<Node> for Mesh {}
 
 impl Default for Mesh {
     fn default() -> Self {

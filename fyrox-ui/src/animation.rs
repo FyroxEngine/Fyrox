@@ -24,6 +24,7 @@
 use crate::MessageDirection;
 use crate::{
     core::{
+        pool::NodeVariant,
         log::{Log, MessageKind},
         pool::Handle,
         reflect::prelude::*,

@@ -42,6 +42,7 @@
 //! Light scattering feature may significantly impact performance on low-end
 //! hardware!
 
+use fyrox_core::pool::NodeVariant;
 use crate::scene::base::BaseBuilder;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
@@ -95,6 +96,8 @@ pub struct SpotLight {
     #[reflect(setter = "set_cookie_texture")]
     cookie_texture: InheritableVariable<Option<TextureResource>>,
 }
+
+impl NodeVariant<Node> for SpotLight {}
 
 impl Deref for SpotLight {
     type Target = Base;

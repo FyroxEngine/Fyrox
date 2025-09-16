@@ -66,7 +66,7 @@ use crate::{
         },
         mesh::Mesh,
         navmesh,
-        node::{container::NodeContainer, Node, NodeTrait, SyncContext, UpdateContext},
+        node::{Node, SyncContext, UpdateContext},
         pivot::Pivot,
         sound::context::SoundContext,
         transform::TransformBuilder,
@@ -76,7 +76,8 @@ use crate::{
 };
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::pool::BorrowAs;
+use fyrox_core::pool::{BorrowNodeVariant, NodeVariant};
+// use fyrox_core::pool::BorrowAs;
 use fyrox_graph::SceneGraphNode;
 use std::ops::{Deref, DerefMut};
 use std::{
@@ -124,17 +125,17 @@ impl GraphPerformanceStatistics {
 }
 
 /// A helper type alias for node pool.
-// pub type NodePool = Pool<Node, NodeContainer>;
+// pub type Pool<Node> = Pool<Node, NodeContainer>;
 
 // impl<T: NodeTrait> BorrowAs<Node, NodeContainer> for Handle<T> {
 //     type Target = T;
 
-//     fn borrow_as_ref(self, pool: &NodePool) -> Option<&T> {
+//     fn borrow_as_ref(self, pool: &Pool<Node>) -> Option<&T> {
 //         pool.try_borrow(self.transmute())
 //             .and_then(|n| NodeAsAny::as_any(n.0.deref()).downcast_ref::<T>())
 //     }
 
-//     fn borrow_as_mut(self, pool: &mut NodePool) -> Option<&mut T> {
+//     fn borrow_as_mut(self, pool: &mut Pool<Node>) -> Option<&mut T> {
 //         pool.try_borrow_mut(self.transmute())
 //             .and_then(|n| NodeAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
 //     }
@@ -146,7 +147,7 @@ pub struct Graph {
     #[reflect(hidden)]
     root: Handle<Node>,
 
-    pool: NodePool,
+    pool: Pool<Node>,
 
     #[reflect(hidden)]
     stack: Vec<Handle<Node>>,
@@ -251,7 +252,7 @@ fn remap_handles(old_new_mapping: &NodeHandleMap<Node>, dest_graph: &mut Graph) 
 }
 
 /// Calculates local transform of a scene node without scaling.
-pub fn isometric_local_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f32> {
+pub fn isometric_local_transform(nodes: &Pool<Node>, node: Handle<Node>) -> Matrix4<f32> {
     let transform = nodes[node].local_transform();
     TransformBuilder::new()
         .with_local_position(**transform.position())
@@ -263,7 +264,7 @@ pub fn isometric_local_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix
 }
 
 /// Calculates global transform of a scene node without scaling.
-pub fn isometric_global_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f32> {
+pub fn isometric_global_transform(nodes: &Pool<Node>, node: Handle<Node>) -> Matrix4<f32> {
     let parent = nodes[node].parent();
     if parent.is_some() {
         isometric_global_transform(nodes, parent) * isometric_local_transform(nodes, node)
@@ -535,7 +536,7 @@ impl Graph {
     /// assert!(ctx.try_get_mut(handle1).is_err());
     /// ```
     #[inline]
-    pub fn begin_multi_borrow(&mut self) -> MultiBorrowContext<Node, NodeContainer> {
+    pub fn begin_multi_borrow(&mut self) -> MultiBorrowContext<Node> {
         self.pool.begin_multi_borrow()
     }
 
@@ -908,7 +909,7 @@ impl Graph {
         aabb_of_descendants_recursive(self, root, &mut filter)
     }
 
-    pub(crate) fn update_enabled_flag_recursively(nodes: &NodePool, node_handle: Handle<Node>) {
+    pub(crate) fn update_enabled_flag_recursively(nodes: &Pool<Node>, node_handle: Handle<Node>) {
         let Some(node) = nodes.try_borrow(node_handle) else {
             return;
         };
@@ -923,7 +924,7 @@ impl Graph {
         }
     }
 
-    pub(crate) fn update_visibility_recursively(nodes: &NodePool, node_handle: Handle<Node>) {
+    pub(crate) fn update_visibility_recursively(nodes: &Pool<Node>, node_handle: Handle<Node>) {
         let Some(node) = nodes.try_borrow(node_handle) else {
             return;
         };
@@ -940,7 +941,7 @@ impl Graph {
     }
 
     pub(crate) fn update_global_transform_recursively(
-        nodes: &NodePool,
+        nodes: &Pool<Node>,
         sound_context: &mut SoundContext,
         physics: &mut PhysicsWorld,
         physics2d: &mut dim2::physics::PhysicsWorld,
@@ -1014,7 +1015,7 @@ impl Graph {
     }
 
     pub(crate) fn update_hierarchical_data_recursively(
-        nodes: &NodePool,
+        nodes: &Pool<Node>,
         sound_context: &mut SoundContext,
         physics: &mut PhysicsWorld,
         physics2d: &mut dim2::physics::PhysicsWorld,
@@ -1634,21 +1635,37 @@ impl Graph {
     }
 }
 
-impl<T, B: BorrowAs<Node, NodeContainer, Target = T>> Index<B> for Graph {
-    type Output = T;
+// impl<T, B: BorrowAs<Node, NodeContainer, Target = T>> Index<B> for Graph {
+//     type Output = T;
+
+//     #[inline]
+//     fn index(&self, typed_handle: B) -> &Self::Output {
+//         self.try_get(typed_handle)
+//             .expect("The node handle is invalid or the object it points to has different type.")
+//     }
+// }
+
+// impl<T, B: BorrowAs<Node, NodeContainer, Target = T>> IndexMut<B> for Graph {
+//     #[inline]
+//     fn index_mut(&mut self, typed_handle: B) -> &mut Self::Output {
+//         self.try_get_mut(typed_handle)
+//             .expect("The node handle is invalid or the object it points to has different type.")
+//     }
+// }
+
+impl Index<Handle<Node>> for Graph {
+    type Output = Node;
 
     #[inline]
-    fn index(&self, typed_handle: B) -> &Self::Output {
-        self.try_get(typed_handle)
-            .expect("The node handle is invalid or the object it points to has different type.")
+    fn index(&self, index: Handle<Node>) -> &Self::Output {
+        &self.pool[index]
     }
 }
 
-impl<T, B: BorrowAs<Node, NodeContainer, Target = T>> IndexMut<B> for Graph {
+impl IndexMut<Handle<Node>> for Graph {
     #[inline]
-    fn index_mut(&mut self, typed_handle: B) -> &mut Self::Output {
-        self.try_get_mut(typed_handle)
-            .expect("The node handle is invalid or the object it points to has different type.")
+    fn index_mut(&mut self, index: Handle<Node>) -> &mut Self::Output {
+        &mut self.pool[index]
     }
 }
 
@@ -1856,19 +1873,16 @@ impl SceneGraph for Graph {
         self.pool.iter_mut()
     }
 
-    fn try_get<T>(
-        &self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = T>,
-    ) -> Option<&T> {
+    fn try_get<T: NodeVariant<Node>>(&self, handle: Handle<T>) -> Option<&T> {
+        // self.nodes.try_borrow_variant(handle)
         self.try_get_node(handle.cast())
             .and_then(|node| node.borrow_variant())
     }
 
-    fn try_get_mut<T>(
-        &mut self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = T>,
-    ) -> Option<&mut T> {
-        self.pool.typed_mut(handle)
+    fn try_get_mut<T: NodeVariant<Node>>(&mut self, handle: Handle<T>) -> Option<&mut T> {
+        // self.nodes.try_borrow_variant_mut(handle)
+        self.try_get_node_mut(handle.cast())
+            .and_then(|node| node.borrow_variant_mut())
     }
 }
 

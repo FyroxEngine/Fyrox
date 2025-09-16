@@ -21,6 +21,7 @@
 //! Animation player is a node that contains multiple animations. It updates and plays all the animations.
 //! See [`AnimationPlayer`] docs for more info.
 
+use fyrox_core::pool::{NodeVariant, Pool};
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -36,7 +37,7 @@ use crate::{
     generic_animation::value::{BoundValueCollection, TrackValue, ValueBinding},
     scene::{
         base::{Base, BaseBuilder},
-        graph::{Graph, NodePool},
+        graph::{Graph},
         node::{Node, NodeTrait, UpdateContext},
     },
 };
@@ -77,11 +78,11 @@ pub mod prelude {
 pub trait AnimationContainerExt {
     /// Updates all animations in the container and applies their poses to respective nodes. This method is intended to
     /// be used only by the internals of the engine!
-    fn update_animations(&mut self, nodes: &mut NodePool, dt: f32);
+    fn update_animations(&mut self, nodes: &mut Pool<Node>, dt: f32);
 }
 
 impl AnimationContainerExt for AnimationContainer {
-    fn update_animations(&mut self, nodes: &mut NodePool, dt: f32) {
+    fn update_animations(&mut self, nodes: &mut Pool<Node>, dt: f32) {
         for animation in self.iter_mut().filter(|anim| anim.is_enabled()) {
             animation.tick(dt);
             animation.pose().apply_internal(nodes);
@@ -92,7 +93,7 @@ impl AnimationContainerExt for AnimationContainer {
 /// Extension trait for [`AnimationPose`].
 pub trait AnimationPoseExt {
     /// Tries to set each value to the each property from the animation pose to respective scene nodes.
-    fn apply_internal(&self, nodes: &mut NodePool);
+    fn apply_internal(&self, nodes: &mut Pool<Node>);
 
     /// Tries to set each value to the each property from the animation pose to respective scene nodes.
     fn apply(&self, graph: &mut Graph);
@@ -105,7 +106,7 @@ pub trait AnimationPoseExt {
 }
 
 impl AnimationPoseExt for AnimationPose {
-    fn apply_internal(&self, nodes: &mut NodePool) {
+    fn apply_internal(&self, nodes: &mut Pool<Node>) {
         for (node, local_pose) in self.poses() {
             if node.is_none() {
                 Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
@@ -252,6 +253,8 @@ pub struct AnimationPlayer {
     #[component(include)]
     auto_apply: bool,
 }
+
+impl NodeVariant<Node> for AnimationPlayer {}
 
 impl Default for AnimationPlayer {
     fn default() -> Self {

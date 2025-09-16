@@ -20,7 +20,7 @@
 
 //! Collider is a geometric entity that can be attached to a rigid body to allow participate it
 //! participate in contact generation, collision response and proximity queries.
-
+use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -647,6 +647,8 @@ pub struct Collider {
     #[reflect(hidden)]
     pub(crate) native: Cell<ColliderHandle>,
 }
+
+impl NodeVariant<Node> for Collider {}
 
 impl Default for Collider {
     fn default() -> Self {

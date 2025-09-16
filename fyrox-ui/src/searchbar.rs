@@ -23,7 +23,7 @@
 //! for more info and usage examples.
 
 #![warn(missing_docs)]
-
+use fyrox_core::pool::NodeVariant;
 use crate::style::resource::StyleResourceExt;
 use crate::style::Style;
 use crate::widget::WidgetMessage;

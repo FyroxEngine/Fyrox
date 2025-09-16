@@ -21,7 +21,7 @@
 //! A widget that handles numbers of any machine type. See [`NumericUpDown`] docs for more info and usage examples.
 
 #![warn(missing_docs)]
-
+use fyrox_core::pool::NodeVariant;
 use crate::style::resource::StyleResourceExt;
 use crate::style::Style;
 use crate::{

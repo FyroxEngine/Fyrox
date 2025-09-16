@@ -20,7 +20,7 @@
 
 //! The Window widget provides a standard window that can contain another widget. See [`Window`] docs
 //! for more info and usage examples.
-
+use fyrox_core::pool::NodeVariant;
 use crate::style::StyledProperty;
 use crate::{
     border::BorderBuilder,

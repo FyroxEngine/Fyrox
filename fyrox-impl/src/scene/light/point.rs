@@ -37,6 +37,7 @@
 //! can easily ruin performance of your game, especially on low-end hardware. Light
 //! scattering is relatively heavy too.
 
+use fyrox_core::pool::NodeVariant;
 use crate::scene::base::BaseBuilder;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
@@ -77,6 +78,8 @@ pub struct PointLight {
     #[reflect(setter = "set_radius")]
     radius: InheritableVariable<f32>,
 }
+
+impl NodeVariant<Node> for PointLight {}
 
 impl Deref for PointLight {
     type Target = Base;

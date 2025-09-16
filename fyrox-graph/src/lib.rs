@@ -865,7 +865,10 @@ pub trait SceneGraph: BaseSceneGraph {
 
     /// Tries to borrow a node and fetch its component of specified type.
     #[inline]
-    fn try_get_of_type<T: NodeVariant<Self::NodeType>>(&self, handle: Handle<Self::Node>) -> Option<&T>
+    fn try_get_of_type<T: NodeVariant<Self::NodeType>>(
+        &self,
+        handle: Handle<Self::Node>,
+    ) -> Option<&T>
     where
         T: 'static,
     {
@@ -891,14 +894,14 @@ pub trait SceneGraph: BaseSceneGraph {
     }
 
     #[inline]
-    fn try_get_component<T: 'static>(&self, handle: Handle<Self::Node>) -> Option<&T>{
+    fn try_get_component<T: 'static>(&self, handle: Handle<Self::Node>) -> Option<&T> {
         self.try_get_node(handle)
             .and_then(|n| n.query_component_ref(TypeId::of::<T>()))
             .and_then(|c| c.downcast_ref())
     }
 
     #[inline]
-    fn try_get_component_mut<T: 'static>(&mut self, handle: Handle<Self::Node>) -> Option<&mut T>{
+    fn try_get_component_mut<T: 'static>(&mut self, handle: Handle<Self::Node>) -> Option<&mut T> {
         self.try_get_node_mut(handle)
             .and_then(|n| n.query_component_mut(TypeId::of::<T>()))
             .and_then(|c| c.downcast_mut())
@@ -1555,16 +1558,54 @@ mod test {
         fn borrow_variant<T: fyrox_core::pool::NodeVariant<Self>>(&self) -> Option<&T> {
             NodeAsAny::as_any(self.0.deref()).downcast_ref()
         }
-        fn borrow_variant_mut<T: fyrox_core::pool::NodeVariant<Self>>(
-            &mut self,
-        ) -> Option<&mut T> {
+        fn borrow_variant_mut<T: fyrox_core::pool::NodeVariant<Self>>(&mut self) -> Option<&mut T> {
             NodeAsAny::as_any_mut(self.0.deref_mut()).downcast_mut()
         }
     }
 
+    // Implementing the true Visit trait for Node involves importing SerializationContext from fyrox-impl, which is not
+    // accessible from this crate. So we use a dummy implementation instead.
+
+    // fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
+    //     let mut region = visitor.enter_region(name)?;
+
+    //     let mut id = Uuid::default();
+    //     id.visit("TypeUuid", &mut region)?;
+
+    //     let serialization_context = region
+    //         .blackboard
+    //         .get::<SerializationContext>()
+    //         .expect("Visitor environment must contain serialization context!");
+
+    //     let mut node = serialization_context
+    //         .node_constructors
+    //         .try_create(&id)
+    //         .ok_or_else(|| VisitError::User(format!("Unknown node type uuid {id}!")))?;
+
+    //     node.visit("NodeData", &mut region)?;
+
+    //     Ok(node)
+    // }
+
+    // fn write_node(name: &str, node: &mut Node, visitor: &mut Visitor) -> VisitResult {
+    //     let mut region = visitor.enter_region(name)?;
+
+    //     let mut id = node.id();
+    //     id.visit("TypeUuid", &mut region)?;
+
+    //     node.visit("NodeData", &mut region)?;
+
+    //     Ok(())
+    // }
+
     impl Visit for Node {
-        fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-            self.0.visit(name, visitor)
+        fn visit(&mut self, _name: &str, _visitor: &mut Visitor) -> VisitResult {
+            // previous implementation:
+            // self.0.visit(name, visitor)
+            // Implementing the true Visit trait for Node involves importing SerializationContext from fyrox-impl, which is not
+            // accessible from this crate. So we use a dummy implementation instead.
+            // dummy implementation:
+            Ok(())
         }
     }
 
@@ -2013,7 +2054,9 @@ mod test {
     pub struct Pivot {
         base: Base,
     }
+
     impl NodeVariant<Node> for Pivot {}
+
     impl NodeTrait for Pivot {}
 
     impl Deref for Pivot {
@@ -2035,7 +2078,9 @@ mod test {
     pub struct RigidBody {
         base: Base,
     }
+
     impl NodeVariant<Node> for RigidBody {}
+
     impl NodeTrait for RigidBody {}
 
     impl Deref for RigidBody {
@@ -2059,7 +2104,9 @@ mod test {
         connected_body1: Handle<RigidBody>,
         connected_body2: Handle<RigidBody>,
     }
+
     impl NodeVariant<Node> for Joint {}
+
     impl NodeTrait for Joint {}
 
     impl Deref for Joint {

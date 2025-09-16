@@ -81,7 +81,7 @@ use crate::{
     },
     scene::{
         base::NodeScriptMessage,
-        graph::{GraphUpdateSwitches, NodePool},
+        graph::{GraphUpdateSwitches},
         mesh::surface::{self, SurfaceData, SurfaceDataLoader},
         navmesh,
         node::{
@@ -105,6 +105,7 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
+use fyrox_core::pool::Pool;
 use fyrox_core::visitor::error::VisitError;
 use fyrox_core::warn;
 use fyrox_graphics::server::SharedGraphicsServer;
@@ -1756,7 +1757,7 @@ impl Engine {
                             (&mut scene as &mut dyn Reflect).apply_recursively_mut(
                                 &mut |object| {
                                     let type_id = (*object).type_id();
-                                    if type_id != TypeId::of::<NodePool>() {
+                                    if type_id != TypeId::of::<Pool<Node>>() {
                                         object.as_inheritable_variable_mut(&mut |variable| {
                                             if let Some(variable) = variable {
                                                 variable.reset_modified_flag();
@@ -1780,7 +1781,7 @@ impl Engine {
                                     &mut scene,
                                     source_scene_ref,
                                     &[
-                                        TypeId::of::<NodePool>(),
+                                        TypeId::of::<Pool<Node>>(),
                                         TypeId::of::<UntypedResource>(),
                                         TypeId::of::<navmesh::Container>(),
                                     ],

@@ -19,6 +19,8 @@
 // SOFTWARE.
 
 //! A simplest possible node which represents point in space.
+
+use fyrox_core::pool::NodeVariant;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -45,6 +47,8 @@ use std::ops::{Deref, DerefMut};
 pub struct Pivot {
     base: Base,
 }
+
+impl NodeVariant<Node> for Pivot {}
 
 impl Visit for Pivot {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {

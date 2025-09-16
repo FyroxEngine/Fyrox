@@ -330,8 +330,6 @@ pub struct Popup {
 
 impl NodeVariant<UiNode> for Popup {}
 
-impl NodeVariant<UiNode> for Popup {}
-
 impl ConstructorProvider<UiNode, UserInterface> for Popup {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
