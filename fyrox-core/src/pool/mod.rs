@@ -43,6 +43,7 @@
 use crate::pool::payload::Payload;
 use crate::{reflect::prelude::*, visitor::prelude::*, ComponentProvider};
 use std::cell::UnsafeCell;
+use std::fmt::{Display, Formatter};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -74,6 +75,144 @@ where
     free_stack: Vec<u32>,
 }
 
+/// This struct is an untyped version of Handle that preserves its type id.
+/// It is for passing error information when a bad object retrieval occurs.
+#[derive(PartialEq)]
+pub struct HandleInfo {
+    pub index: u32,
+    pub generation: u32,
+    pub type_id: TypeId,
+}
+
+impl<T: 'static> From<Handle<T>> for HandleInfo {
+    fn from(handle: Handle<T>) -> Self {
+        Self {
+            index: handle.index,
+            generation: handle.generation,
+            type_id: TypeId::of::<T>(),
+        }
+    }
+}
+
+impl Display for HandleInfo {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Handle: {{ index: {}, generation: {}, type_id: {:?} }}",
+            self.index, self.generation, self.type_id
+        )
+    }
+}
+
+impl Debug for HandleInfo {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MismatchedTypeError {
+    pub expected_type: TypeId,
+    pub actual_type: TypeId,
+}
+
+impl Display for MismatchedTypeError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "The type of the object at the given handle does not match the requested type. \
+            Actual type is {:?}.",
+            self.actual_type
+        )
+    }
+}
+
+#[derive(PartialEq)]
+pub struct QueryComponentError {
+    pub target_component_type: TypeId,
+    pub node_variant_type: TypeId,
+    pub component_types: Vec<TypeId>,
+}
+
+impl Display for QueryComponentError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Failed to find the component in the object.")?;
+        write!(f, "Target component type: {:?}", self.target_component_type)?;
+        write!(f, "Found node variant type: {:?}", self.node_variant_type)?;
+        write!(f, "Found component types: [")?;
+        for t in &self.component_types {
+            write!(f, "{:?}, ", t)?;
+        }
+        write!(f, "]")
+    }
+}
+
+#[derive(PartialEq)]
+pub enum BorrowErrorKind {
+    Empty,
+    InvalidHandleIndex,
+    InvalidHandleGeneration,
+    MismatchedType(MismatchedTypeError),
+    NoSuchComponent(QueryComponentError),
+}
+
+#[derive(PartialEq)]
+pub struct BorrowError {
+    pub kind: BorrowErrorKind,
+    pub handle_info: HandleInfo,
+}
+
+impl BorrowError {
+    pub fn new(kind: BorrowErrorKind, handle_info: HandleInfo) -> Self {
+        Self { kind, handle_info }
+    }
+}
+
+impl Debug for BorrowErrorKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
+    }
+}
+
+impl Display for BorrowErrorKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Empty => {
+                write!(f, "There's no object at the given handle.")
+            }
+            Self::InvalidHandleIndex => {
+                write!(f, "The index of the given handle is out of bounds.")
+            }
+            Self::InvalidHandleGeneration => {
+                write!(
+                    f,
+                    "The generation of the given handle does not match the record's generation. \
+                    It means that the object at the handle was freed and it position was taken \
+                    by some other object."
+                )
+            }
+            Self::MismatchedType(err) => {
+                write!(f, "{}", err)
+            }
+            Self::NoSuchComponent(err) => {
+                write!(f, "{}", err)
+            }
+        }
+    }
+}
+
+impl Display for BorrowError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}", self.kind, self.handle_info)
+    }
+}
+
+impl Debug for BorrowError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
+    }
+}
+
 // pub trait BorrowAs<Object> {
 //     type Target;
 //     #[deprecated(
@@ -103,7 +242,7 @@ where
 
 impl<T> Reflect for Pool<T>
 where
-    T: Clone + Reflect,
+    T: Clone + Reflect + BorrowNodeVariant,
     Pool<T>: Clone,
 {
     #[inline]
@@ -198,7 +337,7 @@ where
 
 impl<T> ReflectArray for Pool<T>
 where
-    T: Clone + Reflect,
+    T: Clone + Reflect + BorrowNodeVariant,
 {
     #[inline]
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
@@ -662,251 +801,6 @@ impl<T> Pool<T> {
         free_handles
     }
 
-    /// Borrows shared reference to an object by its handle.
-    ///
-    /// # Panics
-    ///
-    /// Panics if handle is out of bounds or generation of handle does not match with
-    /// generation of pool record at handle index (in other words it means that object
-    /// at handle's index is different than the object was there before).
-    #[inline]
-    #[must_use]
-    pub fn borrow(&self, handle: Handle<T>) -> &T {
-        if let Some(record) = self.records_get(handle.index) {
-            if record.generation == handle.generation {
-                if let Some(payload) = record.payload.as_ref() {
-                    payload
-                } else {
-                    panic!("Attempt to borrow destroyed object at {handle:?} handle.");
-                }
-            } else {
-                panic!(
-                    "Attempt to use dangling handle {:?}. Record has generation {}!",
-                    handle, record.generation
-                );
-            }
-        } else {
-            panic!(
-                "Attempt to borrow object using out-of-bounds handle {:?}! Record count is {}",
-                handle,
-                self.records.len()
-            );
-        }
-    }
-
-    /// Borrows mutable reference to an object by its handle.
-    ///
-    /// # Panics
-    ///
-    /// Panics if handle is out of bounds or generation of handle does not match with
-    /// generation of pool record at handle index (in other words it means that object
-    /// at handle's index is different than the object was there before).
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use fyrox_core::pool::Pool;
-    /// let mut pool = Pool::<u32>::new();
-    /// let a = pool.spawn(1);
-    /// let a = pool.borrow_mut(a);
-    /// *a = 11;
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn borrow_mut(&mut self, handle: Handle<T>) -> &mut T {
-        let record_count = self.records.len();
-        if let Some(record) = self.records_get_mut(handle.index) {
-            if record.generation == handle.generation {
-                if let Some(payload) = record.payload.as_mut() {
-                    payload
-                } else {
-                    panic!("Attempt to borrow destroyed object at {handle:?} handle.");
-                }
-            } else {
-                panic!("Attempt to borrow object using dangling handle {:?}. Record has {} generation!", handle, record.generation);
-            }
-        } else {
-            panic!(
-                "Attempt to borrow object using out-of-bounds handle {handle:?}! Record count is {record_count}"
-            );
-        }
-    }
-
-    /// Borrows shared reference to an object by its handle.
-    ///
-    /// Returns None if handle is out of bounds or generation of handle does not match with
-    /// generation of pool record at handle index (in other words it means that object
-    /// at handle's index is different than the object was there before).
-    #[inline]
-    #[must_use]
-    pub fn try_borrow(&self, handle: Handle<T>) -> Option<&T> {
-        self.records_get(handle.index).and_then(|r| {
-            if r.generation == handle.generation {
-                r.payload.as_ref()
-            } else {
-                None
-            }
-        })
-    }
-
-    /// Borrows mutable reference to an object by its handle.
-    ///
-    /// Returns None if handle is out of bounds or generation of handle does not match with
-    /// generation of pool record at handle index (in other words it means that object
-    /// at handle's index is different than the object was there before).
-    #[inline]
-    #[must_use]
-    pub fn try_borrow_mut(&mut self, handle: Handle<T>) -> Option<&mut T> {
-        self.records_get_mut(handle.index).and_then(|r| {
-            if r.generation == handle.generation {
-                r.payload.as_mut()
-            } else {
-                None
-            }
-        })
-    }
-
-    /// Borrows mutable references of objects at the same time. This method will succeed only
-    /// if handles are unique (not equal). Borrowing multiple mutable references at the same
-    /// time is useful in case if you need to mutate some objects at the same time.
-    ///
-    /// # Panics
-    ///
-    /// See [`borrow_mut`](Self::borrow_mut).
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use fyrox_core::pool::Pool;
-    /// let mut pool = Pool::<u32>::new();
-    /// let a = pool.spawn(1);
-    /// let b = pool.spawn(2);
-    /// let (a, b) = pool.borrow_two_mut((a, b));
-    /// *a = 11;
-    /// *b = 22;
-    /// ```
-    #[inline]
-    #[must_use = "Handle set must not be ignored"]
-    pub fn borrow_two_mut(&mut self, handles: (Handle<T>, Handle<T>)) -> (&mut T, &mut T) {
-        // Prevent giving two mutable references to same record.
-        assert_ne!(handles.0.index, handles.1.index);
-        unsafe {
-            let this = self as *mut Self;
-            ((*this).borrow_mut(handles.0), (*this).borrow_mut(handles.1))
-        }
-    }
-
-    /// Borrows mutable references of objects at the same time. This method will succeed only
-    /// if handles are unique (not equal). Borrowing multiple mutable references at the same
-    /// time is useful in case if you need to mutate some objects at the same time.
-    ///
-    /// # Panics
-    ///
-    /// See [`borrow_mut`](Self::borrow_mut).
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use fyrox_core::pool::Pool;
-    /// let mut pool = Pool::<u32>::new();
-    /// let a = pool.spawn(1);
-    /// let b = pool.spawn(2);
-    /// let c = pool.spawn(3);
-    /// let (a, b, c) = pool.borrow_three_mut((a, b, c));
-    /// *a = 11;
-    /// *b = 22;
-    /// *c = 33;
-    /// ```
-    #[inline]
-    #[must_use = "Handle set must not be ignored"]
-    pub fn borrow_three_mut(
-        &mut self,
-        handles: (Handle<T>, Handle<T>, Handle<T>),
-    ) -> (&mut T, &mut T, &mut T) {
-        // Prevent giving mutable references to same record.
-        assert_ne!(handles.0.index, handles.1.index);
-        assert_ne!(handles.0.index, handles.2.index);
-        assert_ne!(handles.1.index, handles.2.index);
-        unsafe {
-            let this = self as *mut Self;
-            (
-                (*this).borrow_mut(handles.0),
-                (*this).borrow_mut(handles.1),
-                (*this).borrow_mut(handles.2),
-            )
-        }
-    }
-
-    /// Borrows mutable references of objects at the same time. This method will succeed only
-    /// if handles are unique (not equal). Borrowing multiple mutable references at the same
-    /// time is useful in case if you need to mutate some objects at the same time.
-    ///
-    /// # Panics
-    ///
-    /// See [`borrow_mut`](Self::borrow_mut).
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use fyrox_core::pool::Pool;
-    /// let mut pool = Pool::<u32>::new();
-    /// let a = pool.spawn(1);
-    /// let b = pool.spawn(2);
-    /// let c = pool.spawn(3);
-    /// let d = pool.spawn(4);
-    /// let (a, b, c, d) = pool.borrow_four_mut((a, b, c, d));
-    /// *a = 11;
-    /// *b = 22;
-    /// *c = 33;
-    /// *d = 44;
-    /// ```
-    #[inline]
-    #[must_use = "Handle set must not be ignored"]
-    pub fn borrow_four_mut(
-        &mut self,
-        handles: (Handle<T>, Handle<T>, Handle<T>, Handle<T>),
-    ) -> (&mut T, &mut T, &mut T, &mut T) {
-        // Prevent giving mutable references to same record.
-        // This is kinda clunky since const generics are not stabilized yet.
-        assert_ne!(handles.0.index, handles.1.index);
-        assert_ne!(handles.0.index, handles.2.index);
-        assert_ne!(handles.0.index, handles.3.index);
-        assert_ne!(handles.1.index, handles.2.index);
-        assert_ne!(handles.1.index, handles.3.index);
-        assert_ne!(handles.2.index, handles.3.index);
-        unsafe {
-            let this = self as *mut Self;
-            (
-                (*this).borrow_mut(handles.0),
-                (*this).borrow_mut(handles.1),
-                (*this).borrow_mut(handles.2),
-                (*this).borrow_mut(handles.3),
-            )
-        }
-    }
-
-    /// Tries to borrow two objects when a handle to the second object stored in the first object.
-    #[inline]
-    pub fn try_borrow_dependant_mut<F>(
-        &mut self,
-        handle: Handle<T>,
-        func: F,
-    ) -> (Option<&mut T>, Option<&mut T>)
-    where
-        F: FnOnce(&T) -> Handle<T>,
-    {
-        let this = unsafe { &mut *(self as *mut Pool<T>) };
-        let first = self.try_borrow_mut(handle);
-        if let Some(first_object) = first.as_ref() {
-            let second_handle = func(first_object);
-            if second_handle != handle {
-                return (first, this.try_borrow_mut(second_handle));
-            }
-        }
-
-        (first, None)
-    }
-
     /// Moves object out of the pool using the given handle. All handles to the object will become invalid.
     ///
     /// # Panics
@@ -1283,13 +1177,6 @@ impl<T> Pool<T> {
         }
     }
 
-    /// Begins multi-borrow that allows you to borrow as many (`N`) **unique** references to the pool
-    /// elements as you need. See [`MultiBorrowContext::try_get`] for more info.
-    #[inline]
-    pub fn begin_multi_borrow(&mut self) -> MultiBorrowContext<T> {
-        MultiBorrowContext::new(self)
-    }
-
     /// Removes all elements from the pool.
     #[inline]
     pub fn drain(&mut self) -> impl Iterator<Item = T> + '_ {
@@ -1321,53 +1208,316 @@ impl<T> Pool<T> {
         }
         Handle::NONE
     }
+    /// Begins multi-borrow that allows you to borrow as many (`N`) **unique** references to the pool
+    /// elements as you need. See [`MultiBorrowContext::try_get`] for more info.
+    #[inline]
+    pub fn begin_multi_borrow(&mut self) -> MultiBorrowContext<T> {
+        MultiBorrowContext::new(self)
+    }
 }
 
 impl<T> Pool<T>
 where
-    T: ComponentProvider,
+    T: ComponentProvider + BorrowNodeVariant + 'static,
 {
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
-    pub fn try_get_component_of_type<C>(&self, handle: Handle<T>) -> Option<&C>
+    pub fn try_get_component_of_type<C>(&self, handle: Handle<T>) -> Result<&C, BorrowError>
     where
         C: 'static,
     {
-        self.try_borrow(handle)
-            .and_then(|n| n.query_component_ref(TypeId::of::<C>()))
-            .and_then(|c| c.downcast_ref())
+        let node = self.try_borrow(handle)?;
+        let component_any = node
+            .query_component_ref(TypeId::of::<C>())
+            .map_err(|e| BorrowError::new(BorrowErrorKind::NoSuchComponent(e), handle.into()))?;
+        Ok(component_any
+            .downcast_ref()
+            .expect("TypeId matched but downcast failed"))
     }
 
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
-    pub fn try_get_component_of_type_mut<C>(&mut self, handle: Handle<T>) -> Option<&mut C>
+    pub fn try_get_component_mut<C>(&mut self, handle: Handle<T>) -> Result<&mut C, BorrowError>
     where
         C: 'static,
     {
-        self.try_borrow_mut(handle)
-            .and_then(|n| n.query_component_mut(TypeId::of::<C>()))
-            .and_then(|c| c.downcast_mut())
+        let node = self.try_borrow_mut(handle)?;
+        let component_any = node
+            .query_component_mut(TypeId::of::<C>())
+            .map_err(|e| BorrowError::new(BorrowErrorKind::NoSuchComponent(e), handle.into()))?;
+        Ok(component_any
+            .downcast_mut()
+            .expect("TypeId matched but downcast failed"))
+    }
+}
+
+impl<T: 'static> Pool<T> {
+    /// Borrows shared reference to an object by its handle.
+    ///
+    /// Returns None if handle is out of bounds or generation of handle does not match with
+    /// generation of pool record at handle index (in other words it means that object
+    /// at handle's index is different than the object was there before).
+    #[inline]
+    #[must_use]
+    pub fn try_borrow(&self, handle: Handle<T>) -> Result<&T, BorrowError> {
+        let record = self.records_get(handle.index).ok_or_else(|| {
+            BorrowError::new(
+                BorrowErrorKind::InvalidHandleIndex,
+                HandleInfo::from(handle),
+            )
+        })?;
+        if record.generation != handle.generation {
+            return Err(BorrowError::new(
+                BorrowErrorKind::InvalidHandleGeneration,
+                HandleInfo::from(handle),
+            ));
+        }
+        record
+            .payload
+            .as_ref()
+            .ok_or_else(|| BorrowError::new(BorrowErrorKind::Empty, HandleInfo::from(handle)))
+    }
+
+    /// Borrows mutable reference to an object by its handle.
+    ///
+    /// Returns None if handle is out of bounds or generation of handle does not match with
+    /// generation of pool record at handle index (in other words it means that object
+    /// at handle's index is different than the object was there before).
+    #[inline]
+    #[must_use]
+    pub fn try_borrow_mut(&mut self, handle: Handle<T>) -> Result<&mut T, BorrowError> {
+        // self.records_get_mut(handle.index).and_then(|r| {
+        //     if r.generation == handle.generation {
+        //         r.payload.as_mut()
+        //     } else {
+        //         None
+        //     }
+        // })
+        let record = self.records_get_mut(handle.index).ok_or_else(|| {
+            BorrowError::new(
+                BorrowErrorKind::InvalidHandleIndex,
+                HandleInfo::from(handle),
+            )
+        })?;
+        if record.generation != handle.generation {
+            return Err(BorrowError::new(
+                BorrowErrorKind::InvalidHandleGeneration,
+                HandleInfo::from(handle),
+            ));
+        }
+        record
+            .payload
+            .as_mut()
+            .ok_or_else(|| BorrowError::new(BorrowErrorKind::Empty, HandleInfo::from(handle)))
+    }
+
+    /// Borrows shared reference to an object by its handle.
+    ///
+    /// # Panics
+    ///
+    /// Panics if handle is out of bounds or generation of handle does not match with
+    /// generation of pool record at handle index (in other words it means that object
+    /// at handle's index is different than the object was there before).
+    #[inline]
+    #[must_use]
+    pub fn borrow(&self, handle: Handle<T>) -> &T {
+        self.try_borrow(handle).unwrap()
+    }
+
+    /// Borrows mutable reference to an object by its handle.
+    ///
+    /// # Panics
+    ///
+    /// Panics if handle is out of bounds or generation of handle does not match with
+    /// generation of pool record at handle index (in other words it means that object
+    /// at handle's index is different than the object was there before).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use fyrox_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// let a = pool.spawn(1);
+    /// let a = pool.borrow_mut(a);
+    /// *a = 11;
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn borrow_mut(&mut self, handle: Handle<T>) -> &mut T {
+        self.try_borrow_mut(handle).unwrap()
+    }
+
+    /// Borrows mutable references of objects at the same time. This method will succeed only
+    /// if handles are unique (not equal). Borrowing multiple mutable references at the same
+    /// time is useful in case if you need to mutate some objects at the same time.
+    ///
+    /// # Panics
+    ///
+    /// See [`borrow_mut`](Self::borrow_mut).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use fyrox_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// let a = pool.spawn(1);
+    /// let b = pool.spawn(2);
+    /// let (a, b) = pool.borrow_two_mut((a, b));
+    /// *a = 11;
+    /// *b = 22;
+    /// ```
+    #[inline]
+    #[must_use = "Handle set must not be ignored"]
+    pub fn borrow_two_mut(&mut self, handles: (Handle<T>, Handle<T>)) -> (&mut T, &mut T) {
+        // Prevent giving two mutable references to same record.
+        assert_ne!(handles.0.index, handles.1.index);
+        unsafe {
+            let this = self as *mut Self;
+            ((*this).borrow_mut(handles.0), (*this).borrow_mut(handles.1))
+        }
+    }
+
+    /// Borrows mutable references of objects at the same time. This method will succeed only
+    /// if handles are unique (not equal). Borrowing multiple mutable references at the same
+    /// time is useful in case if you need to mutate some objects at the same time.
+    ///
+    /// # Panics
+    ///
+    /// See [`borrow_mut`](Self::borrow_mut).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use fyrox_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// let a = pool.spawn(1);
+    /// let b = pool.spawn(2);
+    /// let c = pool.spawn(3);
+    /// let (a, b, c) = pool.borrow_three_mut((a, b, c));
+    /// *a = 11;
+    /// *b = 22;
+    /// *c = 33;
+    /// ```
+    #[inline]
+    #[must_use = "Handle set must not be ignored"]
+    pub fn borrow_three_mut(
+        &mut self,
+        handles: (Handle<T>, Handle<T>, Handle<T>),
+    ) -> (&mut T, &mut T, &mut T) {
+        // Prevent giving mutable references to same record.
+        assert_ne!(handles.0.index, handles.1.index);
+        assert_ne!(handles.0.index, handles.2.index);
+        assert_ne!(handles.1.index, handles.2.index);
+        unsafe {
+            let this = self as *mut Self;
+            (
+                (*this).borrow_mut(handles.0),
+                (*this).borrow_mut(handles.1),
+                (*this).borrow_mut(handles.2),
+            )
+        }
+    }
+
+    /// Borrows mutable references of objects at the same time. This method will succeed only
+    /// if handles are unique (not equal). Borrowing multiple mutable references at the same
+    /// time is useful in case if you need to mutate some objects at the same time.
+    ///
+    /// # Panics
+    ///
+    /// See [`borrow_mut`](Self::borrow_mut).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use fyrox_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// let a = pool.spawn(1);
+    /// let b = pool.spawn(2);
+    /// let c = pool.spawn(3);
+    /// let d = pool.spawn(4);
+    /// let (a, b, c, d) = pool.borrow_four_mut((a, b, c, d));
+    /// *a = 11;
+    /// *b = 22;
+    /// *c = 33;
+    /// *d = 44;
+    /// ```
+    #[inline]
+    #[must_use = "Handle set must not be ignored"]
+    pub fn borrow_four_mut(
+        &mut self,
+        handles: (Handle<T>, Handle<T>, Handle<T>, Handle<T>),
+    ) -> (&mut T, &mut T, &mut T, &mut T) {
+        // Prevent giving mutable references to same record.
+        // This is kinda clunky since const generics are not stabilized yet.
+        assert_ne!(handles.0.index, handles.1.index);
+        assert_ne!(handles.0.index, handles.2.index);
+        assert_ne!(handles.0.index, handles.3.index);
+        assert_ne!(handles.1.index, handles.2.index);
+        assert_ne!(handles.1.index, handles.3.index);
+        assert_ne!(handles.2.index, handles.3.index);
+        unsafe {
+            let this = self as *mut Self;
+            (
+                (*this).borrow_mut(handles.0),
+                (*this).borrow_mut(handles.1),
+                (*this).borrow_mut(handles.2),
+                (*this).borrow_mut(handles.3),
+            )
+        }
+    }
+
+    /// Tries to borrow two objects when a handle to the second object stored in the first object.
+    #[inline]
+    pub fn try_borrow_dependant_mut<F>(
+        &mut self,
+        handle: Handle<T>,
+        func: F,
+    ) -> (Option<&mut T>, Option<&mut T>)
+    where
+        F: FnOnce(&T) -> Handle<T>,
+    {
+        let this = unsafe { &mut *(self as *mut Pool<T>) };
+        let first = self.try_borrow_mut(handle);
+        let second = match first {
+            Ok(ref first_object) => {
+                let second_handle = func(first_object);
+                if second_handle != handle {
+                    this.try_borrow_mut(second_handle).ok()
+                } else {
+                    None
+                }
+            }
+            Err(_) => None,
+        };
+        (first.ok(), second)
     }
 }
 
 pub trait NodeVariant<NodeType>: 'static {}
 
 pub trait BorrowNodeVariant: Sized {
-    fn borrow_variant<T: NodeVariant<Self>>(&self) -> Option<&T>;
-    fn borrow_variant_mut<T: NodeVariant<Self>>(&mut self) -> Option<&mut T>;
+    fn borrow_variant<T: NodeVariant<Self>>(&self) -> Result<&T, MismatchedTypeError>;
+    fn borrow_variant_mut<T: NodeVariant<Self>>(&mut self) -> Result<&mut T, MismatchedTypeError>;
 }
 
-impl<NodeType: BorrowNodeVariant> Pool<NodeType> {
-    pub fn try_borrow_variant<T: NodeVariant<NodeType>>(&self, handle: Handle<T>) -> Option<&T> {
-        self.try_borrow(handle.cast())
-            .and_then(|n| n.borrow_variant())
+impl<NodeType: BorrowNodeVariant + 'static> Pool<NodeType> {
+    pub fn try_borrow_variant<T: NodeVariant<NodeType>>(
+        &self,
+        handle: Handle<T>,
+    ) -> Result<&T, BorrowError> {
+        let node = self.try_borrow(handle.cast())?;
+        node.borrow_variant().map_err(|e| {
+            BorrowError::new(BorrowErrorKind::MismatchedType(e), HandleInfo::from(handle))
+        })
     }
     pub fn try_borrow_variant_mut<T: NodeVariant<NodeType>>(
         &mut self,
         handle: Handle<T>,
-    ) -> Option<&mut T> {
-        self.try_borrow_mut(handle.cast())
-            .and_then(|n| n.borrow_variant_mut())
+    ) -> Result<&mut T, BorrowError> {
+        let node = self.try_borrow_mut(handle.cast())?;
+        node.borrow_variant_mut().map_err(|e| {
+            BorrowError::new(BorrowErrorKind::MismatchedType(e), HandleInfo::from(handle))
+        })
     }
 }
 
@@ -1550,7 +1700,9 @@ impl<'a, T> Iterator for PoolPairIteratorMut<'a, T> {
 #[cfg(test)]
 mod test {
     use crate::{
-        pool::{AtomicHandle, Handle, Pool, PoolRecord, INVALID_GENERATION},
+        pool::{
+            AtomicHandle, BorrowError, Handle, HandleInfo, Pool, PoolRecord, INVALID_GENERATION,
+        },
         visitor::{Visit, Visitor},
     };
 
@@ -1695,8 +1847,14 @@ mod test {
         let a = pool.spawn(Payload);
         let b = Handle::<Payload>::default();
 
-        assert_eq!(pool.try_borrow(a), Some(&Payload));
-        assert_eq!(pool.try_borrow(b), None);
+        assert_eq!(pool.try_borrow(a), Ok(&Payload));
+        assert_eq!(
+            pool.try_borrow(b),
+            Err(BorrowError::new(
+                crate::pool::BorrowErrorKind::InvalidHandleIndex,
+                b.into()
+            ))
+        );
     }
 
     #[test]

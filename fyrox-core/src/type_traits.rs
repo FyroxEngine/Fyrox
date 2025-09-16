@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::math::Rect;
+use crate::pool::QueryComponentError;
 pub use fyrox_core_derive::ComponentProvider;
 pub use fyrox_core_derive::TypeUuidProvider;
 use std::any::{Any, TypeId};
@@ -115,25 +116,30 @@ pub fn combine_uuids(a: Uuid, b: Uuid) -> Uuid {
 /// Component provider provides dynamic access to inner components of an object by their type id.
 pub trait ComponentProvider {
     /// Allows an object to provide access to inner components.
-    fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any>;
+    fn query_component_ref(&self, type_id: TypeId) -> Result<&dyn Any, QueryComponentError>;
 
     /// Allows an object to provide access to inner components.
-    fn query_component_mut(&mut self, type_id: TypeId) -> Option<&mut dyn Any>;
+    fn query_component_mut(&mut self, type_id: TypeId)
+        -> Result<&mut dyn Any, QueryComponentError>;
 }
 
 impl dyn ComponentProvider {
     /// Tries to borrow a component of given type.
     #[inline]
-    pub fn component_ref<T: Any>(&self) -> Option<&T> {
-        ComponentProvider::query_component_ref(self, TypeId::of::<T>())
-            .and_then(|c| c.downcast_ref())
+    pub fn component_ref<T: Any>(&self) -> Result<&T, QueryComponentError> {
+        let component_any = ComponentProvider::query_component_ref(self, TypeId::of::<T>())?;
+        Ok(component_any
+            .downcast_ref()
+            .expect("TypeId matched but downcast failed"))
     }
 
     /// Tries to borrow a component of given type.
     #[inline]
-    pub fn component_mut<T: Any>(&mut self) -> Option<&mut T> {
-        ComponentProvider::query_component_mut(self, TypeId::of::<T>())
-            .and_then(|c| c.downcast_mut())
+    pub fn component_mut<T: Any>(&mut self) -> Result<&mut T, QueryComponentError> {
+        let component_any = ComponentProvider::query_component_mut(self, TypeId::of::<T>())?;
+        Ok(component_any
+            .downcast_mut()
+            .expect("TypeId matched but downcast failed"))
     }
 }
 

@@ -497,11 +497,11 @@ impl AudioBusGraph {
             while leaf.is_some() {
                 let ctx = self.buses.begin_multi_borrow();
 
-                let leaf_ref = ctx.try_get_mut(leaf).expect("Malformed bus graph!");
+                let leaf_ref = ctx.try_get_node_mut(leaf).expect("Malformed bus graph!");
 
                 let input_buffer = leaf_ref.ping_pong_buffer.input_ref();
                 let leaf_gain = leaf_ref.gain;
-                let mut parent_buffer = ctx.try_get_mut(leaf_ref.parent_bus);
+                let mut parent_buffer = ctx.try_get_node_mut(leaf_ref.parent_bus);
                 let output_buffer = parent_buffer
                     .as_mut()
                     .map(|parent| parent.ping_pong_buffer.input_mut())

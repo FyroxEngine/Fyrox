@@ -19,7 +19,11 @@
 // SOFTWARE.
 
 use super::{Handle, Pool, RefCounter};
-use crate::ComponentProvider;
+use crate::pool::BorrowNodeVariant;
+use crate::{
+    pool::{BorrowErrorKind, HandleInfo, MismatchedTypeError, NodeVariant},
+    ComponentProvider,
+};
 use std::{
     any::TypeId,
     cell::RefCell,
@@ -28,7 +32,6 @@ use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
 };
-
 pub struct Ref<'a, 'b, T>
 where
     T: ?Sized,
@@ -133,62 +136,59 @@ where
 }
 
 #[derive(PartialEq)]
-pub enum MultiBorrowError<T> {
-    Empty(Handle<T>),
-    NoSuchComponent(Handle<T>),
-    MutablyBorrowed(Handle<T>),
-    ImmutablyBorrowed(Handle<T>),
-    InvalidHandleIndex(Handle<T>),
-    InvalidHandleGeneration(Handle<T>),
+pub struct MultiBorrowError {
+    pub kind: MultiBorrowErrorKind,
+    pub handle_info: HandleInfo,
 }
 
-impl<T> Debug for MultiBorrowError<T> {
+impl MultiBorrowError {
+    pub fn new(kind: MultiBorrowErrorKind, handle_info: HandleInfo) -> Self {
+        Self { kind, handle_info }
+    }
+}
+
+#[derive(PartialEq)]
+pub enum MultiBorrowErrorKind {
+    SingleBorrowError(BorrowErrorKind),
+    MutablyBorrowed,
+    ImmutablyBorrowed,
+}
+
+impl From<BorrowErrorKind> for MultiBorrowErrorKind {
+    fn from(kind: BorrowErrorKind) -> Self {
+        Self::SingleBorrowError(kind)
+    }
+}
+
+impl Debug for MultiBorrowErrorKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Display::fmt(self, f)
     }
 }
 
-impl<T> Display for MultiBorrowError<T> {
+impl Display for MultiBorrowErrorKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Empty(handle) => {
-                write!(f, "There's no object at {handle} handle.")
+            MultiBorrowErrorKind::SingleBorrowError(kind) => write!(f, "{}", kind),
+            MultiBorrowErrorKind::MutablyBorrowed => {
+                write!(f, "Element is already mutably borrowed.")
             }
-            Self::NoSuchComponent(handle) => write!(
-                f,
-                "An object at {handle} handle does not have such component.",
-            ),
-            Self::MutablyBorrowed(handle) => {
-                write!(
-                    f,
-                    "An object at {handle} handle cannot be borrowed immutably, because it is \
-                    already borrowed mutably."
-                )
-            }
-            Self::ImmutablyBorrowed(handle) => {
-                write!(
-                    f,
-                    "An object at {handle} handle cannot be borrowed mutably, because it is \
-                    already borrowed immutably."
-                )
-            }
-            Self::InvalidHandleIndex(handle) => {
-                write!(
-                    f,
-                    "The index {} in {handle} handle is out of bounds.",
-                    handle.index
-                )
-            }
-            Self::InvalidHandleGeneration(handle) => {
-                write!(
-                    f,
-                    "The generation {} in {handle} handle does not match the record's generation. \
-                    It means that the object at the handle was freed and it position was taken \
-                    by some other object.",
-                    handle.generation
-                )
+            MultiBorrowErrorKind::ImmutablyBorrowed => {
+                write!(f, "Element is already immutably borrowed.")
             }
         }
+    }
+}
+
+impl Display for MultiBorrowError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}", self.kind, self.handle_info)
+    }
+}
+
+impl Debug for MultiBorrowError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
     }
 }
 
@@ -203,10 +203,7 @@ where
     }
 }
 
-impl<'a, T> MultiBorrowContext<'a, T>
-where
-    T: Sized,
-{
+impl<'a, T: 'static> MultiBorrowContext<'a, T> {
     #[inline]
     pub fn new(pool: &'a mut Pool<T>) -> Self {
         Self {
@@ -216,33 +213,45 @@ where
     }
 
     #[inline]
-    fn try_get_internal<'b: 'a, C, F>(
+    fn try_get_node_internal<'b: 'a, C, F>(
         &'b self,
         handle: Handle<T>,
         func: F,
-    ) -> Result<Ref<'a, 'b, C>, MultiBorrowError<T>>
+    ) -> Result<Ref<'a, 'b, C>, MultiBorrowError>
     where
         C: ?Sized,
-        F: FnOnce(&T) -> Result<&C, MultiBorrowError<T>>,
+        F: FnOnce(&T) -> Result<&C, MultiBorrowError>,
     {
         let Some(record) = self.pool.records_get(handle.index) else {
-            return Err(MultiBorrowError::InvalidHandleIndex(handle));
+            return Err(MultiBorrowError::new(
+                BorrowErrorKind::InvalidHandleIndex.into(),
+                handle.into(),
+            ));
         };
 
         if handle.generation != record.generation {
-            return Err(MultiBorrowError::InvalidHandleGeneration(handle));
+            return Err(MultiBorrowError::new(
+                BorrowErrorKind::InvalidHandleGeneration.into(),
+                handle.into(),
+            ));
         }
 
         let current_ref_count = unsafe { record.ref_counter.get() };
         if current_ref_count < 0 {
-            return Err(MultiBorrowError::MutablyBorrowed(handle));
+            return Err(MultiBorrowError::new(
+                MultiBorrowErrorKind::MutablyBorrowed,
+                handle.into(),
+            ));
         }
 
         // SAFETY: We've enforced borrowing rules by the previous check.
         let payload_container = unsafe { &*record.payload.0.get() };
 
         let Some(payload) = payload_container.as_ref() else {
-            return Err(MultiBorrowError::Empty(handle));
+            return Err(MultiBorrowError::new(
+                BorrowErrorKind::Empty.into(),
+                handle.into(),
+            ));
         };
 
         unsafe {
@@ -265,34 +274,42 @@ where
     /// in the internal handles storage) - in this case you must increase `N`.
     /// 3) A given handle is invalid.
     #[inline]
-    pub fn try_get<'b: 'a>(
+    pub fn try_get_node<'b: 'a>(
         &'b self,
         handle: Handle<T>,
-    ) -> Result<Ref<'a, 'b, T>, MultiBorrowError<T>> {
-        self.try_get_internal(handle, |obj| Ok(obj))
+    ) -> Result<Ref<'a, 'b, T>, MultiBorrowError> {
+        self.try_get_node_internal(handle, |obj| Ok(obj))
+    }
+    #[deprecated(
+        note = "to be consistent with single borrow naming convention and avoid polluting the API. Call unwrap on try_get_node instead"
+    )]
+    #[inline]
+    pub fn get_node<'b: 'a>(&'b self, handle: Handle<T>) -> Ref<'a, 'b, T> {
+        self.try_get_node(handle).unwrap()
     }
 
     #[inline]
-    pub fn get<'b: 'a>(&'b self, handle: Handle<T>) -> Ref<'a, 'b, T> {
-        self.try_get(handle).unwrap()
-    }
-
-    #[inline]
-    fn try_get_mut_internal<'b: 'a, C, F>(
+    fn try_get_node_mut_internal<'b: 'a, C, F>(
         &'b self,
         handle: Handle<T>,
         func: F,
-    ) -> Result<RefMut<'a, 'b, C>, MultiBorrowError<T>>
+    ) -> Result<RefMut<'a, 'b, C>, MultiBorrowError>
     where
         C: ?Sized,
-        F: FnOnce(&mut T) -> Result<&mut C, MultiBorrowError<T>>,
+        F: FnOnce(&mut T) -> Result<&mut C, MultiBorrowError>,
     {
         let Some(record) = self.pool.records_get(handle.index) else {
-            return Err(MultiBorrowError::InvalidHandleIndex(handle));
+            return Err(MultiBorrowError::new(
+                BorrowErrorKind::InvalidHandleIndex.into(),
+                handle.into(),
+            ));
         };
 
         if handle.generation != record.generation {
-            return Err(MultiBorrowError::InvalidHandleGeneration(handle));
+            return Err(MultiBorrowError::new(
+                BorrowErrorKind::InvalidHandleGeneration.into(),
+                handle.into(),
+            ));
         }
 
         // SAFETY: It is safe to access the counter because of borrow checker guarantees that
@@ -300,10 +317,16 @@ where
         let current_ref_count = unsafe { record.ref_counter.get() };
         match current_ref_count.cmp(&0) {
             Ordering::Less => {
-                return Err(MultiBorrowError::MutablyBorrowed(handle));
+                return Err(MultiBorrowError::new(
+                    MultiBorrowErrorKind::MutablyBorrowed,
+                    handle.into(),
+                ));
             }
             Ordering::Greater => {
-                return Err(MultiBorrowError::ImmutablyBorrowed(handle));
+                return Err(MultiBorrowError::new(
+                    MultiBorrowErrorKind::ImmutablyBorrowed,
+                    handle.into(),
+                ));
             }
             _ => (),
         }
@@ -312,7 +335,10 @@ where
         let payload_container = unsafe { &mut *record.payload.0.get() };
 
         let Some(payload) = payload_container.as_mut() else {
-            return Err(MultiBorrowError::Empty(handle));
+            return Err(MultiBorrowError::new(
+                BorrowErrorKind::Empty.into(),
+                handle.into(),
+            ));
         };
 
         // SAFETY: It is safe to access the counter because of borrow checker guarantees that
@@ -329,26 +355,65 @@ where
     }
 
     #[inline]
-    pub fn try_get_mut<'b: 'a>(
+    pub fn try_get_node_mut<'b: 'a>(
         &'b self,
         handle: Handle<T>,
-    ) -> Result<RefMut<'a, 'b, T>, MultiBorrowError<T>> {
-        self.try_get_mut_internal(handle, |obj| Ok(obj))
+    ) -> Result<RefMut<'a, 'b, T>, MultiBorrowError> {
+        self.try_get_node_mut_internal(handle, |obj| Ok(obj))
+    }
+
+    #[deprecated(
+        note = "to be consistent with single borrow naming convention and avoid polluting the API. Call unwrap on try_get_node_mut instead"
+    )]
+    #[inline]
+    pub fn get_node_mut<'b: 'a>(&'b self, handle: Handle<T>) -> RefMut<'a, 'b, T> {
+        self.try_get_node_mut(handle).unwrap()
+    }
+}
+
+impl<'a, T> MultiBorrowContext<'a, T>
+where
+    T: BorrowNodeVariant + 'static,
+{
+    #[inline]
+    pub fn try_get<'b: 'a, U: NodeVariant<T>>(
+        &'b self,
+        handle: Handle<U>,
+    ) -> Result<Ref<'a, 'b, U>, MultiBorrowError> {
+        // let node = self.try_get_node(handle.cast())?;
+        self.try_get_node_internal(handle.cast(), |node| {
+            node.borrow_variant::<U>().map_err(|e| {
+                MultiBorrowError::new(BorrowErrorKind::MismatchedType(e).into(), handle.into())
+            })
+        })
     }
 
     #[inline]
-    pub fn get_mut<'b: 'a>(&'b self, handle: Handle<T>) -> RefMut<'a, 'b, T> {
-        self.try_get_mut(handle).unwrap()
+    pub fn try_get_mut<'b: 'a, U: NodeVariant<T>>(
+        &'b self,
+        handle: Handle<U>,
+    ) -> Result<RefMut<'a, 'b, U>, MultiBorrowError> {
+        self.try_get_node_mut_internal(handle.cast(), |node| {
+            node.borrow_variant_mut::<U>().map_err(|e| {
+                MultiBorrowError::new(BorrowErrorKind::MismatchedType(e).into(), handle.into())
+            })
+        })
     }
 
     #[inline]
-    pub fn free(&self, handle: Handle<T>) -> Result<T, MultiBorrowError<T>> {
+    pub fn free(&self, handle: Handle<T>) -> Result<T, MultiBorrowError> {
         let Some(record) = self.pool.records_get(handle.index) else {
-            return Err(MultiBorrowError::InvalidHandleIndex(handle));
+            return Err(MultiBorrowError::new(
+                BorrowErrorKind::InvalidHandleIndex.into(),
+                handle.into(),
+            ));
         };
 
         if handle.generation != record.generation {
-            return Err(MultiBorrowError::InvalidHandleGeneration(handle));
+            return Err(MultiBorrowError::new(
+                BorrowErrorKind::InvalidHandleGeneration.into(),
+                handle.into(),
+            ));
         }
 
         // The record must be non-borrowed to be freed.
@@ -357,10 +422,16 @@ where
         let current_ref_count = unsafe { record.ref_counter.get() };
         match current_ref_count.cmp(&0) {
             Ordering::Less => {
-                return Err(MultiBorrowError::MutablyBorrowed(handle));
+                return Err(MultiBorrowError::new(
+                    MultiBorrowErrorKind::MutablyBorrowed,
+                    handle.into(),
+                ));
             }
             Ordering::Greater => {
-                return Err(MultiBorrowError::ImmutablyBorrowed(handle));
+                return Err(MultiBorrowError::new(
+                    MultiBorrowErrorKind::ImmutablyBorrowed,
+                    handle.into(),
+                ));
             }
             _ => (),
         }
@@ -369,7 +440,10 @@ where
         let payload_container = unsafe { &mut *record.payload.0.get() };
 
         let Some(payload) = payload_container.take() else {
-            return Err(MultiBorrowError::Empty(handle));
+            return Err(MultiBorrowError::new(
+                BorrowErrorKind::Empty.into(),
+                handle.into(),
+            ));
         };
 
         self.free_indices.borrow_mut().push(handle.index);
@@ -380,49 +454,57 @@ where
 
 impl<'a, T> MultiBorrowContext<'a, T>
 where
-    T: Sized + ComponentProvider,
+    T: ComponentProvider + BorrowNodeVariant + 'static,
 {
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
-    pub fn try_get_component_of_type<'b: 'a, C>(
+    pub fn try_get_component<'b: 'a, C>(
         &'b self,
         handle: Handle<T>,
-    ) -> Result<Ref<'a, 'b, C>, MultiBorrowError<T>>
+    ) -> Result<Ref<'a, 'b, C>, MultiBorrowError>
     where
         C: 'static,
     {
-        self.try_get_internal(handle, move |obj| {
-            obj.query_component_ref(TypeId::of::<C>())
-                .and_then(|c| c.downcast_ref())
-                .ok_or(MultiBorrowError::NoSuchComponent(handle))
+        self.try_get_node_internal(handle, move |node| {
+            // node.query_component_ref(TypeId::of::<C>())
+            //     .and_then(|c| c.downcast_ref())
+            //     .ok_or(MultiBorrowErrorKind::NoSuchComponent(handle))
+            let component_any = node.query_component_ref(TypeId::of::<C>()).map_err(|e| {
+                MultiBorrowError::new(BorrowErrorKind::NoSuchComponent(e).into(), handle.into())
+            })?;
+            Ok(component_any
+                .downcast_ref()
+                .expect("TypeId matched but downcast failed"))
         })
     }
 
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
-    pub fn try_get_component_of_type_mut<'b: 'a, C>(
+    pub fn try_get_component_mut<'b: 'a, C>(
         &'b self,
         handle: Handle<T>,
-    ) -> Result<RefMut<'a, 'b, C>, MultiBorrowError<T>>
+    ) -> Result<RefMut<'a, 'b, C>, MultiBorrowError>
     where
         C: 'static,
     {
-        self.try_get_mut_internal(handle, move |obj| {
-            obj.query_component_mut(TypeId::of::<C>())
-                .and_then(|c| c.downcast_mut())
-                .ok_or(MultiBorrowError::NoSuchComponent(handle))
+        self.try_get_node_mut_internal(handle, move |node| {
+            let component_any = node.query_component_mut(TypeId::of::<C>()).map_err(|e| {
+                MultiBorrowError::new(BorrowErrorKind::NoSuchComponent(e).into(), handle.into())
+            })?;
+            Ok(component_any
+                .downcast_mut()
+                .expect("TypeId matched but downcast failed"))
         })
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::MultiBorrowError;
-    use crate::pool::Pool;
+    use super::MultiBorrowErrorKind;
+    use crate::pool::{BorrowErrorKind, BorrowNodeVariant, MultiBorrowError, Pool};
 
     #[derive(PartialEq, Clone, Copy, Debug)]
     struct MyPayload(u32);
-
     #[test]
     fn test_multi_borrow_context() {
         let mut pool = Pool::<MyPayload>::new();
@@ -444,41 +526,53 @@ mod test {
         // Test empty.
         {
             assert_eq!(
-                ctx.try_get(d).as_deref(),
-                Err(MultiBorrowError::Empty(d)).as_ref()
+                ctx.try_get_node(d).as_deref(),
+                Err(MultiBorrowError::new(
+                    BorrowErrorKind::Empty.into(),
+                    d.into()
+                ))
+                .as_ref()
             );
             assert_eq!(
-                ctx.try_get_mut(d).as_deref_mut(),
-                Err(MultiBorrowError::Empty(d)).as_mut()
+                ctx.try_get_node_mut(d).as_deref_mut(),
+                Err(MultiBorrowError::new(
+                    BorrowErrorKind::Empty.into(),
+                    d.into()
+                ))
+                .as_mut()
             );
         }
 
         // Test immutable borrowing of the same element.
         {
-            let ref_a_1 = ctx.try_get(a);
-            let ref_a_2 = ctx.try_get(a);
+            let ref_a_1 = ctx.try_get_node(a);
+            let ref_a_2 = ctx.try_get_node(a);
             assert_eq!(ref_a_1.as_deref(), Ok(&val_a));
             assert_eq!(ref_a_2.as_deref(), Ok(&val_a));
         }
 
         // Test immutable borrowing of the same element with the following mutable borrowing.
         {
-            let ref_a_1 = ctx.try_get(a);
+            let ref_a_1 = ctx.try_get_node(a);
             assert_eq!(unsafe { ref_a_1.as_ref().unwrap().ref_counter.get() }, 1);
-            let ref_a_2 = ctx.try_get(a);
+            let ref_a_2 = ctx.try_get_node(a);
             assert_eq!(unsafe { ref_a_2.as_ref().unwrap().ref_counter.get() }, 2);
 
             assert_eq!(ref_a_1.as_deref(), Ok(&val_a));
             assert_eq!(ref_a_2.as_deref(), Ok(&val_a));
             assert_eq!(
-                ctx.try_get_mut(a).as_deref(),
-                Err(MultiBorrowError::ImmutablyBorrowed(a)).as_ref()
+                ctx.try_get_node_mut(a).as_deref(),
+                Err(MultiBorrowError::new(
+                    MultiBorrowErrorKind::ImmutablyBorrowed,
+                    a.into()
+                ))
+                .as_ref()
             );
 
             drop(ref_a_1);
             drop(ref_a_2);
 
-            let mut mut_ref_a_1 = ctx.try_get_mut(a);
+            let mut mut_ref_a_1 = ctx.try_get_node_mut(a);
             assert_eq!(mut_ref_a_1.as_deref_mut(), Ok(&mut val_a));
 
             assert_eq!(
@@ -490,26 +584,34 @@ mod test {
         // Test immutable and mutable borrowing.
         {
             // Borrow two immutable refs to the same element.
-            let ref_a_1 = ctx.try_get(a);
-            let ref_a_2 = ctx.try_get(a);
+            let ref_a_1 = ctx.try_get_node(a);
+            let ref_a_2 = ctx.try_get_node(a);
             assert_eq!(ref_a_1.as_deref(), Ok(&val_a));
             assert_eq!(ref_a_2.as_deref(), Ok(&val_a));
 
             // Borrow immutable ref to other element.
-            let mut ref_b_1 = ctx.try_get_mut(b);
-            let mut ref_b_2 = ctx.try_get_mut(b);
+            let mut ref_b_1 = ctx.try_get_node_mut(b);
+            let mut ref_b_2 = ctx.try_get_node_mut(b);
             assert_eq!(ref_b_1.as_deref_mut(), Ok(&mut val_b));
             assert_eq!(
                 ref_b_2.as_deref_mut(),
-                Err(MultiBorrowError::MutablyBorrowed(b)).as_mut()
+                Err(MultiBorrowError::new(
+                    MultiBorrowErrorKind::MutablyBorrowed,
+                    b.into()
+                ))
+                .as_mut()
             );
 
-            let mut ref_c_1 = ctx.try_get_mut(c);
-            let mut ref_c_2 = ctx.try_get_mut(c);
+            let mut ref_c_1 = ctx.try_get_node_mut(c);
+            let mut ref_c_2 = ctx.try_get_node_mut(c);
             assert_eq!(ref_c_1.as_deref_mut(), Ok(&mut val_c));
             assert_eq!(
                 ref_c_2.as_deref_mut(),
-                Err(MultiBorrowError::MutablyBorrowed(c)).as_mut()
+                Err(MultiBorrowError::new(
+                    MultiBorrowErrorKind::MutablyBorrowed,
+                    c.into()
+                ))
+                .as_mut()
             );
         }
     }
