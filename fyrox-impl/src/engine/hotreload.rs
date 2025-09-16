@@ -89,7 +89,10 @@ impl SceneState {
                 // The entire node belongs to plugin, serialize it entirely.
                 // Take the node out of the graph first.
                 let (ticket, node) = scene.graph.take_reserve(handle);
-                let mut container = NodeContainer::new(node);
+                // The new Option<Node> should work the same as NodeContainer in terms of the Visit trait
+                // see impl Visit for Node in fyrox-impl/src/scene/node/mod.rs
+                // let mut container = NodeContainer::new(node);
+                let mut container = Some(node);
                 let mut visitor = make_writing_visitor();
                 container
                     .visit("Node", &mut visitor)
@@ -225,7 +228,10 @@ impl SceneState {
                     widget_constructors,
                 )
                 .map_err(|e| e.to_string())?;
-                let mut container = NodeContainer::default();
+                // The new Option<Node> should work the same as NodeContainer in terms of the Visit trait
+                // see impl Visit for Node in fyrox-impl/src/scene/node/mod.rs
+                // let mut container = NodeContainer::default();
+                let mut container: Option<Node> = None;
                 container
                     .visit("Node", &mut visitor)
                     .map_err(|e| e.to_string())?;
