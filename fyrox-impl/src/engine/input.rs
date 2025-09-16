@@ -23,7 +23,7 @@
 //! in simple scenarios where you just need to know if a button (on keyboard, mouse) was pressed
 //! and do something. You should always prefer the event-based approach when possible.
 
-use fxhash::FxHashMap;
+use fxhash::{FxHashMap, FxHashSet};
 use fyrox_core::algebra::Vector2;
 use winit::event::{ButtonId, ElementState};
 use winit::keyboard::{KeyCode, PhysicalKey};
@@ -57,6 +57,16 @@ pub struct MouseState {
 pub struct KeyboardState {
     /// Represents the keyboard state in the current frame.
     pub keys: FxHashMap<PhysicalKey, ElementState>,
+    /// A hash set that contains all the keys that were pressed in the current frame. If a key
+    /// is still pressed in the next frame, this hash map will not contain it. This is useful
+    /// to check if a key was pressed and some action, but do not repeat the same action over and
+    /// over until the key is released.
+    pub pressed_keys: FxHashSet<PhysicalKey>,
+    /// A hash set that contains all the keys that were released in the current frame. If a key
+    /// is still released in the next frame, this hash map will not contain it. This is useful
+    /// to check if a key was released and some action, but do not repeat the same action over and
+    /// over until the key is pressed.
+    pub released_keys: FxHashSet<PhysicalKey>,
 }
 
 /// A stored state of most common input events. It is used a "shortcut" in cases where event-based
@@ -72,13 +82,33 @@ pub struct InputState {
 }
 
 impl InputState {
-    /// Returns `true` if the specified key was pressed in the current frame, `false` - otherwise.
+    /// Returns `true` if the specified key is pressed, `false` - otherwise.
     #[inline]
-    pub fn is_key_pressed(&self, key: KeyCode) -> bool {
+    pub fn is_key_down(&self, key: KeyCode) -> bool {
         self.keyboard
             .keys
             .get(&PhysicalKey::Code(key))
             .is_some_and(|state| *state == ElementState::Pressed)
+    }
+
+    /// Returns `true` if the specified key was pressed in the current frame, `false` - otherwise.
+    /// This method will return `false` if the key is still pressed in the next frame. This is
+    /// useful to check if a key was pressed and some action, but do not repeat the same action
+    /// over and over until the key is released.
+    #[inline]
+    pub fn is_key_pressed(&self, key: KeyCode) -> bool {
+        self.keyboard.pressed_keys.contains(&PhysicalKey::Code(key))
+    }
+
+    /// Returns `true` if the specified key was released in the current frame, `false` - otherwise.
+    /// This method will return `false` if the key is still released in the next frame. This is
+    /// useful to check if a key was released and some action, but do not repeat the same action
+    /// over and over until the key is pressed.
+    #[inline]
+    pub fn is_key_released(&self, key: KeyCode) -> bool {
+        self.keyboard
+            .released_keys
+            .contains(&PhysicalKey::Code(key))
     }
 
     /// Returns `true` if the specified mouse button pressed in the current frame, `false` -

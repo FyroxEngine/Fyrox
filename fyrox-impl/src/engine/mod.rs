@@ -131,7 +131,7 @@ use std::{
     time::Duration,
 };
 use uuid::Uuid;
-use winit::event::{DeviceEvent, WindowEvent};
+use winit::event::{DeviceEvent, ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::{
     dpi::{Position, Size},
@@ -1934,6 +1934,8 @@ impl Engine {
             self.post_update_plugins(dt, controller, lag);
 
             self.input_state.mouse.speed = Vector2::default();
+            self.input_state.keyboard.released_keys.clear();
+            self.input_state.keyboard.pressed_keys.clear();
         }
     }
 
@@ -2181,6 +2183,21 @@ impl Engine {
                         .keyboard
                         .keys
                         .insert(event.physical_key, event.state);
+
+                    match event.state {
+                        ElementState::Pressed => {
+                            self.input_state
+                                .keyboard
+                                .pressed_keys
+                                .insert(event.physical_key);
+                        }
+                        ElementState::Released => {
+                            self.input_state
+                                .keyboard
+                                .released_keys
+                                .insert(event.physical_key);
+                        }
+                    }
                 }
                 WindowEvent::CursorMoved { position, .. } => {
                     self.input_state.mouse.position =
