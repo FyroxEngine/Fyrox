@@ -53,7 +53,7 @@ use crate::{
         },
     },
 };
-use fyrox::asset::Resource;
+use fyrox::{asset::Resource, core::pool::NodeVariant};
 use fyrox::core::PhantomDataSendSync;
 use fyrox::gui::brush::Brush;
 use rust_fuzzy_search::fuzzy_compare;
@@ -241,6 +241,8 @@ pub struct AssetSelector {
     #[reflect(hidden)]
     resource_manager: ResourceManager,
 }
+
+impl NodeVariant<UiNode> for AssetSelector {}
 
 define_widget_deref!(AssetSelector);
 

@@ -220,7 +220,7 @@ impl InteractionMode for ReflectionProbeInteractionMode {
                 ctx.get_mut::<GameSceneContext>()
                     .scene
                     .graph
-                    .try_get_node_mut(probe)
+                    .try_get_node_mut(probe.cast())
                     .map(|n| n as &mut dyn Reflect)
             },
         );
