@@ -363,7 +363,7 @@ fn tile_map_to_collider_shape(
     nodes: &Pool<Node>,
     collider_name: &ImmutableString,
 ) -> Option<SharedShape> {
-    let tile_map = nodes.try_borrow(tile_map.0)?.component_ref::<TileMap>()?;
+    let tile_map = nodes.try_get_node(tile_map.0)?.component_ref::<TileMap>()?;
 
     let tile_set_resource = tile_map.tile_set()?.data_ref();
     let tile_set = tile_set_resource.as_loaded_ref()?;
@@ -1158,7 +1158,7 @@ impl PhysicsWorld {
                 }
             }
         } else if let Some(parent_body) = nodes
-            .try_borrow(collider_node.parent())
+            .try_get_node(collider_node.parent())
             .and_then(|n| n.cast::<dim2::rigidbody::RigidBody>())
         {
             if parent_body.native.get() != RigidBodyHandle::invalid() {

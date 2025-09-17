@@ -498,7 +498,7 @@ impl Graph {
     /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
     #[inline]
     pub fn try_get_node_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
-        self.pool.try_borrow_mut(handle)
+        self.pool.try_get_node_mut(handle)
     }
 
     /// Begins multi-borrow that allows you borrow to as many shared references to the graph
@@ -910,12 +910,12 @@ impl Graph {
     }
 
     pub(crate) fn update_enabled_flag_recursively(nodes: &Pool<Node>, node_handle: Handle<Node>) {
-        let Some(node) = nodes.try_borrow(node_handle) else {
+        let Some(node) = nodes.try_get_node(node_handle) else {
             return;
         };
 
         let parent_enabled = nodes
-            .try_borrow(node.parent())
+            .try_get_node(node.parent())
             .is_none_or(|p| p.is_globally_enabled());
         node.global_enabled.set(parent_enabled && node.is_enabled());
 
@@ -925,12 +925,12 @@ impl Graph {
     }
 
     pub(crate) fn update_visibility_recursively(nodes: &Pool<Node>, node_handle: Handle<Node>) {
-        let Some(node) = nodes.try_borrow(node_handle) else {
+        let Some(node) = nodes.try_get_node(node_handle) else {
             return;
         };
 
         let parent_visibility = nodes
-            .try_borrow(node.parent())
+            .try_get_node(node.parent())
             .is_none_or(|p| p.global_visibility());
         node.global_visibility
             .set(parent_visibility && node.visibility());
@@ -947,11 +947,11 @@ impl Graph {
         physics2d: &mut dim2::physics::PhysicsWorld,
         node_handle: Handle<Node>,
     ) {
-        let Some(node) = nodes.try_borrow(node_handle) else {
+        let Some(node) = nodes.try_get_node(node_handle) else {
             return;
         };
 
-        let parent_global_transform = if let Some(parent) = nodes.try_borrow(node.parent()) {
+        let parent_global_transform = if let Some(parent) = nodes.try_get_node(node.parent()) {
             parent.global_transform()
         } else {
             Matrix4::identity()
@@ -1057,7 +1057,7 @@ impl Graph {
 
         while let Ok(message) = self.message_receiver.try_recv() {
             if let NodeMessageKind::TransformChanged = message.kind {
-                if let Some(node) = self.pool.try_borrow(message.node) {
+                if let Some(node) = self.pool.try_get_node(message.node) {
                     node.on_local_transform_changed(&mut SyncContext {
                         nodes: &self.pool,
                         physics: &mut self.physics,
@@ -1624,14 +1624,14 @@ impl Graph {
     pub fn node_by_id(&self, id: SceneNodeId) -> Option<(Handle<Node>, &Node)> {
         self.instance_id_map
             .get(&id)
-            .and_then(|h| self.pool.try_borrow(*h).map(|n| (*h, n)))
+            .and_then(|h| self.pool.try_get_node(*h).map(|n| (*h, n)))
     }
 
     /// Tries to borrow a node by its id.
     pub fn node_by_id_mut(&mut self, id: SceneNodeId) -> Option<(Handle<Node>, &mut Node)> {
         self.instance_id_map
             .get(&id)
-            .and_then(|h| self.pool.try_borrow_mut(*h).map(|n| (*h, n)))
+            .and_then(|h| self.pool.try_get_node_mut(*h).map(|n| (*h, n)))
     }
 }
 
@@ -1708,7 +1708,7 @@ impl Visit for Graph {
 impl AbstractSceneGraph for Graph {
     fn try_get_node_untyped(&self, handle: ErasedHandle) -> Option<&dyn AbstractSceneNode> {
         self.pool
-            .try_borrow(handle.into())
+            .try_get_node(handle.into())
             .map(|n| n as &dyn AbstractSceneNode)
     }
 
@@ -1717,7 +1717,7 @@ impl AbstractSceneGraph for Graph {
         handle: ErasedHandle,
     ) -> Option<&mut dyn AbstractSceneNode> {
         self.pool
-            .try_borrow_mut(handle.into())
+            .try_get_node_mut(handle.into())
             .map(|n| n as &mut dyn AbstractSceneNode)
     }
 }
@@ -1729,7 +1729,7 @@ impl BaseSceneGraph for Graph {
     #[inline]
     fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
         self.pool
-            .try_borrow(handle)
+            .try_get_node(handle)
             .map(|n| NodeAsAny::as_any(n.0.deref()).type_id())
     }
 
@@ -1833,7 +1833,7 @@ impl BaseSceneGraph for Graph {
         let parent_handle = std::mem::replace(&mut self.pool[node_handle].parent, Handle::NONE);
 
         // Remove child from parent's children list
-        if let Some(parent) = self.pool.try_borrow_mut(parent_handle) {
+        if let Some(parent) = self.pool.try_get_node_mut(parent_handle) {
             if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
                 parent.children.remove(i);
             }
@@ -1846,23 +1846,23 @@ impl BaseSceneGraph for Graph {
 
     #[inline]
     fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
-        self.pool.try_borrow(handle)
+        self.pool.try_get_node(handle)
     }
 
     #[inline]
     fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
-        self.pool.try_borrow_mut(handle)
+        self.pool.try_get_node_mut(handle)
     }
 
     fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
         self.pool
-            .try_borrow(handle)
+            .try_get_node(handle)
             .map(|n| Box::deref(&n.0).query_derived_types().to_vec())
     }
 
     fn actual_type_name(&self, handle: Handle<Self::Node>) -> Option<&'static str> {
         self.pool
-            .try_borrow(handle)
+            .try_get_node(handle)
             .map(|n| n.0.deref().type_name())
     }
 }

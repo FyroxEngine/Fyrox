@@ -355,7 +355,7 @@ impl AudioBusGraph {
             std::mem::replace(&mut self.buses[node_handle].parent_bus, Handle::NONE);
 
         // Remove child from parent's children list
-        if let Some(parent) = self.buses.try_borrow_mut(parent_handle) {
+        if let Some(parent) = self.buses.try_get_node_mut(parent_handle) {
             if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
                 parent.child_buses.remove(i);
             }
@@ -416,12 +416,12 @@ impl AudioBusGraph {
 
     /// Tries to borrow an audio bus by its handle.
     pub fn try_get_bus_ref(&self, handle: Handle<AudioBus>) -> Option<&AudioBus> {
-        self.buses.try_borrow(handle)
+        self.buses.try_get_node(handle)
     }
 
     /// Tries to borrow an audio bus by its handle.
     pub fn try_get_bus_mut(&mut self, handle: Handle<AudioBus>) -> Option<&mut AudioBus> {
-        self.buses.try_borrow_mut(handle)
+        self.buses.try_get_node_mut(handle)
     }
 
     /// Returns total amount of audio buses in the graph.

@@ -310,7 +310,7 @@ impl<T: EntityId> MachineLayer<T> {
         animations: &AnimationContainer<T>,
         strategy: AnimationEventCollectionStrategy,
     ) -> LayerAnimationEventsCollection<T> {
-        if let Some(state) = self.states.try_borrow(self.active_state) {
+        if let Some(state) = self.states.try_get_node(self.active_state) {
             return LayerAnimationEventsCollection {
                 source: AnimationEventsSource::State {
                     handle: self.active_state,
@@ -318,22 +318,22 @@ impl<T: EntityId> MachineLayer<T> {
                 },
                 events: self
                     .nodes
-                    .try_borrow(state.root)
+                    .try_get_node(state.root)
                     .map(|root| {
                         root.collect_animation_events(&self.nodes, params, animations, strategy)
                     })
                     .unwrap_or_default(),
             };
-        } else if let Some(transition) = self.transitions.try_borrow(self.active_transition) {
+        } else if let Some(transition) = self.transitions.try_get_node(self.active_transition) {
             if let (Some(source_state), Some(dest_state)) = (
-                self.states.try_borrow(transition.source()),
-                self.states.try_borrow(transition.dest()),
+                self.states.try_get_node(transition.source()),
+                self.states.try_get_node(transition.dest()),
             ) {
                 let mut events = Vec::new();
                 match strategy {
                     AnimationEventCollectionStrategy::All => {
                         for state in [source_state, dest_state] {
-                            if let Some(root) = self.nodes.try_borrow(state.root) {
+                            if let Some(root) = self.nodes.try_get_node(state.root) {
                                 events.extend(root.collect_animation_events(
                                     &self.nodes,
                                     params,
@@ -350,7 +350,7 @@ impl<T: EntityId> MachineLayer<T> {
                             dest_state
                         };
 
-                        if let Some(pose_source) = self.nodes.try_borrow(input.root) {
+                        if let Some(pose_source) = self.nodes.try_get_node(input.root) {
                             events = pose_source.collect_animation_events(
                                 &self.nodes,
                                 params,
@@ -366,7 +366,7 @@ impl<T: EntityId> MachineLayer<T> {
                             source_state
                         };
 
-                        if let Some(pose_source) = self.nodes.try_borrow(input.root) {
+                        if let Some(pose_source) = self.nodes.try_get_node(input.root) {
                             events = pose_source.collect_animation_events(
                                 &self.nodes,
                                 params,
@@ -384,12 +384,12 @@ impl<T: EntityId> MachineLayer<T> {
                         dest_state_handle: transition.dest,
                         source_state_name: self
                             .states
-                            .try_borrow(transition.source)
+                            .try_get_node(transition.source)
                             .map(|s| s.name.clone())
                             .unwrap_or_default(),
                         dest_state_name: self
                             .states
-                            .try_borrow(transition.dest)
+                            .try_get_node(transition.dest)
                             .map(|s| s.name.clone())
                             .unwrap_or_default(),
                     },
@@ -610,7 +610,7 @@ impl<T: EntityId> MachineLayer<T> {
                     }
 
                     if transition.condition.calculate_value(parameters, animations) {
-                        if let Some(active_state) = self.states.try_borrow(self.active_state) {
+                        if let Some(active_state) = self.states.try_get_node(self.active_state) {
                             for action in active_state.on_leave_actions.iter() {
                                 action.apply(animations);
                             }
@@ -624,7 +624,7 @@ impl<T: EntityId> MachineLayer<T> {
                             );
                         }
 
-                        if let Some(source) = self.states.try_borrow(transition.dest()) {
+                        if let Some(source) = self.states.try_get_node(transition.dest()) {
                             for action in source.on_enter_actions.iter() {
                                 action.apply(animations);
                             }

@@ -110,7 +110,7 @@ impl AnimationPoseExt for AnimationPose {
         for (node, local_pose) in self.poses() {
             if node.is_none() {
                 Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
-            } else if let Some(node) = nodes.try_borrow_mut(*node) {
+            } else if let Some(node) = nodes.try_get_node_mut(*node) {
                 local_pose.values.apply(node);
             }
         }

@@ -168,7 +168,7 @@ impl<T: EntityId> State<T> {
 
     /// Returns a final pose of the state.
     pub fn pose<'a>(&self, nodes: &'a Pool<PoseNode<T>>) -> Option<Ref<'a, AnimationPose<T>>> {
-        nodes.try_borrow(self.root).map(|root| root.pose())
+        nodes.try_get_node(self.root).map(|root| root.pose())
     }
 
     /// Collects all animation handles used by this state.
@@ -177,7 +177,7 @@ impl<T: EntityId> State<T> {
         nodes: &Pool<PoseNode<T>>,
         animations: &mut FxHashSet<Handle<Animation<T>>>,
     ) {
-        if let Some(root) = nodes.try_borrow(self.root) {
+        if let Some(root) = nodes.try_get_node(self.root) {
             root.collect_animations(nodes, animations);
         }
     }
@@ -189,7 +189,7 @@ impl<T: EntityId> State<T> {
         animations: &AnimationContainer<T>,
         dt: f32,
     ) {
-        if let Some(root) = nodes.try_borrow(self.root) {
+        if let Some(root) = nodes.try_get_node(self.root) {
             root.eval_pose(nodes, params, animations, dt);
         }
     }

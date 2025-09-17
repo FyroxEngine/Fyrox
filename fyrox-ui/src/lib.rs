@@ -892,12 +892,12 @@ impl UiContainer {
 
     /// Tries to borrow a user interface using its handle.
     pub fn try_get(&self, handle: Handle<UserInterface>) -> Option<&UserInterface> {
-        self.pool.try_borrow(handle)
+        self.pool.try_get_node(handle)
     }
 
     /// Tries to borrow a user interface using its handle.
     pub fn try_get_mut(&mut self, handle: Handle<UserInterface>) -> Option<&mut UserInterface> {
-        self.pool.try_borrow_mut(handle)
+        self.pool.try_get_node_mut(handle)
     }
 
     /// Creates new iterator over user interfaces in container.
@@ -1259,7 +1259,7 @@ impl UserInterface {
             node: Handle<UiNode>,
             callback: fn(&UiNode),
         ) {
-            if let Some(node_ref) = nodes.try_borrow(node) {
+            if let Some(node_ref) = nodes.try_get_node(node) {
                 (callback)(node_ref);
                 if node_ref.parent().is_some() {
                     invalidate_recursive_up(nodes, node_ref.parent(), callback);
@@ -1283,7 +1283,7 @@ impl UserInterface {
                     self.update_global_visibility(node);
                 }
                 LayoutEvent::ZIndexChanged(node) => {
-                    if let Some(node_ref) = self.nodes.try_borrow(node) {
+                    if let Some(node_ref) = self.nodes.try_get_node(node) {
                         // Z index affects the location of the node in its parent's children list.
                         // Hash set will remove duplicate requests of z-index updates, thus improving
                         // performance.
@@ -1518,7 +1518,7 @@ impl UserInterface {
             }
         }
 
-        if let Some(keyboard_focus_node) = self.nodes.try_borrow(self.keyboard_focus_node) {
+        if let Some(keyboard_focus_node) = self.nodes.try_get_node(self.keyboard_focus_node) {
             if keyboard_focus_node.global_visibility && keyboard_focus_node.accepts_input {
                 let bounds = keyboard_focus_node.screen_bounds().inflate(1.0, 1.0);
                 self.drawing_context.push_rounded_rect(&bounds, 1.0, 2.0, 6);
@@ -1941,7 +1941,7 @@ impl UserInterface {
                 }
 
                 for &handle in self.methods_registry.preview_message.iter() {
-                    if let Some(node_ref) = self.nodes.try_borrow(handle) {
+                    if let Some(node_ref) = self.nodes.try_get_node(handle) {
                         node_ref.preview_message(self, &mut message);
                     }
                 }
@@ -2180,7 +2180,7 @@ impl UserInterface {
                         }
                         WidgetMessage::MouseUp { button, .. } => {
                             if *button == MouseButton::Right && !message.handled() {
-                                if let Some(picked) = self.nodes.try_borrow(self.picked_node) {
+                                if let Some(picked) = self.nodes.try_get_node(self.picked_node) {
                                     // Get the context menu from the current node or a parent node
                                     let (context_menu, target) = if picked.context_menu().is_some()
                                     {
@@ -2190,7 +2190,8 @@ impl UserInterface {
                                             n.context_menu().is_some()
                                         });
 
-                                        if let Some(parent) = self.nodes.try_borrow(parent_handle) {
+                                        if let Some(parent) = self.nodes.try_get_node(parent_handle)
+                                        {
                                             (parent.context_menu(), parent_handle)
                                         } else {
                                             (None, Handle::NONE)
@@ -2311,7 +2312,7 @@ impl UserInterface {
             } else {
                 let mut tooltip_owner_hovered = false;
                 let mut handle = self.picked_node;
-                while let Some(node) = self.nodes.try_borrow(handle) {
+                while let Some(node) = self.nodes.try_get_node(handle) {
                     if let Some(tooltip) = node.tooltip.as_ref() {
                         if &entry.tooltip == tooltip {
                             tooltip_owner_hovered = true;
@@ -2336,7 +2337,7 @@ impl UserInterface {
 
         // Check for hovering over a widget with a tooltip, or hovering over a tooltip.
         let mut handle = self.picked_node;
-        while let Some(node) = self.nodes.try_borrow(handle) {
+        while let Some(node) = self.nodes.try_get_node(handle) {
             let parent = node.parent();
 
             if let Some(tooltip) = node.tooltip() {
@@ -2990,7 +2991,7 @@ impl UserInterface {
 
     #[inline]
     pub fn try_get_node_mut(&mut self, node_handle: Handle<UiNode>) -> Option<&mut UiNode> {
-        self.nodes.try_borrow_mut(node_handle)
+        self.nodes.try_get_node_mut(node_handle)
     }
 
     pub fn copy_node(&mut self, node: Handle<UiNode>) -> Handle<UiNode> {
@@ -3109,7 +3110,7 @@ impl UserInterface {
             }
         }
 
-        let Some(node) = self.nodes.try_borrow(node_handle) else {
+        let Some(node) = self.nodes.try_get_node(node_handle) else {
             return Default::default();
         };
 
@@ -3243,7 +3244,7 @@ impl PrefabData for UserInterface {
 impl AbstractSceneGraph for UserInterface {
     fn try_get_node_untyped(&self, handle: ErasedHandle) -> Option<&dyn AbstractSceneNode> {
         self.nodes
-            .try_borrow(handle.into())
+            .try_get_node(handle.into())
             .map(|n| n as &dyn AbstractSceneNode)
     }
 
@@ -3252,7 +3253,7 @@ impl AbstractSceneGraph for UserInterface {
         handle: ErasedHandle,
     ) -> Option<&mut dyn AbstractSceneNode> {
         self.nodes
-            .try_borrow_mut(handle.into())
+            .try_get_node_mut(handle.into())
             .map(|n| n as &mut dyn AbstractSceneNode)
     }
 }
@@ -3264,7 +3265,7 @@ impl BaseSceneGraph for UserInterface {
     #[inline]
     fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
         self.nodes
-            .try_borrow(handle)
+            .try_get_node(handle)
             .map(|n| ControlAsAny::as_any(n.0.deref()).type_id())
     }
 
@@ -3280,12 +3281,12 @@ impl BaseSceneGraph for UserInterface {
 
     #[inline]
     fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
-        self.nodes.try_borrow(handle)
+        self.nodes.try_get_node(handle)
     }
 
     #[inline]
     fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
-        self.nodes.try_borrow_mut(handle)
+        self.nodes.try_get_node_mut(handle)
     }
 
     #[inline]
@@ -3374,13 +3375,13 @@ impl BaseSceneGraph for UserInterface {
 
     fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
         self.nodes
-            .try_borrow(handle)
+            .try_get_node(handle)
             .map(|n| n.0.query_derived_types().to_vec())
     }
 
     fn actual_type_name(&self, handle: Handle<Self::Node>) -> Option<&'static str> {
         self.nodes
-            .try_borrow(handle)
+            .try_get_node(handle)
             .map(|n| Reflect::type_name(n.0.deref()))
     }
 }

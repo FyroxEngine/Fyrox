@@ -513,7 +513,7 @@ fn make_trimesh(
     let root_inv_transform = owner_inv_transform;
 
     for &source in sources {
-        if let Some(mesh) = nodes.try_borrow(source.0).and_then(|n| n.cast::<Mesh>()) {
+        if let Some(mesh) = nodes.try_get_node(source.0).and_then(|n| n.cast::<Mesh>()) {
             let global_transform = root_inv_transform * mesh.global_transform();
 
             for surface in mesh.surfaces() {
@@ -798,11 +798,11 @@ fn collider_shape_into_native_shape(
             }
         }
         ColliderShape::Heightfield(heightfield) => pool
-            .try_borrow(heightfield.geometry_source.0)
+            .try_get_node(heightfield.geometry_source.0)
             .and_then(|n| n.cast::<Terrain>())
             .and_then(make_heightfield),
         ColliderShape::Polyhedron(polyhedron) => pool
-            .try_borrow(polyhedron.geometry_source.0)
+            .try_get_node(polyhedron.geometry_source.0)
             .and_then(|n| n.cast::<Mesh>())
             .map(|mesh| make_polyhedron_shape(owner_inv_global_transform, mesh)),
     }
@@ -1722,7 +1722,7 @@ impl PhysicsWorld {
                 }
             }
         } else if let Some(parent_body) = nodes
-            .try_borrow(collider_node.parent())
+            .try_get_node(collider_node.parent())
             .and_then(|n| n.cast::<scene::rigidbody::RigidBody>())
         {
             if parent_body.native.get() != RigidBodyHandle::invalid() {

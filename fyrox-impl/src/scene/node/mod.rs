@@ -332,6 +332,17 @@ impl BorrowNodeVariant for Node {
     }
 }
 
+impl NodeOrNodeVariant<Node> for Node {
+    fn convert_to_dest_type(node: &Node) -> Result<&Self, fyrox_core::pool::MismatchedTypeError> {
+        Ok(node)
+    }
+    fn convert_to_dest_type_mut(
+        node: &mut Node,
+    ) -> Result<&mut Self, fyrox_core::pool::MismatchedTypeError> {
+        Ok(node)
+    }
+}
+
 impl<T: NodeTrait> From<T> for Node {
     fn from(value: T) -> Self {
         Self(Box::new(value))

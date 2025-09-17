@@ -32,7 +32,9 @@ pub mod prelude {
 }
 
 use fxhash::FxHashMap;
-use fyrox_core::pool::{BorrowNodeVariant, ErasedHandle, NodeVariant};
+use fyrox_core::pool::{
+    BorrowError, BorrowErrorKind, BorrowNodeVariant, ErasedHandle, NodeVariant, QueryComponentError,
+};
 use fyrox_core::reflect::ReflectHandle;
 use fyrox_core::{
     log::{Log, MessageKind},
@@ -641,22 +643,26 @@ pub trait SceneGraphNode: AbstractSceneNode + Clone + 'static {
 
     /// Tries to borrow a component of given type.
     #[inline]
-    fn component_ref<T: Any>(&self) -> Option<&T> {
-        ComponentProvider::query_component_ref(self, TypeId::of::<T>())
-            .and_then(|c| c.downcast_ref())
+    fn component_ref<T: Any>(&self) -> Result<&T, QueryComponentError> {
+        let component_any = ComponentProvider::query_component_ref(self, TypeId::of::<T>())?;
+        Ok(component_any
+            .downcast_ref()
+            .expect("TypeId matched, but downcast failed!"))
     }
 
     /// Tries to borrow a component of given type.
     #[inline]
-    fn component_mut<T: Any>(&mut self) -> Option<&mut T> {
-        ComponentProvider::query_component_mut(self, TypeId::of::<T>())
-            .and_then(|c| c.downcast_mut())
+    fn component_mut<T: Any>(&mut self) -> Result<&mut T, QueryComponentError> {
+        let component_any = ComponentProvider::query_component_mut(self, TypeId::of::<T>())?;
+        Ok(component_any
+            .downcast_mut()
+            .expect("TypeId matched, but downcast failed!"))
     }
 
     /// Checks if the node has a component of given type.
     #[inline]
     fn has_component<T: Any>(&self) -> bool {
-        self.component_ref::<T>().is_some()
+        self.component_ref::<T>().is_ok()
     }
 }
 
@@ -716,10 +722,13 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
     fn set_root(&mut self, root: Handle<Self::Node>);
 
     /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
-    fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node>;
+    fn try_get_node(&self, handle: Handle<Self::Node>) -> Result<&Self::Node, BorrowError>;
 
     /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
-    fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node>;
+    fn try_get_node_mut(
+        &mut self,
+        handle: Handle<Self::Node>,
+    ) -> Result<&mut Self::Node, BorrowError>;
 
     /// Checks whether the given node handle is valid or not.
     fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool;
@@ -858,17 +867,21 @@ pub trait SceneGraph: BaseSceneGraph {
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
 
     /// Get the reference to the object with the type specified by the handle.
-    fn try_get<T: NodeVariant<Self::NodeType>>(&self, handle: Handle<T>) -> Option<&T>;
+    fn try_get<T: NodeVariant<Self::NodeType>>(&self, handle: Handle<T>)
+        -> Result<&T, BorrowError>;
 
     /// Get the mutable reference to the object with the type specified by the handle.
-    fn try_get_mut<T: NodeVariant<Self::NodeType>>(&mut self, handle: Handle<T>) -> Option<&mut T>;
+    fn try_get_mut<T: NodeVariant<Self::NodeType>>(
+        &mut self,
+        handle: Handle<T>,
+    ) -> Result<&mut T, BorrowError>;
 
     /// Tries to borrow a node and fetch its component of specified type.
     #[inline]
     fn try_get_of_type<T: NodeVariant<Self::NodeType>>(
         &self,
         handle: Handle<Self::Node>,
-    ) -> Option<&T>
+    ) -> Result<&T, BorrowError>
     where
         T: 'static,
     {
@@ -883,7 +896,7 @@ pub trait SceneGraph: BaseSceneGraph {
     fn try_get_mut_of_type<T: NodeVariant<Self::NodeType>>(
         &mut self,
         handle: Handle<Self::Node>,
-    ) -> Option<&mut T>
+    ) -> Result<&mut T, BorrowError>
     where
         T: 'static,
     {
@@ -894,17 +907,28 @@ pub trait SceneGraph: BaseSceneGraph {
     }
 
     #[inline]
-    fn try_get_component<T: 'static>(&self, handle: Handle<Self::Node>) -> Option<&T> {
-        self.try_get_node(handle)
-            .and_then(|n| n.query_component_ref(TypeId::of::<T>()))
-            .and_then(|c| c.downcast_ref())
+    fn try_get_component<T: 'static>(&self, handle: Handle<Self::Node>) -> Result<&T, BorrowError> {
+        let node = self.try_get_node(handle)?;
+        let component = node
+            .query_component_ref(TypeId::of::<T>())
+            .map_err(|e| BorrowError::new(BorrowErrorKind::NoSuchComponent(e), handle.into()))?;
+        Ok(component
+            .downcast_ref()
+            .expect("TypeId matched, but downcast failed!"))
     }
 
     #[inline]
-    fn try_get_component_mut<T: 'static>(&mut self, handle: Handle<Self::Node>) -> Option<&mut T> {
-        self.try_get_node_mut(handle)
-            .and_then(|n| n.query_component_mut(TypeId::of::<T>()))
-            .and_then(|c| c.downcast_mut())
+    fn try_get_component_mut<T: 'static>(
+        &mut self,
+        handle: Handle<Self::Node>,
+    ) -> Result<&mut T, BorrowError> {
+        let node = self.try_get_node_mut(handle)?;
+        let component = node
+            .query_component_mut(TypeId::of::<T>())
+            .map_err(|e| BorrowError::new(BorrowErrorKind::NoSuchComponent(e), handle.into()))?;
+        Ok(component
+            .downcast_mut()
+            .expect("TypeId matched, but downcast failed!"))
     }
 
     /// Tries to borrow a node by the given handle and checks if it has a component of the specified
@@ -914,7 +938,7 @@ pub trait SceneGraph: BaseSceneGraph {
     where
         T: 'static,
     {
-        self.try_get_component::<T>(handle).is_some()
+        self.try_get_component::<T>(handle).is_ok()
     }
 
     /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
@@ -929,7 +953,7 @@ pub trait SceneGraph: BaseSceneGraph {
         C: FnMut(&Self::Node) -> Option<&T>,
         T: ?Sized,
     {
-        self.try_get_node(root_node).and_then(|root| {
+        self.try_get_node(root_node).ok().and_then(|root| {
             if let Some(x) = cmp(root) {
                 Some((root_node, x))
             } else {
@@ -950,7 +974,7 @@ pub trait SceneGraph: BaseSceneGraph {
         C: FnMut(&Self::Node) -> bool,
     {
         let mut handle = root_node;
-        while let Some(node) = self.try_get_node(handle) {
+        while let Ok(node) = self.try_get_node(handle) {
             if cmp(node) {
                 return Some((handle, node));
             }
@@ -980,7 +1004,7 @@ pub trait SceneGraph: BaseSceneGraph {
         T: 'static,
     {
         self.find_up_map(node_handle, &mut |node| {
-            node.query_component_ref(TypeId::of::<T>())
+            node.query_component_ref(TypeId::of::<T>()).ok()
         })
         .and_then(|(handle, c)| c.downcast_ref::<T>().map(|typed| (handle, typed)))
     }
@@ -991,7 +1015,7 @@ pub trait SceneGraph: BaseSceneGraph {
         T: 'static,
     {
         self.find_map(node_handle, &mut |node| {
-            node.query_component_ref(TypeId::of::<T>())
+            node.query_component_ref(TypeId::of::<T>()).ok()
         })
         .and_then(|(handle, c)| c.downcast_ref::<T>().map(|typed| (handle, typed)))
     }
@@ -1009,7 +1033,7 @@ pub trait SceneGraph: BaseSceneGraph {
         T: ?Sized,
     {
         let mut handle = root_node;
-        while let Some(node) = self.try_get_node(handle) {
+        while let Ok(node) = self.try_get_node(handle) {
             if let Some(x) = cmp(node) {
                 return Some((handle, x));
             }
@@ -1076,7 +1100,7 @@ pub trait SceneGraph: BaseSceneGraph {
     where
         C: FnMut(&Self::Node) -> bool,
     {
-        self.try_get_node(root_node).and_then(|root| {
+        self.try_get_node(root_node).ok().and_then(|root| {
             if cmp(root) {
                 Some((root_node, root))
             } else {
@@ -1115,9 +1139,16 @@ pub trait SceneGraph: BaseSceneGraph {
         child: Handle<Self::Node>,
         offset: isize,
     ) -> Option<(Handle<Self::Node>, usize)> {
-        let parents_parent_handle = self.try_get_node(child)?.parent();
-        let parents_parent_ref = self.try_get_node(parents_parent_handle)?;
-        let position = parents_parent_ref.child_position(child)?;
+        let Ok(node) = self.try_get_node(child) else {
+            return None;
+        };
+        let parents_parent_handle = node.parent();
+        let Ok(parents_parent_ref) = self.try_get_node(parents_parent_handle) else {
+            return None;
+        };
+        let position = parents_parent_ref
+            .child_position(child)
+            .expect("The parent of the current node does not have current node as its child!");
         Some((
             parents_parent_handle,
             ((position as isize + offset) as usize).clamp(0, parents_parent_ref.children().len()),
@@ -1340,6 +1371,7 @@ pub trait SceneGraph: BaseSceneGraph {
                             // Use original handle directly.
                             resource_graph
                                 .try_get_node(node.original_handle_in_resource())
+                                .ok()
                                 .map(|resource_node| {
                                     (resource_node, node.original_handle_in_resource())
                                 })
@@ -1489,7 +1521,10 @@ mod test {
     };
     use fyrox_core::{
         define_as_any_trait,
-        pool::{BorrowNodeVariant, ErasedHandle, Handle, NodeVariant, Pool},
+        pool::{
+            BorrowError, BorrowErrorKind, BorrowNodeVariant, ErasedHandle, Handle,
+            MismatchedTypeError, NodeOrNodeVariant, NodeVariant, Pool,
+        },
         reflect::prelude::*,
         type_traits::prelude::*,
         visitor::prelude::*,
@@ -1542,6 +1577,19 @@ mod test {
     #[derive(ComponentProvider, Debug)]
     pub struct Node(Box<dyn NodeTrait>);
 
+    impl NodeOrNodeVariant<Node> for Node {
+        fn convert_to_dest_type(
+            node: &Node,
+        ) -> Result<&Self, fyrox_core::pool::MismatchedTypeError> {
+            Ok(node)
+        }
+        fn convert_to_dest_type_mut(
+            node: &mut Node,
+        ) -> Result<&mut Self, fyrox_core::pool::MismatchedTypeError> {
+            Ok(node)
+        }
+    }
+
     impl Clone for Node {
         fn clone(&self) -> Self {
             self.0.clone_box()
@@ -1555,11 +1603,22 @@ mod test {
     }
 
     impl BorrowNodeVariant for Node {
-        fn borrow_variant<T: fyrox_core::pool::NodeVariant<Self>>(&self) -> Option<&T> {
-            NodeAsAny::as_any(self.0.deref()).downcast_ref()
+        fn borrow_variant<T: fyrox_core::pool::NodeVariant<Self>>(
+            &self,
+        ) -> Result<&T, MismatchedTypeError> {
+            NodeAsAny::as_any(self.0.deref())
+                .downcast_ref()
+                .ok_or_else(|| {
+                    MismatchedTypeError::new(TypeId::of::<T>(), self.0.deref().type_id())
+                })
         }
-        fn borrow_variant_mut<T: fyrox_core::pool::NodeVariant<Self>>(&mut self) -> Option<&mut T> {
-            NodeAsAny::as_any_mut(self.0.deref_mut()).downcast_mut()
+        fn borrow_variant_mut<T: fyrox_core::pool::NodeVariant<Self>>(
+            &mut self,
+        ) -> Result<&mut T, MismatchedTypeError> {
+            let actual_type_id = self.0.deref().type_id();
+            NodeAsAny::as_any_mut(self.0.deref_mut())
+                .downcast_mut()
+                .ok_or_else(|| MismatchedTypeError::new(TypeId::of::<T>(), actual_type_id))
         }
     }
 
@@ -1859,7 +1918,8 @@ mod test {
     impl AbstractSceneGraph for Graph {
         fn try_get_node_untyped(&self, handle: ErasedHandle) -> Option<&dyn AbstractSceneNode> {
             self.nodes
-                .try_borrow(handle.into())
+                .try_get_node(handle.into())
+                .ok()
                 .map(|n| n as &dyn AbstractSceneNode)
         }
 
@@ -1868,7 +1928,8 @@ mod test {
             handle: ErasedHandle,
         ) -> Option<&mut dyn AbstractSceneNode> {
             self.nodes
-                .try_borrow_mut(handle.into())
+                .try_get_node_mut(handle.into())
+                .ok()
                 .map(|n| n as &mut dyn AbstractSceneNode)
         }
     }
@@ -1933,36 +1994,42 @@ mod test {
             let parent_handle =
                 std::mem::replace(&mut self.nodes[node_handle].parent, Handle::NONE);
 
-            if let Some(parent) = self.nodes.try_borrow_mut(parent_handle) {
+            if let Ok(parent) = self.nodes.try_get_node_mut(parent_handle) {
                 if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
                     parent.children.remove(i);
                 }
             }
         }
 
-        fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
-            self.nodes.try_borrow(handle)
+        fn try_get_node(&self, handle: Handle<Self::Node>) -> Result<&Self::Node, BorrowError> {
+            self.nodes.try_get_node(handle)
         }
 
-        fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
-            self.nodes.try_borrow_mut(handle)
+        fn try_get_node_mut(
+            &mut self,
+            handle: Handle<Self::Node>,
+        ) -> Result<&mut Self::Node, BorrowError> {
+            self.nodes.try_get_node_mut(handle)
         }
 
         fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
             self.nodes
-                .try_borrow(handle)
+                .try_get_node(handle)
+                .ok()
                 .map(|n| NodeAsAny::as_any(n.0.deref()).type_id())
         }
 
         fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
             self.nodes
-                .try_borrow(handle)
+                .try_get_node(handle)
+                .ok()
                 .map(|n| n.0.deref().query_derived_types().to_vec())
         }
 
         fn actual_type_name(&self, handle: Handle<Self::Node>) -> Option<&'static str> {
             self.nodes
-                .try_borrow(handle)
+                .try_get_node(handle)
+                .ok()
                 .map(|n| n.0.deref().type_name())
         }
     }
@@ -1985,16 +2052,21 @@ mod test {
             self.nodes.iter_mut()
         }
 
-        fn try_get<T: NodeVariant<Node>>(&self, handle: Handle<T>) -> Option<&T> {
+        fn try_get<T: NodeVariant<Node>>(&self, handle: Handle<T>) -> Result<&T, BorrowError> {
             // self.nodes.try_borrow_variant(handle)
-            self.try_get_node(handle.cast())
-                .and_then(|node| node.borrow_variant())
+            let node = self.try_get_node(handle.cast())?;
+            node.borrow_variant()
+                .map_err(|e| BorrowError::new(BorrowErrorKind::MismatchedType(e), handle.into()))
         }
 
-        fn try_get_mut<T: NodeVariant<Node>>(&mut self, handle: Handle<T>) -> Option<&mut T> {
+        fn try_get_mut<T: NodeVariant<Node>>(
+            &mut self,
+            handle: Handle<T>,
+        ) -> Result<&mut T, BorrowError> {
             // self.nodes.try_borrow_variant_mut(handle)
-            self.try_get_node_mut(handle.cast())
-                .and_then(|node| node.borrow_variant_mut())
+            let node = self.try_get_node_mut(handle.cast())?;
+            node.borrow_variant_mut()
+                .map_err(|e| BorrowError::new(BorrowErrorKind::MismatchedType(e), handle.into()))
         }
     }
 

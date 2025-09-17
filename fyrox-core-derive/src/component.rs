@@ -74,12 +74,13 @@ fn create_field_components(
 
     let prefix = if is_struct {
         if mutable {
-            Some(quote!(&mut self.))
+            quote!(&mut self.)
         } else {
-            Some(quote!(&self.))
+            quote!(&self.)
         }
     } else {
-        None
+        // For enum variant, the match should be handled elsewhere.
+        quote!(/* enum variant not handled here */)
     };
 
     fields
@@ -88,72 +89,118 @@ fn create_field_components(
         .map(|arg| {
             let ident = &arg.ident;
             let ty = &arg.ty;
-            if let Some(path) = &arg.path {
-                let path: TokenStream = parse_str(path).unwrap();
 
-                if let Some(dest_type) = arg.dest_type.as_ref() {
-                    quote! {
-                        if type_id == std::any::TypeId::of::<#dest_type>() {
-                            return Some(#prefix #path);
-                        }
-                    }
-                } else {
-                    quote! {
-                        if type_id == std::any::TypeId::of::<#ty>() {
-                            return Some(#prefix #path);
-                        }
-                    }
-                }
+            let field_expr = if let Some(path) = &arg.path {
+                let path: TokenStream = parse_str(path).expect("Invalid path");
+                quote!(#prefix #path)
             } else {
-                quote! {
-                    if type_id == std::any::TypeId::of::<#ty>() {
-                        return Some(#prefix #ident);
-                    }
+                quote!(#prefix #ident)
+            };
+
+            let target_type = if let Some(dest_type) = &arg.dest_type {
+                quote!(#dest_type)
+            } else {
+                quote!(#ty)
+            };
+
+            quote! {
+                if type_id == std::any::TypeId::of::<#target_type>() {
+                    return Ok(#field_expr as _);
+                } else {
+                    visited_types.push(std::any::TypeId::of::<#target_type>());
                 }
             }
         })
-        .collect::<Vec<_>>()
+        .collect()
 }
 
 fn impl_type_uuid_provider_struct(
     ty_args: &TypeArgs,
     field_args: &ast::Fields<FieldArgs>,
 ) -> TokenStream2 {
-    let (field_refs, field_ref_muts) = if field_args.style == ast::Style::Unit {
-        (quote! {}, quote! {})
-    } else {
-        let field_refs = create_field_components(true, &field_args.fields, field_args.style, false);
-        let field_ref_muts =
-            create_field_components(true, &field_args.fields, field_args.style, true);
-        (quote! { #(#field_refs)* }, quote! { #(#field_ref_muts)* })
-    };
-
     let ty_ident = &ty_args.ident;
     let (impl_generics, ty_generics, where_clause) = ty_args.generics.split_for_impl();
 
+    let component_ref_checks = if field_args.style != ast::Style::Unit {
+        let fields = &field_args.fields;
+        fields
+            .iter()
+            .map(|f| {
+                let ident = &f.ident;
+                let ty = &f.ty;
+
+                quote! {
+                    if type_id == std::any::TypeId::of::<#ty>() {
+                        return Ok(&self.#ident as &dyn std::any::Any);
+                    } else {
+                        visited_types.push(std::any::TypeId::of::<#ty>());
+                    }
+                }
+            })
+            .collect()
+    } else {
+        vec![]
+    };
+
+    let component_mut_checks = if field_args.style != ast::Style::Unit {
+        let fields = &field_args.fields;
+        fields
+            .iter()
+            .map(|f| {
+                let ident = &f.ident;
+                let ty = &f.ty;
+
+                quote! {
+                    if type_id == std::any::TypeId::of::<#ty>() {
+                        return Ok(&mut self.#ident as &mut dyn std::any::Any);
+                    } else {
+                        visited_types.push(std::any::TypeId::of::<#ty>());
+                    }
+                }
+            })
+            .collect()
+    } else {
+        vec![]
+    };
+
     quote! {
         impl #impl_generics ComponentProvider for #ty_ident #ty_generics #where_clause {
-            fn query_component_ref(&self, type_id: std::any::TypeId) -> Option<&dyn std::any::Any> {
+            fn query_component_ref(
+                &self,
+                type_id: std::any::TypeId,
+            ) -> Result<&dyn std::any::Any, QueryComponentError> {
                 if type_id == std::any::TypeId::of::<Self>() {
-                    return Some(self);
+                    return Ok(self);
                 }
 
-                #field_refs
+                let mut visited_types = Vec::new();
 
-                None
+                #(#component_ref_checks)*
+
+                Err(QueryComponentError::new(
+                    type_id,
+                    std::any::TypeId::of::<Self>(),
+                    visited_types
+                ))
             }
 
             fn query_component_mut(
                 &mut self,
                 type_id: std::any::TypeId,
-            ) -> Option<&mut dyn std::any::Any> {
+            ) -> Result<&mut dyn std::any::Any, QueryComponentError> {
                 if type_id == std::any::TypeId::of::<Self>() {
-                    return Some(self);
+                    return Ok(self);
                 }
 
-                #field_ref_muts
+                let mut visited_types = Vec::new();
 
-                None
+                #(#component_mut_checks)*
+
+                Err(QueryComponentError::new(
+                    type_id,
+                    std::any::TypeId::of::<Self>(),
+                    visited_types
+                ))
             }
         }
     }

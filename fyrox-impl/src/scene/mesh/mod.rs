@@ -652,7 +652,7 @@ impl NodeTrait for Mesh {
             // Special case for skinned meshes.
             for surface in self.surfaces.iter() {
                 for &bone in surface.bones() {
-                    if let Some(node) = context.nodes.try_borrow(bone) {
+                    if let Some(node) = context.nodes.try_get_node(bone) {
                         world_aabb.add_point(node.global_position())
                     }
                 }

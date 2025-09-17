@@ -603,8 +603,8 @@ impl Visitor {
         let mut rev = String::new();
         let mut handle = self.current_node;
         loop {
-            let node = self.nodes.try_borrow(handle);
-            let Some(node) = node else {
+            let node = self.nodes.try_get_node(handle);
+            let Ok(node) = node else {
                 break;
             };
             if !rev.is_empty() {
@@ -620,8 +620,9 @@ impl Visitor {
     /// because there should be no way to leave the initial `__ROOT__` region.
     pub fn current_region(&self) -> Option<&str> {
         self.nodes
-            .try_borrow(self.current_node)
+            .try_get_node(self.current_node)
             .map(|n| n.name.as_str())
+            .ok()
     }
 
     fn leave_region(&mut self) -> VisitResult {

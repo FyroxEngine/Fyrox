@@ -333,13 +333,13 @@ impl<T: EntityId> Machine<T> {
         for layer in self.layers.iter_mut() {
             let mut states_to_check = [Some(layer.active_state()), None, None];
             if let Some(active_transition) =
-                layer.transitions().try_borrow(layer.active_transition())
+                layer.transitions().try_get_node(layer.active_transition())
             {
                 states_to_check[1] = Some(active_transition.source);
                 states_to_check[2] = Some(active_transition.dest);
             }
             for state_to_check in states_to_check.iter().flatten() {
-                if let Some(state) = layer.states().try_borrow(*state_to_check) {
+                if let Some(state) = layer.states().try_get_node(*state_to_check) {
                     state.collect_animations(layer.nodes(), &mut self.animations_cache);
                 }
             }

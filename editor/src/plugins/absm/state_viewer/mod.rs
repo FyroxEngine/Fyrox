@@ -225,7 +225,7 @@ impl StateViewer {
 
         let (state_name, exists) = machine.layers()[layer_index]
             .states()
-            .try_borrow(state)
+            .try_get_node(state)
             .map(|state| {
                 (
                     format!(
@@ -424,7 +424,7 @@ impl StateViewer {
         G: SceneGraph<Node = N, Prefab = P>,
         N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
     {
-        if let Some(parent_state_ref) = machine_layer.states().try_borrow(self.state.into()) {
+        if let Some(parent_state_ref) = machine_layer.states().try_get_node(self.state.into()) {
             let current_selection = fetch_selection(editor_selection);
 
             let mut views = Vec::new();
@@ -447,7 +447,7 @@ impl StateViewer {
                         {
                             if machine_layer
                                 .nodes()
-                                .try_borrow(pose_node.model_handle)
+                                .try_get_node(pose_node.model_handle)
                                 .is_some_and(|node| node.parent_state == self.state.into())
                             {
                                 true

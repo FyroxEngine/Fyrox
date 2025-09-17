@@ -514,7 +514,7 @@ impl NodeTrait for RigidBody {
             // Rigid body 2D can be root node of a scene, in this case it does not have a parent.
             context
                 .nodes
-                .try_borrow(self.parent)
+                .try_get_node(self.parent)
                 .map(|p| p.global_transform())
                 .unwrap_or_else(Matrix4::identity),
         );

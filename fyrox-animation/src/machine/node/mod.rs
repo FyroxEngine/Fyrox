@@ -122,21 +122,21 @@ impl<T: EntityId> PoseNode<T> {
             }
             PoseNode::BlendAnimations(blend_animations) => {
                 for input in blend_animations.pose_sources.iter() {
-                    if let Some(source) = nodes.try_borrow(input.pose_source) {
+                    if let Some(source) = nodes.try_get_node(input.pose_source) {
                         source.collect_animations(nodes, animations)
                     }
                 }
             }
             PoseNode::BlendAnimationsByIndex(blend_animations_by_index) => {
                 for input in blend_animations_by_index.inputs.iter() {
-                    if let Some(source) = nodes.try_borrow(input.pose_source) {
+                    if let Some(source) = nodes.try_get_node(input.pose_source) {
                         source.collect_animations(nodes, animations)
                     }
                 }
             }
             PoseNode::BlendSpace(blend_space) => {
                 for point in blend_space.points() {
-                    if let Some(source) = nodes.try_borrow(point.pose_source) {
+                    if let Some(source) = nodes.try_get_node(point.pose_source) {
                         source.collect_animations(nodes, animations)
                     }
                 }

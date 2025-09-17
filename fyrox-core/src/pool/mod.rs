@@ -116,6 +116,15 @@ pub struct MismatchedTypeError {
     pub actual_type: TypeId,
 }
 
+impl MismatchedTypeError {
+    pub fn new(expected_type: TypeId, actual_type: TypeId) -> Self {
+        Self {
+            expected_type,
+            actual_type,
+        }
+    }
+}
+
 impl Display for MismatchedTypeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -132,6 +141,20 @@ pub struct QueryComponentError {
     pub target_component_type: TypeId,
     pub node_variant_type: TypeId,
     pub component_types: Vec<TypeId>,
+}
+
+impl QueryComponentError {
+    pub fn new(
+        target_component_type: TypeId,
+        node_variant_type: TypeId,
+        component_types: Vec<TypeId>,
+    ) -> Self {
+        Self {
+            target_component_type,
+            node_variant_type,
+            component_types,
+        }
+    }
 }
 
 impl Display for QueryComponentError {
@@ -464,7 +487,7 @@ where
     }
 }
 
-impl<T> Default for Pool<T> {
+impl<T: 'static> Default for Pool<T> {
     #[inline]
     fn default() -> Self {
         Self::new()
@@ -514,7 +537,7 @@ where
     }
 }
 
-impl<T> Pool<T> {
+impl<T: 'static> Pool<T> {
     #[inline]
     pub fn new() -> Self {
         Pool {
@@ -1226,7 +1249,7 @@ where
     where
         C: 'static,
     {
-        let node = self.try_borrow(handle)?;
+        let node = self.try_get_node(handle)?;
         let component_any = node
             .query_component_ref(TypeId::of::<C>())
             .map_err(|e| BorrowError::new(BorrowErrorKind::NoSuchComponent(e), handle.into()))?;
@@ -1241,7 +1264,7 @@ where
     where
         C: 'static,
     {
-        let node = self.try_borrow_mut(handle)?;
+        let node = self.try_get_node_mut(handle)?;
         let component_any = node
             .query_component_mut(TypeId::of::<C>())
             .map_err(|e| BorrowError::new(BorrowErrorKind::NoSuchComponent(e), handle.into()))?;
@@ -1259,7 +1282,7 @@ impl<T: 'static> Pool<T> {
     /// at handle's index is different than the object was there before).
     #[inline]
     #[must_use]
-    pub fn try_borrow(&self, handle: Handle<T>) -> Result<&T, BorrowError> {
+    pub fn try_get_node(&self, handle: Handle<T>) -> Result<&T, BorrowError> {
         let record = self.records_get(handle.index).ok_or_else(|| {
             BorrowError::new(
                 BorrowErrorKind::InvalidHandleIndex,
@@ -1285,7 +1308,7 @@ impl<T: 'static> Pool<T> {
     /// at handle's index is different than the object was there before).
     #[inline]
     #[must_use]
-    pub fn try_borrow_mut(&mut self, handle: Handle<T>) -> Result<&mut T, BorrowError> {
+    pub fn try_get_node_mut(&mut self, handle: Handle<T>) -> Result<&mut T, BorrowError> {
         // self.records_get_mut(handle.index).and_then(|r| {
         //     if r.generation == handle.generation {
         //         r.payload.as_mut()
@@ -1321,7 +1344,7 @@ impl<T: 'static> Pool<T> {
     #[inline]
     #[must_use]
     pub fn borrow(&self, handle: Handle<T>) -> &T {
-        self.try_borrow(handle).unwrap()
+        self.try_get_node(handle).unwrap()
     }
 
     /// Borrows mutable reference to an object by its handle.
@@ -1344,7 +1367,7 @@ impl<T: 'static> Pool<T> {
     #[inline]
     #[must_use]
     pub fn borrow_mut(&mut self, handle: Handle<T>) -> &mut T {
-        self.try_borrow_mut(handle).unwrap()
+        self.try_get_node_mut(handle).unwrap()
     }
 
     /// Borrows mutable references of objects at the same time. This method will succeed only
@@ -1477,12 +1500,12 @@ impl<T: 'static> Pool<T> {
         F: FnOnce(&T) -> Handle<T>,
     {
         let this = unsafe { &mut *(self as *mut Pool<T>) };
-        let first = self.try_borrow_mut(handle);
+        let first = self.try_get_node_mut(handle);
         let second = match first {
             Ok(ref first_object) => {
                 let second_handle = func(first_object);
                 if second_handle != handle {
-                    this.try_borrow_mut(second_handle).ok()
+                    this.try_get_node_mut(second_handle).ok()
                 } else {
                     None
                 }
@@ -1500,26 +1523,69 @@ pub trait BorrowNodeVariant: Sized {
     fn borrow_variant_mut<T: NodeVariant<Self>>(&mut self) -> Result<&mut T, MismatchedTypeError>;
 }
 
-impl<NodeType: BorrowNodeVariant + 'static> Pool<NodeType> {
-    pub fn try_borrow_variant<T: NodeVariant<NodeType>>(
+// T: Node or UiNode
+pub trait NodeOrNodeVariant<T> {
+    // fn is_node_variant(&self) -> bool;
+    fn convert_to_dest_type(node: &T) -> Result<&Self, MismatchedTypeError>;
+    fn convert_to_dest_type_mut(node: &mut T) -> Result<&mut Self, MismatchedTypeError>;
+}
+
+impl<T: BorrowNodeVariant, U: NodeVariant<T>> NodeOrNodeVariant<T> for U {
+    // type CurrentType = U;
+    // fn is_node_variant(&self) -> bool {
+    //     true
+    // }
+    fn convert_to_dest_type(node: &T) -> Result<&Self, MismatchedTypeError> {
+        node.borrow_variant()
+    }
+    fn convert_to_dest_type_mut(node: &mut T) -> Result<&mut Self, MismatchedTypeError> {
+        node.borrow_variant_mut()
+    }
+}
+
+impl<T: 'static> Pool<T> {
+    pub fn try_get<U: NodeOrNodeVariant<T> + 'static>(
         &self,
-        handle: Handle<T>,
-    ) -> Result<&T, BorrowError> {
-        let node = self.try_borrow(handle.cast())?;
-        node.borrow_variant().map_err(|e| {
+        handle: Handle<U>,
+    ) -> Result<&U, BorrowError> {
+        let node = self.try_get_node(handle.cast::<T>())?;
+        U::convert_to_dest_type(node).map_err(|e| {
             BorrowError::new(BorrowErrorKind::MismatchedType(e), HandleInfo::from(handle))
         })
     }
-    pub fn try_borrow_variant_mut<T: NodeVariant<NodeType>>(
+    pub fn try_get_mut<U: NodeOrNodeVariant<T> + 'static>(
         &mut self,
-        handle: Handle<T>,
-    ) -> Result<&mut T, BorrowError> {
-        let node = self.try_borrow_mut(handle.cast())?;
-        node.borrow_variant_mut().map_err(|e| {
+        handle: Handle<U>,
+    ) -> Result<&mut U, BorrowError> {
+        let node = self.try_get_node_mut(handle.cast::<T>())?;
+        U::convert_to_dest_type_mut(node).map_err(|e| {
             BorrowError::new(BorrowErrorKind::MismatchedType(e), HandleInfo::from(handle))
         })
     }
 }
+
+// variant: ignore handle type, call downcast ...
+
+// impl<NodeType: BorrowNodeVariant + 'static> Pool<NodeType> {
+//     pub fn try_borrow_variant<T: NodeVariant<NodeType>>(
+//         &self,
+//         handle: Handle<T>,
+//     ) -> Result<&T, BorrowError> {
+//         let node = self.try_get_node(handle.cast())?;
+//         node.borrow_variant().map_err(|e| {
+//             BorrowError::new(BorrowErrorKind::MismatchedType(e), HandleInfo::from(handle))
+//         })
+//     }
+//     pub fn try_borrow_variant_mut<T: NodeVariant<NodeType>>(
+//         &mut self,
+//         handle: Handle<T>,
+//     ) -> Result<&mut T, BorrowError> {
+//         let node = self.try_get_node_mut(handle.cast())?;
+//         node.borrow_variant_mut().map_err(|e| {
+//             BorrowError::new(BorrowErrorKind::MismatchedType(e), HandleInfo::from(handle))
+//         })
+//     }
+// }
 
 // impl Pool<UiNode>{
 //     pub fn try_borrow_variant<T: Control>(&self, handle: Handle<T>) -> Option<&T> {
@@ -1554,7 +1620,7 @@ where
     type Output = T;
     #[inline]
     fn index(&self, index: Handle<T>) -> &Self::Output {
-        self.try_borrow(index).expect("The handle must be valid!")
+        self.try_get_node(index).expect("The handle must be valid!")
     }
 }
 
@@ -1564,12 +1630,12 @@ where
 {
     #[inline]
     fn index_mut(&mut self, index: Handle<T>) -> &mut Self::Output {
-        self.try_borrow_mut(index)
+        self.try_get_node_mut(index)
             .expect("The handle must be valid!")
     }
 }
 
-impl<'a, T> IntoIterator for &'a Pool<T> {
+impl<'a, T: 'static> IntoIterator for &'a Pool<T> {
     type Item = &'a T;
     type IntoIter = PoolIterator<'a, T>;
 
@@ -1579,7 +1645,7 @@ impl<'a, T> IntoIterator for &'a Pool<T> {
     }
 }
 
-impl<'a, T> IntoIterator for &'a mut Pool<T> {
+impl<'a, T: 'static> IntoIterator for &'a mut Pool<T> {
     type Item = &'a mut T;
     type IntoIter = PoolIteratorMut<'a, T>;
 
@@ -1847,9 +1913,9 @@ mod test {
         let a = pool.spawn(Payload);
         let b = Handle::<Payload>::default();
 
-        assert_eq!(pool.try_borrow(a), Ok(&Payload));
+        assert_eq!(pool.try_get_node(a), Ok(&Payload));
         assert_eq!(
-            pool.try_borrow(b),
+            pool.try_get_node(b),
             Err(BorrowError::new(
                 crate::pool::BorrowErrorKind::InvalidHandleIndex,
                 b.into()

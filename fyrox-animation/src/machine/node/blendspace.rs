@@ -138,10 +138,10 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendSpace<T> {
                 let (ib, wb) = weights[1];
                 let (ic, wc) = weights[2];
 
-                if let (Some(pose_a), Some(pose_b), Some(pose_c)) = (
-                    nodes.try_borrow(self.points[ia].pose_source),
-                    nodes.try_borrow(self.points[ib].pose_source),
-                    nodes.try_borrow(self.points[ic].pose_source),
+                if let (Ok(pose_a), Ok(pose_b), Ok(pose_c)) = (
+                    nodes.try_get_node(self.points[ia].pose_source),
+                    nodes.try_get_node(self.points[ib].pose_source),
+                    nodes.try_get_node(self.points[ic].pose_source),
                 ) {
                     pose.blend_with(&pose_a.eval_pose(nodes, params, animations, dt), wa);
                     pose.blend_with(&pose_b.eval_pose(nodes, params, animations, dt), wb);
@@ -173,10 +173,10 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendSpace<T> {
                 let (ib, wb) = weights[1];
                 let (ic, wc) = weights[2];
 
-                if let (Some(pose_a), Some(pose_b), Some(pose_c)) = (
-                    nodes.try_borrow(self.points[ia].pose_source),
-                    nodes.try_borrow(self.points[ib].pose_source),
-                    nodes.try_borrow(self.points[ic].pose_source),
+                if let (Ok(pose_a), Ok(pose_b), Ok(pose_c)) = (
+                    nodes.try_get_node(self.points[ia].pose_source),
+                    nodes.try_get_node(self.points[ib].pose_source),
+                    nodes.try_get_node(self.points[ic].pose_source),
                 ) {
                     match strategy {
                         AnimationEventCollectionStrategy::All => {

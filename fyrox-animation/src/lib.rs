@@ -1121,13 +1121,13 @@ impl<T: EntityId> AnimationContainer<T> {
     /// Tries to borrow a reference to an animation in the container.
     #[inline]
     pub fn try_get(&self, handle: Handle<Animation<T>>) -> Option<&Animation<T>> {
-        self.pool.try_borrow(handle)
+        self.pool.try_get_node(handle)
     }
 
     /// Tries to borrow a mutable reference to an animation in the container.
     #[inline]
     pub fn try_get_mut(&mut self, handle: Handle<Animation<T>>) -> Option<&mut Animation<T>> {
-        self.pool.try_borrow_mut(handle)
+        self.pool.try_get_node_mut(handle)
     }
 
     /// Tries to find an animation by its name in the container.

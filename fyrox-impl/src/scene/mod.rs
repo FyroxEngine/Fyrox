@@ -140,7 +140,7 @@ impl NavMeshContainer {
 
     /// Tries to borrow a navmesh by its handle.
     pub fn try_get(&self, handle: Handle<Navmesh>) -> Option<&Navmesh> {
-        self.pool.try_borrow(handle)
+        self.pool.try_get_node(handle)
     }
 
     /// Tries to borrow a navmesh by its index.
@@ -150,7 +150,7 @@ impl NavMeshContainer {
 
     /// Tries to borrow a navmesh by its handle.
     pub fn try_get_mut(&mut self, handle: Handle<Navmesh>) -> Option<&mut Navmesh> {
-        self.pool.try_borrow_mut(handle)
+        self.pool.try_get_node_mut(handle)
     }
 }
 
@@ -674,12 +674,12 @@ impl SceneContainer {
 
     /// Tries to borrow a scene using its handle.
     pub fn try_get(&self, handle: Handle<Scene>) -> Option<&Scene> {
-        self.pool.try_borrow(handle)
+        self.pool.try_get_node(handle)
     }
 
     /// Tries to borrow a scene using its handle.
     pub fn try_get_mut(&mut self, handle: Handle<Scene>) -> Option<&mut Scene> {
-        self.pool.try_borrow_mut(handle)
+        self.pool.try_get_node_mut(handle)
     }
 
     /// Creates new iterator over scenes in container.
