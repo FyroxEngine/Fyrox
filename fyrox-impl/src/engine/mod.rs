@@ -2179,25 +2179,39 @@ impl Engine {
         match event {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::KeyboardInput { event, .. } => {
+                    let keyboard = &mut self.input_state.keyboard;
+
+                    match event.state {
+                        ElementState::Pressed => {
+                            if keyboard
+                                .keys
+                                .get(&event.physical_key)
+                                .is_none_or(|state| *state == ElementState::Released)
+                            {
+                                self.input_state
+                                    .keyboard
+                                    .pressed_keys
+                                    .insert(event.physical_key);
+                            }
+                        }
+                        ElementState::Released => {
+                            if keyboard
+                                .keys
+                                .get(&event.physical_key)
+                                .is_some_and(|state| *state == ElementState::Pressed)
+                            {
+                                self.input_state
+                                    .keyboard
+                                    .released_keys
+                                    .insert(event.physical_key);
+                            }
+                        }
+                    }
+
                     self.input_state
                         .keyboard
                         .keys
                         .insert(event.physical_key, event.state);
-
-                    match event.state {
-                        ElementState::Pressed => {
-                            self.input_state
-                                .keyboard
-                                .pressed_keys
-                                .insert(event.physical_key);
-                        }
-                        ElementState::Released => {
-                            self.input_state
-                                .keyboard
-                                .released_keys
-                                .insert(event.physical_key);
-                        }
-                    }
                 }
                 WindowEvent::CursorMoved { position, .. } => {
                     self.input_state.mouse.position =
