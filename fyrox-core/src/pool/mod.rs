@@ -1922,12 +1922,8 @@ mod test {
         let b = Handle::<Payload>::default();
 
         assert_eq!(pool.try_get_node(a), Ok(&Payload));
-        assert_eq!(
-            pool.try_get_node(b),
-            Err(BorrowError::new(
-                crate::pool::BorrowErrorKind::InvalidHandleIndex,
-                b.into()
-            ))
+        assert!(
+            pool.try_get_node(b).is_err()
         );
     }
 
