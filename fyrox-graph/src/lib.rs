@@ -26,8 +26,8 @@ pub mod constructor;
 
 pub mod prelude {
     pub use crate::{
-        AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, LinkScheme, NodeHandleMap,
-        NodeMapping, PrefabData, SceneGraph, SceneGraphNode,
+        AbstractSceneGraph, AbstractSceneNode, LinkScheme, NodeHandleMap, NodeMapping, PrefabData,
+        SceneGraph, SceneGraphNode,
     };
 }
 
