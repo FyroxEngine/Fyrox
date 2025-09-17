@@ -107,20 +107,20 @@ impl VertexTrait for SpriteVertex {
     }
 }
 
-/// Sprite is a billboard which always faces towards camera. It can be used as a "model" for bullets,
+/// Sprite is a billboard which always faces towards the camera. It can be used as a "model" for bullets,
 /// and so on.
-///
-/// # Depth sorting
-///
-/// Sprites are **not** depth-sorted so there could be some blending issues if multiple sprites are
-/// stacked one behind another.
 ///
 /// # Performance
 ///
-/// Sprites rendering uses batching to reduce amount of draw calls - it basically merges multiple
+/// Sprites rendering uses batching to reduce the number of draw calls - it basically merges multiple
 /// sprites with the same material into one mesh and renders it in a single draw call which is quite
-/// fast and can handle tens of thousands sprites with ease. You should not, however, use sprites to
+/// fast and can handle tens of thousands of sprites with ease. You should not, however, use sprites to
 /// make particle systems, use [ParticleSystem](super::particle_system::ParticleSystem) instead.
+///
+/// # Flipping
+///
+/// It is possible to flip the sprite on both axes, vertical and horizontal. Use [`Sprite::set_flip_x`]
+/// and [`Sprite::set_flip_y`] methods to flip the sprite on desired axes.
 ///
 /// # Example
 ///
@@ -150,7 +150,7 @@ impl VertexTrait for SpriteVertex {
 ///
 /// Keep in mind, that this example creates new material instance each call of the method and
 /// **does not** reuse it. Ideally, you should reuse the shared material across multiple instances
-/// to get best possible performance. Otherwise, each your sprite will be put in a separate batch
+/// to get the best possible performance. Otherwise, each your sprite will be put in a separate batch
 /// which will force your GPU to render a single sprite in dedicated draw call which is quite slow.
 #[derive(Debug, Reflect, Clone, ComponentProvider)]
 #[reflect(derived_type = "Node")]
