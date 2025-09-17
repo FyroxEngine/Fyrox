@@ -19,9 +19,9 @@
 // SOFTWARE.
 
 use super::{Handle, Pool, RefCounter};
-use crate::pool::BorrowNodeVariant;
+use crate::pool::{NodeOrNodeVariant};
 use crate::{
-    pool::{BorrowErrorKind, HandleInfo, NodeVariant},
+    pool::{BorrowErrorKind, HandleInfo},
     ComponentProvider,
 };
 use std::{
@@ -273,20 +273,20 @@ impl<'a, T: 'static> MultiBorrowContext<'a, T> {
     /// 2) You're trying to get more references that the context could handle (there is not enough space
     /// in the internal handles storage) - in this case you must increase `N`.
     /// 3) A given handle is invalid.
-    #[inline]
-    pub fn try_get_node<'b: 'a>(
-        &'b self,
-        handle: Handle<T>,
-    ) -> Result<Ref<'a, 'b, T>, MultiBorrowError> {
-        self.try_get_node_internal(handle, |obj| Ok(obj))
-    }
-    #[deprecated(
-        note = "to be consistent with single borrow naming convention and avoid polluting the API. Call unwrap on try_get_node instead"
-    )]
-    #[inline]
-    pub fn get_node<'b: 'a>(&'b self, handle: Handle<T>) -> Ref<'a, 'b, T> {
-        self.try_get_node(handle).unwrap()
-    }
+    // #[inline]
+    // pub fn try_get_node<'b: 'a>(
+    //     &'b self,
+    //     handle: Handle<T>,
+    // ) -> Result<Ref<'a, 'b, T>, MultiBorrowError> {
+    //     self.try_get_node_internal(handle, |obj| Ok(obj))
+    // }
+    // #[deprecated(
+    //     note = "to be consistent with single borrow naming convention and avoid polluting the API. Call unwrap on try_get_node instead"
+    // )]
+    // #[inline]
+    // pub fn get_node<'b: 'a>(&'b self, handle: Handle<T>) -> Ref<'a, 'b, T> {
+    //     self.try_get_node(handle).unwrap()
+    // }
 
     #[inline]
     fn try_get_node_mut_internal<'b: 'a, C, F>(
@@ -354,47 +354,44 @@ impl<'a, T: 'static> MultiBorrowContext<'a, T> {
         })
     }
 
-    #[inline]
-    pub fn try_get_node_mut<'b: 'a>(
-        &'b self,
-        handle: Handle<T>,
-    ) -> Result<RefMut<'a, 'b, T>, MultiBorrowError> {
-        self.try_get_node_mut_internal(handle, |obj| Ok(obj))
-    }
+    // #[inline]
+    // pub fn try_get_node_mut<'b: 'a>(
+    //     &'b self,
+    //     handle: Handle<T>,
+    // ) -> Result<RefMut<'a, 'b, T>, MultiBorrowError> {
+    //     self.try_get_node_mut_internal(handle, |obj| Ok(obj))
+    // }
 
-    #[deprecated(
-        note = "to be consistent with single borrow naming convention and avoid polluting the API. Call unwrap on try_get_node_mut instead"
-    )]
-    #[inline]
-    pub fn get_node_mut<'b: 'a>(&'b self, handle: Handle<T>) -> RefMut<'a, 'b, T> {
-        self.try_get_node_mut(handle).unwrap()
-    }
+    // #[deprecated(
+    //     note = "to be consistent with single borrow naming convention and avoid polluting the API. Call unwrap on try_get_node_mut instead"
+    // )]
+    // #[inline]
+    // pub fn get_node_mut<'b: 'a>(&'b self, handle: Handle<T>) -> RefMut<'a, 'b, T> {
+    //     self.try_get_node_mut(handle).unwrap()
+    // }
 }
 
-impl<'a, T> MultiBorrowContext<'a, T>
-where
-    T: BorrowNodeVariant + 'static,
-{
+impl<'a, T: 'static> MultiBorrowContext<'a, T> {
     #[inline]
-    pub fn try_get<'b: 'a, U: NodeVariant<T>>(
+    pub fn try_get<'b: 'a, U: NodeOrNodeVariant<T> + 'static>(
         &'b self,
         handle: Handle<U>,
     ) -> Result<Ref<'a, 'b, U>, MultiBorrowError> {
         // let node = self.try_get_node(handle.cast())?;
         self.try_get_node_internal(handle.cast(), |node| {
-            node.borrow_variant::<U>().map_err(|e| {
+            U::convert_to_dest_type(node).map_err(|e| {
                 MultiBorrowError::new(BorrowErrorKind::MismatchedType(e).into(), handle.into())
             })
         })
     }
 
     #[inline]
-    pub fn try_get_mut<'b: 'a, U: NodeVariant<T>>(
+    pub fn try_get_mut<'b: 'a, U: NodeOrNodeVariant<T> + 'static>(
         &'b self,
         handle: Handle<U>,
     ) -> Result<RefMut<'a, 'b, U>, MultiBorrowError> {
         self.try_get_node_mut_internal(handle.cast(), |node| {
-            node.borrow_variant_mut::<U>().map_err(|e| {
+            U::convert_to_dest_type_mut(node).map_err(|e| {
                 MultiBorrowError::new(BorrowErrorKind::MismatchedType(e).into(), handle.into())
             })
         })
@@ -454,7 +451,7 @@ where
 
 impl<'a, T> MultiBorrowContext<'a, T>
 where
-    T: ComponentProvider + BorrowNodeVariant + 'static,
+    T: ComponentProvider + 'static,
 {
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
@@ -507,10 +504,24 @@ where
 #[cfg(test)]
 mod test {
     use super::MultiBorrowErrorKind;
-    use crate::pool::{BorrowErrorKind, MultiBorrowError, Pool};
+    use crate::pool::{BorrowErrorKind, MismatchedTypeError, MultiBorrowError, NodeOrNodeVariant, Pool};
 
     #[derive(PartialEq, Clone, Copy, Debug)]
     struct MyPayload(u32);
+
+    impl NodeOrNodeVariant<MyPayload> for MyPayload {
+        fn convert_to_dest_type(payload: &MyPayload) -> Result<&MyPayload, MismatchedTypeError> {
+            Ok(payload)
+        }
+
+        fn convert_to_dest_type_mut(
+            payload: &mut MyPayload,
+        ) -> Result<&mut MyPayload, MismatchedTypeError> {
+            Ok(payload)
+        }
+    }
+
+
     #[test]
     fn test_multi_borrow_context() {
         let mut pool = Pool::<MyPayload>::new();
@@ -532,7 +543,7 @@ mod test {
         // Test empty.
         {
             assert_eq!(
-                ctx.try_get_node(d).as_deref(),
+                ctx.try_get(d).as_deref(),
                 Err(MultiBorrowError::new(
                     BorrowErrorKind::Empty.into(),
                     d.into()
@@ -540,7 +551,7 @@ mod test {
                 .as_ref()
             );
             assert_eq!(
-                ctx.try_get_node_mut(d).as_deref_mut(),
+                ctx.try_get_mut(d).as_deref_mut(),
                 Err(MultiBorrowError::new(
                     BorrowErrorKind::Empty.into(),
                     d.into()
@@ -551,23 +562,23 @@ mod test {
 
         // Test immutable borrowing of the same element.
         {
-            let ref_a_1 = ctx.try_get_node(a);
-            let ref_a_2 = ctx.try_get_node(a);
+            let ref_a_1 = ctx.try_get(a);
+            let ref_a_2 = ctx.try_get(a);
             assert_eq!(ref_a_1.as_deref(), Ok(&val_a));
             assert_eq!(ref_a_2.as_deref(), Ok(&val_a));
         }
 
         // Test immutable borrowing of the same element with the following mutable borrowing.
         {
-            let ref_a_1 = ctx.try_get_node(a);
+            let ref_a_1 = ctx.try_get(a);
             assert_eq!(unsafe { ref_a_1.as_ref().unwrap().ref_counter.get() }, 1);
-            let ref_a_2 = ctx.try_get_node(a);
+            let ref_a_2 = ctx.try_get(a);
             assert_eq!(unsafe { ref_a_2.as_ref().unwrap().ref_counter.get() }, 2);
 
             assert_eq!(ref_a_1.as_deref(), Ok(&val_a));
             assert_eq!(ref_a_2.as_deref(), Ok(&val_a));
             assert_eq!(
-                ctx.try_get_node_mut(a).as_deref(),
+                ctx.try_get_mut(a).as_deref(),
                 Err(MultiBorrowError::new(
                     MultiBorrowErrorKind::ImmutablyBorrowed,
                     a.into()
@@ -578,7 +589,7 @@ mod test {
             drop(ref_a_1);
             drop(ref_a_2);
 
-            let mut mut_ref_a_1 = ctx.try_get_node_mut(a);
+            let mut mut_ref_a_1 = ctx.try_get_mut(a);
             assert_eq!(mut_ref_a_1.as_deref_mut(), Ok(&mut val_a));
 
             assert_eq!(
@@ -590,14 +601,14 @@ mod test {
         // Test immutable and mutable borrowing.
         {
             // Borrow two immutable refs to the same element.
-            let ref_a_1 = ctx.try_get_node(a);
-            let ref_a_2 = ctx.try_get_node(a);
+            let ref_a_1 = ctx.try_get(a);
+            let ref_a_2 = ctx.try_get(a);
             assert_eq!(ref_a_1.as_deref(), Ok(&val_a));
             assert_eq!(ref_a_2.as_deref(), Ok(&val_a));
 
             // Borrow immutable ref to other element.
-            let mut ref_b_1 = ctx.try_get_node_mut(b);
-            let mut ref_b_2 = ctx.try_get_node_mut(b);
+            let mut ref_b_1 = ctx.try_get_mut(b);
+            let mut ref_b_2 = ctx.try_get_mut(b);
             assert_eq!(ref_b_1.as_deref_mut(), Ok(&mut val_b));
             assert_eq!(
                 ref_b_2.as_deref_mut(),
@@ -608,8 +619,8 @@ mod test {
                 .as_mut()
             );
 
-            let mut ref_c_1 = ctx.try_get_node_mut(c);
-            let mut ref_c_2 = ctx.try_get_node_mut(c);
+            let mut ref_c_1 = ctx.try_get_mut(c);
+            let mut ref_c_2 = ctx.try_get_mut(c);
             assert_eq!(ref_c_1.as_deref_mut(), Ok(&mut val_c));
             assert_eq!(
                 ref_c_2.as_deref_mut(),

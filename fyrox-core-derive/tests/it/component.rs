@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use std::any::TypeId;
+
 use fyrox_core::type_traits::prelude::*;
 
 #[derive(ComponentProvider)]
@@ -92,10 +94,22 @@ fn test_component_provider() {
         Ok(&mut SomeOtherComponent { other_stuff: 77 })
     );
 
+    // test error case
+    let res = (&foo as &dyn ComponentProvider).component_ref::<String>();
+    let Err(err) = res else {
+        panic!("Must be error!");
+    };
+    // target component type
+    assert_eq!(err.0, TypeId::of::<String>());
+    // self type
+    assert_eq!(err.1, TypeId::of::<Foo>());
+    // available components
     assert_eq!(
-        (&foo as &dyn ComponentProvider)
-            .component_ref::<String>()
-            .ok(),
-        None
+        err.2,
+        vec![
+            TypeId::of::<Component>(),
+            TypeId::of::<OtherComponent>(),
+            TypeId::of::<SomeOtherComponent>(), // this is dest type, not the wrapper type
+        ]
     );
 }
