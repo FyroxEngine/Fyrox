@@ -1576,6 +1576,16 @@ mod test {
 
     #[derive(Debug)]
     pub struct Node(Box<dyn NodeTrait>);
+    impl VisitAsOption for Node {
+        fn visit_as_option(
+            _option_self: &mut Option<Self>,
+            _name: &str,
+            _visitor: &mut fyrox_core::visitor::Visitor,
+        ) -> fyrox_core::visitor::VisitResult {
+            // dummy implementation
+            Ok(())
+        }
+    }
 
     impl ComponentProvider for Node {
         fn query_component_ref(

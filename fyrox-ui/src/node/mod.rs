@@ -50,6 +50,36 @@ pub mod container;
 /// contains all the interesting stuff and detailed description for each method.
 pub struct UiNode(pub Box<dyn Control>);
 
+/// Theoretically we can implement Visit for Option<Node> directly,
+/// but the labour difference is negligible, and this implementation is better for communication purpose.
+impl VisitAsOption for UiNode {
+    fn visit_as_option(
+        option_self: &mut Option<Self>,
+        name: &str,
+        visitor: &mut fyrox_core::visitor::Visitor,
+    ) -> fyrox_core::visitor::VisitResult {
+        let mut region = visitor.enter_region(name)?;
+        // the following code references the implementation of Visit for Option<T>
+        let mut is_some = u8::from(option_self.is_some());
+        is_some.visit("IsSome", &mut region)?;
+        if is_some != 0 {
+            if region.is_reading() {
+                // calling read_widget avoids requiring Node to implement Default and assigning to it indirectly.
+                // See impl<T> Visit for Option<T> for the difference.
+                *option_self = Some(read_widget("Data", &mut region)?);
+            } else {
+                let unwrapped_self = option_self
+                    .as_mut()
+                    .expect("is_some is accidentally modified by is_some.visit() in write mode");
+                write_widget("Data", unwrapped_self, &mut region)?;
+            }
+        } else if region.is_reading() {
+            *option_self = None;
+        }
+        Ok(())
+    }
+}
+
 impl NodeOrNodeVariant<UiNode> for UiNode {
     fn convert_to_dest_type(node: &UiNode) -> Result<&Self, fyrox_core::pool::MismatchedTypeError> {
         Ok(node)
@@ -341,21 +371,6 @@ fn write_widget(name: &str, widget: &mut UiNode, visitor: &mut Visitor) -> Visit
     widget.visit("WidgetData", &mut region)?;
 
     Ok(())
-}
-
-impl Visit for UiNode {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        // previous implementation (read and write widget delegated to WidgetContainer):
-        // self.0.visit(name, visitor)
-        // current implementation may cause some backward compatibility issue
-        let mut region = visitor.enter_region(name)?;
-        if region.is_reading() {
-            *self = read_widget("Data", &mut region)?;
-        } else {
-            write_widget("Data", self, &mut region)?;
-        }
-        Ok(())
-    }
 }
 
 impl Reflect for UiNode {

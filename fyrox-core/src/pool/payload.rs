@@ -20,6 +20,8 @@
 
 use std::cell::UnsafeCell;
 
+use crate::visitor::{Visit, VisitAsOption};
+
 // pub trait PayloadContainer: Sized {
 //     type Element: Sized;
 
@@ -79,6 +81,34 @@ use std::cell::UnsafeCell;
 
 #[derive(Debug)]
 pub struct Payload<T>(pub UnsafeCell<Option<T>>);
+
+impl<T> VisitAsOption for T
+where
+    T: Visit + Default + 'static,
+{
+    fn visit_as_option(
+        option_self: &mut Option<Self>,
+        name: &str,
+        visitor: &mut crate::visitor::Visitor,
+    ) -> crate::visitor::VisitResult {
+        option_self.visit(name, visitor)
+    }
+}
+
+impl<T> Visit for Payload<T>
+where
+    T: VisitAsOption,
+{
+    fn visit(
+        &mut self,
+        name: &str,
+        visitor: &mut crate::visitor::Visitor,
+    ) -> crate::visitor::VisitResult {
+        let mut region = visitor.enter_region(name)?;
+        T::visit_as_option(self.get_mut(), name, &mut region)?;
+        Ok(())
+    }
+}
 
 impl<T> Clone for Payload<T>
 where

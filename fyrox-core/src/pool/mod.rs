@@ -463,7 +463,7 @@ where
 
 impl<T> Visit for PoolRecord<T>
 where
-    T: Visit + 'static,
+    Payload<T>: Visit,
     // P: PayloadContainer<Element = T> + Visit,
 {
     #[inline]
@@ -471,7 +471,7 @@ where
         let mut region = visitor.enter_region(name)?;
 
         self.generation.visit("Generation", &mut region)?;
-        self.payload.get_mut().visit("Payload", &mut region)?;
+        self.payload.visit("Payload", &mut region)?;
 
         Ok(())
     }
@@ -486,7 +486,8 @@ impl<T> Clone for Handle<T> {
 
 impl<T> Visit for Pool<T>
 where
-    T: Visit + 'static,
+    T: 'static,
+    Payload<T>: Visit,
 {
     #[inline]
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -1776,7 +1777,7 @@ impl<'a, T> Iterator for PoolPairIteratorMut<'a, T> {
 #[cfg(test)]
 mod test {
     use crate::{
-        pool::{AtomicHandle, BorrowError, Handle, Pool, PoolRecord, INVALID_GENERATION},
+        pool::{AtomicHandle, Handle, Pool, PoolRecord, INVALID_GENERATION},
         visitor::{Visit, Visitor},
     };
 
@@ -1851,37 +1852,37 @@ mod test {
     }
 
     #[derive(Debug, Eq, PartialEq)]
-    struct Payload;
+    struct Payload2;
 
     #[test]
     fn pool_test_spawn_at() {
-        let mut pool = Pool::<Payload>::new();
+        let mut pool = Pool::<Payload2>::new();
 
-        assert_eq!(pool.spawn_at(2, Payload), Ok(Handle::new(2, 1)));
-        assert_eq!(pool.spawn_at(2, Payload), Err(Payload));
+        assert_eq!(pool.spawn_at(2, Payload2), Ok(Handle::new(2, 1)));
+        assert_eq!(pool.spawn_at(2, Payload2), Err(Payload2));
         assert_eq!(pool.records[0].payload.as_ref(), None);
         assert_eq!(pool.records[1].payload.as_ref(), None);
         assert_ne!(pool.records[2].payload.as_ref(), None);
 
-        assert_eq!(pool.spawn_at(2, Payload), Err(Payload));
+        assert_eq!(pool.spawn_at(2, Payload2), Err(Payload2));
 
         pool.free(Handle::new(2, 1));
 
-        assert_eq!(pool.spawn_at(2, Payload), Ok(Handle::new(2, 2)));
+        assert_eq!(pool.spawn_at(2, Payload2), Ok(Handle::new(2, 2)));
 
-        assert_eq!(pool.spawn(Payload), Handle::new(1, 2));
-        assert_eq!(pool.spawn(Payload), Handle::new(0, 2));
+        assert_eq!(pool.spawn(Payload2), Handle::new(1, 2));
+        assert_eq!(pool.spawn(Payload2), Handle::new(0, 2));
     }
 
     #[test]
     fn pool_test_try_free() {
-        let mut pool = Pool::<Payload>::new();
+        let mut pool = Pool::<Payload2>::new();
 
         assert_eq!(pool.try_free(Handle::NONE), None);
         assert_eq!(pool.free_stack.len(), 0);
 
-        let handle = pool.spawn(Payload);
-        assert_eq!(pool.try_free(handle), Some(Payload));
+        let handle = pool.spawn(Payload2);
+        assert_eq!(pool.try_free(handle), Some(Payload2));
         assert_eq!(pool.free_stack.len(), 1);
         assert_eq!(pool.try_free(handle), None);
         assert_eq!(pool.free_stack.len(), 1);
@@ -1917,14 +1918,12 @@ mod test {
 
     #[test]
     fn pool_try_borrow() {
-        let mut pool = Pool::<Payload>::new();
-        let a = pool.spawn(Payload);
-        let b = Handle::<Payload>::default();
+        let mut pool = Pool::<Payload2>::new();
+        let a = pool.spawn(Payload2);
+        let b = Handle::<Payload2>::default();
 
-        assert_eq!(pool.try_get_node(a), Ok(&Payload));
-        assert!(
-            pool.try_get_node(b).is_err()
-        );
+        assert_eq!(pool.try_get_node(a), Ok(&Payload2));
+        assert!(pool.try_get_node(b).is_err());
     }
 
     #[test]

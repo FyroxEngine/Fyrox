@@ -65,7 +65,7 @@ use crate::{
 use fyrox_core::{
     define_as_any_trait,
     pool::{BorrowNodeVariant, MismatchedTypeError, NodeOrNodeVariant, Pool},
-    visitor::error::VisitError,
+    visitor::{error::VisitError, VisitAsOption},
 };
 use std::{
     any::{Any, TypeId},
@@ -600,16 +600,31 @@ fn write_node(name: &str, node: &mut Node, visitor: &mut Visitor) -> VisitResult
     Ok(())
 }
 
-impl Visit for Node {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        // previous implementation:
-        // self.0.visit(name, visitor)
-        // current implementation may cause some backward compatibility issue
+/// Theoretically we can implement Visit for Option<Node> directly,
+/// but the labour difference is negligible, and this implementation is better for communication purpose.
+impl VisitAsOption for Node {
+    fn visit_as_option(
+        option_self: &mut Option<Self>,
+        name: &str,
+        visitor: &mut fyrox_core::visitor::Visitor,
+    ) -> fyrox_core::visitor::VisitResult {
         let mut region = visitor.enter_region(name)?;
-        if region.is_reading() {
-            *self = read_node("Data", &mut region)?;
-        } else {
-            write_node("Data", self, &mut region)?;
+        // the following code references the implementation of Visit for Option<T>
+        let mut is_some = u8::from(option_self.is_some());
+        is_some.visit("IsSome", &mut region)?;
+        if is_some != 0 {
+            if region.is_reading() {
+                // calling read_node avoids requiring Node to implement Default and assigning to it indirectly.
+                // See impl<T> Visit for Option<T> for the difference.
+                *option_self = Some(read_node("Data", &mut region)?);
+            } else {
+                let unwrapped_self = option_self
+                    .as_mut()
+                    .expect("is_some is accidentally modified by is_some.visit() in write mode");
+                write_node("Data", unwrapped_self, &mut region)?;
+            }
+        } else if region.is_reading() {
+            *option_self = None;
         }
         Ok(())
     }

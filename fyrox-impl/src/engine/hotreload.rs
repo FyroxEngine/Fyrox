@@ -24,7 +24,7 @@ use crate::{
     core::{
         log::Log,
         pool::{Handle, Ticket},
-        visitor::{Visit, Visitor, VisitorFlags},
+        visitor::{Visitor, VisitorFlags},
     },
     engine::SerializationContext,
     gui::constructor::WidgetConstructorContainer,
@@ -38,6 +38,7 @@ use crate::{
     script::Script,
 };
 use fyrox_core::visitor::error::VisitError;
+use fyrox_core::visitor::VisitAsOption;
 use fyrox_graph::prelude::*;
 use std::{
     ops::Deref,
@@ -90,13 +91,11 @@ impl SceneState {
                 // The entire node belongs to plugin, serialize it entirely.
                 // Take the node out of the graph first.
                 let (ticket, node) = scene.graph.take_reserve(handle);
-                // The new Option<Node> should work the same as NodeContainer in terms of the Visit trait
-                // see impl Visit for Node in fyrox-impl/src/scene/node/mod.rs
-                // let mut container = NodeContainer::new(node);
-                let mut container = Some(node);
+                // Using Node::visit_as_option makes the guarantee that writing to the Node is safe (no uninitalized Node (Box dyn NodeTrait) ever appears)
+                // even though we only read it here.
                 let mut visitor = make_writing_visitor();
-                container
-                    .visit("Node", &mut visitor)
+                let mut container = Some(node);
+                Node::visit_as_option(&mut container, "Node", &mut visitor)
                     .map_err(|e| e.to_string())?;
                 node_state.binary_blob = visitor.save_binary_to_vec().map_err(|e| e.to_string())?;
                 node_state.ticket = Some(ticket);
@@ -229,12 +228,9 @@ impl SceneState {
                     widget_constructors,
                 )
                 .map_err(|e| e.to_string())?;
-                // The new Option<Node> should work the same as NodeContainer in terms of the Visit trait
-                // see impl Visit for Node in fyrox-impl/src/scene/node/mod.rs
-                // let mut container = NodeContainer::default();
+                // Use visit_as_option to make sure no uninitialized Node (Box<dyn NodeTrait>) ever appears
                 let mut container: Option<Node> = None;
-                container
-                    .visit("Node", &mut visitor)
+                Node::visit_as_option(&mut container, "Node", &mut visitor)
                     .map_err(|e| e.to_string())?;
                 if let Some(mut new_node) = container.take() {
                     new_node.on_connected_to_graph(
