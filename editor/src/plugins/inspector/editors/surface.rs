@@ -202,17 +202,19 @@ impl Control for SurfaceDataPropertyEditor {
 
 fn surface_data_info(resource_manager: &ResourceManager, data: &SurfaceResource) -> String {
     let use_count = data.use_count();
+    let id = data.key();
     let kind = resource_manager
         .resource_path(data.as_ref())
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|| "External".to_string());
     let guard = data.data_ref();
     format!(
-        "{}\nVertices: {}\nTriangles: {}\nUse Count: {}",
+        "{}\nVertices: {}\nTriangles: {}\nUse Count: {}\nId: {}",
         kind,
         guard.vertex_buffer.vertex_count(),
         guard.geometry_buffer.len(),
-        use_count
+        use_count,
+        id
     )
 }
 

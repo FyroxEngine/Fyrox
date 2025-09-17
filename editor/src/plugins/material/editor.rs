@@ -227,9 +227,18 @@ fn make_name(resource_manager: &ResourceManager, material: &MaterialResource) ->
                 .lock()
                 .uuid_to_path_buf(resource_uuid)
             {
-                format!("{} - {} uses", path.display(), material.use_count())
+                format!(
+                    "{} - {} uses; id - {}",
+                    path.display(),
+                    material.use_count(),
+                    material.key()
+                )
             } else {
-                format!("Embedded - {} uses", material.use_count())
+                format!(
+                    "Embedded - {} uses; id - {}",
+                    material.use_count(),
+                    material.key()
+                )
             }
         }
         ResourceState::LoadError { ref error, .. } => {
