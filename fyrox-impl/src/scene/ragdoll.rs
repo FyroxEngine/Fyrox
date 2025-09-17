@@ -396,16 +396,16 @@ impl NodeTrait for Ragdoll {
                     let body_transform = limb_body.global_transform();
 
                     // Sync transform of the bone with respective body.
-                    let bone_parent = mbc.try_get_node(limb.bone).unwrap().parent();
+                    let bone_parent = mbc.try_get(limb.bone).unwrap().parent();
                     let transform: Matrix4<f32> = mbc
-                        .try_get_node(bone_parent)
+                        .try_get(bone_parent)
                         .unwrap()
                         .global_transform()
                         .try_inverse()
                         .unwrap_or_else(Matrix4::identity)
                         * body_transform;
 
-                    mbc.try_get_node_mut(limb.bone)
+                    mbc.try_get_mut(limb.bone)
                         .unwrap()
                         .local_transform_mut()
                         .set_position(Vector3::new(transform[12], transform[13], transform[14]))
@@ -437,7 +437,7 @@ impl NodeTrait for Ragdoll {
                         self.global_transform().try_inverse().unwrap_or_default();
 
                     // Sync transform of the physical body with respective bone.
-                    if let Ok(bone) = mbc.try_get_node(limb.bone) {
+                    if let Ok(bone) = mbc.try_get(limb.bone) {
                         let relative_transform = self_transform_inverse * bone.global_transform();
 
                         let position = Vector3::new(

@@ -23,7 +23,7 @@
 
 use crate::effects::{Effect, EffectRenderTrait};
 use fyrox_core::{
-    pool::{BorrowError, Handle, Pool, Ticket},
+    pool::{BorrowError, Handle, NodeOrNodeVariant, Pool, Ticket},
     reflect::prelude::*,
     visitor::prelude::*,
 };
@@ -115,6 +115,19 @@ pub struct AudioBus {
     #[reflect(hidden)]
     #[visit(skip)]
     ping_pong_buffer: PingPongBuffer,
+}
+
+impl NodeOrNodeVariant<AudioBus> for AudioBus {
+    fn convert_to_dest_type(
+        node: &AudioBus,
+    ) -> Result<&Self, fyrox_core::pool::MismatchedTypeError> {
+        Ok(node)
+    }
+    fn convert_to_dest_type_mut(
+        node: &mut AudioBus,
+    ) -> Result<&mut Self, fyrox_core::pool::MismatchedTypeError> {
+        Ok(node)
+    }
 }
 
 impl Default for AudioBus {
@@ -500,11 +513,11 @@ impl AudioBusGraph {
             while leaf.is_some() {
                 let ctx = self.buses.begin_multi_borrow();
 
-                let leaf_ref = ctx.try_get_node_mut(leaf).expect("Malformed bus graph!");
+                let leaf_ref = ctx.try_get_mut(leaf).expect("Malformed bus graph!");
 
                 let input_buffer = leaf_ref.ping_pong_buffer.input_ref();
                 let leaf_gain = leaf_ref.gain;
-                let mut parent_buffer = ctx.try_get_node_mut(leaf_ref.parent_bus);
+                let mut parent_buffer = ctx.try_get_mut(leaf_ref.parent_bus);
                 let output_buffer = parent_buffer
                     .as_mut()
                     .map(|parent| parent.ping_pong_buffer.input_mut())

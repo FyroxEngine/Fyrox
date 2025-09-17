@@ -1333,9 +1333,9 @@ impl UserInterface {
         // Do z-index sorting.
         for node_handle in self.z_index_update_set.drain() {
             let mbc = self.nodes.begin_multi_borrow();
-            if let Ok(mut node) = mbc.try_get_node_mut(node_handle) {
+            if let Ok(mut node) = mbc.try_get_mut(node_handle) {
                 node.children.sort_by_key(|handle| {
-                    mbc.try_get_node(*handle)
+                    mbc.try_get(*handle)
                         .map(|c| *c.z_index)
                         .unwrap_or_default()
                 });
