@@ -130,8 +130,8 @@ impl Hash for RectangleVertex {
 ///
 /// # Flipping
 ///
-/// It is possible to flip the sprite on both axes, vertical and horizontal. Use [`Sprite::set_flip_x`]
-/// and [`Sprite::set_flip_y`] methods to flip the sprite on desired axes.
+/// It is possible to flip the sprite on both axes, vertical and horizontal. Use [`Rectangle::set_flip_x`]
+/// and [`Rectangle::set_flip_y`] methods to flip the sprite on desired axes.
 ///
 /// ## Material
 ///
