@@ -2430,10 +2430,10 @@ mod test {
 
         assert!(graph.pool.try_get(pivot).is_ok());
         assert!(graph.pool.try_get(pivot.cast::<Pivot>()).is_ok());
-        assert!(graph.pool.try_get(pivot.cast::<RigidBody>()).is_ok());
+        assert!(graph.pool.try_get(pivot.cast::<RigidBody>()).is_err());
 
         assert!(graph.pool.try_get(rigid_body).is_ok());
         assert!(graph.pool.try_get(rigid_body.cast::<RigidBody>()).is_ok());
-        assert!(graph.pool.try_get(rigid_body.cast::<Pivot>()).is_ok());
+        assert!(graph.pool.try_get(rigid_body.cast::<Pivot>()).is_err());
     }
 }
