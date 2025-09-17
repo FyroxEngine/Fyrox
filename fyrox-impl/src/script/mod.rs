@@ -48,8 +48,8 @@ use std::{
     sync::mpsc::Sender,
 };
 
-pub use fyrox_core_derive::ScriptMessagePayload;
 use crate::engine::input::InputState;
+pub use fyrox_core_derive::ScriptMessagePayload;
 
 pub mod constructor;
 
