@@ -540,6 +540,7 @@ where
                 .with_style_resource(ctx.environment.as_ref().and_then(|env| {
                     (&**env as &dyn ComponentProvider)
                         .component_ref::<Option<StyleResource>>()
+                        .ok()
                         .cloned()
                         .flatten()
                 }))

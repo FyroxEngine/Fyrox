@@ -22,7 +22,7 @@ use crate::{
     fyrox::{
         core::pool::Handle,
         engine::Engine,
-        graph::SceneGraph,
+        graph::prelude::*,
         gui::{
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             image::{ImageBuilder, ImageMessage},
@@ -122,7 +122,7 @@ impl CameraPreviewControlPanel {
             let any_camera = editor_selection.as_graph().is_some_and(|s| {
                 s.nodes
                     .iter()
-                    .any(|n| scene.graph.try_get_of_type::<Camera>(*n).is_some())
+                    .any(|n| scene.graph.try_get_of_type::<Camera>(*n).is_ok())
             });
             if any_camera {
                 engine
@@ -164,7 +164,7 @@ impl CameraPreviewControlPanel {
         if let Some(new_graph_selection) = editor_selection.as_graph() {
             // Enable the first camera from the new selection.
             for &node_handle in &new_graph_selection.nodes {
-                if let Some(camera) = scene.graph.try_get_mut_of_type::<Camera>(node_handle) {
+                if let Ok(camera) = scene.graph.try_get_mut_of_type::<Camera>(node_handle) {
                     assert!(node_overrides.insert(node_handle));
 
                     let rt = Some(TextureResource::new_render_target(200, 200));
@@ -204,7 +204,7 @@ impl CameraPreviewControlPanel {
         let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
         if let Some((camera_handle, original)) = self.camera_state.take() {
-            if let Some(camera) = scene.graph.try_get_node_mut(camera_handle) {
+            if let Ok(camera) = scene.graph.try_get_node_mut(camera_handle) {
                 *camera = original
             }
 

@@ -136,11 +136,21 @@ impl Display for MismatchedTypeError {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct QueryComponentError {
     pub target_component_type: TypeId,
     pub node_variant_type: TypeId,
     pub component_types: Vec<TypeId>,
+}
+
+impl From<(TypeId, TypeId, Vec<TypeId>)> for QueryComponentError {
+    fn from(value: (TypeId, TypeId, Vec<TypeId>)) -> Self {
+        Self {
+            target_component_type: value.0,
+            node_variant_type: value.1,
+            component_types: value.2,
+        }
+    }
 }
 
 impl QueryComponentError {
@@ -265,7 +275,7 @@ impl Debug for BorrowError {
 
 impl<T> Reflect for Pool<T>
 where
-    T: Clone + Reflect + BorrowNodeVariant,
+    T: Clone + Reflect,
     Pool<T>: Clone,
 {
     #[inline]
@@ -360,7 +370,7 @@ where
 
 impl<T> ReflectArray for Pool<T>
 where
-    T: Clone + Reflect + BorrowNodeVariant,
+    T: Clone + Reflect,
 {
     #[inline]
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
@@ -1250,9 +1260,9 @@ where
         C: 'static,
     {
         let node = self.try_get_node(handle)?;
-        let component_any = node
-            .query_component_ref(TypeId::of::<C>())
-            .map_err(|e| BorrowError::new(BorrowErrorKind::NoSuchComponent(e), handle.into()))?;
+        let component_any = node.query_component_ref(TypeId::of::<C>()).map_err(|e| {
+            BorrowError::new(BorrowErrorKind::NoSuchComponent(e.into()), handle.into())
+        })?;
         Ok(component_any
             .downcast_ref()
             .expect("TypeId matched but downcast failed"))
@@ -1265,9 +1275,9 @@ where
         C: 'static,
     {
         let node = self.try_get_node_mut(handle)?;
-        let component_any = node
-            .query_component_mut(TypeId::of::<C>())
-            .map_err(|e| BorrowError::new(BorrowErrorKind::NoSuchComponent(e), handle.into()))?;
+        let component_any = node.query_component_mut(TypeId::of::<C>()).map_err(|e| {
+            BorrowError::new(BorrowErrorKind::NoSuchComponent(e.into()), handle.into())
+        })?;
         Ok(component_any
             .downcast_mut()
             .expect("TypeId matched but downcast failed"))
@@ -1766,9 +1776,7 @@ impl<'a, T> Iterator for PoolPairIteratorMut<'a, T> {
 #[cfg(test)]
 mod test {
     use crate::{
-        pool::{
-            AtomicHandle, BorrowError, Handle, HandleInfo, Pool, PoolRecord, INVALID_GENERATION,
-        },
+        pool::{AtomicHandle, BorrowError, Handle, Pool, PoolRecord, INVALID_GENERATION},
         visitor::{Visit, Visitor},
     };
 

@@ -302,7 +302,7 @@ impl GameScene {
 
         if let Some(selection) = editor_selection.as_graph() {
             for &node in selection.nodes() {
-                if let Some(node) = scene.graph.try_get_node(node) {
+                if let Ok(node) = scene.graph.try_get_node(node) {
                     scene.drawing_context.draw_oob(
                         &node.local_bounding_box(),
                         node.global_transform(),
@@ -344,21 +344,21 @@ impl GameScene {
                 if settings.debugging.show_tbn {
                     node.debug_draw(ctx);
                 }
-            } else if node.component_ref::<Camera>().is_some() {
+            } else if node.component_ref::<Camera>().is_ok() {
                 if settings.debugging.show_camera_bounds {
                     node.debug_draw(ctx);
                 }
-            } else if node.component_ref::<PointLight>().is_some()
-                || node.component_ref::<SpotLight>().is_some()
+            } else if node.component_ref::<PointLight>().is_ok()
+                || node.component_ref::<SpotLight>().is_ok()
             {
                 if settings.debugging.show_light_bounds {
                     node.debug_draw(ctx);
                 }
-            } else if node.component_ref::<Terrain>().is_some() {
+            } else if node.component_ref::<Terrain>().is_ok() {
                 if settings.debugging.show_terrains {
                     node.debug_draw(ctx);
                 }
-            } else if let Some(navmesh) = node.component_ref::<NavigationalMesh>() {
+            } else if let Ok(navmesh) = node.component_ref::<NavigationalMesh>() {
                 if settings.navmesh.draw_all {
                     let selection = editor_selection.as_navmesh();
 
@@ -1050,6 +1050,7 @@ impl SceneController for GameScene {
                         scene
                             .graph
                             .try_get_node((*handle).into())
+                            .ok()
                             .map(|n| n.name_owned()),
                     ))
                     .with_destination(*view)

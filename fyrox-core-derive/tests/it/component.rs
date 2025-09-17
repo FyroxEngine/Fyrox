@@ -68,32 +68,34 @@ fn test_component_provider() {
     };
     assert_eq!(
         (&foo as &dyn ComponentProvider).component_ref::<Component>(),
-        Some(Component { stuff: 123.321 }).as_ref()
+        Ok(&Component { stuff: 123.321 })
     );
     assert_eq!(
         (&foo as &dyn ComponentProvider).component_ref::<OtherComponent>(),
-        Some(OtherComponent { other_stuff: 123 }).as_ref()
+        Ok(&OtherComponent { other_stuff: 123 })
     );
     assert_eq!(
         (&foo as &dyn ComponentProvider).component_ref::<SomeOtherComponent>(),
-        Some(SomeOtherComponent { other_stuff: 77 }).as_ref()
+        Ok(&SomeOtherComponent { other_stuff: 77 })
     );
 
     assert_eq!(
         (&mut foo as &mut dyn ComponentProvider).component_mut::<Component>(),
-        Some(Component { stuff: 123.321 }).as_mut()
+        Ok(&mut Component { stuff: 123.321 })
     );
     assert_eq!(
         (&mut foo as &mut dyn ComponentProvider).component_mut::<OtherComponent>(),
-        Some(OtherComponent { other_stuff: 123 }).as_mut()
+        Ok(&mut OtherComponent { other_stuff: 123 })
     );
     assert_eq!(
         (&mut foo as &mut dyn ComponentProvider).component_mut::<SomeOtherComponent>(),
-        Some(SomeOtherComponent { other_stuff: 77 }).as_mut()
+        Ok(&mut SomeOtherComponent { other_stuff: 77 })
     );
 
     assert_eq!(
-        (&foo as &dyn ComponentProvider).component_ref::<String>(),
+        (&foo as &dyn ComponentProvider)
+            .component_ref::<String>()
+            .ok(),
         None
     );
 }

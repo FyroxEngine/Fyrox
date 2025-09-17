@@ -229,7 +229,7 @@ impl Control for SceneItem {
         } else if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::DragOver(_) => {
-                    if let Some(background) = ui.try_get_node(self.tree.background) {
+                    if let Ok(background) = ui.try_get_node(self.tree.background) {
                         let cursor_pos = ui.cursor_position();
                         let bounds = background.screen_bounds();
                         let deflated_bounds = bounds.deflate(0.0, 5.0);

@@ -59,7 +59,7 @@ impl SelectionContainer for GraphSelection {
         if let Some(node) = self
             .nodes
             .first()
-            .and_then(|handle| scene.graph.try_get_node(*handle))
+            .and_then(|handle| scene.graph.try_get_node(*handle).ok())
         {
             (callback)(node as &dyn Reflect, node.has_inheritance_parent());
         }
@@ -82,7 +82,7 @@ impl SelectionContainer for GraphSelection {
                 game_scene.node_property_changed_handler.handle(
                     args,
                     node_handle,
-                    scene.graph.try_get_node_mut(node_handle)?,
+                    scene.graph.try_get_node_mut(node_handle).ok()?,
                 )
             })
             .collect::<Vec<_>>();
@@ -104,6 +104,7 @@ impl SelectionContainer for GraphSelection {
                                 .scene
                                 .graph
                                 .try_get_node_mut(node_handle)
+                                .ok()
                                 .map(|n| n as &mut dyn Reflect)
                         },
                     ))

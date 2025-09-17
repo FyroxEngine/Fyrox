@@ -663,7 +663,7 @@ impl ExportWindow {
     }
 
     pub fn sync_to_model(&self, ui: &mut UserInterface) {
-        if let Some(inspector) = ui.try_get_of_type::<Inspector>(self.inspector) {
+        if let Ok(inspector) = ui.try_get_of_type::<Inspector>(self.inspector) {
             let ctx = inspector.context().clone();
             if let Err(sync_errors) = ctx.sync(
                 &self.export_options,

@@ -91,7 +91,7 @@ impl SelectionContainer for AudioBusSelection {
         if let Some(effect) = self
             .buses
             .first()
-            .and_then(|handle| state.bus_graph_ref().try_get_bus_ref(*handle))
+            .and_then(|handle| state.bus_graph_ref().try_get_bus_ref(*handle).ok())
         {
             (callback)(effect as &dyn Reflect, false);
         }
@@ -115,7 +115,7 @@ impl SelectionContainer for AudioBusSelection {
                         .graph
                         .sound_context
                         .state();
-                    let bus = state.bus_graph_mut().try_get_bus_mut(handle)?;
+                    let bus = state.bus_graph_mut().try_get_bus_mut(handle).ok()?;
                     // FIXME: HACK!
                     unsafe {
                         Some(std::mem::transmute::<&'_ mut AudioBus, &'static mut AudioBus>(bus))
@@ -143,7 +143,7 @@ impl SelectionContainer for AudioBusSelection {
                                     .graph
                                     .sound_context
                                     .state();
-                                let bus = state.bus_graph_mut().try_get_bus_mut(handle)?;
+                                let bus = state.bus_graph_mut().try_get_bus_mut(handle).ok()?;
                                 // FIXME: HACK!
                                 unsafe {
                                     Some(std::mem::transmute::<
@@ -170,6 +170,7 @@ impl SelectionContainer for AudioBusSelection {
                 .state()
                 .bus_graph_ref()
                 .try_get_bus_ref(*h)
+                .ok()
                 .map(|bus| bus.doc().to_string())
         })
     }
@@ -598,7 +599,7 @@ impl AudioPanel {
                     ),
                 ),
             );
-            if let Some(audio_bus_ref) = context_state
+            if let Ok(audio_bus_ref) = context_state
                 .bus_graph_ref()
                 .try_get_bus_ref(audio_bus_view_ref.bus)
             {

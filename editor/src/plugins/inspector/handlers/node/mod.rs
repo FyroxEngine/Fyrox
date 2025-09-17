@@ -30,6 +30,7 @@ use crate::{
     scene::commands::terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
     Command,
 };
+use fyrox::graph::prelude::*;
 
 pub struct SceneNodePropertyChangedHandler;
 
@@ -84,6 +85,7 @@ impl SceneNodePropertyChangedHandler {
                         .scene
                         .graph
                         .try_get_node_mut(handle)
+                        .ok()
                         .map(|n| n as &mut dyn Reflect)
                 })
             }

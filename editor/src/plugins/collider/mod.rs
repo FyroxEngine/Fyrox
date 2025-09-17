@@ -96,6 +96,7 @@ fn try_get_collider_shape(collider: Handle<Node>, scene: &Scene) -> Option<Colli
     scene
         .graph
         .try_get_of_type::<Collider>(collider)
+        .ok()
         .map(|c| c.shape().clone())
 }
 
@@ -106,6 +107,7 @@ fn try_get_collider_shape_mut(
     scene
         .graph
         .try_get_mut_of_type::<Collider>(collider)
+        .ok()
         .map(|c| c.shape_mut())
 }
 
@@ -116,6 +118,7 @@ fn try_get_collider_shape_2d(
     scene
         .graph
         .try_get_of_type::<dim2::collider::Collider>(collider)
+        .ok()
         .map(|c| c.shape().clone())
 }
 
@@ -126,6 +129,7 @@ fn try_get_collider_shape_mut_2d(
     scene
         .graph
         .try_get_mut_of_type::<dim2::collider::Collider>(collider)
+        .ok()
         .map(|c| c.shape_mut())
 }
 
@@ -216,7 +220,7 @@ trait ShapeGizmoTrait {
                         16,
                         Default::default(),
                     ));
-                if let Some(sprite) = node.component_mut::<Sprite>() {
+                if let Ok(sprite) = node.component_mut::<Sprite>() {
                     sprite.set_size(0.05 * scale.x);
                 }
             } else {
@@ -233,7 +237,7 @@ fn make_shape_gizmo(
     root: Handle<Node>,
     visible: bool,
 ) -> Box<dyn ShapeGizmoTrait> {
-    if let Some(collider) = scene.graph.try_get_of_type::<Collider>(collider) {
+    if let Ok(collider) = scene.graph.try_get_of_type::<Collider>(collider) {
         let shape = collider.shape().clone();
         use fyrox::scene::collider::ColliderShape;
         match shape {
@@ -248,7 +252,7 @@ fn make_shape_gizmo(
             | ColliderShape::Heightfield(_)
             | ColliderShape::Polyhedron(_) => Box::new(DummyShapeGizmo),
         }
-    } else if let Some(collider) = scene
+    } else if let Ok(collider) = scene
         .graph
         .try_get_of_type::<dim2::collider::Collider>(collider)
     {
@@ -406,9 +410,9 @@ impl InteractionMode for ColliderShapeInteractionMode {
             let collider_node = &scene.graph[self.collider];
             let initial_collider_local_position = **collider_node.local_transform().position();
 
-            let initial_shape = if let Some(collider) = collider_node.component_ref::<Collider>() {
+            let initial_shape = if let Ok(collider) = collider_node.component_ref::<Collider>() {
                 ColliderInitialShape::ThreeD(collider.shape().clone())
-            } else if let Some(collider_2d) =
+            } else if let Ok(collider_2d) =
                 collider_node.component_ref::<dim2::collider::Collider>()
             {
                 ColliderInitialShape::TwoD(collider_2d.shape().clone())
@@ -476,12 +480,12 @@ impl InteractionMode for ColliderShapeInteractionMode {
         if let Some(drag_context) = self.drag_context.take() {
             let collider = self.collider;
 
-            let value = if let (Some(collider), ColliderInitialShape::ThreeD(shape)) = (
+            let value = if let (Ok(collider), ColliderInitialShape::ThreeD(shape)) = (
                 scene.graph.try_get_mut_of_type::<Collider>(collider),
                 drag_context.initial_shape.clone(),
             ) {
                 Box::new(std::mem::replace(collider.shape_mut(), shape)) as Box<dyn Reflect>
-            } else if let (Some(collider), ColliderInitialShape::TwoD(shape)) = (
+            } else if let (Ok(collider), ColliderInitialShape::TwoD(shape)) = (
                 scene
                     .graph
                     .try_get_mut_of_type::<dim2::collider::Collider>(collider),
@@ -497,6 +501,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
                     .scene
                     .graph
                     .try_get_node_mut(collider)
+                    .ok()
                     .map(|n| n as &mut dyn Reflect)
             });
             self.message_sender.do_command(command);

@@ -186,7 +186,8 @@ impl Control for AnimationBlendingStateMachine {
         if let Some(animation_player) = ui
             .nodes
             .try_get_node_mut(*self.animation_player)
-            .and_then(|n| n.component_mut::<AnimationPlayer>())
+            .ok()
+            .and_then(|n| n.component_mut::<AnimationPlayer>().ok())
         {
             // Prevent animation player to apply animation to scene nodes. The animation will
             // do than instead.
@@ -322,7 +323,7 @@ impl AbsmEventProvider {
             return;
         };
 
-        let Some(absm) = ui.try_get_mut_of_type::<AnimationBlendingStateMachine>(*self.absm) else {
+        let Ok(absm) = ui.try_get_mut_of_type::<AnimationBlendingStateMachine>(*self.absm) else {
             return;
         };
 

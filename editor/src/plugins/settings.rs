@@ -304,7 +304,7 @@ impl SettingsWindow {
             inspector: Handle<UiNode>,
             ui: &UserInterface,
         ) -> bool {
-            let inspector = some_or_return!(ui.try_get_of_type::<Inspector>(inspector), false);
+            let inspector = some_or_return!(ui.try_get_of_type::<Inspector>(inspector).ok(), false);
 
             let mut is_any_match = false;
             for entry in inspector.context.entries.iter() {
@@ -372,7 +372,7 @@ impl SettingsWindow {
                 self.sync_to_model(ui, settings, sender, engine.resource_manager.clone());
             }
 
-            if let Some(node) = ui.try_get_node(message.destination()) {
+            if let Ok(node) = ui.try_get_node(message.destination()) {
                 if let Some(user_data) = node.user_data_cloned::<GroupName>() {
                     let inspector = ui.try_get_of_type::<Inspector>(self.inspector).unwrap();
 

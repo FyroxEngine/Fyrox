@@ -317,7 +317,8 @@ impl NodeTrait for AnimationBlendingStateMachine {
         if let Some(animation_player) = context
             .nodes
             .try_get_node_mut(*self.animation_player)
-            .and_then(|n| n.component_mut::<AnimationPlayer>())
+            .ok()
+            .and_then(|n| n.component_mut::<AnimationPlayer>().ok())
         {
             // Prevent animation player to apply animation to scene nodes. The animation will
             // do than instead.
@@ -336,7 +337,8 @@ impl NodeTrait for AnimationBlendingStateMachine {
         if scene
             .graph
             .try_get_node(*self.animation_player)
-            .and_then(|n| n.component_ref::<AnimationPlayer>())
+            .ok()
+            .and_then(|n| n.component_ref::<AnimationPlayer>().ok())
             .is_none()
         {
             Err(

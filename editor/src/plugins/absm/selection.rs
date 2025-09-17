@@ -143,11 +143,13 @@ pub fn get_machine_ref<'a, N: Reflect>(
             .graph
             .node(node_handle.cast())
             .component_ref::<InheritableVariable<Machine<Handle<N>>>>()
+            .ok()
             .map(|v| v.deref())
     } else if let Some(ui) = controller.downcast_ref::<UiScene>() {
         ui.ui
             .node(node_handle.cast())
             .component_ref::<InheritableVariable<Machine<Handle<N>>>>()
+            .ok()
             .map(|v| v.deref())
     } else {
         None
@@ -205,6 +207,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                             .get_mut(layer_index)?
                             .transitions_mut()
                             .try_get_node_mut(transition)
+                            .ok()
                             .map(|t| t as &mut dyn Reflect)
                     }),
                     SelectedEntity::State(state) => make_command(args, move |ctx| {
@@ -214,6 +217,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                             .get_mut(layer_index)?
                             .states_mut()
                             .try_get_node_mut(state)
+                            .ok()
                             .map(|s| s as &mut dyn Reflect)
                     }),
                     SelectedEntity::PoseNode(pose) => make_command(args, move |ctx| {
@@ -223,6 +227,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                             .get_mut(layer_index)?
                             .nodes_mut()
                             .try_get_node_mut(pose)
+                            .ok()
                             .map(|p| p as &mut dyn Reflect)
                     }),
                 })
@@ -257,6 +262,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                                     .get_mut(layer_index)?
                                     .transitions_mut()
                                     .try_get_node_mut(transition)
+                                    .ok()
                                     .map(|t| t as &mut dyn Reflect)
                             },
                         ))
@@ -272,6 +278,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                                     .get_mut(layer_index)?
                                     .states_mut()
                                     .try_get_node_mut(state)
+                                    .ok()
                                     .map(|s| s as &mut dyn Reflect)
                             },
                         ))
@@ -287,6 +294,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                                     .get_mut(layer_index)?
                                     .nodes_mut()
                                     .try_get_node_mut(pose)
+                                    .ok()
                                     .map(|n| n as &mut dyn Reflect)
                             },
                         ))

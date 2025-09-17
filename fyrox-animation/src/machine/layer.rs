@@ -310,7 +310,7 @@ impl<T: EntityId> MachineLayer<T> {
         animations: &AnimationContainer<T>,
         strategy: AnimationEventCollectionStrategy,
     ) -> LayerAnimationEventsCollection<T> {
-        if let Some(state) = self.states.try_get_node(self.active_state) {
+        if let Ok(state) = self.states.try_get_node(self.active_state) {
             return LayerAnimationEventsCollection {
                 source: AnimationEventsSource::State {
                     handle: self.active_state,
@@ -324,8 +324,8 @@ impl<T: EntityId> MachineLayer<T> {
                     })
                     .unwrap_or_default(),
             };
-        } else if let Some(transition) = self.transitions.try_get_node(self.active_transition) {
-            if let (Some(source_state), Some(dest_state)) = (
+        } else if let Ok(transition) = self.transitions.try_get_node(self.active_transition) {
+            if let (Ok(source_state), Ok(dest_state)) = (
                 self.states.try_get_node(transition.source()),
                 self.states.try_get_node(transition.dest()),
             ) {
@@ -333,7 +333,7 @@ impl<T: EntityId> MachineLayer<T> {
                 match strategy {
                     AnimationEventCollectionStrategy::All => {
                         for state in [source_state, dest_state] {
-                            if let Some(root) = self.nodes.try_get_node(state.root) {
+                            if let Ok(root) = self.nodes.try_get_node(state.root) {
                                 events.extend(root.collect_animation_events(
                                     &self.nodes,
                                     params,
@@ -350,7 +350,7 @@ impl<T: EntityId> MachineLayer<T> {
                             dest_state
                         };
 
-                        if let Some(pose_source) = self.nodes.try_get_node(input.root) {
+                        if let Ok(pose_source) = self.nodes.try_get_node(input.root) {
                             events = pose_source.collect_animation_events(
                                 &self.nodes,
                                 params,
@@ -366,7 +366,7 @@ impl<T: EntityId> MachineLayer<T> {
                             source_state
                         };
 
-                        if let Some(pose_source) = self.nodes.try_get_node(input.root) {
+                        if let Ok(pose_source) = self.nodes.try_get_node(input.root) {
                             events = pose_source.collect_animation_events(
                                 &self.nodes,
                                 params,
@@ -581,7 +581,7 @@ impl<T: EntityId> MachineLayer<T> {
         animations: &AnimationContainer<T>,
     ) -> bool {
         self.animations_of_state(state)
-            .filter_map(|a| animations.try_get(a))
+            .filter_map(|a| animations.try_get(a).ok())
             .all(|a| a.has_ended())
     }
 
@@ -610,7 +610,7 @@ impl<T: EntityId> MachineLayer<T> {
                     }
 
                     if transition.condition.calculate_value(parameters, animations) {
-                        if let Some(active_state) = self.states.try_get_node(self.active_state) {
+                        if let Ok(active_state) = self.states.try_get_node(self.active_state) {
                             for action in active_state.on_leave_actions.iter() {
                                 action.apply(animations);
                             }
@@ -624,7 +624,7 @@ impl<T: EntityId> MachineLayer<T> {
                             );
                         }
 
-                        if let Some(source) = self.states.try_get_node(transition.dest()) {
+                        if let Ok(source) = self.states.try_get_node(transition.dest()) {
                             for action in source.on_enter_actions.iter() {
                                 action.apply(animations);
                             }

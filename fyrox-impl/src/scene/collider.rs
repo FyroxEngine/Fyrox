@@ -1047,7 +1047,8 @@ impl NodeTrait for Collider {
         if scene
             .graph
             .try_get_node(self.parent())
-            .and_then(|p| p.component_ref::<RigidBody>())
+            .ok()
+            .and_then(|p| p.component_ref::<RigidBody>().ok())
             .is_none()
         {
             message += "3D Collider must be a direct child of a 3D Rigid Body node, \

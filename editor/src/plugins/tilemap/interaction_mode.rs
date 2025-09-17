@@ -177,7 +177,7 @@ impl TileMapInteractionMode {
         mouse_position: Vector2<f32>,
         frame_size: Vector2<f32>,
     ) -> Option<Vector2<i32>> {
-        let tile_map = scene.graph.try_get_of_type::<TileMap>(self.tile_map)?;
+        let tile_map = scene.graph.try_get_of_type::<TileMap>(self.tile_map).ok()?;
         let global_transform = tile_map.global_transform();
 
         let camera = scene.graph[game_scene.camera_controller.camera].as_camera();
@@ -488,7 +488,7 @@ impl InteractionMode for TileMapInteractionMode {
         let state = self.state.lock();
         self.current_tool = state.drawing_mode;
         let grid_coord = self.pick_grid(scene, game_scene, mouse_position, frame_size);
-        let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
+        let Ok(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
             return;
         };
         let Some(tiles_guard) = tile_map.tiles().map(|r| r.data_ref()) else {
@@ -582,7 +582,7 @@ impl InteractionMode for TileMapInteractionMode {
         };
         let scene_handle = game_scene.scene;
         let scene = &mut engine.scenes[scene_handle];
-        let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
+        let Ok(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
             return;
         };
         let start = self.click_grid_position;
@@ -711,7 +711,7 @@ impl InteractionMode for TileMapInteractionMode {
         self.current_grid_position = Some(grid_coord);
 
         let tile_map_handle = self.tile_map;
-        let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(tile_map_handle) else {
+        let Ok(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(tile_map_handle) else {
             return;
         };
         let Some(tiles_guard) = tile_map.tiles().map(|r| r.data_ref()) else {
@@ -783,7 +783,7 @@ impl InteractionMode for TileMapInteractionMode {
 
         let scene = &mut engine.scenes[game_scene.scene];
 
-        let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
+        let Ok(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
             return;
         };
 

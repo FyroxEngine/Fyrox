@@ -1002,7 +1002,7 @@ impl Control for TreeRoot {
                         if &self.selected != selected {
                             let mut items = self.items.clone();
                             while let Some(handle) = items.pop() {
-                                if let Some(tree_ref) = ui.try_get_of_type::<Tree>(handle) {
+                                if let Ok(tree_ref) = ui.try_get_of_type::<Tree>(handle) {
                                     items.extend_from_slice(&tree_ref.items);
 
                                     let new_selection_state = if selected.contains(&handle) {
@@ -1047,7 +1047,8 @@ impl Control for TreeRoot {
                         if let Some(selection) = self.selected.first() {
                             if let Some(item) = ui
                                 .try_get_node(*selection)
-                                .and_then(|n| n.component_ref::<Tree>())
+                                .ok()
+                                .and_then(|n| n.component_ref::<Tree>().ok())
                             {
                                 if item.is_expanded {
                                     ui.send_message(TreeMessage::expand(
@@ -1114,7 +1115,8 @@ impl TreeRoot {
         if let Some(selected_item) = self.selected.first() {
             let Some(item) = ui
                 .try_get_node(*selected_item)
-                .and_then(|n| n.component_ref::<Tree>())
+                .ok()
+                .and_then(|n| n.component_ref::<Tree>().ok())
             else {
                 return;
             };
@@ -1150,7 +1152,7 @@ impl TreeRoot {
                         let mut queue = VecDeque::new();
                         queue.push_back(*prev);
                         while let Some(item) = queue.pop_front() {
-                            if let Some(item_ref) = ui.node(item).component_ref::<Tree>() {
+                            if let Ok(item_ref) = ui.node(item).component_ref::<Tree>() {
                                 if item_ref.is_expanded {
                                     queue.extend(item_ref.items.iter());
                                 }

@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 use crate::math::Rect;
-use crate::pool::QueryComponentError;
 pub use fyrox_core_derive::ComponentProvider;
 pub use fyrox_core_derive::TypeUuidProvider;
 use std::any::{Any, TypeId};
@@ -116,17 +115,28 @@ pub fn combine_uuids(a: Uuid, b: Uuid) -> Uuid {
 /// Component provider provides dynamic access to inner components of an object by their type id.
 pub trait ComponentProvider {
     /// Allows an object to provide access to inner components.
-    fn query_component_ref(&self, type_id: TypeId) -> Result<&dyn Any, QueryComponentError>;
+    /// Return Err tuple: (target component type, self type, available component types)
+    /// Err is a tuple because we want to minimize dependency on the derive proc macro.
+    /// It will then be encapsulated by an actual QueryComponentError struct.
+    fn query_component_ref(
+        &self,
+        type_id: TypeId,
+    ) -> Result<&dyn Any, (TypeId, TypeId, Vec<TypeId>)>;
 
+    /// Return Err tuple: (target component type, self type, available component types)
+    /// Err is a tuple because we want to minimize dependency on the derive proc macro.
     /// Allows an object to provide access to inner components.
-    fn query_component_mut(&mut self, type_id: TypeId)
-        -> Result<&mut dyn Any, QueryComponentError>;
+    /// It will then be encapsulated by an actual QueryComponentError struct.
+    fn query_component_mut(
+        &mut self,
+        type_id: TypeId,
+    ) -> Result<&mut dyn Any, (TypeId, TypeId, Vec<TypeId>)>;
 }
 
 impl dyn ComponentProvider {
     /// Tries to borrow a component of given type.
     #[inline]
-    pub fn component_ref<T: Any>(&self) -> Result<&T, QueryComponentError> {
+    pub fn component_ref<T: Any>(&self) -> Result<&T, (TypeId, TypeId, Vec<TypeId>)> {
         let component_any = ComponentProvider::query_component_ref(self, TypeId::of::<T>())?;
         Ok(component_any
             .downcast_ref()
@@ -135,7 +145,7 @@ impl dyn ComponentProvider {
 
     /// Tries to borrow a component of given type.
     #[inline]
-    pub fn component_mut<T: Any>(&mut self) -> Result<&mut T, QueryComponentError> {
+    pub fn component_mut<T: Any>(&mut self) -> Result<&mut T, (TypeId, TypeId, Vec<TypeId>)> {
         let component_any = ComponentProvider::query_component_mut(self, TypeId::of::<T>())?;
         Ok(component_any
             .downcast_mut()
@@ -149,21 +159,29 @@ impl dyn ComponentProvider {
 macro_rules! impl_component_provider {
      ($dest_type:ty) => {
         impl $crate::type_traits::ComponentProvider for $dest_type {
-            fn query_component_ref(&self, type_id: std::any::TypeId) -> Option<&dyn std::any::Any> {
+            fn query_component_ref(&self, type_id: std::any::TypeId) -> Result<&dyn std::any::Any, (std::any::TypeId, std::any::TypeId, Vec<std::any::TypeId>)> {
                 if type_id == std::any::TypeId::of::<Self>() {
-                    return Some(self);
+                    return Ok(self);
                 }
-                None
+                Err((
+                    type_id,
+                    std::any::TypeId::of::<Self>(),
+                    Vec::new()
+                ))
             }
 
             fn query_component_mut(
                 &mut self,
                 type_id: std::any::TypeId,
-            ) -> Option<&mut dyn std::any::Any> {
+            ) -> Result<&mut dyn std::any::Any, (std::any::TypeId, std::any::TypeId, Vec<std::any::TypeId>)> {
                 if type_id == std::any::TypeId::of::<Self>() {
-                    return Some(self);
+                    return Ok(self);
                 }
-                None
+                Err((
+                    type_id,
+                    std::any::TypeId::of::<Self>(),
+                    Vec::new()
+                ))
             }
         }
     };

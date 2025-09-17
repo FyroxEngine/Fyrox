@@ -30,7 +30,7 @@ use crate::{
     Control, ControlAsAny, UserInterface,
 };
 
-use fyrox_core::pool::BorrowNodeVariant;
+use fyrox_core::pool::{BorrowNodeVariant, MismatchedTypeError, NodeOrNodeVariant};
 use fyrox_graph::SceneGraphNode;
 use fyrox_resource::{untyped::UntypedResource, Resource};
 use std::{
@@ -50,6 +50,17 @@ pub mod container;
 /// contains all the interesting stuff and detailed description for each method.
 pub struct UiNode(pub Box<dyn Control>);
 
+impl NodeOrNodeVariant<UiNode> for UiNode {
+    fn convert_to_dest_type(node: &UiNode) -> Result<&Self, fyrox_core::pool::MismatchedTypeError> {
+        Ok(node)
+    }
+    fn convert_to_dest_type_mut(
+        node: &mut UiNode,
+    ) -> Result<&mut Self, fyrox_core::pool::MismatchedTypeError> {
+        Ok(node)
+    }
+}
+
 impl<T: Control> From<T> for UiNode {
     fn from(value: T) -> Self {
         Self(Box::new(value))
@@ -60,12 +71,18 @@ uuid_provider!(UiNode = "d9b45ecc-91b0-40ea-a92a-4a7dee4667c9");
 
 impl ComponentProvider for UiNode {
     #[inline]
-    fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any> {
+    fn query_component_ref(
+        &self,
+        type_id: TypeId,
+    ) -> Result<&dyn Any, (TypeId, TypeId, Vec<TypeId>)> {
         self.0.query_component_ref(type_id)
     }
 
     #[inline]
-    fn query_component_mut(&mut self, type_id: TypeId) -> Option<&mut dyn Any> {
+    fn query_component_mut(
+        &mut self,
+        type_id: TypeId,
+    ) -> Result<&mut dyn Any, (TypeId, TypeId, Vec<TypeId>)> {
         self.0.query_component_mut(type_id)
     }
 }
@@ -237,6 +254,7 @@ impl UiNode {
     {
         self.0
             .query_component_ref(TypeId::of::<T>())
+            .ok()
             .and_then(|c| c.downcast_ref::<T>())
     }
 
@@ -276,11 +294,20 @@ impl UiNode {
 }
 
 impl BorrowNodeVariant for UiNode {
-    fn borrow_variant<T: fyrox_core::pool::NodeVariant<Self>>(&self) -> Option<&T> {
-        ControlAsAny::as_any(self.0.deref()).downcast_ref()
+    fn borrow_variant<T: fyrox_core::pool::NodeVariant<Self>>(
+        &self,
+    ) -> Result<&T, MismatchedTypeError> {
+        ControlAsAny::as_any(self.0.deref())
+            .downcast_ref()
+            .ok_or_else(|| MismatchedTypeError::new(TypeId::of::<T>(), self.0.deref().type_id()))
     }
-    fn borrow_variant_mut<T: fyrox_core::pool::NodeVariant<Self>>(&mut self) -> Option<&mut T> {
-        ControlAsAny::as_any_mut(self.0.deref_mut()).downcast_mut()
+    fn borrow_variant_mut<T: fyrox_core::pool::NodeVariant<Self>>(
+        &mut self,
+    ) -> Result<&mut T, MismatchedTypeError> {
+        let actual_type_id = self.0.deref().type_id();
+        ControlAsAny::as_any_mut(self.0.deref_mut())
+            .downcast_mut()
+            .ok_or_else(|| MismatchedTypeError::new(TypeId::of::<T>(), actual_type_id))
     }
 }
 

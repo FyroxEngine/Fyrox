@@ -838,6 +838,7 @@ impl AssetBrowser {
                     .user_interfaces
                     .first_mut()
                     .try_get_node(self.context_menu.placement_target)
+                    .ok()
                     .and_then(|n| n.cast::<AssetItem>())
                 {
                     if let Ok(resource) =
@@ -963,7 +964,7 @@ impl AssetBrowser {
                     some_or_continue!(engine.resource_manager.resource_path(&resource));
                 let canonical_resource_path = ok_or_continue!(resource_path.canonicalize());
                 for item in self.items.iter() {
-                    if let Some(asset_item) = ui.try_get_of_type::<AssetItem>(*item) {
+                    if let Ok(asset_item) = ui.try_get_of_type::<AssetItem>(*item) {
                         let asset_item_path = ok_or_continue!(asset_item.path.canonicalize());
                         if asset_item_path == canonical_resource_path {
                             self.preview_sender
@@ -1018,7 +1019,7 @@ impl AssetBrowser {
             if let Some(selection) = entry.selection.as_ref::<AssetSelection>() {
                 // Deselect other items.
                 for &item_handle in self.items.iter() {
-                    let item = some_or_continue!(ui.try_get_of_type::<AssetItem>(item_handle));
+                    let item = some_or_continue!(ui.try_get_of_type::<AssetItem>(item_handle).ok());
 
                     ui.send_message(AssetItemMessage::select(
                         item_handle,
@@ -1149,7 +1150,7 @@ impl AssetBrowser {
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
     ) {
-        if let Some(item) = ui.try_get_of_type::<AssetItem>(dropped) {
+        if let Ok(item) = ui.try_get_of_type::<AssetItem>(dropped) {
             if let Some(file_name) = item.path.file_name() {
                 try_move_resource(&item.path, &dest_dir.join(file_name), resource_manager);
             }

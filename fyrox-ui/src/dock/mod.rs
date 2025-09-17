@@ -142,7 +142,7 @@ impl DockingManager {
                 .borrow()
                 .iter()
                 .filter_map(|h| {
-                    ui.try_get_node(*h).map(|w| FloatingWindowDescriptor {
+                    ui.try_get_node(*h).ok().map(|w| FloatingWindowDescriptor {
                         name: w.name.clone(),
                         position: w.actual_local_position(),
                         size: w.actual_local_size(),
@@ -168,6 +168,7 @@ impl DockingManager {
             while let Some(tile_handle) = stack.pop() {
                 if let Some(tile) = ui
                     .try_get_node(tile_handle)
+                    .ok()
                     .and_then(|n| n.query_component::<Tile>())
                 {
                     match tile.content {

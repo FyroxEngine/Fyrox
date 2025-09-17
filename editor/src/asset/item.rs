@@ -188,7 +188,7 @@ impl AssetItem {
     }
 
     fn try_post_move_to_message(&self, ui: &UserInterface, dropped: Handle<UiNode>) {
-        let dropped_item = some_or_return!(ui.try_get_of_type::<Self>(dropped));
+        let dropped_item = some_or_return!(ui.try_get_of_type::<Self>(dropped).ok());
 
         if !self.path.is_dir() {
             return;
@@ -292,6 +292,7 @@ impl Control for AssetItem {
                 WidgetMessage::DragOver(dropped) => {
                     if ui
                         .try_get_of_type::<AssetItem>(*dropped)
+                        .ok()
                         .is_some_and(|dropped| dropped.can_be_dropped_to(self))
                     {
                         ui.send_message(WidgetMessage::foreground(
@@ -353,6 +354,7 @@ impl Control for AssetItem {
 
     fn accepts_drop(&self, widget: Handle<UiNode>, ui: &UserInterface) -> bool {
         ui.try_get_of_type::<Self>(widget)
+            .ok()
             .is_some_and(|asset_item| asset_item.can_be_dropped_to(self))
     }
 }

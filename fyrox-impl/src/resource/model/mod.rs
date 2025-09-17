@@ -240,7 +240,7 @@ pub trait AnimationSource {
 
         let model_graph = self.inner_graph();
         for src_node_ref in model_graph.linear_iter() {
-            if let Some(src_animations) = src_node_ref
+            if let Ok(src_animations) = src_node_ref
                 .component_ref::<InheritableVariable<AnimationContainer<Handle<Self::Node>>>>()
             {
                 for src_anim in src_animations.iter() {
@@ -339,7 +339,7 @@ pub trait AnimationSource {
     ) -> Vec<Handle<fyrox_animation::Animation<Handle<Self::Node>>>> {
         if let Some((animation_player, _)) = graph.find(root, &mut |n| {
             n.component_ref::<InheritableVariable<AnimationContainer<Handle<Self::Node>>>>()
-                .is_some()
+                .is_ok()
         }) {
             self.retarget_animations_to_player(root, animation_player, graph, self_kind)
         } else {

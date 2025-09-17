@@ -160,6 +160,7 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendAnimations<T> {
 
             if let Some(pose_source) = nodes
                 .try_get_node(blend_pose.pose_source)
+                .ok()
                 .map(|pose_source| pose_source.eval_pose(nodes, params, animations, dt))
             {
                 self.output_pose
@@ -185,7 +186,7 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendAnimations<T> {
             AnimationEventCollectionStrategy::All => {
                 let mut events = Vec::new();
                 for pose in self.pose_sources.iter() {
-                    if let Some(source) = nodes.try_get_node(pose.pose_source) {
+                    if let Ok(source) = nodes.try_get_node(pose.pose_source) {
                         events.extend(
                             source.collect_animation_events(nodes, params, animations, strategy),
                         );
@@ -200,7 +201,7 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendAnimations<T> {
                     .filter_map(|s| s.weight.value(params).map(|w| (s, w)))
                     .max_by(|(_, w1), (_, w2)| w1.partial_cmp(w2).unwrap_or(Ordering::Equal))
                 {
-                    if let Some(pose_source) = nodes.try_get_node(pose.pose_source) {
+                    if let Ok(pose_source) = nodes.try_get_node(pose.pose_source) {
                         return pose_source
                             .collect_animation_events(nodes, params, animations, strategy);
                     }
@@ -215,7 +216,7 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendAnimations<T> {
                     .filter_map(|s| s.weight.value(params).map(|w| (s, w)))
                     .min_by(|(_, w1), (_, w2)| w1.partial_cmp(w2).unwrap_or(Ordering::Equal))
                 {
-                    if let Some(pose_source) = nodes.try_get_node(pose.pose_source) {
+                    if let Ok(pose_source) = nodes.try_get_node(pose.pose_source) {
                         return pose_source
                             .collect_animation_events(nodes, params, animations, strategy);
                     }
@@ -396,7 +397,7 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendAnimationsByIndex<T> {
                             AnimationEventCollectionStrategy::All => {
                                 let mut events = Vec::new();
                                 for input in [prev_input, current_input] {
-                                    if let Some(source) = nodes.try_get_node(input.pose_source) {
+                                    if let Ok(source) = nodes.try_get_node(input.pose_source) {
                                         events.extend(source.collect_animation_events(
                                             nodes, params, animations, strategy,
                                         ));
@@ -411,7 +412,7 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendAnimationsByIndex<T> {
                                     current_input
                                 };
 
-                                if let Some(pose_source) = nodes.try_get_node(input.pose_source) {
+                                if let Ok(pose_source) = nodes.try_get_node(input.pose_source) {
                                     return pose_source.collect_animation_events(
                                         nodes, params, animations, strategy,
                                     );
@@ -424,7 +425,7 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendAnimationsByIndex<T> {
                                     prev_input
                                 };
 
-                                if let Some(pose_source) = nodes.try_get_node(input.pose_source) {
+                                if let Ok(pose_source) = nodes.try_get_node(input.pose_source) {
                                     return pose_source.collect_animation_events(
                                         nodes, params, animations, strategy,
                                     );
@@ -436,7 +437,7 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendAnimationsByIndex<T> {
                     // In case where the transition is done, all the strategies does the same - just collects events
                     // from active pose node.
                     if let Some(current_input) = self.inputs.get(current_index as usize) {
-                        if let Some(pose_source) = nodes.try_get_node(current_input.pose_source) {
+                        if let Ok(pose_source) = nodes.try_get_node(current_input.pose_source) {
                             return pose_source
                                 .collect_animation_events(nodes, params, animations, strategy);
                         }

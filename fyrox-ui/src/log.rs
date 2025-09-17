@@ -86,6 +86,7 @@ impl ContextMenu {
             if message.destination() == self.copy {
                 if let Some(field) = ui
                     .try_get_node(self.placement_target)
+                    .ok()
                     .and_then(|n| n.query_component::<Text>())
                 {
                     let text = field.text();

@@ -155,7 +155,7 @@ impl ConnectionBuilder {
     }
 
     pub fn build(self, canvas: Handle<UiNode>, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let canvas_ref = ctx.try_get_node(canvas);
+        let canvas_ref = ctx.try_get_node(canvas).ok();
 
         let connection = Connection {
             widget: self

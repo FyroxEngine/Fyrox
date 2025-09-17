@@ -178,7 +178,11 @@ where
 {
     graph
         .try_get_node_mut(handle)
-        .and_then(|n| n.component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
+        .ok()
+        .and_then(|n| {
+            n.component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>()
+                .ok()
+        })
         .map(|v| v.get_value_mut_silent())
 }
 
@@ -192,10 +196,12 @@ where
 {
     graph
         .try_get_node(handle)
+        .ok()
         .and_then(|n| {
             n.query_component_ref(TypeId::of::<
                 InheritableVariable<AnimationContainer<Handle<N>>>,
             >())
+            .ok()
         })
         .and_then(|a| a.downcast_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>())
         .map(|v| v.get_value_ref())
@@ -391,11 +397,11 @@ impl AnimationEditor {
             } else if let Some(msg) = message.data::<RulerMessage>() {
                 if message.destination() == self.ruler
                     && message.direction() == MessageDirection::FromWidget
-                    && animations.try_get(selection.animation).is_some()
+                    && animations.try_get(selection.animation).is_ok()
                 {
                     match msg {
                         RulerMessage::Value(value) => {
-                            if let Some(animation) = animations.try_get_mut(selection.animation) {
+                            if let Ok(animation) = animations.try_get_mut(selection.animation) {
                                 animation.set_time_position(*value);
                             }
                         }
@@ -412,7 +418,7 @@ impl AnimationEditor {
                             });
                         }
                         RulerMessage::RemoveSignal(id) => {
-                            if let Some(animation) = animations.try_get(selection.animation) {
+                            if let Ok(animation) = animations.try_get(selection.animation) {
                                 sender.do_command(RemoveAnimationSignal {
                                     animation_player_handle: selection.animation_player,
                                     animation_handle: selection.animation,
@@ -457,7 +463,7 @@ impl AnimationEditor {
 
                     // HACK. This is unreliable to just use `bool` here. It should be wrapped into
                     // newtype or something.
-                    if let Some(auto_apply) = animation_player_node.component_mut::<bool>() {
+                    if let Ok(auto_apply) = animation_player_node.component_mut::<bool>() {
                         *auto_apply = true;
                     } else {
                         Log::warn("No `auto_apply` component in animation player!")
@@ -477,7 +483,7 @@ impl AnimationEditor {
                         animation.set_enabled(handle == selection.animation);
                     }
 
-                    if let Some(animation) = animations.try_get_mut(selection.animation) {
+                    if let Ok(animation) = animations.try_get_mut(selection.animation) {
                         animation.rewind();
 
                         let animation_targets = animation
@@ -522,14 +528,14 @@ impl AnimationEditor {
                 }
                 ToolbarAction::PlayPause => {
                     if self.preview_mode_data.is_some() {
-                        if let Some(animation) = animations.try_get_mut(selection.animation) {
+                        if let Ok(animation) = animations.try_get_mut(selection.animation) {
                             animation.set_enabled(!animation.is_enabled());
                         }
                     }
                 }
                 ToolbarAction::Stop => {
                     if self.preview_mode_data.is_some() {
-                        if let Some(animation) = animations.try_get_mut(selection.animation) {
+                        if let Ok(animation) = animations.try_get_mut(selection.animation) {
                             animation.rewind();
                             animation.set_enabled(false);
                         }
@@ -677,7 +683,7 @@ impl AnimationEditor {
         let selection = fetch_selection(self, graph, editor_selection);
 
         if let Some(container) = animation_container_ref(graph, selection.animation_player) {
-            if let Some(animation) = container.try_get(selection.animation) {
+            if let Ok(animation) = container.try_get(selection.animation) {
                 ui.send_message(ThumbMessage::position(
                     self.thumb,
                     MessageDirection::ToWidget,
@@ -711,7 +717,7 @@ impl AnimationEditor {
                 self.preview_mode_data.is_some(),
             );
 
-            if let Some(animation) = animations.try_get(selection.animation) {
+            if let Ok(animation) = animations.try_get(selection.animation) {
                 self.track_list
                     .sync_to_model(animation, graph, &selection, ui);
 

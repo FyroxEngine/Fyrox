@@ -21,7 +21,7 @@
 use super::{Handle, Pool, RefCounter};
 use crate::pool::BorrowNodeVariant;
 use crate::{
-    pool::{BorrowErrorKind, HandleInfo, MismatchedTypeError, NodeVariant},
+    pool::{BorrowErrorKind, HandleInfo, NodeVariant},
     ComponentProvider,
 };
 use std::{
@@ -470,7 +470,10 @@ where
             //     .and_then(|c| c.downcast_ref())
             //     .ok_or(MultiBorrowErrorKind::NoSuchComponent(handle))
             let component_any = node.query_component_ref(TypeId::of::<C>()).map_err(|e| {
-                MultiBorrowError::new(BorrowErrorKind::NoSuchComponent(e).into(), handle.into())
+                MultiBorrowError::new(
+                    BorrowErrorKind::NoSuchComponent(e.into()).into(),
+                    handle.into(),
+                )
             })?;
             Ok(component_any
                 .downcast_ref()
@@ -489,7 +492,10 @@ where
     {
         self.try_get_node_mut_internal(handle, move |node| {
             let component_any = node.query_component_mut(TypeId::of::<C>()).map_err(|e| {
-                MultiBorrowError::new(BorrowErrorKind::NoSuchComponent(e).into(), handle.into())
+                MultiBorrowError::new(
+                    BorrowErrorKind::NoSuchComponent(e.into()).into(),
+                    handle.into(),
+                )
             })?;
             Ok(component_any
                 .downcast_mut()
@@ -501,7 +507,7 @@ where
 #[cfg(test)]
 mod test {
     use super::MultiBorrowErrorKind;
-    use crate::pool::{BorrowErrorKind, BorrowNodeVariant, MultiBorrowError, Pool};
+    use crate::pool::{BorrowErrorKind, MultiBorrowError, Pool};
 
     #[derive(PartialEq, Clone, Copy, Debug)]
     struct MyPayload(u32);

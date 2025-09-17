@@ -64,7 +64,7 @@ use crate::{
 };
 use fyrox_core::{
     define_as_any_trait,
-    pool::{BorrowNodeVariant, Pool},
+    pool::{BorrowNodeVariant, MismatchedTypeError, NodeOrNodeVariant, Pool},
     visitor::error::VisitError,
 };
 use std::{
@@ -324,11 +324,20 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
 pub struct Node(pub(crate) Box<dyn NodeTrait>);
 
 impl BorrowNodeVariant for Node {
-    fn borrow_variant<T: fyrox_core::pool::NodeVariant<Self>>(&self) -> Option<&T> {
-        NodeAsAny::as_any(self.0.deref()).downcast_ref()
+    fn borrow_variant<T: fyrox_core::pool::NodeVariant<Self>>(
+        &self,
+    ) -> Result<&T, MismatchedTypeError> {
+        NodeAsAny::as_any(self.0.deref())
+            .downcast_ref()
+            .ok_or_else(|| MismatchedTypeError::new(TypeId::of::<T>(), self.0.deref().type_id()))
     }
-    fn borrow_variant_mut<T: fyrox_core::pool::NodeVariant<Self>>(&mut self) -> Option<&mut T> {
-        NodeAsAny::as_any_mut(self.0.deref_mut()).downcast_mut()
+    fn borrow_variant_mut<T: fyrox_core::pool::NodeVariant<Self>>(
+        &mut self,
+    ) -> Result<&mut T, MismatchedTypeError> {
+        let actual_type_id = self.0.deref().type_id();
+        NodeAsAny::as_any_mut(self.0.deref_mut())
+            .downcast_mut()
+            .ok_or_else(|| MismatchedTypeError::new(TypeId::of::<T>(), actual_type_id))
     }
 }
 
@@ -408,11 +417,17 @@ impl NameProvider for Node {
 }
 
 impl ComponentProvider for Node {
-    fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any> {
+    fn query_component_ref(
+        &self,
+        type_id: TypeId,
+    ) -> Result<&dyn Any, (TypeId, TypeId, Vec<TypeId>)> {
         self.0.query_component_ref(type_id)
     }
 
-    fn query_component_mut(&mut self, type_id: TypeId) -> Option<&mut dyn Any> {
+    fn query_component_mut(
+        &mut self,
+        type_id: TypeId,
+    ) -> Result<&mut dyn Any, (TypeId, TypeId, Vec<TypeId>)> {
         self.0.query_component_mut(type_id)
     }
 }

@@ -99,6 +99,7 @@ impl SelectionContainer for NavmeshSelection {
                         .scene
                         .graph
                         .try_get_node_mut(navmesh_node)
+                        .ok()
                         .map(|n| n as &mut dyn Reflect)
                 },
             ))

@@ -909,9 +909,9 @@ pub trait SceneGraph: BaseSceneGraph {
     #[inline]
     fn try_get_component<T: 'static>(&self, handle: Handle<Self::Node>) -> Result<&T, BorrowError> {
         let node = self.try_get_node(handle)?;
-        let component = node
-            .query_component_ref(TypeId::of::<T>())
-            .map_err(|e| BorrowError::new(BorrowErrorKind::NoSuchComponent(e), handle.into()))?;
+        let component = node.query_component_ref(TypeId::of::<T>()).map_err(|e| {
+            BorrowError::new(BorrowErrorKind::NoSuchComponent(e.into()), handle.into())
+        })?;
         Ok(component
             .downcast_ref()
             .expect("TypeId matched, but downcast failed!"))
@@ -923,9 +923,9 @@ pub trait SceneGraph: BaseSceneGraph {
         handle: Handle<Self::Node>,
     ) -> Result<&mut T, BorrowError> {
         let node = self.try_get_node_mut(handle)?;
-        let component = node
-            .query_component_mut(TypeId::of::<T>())
-            .map_err(|e| BorrowError::new(BorrowErrorKind::NoSuchComponent(e), handle.into()))?;
+        let component = node.query_component_mut(TypeId::of::<T>()).map_err(|e| {
+            BorrowError::new(BorrowErrorKind::NoSuchComponent(e.into()), handle.into())
+        })?;
         Ok(component
             .downcast_mut()
             .expect("TypeId matched, but downcast failed!"))
@@ -1574,8 +1574,24 @@ mod test {
     {
     }
 
-    #[derive(ComponentProvider, Debug)]
+    #[derive(Debug)]
     pub struct Node(Box<dyn NodeTrait>);
+
+    impl ComponentProvider for Node {
+        fn query_component_ref(
+            &self,
+            type_id: TypeId,
+        ) -> Result<&dyn Any, (TypeId, TypeId, Vec<TypeId>)> {
+            self.0.query_component_ref(type_id)
+        }
+
+        fn query_component_mut(
+            &mut self,
+            type_id: TypeId,
+        ) -> Result<&mut dyn Any, (TypeId, TypeId, Vec<TypeId>)> {
+            self.0.query_component_mut(type_id)
+        }
+    }
 
     impl NodeOrNodeVariant<Node> for Node {
         fn convert_to_dest_type(

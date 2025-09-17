@@ -44,6 +44,7 @@ impl dyn CommandContext + '_ {
         T: 'static,
     {
         self.query_component_ref(TypeId::of::<T>())
+            .ok()
             .and_then(|c| c.downcast_ref())
     }
 
@@ -52,6 +53,7 @@ impl dyn CommandContext + '_ {
         T: 'static,
     {
         self.query_component_mut(TypeId::of::<T>())
+            .ok()
             .and_then(|c| c.downcast_mut())
     }
 

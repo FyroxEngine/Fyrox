@@ -84,6 +84,7 @@ fn meshes_iter<'a>(
         scene
             .graph
             .try_get_of_type::<Mesh>(*handle)
+            .ok()
             .map(|mesh| (*handle, mesh))
     })
 }
@@ -277,7 +278,7 @@ impl MeshControlPanel {
         let any_mesh = editor_selection.as_graph().is_some_and(|s| {
             s.nodes()
                 .iter()
-                .any(|n| scene.graph.try_get_of_type::<Mesh>(*n).is_some())
+                .any(|n| scene.graph.try_get_of_type::<Mesh>(*n).is_ok())
         });
         engine
             .user_interfaces

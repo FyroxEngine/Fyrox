@@ -655,6 +655,7 @@ impl NodeTrait for RigidBody {
             context
                 .nodes
                 .try_get_node(self.parent)
+                .ok()
                 .map(|p| p.global_transform())
                 .unwrap_or_else(Matrix4::identity),
         );
@@ -662,7 +663,7 @@ impl NodeTrait for RigidBody {
 
     fn validate(&self, scene: &Scene) -> Result<(), String> {
         for &child in self.children() {
-            if scene.graph.try_get_of_type::<Collider>(child).is_some() {
+            if scene.graph.try_get_of_type::<Collider>(child).is_ok() {
                 return Ok(());
             }
         }

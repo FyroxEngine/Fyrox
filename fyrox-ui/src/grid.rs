@@ -448,7 +448,7 @@ impl Grid {
                         .iter()
                         .copied()
                         .filter(|&c| {
-                            let Some(child_ref) = ui.try_get_node(c) else {
+                            let Ok(child_ref) = ui.try_get_node(c) else {
                                 return false;
                             };
                             child_ref.row() == row_index && child_ref.column() == column_index
@@ -472,7 +472,7 @@ impl Grid {
             }
         }
         for handle in self.children() {
-            let Some(node) = ui.try_get_node(*handle) else {
+            let Ok(node) = ui.try_get_node(*handle) else {
                 continue;
             };
             let Some(row) = rows.get_mut(node.row()) else {
@@ -509,7 +509,7 @@ impl Grid {
         measure_width: bool,
         measure_height: bool,
     ) {
-        let Some(node) = ui.try_get_node(child) else {
+        let Ok(node) = ui.try_get_node(child) else {
             return;
         };
         let mut rows = self.rows.borrow_mut();

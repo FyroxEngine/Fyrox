@@ -183,7 +183,7 @@ impl SocketBuilder {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        if let Some(editor) = ctx.try_get_node_mut(self.editor) {
+        if let Ok(editor) = ctx.try_get_node_mut(self.editor) {
             editor.set_row(0).set_column(1);
         }
 

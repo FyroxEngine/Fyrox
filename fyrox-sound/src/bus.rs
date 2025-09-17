@@ -23,7 +23,7 @@
 
 use crate::effects::{Effect, EffectRenderTrait};
 use fyrox_core::{
-    pool::{Handle, Pool, Ticket},
+    pool::{BorrowError, Handle, Pool, Ticket},
     reflect::prelude::*,
     visitor::prelude::*,
 };
@@ -355,7 +355,7 @@ impl AudioBusGraph {
             std::mem::replace(&mut self.buses[node_handle].parent_bus, Handle::NONE);
 
         // Remove child from parent's children list
-        if let Some(parent) = self.buses.try_get_node_mut(parent_handle) {
+        if let Ok(parent) = self.buses.try_get_node_mut(parent_handle) {
             if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
                 parent.child_buses.remove(i);
             }
@@ -415,12 +415,15 @@ impl AudioBusGraph {
     }
 
     /// Tries to borrow an audio bus by its handle.
-    pub fn try_get_bus_ref(&self, handle: Handle<AudioBus>) -> Option<&AudioBus> {
+    pub fn try_get_bus_ref(&self, handle: Handle<AudioBus>) -> Result<&AudioBus, BorrowError> {
         self.buses.try_get_node(handle)
     }
 
     /// Tries to borrow an audio bus by its handle.
-    pub fn try_get_bus_mut(&mut self, handle: Handle<AudioBus>) -> Option<&mut AudioBus> {
+    pub fn try_get_bus_mut(
+        &mut self,
+        handle: Handle<AudioBus>,
+    ) -> Result<&mut AudioBus, BorrowError> {
         self.buses.try_get_node_mut(handle)
     }
 

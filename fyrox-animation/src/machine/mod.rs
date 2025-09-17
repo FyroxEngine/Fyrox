@@ -332,21 +332,21 @@ impl<T: EntityId> Machine<T> {
         self.animations_cache.clear();
         for layer in self.layers.iter_mut() {
             let mut states_to_check = [Some(layer.active_state()), None, None];
-            if let Some(active_transition) =
+            if let Ok(active_transition) =
                 layer.transitions().try_get_node(layer.active_transition())
             {
                 states_to_check[1] = Some(active_transition.source);
                 states_to_check[2] = Some(active_transition.dest);
             }
             for state_to_check in states_to_check.iter().flatten() {
-                if let Some(state) = layer.states().try_get_node(*state_to_check) {
+                if let Ok(state) = layer.states().try_get_node(*state_to_check) {
                     state.collect_animations(layer.nodes(), &mut self.animations_cache);
                 }
             }
         }
 
         for animation_handle in self.animations_cache.iter() {
-            if let Some(animation) = animations.try_get_mut(*animation_handle) {
+            if let Ok(animation) = animations.try_get_mut(*animation_handle) {
                 if animation.is_enabled() {
                     animation.tick(dt);
                 }

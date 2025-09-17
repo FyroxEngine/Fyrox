@@ -99,10 +99,12 @@ pub fn get_animations_container<'a, N: Reflect>(
             .graph
             .node(handle.cast())
             .component_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
+            .ok()
     } else if let Some(ui) = controller.downcast_ref::<UiScene>() {
         ui.ui
             .node(handle.cast())
             .component_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
+            .ok()
     } else {
         None
     }
@@ -124,7 +126,7 @@ where
     ) {
         if let Some(container) = get_animations_container(self.animation_player, controller, scenes)
         {
-            if let Some(animation) = container.try_get(self.animation) {
+            if let Ok(animation) = container.try_get(self.animation) {
                 if let Some(animation::selection::SelectedEntity::Signal(id)) =
                     self.entities.first()
                 {

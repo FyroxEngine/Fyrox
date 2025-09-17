@@ -502,7 +502,7 @@ impl Control for FileBrowser {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(&first_selected) = selection.first() {
-                    if let Some(first_selected_ref) = ui.try_get_node(first_selected) {
+                    if let Ok(first_selected_ref) = ui.try_get_node(first_selected) {
                         let mut path = first_selected_ref
                             .user_data_cloned::<PathBuf>()
                             .unwrap()

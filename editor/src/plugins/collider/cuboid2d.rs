@@ -136,7 +136,7 @@ impl ShapeGizmoTrait for Cuboid2DShapeGizmo {
         scene: &mut Scene,
         initial_collider_local_position: Vector3<f32>,
     ) {
-        let Some(collider) = scene.graph.try_get_mut_of_type::<Collider>(collider) else {
+        let Ok(collider) = scene.graph.try_get_mut_of_type::<Collider>(collider) else {
             return;
         };
 

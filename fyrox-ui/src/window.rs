@@ -925,7 +925,7 @@ impl Control for Window {
                                 font,
                                 font_size,
                             } => {
-                                if ui.try_get_of_type::<Text>(self.title).is_some() {
+                                if ui.try_get_of_type::<Text>(self.title).is_ok() {
                                     // Just modify existing text, this is much faster than
                                     // re-create text everytime.
                                     ui.send_message(TextMessage::text(

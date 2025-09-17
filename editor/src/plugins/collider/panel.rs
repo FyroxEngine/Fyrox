@@ -63,6 +63,7 @@ fn set_property<T: Reflect>(
                 .scene
                 .graph
                 .try_get_node_mut(selected_collider)
+                .ok()
                 .map(|n| n as &mut dyn Reflect)
         },
     )));
@@ -143,7 +144,7 @@ impl ColliderControlPanel {
             let mut commands = Vec::new();
 
             for collider in selection.nodes() {
-                let Some(collider_ref) = scene.graph.try_get_of_type::<Collider>(*collider) else {
+                let Ok(collider_ref) = scene.graph.try_get_of_type::<Collider>(*collider) else {
                     continue;
                 };
 

@@ -282,7 +282,7 @@ impl VisibilityCache {
     /// Updates the cache by removing unused data.
     pub fn update(&mut self, graph: &Graph) {
         self.observers.retain(|observer, data| {
-            let Some(observer_ref) = graph.try_get_node(*observer) else {
+            let Ok(observer_ref) = graph.try_get_node(*observer) else {
                 return false;
             };
 

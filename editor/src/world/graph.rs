@@ -101,6 +101,7 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
         self.scene
             .graph
             .try_get_node(node.into())
+            .ok()
             .is_some_and(|node| node.children().contains(&child.into()))
     }
 
@@ -116,6 +117,7 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
         self.scene
             .graph
             .try_get_node(node.into())
+            .ok()
             .map(|n| Cow::Borrowed(n.name()))
     }
 
@@ -144,7 +146,7 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
         self.scene
             .graph
             .try_get_node(node.into())
-            .is_some_and(|n| n.resource().is_some())
+            .is_ok_and(|n| n.resource().is_some())
     }
 
     fn selection(&self) -> Vec<ErasedHandle> {
@@ -188,7 +190,7 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
                             if let Some((parents_parent, position)) =
                                 self.scene.graph.relative_position(parent, index_offset)
                             {
-                                if let Some(node) = self.scene.graph.try_get_node(node_handle) {
+                                if let Ok(node) = self.scene.graph.try_get_node(node_handle) {
                                     if node.parent() != parents_parent {
                                         commands.push(LinkNodesCommand::new(
                                             node_handle,

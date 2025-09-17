@@ -349,7 +349,7 @@ impl AssetItemContextMenu {
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu.handle() {
                 self.placement_target = *target;
-                if let Some(item) = ui.try_get_of_type::<AssetItem>(self.placement_target) {
+                if let Ok(item) = ui.try_get_of_type::<AssetItem>(self.placement_target) {
                     for handle in [self.dependencies, self.duplicate] {
                         ui.send_message(WidgetMessage::enabled(
                             handle,
@@ -367,7 +367,7 @@ impl AssetItemContextMenu {
                 }
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
-            if let Some(item) = ui.try_get_mut_of_type::<AssetItem>(self.placement_target) {
+            if let Ok(item) = ui.try_get_mut_of_type::<AssetItem>(self.placement_target) {
                 if message.destination() == self.delete {
                     let text = format!(
                         "Do you really want to delete {} asset? This \

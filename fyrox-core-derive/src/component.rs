@@ -121,54 +121,18 @@ fn impl_type_uuid_provider_struct(
     let ty_ident = &ty_args.ident;
     let (impl_generics, ty_generics, where_clause) = ty_args.generics.split_for_impl();
 
-    let component_ref_checks = if field_args.style != ast::Style::Unit {
-        let fields = &field_args.fields;
-        fields
-            .iter()
-            .map(|f| {
-                let ident = &f.ident;
-                let ty = &f.ty;
+    let component_ref_checks =
+        create_field_components(true, &field_args.fields, field_args.style, false);
 
-                quote! {
-                    if type_id == std::any::TypeId::of::<#ty>() {
-                        return Ok(&self.#ident as &dyn std::any::Any);
-                    } else {
-                        visited_types.push(std::any::TypeId::of::<#ty>());
-                    }
-                }
-            })
-            .collect()
-    } else {
-        vec![]
-    };
-
-    let component_mut_checks = if field_args.style != ast::Style::Unit {
-        let fields = &field_args.fields;
-        fields
-            .iter()
-            .map(|f| {
-                let ident = &f.ident;
-                let ty = &f.ty;
-
-                quote! {
-                    if type_id == std::any::TypeId::of::<#ty>() {
-                        return Ok(&mut self.#ident as &mut dyn std::any::Any);
-                    } else {
-                        visited_types.push(std::any::TypeId::of::<#ty>());
-                    }
-                }
-            })
-            .collect()
-    } else {
-        vec![]
-    };
+    let component_mut_checks =
+        create_field_components(true, &field_args.fields, field_args.style, true);
 
     quote! {
         impl #impl_generics ComponentProvider for #ty_ident #ty_generics #where_clause {
             fn query_component_ref(
                 &self,
                 type_id: std::any::TypeId,
-            ) -> Result<&dyn std::any::Any, QueryComponentError> {
+            ) -> Result<&dyn std::any::Any, (std::any::TypeId, std::any::TypeId, Vec<std::any::TypeId>)> {
                 if type_id == std::any::TypeId::of::<Self>() {
                     return Ok(self);
                 }
@@ -177,7 +141,7 @@ fn impl_type_uuid_provider_struct(
 
                 #(#component_ref_checks)*
 
-                Err(QueryComponentError::new(
+                Err((
                     type_id,
                     std::any::TypeId::of::<Self>(),
                     visited_types
@@ -187,7 +151,7 @@ fn impl_type_uuid_provider_struct(
             fn query_component_mut(
                 &mut self,
                 type_id: std::any::TypeId,
-            ) -> Result<&mut dyn std::any::Any, QueryComponentError> {
+            ) -> Result<&mut dyn std::any::Any, (std::any::TypeId, std::any::TypeId, Vec<std::any::TypeId>)> {
                 if type_id == std::any::TypeId::of::<Self>() {
                     return Ok(self);
                 }
@@ -196,7 +160,7 @@ fn impl_type_uuid_provider_struct(
 
                 #(#component_mut_checks)*
 
-                Err(QueryComponentError::new(
+                Err((
                     type_id,
                     std::any::TypeId::of::<Self>(),
                     visited_types

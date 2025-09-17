@@ -233,12 +233,12 @@ where
 
     /// Tries to get a shared reference to a node by given handle.
     pub fn node(&self, handle: Handle<BehaviorNode<B>>) -> Option<&BehaviorNode<B>> {
-        self.nodes.try_get_node(handle)
+        self.nodes.try_get_node(handle).ok()
     }
 
     /// Tries to get a mutable reference to a node by given handle.
     pub fn node_mut(&mut self, handle: Handle<BehaviorNode<B>>) -> Option<&mut BehaviorNode<B>> {
-        self.nodes.try_get_node_mut(handle)
+        self.nodes.try_get_node_mut(handle).ok()
     }
 
     /// Performs a single update tick with given context.

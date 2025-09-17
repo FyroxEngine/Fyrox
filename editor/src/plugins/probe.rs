@@ -30,7 +30,7 @@ use crate::{
             Uuid,
         },
         engine::Engine,
-        graph::SceneGraph,
+        graph::prelude::*,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
@@ -116,7 +116,7 @@ impl ReflectionProbePreviewControlPanel {
                     let scene = &mut engine.scenes[game_scene.scene];
 
                     for &node in &selection.nodes {
-                        if let Some(particle_system) =
+                        if let Ok(particle_system) =
                             scene.graph.try_get_mut_of_type::<ReflectionProbe>(node)
                         {
                             particle_system.force_update();
@@ -221,6 +221,7 @@ impl InteractionMode for ReflectionProbeInteractionMode {
                     .scene
                     .graph
                     .try_get_node_mut(probe.cast())
+                    .ok()
                     .map(|n| n as &mut dyn Reflect)
             },
         );

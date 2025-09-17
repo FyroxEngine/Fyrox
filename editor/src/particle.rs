@@ -233,7 +233,7 @@ impl ParticleSystemPreviewControlPanel {
             let any_particle_system_selected = editor_selection.as_graph().is_some_and(|s| {
                 s.nodes
                     .iter()
-                    .any(|n| scene.graph.try_get_of_type::<ParticleSystem>(*n).is_some())
+                    .any(|n| scene.graph.try_get_of_type::<ParticleSystem>(*n).is_ok())
             });
             engine
                 .user_interfaces
@@ -263,7 +263,7 @@ impl ParticleSystemPreviewControlPanel {
                 if scene
                     .graph
                     .try_get_of_type::<ParticleSystem>(node_handle)
-                    .is_some()
+                    .is_ok()
                 {
                     self.particle_systems_state
                         .push((node_handle, scene.graph[node_handle].clone_box()));
@@ -306,7 +306,7 @@ impl ParticleSystemPreviewControlPanel {
                 let scene = &mut engine.scenes[game_scene.scene];
 
                 for &node in &selection.nodes {
-                    if let Some(particle_system) =
+                    if let Ok(particle_system) =
                         scene.graph.try_get_mut_of_type::<ParticleSystem>(node)
                     {
                         if message.destination() == self.play {

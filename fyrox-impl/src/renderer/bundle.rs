@@ -891,7 +891,7 @@ impl RenderDataBundleStorage {
             if let Some(lod_group) = node.lod_group() {
                 for level in lod_group.levels.iter() {
                     for &object in level.objects.iter() {
-                        if let Some(object_ref) = graph.try_get_node(object) {
+                        if let Ok(object_ref) = graph.try_get_node(object) {
                             let distance = observer_position
                                 .translation
                                 .metric_distance(&object_ref.global_position());
@@ -906,7 +906,7 @@ impl RenderDataBundleStorage {
                 }
             }
 
-            if let Some(reflection_probe) = node.component_ref::<ReflectionProbe>() {
+            if let Ok(reflection_probe) = node.component_ref::<ReflectionProbe>() {
                 if (reflection_probe as &dyn NodeTrait)
                     .world_bounding_box()
                     .is_contains_point(observer_position.translation)
@@ -916,7 +916,7 @@ impl RenderDataBundleStorage {
             }
 
             if options.collect_lights {
-                if let Some(base_light) = node.component_ref::<BaseLight>() {
+                if let Ok(base_light) = node.component_ref::<BaseLight>() {
                     if frustum.is_intersects_aabb(&node.world_bounding_box())
                         && base_light.global_visibility()
                         && base_light.is_globally_enabled()

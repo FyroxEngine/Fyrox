@@ -71,7 +71,12 @@ fn resource_path_of_first_selected_node(
 ) -> Option<PathBuf> {
     if let Some(ui_selection) = editor_selection.as_ui() {
         if let Some(first) = ui_selection.widgets.first() {
-            if let Some(resource) = ui_scene.ui.try_get_node(*first).and_then(|n| n.resource()) {
+            if let Some(resource) = ui_scene
+                .ui
+                .try_get_node(*first)
+                .ok()
+                .and_then(|n| n.resource())
+            {
                 return resource_manager.resource_path(resource.as_ref());
             }
         }

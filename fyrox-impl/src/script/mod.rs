@@ -48,6 +48,8 @@ use std::{
     sync::mpsc::Sender,
 };
 
+use fyrox_graph::prelude::*;
+
 pub use fyrox_core_derive::ScriptMessagePayload;
 
 pub mod constructor;
@@ -415,7 +417,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
 
 impl UniversalScriptContext for ScriptContext<'_, '_, '_> {
     fn node(&mut self) -> Option<&mut Node> {
-        self.scene.graph.try_get_node_mut(self.handle)
+        self.scene.graph.try_get_node_mut(self.handle).ok()
     }
 
     fn destroy_script_deferred(&self, script: Script, index: usize) {
@@ -491,7 +493,7 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
 
 impl UniversalScriptContext for ScriptMessageContext<'_, '_, '_> {
     fn node(&mut self) -> Option<&mut Node> {
-        self.scene.graph.try_get_node_mut(self.handle)
+        self.scene.graph.try_get_node_mut(self.handle).ok()
     }
 
     fn destroy_script_deferred(&self, script: Script, index: usize) {
@@ -558,7 +560,7 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
 
 impl UniversalScriptContext for ScriptDeinitContext<'_, '_, '_> {
     fn node(&mut self) -> Option<&mut Node> {
-        self.scene.graph.try_get_node_mut(self.node_handle)
+        self.scene.graph.try_get_node_mut(self.node_handle).ok()
     }
 
     fn destroy_script_deferred(&self, script: Script, index: usize) {
@@ -854,6 +856,7 @@ impl Script {
     pub fn query_component_ref<T: Any>(&self) -> Option<&T> {
         self.instance
             .query_component_ref(TypeId::of::<T>())
+            .ok()
             .and_then(|c| c.downcast_ref())
     }
 
@@ -862,6 +865,7 @@ impl Script {
     pub fn query_component_mut<T: Any>(&mut self) -> Option<&mut T> {
         self.instance
             .query_component_mut(TypeId::of::<T>())
+            .ok()
             .and_then(|c| c.downcast_mut())
     }
 }

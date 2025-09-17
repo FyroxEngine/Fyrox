@@ -434,7 +434,7 @@ impl AssetPreviewGenerator for ModelPreview {
                 .graph
                 .pair_iter_mut()
                 .filter(|(h, _)| *h != preview_camera)
-                .filter_map(|(_, n)| n.component_mut::<Camera>())
+                .filter_map(|(_, n)| n.component_mut::<Camera>().ok())
             {
                 camera.set_enabled(false);
             }

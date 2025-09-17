@@ -163,7 +163,7 @@ impl NavmeshPanel {
         if let Some(selection) = fetch_selection(editor_selection) {
             navmesh_selected = graph
                 .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
-                .is_some();
+                .is_ok();
         }
 
         if navmesh_selected {
@@ -282,6 +282,7 @@ impl InteractionMode for EditNavmeshMode {
             if let Some(plane_kind) = self.move_gizmo.handle_pick(editor_node, graph) {
                 if let Some(navmesh) = graph
                     .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
+                    .ok()
                     .map(|n| n.navmesh_ref())
                 {
                     let mut initial_positions = HashMap::new();
@@ -293,6 +294,7 @@ impl InteractionMode for EditNavmeshMode {
                 }
             } else if let Some(navmesh) = graph
                 .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
+                .ok()
                 .map(|n| n.navmesh_ref())
             {
                 let mut new_selection = if engine
@@ -369,6 +371,7 @@ impl InteractionMode for EditNavmeshMode {
         if let Some(selection) = fetch_selection(editor_selection) {
             if let Some(navmesh) = graph
                 .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
+                .ok()
                 .map(|n| n.navmesh_ref())
             {
                 if let Some(drag_context) = self.drag_context.take() {
@@ -460,6 +463,7 @@ impl InteractionMode for EditNavmeshMode {
         if let Some(selection) = fetch_selection(editor_selection) {
             if let Some(mut navmesh) = graph
                 .try_get_mut_of_type::<NavigationalMesh>(selection.navmesh_node())
+                .ok()
                 .map(|n| n.navmesh_mut())
             {
                 // If we're dragging single edge it is possible to enter edge duplication mode by
@@ -535,6 +539,7 @@ impl InteractionMode for EditNavmeshMode {
             if let Some(navmesh) = scene
                 .graph
                 .try_get_mut_of_type::<NavigationalMesh>(selection.navmesh_node())
+                .ok()
                 .map(|n| n.navmesh_mut())
             {
                 if let Some(DragContext::EdgeDuplication {
@@ -625,7 +630,7 @@ impl InteractionMode for EditNavmeshMode {
                         .graph
                         .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
                         .map(|n| n.navmesh_ref())
-                        .is_some()
+                        .is_ok()
                         && !selection.is_empty()
                     {
                         let mut commands = Vec::new();
@@ -656,6 +661,7 @@ impl InteractionMode for EditNavmeshMode {
                     if let Some(navmesh) = scene
                         .graph
                         .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
+                        .ok()
                         .map(|n| n.navmesh_ref())
                     {
                         let selection = NavmeshSelection::new(

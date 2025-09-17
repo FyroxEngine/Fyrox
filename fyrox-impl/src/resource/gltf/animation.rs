@@ -112,7 +112,7 @@ impl ImportedTarget {
         self.binding.value_binding()
     }
     fn value_in_graph(&self, graph: &Graph) -> Option<Box<[f32]>> {
-        let node: &Node = graph.try_get_node(self.handle)?;
+        let node: &Node = graph.try_get_node(self.handle).ok()?;
         match self.binding {
             ImportedBinding::Position => {
                 Some(node.local_transform().position().data.as_slice().into())
