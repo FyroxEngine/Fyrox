@@ -21,6 +21,7 @@
 //! Contains all structures and methods to create and manage particle systems. See [`ParticleSystem`] docs for more
 //! info and usage examples.
 
+use crate::rand::Error;
 use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
@@ -108,6 +109,11 @@ impl RngCore for ParticleSystemRng {
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         self.rng.fill_bytes(dest)
+    }
+
+    #[inline]
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
+        self.rng.try_fill_bytes(dest)
     }
 }
 

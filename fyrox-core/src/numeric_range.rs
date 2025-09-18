@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::num_traits::Num;
-use rand::distr::uniform::SampleUniform;
+use rand::distributions::uniform::SampleUniform;
 use rand::Rng;
 use std::ops::Range;
 
@@ -62,7 +62,7 @@ impl<T: Num + PartialOrd + SampleUniform + Copy> RangeExt<T> for Range<T> {
         if start == end {
             start
         } else {
-            rng.random_range(Range { start, end })
+            rng.gen_range(Range { start, end })
         }
     }
 
@@ -83,13 +83,13 @@ impl<T: Num + PartialOrd + SampleUniform + Copy> RangeExt<T> for Range<T> {
 
 #[cfg(test)]
 mod test {
-    use rand::rng;
+    use rand::thread_rng;
 
     use super::*;
 
     #[test]
     fn test_random() {
-        let mut rng = rng();
+        let mut rng = thread_rng();
 
         let res = (1..10).random(&mut rng);
         assert!((1..=10).contains(&res));

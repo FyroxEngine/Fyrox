@@ -75,6 +75,8 @@ approx = "0.5.1"
 # be fixed.
 #
 # In most cases, it is enough to copy dependencies from the `fyroxed_base` crate to fix these issues.
+#
+# === start of additional deps ===
 hashbrown = { version = "0.15", features = ["default", "default-hasher"] }
 imageproc = "0.25.0"
 serde_core = { version = "1.0.225", features = ["default"] }
@@ -83,10 +85,13 @@ serde_json = { version = "1", features = ["raw_value", "default", "std", "unboun
 uuid = { version = "1", features = ["v4", "default", "js"] }
 toml = { version = "0.9", default-features = false, features = ["parse"] }
 toml_edit = "0.23"
+rust-fuzzy-search = "0.1.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+cargo_metadata = "0.22"
 open = "5"
 opener = { version = "0.8", default-features = false, features = ["reveal"] }
-rust-fuzzy-search = "0.1.1"
-cargo_metadata = "0.22"
+# === end of additional deps ===
 
 [features]
 enable_profiler = ["fyrox-core/enable_profiler"]

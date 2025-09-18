@@ -517,7 +517,7 @@ impl<Pos: WavePosition + Debug, Pat: Clone + Hash + Eq + Debug> WfcPropagator<Po
             if cell.pattern_possibilities.len() <= 1 || cell.entropy >= min_entropy {
                 continue;
             }
-            let noise = rng.random_range(0.0..=self.limits.maximum_noise);
+            let noise = rng.gen_range(0.0..=self.limits.maximum_noise);
             let entropy = cell.entropy + noise;
             if entropy < min_entropy {
                 min_entropy = entropy;
@@ -540,7 +540,7 @@ impl<Pos: WavePosition + Debug, Pat: Clone + Hash + Eq + Debug> WfcPropagator<Po
         Con: WfcConstrain<Pattern = Pat, Offset = Pos::Offset>,
     {
         let cell = self.wave.get(position)?;
-        let mut target = rng.random_range(0.0..cell.sum);
+        let mut target = rng.gen_range(0.0..cell.sum);
         for pattern in cell.pattern_possibilities.keys() {
             let p = constraint.probability_of(pattern) as Entropy;
             target -= p;
