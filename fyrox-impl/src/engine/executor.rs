@@ -323,7 +323,7 @@ fn run_normal(
     run_executor(event_loop, move |event, active_event_loop| {
         active_event_loop.set_control_flow(ControlFlow::Wait);
 
-        engine.handle_os_event_by_plugins(
+        engine.handle_os_events(
             &event,
             fixed_time_step,
             ApplicationLoopController::ActiveEventLoop(active_event_loop),

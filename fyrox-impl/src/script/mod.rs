@@ -48,8 +48,7 @@ use std::{
     sync::mpsc::Sender,
 };
 
-use fyrox_graph::BaseSceneGraph;
-
+use crate::engine::input::InputState;
 pub use fyrox_core_derive::ScriptMessagePayload;
 
 pub mod constructor;
@@ -413,6 +412,14 @@ pub struct ScriptContext<'a, 'b, 'c> {
 
     /// Index of the script. Never save this index, it is only valid while this context exists!
     pub script_index: usize,
+
+    /// A stored state of most common input events. It is used a "shortcut" in cases where event-based
+    /// approach is too verbose. It may be useful in simple scenarios where you just need to know
+    /// if a button (on keyboard, mouse) was pressed and do something.
+    ///
+    /// **Important:** this structure does not track from which device the corresponding event has
+    /// come from, if you have more than one keyboard and/or mouse, use event-based approach instead!
+    pub input_state: &'a InputState,
 }
 
 impl UniversalScriptContext for ScriptContext<'_, '_, '_> {
@@ -489,6 +496,14 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
 
     /// Index of the script. Never save this index, it is only valid while this context exists!
     pub script_index: usize,
+
+    /// A stored state of most common input events. It is used a "shortcut" in cases where event-based
+    /// approach is too verbose. It may be useful in simple scenarios where you just need to know
+    /// if a button (on keyboard, mouse) was pressed and do something.
+    ///
+    /// **Important:** this structure does not track from which device the corresponding event has
+    /// come from, if you have more than one keyboard and/or mouse, use event-based approach instead!
+    pub input_state: &'a InputState,
 }
 
 impl UniversalScriptContext for ScriptMessageContext<'_, '_, '_> {
@@ -556,6 +571,14 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
 
     /// Index of the script. Never save this index, it is only valid while this context exists!
     pub script_index: usize,
+
+    /// A stored state of most common input events. It is used a "shortcut" in cases where event-based
+    /// approach is too verbose. It may be useful in simple scenarios where you just need to know
+    /// if a button (on keyboard, mouse) was pressed and do something.
+    ///
+    /// **Important:** this structure does not track from which device the corresponding event has
+    /// come from, if you have more than one keyboard and/or mouse, use event-based approach instead!
+    pub input_state: &'a InputState,
 }
 
 impl UniversalScriptContext for ScriptDeinitContext<'_, '_, '_> {

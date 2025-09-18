@@ -269,6 +269,7 @@ First release-candidate version (unreleased).
 - Ability to re-bind styled properties of widgets in the editor
 - Joint motors
 - Show graphics server memory usage in the editor's rendering statistics
+- Simplified interaction with keyboard and mouse.
 
 ## Changed
 

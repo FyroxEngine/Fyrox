@@ -101,12 +101,14 @@ impl AssetPreviewGeneratorsCollection {
 
 pub fn make_preview_scene(lighting: bool) -> Scene {
     let mut scene = Scene::new();
-    scene.set_skybox(Some(SkyBox::from_single_color(Color::repeat(80))));
-    scene.rendering_options.ambient_lighting_color = if lighting {
+    scene.set_skybox(Some(SkyBox::from_single_color(Color::repeat_opaque(40))));
+    let color = if lighting {
         Color::repeat_opaque(80)
     } else {
         Color::repeat_opaque(180)
     };
+    scene.rendering_options.ambient_lighting_color = color;
+    scene.rendering_options.clear_color = Some(color);
     scene.rendering_options.environment_lighting_source = EnvironmentLightingSource::AmbientColor;
     if lighting {
         DirectionalLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new()))
