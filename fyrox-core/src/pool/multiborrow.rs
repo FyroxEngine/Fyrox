@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use super::{Handle, Pool, RefCounter};
-use crate::pool::{NodeOrNodeVariant};
+use crate::pool::NodeOrNodeVariant;
 use crate::{
     pool::{BorrowErrorKind, HandleInfo},
     ComponentProvider,
@@ -504,7 +504,9 @@ where
 #[cfg(test)]
 mod test {
     use super::MultiBorrowErrorKind;
-    use crate::pool::{BorrowErrorKind, MismatchedTypeError, MultiBorrowError, NodeOrNodeVariant, Pool};
+    use crate::pool::{
+        BorrowErrorKind, MismatchedTypeError, MultiBorrowError, NodeOrNodeVariant, Pool,
+    };
 
     #[derive(PartialEq, Clone, Copy, Debug)]
     struct MyPayload(u32);
@@ -520,7 +522,6 @@ mod test {
             Ok(payload)
         }
     }
-
 
     #[test]
     fn test_multi_borrow_context() {

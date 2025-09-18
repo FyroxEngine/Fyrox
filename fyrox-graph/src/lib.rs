@@ -33,7 +33,8 @@ pub mod prelude {
 
 use fxhash::FxHashMap;
 use fyrox_core::pool::{
-    BorrowError, BorrowErrorKind, BorrowNodeVariant, ErasedHandle, NodeOrNodeVariant, NodeVariant, QueryComponentError
+    BorrowError, BorrowErrorKind, BorrowNodeVariant, ErasedHandle, NodeOrNodeVariant, NodeVariant,
+    QueryComponentError,
 };
 use fyrox_core::reflect::ReflectHandle;
 use fyrox_core::{
@@ -867,8 +868,10 @@ pub trait SceneGraph: BaseSceneGraph {
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
 
     /// Get the reference to the object with the type specified by the handle.
-    fn try_get<T: NodeOrNodeVariant<Self::NodeType> + 'static>(&self, handle: Handle<T>)
-        -> Result<&T, BorrowError>;
+    fn try_get<T: NodeOrNodeVariant<Self::NodeType> + 'static>(
+        &self,
+        handle: Handle<T>,
+    ) -> Result<&T, BorrowError>;
 
     /// Get the mutable reference to the object with the type specified by the handle.
     fn try_get_mut<T: NodeOrNodeVariant<Self::NodeType> + 'static>(
@@ -1522,8 +1525,8 @@ mod test {
     use fyrox_core::{
         define_as_any_trait,
         pool::{
-            BorrowError, BorrowNodeVariant, ErasedHandle, Handle,
-            MismatchedTypeError, NodeOrNodeVariant, NodeVariant, Pool,
+            BorrowError, BorrowNodeVariant, ErasedHandle, Handle, MismatchedTypeError,
+            NodeOrNodeVariant, NodeVariant, Pool,
         },
         reflect::prelude::*,
         type_traits::prelude::*,
@@ -2078,7 +2081,10 @@ mod test {
             self.nodes.iter_mut()
         }
 
-        fn try_get<T: NodeOrNodeVariant<Node> + 'static>(&self, handle: Handle<T>) -> Result<&T, BorrowError> {
+        fn try_get<T: NodeOrNodeVariant<Node> + 'static>(
+            &self,
+            handle: Handle<T>,
+        ) -> Result<&T, BorrowError> {
             self.nodes.try_get(handle)
         }
 

@@ -339,10 +339,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
-use fyrox_core::{
-    futures::future::join_all,
-    pool::{NodeOrNodeVariant},
-};
+use fyrox_core::{futures::future::join_all, pool::NodeOrNodeVariant};
 use fyrox_core::{log::Log, pool::BorrowError};
 use fyrox_graph::{
     AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping, PrefabData,
@@ -1335,9 +1332,7 @@ impl UserInterface {
             let mbc = self.nodes.begin_multi_borrow();
             if let Ok(mut node) = mbc.try_get_mut(node_handle) {
                 node.children.sort_by_key(|handle| {
-                    mbc.try_get(*handle)
-                        .map(|c| *c.z_index)
-                        .unwrap_or_default()
+                    mbc.try_get(*handle).map(|c| *c.z_index).unwrap_or_default()
                 });
             };
         }
@@ -3422,7 +3417,10 @@ impl SceneGraph for UserInterface {
         self.nodes.iter_mut()
     }
 
-    fn try_get<T: NodeOrNodeVariant<UiNode> + 'static>(&self, handle: Handle<T>) -> Result<&T, BorrowError> {
+    fn try_get<T: NodeOrNodeVariant<UiNode> + 'static>(
+        &self,
+        handle: Handle<T>,
+    ) -> Result<&T, BorrowError> {
         self.nodes.try_get(handle)
     }
 

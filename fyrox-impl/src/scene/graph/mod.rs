@@ -1905,7 +1905,10 @@ impl SceneGraph for Graph {
         self.pool.iter_mut()
     }
 
-    fn try_get<T: NodeOrNodeVariant<Node> + 'static>(&self, handle: Handle<T>) -> Result<&T, BorrowError> {
+    fn try_get<T: NodeOrNodeVariant<Node> + 'static>(
+        &self,
+        handle: Handle<T>,
+    ) -> Result<&T, BorrowError> {
         self.pool.try_get(handle)
     }
 
