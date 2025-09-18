@@ -31,6 +31,7 @@ use crate::{
     Command,
 };
 use fyrox::graph::prelude::*;
+use fyrox::graph::BaseSceneGraph;
 
 pub struct SceneNodePropertyChangedHandler;
 

@@ -48,7 +48,7 @@ use std::{
     sync::mpsc::Sender,
 };
 
-use fyrox_graph::prelude::*;
+use fyrox_graph::BaseSceneGraph;
 
 pub use fyrox_core_derive::ScriptMessagePayload;
 

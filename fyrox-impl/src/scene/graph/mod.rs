@@ -76,7 +76,7 @@ use crate::{
 };
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::pool::{BorrowError, BorrowErrorKind, BorrowNodeVariant, NodeVariant};
+use fyrox_core::pool::{BorrowError, NodeOrNodeVariant, NodeVariant};
 // use fyrox_core::pool::BorrowAs;
 use fyrox_graph::SceneGraphNode;
 use std::ops::Deref;
@@ -1905,21 +1905,15 @@ impl SceneGraph for Graph {
         self.pool.iter_mut()
     }
 
-    fn try_get<T: NodeVariant<Node>>(&self, handle: Handle<T>) -> Result<&T, BorrowError> {
-        // self.nodes.try_borrow_variant(handle)
-        let node = self.try_get_node(handle.cast())?;
-        node.borrow_variant()
-            .map_err(|e| BorrowError::new(BorrowErrorKind::MismatchedType(e), handle.into()))
+    fn try_get<T: NodeOrNodeVariant<Node> + 'static>(&self, handle: Handle<T>) -> Result<&T, BorrowError> {
+        self.pool.try_get(handle)
     }
 
-    fn try_get_mut<T: NodeVariant<Node>>(
+    fn try_get_mut<T: NodeOrNodeVariant<Node> + 'static>(
         &mut self,
         handle: Handle<T>,
     ) -> Result<&mut T, BorrowError> {
-        // self.nodes.try_borrow_variant_mut(handle)
-        let node = self.try_get_node_mut(handle.cast())?;
-        node.borrow_variant_mut()
-            .map_err(|e| BorrowError::new(BorrowErrorKind::MismatchedType(e), handle.into()))
+        self.pool.try_get_mut(handle)
     }
 }
 

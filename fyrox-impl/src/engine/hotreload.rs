@@ -39,7 +39,7 @@ use crate::{
 };
 use fyrox_core::visitor::error::VisitError;
 use fyrox_core::visitor::VisitAsOption;
-use fyrox_graph::prelude::*;
+use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::Deref,
     sync::{mpsc::Sender, Arc},

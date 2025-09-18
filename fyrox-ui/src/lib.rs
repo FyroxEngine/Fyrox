@@ -341,7 +341,7 @@ pub use build::*;
 pub use control::*;
 use fyrox_core::{
     futures::future::join_all,
-    pool::{BorrowNodeVariant, NodeVariant},
+    pool::{NodeOrNodeVariant},
 };
 use fyrox_core::{log::Log, pool::BorrowError};
 use fyrox_graph::{
@@ -3422,21 +3422,15 @@ impl SceneGraph for UserInterface {
         self.nodes.iter_mut()
     }
 
-    fn try_get<T: NodeVariant<UiNode>>(&self, handle: Handle<T>) -> Result<&T, BorrowError> {
-        let node = self.try_get_node(handle.cast())?;
-        Ok(node
-            .borrow_variant()
-            .expect("TypeId matched, but downcast failed"))
+    fn try_get<T: NodeOrNodeVariant<UiNode> + 'static>(&self, handle: Handle<T>) -> Result<&T, BorrowError> {
+        self.nodes.try_get(handle)
     }
 
-    fn try_get_mut<T: NodeVariant<UiNode>>(
+    fn try_get_mut<T: NodeOrNodeVariant<UiNode> + 'static>(
         &mut self,
         handle: Handle<T>,
     ) -> Result<&mut T, BorrowError> {
-        let node = self.try_get_node_mut(handle.cast())?;
-        Ok(node
-            .borrow_variant_mut()
-            .expect("TypeId matched, but downcast failed"))
+        self.nodes.try_get_mut(handle)
     }
 }
 

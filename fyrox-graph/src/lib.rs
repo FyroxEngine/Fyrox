@@ -33,7 +33,7 @@ pub mod prelude {
 
 use fxhash::FxHashMap;
 use fyrox_core::pool::{
-    BorrowError, BorrowErrorKind, BorrowNodeVariant, ErasedHandle, NodeVariant, QueryComponentError,
+    BorrowError, BorrowErrorKind, BorrowNodeVariant, ErasedHandle, NodeOrNodeVariant, NodeVariant, QueryComponentError
 };
 use fyrox_core::reflect::ReflectHandle;
 use fyrox_core::{
@@ -867,11 +867,11 @@ pub trait SceneGraph: BaseSceneGraph {
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
 
     /// Get the reference to the object with the type specified by the handle.
-    fn try_get<T: NodeVariant<Self::NodeType>>(&self, handle: Handle<T>)
+    fn try_get<T: NodeOrNodeVariant<Self::NodeType> + 'static>(&self, handle: Handle<T>)
         -> Result<&T, BorrowError>;
 
     /// Get the mutable reference to the object with the type specified by the handle.
-    fn try_get_mut<T: NodeVariant<Self::NodeType>>(
+    fn try_get_mut<T: NodeOrNodeVariant<Self::NodeType> + 'static>(
         &mut self,
         handle: Handle<T>,
     ) -> Result<&mut T, BorrowError>;
@@ -1522,7 +1522,7 @@ mod test {
     use fyrox_core::{
         define_as_any_trait,
         pool::{
-            BorrowError, BorrowErrorKind, BorrowNodeVariant, ErasedHandle, Handle,
+            BorrowError, BorrowNodeVariant, ErasedHandle, Handle,
             MismatchedTypeError, NodeOrNodeVariant, NodeVariant, Pool,
         },
         reflect::prelude::*,
@@ -2078,21 +2078,15 @@ mod test {
             self.nodes.iter_mut()
         }
 
-        fn try_get<T: NodeVariant<Node>>(&self, handle: Handle<T>) -> Result<&T, BorrowError> {
-            // self.nodes.try_borrow_variant(handle)
-            let node = self.try_get_node(handle.cast())?;
-            node.borrow_variant()
-                .map_err(|e| BorrowError::new(BorrowErrorKind::MismatchedType(e), handle.into()))
+        fn try_get<T: NodeOrNodeVariant<Node> + 'static>(&self, handle: Handle<T>) -> Result<&T, BorrowError> {
+            self.nodes.try_get(handle)
         }
 
-        fn try_get_mut<T: NodeVariant<Node>>(
+        fn try_get_mut<T: NodeOrNodeVariant<Node> + 'static>(
             &mut self,
             handle: Handle<T>,
         ) -> Result<&mut T, BorrowError> {
-            // self.nodes.try_borrow_variant_mut(handle)
-            let node = self.try_get_node_mut(handle.cast())?;
-            node.borrow_variant_mut()
-                .map_err(|e| BorrowError::new(BorrowErrorKind::MismatchedType(e), handle.into()))
+            self.nodes.try_get_mut(handle)
         }
     }
 

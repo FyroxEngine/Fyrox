@@ -23,6 +23,7 @@ use crate::{
         core::pool::Handle,
         engine::Engine,
         graph::prelude::*,
+        graph::BaseSceneGraph,
         gui::{
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             image::{ImageBuilder, ImageMessage},

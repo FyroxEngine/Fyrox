@@ -31,6 +31,7 @@ use crate::{
         },
         engine::Engine,
         graph::prelude::*,
+        graph::BaseSceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
