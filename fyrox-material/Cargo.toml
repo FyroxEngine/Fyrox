@@ -24,7 +24,7 @@ fxhash = "0.2.1"
 lazy_static = "1.4.0"
 uuid = "1"
 serde = { version = "1", features = ["derive"] }
-ron = "0.8.0"
+ron = "0.11.0"
 regex = "1"
 
 [dev-dependencies]

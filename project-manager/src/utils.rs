@@ -137,9 +137,9 @@ fn to_pretty_version(version_req: &VersionReq) -> String {
 pub fn fyrox_version_string(metadata: &Metadata) -> Option<String> {
     fyrox_dependency(metadata).and_then(|dependency| {
         if let Some(source) = dependency.source.as_ref() {
-            if source.contains("registry+") {
+            if source.repr.contains("registry+") {
                 return Some(to_pretty_version(&dependency.req));
-            } else if source.contains("git+") {
+            } else if source.repr.contains("git+") {
                 return Some("nightly".to_string());
             }
         } else if let Some(path) = dependency.path.as_ref() {

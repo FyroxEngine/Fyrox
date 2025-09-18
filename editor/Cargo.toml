@@ -16,16 +16,16 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/resources/**/
 fyrox = { version = "1.0.0-rc.1", path = "../fyrox", default-features = false }
 fyrox-build-tools = { version = "1.0.0-rc.1", path = "../fyrox-build-tools" }
 lazy_static = "1.4.0"
-ron = "0.8.0"
+ron = "0.11"
 serde = "^1.0.0"
-toml = { version = "0.8.10", default-features = false, features = ["parse"] }
-toml_edit = "0.22.6"
+toml = { version = "0.9", default-features = false, features = ["parse"] }
+toml_edit = "0.23"
 strum = "0.27"
 strum_macros = "0.27"
 open = "5"
-opener = { version = "0.7.2", default-features = false, features = ["reveal"] }
+opener = { version = "0.8", default-features = false, features = ["reveal"] }
 rust-fuzzy-search = "0.1.1"
-cargo_metadata = "0.19"
+cargo_metadata = "0.22"
 serde_json = "1.0.113"
 image = { version = "0.25.1", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
 imageproc = "0.25.0"

@@ -879,7 +879,7 @@ impl ProjectManager {
         {
             self.settings.projects.push(Project {
                 manifest_path,
-                name: game_package.name.clone(),
+                name: game_package.name.as_str().to_string(),
                 hot_reload: false,
             });
             self.refresh(ui);

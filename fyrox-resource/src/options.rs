@@ -28,7 +28,7 @@ use fyrox_core::io::FileError;
 use fyrox_core::reflect::Reflect;
 use ron::ser::PrettyConfig;
 use serde::{de::DeserializeOwned, Serialize};
-use std::io::ErrorKind;
+use std::io::{ErrorKind, Write};
 use std::{fs::File, path::Path};
 
 /// Extension of import options file.
@@ -47,8 +47,9 @@ pub trait ImportOptions:
 {
     /// Saves import options into a specified file.
     fn save_internal(&self, path: &Path) -> bool {
-        if let Ok(file) = File::create(path) {
-            if ron::ser::to_writer_pretty(file, self, PrettyConfig::default()).is_ok() {
+        if let Ok(mut file) = File::create(path) {
+            if let Ok(string) = ron::ser::to_string_pretty(self, PrettyConfig::default()) {
+                Log::verify(file.write_all(string.as_bytes()));
                 return true;
             }
         }

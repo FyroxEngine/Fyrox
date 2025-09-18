@@ -115,7 +115,7 @@ impl<T: EntityId> StateAction<T> {
                 }
             }
             StateAction::EnableRandomAnimation(animation_handles) => {
-                if let Some(animation) = animation_handles.iter().choose(&mut rand::thread_rng()) {
+                if let Some(animation) = animation_handles.iter().choose(&mut rand::rng()) {
                     if let Some(animation) = animations.try_get_mut(*animation) {
                         animation.set_enabled(true);
                     }

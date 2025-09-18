@@ -28,7 +28,7 @@ use fyrox_core::swap_hash_map_entry;
 use crate::{
     core::{algebra::Vector2, reflect::prelude::*, visitor::prelude::*},
     fxhash::FxHashMap,
-    rand::{seq::IteratorRandom, thread_rng},
+    rand::{rng, seq::IteratorRandom},
 };
 use std::{
     cmp::Ordering,
@@ -317,7 +317,7 @@ impl TileSource for RandomTileSource<'_> {
         self.0.transformation()
     }
     fn get_at(&self, _position: Vector2<i32>) -> Option<StampElement> {
-        self.0.values().choose(&mut thread_rng()).cloned()
+        self.0.values().choose(&mut rng()).cloned()
     }
 }
 
@@ -332,7 +332,7 @@ impl TileSource for PartialRandomTileSource<'_> {
         self.0.transformation()
     }
     fn get_at(&self, _position: Vector2<i32>) -> Option<StampElement> {
-        let pos = self.1.iter().choose(&mut thread_rng())?;
+        let pos = self.1.iter().choose(&mut rng())?;
         self.0.get_at(pos)
     }
 }

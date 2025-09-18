@@ -36,7 +36,7 @@ use crate::{
         visitor::prelude::*,
     },
     material::{self, Material, MaterialResource},
-    rand::{prelude::StdRng, Error, RngCore, SeedableRng},
+    rand::{prelude::StdRng, RngCore, SeedableRng},
     renderer::{self, bundle::RenderContext},
     scene::{
         base::{Base, BaseBuilder},
@@ -108,11 +108,6 @@ impl RngCore for ParticleSystemRng {
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         self.rng.fill_bytes(dest)
-    }
-
-    #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
-        self.rng.try_fill_bytes(dest)
     }
 }
 

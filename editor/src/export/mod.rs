@@ -200,7 +200,11 @@ fn export(
         TargetPlatform::Android => "executor-android",
     };
 
-    let Some(package) = metadata.packages.iter().find(|p| p.name == package_name) else {
+    let Some(package) = metadata
+        .packages
+        .iter()
+        .find(|p| p.name.as_ref() == package_name)
+    else {
         return Err(format!(
             "The project does not have `{package_name}` package."
         ));

@@ -653,11 +653,11 @@ mod test {
         let mut paths_count = 0;
 
         for _ in 0..1000 {
-            let sx = rand::thread_rng().gen_range(0..(size - 1));
-            let sy = rand::thread_rng().gen_range(0..(size - 1));
+            let sx = rand::rng().random_range(0..(size - 1));
+            let sy = rand::rng().random_range(0..(size - 1));
 
-            let tx = rand::thread_rng().gen_range(0..(size - 1));
-            let ty = rand::thread_rng().gen_range(0..(size - 1));
+            let tx = rand::rng().random_range(0..(size - 1));
+            let ty = rand::rng().random_range(0..(size - 1));
 
             let from = sy * size + sx;
             let to = ty * size + tx;
@@ -784,11 +784,11 @@ mod test {
             );
 
             for _ in 0..1000 {
-                let sx = rand::thread_rng().gen_range(0..(size - 1));
-                let sy = rand::thread_rng().gen_range(0..(size - 1));
+                let sx = rand::rng().random_range(0..(size - 1));
+                let sy = rand::rng().random_range(0..(size - 1));
 
-                let tx = rand::thread_rng().gen_range(0..(size - 1));
-                let ty = rand::thread_rng().gen_range(0..(size - 1));
+                let tx = rand::rng().random_range(0..(size - 1));
+                let ty = rand::rng().random_range(0..(size - 1));
 
                 let from = sy * size + sx;
                 let to = ty * size + tx;
@@ -870,12 +870,12 @@ mod test {
 
         for _ in 0..1000 {
             // generates a random start point on the left half of the grid
-            let sx = rand::thread_rng().gen_range(0..((size / 2) - 1));
-            let sy = rand::thread_rng().gen_range(0..(size - 1));
+            let sx = rand::rng().random_range(0..((size / 2) - 1));
+            let sy = rand::rng().random_range(0..(size - 1));
 
             // generates a random end point on the right half of the grid
-            let tx = rand::thread_rng().gen_range((size / 2)..(size - 1));
-            let ty = rand::thread_rng().gen_range(0..(size - 1));
+            let tx = rand::rng().random_range((size / 2)..(size - 1));
+            let ty = rand::rng().random_range(0..(size - 1));
 
             let from = sy * size + sx;
             let to = ty * size + tx;

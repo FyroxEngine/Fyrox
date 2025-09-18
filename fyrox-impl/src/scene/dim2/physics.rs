@@ -78,7 +78,6 @@ use std::{
     cmp::Ordering,
     fmt::{Debug, Formatter},
     hash::Hash,
-    num::NonZeroUsize,
     sync::Arc,
 };
 
@@ -637,13 +636,7 @@ impl PhysicsWorld {
                     .integration_parameters
                     .normalized_max_corrective_velocity,
                 normalized_prediction_distance: self.integration_parameters.prediction_distance,
-                num_solver_iterations: NonZeroUsize::new(
-                    self.integration_parameters.num_solver_iterations,
-                )
-                .unwrap(),
-                num_additional_friction_iterations: self
-                    .integration_parameters
-                    .num_additional_friction_iterations,
+                num_solver_iterations: self.integration_parameters.num_solver_iterations,
                 num_internal_pgs_iterations: self
                     .integration_parameters
                     .num_internal_pgs_iterations,
@@ -1048,7 +1041,7 @@ impl PhysicsWorld {
             }
         } else {
             let mut builder = RigidBodyBuilder::new(rigid_body_node.body_type().into())
-                .position(isometry_from_global_transform(
+                .pose(isometry_from_global_transform(
                     &rigid_body_node.global_transform(),
                 ))
                 .ccd_enabled(rigid_body_node.is_ccd_enabled())

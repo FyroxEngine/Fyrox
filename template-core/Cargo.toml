@@ -15,11 +15,11 @@ rust-version = "1.86"
 
 [dependencies]
 uuid = { version = "1", features = ["v4"] }
-convert_case = "0.6.0"
-toml = "0.8.10"
-toml_edit = "0.22.6"
+convert_case = "0.8.0"
+toml = "0.9.6"
+toml_edit = "0.23.5"
 regex = "1.7.3"
 unicode-xid = "0.2.6"
 
 [build-dependencies]
-toml_edit = "0.22.6"
+toml_edit = "0.23.5"

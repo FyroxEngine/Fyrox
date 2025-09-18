@@ -396,7 +396,7 @@ impl<V> ProbabilitySet<V> {
         if self.total <= 0.0 {
             return None;
         }
-        let mut p = rng.gen_range(0.0..self.total);
+        let mut p = rng.random_range(0.0..self.total);
         for (f, v) in self.iter() {
             if p < f {
                 return Some(v);

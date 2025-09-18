@@ -96,7 +96,7 @@ impl UpgradeTool {
         let is_git = dependency
             .source
             .as_ref()
-            .is_some_and(|s| s.contains("https://github.com/FyroxEngine/Fyrox"));
+            .is_some_and(|s| s.repr.contains("https://github.com/FyroxEngine/Fyrox"));
         let selected_version = if is_local {
             Version::Local
         } else if is_git {

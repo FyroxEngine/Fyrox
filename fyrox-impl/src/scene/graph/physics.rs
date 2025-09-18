@@ -73,7 +73,6 @@ use std::{
     cmp::Ordering,
     fmt::{Debug, Formatter},
     hash::Hash,
-    num::NonZeroUsize,
     sync::Arc,
     time::Duration,
 };
@@ -82,6 +81,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
 pub use rapier3d::geometry::shape::*;
 use rapier3d::parry::query::DefaultQueryDispatcher;
+use rapier3d::prelude::FrictionModel;
 
 /// Shape-dependent identifier.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -873,10 +873,6 @@ pub struct IntegrationParameters {
     #[reflect(min_value = 0.0)]
     pub num_solver_iterations: usize,
 
-    /// Number of addition friction resolution iteration run during the last solver sub-step (default: `4`).
-    #[reflect(min_value = 0.0)]
-    pub num_additional_friction_iterations: usize,
-
     /// Number of internal Project Gauss Seidel (PGS) iterations run at each solver iteration (default: `1`).
     #[reflect(min_value = 0.0)]
     pub num_internal_pgs_iterations: usize,
@@ -920,7 +916,6 @@ impl Default for IntegrationParameters {
             normalized_max_corrective_velocity: 10.0,
             prediction_distance: 0.002,
             num_internal_pgs_iterations: 1,
-            num_additional_friction_iterations: 4,
             num_solver_iterations: 4,
             min_island_size: 128,
             max_ccd_substeps: 4,
@@ -1124,13 +1119,7 @@ impl PhysicsWorld {
                     .integration_parameters
                     .normalized_max_corrective_velocity,
                 normalized_prediction_distance: self.integration_parameters.prediction_distance,
-                num_solver_iterations: NonZeroUsize::new(
-                    self.integration_parameters.num_solver_iterations,
-                )
-                .unwrap(),
-                num_additional_friction_iterations: self
-                    .integration_parameters
-                    .num_additional_friction_iterations,
+                num_solver_iterations: self.integration_parameters.num_solver_iterations,
                 num_internal_pgs_iterations: self
                     .integration_parameters
                     .num_internal_pgs_iterations,
@@ -1139,6 +1128,7 @@ impl PhysicsWorld {
                     .num_internal_stabilization_iterations,
                 min_island_size: self.integration_parameters.min_island_size as usize,
                 max_ccd_substeps: self.integration_parameters.max_ccd_substeps as usize,
+                friction_model: FrictionModel::default(),
             };
 
             self.pipeline.step(
@@ -1596,7 +1586,7 @@ impl PhysicsWorld {
             }
         } else {
             let mut builder = RigidBodyBuilder::new(rigid_body_node.body_type().into())
-                .position(isometry_from_global_transform(
+                .pose(isometry_from_global_transform(
                     &rigid_body_node.global_transform(),
                 ))
                 .ccd_enabled(rigid_body_node.is_ccd_enabled())
