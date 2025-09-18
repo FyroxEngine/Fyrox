@@ -104,8 +104,8 @@ where
         name: &str,
         visitor: &mut crate::visitor::Visitor,
     ) -> crate::visitor::VisitResult {
-        let mut region = visitor.enter_region(name)?;
-        T::visit_as_option(self.get_mut(), name, &mut region)?;
+        // let mut region = visitor.enter_region(name)?;
+        T::visit_as_option(self.get_mut(), name, visitor)?;
         Ok(())
     }
 }
