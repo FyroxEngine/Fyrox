@@ -23,8 +23,8 @@
 //!
 
 // Since Pool<Node> uses NodeContainer exclusively,
-// we just pass the Visit implementation to the Node.
-// See impl Visit for Node in fyrpx-impl/src/scene/graph/mod.rs.
+// we just pass the Visit implementation to the Node through VisitAsOption trait.
+// See impl VisitAsOption for Node in fyrpx-impl/src/scene/graph/mod.rs.
 // (not fyrox-graph/src/lib.rs, which is just for testing)
 
 // use crate::{

@@ -600,8 +600,7 @@ fn write_node(name: &str, node: &mut Node, visitor: &mut Visitor) -> VisitResult
     Ok(())
 }
 
-/// Theoretically we can implement Visit for Option<Node> directly,
-/// but the labour difference is negligible, and this implementation is better for communication purpose.
+/// Node is a Box that doesn't implement Default, so we need custom impl of VisitAsOption.
 impl VisitAsOption for Node {
     fn visit_as_option(
         option_self: &mut Option<Self>,

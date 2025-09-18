@@ -584,22 +584,19 @@ impl<T: 'static> Pool<T> {
         note = "Inconsistent and ambiguous method naming. Implementation involves a confusing detour."
     )]
     #[inline]
-    pub fn typed_ref<U>(&self, _handle: Handle<U>) -> Option<&U> {
-        panic!("It is hard to implement this method elegantly without a 'BorrowAs' detour.
-        The previous implementation was ambiguous regarding the method's behavior, introduced a ton of intermediate methods of similar functionality, and hard to read.
-        This function behaved differently according to whether T == U: Node or T: NodeTrait, controlled by the BorrowAs trait passed in as Handle.
-        Since Pool::typed_ref is not exposed to the public API, we can use different naming for existing code.")
+    pub fn typed_ref<U: NodeOrNodeVariant<T> + 'static>(&self, handle: Handle<U>) -> Option<&U> {
+        self.try_get(handle).ok()
     }
 
     #[deprecated(
         note = "Inconsistent and ambiguous method naming. Implementation involves a confusing detour."
     )]
     #[inline]
-    pub fn typed_mut<U>(&mut self, _handle: Handle<U>) -> Option<&mut U> {
-        panic!("It is hard to implement this method elegantly without a 'BorrowAs' detour.
-        The previous implementation was ambiguous regarding the method's behavior, introduced a ton of intermediate methods of similar functionality, and hard to read.
-        This function behaved differently according to whether T == U: Node or T: NodeTrait, controlled by the BorrowAs trait passed in as Handle.
-        Since Pool::typed_ref is not exposed to the public API, we can use different naming for existing code.")
+    pub fn typed_mut<U: NodeOrNodeVariant<T> + 'static>(
+        &mut self,
+        handle: Handle<U>,
+    ) -> Option<&mut U> {
+        self.try_get_mut(handle).ok()
     }
 
     #[inline]
@@ -1536,16 +1533,11 @@ pub trait BorrowNodeVariant: Sized {
 
 // T: Node or UiNode
 pub trait NodeOrNodeVariant<T> {
-    // fn is_node_variant(&self) -> bool;
     fn convert_to_dest_type(node: &T) -> Result<&Self, MismatchedTypeError>;
     fn convert_to_dest_type_mut(node: &mut T) -> Result<&mut Self, MismatchedTypeError>;
 }
 
 impl<T: BorrowNodeVariant, U: NodeVariant<T>> NodeOrNodeVariant<T> for U {
-    // type CurrentType = U;
-    // fn is_node_variant(&self) -> bool {
-    //     true
-    // }
     fn convert_to_dest_type(node: &T) -> Result<&Self, MismatchedTypeError> {
         node.borrow_variant()
     }

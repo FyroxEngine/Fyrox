@@ -50,8 +50,7 @@ pub mod container;
 /// contains all the interesting stuff and detailed description for each method.
 pub struct UiNode(pub Box<dyn Control>);
 
-/// Theoretically we can implement Visit for Option<Node> directly,
-/// but the labour difference is negligible, and this implementation is better for communication purpose.
+/// UiNode is a Box that doesn't implement Default, so we need custom impl of VisitAsOption.
 impl VisitAsOption for UiNode {
     fn visit_as_option(
         option_self: &mut Option<Self>,

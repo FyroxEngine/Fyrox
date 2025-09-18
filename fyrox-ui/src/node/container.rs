@@ -22,8 +22,8 @@
 //! control over instantiation process at deserialization.
 
 // Since Pool<UiNode> uses WidgetContainer exclusively,
-// we just pass the Visit implementation to the UiNode.
-// See impl Visit for UiNode.
+// we just pass the Visit implementation to the UiNode through VisitAsOption trait.
+// See impl VisitAsOption for UiNode.
 
 // use crate::{
 //     constructor::WidgetConstructorContainer,
