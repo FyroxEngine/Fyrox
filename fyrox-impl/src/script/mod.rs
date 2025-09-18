@@ -40,6 +40,7 @@ use crate::{
     scene::{base::NodeScriptMessage, node::Node, Scene},
 };
 use fyrox_core::reflect::FieldMut;
+use fyrox_graph::BaseSceneGraph;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
