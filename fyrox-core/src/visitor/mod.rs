@@ -384,18 +384,18 @@ pub trait Visit {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult;
 }
 
-/// Unify Visit implementation for Option<T> for T implementing Default and not implementing Default.
+/// Unify `Visit` implementation for `Option<T>` where `T` may or may not implement `Default`.
 /// See [`VisitAsOption::visit_as_option`] for more info.
 pub trait VisitAsOption: Sized {
-    /// Unify Visit implementation for Option<T> for T implementing Default and not implementing Default.
+    /// Unify `Visit` implementation for `Option<T>` where `T` may or may not implement `Default`.
     ///
-    /// For T implementing Default, Visit trait is implemented for Option<T>, and VisitAsOption serves as a wrapper for Payload<T> to call.
+    /// For `T` implementing `Default`, Visit trait is implemented for `Option<T>`, and `VisitAsOption` serves as a wrapper for `Payload<T>` to call.
     ///
-    /// For T not implementing Default, like Box<_>, this trait enables users to implement Visit manually for Payload<T> to call.
+    /// For `T` not implementing `Default`, like `Box<_>`, this trait enables users to implement Visit manually for `Payload<T>` to call.
     ///
-    /// In this way, we can unify the Visit implementation for Payload<T>.
+    /// In this way, we can unify the Visit implementation for `Payload<T>`.
     ///
-    /// The reason why deriving Visit for Option<T> from T directly is not sufficient is that we need to avoid uninitialized (default) values to appear before the T::visit call.
+    /// The reason why deriving Visit for `Option<T>` from `T` directly is not sufficient is that we need to avoid uninitialized (default) values to appear before the `T::visit` call.
     fn visit_as_option(
         option_self: &mut Option<Self>,
         name: &str,

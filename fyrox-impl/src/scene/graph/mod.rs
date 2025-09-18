@@ -124,7 +124,7 @@ impl GraphPerformanceStatistics {
     }
 }
 
-/// A helper type alias for node pool.
+// /// A helper type alias for node pool.
 // pub type Pool<Node> = Pool<Node, NodeContainer>;
 
 // impl<T: NodeTrait> BorrowAs<Node, NodeContainer> for Handle<T> {
@@ -495,7 +495,7 @@ impl Graph {
         self.root
     }
 
-    /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
+    // /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
     // #[inline]
     // pub fn try_get_node_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
     //     self.pool.try_get_node_mut(handle)

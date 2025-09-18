@@ -1289,7 +1289,6 @@ impl<T: 'static> Pool<T> {
     /// generation of pool record at handle index (in other words it means that object
     /// at handle's index is different than the object was there before).
     #[inline]
-    #[must_use]
     pub fn try_get_node(&self, handle: Handle<T>) -> Result<&T, BorrowError> {
         let record = self.records_get(handle.index).ok_or_else(|| {
             BorrowError::new(
@@ -1315,7 +1314,6 @@ impl<T: 'static> Pool<T> {
     /// generation of pool record at handle index (in other words it means that object
     /// at handle's index is different than the object was there before).
     #[inline]
-    #[must_use]
     pub fn try_get_node_mut(&mut self, handle: Handle<T>) -> Result<&mut T, BorrowError> {
         // self.records_get_mut(handle.index).and_then(|r| {
         //     if r.generation == handle.generation {

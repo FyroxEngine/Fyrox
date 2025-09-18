@@ -881,13 +881,10 @@ pub trait SceneGraph: BaseSceneGraph {
 
     /// Tries to borrow a node and fetch its component of specified type.
     #[inline]
-    fn try_get_of_type<T: NodeVariant<Self::NodeType>>(
+    fn try_get_of_type<T: NodeVariant<Self::NodeType> + 'static>(
         &self,
         handle: Handle<Self::Node>,
-    ) -> Result<&T, BorrowError>
-    where
-        T: 'static,
-    {
+    ) -> Result<&T, BorrowError> {
         // self.try_get_node(handle)
         //     .and_then(|n| n.query_component_ref(TypeId::of::<T>()))
         //     .and_then(|c| c.downcast_ref())
@@ -896,13 +893,10 @@ pub trait SceneGraph: BaseSceneGraph {
 
     /// Tries to mutably borrow a node and fetch its component of specified type.
     #[inline]
-    fn try_get_mut_of_type<T: NodeVariant<Self::NodeType>>(
+    fn try_get_mut_of_type<T: NodeVariant<Self::NodeType> + 'static>(
         &mut self,
         handle: Handle<Self::Node>,
-    ) -> Result<&mut T, BorrowError>
-    where
-        T: 'static,
-    {
+    ) -> Result<&mut T, BorrowError> {
         // self.try_get_node_mut(handle)
         //     .and_then(|n| n.query_component_mut(TypeId::of::<T>()))
         //     .and_then(|c| c.downcast_mut())
@@ -1800,8 +1794,8 @@ mod test {
         }
     }
 
-    /// A wrapper for node pool record that allows to define custom visit method to have full
-    /// control over instantiation process at deserialization.
+    // /// A wrapper for node pool record that allows to define custom visit method to have full
+    // /// control over instantiation process at deserialization.
     // #[derive(Debug, Default, Clone, Reflect)]
     // pub struct NodeContainer(Option<Node>);
 
