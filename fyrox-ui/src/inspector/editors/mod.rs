@@ -21,10 +21,6 @@
 //! A collection of [PropertyEditorDefinition] objects for a wide variety of types,
 //! including standard Rust types and Fyrox core types.
 
-use crate::font::FontResource;
-use crate::formatted_text::{Run, RunSet};
-use crate::inspector::editors::cell::CellPropertyEditorDefinition;
-use crate::inspector::editors::texture_slice::TextureSlicePropertyEditorDefinition;
 use crate::{
     absm::{EventAction, EventKind},
     bit::BitField,
@@ -47,13 +43,16 @@ use crate::{
     decorator::Decorator,
     dropdown_list::DropdownList,
     expander::Expander,
-    formatted_text::{FormattedText, WrapMode},
+    font::FontResource,
+    formatted_text::{FormattedText, Run, RunSet, WrapMode},
     grid::{Grid, GridDimension, SizeMode},
     image::Image,
     inspector::{
         editors::{
             array::ArrayPropertyEditorDefinition,
             bool::BoolPropertyEditorDefinition,
+            cell::CellPropertyEditorDefinition,
+            char::CharPropertyEditorDefinition,
             collection::{CollectionItem, VecCollectionPropertyEditorDefinition},
             color::{ColorGradientPropertyEditorDefinition, ColorPropertyEditorDefinition},
             curve::CurvePropertyEditorDefinition,
@@ -71,6 +70,7 @@ use crate::{
             refcell::RefCellPropertyEditorDefinition,
             string::StringPropertyEditorDefinition,
             style::StyledPropertyEditorDefinition,
+            texture_slice::TextureSlicePropertyEditorDefinition,
             utf32::Utf32StringPropertyEditorDefinition,
             uuid::UuidPropertyEditorDefinition,
             vec::{
@@ -129,6 +129,7 @@ pub mod array;
 pub mod bit;
 pub mod bool;
 pub mod cell;
+pub mod char;
 pub mod collection;
 pub mod color;
 pub mod curve;
@@ -145,7 +146,7 @@ pub mod range;
 pub mod rect;
 pub mod refcell;
 pub mod string;
-mod style;
+pub mod style;
 pub mod texture_slice;
 pub mod utf32;
 pub mod uuid;
@@ -615,6 +616,10 @@ impl PropertyEditorDefinitionContainer {
         container.insert(EnumPropertyEditorDefinition::<FontResource>::new_optional());
         container.insert(EnumPropertyEditorDefinition::<Brush>::new_optional());
         container.insert(EnumPropertyEditorDefinition::<Vector2<f32>>::new_optional());
+
+        container.insert(InheritablePropertyEditorDefinition::<Option<char>>::new());
+        container.insert(EnumPropertyEditorDefinition::<char>::new_optional());
+        container.insert(CharPropertyEditorDefinition);
 
         // Styled.
         container.insert(InheritablePropertyEditorDefinition::<StyledProperty<f32>>::new());
