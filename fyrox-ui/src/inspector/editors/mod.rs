@@ -21,6 +21,8 @@
 //! A collection of [PropertyEditorDefinition] objects for a wide variety of types,
 //! including standard Rust types and Fyrox core types.
 
+use crate::font::FontResource;
+use crate::formatted_text::{Run, RunSet};
 use crate::inspector::editors::cell::CellPropertyEditorDefinition;
 use crate::inspector::editors::texture_slice::TextureSlicePropertyEditorDefinition;
 use crate::{
@@ -606,6 +608,13 @@ impl PropertyEditorDefinitionContainer {
         >::new());
 
         container.insert(TextureSlicePropertyEditorDefinition);
+
+        container.insert(InspectablePropertyEditorDefinition::<RunSet>::new());
+        container.insert(InspectablePropertyEditorDefinition::<Run>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<Run>::new());
+        container.insert(EnumPropertyEditorDefinition::<FontResource>::new_optional());
+        container.insert(EnumPropertyEditorDefinition::<Brush>::new_optional());
+        container.insert(EnumPropertyEditorDefinition::<Vector2<f32>>::new_optional());
 
         // Styled.
         container.insert(InheritablePropertyEditorDefinition::<StyledProperty<f32>>::new());

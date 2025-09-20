@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use std::ops::{Deref, DerefMut};
-
+use crate::core::type_traits::prelude::*;
 use crate::font::FontHeight;
+use std::ops::{Deref, DerefMut};
 
 use super::*;
 
@@ -122,7 +122,8 @@ impl RunSet {
 }
 
 /// The style of a partion of text within a range.
-#[derive(Clone, PartialEq, Debug, Default, Visit, Reflect)]
+#[derive(Clone, PartialEq, Debug, Default, Visit, Reflect, TypeUuidProvider)]
+#[type_uuid(id = "f0e5cc5d-0b82-4d6f-a505-12f890ffe7ea")]
 pub struct Run {
     /// The range of characters that this run applies to within the text.
     pub range: Range<u32>,
