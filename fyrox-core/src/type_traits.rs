@@ -39,9 +39,8 @@ pub trait TypeUuidProvider: Sized {
 
 #[macro_export]
 macro_rules! uuid_provider {
-    ($type:ident $(<$($generics:tt),*>)? = $uuid:expr) => {
-        #[allow(non_camel_case_types)]
-        impl$(<$($generics),*>)? $crate::type_traits::TypeUuidProvider for $type $(<$($generics),*>)? {
+    ($type:ty = $uuid:expr) => {
+        impl $crate::type_traits::TypeUuidProvider for $type {
             fn type_uuid() -> $crate::uuid::Uuid {
                 $crate::uuid::uuid!($uuid)
             }
