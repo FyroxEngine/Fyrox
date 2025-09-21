@@ -33,7 +33,7 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 /// corresponding event has come from, if you have more than one mouse use event-based approach
 /// instead!
 #[derive(Default, Clone)]
-pub struct MouseState {
+pub struct Mouse {
     /// Coordinates in pixels relative to the top-left corner of the window.
     pub position: Vector2<f32>,
     /// Speed of the mouse in some units.
@@ -46,6 +46,9 @@ pub struct MouseState {
     /// - 3 - additional mouse button (could back or forward)
     /// - 4 - additional mouse button (could back or forward)
     /// - 5 and higher - device-specific buttons
+    ///
+    /// There are named constants for the tree most used ones - [`Mouse::LEFT_BUTTON`],
+    /// [`Mouse::RIGHT_BUTTON`], [`Mouse::MIDDLE_BUTTON`].
     pub buttons_state: FxHashMap<ButtonId, ElementState>,
     /// A hash set that contains all the buttons that were pressed in the current frame. If a button
     /// is still pressed in the next frame, this hash map will not contain it. This is useful
@@ -59,12 +62,21 @@ pub struct MouseState {
     pub released_buttons: FxHashSet<ButtonId>,
 }
 
+impl Mouse {
+    /// Index of the left button.
+    pub const LEFT_BUTTON: ButtonId = 0;
+    /// Index of the right button.
+    pub const RIGHT_BUTTON: ButtonId = 1;
+    /// Index of the middle button.
+    pub const MIDDLE_BUTTON: ButtonId = 2;
+}
+
 /// Represents the keyboard state in the current frame. The contents of this structure is a simplified
 /// version of event-based approach. **Important:** this structure does not track from which keyboard the
 /// corresponding event has come from, if you have more than one keyboard use event-based approach
 /// instead!
 #[derive(Default, Clone)]
-pub struct KeyboardState {
+pub struct Keyboard {
     /// Represents the keyboard state in the current frame.
     pub keys: FxHashMap<PhysicalKey, ElementState>,
     /// A hash set that contains all the keys that were pressed in the current frame. If a key
@@ -86,9 +98,9 @@ pub struct KeyboardState {
 #[derive(Default, Clone)]
 pub struct InputState {
     /// Represents the mouse state in the current frame.
-    pub mouse: MouseState,
+    pub mouse: Mouse,
     /// Represents the keyboard state in the current frame.
-    pub keyboard: KeyboardState,
+    pub keyboard: Keyboard,
 }
 
 impl InputState {
@@ -130,6 +142,9 @@ impl InputState {
     /// - 3 - additional mouse button (could back or forward)
     /// - 4 - additional mouse button (could back or forward)
     /// - 5 and higher - device-specific buttons
+    ///
+    /// There are named constants for the tree most used ones - [`Mouse::LEFT_BUTTON`],
+    /// [`Mouse::RIGHT_BUTTON`], [`Mouse::MIDDLE_BUTTON`].
     #[inline]
     pub fn is_mouse_button_down(&self, button_id: ButtonId) -> bool {
         self.mouse
@@ -141,7 +156,8 @@ impl InputState {
     /// Returns `true` if the specified button was pressed in the current frame, `false` - otherwise.
     /// This method will return `false` if the button is still pressed in the next frame. This is
     /// useful to check if a button was pressed and some action, but do not repeat the same action
-    /// over and over until the button is released.
+    /// over and over until the button is released. See the docs of [`Self::is_mouse_button_down`]
+    /// for button ids.
     #[inline]
     pub fn is_mouse_button_pressed(&self, button_id: ButtonId) -> bool {
         self.mouse.pressed_buttons.contains(&button_id)
@@ -150,7 +166,8 @@ impl InputState {
     /// Returns `true` if the specified button was released in the current frame, `false` - otherwise.
     /// This method will return `false` if the button is still released in the next frame. This is
     /// useful to check if a button was released and some action, but do not repeat the same action
-    /// over and over until the button is pressed.
+    /// over and over until the button is pressed. See the docs of [`Self::is_mouse_button_down`]
+    /// for button ids.
     #[inline]
     pub fn is_mouse_button_released(&self, button_id: ButtonId) -> bool {
         self.mouse.released_buttons.contains(&button_id)
@@ -159,19 +176,61 @@ impl InputState {
     /// Returns `true` if the left mouse button is pressed, `false` - otherwise.
     #[inline]
     pub fn is_left_mouse_button_down(&self) -> bool {
-        self.is_mouse_button_down(0)
+        self.is_mouse_button_down(Mouse::LEFT_BUTTON)
     }
 
     /// Returns `true` if the right mouse button is pressed, `false` - otherwise.
     #[inline]
     pub fn is_right_mouse_button_down(&self) -> bool {
-        self.is_mouse_button_down(1)
+        self.is_mouse_button_down(Mouse::RIGHT_BUTTON)
     }
 
     /// Returns `true` if the middle mouse button pressed is pressed, `false` - otherwise.
     #[inline]
     pub fn is_middle_mouse_button_down(&self) -> bool {
-        self.is_mouse_button_down(2)
+        self.is_mouse_button_down(Mouse::MIDDLE_BUTTON)
+    }
+
+    /// Returns `true` if the left mouse button was pressed on the current frame,
+    /// `false` - otherwise.
+    #[inline]
+    pub fn is_left_mouse_button_pressed(&self) -> bool {
+        self.is_mouse_button_pressed(Mouse::LEFT_BUTTON)
+    }
+
+    /// Returns `true` if the right mouse button was pressed on the current frame,
+    /// `false` - otherwise.
+    #[inline]
+    pub fn is_right_mouse_button_pressed(&self) -> bool {
+        self.is_mouse_button_pressed(Mouse::RIGHT_BUTTON)
+    }
+
+    /// Returns `true` if the middle mouse button was pressed on the current frame,
+    /// `false` - otherwise.
+    #[inline]
+    pub fn is_middle_mouse_button_pressed(&self) -> bool {
+        self.is_mouse_button_pressed(Mouse::MIDDLE_BUTTON)
+    }
+
+    /// Returns `true` if the left mouse button was released on the current frame,
+    /// `false` - otherwise.
+    #[inline]
+    pub fn is_left_mouse_button_released(&self) -> bool {
+        self.is_mouse_button_released(Mouse::LEFT_BUTTON)
+    }
+
+    /// Returns `true` if the right mouse button was released on the current frame,
+    /// `false` - otherwise.
+    #[inline]
+    pub fn is_right_mouse_button_released(&self) -> bool {
+        self.is_mouse_button_released(Mouse::RIGHT_BUTTON)
+    }
+
+    /// Returns `true` if the middle mouse button was released on the current frame,
+    /// `false` - otherwise.
+    #[inline]
+    pub fn is_middle_mouse_button_released(&self) -> bool {
+        self.is_mouse_button_released(Mouse::MIDDLE_BUTTON)
     }
 
     /// Returns mouse speed in the current frame, the speed expressed in some arbitrary units.
