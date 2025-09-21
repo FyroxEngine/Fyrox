@@ -2188,10 +2188,7 @@ impl Engine {
                                 .get(&event.physical_key)
                                 .is_none_or(|state| *state == ElementState::Released)
                             {
-                                self.input_state
-                                    .keyboard
-                                    .pressed_keys
-                                    .insert(event.physical_key);
+                                keyboard.pressed_keys.insert(event.physical_key);
                             }
                         }
                         ElementState::Released => {
@@ -2200,18 +2197,12 @@ impl Engine {
                                 .get(&event.physical_key)
                                 .is_some_and(|state| *state == ElementState::Pressed)
                             {
-                                self.input_state
-                                    .keyboard
-                                    .released_keys
-                                    .insert(event.physical_key);
+                                keyboard.released_keys.insert(event.physical_key);
                             }
                         }
                     }
 
-                    self.input_state
-                        .keyboard
-                        .keys
-                        .insert(event.physical_key, event.state);
+                    keyboard.keys.insert(event.physical_key, event.state);
                 }
                 WindowEvent::CursorMoved { position, .. } => {
                     self.input_state.mouse.position =
@@ -2224,7 +2215,30 @@ impl Engine {
                     self.input_state.mouse.speed = Vector2::new(delta.0 as f32, delta.1 as f32);
                 }
                 DeviceEvent::Button { button, state } => {
-                    self.input_state.mouse.buttons_state.insert(*button, *state);
+                    let mouse = &mut self.input_state.mouse;
+
+                    match *state {
+                        ElementState::Pressed => {
+                            if mouse
+                                .buttons_state
+                                .get(button)
+                                .is_none_or(|state| *state == ElementState::Released)
+                            {
+                                mouse.pressed_buttons.insert(*button);
+                            }
+                        }
+                        ElementState::Released => {
+                            if mouse
+                                .buttons_state
+                                .get(button)
+                                .is_some_and(|state| *state == ElementState::Pressed)
+                            {
+                                mouse.released_buttons.insert(*button);
+                            }
+                        }
+                    }
+
+                    mouse.buttons_state.insert(*button, *state);
                 }
                 _ => (),
             },

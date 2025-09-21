@@ -47,6 +47,16 @@ pub struct MouseState {
     /// - 4 - additional mouse button (could back or forward)
     /// - 5 and higher - device-specific buttons
     pub buttons_state: FxHashMap<ButtonId, ElementState>,
+    /// A hash set that contains all the buttons that were pressed in the current frame. If a button
+    /// is still pressed in the next frame, this hash map will not contain it. This is useful
+    /// to check if a button was pressed and some action, but do not repeat the same action over and
+    /// over until the button is released.
+    pub pressed_buttons: FxHashSet<ButtonId>,
+    /// A hash set that contains all the buttons that were released in the current frame. If a button
+    /// is still released in the next frame, this hash map will not contain it. This is useful
+    /// to check if a button was released and some action, but do not repeat the same action over and
+    /// over until the button is pressed.
+    pub released_buttons: FxHashSet<ButtonId>,
 }
 
 /// Represents the keyboard state in the current frame. The contents of this structure is a simplified
@@ -111,8 +121,8 @@ impl InputState {
             .contains(&PhysicalKey::Code(key))
     }
 
-    /// Returns `true` if the specified mouse button pressed in the current frame, `false` -
-    /// otherwise. Usually, the button indices are the following:
+    /// Returns `true` if the specified mouse button is pressed, `false` - otherwise. Usually,
+    /// the button indices are the following:
     ///
     /// - 0 - left mouse button
     /// - 1 - right mouse button
@@ -121,29 +131,47 @@ impl InputState {
     /// - 4 - additional mouse button (could back or forward)
     /// - 5 and higher - device-specific buttons
     #[inline]
-    pub fn is_mouse_button_pressed(&self, button_id: ButtonId) -> bool {
+    pub fn is_mouse_button_down(&self, button_id: ButtonId) -> bool {
         self.mouse
             .buttons_state
             .get(&button_id)
             .is_some_and(|state| *state == ElementState::Pressed)
     }
 
-    /// Returns `true` if the left mouse button pressed in the current frame, `false` - otherwise.
+    /// Returns `true` if the specified button was pressed in the current frame, `false` - otherwise.
+    /// This method will return `false` if the button is still pressed in the next frame. This is
+    /// useful to check if a button was pressed and some action, but do not repeat the same action
+    /// over and over until the button is released.
     #[inline]
-    pub fn is_left_mouse_button_pressed(&self) -> bool {
-        self.is_mouse_button_pressed(0)
+    pub fn is_mouse_button_pressed(&self, button_id: ButtonId) -> bool {
+        self.mouse.pressed_buttons.contains(&button_id)
     }
 
-    /// Returns `true` if the right mouse button pressed in the current frame, `false` - otherwise.
+    /// Returns `true` if the specified button was released in the current frame, `false` - otherwise.
+    /// This method will return `false` if the button is still released in the next frame. This is
+    /// useful to check if a button was released and some action, but do not repeat the same action
+    /// over and over until the button is pressed.
     #[inline]
-    pub fn is_right_mouse_button_pressed(&self) -> bool {
-        self.is_mouse_button_pressed(1)
+    pub fn is_mouse_button_released(&self, button_id: ButtonId) -> bool {
+        self.mouse.released_buttons.contains(&button_id)
     }
 
-    /// Returns `true` if the middle mouse button pressed in the current frame, `false` - otherwise.
+    /// Returns `true` if the left mouse button is pressed, `false` - otherwise.
     #[inline]
-    pub fn is_middle_mouse_button_pressed(&self) -> bool {
-        self.is_mouse_button_pressed(2)
+    pub fn is_left_mouse_button_down(&self) -> bool {
+        self.is_mouse_button_down(0)
+    }
+
+    /// Returns `true` if the right mouse button is pressed, `false` - otherwise.
+    #[inline]
+    pub fn is_right_mouse_button_down(&self) -> bool {
+        self.is_mouse_button_down(1)
+    }
+
+    /// Returns `true` if the middle mouse button pressed is pressed, `false` - otherwise.
+    #[inline]
+    pub fn is_middle_mouse_button_down(&self) -> bool {
+        self.is_mouse_button_down(2)
     }
 
     /// Returns mouse speed in the current frame, the speed expressed in some arbitrary units.
