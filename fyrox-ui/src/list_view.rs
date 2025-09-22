@@ -85,8 +85,9 @@ impl ListViewMessage {
     );
 }
 
-/// List view is used to display lists with arbitrary items. It supports single-selection and by default, it stacks the items
-/// vertically.
+/// List view is used to display lists with arbitrary items. It supports multiple selection and by
+/// default, it stacks the items vertically (this can be changed by providing a custom panel for the
+/// items, see the section below).
 ///
 /// ## Example
 ///
@@ -144,7 +145,8 @@ impl ListViewMessage {
 ///
 /// ## Selection
 ///
-/// List view support single selection only, you can change it at runtime by sending [`ListViewMessage::SelectionChanged`]
+/// List view supports any number of selected items (you can add items to the current selecting by
+/// holding Ctrl key), you can change it at runtime by sending [`ListViewMessage::SelectionChanged`]
 /// message with [`MessageDirection::ToWidget`] like so:
 ///
 /// ```rust
@@ -161,7 +163,8 @@ impl ListViewMessage {
 /// }
 /// ```
 ///
-/// It is also possible to not have selected item at all, to do this you need to send [`None`] as a selection.
+/// It is also possible to not have selected item at all, to do this you need to send an empty vector
+/// as a selection.
 ///
 /// To catch the moment when selection has changed (either by a user or by the [`ListViewMessage::SelectionChanged`],) you need
 /// to listen to the same message but with opposite direction, like so:
