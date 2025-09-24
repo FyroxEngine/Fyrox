@@ -86,6 +86,9 @@ pub struct StyledPropertySelector {
     window: Window,
     properties: Handle<UiNode>,
     property_list: Vec<ImmutableString>,
+    ok: Handle<UiNode>,
+    cancel: Handle<UiNode>,
+    style_property_name: ImmutableString,
 }
 
 impl Deref for StyledPropertySelector {
@@ -142,12 +145,25 @@ impl Control for StyledPropertySelector {
         if let Some(ListViewMessage::SelectionChanged(selected)) = message.data() {
             if let Some(selected_index) = selected.first() {
                 if message.destination() == self.properties {
-                    ui.send_message(StyledPropertySelectorMessage::property_name(
-                        self.handle,
-                        MessageDirection::FromWidget,
-                        self.property_list[*selected_index].clone(),
-                    ))
+                    self.style_property_name = self.property_list[*selected_index].clone();
                 }
+            }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.ok {
+                ui.send_message(StyledPropertySelectorMessage::property_name(
+                    self.handle,
+                    MessageDirection::FromWidget,
+                    self.style_property_name.clone(),
+                ));
+                ui.send_message(WindowMessage::close(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                ));
+            } else if message.destination() == self.cancel {
+                ui.send_message(WindowMessage::close(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                ));
             }
         }
     }
@@ -198,19 +214,17 @@ impl StyledPropertySelectorBuilder {
                 }
             })
             .unzip();
+        let selection = property_list
+            .iter()
+            .position(|name| name == &style_property_name);
+        let selected_item = selection.and_then(|i| items.get(i).cloned());
         let properties = ListViewBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
                 .on_column(0)
                 .with_margin(Thickness::uniform(1.0)),
         )
-        .with_selection(
-            property_list
-                .iter()
-                .position(|name| name == &style_property_name)
-                .map(|i| vec![i])
-                .unwrap_or_default(),
-        )
+        .with_selection(selection.map(|i| vec![i]).unwrap_or_default())
         .with_items(items)
         .build(ctx);
 
@@ -259,7 +273,18 @@ impl StyledPropertySelectorBuilder {
             window: self.window_builder.with_content(content).build_window(ctx),
             properties,
             property_list,
+            ok,
+            cancel,
+            style_property_name,
         };
+
+        if let Some(selected_item) = selected_item {
+            ctx.send_message(ListViewMessage::bring_item_into_view(
+                properties,
+                MessageDirection::ToWidget,
+                selected_item,
+            ));
+        }
 
         ctx.add_node(UiNode::new(selector))
     }
