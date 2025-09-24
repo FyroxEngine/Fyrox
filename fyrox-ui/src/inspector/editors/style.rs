@@ -21,7 +21,6 @@
 //! Property editor for [`StyledProperty`]. It acts like a proxy to inner property, but also
 //! adds a special "bind" button used to change style binding of the property.
 
-use crate::inspector::FieldKind;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
@@ -30,7 +29,6 @@ use crate::{
     },
     define_constructor, define_widget_deref,
     draw::DrawingContext,
-    dropdown_list::{DropdownListBuilder, DropdownListMessage},
     grid::{Column, GridBuilder, Row},
     image::ImageBuilder,
     inspector::{
@@ -38,8 +36,9 @@ use crate::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        InspectorError, PropertyChanged,
+        FieldKind, InspectorError, PropertyChanged,
     },
+    list_view::{ListViewBuilder, ListViewMessage},
     message::{OsEvent, UiMessage},
     resources::BIND_ICON,
     stack_panel::StackPanelBuilder,
@@ -50,8 +49,8 @@ use crate::{
     utils::{make_dropdown_list_option, make_simple_tooltip},
     widget::WidgetBuilder,
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, MessageDirection, Orientation, Thickness, UiNode, UserInterface,
-    VerticalAlignment, Widget,
+    BuildContext, Control, HorizontalAlignment, MessageDirection, Orientation, Thickness, UiNode,
+    UserInterface, VerticalAlignment, Widget,
 };
 use fyrox_core::algebra::{Matrix3, Vector2};
 use fyrox_graph::BaseSceneGraph;
@@ -140,13 +139,15 @@ impl Control for StyledPropertySelector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
 
-        if let Some(DropdownListMessage::SelectionChanged(Some(selected_index))) = message.data() {
-            if message.destination() == self.properties {
-                ui.send_message(StyledPropertySelectorMessage::property_name(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    self.property_list[*selected_index].clone(),
-                ))
+        if let Some(ListViewMessage::SelectionChanged(selected)) = message.data() {
+            if let Some(selected_index) = selected.first() {
+                if message.destination() == self.properties {
+                    ui.send_message(StyledPropertySelectorMessage::property_name(
+                        self.handle,
+                        MessageDirection::FromWidget,
+                        self.property_list[*selected_index].clone(),
+                    ))
+                }
             }
         }
     }
@@ -182,6 +183,7 @@ impl StyledPropertySelectorBuilder {
         self,
         target_style: &StyleResource,
         target_type: TypeId,
+        style_property_name: ImmutableString,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
         let style_data = target_style.data_ref();
@@ -196,12 +198,18 @@ impl StyledPropertySelectorBuilder {
                 }
             })
             .unzip();
-        let properties = DropdownListBuilder::new(
+        let properties = ListViewBuilder::new(
             WidgetBuilder::new()
-                .with_height(26.0)
                 .on_row(0)
                 .on_column(0)
                 .with_margin(Thickness::uniform(1.0)),
+        )
+        .with_selection(
+            property_list
+                .iter()
+                .position(|name| name == &style_property_name)
+                .map(|i| vec![i])
+                .unwrap_or_default(),
         )
         .with_items(items)
         .build(ctx);
@@ -211,10 +219,13 @@ impl StyledPropertySelectorBuilder {
         let buttons = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .on_column(0)
-                .on_row(2)
+                .on_row(1)
+                .with_horizontal_alignment(HorizontalAlignment::Right)
                 .with_child({
                     ok = ButtonBuilder::new(
-                        WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_width(100.0),
                     )
                     .with_text("OK")
                     .build(ctx);
@@ -222,7 +233,9 @@ impl StyledPropertySelectorBuilder {
                 })
                 .with_child({
                     cancel = ButtonBuilder::new(
-                        WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_width(100.0),
                     )
                     .with_text("Cancel")
                     .build(ctx);
@@ -237,7 +250,6 @@ impl StyledPropertySelectorBuilder {
                 .with_child(properties)
                 .with_child(buttons),
         )
-        .add_row(Row::auto())
         .add_row(Row::stretch())
         .add_row(Row::auto())
         .add_column(Column::stretch())
@@ -255,6 +267,7 @@ impl StyledPropertySelectorBuilder {
     pub fn build_and_open_window(
         target_style: &StyleResource,
         target_type: TypeId,
+        style_property_name: ImmutableString,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
         let window = StyledPropertySelectorBuilder::new(
@@ -263,7 +276,7 @@ impl StyledPropertySelectorBuilder {
                 .with_remove_on_close(true)
                 .open(false),
         )
-        .build(target_style, target_type, ctx);
+        .build(target_style, target_type, style_property_name, ctx);
 
         ctx.send_message(WindowMessage::open_modal(
             window,
@@ -285,6 +298,7 @@ pub struct StyledPropertyEditor {
     inner_editor: Handle<UiNode>,
     selector: Handle<UiNode>,
     target_style: Option<StyleResource>,
+    style_property_name: ImmutableString,
     #[visit(skip)]
     #[reflect(hidden)]
     target_type_id: TypeId,
@@ -302,6 +316,7 @@ impl Control for StyledPropertyEditor {
                     self.selector = StyledPropertySelectorBuilder::build_and_open_window(
                         target_style,
                         self.target_type_id,
+                        self.style_property_name.clone(),
                         &mut ui.build_ctx(),
                     );
                 }
@@ -437,6 +452,7 @@ impl StyledPropertyEditorBuilder {
             inner_editor: self.inner_editor,
             selector: Default::default(),
             target_style: self.target_style,
+            style_property_name: self.style_property_name,
             target_type_id: self.target_type_id,
         }))
     }
