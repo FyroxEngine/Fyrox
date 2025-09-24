@@ -73,23 +73,6 @@ impl DockingManagerMessage {
     );
 }
 
-mod kek {
-    use crate::{
-        dock::config::DockingManagerLayoutDescriptor, dock::DockingManager, UiNode, UserInterface,
-    };
-    use fyrox_core::pool::Handle;
-    use fyrox_graph::SceneGraph;
-
-    fn save_layout(
-        ui: &UserInterface,
-        docking_manager_handle: Handle<UiNode>,
-    ) -> Option<DockingManagerLayoutDescriptor> {
-        ui.try_get_of_type::<DockingManager>(docking_manager_handle)
-            .as_ref()
-            .map(|docking_manager| docking_manager.layout(ui))
-    }
-}
-
 /// Docking manager is a special container widget, that holds a bunch of children widgets in-place
 /// using [`Tile`]s and a bunch of floating windows. Any window can be undocked and become a floating
 /// window and vice versa. Docking manager is typically used to "pack" multiple windows into a
