@@ -341,7 +341,83 @@ impl Debug for Visitor {
     }
 }
 
+mod kek {
+    use crate::visitor::prelude::*;
+
+    struct MyType {
+        field_a: u32,
+        field_b: String,
+    }
+
+    impl Visit for MyType {
+        fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+            let mut region = visitor.enter_region(name)?;
+
+            self.field_a.visit("FieldA", &mut region)?;
+            self.field_b.visit("FieldB", &mut region)?;
+
+            Ok(())
+        }
+    }
+}
+
 /// Trait of types that can be read from a [Visitor] or written to a Visitor.
+///
+/// ## Code Generation
+///
+/// Procedural macro could be used to generate trivial implementations for this trait, which covers
+/// 99% of the cases. Consider the following example:
+///
+/// ```rust
+/// use fyrox_core::visitor::prelude::*;
+///
+/// #[derive(Visit, Default)]
+/// struct MyType {
+///     field_a: u32,
+///     field_b: String
+/// }
+/// ```
+///
+/// The generated code will be something like this:
+///
+/// ```rust
+/// use crate::visitor::prelude::*;
+///
+/// struct MyType {
+///     field_a: u32,
+///     field_b: String
+/// }
+///
+/// impl Visit for MyType {
+///     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+///         let mut region = visitor.enter_region(name)?;
+///
+///         self.field_a.visit("FieldA", &mut region)?;
+///         self.field_b.visit("FieldB", &mut region)?;
+///
+///         Ok(())
+///     }
+/// }
+/// ```
+///
+/// ### Type Attributes
+///
+/// - `#[visit(optional)]` - marks all the fields of the type as optional and suppresses any errors
+/// on serialization and deserialization. In the generated code, all the fields will be visited like
+/// this `let _ = self.field_a.visit("FieldA", &mut region);`
+/// - `#[visit(pre_visit_method = "function_name")]` - name of a function, that will be called
+/// before the generated body.
+/// - `#[visit(post_visit_method = "function_name")]` - name of a function, that will be called
+/// after the generated body.
+///
+/// ### Field Attributes
+///
+/// - `#[visit(skip)]` - disables serialization and deserialization of the field.
+/// - `#[visit(rename = "new_name")]` - overrides the name of the field with `new_name`. In the
+/// generated code, all the fields will be visited like this `self.field_a.visit("new_name", &mut region)?;`
+/// - `#[visit(optional)]` - marks the field as optional and suppresses any errors on serialization
+/// and deserialization. In the generated code, all the fields will be visited like this
+/// `let _ = self.field_a.visit("FieldA", &mut region);`
 pub trait Visit {
     /// Read or write this value, depending on whether [Visitor::is_reading()] is true or false.
     ///
