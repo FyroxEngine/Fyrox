@@ -341,26 +341,6 @@ impl Debug for Visitor {
     }
 }
 
-mod kek {
-    use crate::visitor::prelude::*;
-
-    struct MyType {
-        field_a: u32,
-        field_b: String,
-    }
-
-    impl Visit for MyType {
-        fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-            let mut region = visitor.enter_region(name)?;
-
-            self.field_a.visit("FieldA", &mut region)?;
-            self.field_b.visit("FieldB", &mut region)?;
-
-            Ok(())
-        }
-    }
-}
-
 /// Trait of types that can be read from a [Visitor] or written to a Visitor.
 ///
 /// ## Code Generation
