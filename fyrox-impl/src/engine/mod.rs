@@ -2124,7 +2124,7 @@ impl Engine {
                     };
 
                     for plugin in self.plugins.iter_mut() {
-                        plugin.on_ui_message(&mut context, &message);
+                        plugin.on_ui_message(&mut context, &message, ui);
                     }
                 }
             }
