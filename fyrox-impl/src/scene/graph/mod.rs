@@ -76,9 +76,9 @@ use crate::{
 };
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::pool::BorrowAs;
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::SceneGraphNode;
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -125,20 +125,6 @@ impl GraphPerformanceStatistics {
 
 /// A helper type alias for node pool.
 pub type NodePool = Pool<Node, NodeContainer>;
-
-impl<T: NodeTrait> BorrowAs<Node, NodeContainer> for Handle<T> {
-    type Target = T;
-
-    fn borrow_as_ref(self, pool: &NodePool) -> Option<&T> {
-        pool.try_borrow(self.transmute())
-            .and_then(|n| NodeAsAny::as_any(n.0.deref()).downcast_ref::<T>())
-    }
-
-    fn borrow_as_mut(self, pool: &mut NodePool) -> Option<&mut T> {
-        pool.try_borrow_mut(self.transmute())
-            .and_then(|n| NodeAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
-    }
-}
 
 /// See module docs.
 #[derive(Debug, Reflect)]
@@ -1640,20 +1626,20 @@ impl Graph {
     }
 }
 
-impl<T, B: BorrowAs<Node, NodeContainer, Target = T>> Index<B> for Graph {
+impl<T: ObjectOrVariant<Node>> Index<Handle<T>> for Graph {
     type Output = T;
 
     #[inline]
-    fn index(&self, typed_handle: B) -> &Self::Output {
-        self.typed_ref(typed_handle)
+    fn index(&self, index: Handle<T>) -> &Self::Output {
+        self.typed_ref(index)
             .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
 
-impl<T, B: BorrowAs<Node, NodeContainer, Target = T>> IndexMut<B> for Graph {
+impl<T: ObjectOrVariant<Node>> IndexMut<Handle<T>> for Graph {
     #[inline]
-    fn index_mut(&mut self, typed_handle: B) -> &mut Self::Output {
-        self.typed_mut(typed_handle)
+    fn index_mut(&mut self, index: Handle<T>) -> &mut Self::Output {
+        self.typed_mut(index)
             .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
@@ -1842,6 +1828,7 @@ impl BaseSceneGraph for Graph {
 }
 
 impl SceneGraph for Graph {
+    type ObjectType = Node;
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.pool.pair_iter()
@@ -1857,17 +1844,11 @@ impl SceneGraph for Graph {
         self.pool.iter_mut()
     }
 
-    fn typed_ref<Ref>(
-        &self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&Ref> {
+    fn typed_ref<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Option<&U> {
         self.pool.typed_ref(handle)
     }
 
-    fn typed_mut<Ref>(
-        &mut self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&mut Ref> {
+    fn typed_mut<U: ObjectOrVariant<Node>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
         self.pool.typed_mut(handle)
     }
 }
