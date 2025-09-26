@@ -451,13 +451,13 @@ where
     }
 
     #[inline]
-    pub fn typed_ref<U: ObjectOrVariant<T>>(&self, handle: Handle<U>) -> Option<&U> {
+    pub fn try_get<U: ObjectOrVariant<T>>(&self, handle: Handle<U>) -> Option<&U> {
         let pool_object = self.try_borrow(handle.transmute())?;
         U::convert_to_dest_type(pool_object)
     }
 
     #[inline]
-    pub fn typed_mut<U: ObjectOrVariant<T>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
+    pub fn try_get_mut<U: ObjectOrVariant<T>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
         let pool_object = self.try_borrow_mut(handle.transmute())?;
         U::convert_to_dest_type_mut(pool_object)
     }
@@ -1412,7 +1412,7 @@ where
     type Output = U;
     #[inline]
     fn index(&self, index: Handle<U>) -> &Self::Output {
-        self.typed_ref(index).expect("The handle must be valid!")
+        self.try_get(index).expect("The handle must be valid!")
     }
 }
 
@@ -1424,7 +1424,7 @@ where
 {
     #[inline]
     fn index_mut(&mut self, index: Handle<U>) -> &mut Self::Output {
-        self.typed_mut(index).expect("The handle must be valid!")
+        self.try_get_mut(index).expect("The handle must be valid!")
     }
 }
 

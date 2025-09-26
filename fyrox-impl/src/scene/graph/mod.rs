@@ -1845,11 +1845,11 @@ impl SceneGraph for Graph {
     }
 
     fn typed_ref<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Option<&U> {
-        self.pool.typed_ref(handle)
+        self.pool.try_get(handle)
     }
 
     fn typed_mut<U: ObjectOrVariant<Node>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
-        self.pool.typed_mut(handle)
+        self.pool.try_get_mut(handle)
     }
 }
 
@@ -2346,7 +2346,7 @@ mod test {
         assert!(graph[c].global_visibility());
         assert!(graph[d].global_visibility());
 
-        assert!(!graph.pool.typed_ref(a).unwrap().is_globally_enabled());
+        assert!(!graph.pool.try_get(a).unwrap().is_globally_enabled());
         assert!(!graph[b].is_globally_enabled());
         assert!(!graph[c].is_globally_enabled());
         assert!(!graph[d].is_globally_enabled());
@@ -2358,21 +2358,18 @@ mod test {
         let pivot = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
         let rigid_body = RigidBodyBuilder::new(BaseBuilder::new()).build(&mut graph);
 
-        assert!(graph.pool.typed_ref(pivot).is_some());
-        assert!(graph.pool.typed_ref(pivot.transmute::<Pivot>()).is_some());
-        assert!(graph
-            .pool
-            .typed_ref(pivot.transmute::<RigidBody>())
-            .is_none());
+        assert!(graph.pool.try_get(pivot).is_some());
+        assert!(graph.pool.try_get(pivot.transmute::<Pivot>()).is_some());
+        assert!(graph.pool.try_get(pivot.transmute::<RigidBody>()).is_none());
 
-        assert!(graph.pool.typed_ref(rigid_body).is_some());
+        assert!(graph.pool.try_get(rigid_body).is_some());
         assert!(graph
             .pool
-            .typed_ref(rigid_body.transmute::<RigidBody>())
+            .try_get(rigid_body.transmute::<RigidBody>())
             .is_some());
         assert!(graph
             .pool
-            .typed_ref(rigid_body.transmute::<Pivot>())
+            .try_get(rigid_body.transmute::<Pivot>())
             .is_none());
     }
 }
