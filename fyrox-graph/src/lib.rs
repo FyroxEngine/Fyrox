@@ -841,9 +841,9 @@ pub trait SceneGraph: BaseSceneGraph {
     /// of nodes. It does *not* perform any tree traversal!
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
 
-    fn typed_ref<U: ObjectOrVariant<Self::ObjectType>>(&self, handle: Handle<U>) -> Option<&U>;
+    fn try_get<U: ObjectOrVariant<Self::ObjectType>>(&self, handle: Handle<U>) -> Option<&U>;
 
-    fn typed_mut<U: ObjectOrVariant<Self::ObjectType>>(
+    fn try_get_mut<U: ObjectOrVariant<Self::ObjectType>>(
         &mut self,
         handle: Handle<U>,
     ) -> Option<&mut U>;
@@ -1906,11 +1906,11 @@ mod test {
             self.nodes.iter_mut()
         }
 
-        fn typed_ref<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Option<&U> {
+        fn try_get<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Option<&U> {
             self.nodes.try_get(handle)
         }
 
-        fn typed_mut<U: ObjectOrVariant<Node>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
+        fn try_get_mut<U: ObjectOrVariant<Node>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
             self.nodes.try_get_mut(handle)
         }
     }

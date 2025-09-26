@@ -1625,7 +1625,7 @@ impl<T: ObjectOrVariant<Node>> Index<Handle<T>> for Graph {
 
     #[inline]
     fn index(&self, index: Handle<T>) -> &Self::Output {
-        self.typed_ref(index)
+        self.try_get(index)
             .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
@@ -1633,7 +1633,7 @@ impl<T: ObjectOrVariant<Node>> Index<Handle<T>> for Graph {
 impl<T: ObjectOrVariant<Node>> IndexMut<Handle<T>> for Graph {
     #[inline]
     fn index_mut(&mut self, index: Handle<T>) -> &mut Self::Output {
-        self.typed_mut(index)
+        self.try_get_mut(index)
             .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
@@ -1838,11 +1838,11 @@ impl SceneGraph for Graph {
         self.pool.iter_mut()
     }
 
-    fn typed_ref<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Option<&U> {
+    fn try_get<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Option<&U> {
         self.pool.try_get(handle)
     }
 
-    fn typed_mut<U: ObjectOrVariant<Node>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
+    fn try_get_mut<U: ObjectOrVariant<Node>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
         self.pool.try_get_mut(handle)
     }
 }

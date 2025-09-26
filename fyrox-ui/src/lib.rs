@@ -3385,11 +3385,11 @@ impl SceneGraph for UserInterface {
         self.nodes.iter_mut()
     }
 
-    fn typed_ref<U: ObjectOrVariant<UiNode>>(&self, handle: Handle<U>) -> Option<&U> {
+    fn try_get<U: ObjectOrVariant<UiNode>>(&self, handle: Handle<U>) -> Option<&U> {
         self.nodes.try_get(handle)
     }
 
-    fn typed_mut<U: ObjectOrVariant<UiNode>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
+    fn try_get_mut<U: ObjectOrVariant<UiNode>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
         self.nodes.try_get_mut(handle)
     }
 }
