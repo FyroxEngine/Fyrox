@@ -91,7 +91,7 @@ fn resource_path_of_first_selected_node(
     if let Some(graph_selection) = editor_selection.as_graph() {
         if let Some(first) = graph_selection.nodes.first() {
             let scene = &engine.scenes[game_scene.scene];
-            if let Some(resource) = scene.graph.try_get(*first).and_then(|n| n.resource()) {
+            if let Some(resource) = scene.graph.try_get_node(*first).and_then(|n| n.resource()) {
                 return engine.resource_manager.resource_path(resource.as_ref());
             }
         }
@@ -395,7 +395,7 @@ impl SceneNodeContextMenu {
                         let scene = &engine.scenes[game_scene.scene];
                         let mut commands = Vec::new();
                         for node_handle in graph_selection.nodes.iter() {
-                            if let Some(node) = scene.graph.try_get(*node_handle) {
+                            if let Some(node) = scene.graph.try_get_node(*node_handle) {
                                 (node as &dyn Reflect).enumerate_fields_recursively(
                                     &mut |path, _, val| {
                                         val.as_inheritable_variable(&mut |inheritable| {

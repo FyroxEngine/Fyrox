@@ -1124,7 +1124,7 @@ impl Base {
                 if let Some(ancestor_node) = model
                     .get_scene()
                     .graph
-                    .try_get(self.original_handle_in_resource)
+                    .try_get_node(self.original_handle_in_resource)
                 {
                     return if ancestor_node.resource.is_none() {
                         Some(resource.clone())

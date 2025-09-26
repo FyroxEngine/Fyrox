@@ -725,7 +725,7 @@ impl EditorPlugin for TileMapEditorPlugin {
 
         let palette = self.state.lock().selection_palette();
         if let Some(palette) = ui
-            .try_get_mut(palette)
+            .try_get_node_mut(palette)
             .and_then(|p| p.cast_mut::<PaletteWidget>())
         {
             palette.sync_selection_to_model();

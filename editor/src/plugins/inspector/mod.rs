@@ -178,7 +178,7 @@ fn current_widget_style(
         if let Some(ui_selection) = selection.as_ui() {
             return ui_scene
                 .ui
-                .try_get(ui_selection.widgets[0])
+                .try_get_node(ui_selection.widgets[0])
                 .and_then(|n| n.style.clone());
         }
     }

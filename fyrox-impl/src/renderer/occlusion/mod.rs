@@ -114,7 +114,7 @@ impl TileBuffer {
 
 fn inflated_world_aabb(graph: &Graph, object: Handle<Node>) -> Option<AxisAlignedBoundingBox> {
     let mut aabb = graph
-        .try_get(object)
+        .try_get_node(object)
         .map(|node_ref| node_ref.world_bounding_box())?;
     aabb.inflate(Vector3::repeat(0.01));
     Some(aabb)
@@ -228,7 +228,7 @@ impl OcclusionTester {
         let mut lines = Vec::new();
         for (object_index, object) in self.objects_to_test.iter().enumerate() {
             let object_index = object_index as u32;
-            let Some(node_ref) = graph.try_get(*object) else {
+            let Some(node_ref) = graph.try_get_node(*object) else {
                 continue;
             };
 

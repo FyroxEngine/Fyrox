@@ -199,7 +199,7 @@ impl ColliderControlPanel {
                     ColliderShape::Capsule(_) => {
                         let local_center = scene
                             .graph
-                            .try_get(collider_ref.parent())
+                            .try_get_node(collider_ref.parent())
                             .map(|p| p.global_transform())
                             .unwrap_or_default()
                             .try_inverse()

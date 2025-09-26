@@ -85,7 +85,7 @@ impl ContextMenu {
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.copy {
                 if let Some(field) = ui
-                    .try_get(self.placement_target)
+                    .try_get_node(self.placement_target)
                     .and_then(|n| n.query_component::<Text>())
                 {
                     let text = field.text();

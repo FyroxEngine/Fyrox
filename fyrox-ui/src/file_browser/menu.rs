@@ -362,7 +362,7 @@ impl ItemContextMenu {
     }
 
     fn item_path(&self, ui: &UserInterface) -> Option<PathBuf> {
-        ui.try_get(self.base_menu.popup.placement.target())
+        ui.try_get_node(self.base_menu.popup.placement.target())
             .and_then(|n| n.user_data_cloned::<PathBuf>())
     }
 }

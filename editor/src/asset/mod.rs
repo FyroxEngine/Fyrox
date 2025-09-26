@@ -837,7 +837,7 @@ impl AssetBrowser {
                 if let Some(item) = engine
                     .user_interfaces
                     .first_mut()
-                    .try_get(self.context_menu.placement_target)
+                    .try_get_node(self.context_menu.placement_target)
                     .and_then(|n| n.cast::<AssetItem>())
                 {
                     if let Ok(resource) =

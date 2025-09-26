@@ -59,7 +59,7 @@ impl SelectionContainer for GraphSelection {
         if let Some(node) = self
             .nodes
             .first()
-            .and_then(|handle| scene.graph.try_get(*handle))
+            .and_then(|handle| scene.graph.try_get_node(*handle))
         {
             (callback)(node as &dyn Reflect, node.has_inheritance_parent());
         }

@@ -56,7 +56,7 @@ impl SelectionContainer for UiSelection {
     ) {
         let ui_scene = some_or_return!(controller.downcast_ref::<UiScene>());
         if let Some(first) = self.widgets.first() {
-            if let Some(node) = ui_scene.ui.try_get(*first) {
+            if let Some(node) = ui_scene.ui.try_get_node(*first) {
                 (callback)(node as &dyn Reflect, node.has_inheritance_parent())
             }
         }
@@ -74,7 +74,7 @@ impl SelectionContainer for UiSelection {
             .widgets
             .iter()
             .filter_map(|&node_handle| {
-                let node = ui_scene.ui.try_get(node_handle)?;
+                let node = ui_scene.ui.try_get_node(node_handle)?;
                 if args.is_inheritable() {
                     // Prevent reverting property value if there's no parent resource.
                     if node.resource().is_some() {
@@ -89,7 +89,7 @@ impl SelectionContainer for UiSelection {
                     make_command(args, move |ctx| {
                         ctx.get_mut::<UiSceneContext>()
                             .ui
-                            .try_get_mut(node_handle)
+                            .try_get_node_mut(node_handle)
                             .map(|n| n as &mut dyn Reflect)
                     })
                 }
@@ -111,7 +111,7 @@ impl SelectionContainer for UiSelection {
                         move |ctx| {
                             ctx.get_mut::<UiSceneContext>()
                                 .ui
-                                .try_get_mut(node_handle)
+                                .try_get_node_mut(node_handle)
                                 .map(|n| n as &mut dyn Reflect)
                         },
                     ))
@@ -126,7 +126,7 @@ impl SelectionContainer for UiSelection {
         let ui_scene = controller.downcast_ref::<UiScene>()?;
         self.widgets
             .first()
-            .and_then(|h| ui_scene.ui.try_get(*h).map(|n| n.doc().to_string()))
+            .and_then(|h| ui_scene.ui.try_get_node(*h).map(|n| n.doc().to_string()))
     }
 }
 

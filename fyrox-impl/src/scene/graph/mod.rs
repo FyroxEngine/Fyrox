@@ -66,7 +66,7 @@ use crate::{
         },
         mesh::Mesh,
         navmesh,
-        node::{container::NodeContainer, Node, NodeTrait, SyncContext, UpdateContext},
+        node::{container::NodeContainer, Node, SyncContext, UpdateContext},
         pivot::Pivot,
         sound::context::SoundContext,
         transform::TransformBuilder,
@@ -870,7 +870,7 @@ impl Graph {
         where
             F: FnMut(Handle<Node>, &Node) -> bool,
         {
-            graph.try_get(node).and_then(|n| {
+            graph.try_get_node(node).and_then(|n| {
                 if filter(node, n) {
                     let mut aabb = n.local_bounding_box();
                     if aabb.is_invalid_or_degenerate() {
@@ -1080,7 +1080,7 @@ impl Graph {
                 func: &mut impl FnMut(Handle<Node>),
             ) {
                 func(from);
-                if let Some(node) = graph.try_get(from) {
+                if let Some(node) = graph.try_get_node(from) {
                     for &child in node.children() {
                         traverse_recursive(graph, child, func)
                     }
@@ -1531,7 +1531,7 @@ impl Graph {
     #[inline]
     pub fn global_scale(&self, mut node: Handle<Node>) -> Vector3<f32> {
         let mut global_scale = Vector3::repeat(1.0);
-        while let Some(node_ref) = self.try_get(node) {
+        while let Some(node_ref) = self.try_get_node(node) {
             global_scale = global_scale.component_mul(node_ref.local_transform().scale());
             node = node_ref.parent;
         }
@@ -1545,7 +1545,7 @@ impl Graph {
     where
         T: ScriptTrait,
     {
-        self.try_get(node)
+        self.try_get_node(node)
             .and_then(|node| node.try_get_script::<T>())
     }
 
@@ -1557,7 +1557,7 @@ impl Graph {
         &self,
         node: Handle<Node>,
     ) -> Option<impl Iterator<Item = &T>> {
-        self.try_get(node).map(|n| n.try_get_scripts())
+        self.try_get_node(node).map(|n| n.try_get_scripts())
     }
 
     /// Tries to borrow a node using the given handle and searches the script buffer for a script
@@ -1590,7 +1590,7 @@ impl Graph {
     where
         C: Any,
     {
-        self.try_get(node)
+        self.try_get_node(node)
             .and_then(|node| node.try_get_script_component())
     }
 
@@ -1805,12 +1805,12 @@ impl BaseSceneGraph for Graph {
     }
 
     #[inline]
-    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+    fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
         self.pool.try_borrow(handle)
     }
 
     #[inline]
-    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+    fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
         self.pool.try_borrow_mut(handle)
     }
 

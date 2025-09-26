@@ -146,7 +146,7 @@ impl BuildContext<'_> {
 
     /// Tries to fetch the node by its handle. Returns `None` if the handle is invalid.
     pub fn try_get_node(&self, node: Handle<UiNode>) -> Option<&UiNode> {
-        self.ui.try_get(node)
+        self.ui.try_get_node(node)
     }
 
     /// Tries to fetch the node by its handle. Returns `None` if the handle is invalid.
