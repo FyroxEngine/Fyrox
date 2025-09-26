@@ -61,10 +61,11 @@ use crate::{
         Scene,
     },
 };
-use fyrox_core::define_as_any_trait;
+use fyrox_core::{define_as_any_trait, pool::ObjectOrVariantHelper};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
+    marker::PhantomData,
     ops::{Deref, DerefMut},
 };
 
@@ -232,6 +233,17 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
     /// provide centralized diagnostics for scene graph.
     fn validate(&self, #[allow(unused_variables)] scene: &Scene) -> Result<(), String> {
         Ok(())
+    }
+}
+
+// Essentially implements ObjectOrVariant for NodeTrait types.
+// See ObjectOrVariantHelper for the cause of the indirection.
+impl<T: NodeTrait> ObjectOrVariantHelper<Node, T> for PhantomData<T> {
+    fn convert_to_dest_type_helper(node: &Node) -> Option<&T> {
+        NodeAsAny::as_any(node.0.deref()).downcast_ref()
+    }
+    fn convert_to_dest_type_helper_mut(node: &mut Node) -> Option<&mut T> {
+        NodeAsAny::as_any_mut(node.0.deref_mut()).downcast_mut()
     }
 }
 
