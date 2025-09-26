@@ -480,12 +480,6 @@ impl Graph {
         self.root
     }
 
-    /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
-    #[inline]
-    pub fn try_get_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
-        self.pool.try_borrow_mut(handle)
-    }
-
     /// Begins multi-borrow that allows you borrow to as many shared references to the graph
     /// nodes as you need and only one mutable reference to a node. See
     /// [`MultiBorrowContext::try_get`] for more info.
@@ -1567,7 +1561,7 @@ impl Graph {
     where
         T: ScriptTrait,
     {
-        self.try_get_mut(node)
+        self.try_get_node_mut(node)
             .and_then(|node| node.try_get_script_mut::<T>())
     }
 
@@ -1579,7 +1573,7 @@ impl Graph {
         &mut self,
         node: Handle<Node>,
     ) -> Option<impl Iterator<Item = &mut T>> {
-        self.try_get_mut(node).map(|n| n.try_get_scripts_mut())
+        self.try_get_node_mut(node).map(|n| n.try_get_scripts_mut())
     }
 
     /// Tries to borrow a node and find a component of the given type `C` across **all** available
@@ -1602,7 +1596,7 @@ impl Graph {
     where
         C: Any,
     {
-        self.try_get_mut(node)
+        self.try_get_node_mut(node)
             .and_then(|node| node.try_get_script_component_mut())
     }
 
