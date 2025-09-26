@@ -506,7 +506,7 @@ version = "0.1.0"
 edition = "2021"
 
 [package.metadata.android]
-# This folder is used as a temporary storage for assets. Project exporter will clone everything 
+# This folder is used as a temporary storage for assets. Project exporter will clone everything
 # from data folder to this folder and cargo-apk will create the apk with these assets.
 assets = "assets"
 strip = "strip"
@@ -668,6 +668,7 @@ pub fn init_script(root_path: &Path, raw_name: &str) -> Result<(), String> {
 use fyrox::{{
     core::{{visitor::prelude::*, reflect::prelude::*, type_traits::prelude::*}},
     event::Event, script::{{ScriptContext, ScriptDeinitContext, ScriptTrait}},
+    graph::prelude::*,
 }};
 
 #[derive(Visit, Reflect, Default, Debug, Clone, TypeUuidProvider, ComponentProvider)]

@@ -24,6 +24,10 @@
 
 pub mod constructor;
 
+pub mod prelude {
+    pub use crate::{AbstractSceneGraph, BaseSceneGraph, SceneGraph};
+}
+
 use fxhash::FxHashMap;
 use fyrox_core::pool::{ErasedHandle, ObjectOrVariant, PayloadContainer};
 use fyrox_core::reflect::ReflectHandle;
