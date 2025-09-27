@@ -26,11 +26,12 @@ use crate::{
     widget::Widget,
     UiNode, UserInterface,
 };
-use fyrox_core::define_as_any_trait;
+use fyrox_core::{define_as_any_trait, pool::ObjectOrVariant};
 
 use fyrox_core::algebra::Matrix3;
 use std::{
     any::Any,
+    marker::PhantomData,
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -354,5 +355,16 @@ pub trait Control:
         #[allow(unused_variables)] ui: &UserInterface,
     ) -> bool {
         *self.allow_drop
+    }
+}
+
+// Essentially implements ObjectOrVariant for NodeTrait types.
+// See ObjectOrVariantHelper for the cause of the indirection.
+impl<T: Control> ObjectOrVariant<UiNode> for PhantomData<T> {
+    fn convert_to_dest_type(node: &UiNode) -> Option<&Self> {
+        ControlAsAny::as_any(node.0.deref()).downcast_ref()
+    }
+    fn convert_to_dest_type_mut(node: &mut UiNode) -> Option<&mut Self> {
+        ControlAsAny::as_any_mut(node.0.deref_mut()).downcast_mut()
     }
 }

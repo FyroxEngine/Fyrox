@@ -25,7 +25,7 @@
 pub mod constructor;
 
 use fxhash::FxHashMap;
-use fyrox_core::pool::{BorrowAs, ErasedHandle, PayloadContainer};
+use fyrox_core::pool::{ErasedHandle, ObjectOrVariant, PayloadContainer};
 use fyrox_core::reflect::ReflectHandle;
 use fyrox_core::{
     log::{Log, MessageKind},
@@ -757,7 +757,7 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
     ///   |_A_
     ///   |   |_B
     ///   |_Root
-    /// ```    
+    /// ```
     ///
     /// This method returns an instance of [`LinkScheme`], that could be used to revert the hierarchy
     /// back to its original. See [`Self::apply_link_scheme`] for more info.
@@ -827,6 +827,7 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
 }
 
 pub trait SceneGraph: BaseSceneGraph {
+    type ObjectType: Sized;
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)>;
 
@@ -838,15 +839,12 @@ pub trait SceneGraph: BaseSceneGraph {
     /// of nodes. It does *not* perform any tree traversal!
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
 
-    fn typed_ref<Ref>(
-        &self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&Ref>;
+    fn typed_ref<U: ObjectOrVariant<Self::ObjectType>>(&self, handle: Handle<U>) -> Option<&U>;
 
-    fn typed_mut<Ref>(
+    fn typed_mut<U: ObjectOrVariant<Self::ObjectType>>(
         &mut self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&mut Ref>;
+        handle: Handle<U>,
+    ) -> Option<&mut U>;
 
     /// Tries to borrow a node and fetch its component of specified type.
     #[inline]
@@ -1450,7 +1448,7 @@ mod test {
         AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping,
         PrefabData, SceneGraph, SceneGraphNode,
     };
-    use fyrox_core::pool::BorrowAs;
+    use fyrox_core::pool::{ObjectOrVariant, ObjectOrVariantHelper};
     use fyrox_core::{
         define_as_any_trait,
         pool::{ErasedHandle, Handle, PayloadContainer, Pool},
@@ -1460,6 +1458,7 @@ mod test {
         NameProvider,
     };
     use fyrox_resource::{untyped::UntypedResource, Resource, ResourceData};
+    use std::marker::PhantomData;
     use std::{
         any::{Any, TypeId},
         error::Error,
@@ -1499,6 +1498,17 @@ mod test {
     define_as_any_trait!(NodeAsAny => NodeTrait);
 
     pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider + NodeAsAny {}
+
+    // Essentially implements ObjectOrVariant for NodeTrait types.
+    // See ObjectOrVariantHelper for the cause of the indirection.
+    impl<T: NodeTrait> ObjectOrVariantHelper<Node, T> for PhantomData<T> {
+        fn convert_to_dest_type_helper(node: &Node) -> Option<&T> {
+            NodeAsAny::as_any(node.0.deref()).downcast_ref()
+        }
+        fn convert_to_dest_type_helper_mut(node: &mut Node) -> Option<&mut T> {
+            NodeAsAny::as_any_mut(node.0.deref_mut()).downcast_mut()
+        }
+    }
 
     #[derive(ComponentProvider, Debug)]
     pub struct Node(Box<dyn NodeTrait>);
@@ -1881,6 +1891,7 @@ mod test {
     }
 
     impl SceneGraph for Graph {
+        type ObjectType = Node;
         fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
             self.nodes.pair_iter()
         }
@@ -1893,17 +1904,11 @@ mod test {
             self.nodes.iter_mut()
         }
 
-        fn typed_ref<Ref>(
-            &self,
-            handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-        ) -> Option<&Ref> {
+        fn typed_ref<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Option<&U> {
             self.nodes.typed_ref(handle)
         }
 
-        fn typed_mut<Ref>(
-            &mut self,
-            handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-        ) -> Option<&mut Ref> {
+        fn typed_mut<U: ObjectOrVariant<Node>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
             self.nodes.typed_mut(handle)
         }
     }
