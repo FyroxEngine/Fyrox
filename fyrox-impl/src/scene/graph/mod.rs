@@ -2118,14 +2118,14 @@ mod test {
             .unwrap();
     }
 
-    fn make_resource_manager() -> ResourceManager {
+    fn make_resource_manager(root: &Path) -> ResourceManager {
         let resource_manager =
             ResourceManager::new(Arc::new(FsResourceIo), Arc::new(Default::default()));
         resource_manager
             .state()
             .resource_registry
             .lock()
-            .set_path("test_output/resources.registry");
+            .set_path(root.join("resources.registry"));
         engine::initialize_resource_manager_loaders(
             &resource_manager,
             Arc::new(SerializationContext::new()),
@@ -2136,35 +2136,37 @@ mod test {
 
     #[test]
     fn test_restore_integrity() {
-        if !Path::new("test_output").exists() {
-            fs::create_dir_all("test_output").unwrap();
+        let root = Path::new("test_restore_integrity");
+
+        if !root.exists() {
+            fs::create_dir_all(root).unwrap();
         }
 
-        let root_asset_path = Path::new("test_output/root2.rgs");
-        let derived_asset_path = Path::new("test_output/derived2.rgs");
+        let root_asset_path = root.join("root2.rgs");
+        let derived_asset_path = root.join("derived2.rgs");
 
         // Create root scene and save it.
         {
             let mut scene = create_scene();
-            save_scene(&mut scene, root_asset_path);
+            save_scene(&mut scene, &root_asset_path);
         }
 
         // Create root resource instance in a derived resource. This creates a derived asset.
         {
-            let resource_manager = make_resource_manager();
-            let root_asset = block_on(resource_manager.request::<Model>(root_asset_path)).unwrap();
+            let resource_manager = make_resource_manager(&root);
+            let root_asset = block_on(resource_manager.request::<Model>(&root_asset_path)).unwrap();
 
             let mut derived = Scene::new();
             root_asset.instantiate(&mut derived);
-            save_scene(&mut derived, derived_asset_path);
+            save_scene(&mut derived, &derived_asset_path);
         }
 
         // Now load the root asset, modify it, save it back and reload the derived asset.
         {
-            let resource_manager = make_resource_manager();
+            let resource_manager = make_resource_manager(&root);
             let mut scene = block_on(
                 block_on(SceneLoader::from_file(
-                    root_asset_path,
+                    &root_asset_path,
                     &FsResourceIo,
                     Arc::new(SerializationContext::new()),
                     resource_manager.clone(),
@@ -2188,12 +2190,12 @@ mod test {
             scene.graph.remove_node(existing_pivot);
 
             // Save the scene back.
-            save_scene(&mut scene, root_asset_path);
+            save_scene(&mut scene, &root_asset_path);
         }
 
         // Load the derived scene and check if its content was synced with the content of the root asset.
         {
-            let resource_manager = make_resource_manager();
+            let resource_manager = make_resource_manager(&root);
             let derived_asset =
                 block_on(resource_manager.request::<Model>(derived_asset_path)).unwrap();
 
