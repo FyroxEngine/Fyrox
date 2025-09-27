@@ -361,7 +361,7 @@ impl Debug for Visitor {
 /// The generated code will be something like this:
 ///
 /// ```rust
-/// use crate::visitor::prelude::*;
+/// use fyrox_core::visitor::prelude::*;
 ///
 /// struct MyType {
 ///     field_a: u32,

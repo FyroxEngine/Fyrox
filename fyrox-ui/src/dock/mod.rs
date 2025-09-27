@@ -106,7 +106,7 @@ impl DockingManagerMessage {
 /// into two smaller tiles where each tile holds a separate window.
 ///
 /// ```rust
-/// # use crate::{
+/// # use fyrox_ui::{
 /// #     core::pool::Handle,
 /// #     dock::{DockingManagerBuilder, TileBuilder, TileContent},
 /// #     widget::WidgetBuilder,
@@ -156,7 +156,7 @@ impl DockingManagerMessage {
 /// save it and then load on the next session. Use the following code to save the layout:
 ///
 /// ```rust
-/// # use crate::{
+/// # use fyrox_ui::{
 /// #     dock::config::DockingManagerLayoutDescriptor, dock::DockingManager, UiNode, UserInterface,
 /// # };
 /// # use fyrox_core::pool::Handle;
