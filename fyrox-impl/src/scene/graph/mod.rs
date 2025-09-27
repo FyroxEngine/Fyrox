@@ -2153,7 +2153,7 @@ mod test {
 
         // Create root resource instance in a derived resource. This creates a derived asset.
         {
-            let resource_manager = make_resource_manager(&root);
+            let resource_manager = make_resource_manager(root);
             let root_asset = block_on(resource_manager.request::<Model>(&root_asset_path)).unwrap();
 
             let mut derived = Scene::new();
@@ -2163,7 +2163,7 @@ mod test {
 
         // Now load the root asset, modify it, save it back and reload the derived asset.
         {
-            let resource_manager = make_resource_manager(&root);
+            let resource_manager = make_resource_manager(root);
             let mut scene = block_on(
                 block_on(SceneLoader::from_file(
                     &root_asset_path,
@@ -2195,7 +2195,7 @@ mod test {
 
         // Load the derived scene and check if its content was synced with the content of the root asset.
         {
-            let resource_manager = make_resource_manager(&root);
+            let resource_manager = make_resource_manager(root);
             let derived_asset =
                 block_on(resource_manager.request::<Model>(derived_asset_path)).unwrap();
 
