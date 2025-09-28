@@ -340,8 +340,8 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
-use fyrox_core::futures::future::join_all;
 use fyrox_core::log::Log;
+use fyrox_core::{futures::future::join_all, pool::ObjectOrVariant};
 use fyrox_graph::{
     AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping, PrefabData,
     SceneGraph, SceneGraphNode,
@@ -355,7 +355,7 @@ use crate::style::resource::{StyleResource, StyleResourceExt};
 use crate::style::{Style, DEFAULT_STYLE};
 use crate::widget::WidgetMaterial;
 pub use fyrox_animation as generic_animation;
-use fyrox_core::pool::{BorrowAs, ErasedHandle};
+use fyrox_core::pool::ErasedHandle;
 use fyrox_resource::untyped::ResourceKind;
 pub use fyrox_texture as texture;
 
@@ -673,20 +673,6 @@ pub struct UiUpdateSwitches {
 }
 
 pub type WidgetPool = Pool<UiNode, WidgetContainer>;
-
-impl<T: Control> BorrowAs<UiNode, WidgetContainer> for Handle<T> {
-    type Target = T;
-
-    fn borrow_as_ref(self, pool: &WidgetPool) -> Option<&T> {
-        pool.try_borrow(self.transmute())
-            .and_then(|n| ControlAsAny::as_any(n.0.deref()).downcast_ref::<T>())
-    }
-
-    fn borrow_as_mut(self, pool: &mut WidgetPool) -> Option<&mut T> {
-        pool.try_borrow_mut(self.transmute())
-            .and_then(|n| ControlAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
-    }
-}
 
 #[derive(Reflect, Debug)]
 pub struct UserInterface {
@@ -3383,6 +3369,7 @@ impl BaseSceneGraph for UserInterface {
 }
 
 impl SceneGraph for UserInterface {
+    type ObjectType = UiNode;
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.nodes.pair_iter()
@@ -3398,17 +3385,11 @@ impl SceneGraph for UserInterface {
         self.nodes.iter_mut()
     }
 
-    fn typed_ref<Ref>(
-        &self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&Ref> {
+    fn typed_ref<U: ObjectOrVariant<UiNode>>(&self, handle: Handle<U>) -> Option<&U> {
         self.nodes.typed_ref(handle)
     }
 
-    fn typed_mut<Ref>(
-        &mut self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&mut Ref> {
+    fn typed_mut<U: ObjectOrVariant<UiNode>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
         self.nodes.typed_mut(handle)
     }
 }
