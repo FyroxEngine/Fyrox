@@ -384,17 +384,17 @@ First release-candidate version (unreleased).
 
 ## Removed
 
-- removed resource duplicates
-- removed invalid assertions
-- removed redundant `ResourceLoaderAsAny` trait
-- removed wasm-unsupported `set_border_color` of gpu texture
-- removed `get_image+read_pixels` methods from gpu texture
-- removed impls for `field/field_mut`
-- removed redundant codegen for field/field_mut methods
-- removed `Relfect::fields/fields_mut` methods
-- removed `owner_type_id` field from `FieldInfo`
-- removed redundant `type_name` field from `FieldInfo`
-- removed `Downcast` trait, replaced with `define_as_any_trait` macro
+- Removed resource duplicates
+- Removed invalid assertions
+- Removed redundant `ResourceLoaderAsAny` trait
+- Removed wasm-unsupported `set_border_color` of gpu texture
+- Removed `get_image+read_pixels` methods from gpu texture
+- Removed impls for `field/field_mut`
+- Removed redundant codegen for field/field_mut methods
+- Removed `Relfect::fields/fields_mut` methods
+- Removed `owner_type_id` field from `FieldInfo`
+- Removed redundant `type_name` field from `FieldInfo`
+- Removed `Downcast` trait, replaced with `define_as_any_trait` macro
 
 # 0.36.1
 
