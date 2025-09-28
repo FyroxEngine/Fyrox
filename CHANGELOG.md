@@ -130,6 +130,7 @@ First release-candidate version (unreleased).
 - Fixed incorrect ambient lighting calculation
 - Reduced memory usage when generating asset previews
 - Clamp anisotropy in `[1.0; 16.0]` range to prevent video driver errors
+- Fixed `uuid_provider` macro
 
 ## Added
 
@@ -270,6 +271,14 @@ First release-candidate version (unreleased).
 - Joint motors
 - Show graphics server memory usage in the editor's rendering statistics
 - Simplified interaction with keyboard and mouse.
+- Added flake.nix for generated projects
+- Simplified way of getting input state
+- Ability to flip sprite/rectangle nodes
+- Show id of materials/surfaces in the editor
+- Added TypeUuidProvider impl for VectorN types
+- Property editors for Run + RunSet
+- Property editor for `char` + editors for mask char in formatted text
+- Named constants for mouse buttons + helper methods for mouse input
 
 ## Changed
 
@@ -371,6 +380,7 @@ First release-candidate version (unreleased).
 - Removed redundant empty impls of InteractionMode trait
 - Share fbx materials as much as possible
 - Store a style handle in the widget
+- Pass ui handle in `Plugin::on_ui_message`
 
 ## Removed
 
