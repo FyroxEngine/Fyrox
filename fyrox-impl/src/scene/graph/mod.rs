@@ -66,7 +66,7 @@ use crate::{
         },
         mesh::Mesh,
         navmesh,
-        node::{container::NodeContainer, Node, NodeTrait, SyncContext, UpdateContext},
+        node::{container::NodeContainer, Node, SyncContext, UpdateContext},
         pivot::Pivot,
         sound::context::SoundContext,
         transform::TransformBuilder,
