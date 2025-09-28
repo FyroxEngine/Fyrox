@@ -76,9 +76,9 @@ where
 
 /// This trait unifies pool objects and their variants.
 ///
-/// If T is the pool object type, [`convert_to_dest_type`] returns the pool object itself.
+/// If T is the pool object type, [`ObjectOrVariant::convert_to_dest_type`] returns the pool object itself.
 ///
-/// If T is a variant of the pool object type, [`convert_to_dest_type`] returns the variant of the pool object.
+/// If T is a variant of the pool object type, [`ObjectOrVariant::convert_to_dest_type`] returns the variant of the pool object.
 ///
 /// The [`Pool`] struct uses this trait to unify the logic of retrieving both pool objects and their variants.
 pub trait ObjectOrVariant<T> {
@@ -94,7 +94,7 @@ pub trait ObjectOrVariant<T> {
 ///
 /// But Rust does support `impl<T> ForeignTrait<LocalType> for ForeignType<T>`
 ///
-/// Details can be found in https://rust-lang.github.io/rfcs/2451-re-rebalancing-coherence.html#concrete-orphan-rules
+/// Details can be found in [here](https://rust-lang.github.io/rfcs/2451-re-rebalancing-coherence.html#concrete-orphan-rules).
 ///
 /// Therefore, we cannot implement [`ObjectOrVariant`] directly using `impl<U: TraitBound> ObjectOrVariant<LocalType> for U`
 ///
