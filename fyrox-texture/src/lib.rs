@@ -682,6 +682,17 @@ lazy_static! {
             )
             .unwrap()
         });
+    /// Pure color texture.
+    pub static ref PURE_COLOR: BuiltInResource<Texture> = BuiltInResource::new("__PureColorTexture", embedded_data_source!("pure_color.png"),
+        |data| {
+            TextureResource::load_from_memory(
+                uuid!("9709eef2-305c-44da-91e5-6f293d74408a"),
+                ResourceKind::External,
+                data,
+                Default::default()
+            )
+            .unwrap()
+        });
 }
 
 /// Type alias for texture resources.
