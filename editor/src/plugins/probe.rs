@@ -30,7 +30,7 @@ use crate::{
             Uuid,
         },
         engine::Engine,
-        graph::{SceneGraph, BaseSceneGraph},
+        graph::{BaseSceneGraph, SceneGraph},
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},

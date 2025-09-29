@@ -40,9 +40,9 @@ use crate::{
     send_sync_message, send_sync_messages, Message,
 };
 use fyrox::core::algebra::Vector2;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::gui::widget::WidgetMessage;
 use fyrox::scene::collider::BitMask;
-use fyrox::graph::BaseSceneGraph;
 
 pub struct CameraPreviewControlPanel {
     pub window: Handle<UiNode>,

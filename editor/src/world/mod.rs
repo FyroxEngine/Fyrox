@@ -704,7 +704,8 @@ impl WorldViewer {
             self.handle_drop(ui, data_provider, message.destination(), node);
         } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if let Some(&view) = self.breadcrumbs.get(&message.destination()) {
-                if let Some(graph_node) = ui.try_get_node(view).and_then(|n| n.cast::<SceneItem>()) {
+                if let Some(graph_node) = ui.try_get_node(view).and_then(|n| n.cast::<SceneItem>())
+                {
                     data_provider.on_selection_changed(&[graph_node.entity_handle]);
                 }
             } else if message.destination() == self.collapse_all {

@@ -2009,7 +2009,9 @@ impl Engine {
                 {
                     let payload = result.payload;
                     if let Some(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle) {
-                        if let Some(node) = scene.graph.try_get_node_mut(node_task_handler.node_handle) {
+                        if let Some(node) =
+                            scene.graph.try_get_node_mut(node_task_handler.node_handle)
+                        {
                             if let Some(mut script) = node
                                 .scripts
                                 .get_mut(node_task_handler.script_index)

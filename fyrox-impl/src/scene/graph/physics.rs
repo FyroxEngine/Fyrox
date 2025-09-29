@@ -1838,10 +1838,9 @@ impl PhysicsWorld {
 
             let mut local_frames = joint.local_frames.borrow_mut();
             if local_frames.is_none() {
-                if let (Some(body1), Some(body2)) = (
-                    nodes.try_get(joint.body1()),
-                    nodes.try_get(joint.body2()),
-                ) {
+                if let (Some(body1), Some(body2)) =
+                    (nodes.try_get(joint.body1()), nodes.try_get(joint.body2()))
+                {
                     let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
                     native.data =
                         convert_joint_params((*joint.params).clone(), local_frame1, local_frame2);
