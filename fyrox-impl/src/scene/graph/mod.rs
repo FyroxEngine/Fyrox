@@ -284,6 +284,8 @@ fn clear_links(mut node: Node) -> Node {
 /// A set of switches that allows you to disable a particular step of graph update pipeline.
 #[derive(Clone, PartialEq, Eq)]
 pub struct GraphUpdateSwitches {
+    /// Enables the physics update to have a non-zero `dt`.
+    pub physics_dt: bool,
     /// Enables or disables update of the 2D physics.
     pub physics2d: bool,
     /// Enables or disables update of the 3D physics.
@@ -301,6 +303,7 @@ pub struct GraphUpdateSwitches {
 impl Default for GraphUpdateSwitches {
     fn default() -> Self {
         Self {
+            physics_dt: true,
             physics2d: true,
             physics: true,
             node_overrides: Default::default(),
@@ -1214,13 +1217,13 @@ impl Graph {
 
         if switches.physics {
             self.physics.performance_statistics.reset();
-            self.physics.update(dt);
+            self.physics.update(dt, switches.physics_dt);
             self.performance_statistics.physics = self.physics.performance_statistics.clone();
         }
 
         if switches.physics2d {
             self.physics2d.performance_statistics.reset();
-            self.physics2d.update(dt);
+            self.physics2d.update(dt, switches.physics_dt);
             self.performance_statistics.physics2d = self.physics2d.performance_statistics.clone();
         }
 

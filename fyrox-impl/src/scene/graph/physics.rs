@@ -1101,12 +1101,33 @@ impl PhysicsWorld {
         }
     }
 
-    pub(super) fn update(&mut self, dt: f32) {
+    /// Update the physics pipeline with a timestep of the given length.
+    ///
+    /// * `dt`: The amount of time that has passed since the previous update.
+    ///   This may be overriden by [`PhysicsWorld::integration_parameters`] if
+    ///   `integration_parameters.dt` is `Some`, in which case that value is used
+    ///   instead of this argument.
+    /// * `dt_enabled`: If this is true then `dt` is used as usual, but if this is false
+    ///   then both the `dt` argument and `integration_parameters.dt` are ignored and
+    ///   a `dt` of zero is used instead, freezing all physics. This corresponds to the
+    ///   [`GraphUpdateSwitches::physics_dt`](crate::scene::graph::GraphUpdateSwitches::physics_dt).
+    pub(super) fn update(&mut self, dt: f32, dt_enabled: bool) {
         let time = instant::Instant::now();
+        let parameter_dt = self.integration_parameters.dt;
+        let parameter_dt = if parameter_dt == Some(0.0) {
+            None
+        } else {
+            parameter_dt
+        };
+        let dt = if dt_enabled {
+            parameter_dt.unwrap_or(dt)
+        } else {
+            0.0
+        };
 
         if *self.enabled {
             let integration_parameters = rapier3d::dynamics::IntegrationParameters {
-                dt: self.integration_parameters.dt.unwrap_or(dt),
+                dt,
                 min_ccd_dt: self.integration_parameters.min_ccd_dt,
                 contact_damping_ratio: self.integration_parameters.contact_damping_ratio,
                 contact_natural_frequency: self.integration_parameters.contact_natural_frequency,
