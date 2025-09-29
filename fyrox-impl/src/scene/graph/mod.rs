@@ -1631,7 +1631,6 @@ impl<T: ObjectOrVariant<Node>> Index<Handle<T>> for Graph {
 }
 
 impl<T: ObjectOrVariant<Node>> IndexMut<Handle<T>> for Graph {
-impl<T: ObjectOrVariant<Node>> IndexMut<Handle<T>> for Graph {
     #[inline]
     fn index_mut(&mut self, index: Handle<T>) -> &mut Self::Output {
         self.try_get_mut(index)
