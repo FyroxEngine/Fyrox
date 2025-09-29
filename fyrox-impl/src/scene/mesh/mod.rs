@@ -327,9 +327,20 @@ pub struct Mesh {
     #[reflect(setter = "set_render_path")]
     render_path: InheritableVariable<RenderPath>,
 
-    /// Enable or disable dynamic batching. It could be useful to reduce amount of draw calls per
-    /// frame if you have lots of meshes with small vertex count. Does not work with meshes, that
-    /// have skin or blend shapes. Such meshes will be drawn in a separate draw call.
+    /// Defines the batching mode used by the mesh.
+    ///
+    /// ## Static batching
+    ///
+    /// Static batching. Render data of all **descendant** nodes will be baked into a static buffer,
+    /// and it will be drawn. This mode "bakes" world transform of a node into vertices, thus making
+    /// them immovable.
+    ///
+    /// ## Dynamic Batching
+    ///
+    /// Dynamically merges render data of all **descendant** nodes. It could be useful to reduce the
+    /// number of draw calls per frame if you have lots of meshes with small vertex count. Does not
+    /// work with meshes that have skin or blend shapes. Such meshes will be drawn in a separate draw
+    /// call.
     #[visit(optional)]
     #[reflect(setter = "set_batching_mode")]
     batching_mode: InheritableVariable<BatchingMode>,
@@ -512,9 +523,20 @@ impl Mesh {
         bounding_box
     }
 
-    /// Enable or disable dynamic batching. It could be useful to reduce amount of draw calls per
-    /// frame if you have lots of meshes with small vertex count. Does not work with meshes, that
-    /// have skin or blend shapes. Such meshes will be drawn in a separate draw call.
+    /// Defines the batching mode used by the mesh.
+    ///
+    /// ## Static batching
+    ///
+    /// Static batching. Render data of all **descendant** nodes will be baked into a static buffer,
+    /// and it will be drawn. This mode "bakes" world transform of a node into vertices, thus making
+    /// them immovable.
+    ///
+    /// ## Dynamic Batching
+    ///
+    /// Dynamically merges render data of all **descendant** nodes. It could be useful to reduce the
+    /// number of draw calls per frame if you have lots of meshes with small vertex count. Does not
+    /// work with meshes that have skin or blend shapes. Such meshes will be drawn in a separate draw
+    /// call.
     pub fn set_batching_mode(&mut self, mode: BatchingMode) -> BatchingMode {
         if let BatchingMode::None | BatchingMode::Dynamic = mode {
             // Destroy batched data.

@@ -1446,6 +1446,11 @@ impl Control for TextBox {
                                 ui.send_message(message.reverse());
                             }
                         }
+                        TextMessage::Runs(runs) => {
+                            text.set_runs(runs.clone());
+                            drop(text);
+                            self.invalidate_layout();
+                        }
                     }
                 }
             } else if let Some(msg) = message.data::<TextBoxMessage>() {

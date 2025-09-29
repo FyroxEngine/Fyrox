@@ -80,6 +80,7 @@ jobs:
       # Use rust-toolchain because GHA tends to still have an old version for a few days after a new Rust release.
       - uses: dtolnay/rust-toolchain@stable
 
+      - run: rustup component add rustfmt
       - run: cargo fmt --version
       - run: cargo fmt -- --check
 
@@ -98,6 +99,7 @@ jobs:
           sudo apt-get update # Run update first or install might start failing eventually.
           sudo apt-get install --no-install-recommends -y libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libdbus-1-dev
 
+      - run: rustup component add clippy
       - run: cargo clippy --version
         # Using --all-targets to also check tests and examples.
         # Note that technically --all-features doesn't check all code when something is *disabled* by a feature.

@@ -851,6 +851,8 @@ pub trait SceneGraph: BaseSceneGraph {
         &mut self,
         handle: Handle<U>,
     ) -> Option<&mut U>;
+        handle: Handle<U>,
+    ) -> Option<&mut U>;
 
     /// Tries to borrow a node and fetch its component of specified type.
     #[inline]

@@ -159,7 +159,7 @@ dylib-engine = ["fyrox/dylib"]
 use fyrox::{
     core::pool::Handle, core::visitor::prelude::*, core::reflect::prelude::*,
     event::Event,
-    gui::message::UiMessage,
+    gui::{message::UiMessage, UserInterface},
     plugin::{Plugin, PluginContext, PluginRegistrationContext},
     scene::Scene,
 };
@@ -205,6 +205,7 @@ impl Plugin for Game {
         &mut self,
         _context: &mut PluginContext,
         _message: &UiMessage,
+        _ui_handle: Handle<UserInterface>
     ) {
         // Handle UI events here.
     }

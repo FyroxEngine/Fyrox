@@ -23,7 +23,7 @@
 
 #![warn(missing_docs)]
 
-use crate::formatted_text::Run;
+use crate::formatted_text::{Run, RunSet};
 use crate::style::StyledProperty;
 use crate::{
     brush::Brush,
@@ -51,7 +51,7 @@ use std::{
 /// Possible messages that can be used to alternate [`Text`] widget state at runtime.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TextMessage {
-    /// Used to set new text of the widget.
+    /// Used to set a new text or to receive the changed text.
     Text(String),
     /// Used to set new text wrapping mode of the widget. See [Text](Text#text-alignment-and-word-wrapping) for usage
     /// examples.
@@ -74,6 +74,8 @@ pub enum TextMessage {
     ShadowOffset(Vector2<f32>),
     /// Used to set font height of the widget.
     FontSize(StyledProperty<f32>),
+    /// Used to set the new set of runs in the text.
+    Runs(RunSet),
 }
 
 impl TextMessage {
@@ -125,6 +127,11 @@ impl TextMessage {
     define_constructor!(
         /// Creates new [`TextMessage::FontSize`] message.
         TextMessage:FontSize => fn font_size(StyledProperty<f32>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates new [`TextMessage::Runs`] message.
+        TextMessage:Runs => fn runs(RunSet), layout: false
     );
 }
 
@@ -463,6 +470,11 @@ impl Control for Text {
                             drop(text_ref);
                             self.invalidate_layout();
                         }
+                    }
+                    TextMessage::Runs(runs) => {
+                        text_ref.set_runs(runs.clone());
+                        drop(text_ref);
+                        self.invalidate_layout();
                     }
                 }
             }
