@@ -96,6 +96,14 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     pub resource_manager: &'a ResourceManager,
 }
 
+pub struct UiRenderInfo<'a> {
+    pub render_target: Option<TextureResource>,
+    pub screen_size: Vector2<f32>,
+    pub drawing_context: &'a DrawingContext,
+    pub clear_color: Color,
+    pub resource_manager: &'a ResourceManager,
+}
+
 fn write_uniform_blocks(
     ortho: &Matrix4<f32>,
     resolution: Vector2<f32>,

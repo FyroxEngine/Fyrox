@@ -358,6 +358,7 @@ pub use fyrox_animation as generic_animation;
 use fyrox_core::pool::ErasedHandle;
 use fyrox_resource::untyped::ResourceKind;
 pub use fyrox_texture as texture;
+use fyrox_texture::TextureResource;
 
 #[derive(Default, Clone, Reflect, Debug)]
 pub(crate) struct RcUiNodeHandleInner {
@@ -719,6 +720,7 @@ pub struct UserInterface {
     pub double_click_time_slice: f32,
     pub tooltip_appear_delay: f32,
     pub standard_material: WidgetMaterial,
+    pub render_target: Option<TextureResource>,
 }
 
 impl Visit for UserInterface {
@@ -813,6 +815,7 @@ impl Clone for UserInterface {
             double_click_time_slice: self.double_click_time_slice,
             tooltip_appear_delay: self.tooltip_appear_delay,
             standard_material: Default::default(),
+            render_target: None,
         }
     }
 }
@@ -1119,6 +1122,7 @@ impl UserInterface {
             double_click_time_slice: 0.5, // 500 ms is standard in most operating systems.
             tooltip_appear_delay: 0.55,
             standard_material: Default::default(),
+            render_target: None,
         };
         let root_node = UiNode::new(Canvas {
             widget: WidgetBuilder::new().build(&ui.build_ctx()),

@@ -49,6 +49,8 @@ mod settings;
 mod shadow;
 mod ssao;
 
+use crate::renderer::cache::texture::convert_pixel_kind;
+use crate::renderer::ui_renderer::UiRenderInfo;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -68,7 +70,6 @@ use crate::{
         server::{GraphicsServer, SharedGraphicsServer},
         PolygonFace, PolygonFillMode,
     },
-    gui::draw::DrawingContext,
     material::shader::Shader,
     renderer::{
         bloom::BloomRenderer,
@@ -777,49 +778,57 @@ impl Renderer {
         self.geometry_cache.clear();
     }
 
-    /// Renders given UI into specified render target. This method is especially useful if you need
+    /// Renders the given UI into specified render target. This method is especially useful if you need
     /// to have off-screen UIs (like interactive touch-screen in Doom 3, Dead Space, etc).
-    pub fn render_ui_to_texture(
-        &mut self,
-        render_target: TextureResource,
-        screen_size: Vector2<f32>,
-        drawing_context: &DrawingContext,
-        clear_color: Color,
-        pixel_kind: PixelKind,
-        resource_manager: &ResourceManager,
-    ) -> Result<(), FrameworkError> {
+    pub fn render_ui(&mut self, render_info: UiRenderInfo) -> Result<(), FrameworkError> {
+        let screen_size = render_info.screen_size;
+
         let new_width = screen_size.x as usize;
         let new_height = screen_size.y as usize;
 
-        // Create or reuse existing frame buffer.
-        let frame_buffer = match self.ui_frame_buffers.entry(render_target.key()) {
-            Entry::Occupied(entry) => {
-                let frame_buffer = entry.into_mut();
-                let frame = frame_buffer.color_attachments().first().unwrap();
-                let color_texture_kind = frame.texture.kind();
-                if let GpuTextureKind::Rectangle { width, height } = color_texture_kind {
-                    if width != new_width
-                        || height != new_height
-                        || frame.texture.pixel_kind() != pixel_kind
-                    {
-                        *frame_buffer =
-                            make_ui_frame_buffer(screen_size, &*self.server, pixel_kind)?;
-                    }
-                } else {
-                    panic!("ui can be rendered only in rectangle texture!")
-                }
-                frame_buffer
-            }
-            Entry::Vacant(entry) => entry.insert(make_ui_frame_buffer(
-                screen_size,
-                &*self.server,
-                pixel_kind,
-            )?),
-        };
-
         let viewport = Rect::new(0, 0, new_width as i32, new_height as i32);
 
-        frame_buffer.clear(viewport, Some(clear_color), Some(0.0), Some(0));
+        let frame_buffer = if let Some(render_target) = render_info.render_target.as_ref() {
+            let pixel_kind = render_target
+                .data_ref()
+                .as_loaded_ref()
+                .map(|rt| convert_pixel_kind(rt.pixel_kind()))
+                .ok_or_else(|| FrameworkError::Custom("invalid render target state".to_string()))?;
+
+            // Create or reuse existing frame buffer.
+            let frame_buffer = match self.ui_frame_buffers.entry(render_target.key()) {
+                Entry::Occupied(entry) => {
+                    let frame_buffer = entry.into_mut();
+                    let frame = frame_buffer.color_attachments().first().unwrap();
+                    let color_texture_kind = frame.texture.kind();
+                    if let GpuTextureKind::Rectangle { width, height } = color_texture_kind {
+                        if width != new_width
+                            || height != new_height
+                            || frame.texture.pixel_kind() != pixel_kind
+                        {
+                            *frame_buffer =
+                                make_ui_frame_buffer(screen_size, &*self.server, pixel_kind)?;
+                        }
+                    } else {
+                        return Err(FrameworkError::Custom(
+                            "ui can be rendered only in rectangle texture!".to_string(),
+                        ));
+                    }
+                    frame_buffer
+                }
+                Entry::Vacant(entry) => entry.insert(make_ui_frame_buffer(
+                    screen_size,
+                    &*self.server,
+                    pixel_kind,
+                )?),
+            };
+
+            frame_buffer.clear(viewport, Some(render_info.clear_color), Some(0.0), Some(0));
+
+            frame_buffer
+        } else {
+            &self.backbuffer
+        };
 
         self.statistics += self.ui_renderer.render(UiRenderContext {
             server: &*self.server,
@@ -827,27 +836,31 @@ impl Renderer {
             frame_buffer,
             frame_width: screen_size.x,
             frame_height: screen_size.y,
-            drawing_context,
+            drawing_context: render_info.drawing_context,
             renderer_resources: &self.renderer_resources,
             texture_cache: &mut self.texture_cache,
             uniform_buffer_cache: &mut self.uniform_buffer_cache,
             render_pass_cache: &mut self.shader_cache,
             uniform_memory_allocator: &mut self.uniform_memory_allocator,
-            resource_manager,
+            resource_manager: render_info.resource_manager,
         })?;
 
-        // Finally register texture in the cache so it will become available as texture in deferred/forward
-        // renderer.
-        self.texture_cache.try_register(
-            &*self.server,
-            &render_target,
-            frame_buffer
-                .color_attachments()
-                .first()
-                .unwrap()
-                .texture
-                .clone(),
-        )
+        if let Some(render_target) = render_info.render_target.as_ref() {
+            // Finally register texture in the cache so it will become available as texture in deferred/forward
+            // renderer.
+            self.texture_cache.try_register(
+                &*self.server,
+                render_target,
+                frame_buffer
+                    .color_attachments()
+                    .first()
+                    .unwrap()
+                    .texture
+                    .clone(),
+            )?;
+        }
+
+        Ok(())
     }
 
     fn update_texture_cache(&mut self, resource_manager: &ResourceManager, dt: f32) {
@@ -1348,7 +1361,7 @@ impl Renderer {
         scenes: &SceneContainer,
         elapsed_time: f32,
         resource_manager: &ResourceManager,
-        drawing_contexts: impl Iterator<Item = &'a DrawingContext>,
+        ui_render_info: impl Iterator<Item = UiRenderInfo<'a>>,
     ) -> Result<(), FrameworkError> {
         if self.frame_size.0 == 0 || self.frame_size.1 == 0 {
             return Ok(());
@@ -1389,21 +1402,8 @@ impl Renderer {
             .set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
 
         // Render UI on top of everything without gamma correction.
-        for drawing_context in drawing_contexts {
-            self.statistics += self.ui_renderer.render(UiRenderContext {
-                server: &*self.server,
-                viewport: window_viewport,
-                frame_buffer: &self.backbuffer,
-                frame_width: backbuffer_width,
-                frame_height: backbuffer_height,
-                drawing_context,
-                renderer_resources: &self.renderer_resources,
-                texture_cache: &mut self.texture_cache,
-                uniform_buffer_cache: &mut self.uniform_buffer_cache,
-                render_pass_cache: &mut self.shader_cache,
-                uniform_memory_allocator: &mut self.uniform_memory_allocator,
-                resource_manager,
-            })?;
+        for info in ui_render_info {
+            self.render_ui(info)?;
         }
 
         let screen_matrix =
@@ -1428,11 +1428,11 @@ impl Renderer {
         &mut self,
         scenes: &SceneContainer,
         elapsed_time: f32,
-        drawing_contexts: impl Iterator<Item = &'a DrawingContext>,
+        ui_info: impl Iterator<Item = UiRenderInfo<'a>>,
         window: &Window,
         resource_manager: &ResourceManager,
     ) -> Result<(), FrameworkError> {
-        self.render_frame(scenes, elapsed_time, resource_manager, drawing_contexts)?;
+        self.render_frame(scenes, elapsed_time, resource_manager, ui_info)?;
         self.statistics.end_frame();
         window.pre_present_notify();
         self.graphics_server().swap_buffers()?;

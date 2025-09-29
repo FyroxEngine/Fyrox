@@ -67,6 +67,7 @@ use crate::{
     },
     load_image,
 };
+use fyrox::renderer::ui_renderer::UiRenderInfo;
 use image::{ColorType, GenericImage, Rgba};
 
 #[derive(Default)]
@@ -678,14 +679,13 @@ pub fn render_ui_to_texture(
     );
     graphics_context
         .renderer
-        .render_ui_to_texture(
-            render_target.clone(),
+        .render_ui(UiRenderInfo {
+            render_target: Some(render_target.clone()),
             screen_size,
-            ui.draw(),
-            Color::opaque(100, 100, 100),
-            PixelKind::RGBA8,
-            &engine.resource_manager,
-        )
+            drawing_context: ui.draw(),
+            clear_color: Color::opaque(100, 100, 100),
+            resource_manager: &engine.resource_manager,
+        })
         .ok()?;
 
     assert!(graphics_context
