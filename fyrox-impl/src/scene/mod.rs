@@ -82,6 +82,7 @@ use crate::{
     utils::navmesh::Navmesh,
 };
 use fxhash::FxHashSet;
+use fyrox_core::SafeLock;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
@@ -348,7 +349,7 @@ impl SceneLoader {
         let registry_status = resource_manager
             .state()
             .resource_registry
-            .lock()
+            .safe_lock()
             .status_flag();
         // Wait until the registry is fully loaded.
         let registry_status = registry_status.await;
@@ -414,9 +415,6 @@ impl SceneLoader {
             let exclusion_list = used_resources
                 .iter()
                 .filter(|res| {
-                    // Calling resource_uuid means locking the header.
-                    // To minimize the number of locks we hold at once, get the UUID first,
-                    // before we lock the resource manager and registry.
                     let uuid = res.resource_uuid();
                     let state = self.resource_manager.state();
                     let registry = state.resource_registry.lock();

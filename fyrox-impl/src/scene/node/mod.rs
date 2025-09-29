@@ -641,7 +641,7 @@ mod test {
             uuid::{uuid, Uuid},
             variable::InheritableVariable,
             visitor::{prelude::*, Visitor},
-            TypeUuidProvider,
+            SafeLock, TypeUuidProvider,
         },
         engine::{self, SerializationContext},
         resource::model::{Model, ModelResourceExtension},
@@ -746,7 +746,7 @@ mod test {
         resource_manager
             .state()
             .resource_registry
-            .lock()
+            .safe_lock()
             .set_path("test_output/resources.registry");
 
         let serialization_context = SerializationContext::new();
@@ -794,7 +794,7 @@ mod test {
             mesh.set_cast_shadows(false);
             save_scene(&mut derived, derived_asset_path);
             let registry = resource_manager.state().resource_registry.clone();
-            let mut registry = registry.lock();
+            let mut registry = registry.safe_lock();
             let mut ctx = registry.modify();
             ctx.write_metadata(Uuid::new_v4(), derived_asset_path)
                 .unwrap();

@@ -33,7 +33,7 @@ use crate::{
         asset::{manager::ResourceManager, options::BaseImportOptions},
         core::{
             append_extension, err, futures::executor::block_on, log::Log, make_relative_path,
-            ok_or_continue, pool::Handle, some_or_continue,
+            ok_or_continue, pool::Handle, some_or_continue, SafeLock,
         },
         engine::Engine,
         graph::{BaseSceneGraph, SceneGraph},
@@ -175,7 +175,7 @@ pub struct AssetBrowser {
 
 fn is_path_in_registry(path: &Path, resource_manager: &ResourceManager) -> bool {
     let rm_state = resource_manager.state();
-    let registry = rm_state.resource_registry.lock();
+    let registry = rm_state.resource_registry.safe_lock();
     if let Some(registry_directory) = registry.directory() {
         if let Ok(canonical_registry_path) = registry_directory.canonicalize() {
             if let Ok(canonical_path) = path.canonicalize() {
@@ -200,7 +200,7 @@ fn is_supported_resource(ext: &OsStr, resource_manager: &ResourceManager) -> boo
     resource_manager
         .state()
         .loaders
-        .lock()
+        .safe_lock()
         .iter()
         .any(|loader| loader.supports_extension(ext))
 }
@@ -812,7 +812,7 @@ impl AssetBrowser {
                     let search_text = search_text.to_lowercase();
 
                     let registry = engine.resource_manager.state().resource_registry.clone();
-                    let registry = registry.lock();
+                    let registry = registry.safe_lock();
                     let mut paths = Vec::new();
                     for resource_path in registry.inner().values() {
                         let file_stem = some_or_continue!(resource_path
@@ -885,7 +885,7 @@ impl AssetBrowser {
                     resource_manager: &ResourceManager,
                 ) -> Option<Box<dyn BaseImportOptions>> {
                     let rm_state = resource_manager.state();
-                    let loaders = rm_state.loaders.lock();
+                    let loaders = rm_state.loaders.safe_lock();
                     for loader in loaders.iter() {
                         if loader.supports_extension(&extension.to_string_lossy()) {
                             return loader.default_import_options();

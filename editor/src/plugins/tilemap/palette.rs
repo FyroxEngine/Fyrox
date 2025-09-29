@@ -22,6 +22,7 @@
 //! is responsible for displaying a grid of tiles where the user may select tiles,
 //! drag tiles, and use drawing tools upon the tiles.
 
+use fyrox::core::SafeLock;
 use fyrox::scene::tilemap::brush::TileMapBrushResource;
 use fyrox::scene::tilemap::tileset::OptionTileSet;
 use fyrox::scene::tilemap::{ResourceTilePosition, RotTileHandle};
@@ -731,7 +732,7 @@ impl PaletteWidget {
             self.editable
                 && self.kind == TilePaletteStage::Tiles
                 && state.drawing_mode == DrawingMode::Editor
-                && editor.lock().slice_mode()
+                && editor.safe_lock().slice_mode()
         } else {
             false
         };
@@ -763,7 +764,7 @@ impl PaletteWidget {
                 DrawingMode::Editor => {
                     if let Some(editor) = &state.active_editor {
                         if let &Some(page) = &self.page {
-                            editor.lock().highlight(
+                            editor.safe_lock().highlight(
                                 &mut self.highlight,
                                 page,
                                 &self.content,
@@ -1363,7 +1364,7 @@ impl PaletteWidget {
             DrawingMode::Editor => {
                 if let Some(editor) = &state.active_editor {
                     if let Some(handle) = TileDefinitionHandle::try_new(page, end) {
-                        let editor = editor.lock();
+                        let editor = editor.safe_lock();
                         editor.draw_tile(
                             handle,
                             sub_pos,

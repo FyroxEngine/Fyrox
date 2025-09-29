@@ -20,6 +20,7 @@
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::futures::executor::ThreadPool;
+use crate::SafeLock;
 use parking_lot::Mutex;
 use std::{
     any::Any,
@@ -152,6 +153,6 @@ impl TaskPool {
 
     #[inline]
     pub fn next_task_result(&self) -> Option<TaskResult> {
-        self.receiver.lock().try_recv().ok()
+        self.receiver.safe_lock().try_recv().ok()
     }
 }

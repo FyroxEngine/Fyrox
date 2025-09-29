@@ -26,6 +26,7 @@
 
 use crate::context::{SoundContext, SAMPLE_RATE};
 use fyrox_core::visitor::{Visit, VisitResult, Visitor};
+use fyrox_core::SafeLock;
 use std::error::Error;
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -103,7 +104,7 @@ impl SoundEngine {
 
     /// Provides direct access to actual engine data.
     pub fn state(&self) -> MutexGuard<State> {
-        self.0.lock().unwrap()
+        self.0.safe_lock().unwrap()
     }
 }
 

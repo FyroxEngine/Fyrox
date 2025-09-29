@@ -38,7 +38,7 @@ use crate::{
 };
 use fxhash::FxHashSet;
 pub use fyrox_core as core;
-use fyrox_core::{combine_uuids, log::Log};
+use fyrox_core::{combine_uuids, log::Log, SafeLock};
 use std::any::Any;
 use std::path::PathBuf;
 use std::{
@@ -408,7 +408,7 @@ where
     #[inline]
     pub fn data_ref(&self) -> ResourceDataRef<'_, T> {
         ResourceDataRef {
-            guard: self.untyped.0.lock(),
+            guard: self.untyped.0.safe_lock(),
             phantom: Default::default(),
         }
     }
@@ -703,7 +703,8 @@ mod tests {
     };
     use fyrox_core::{
         append_extension, futures::executor::block_on, io::FileError, parking_lot::Mutex,
-        reflect::prelude::*, task::TaskPool, uuid, visitor::prelude::*, TypeUuidProvider, Uuid,
+        reflect::prelude::*, task::TaskPool, uuid, visitor::prelude::*, SafeLock, TypeUuidProvider,
+        Uuid,
     };
     use ron::ser::PrettyConfig;
     use serde::{Deserialize, Serialize};
@@ -854,7 +855,7 @@ mod tests {
         resource_manager
             .state()
             .resource_registry
-            .lock()
+            .safe_lock()
             .set_path(Path::new(TEST_FOLDER2).join("resources.registry"));
         resource_manager.add_loader(MyDataLoader {});
         resource_manager.update_or_load_registry();
@@ -877,7 +878,7 @@ mod tests {
         resource_manager
             .state()
             .resource_registry
-            .lock()
+            .safe_lock()
             .set_path(Path::new(TEST_FOLDER3).join("resources.registry"));
         resource_manager.add_loader(MyDataLoader {});
         resource_manager.update_or_load_registry();

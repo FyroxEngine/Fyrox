@@ -39,6 +39,7 @@ use crate::{
         sstorage::ImmutableString,
         uuid::Uuid,
         visitor::prelude::*,
+        SafeLock,
     },
     decorator::Decorator,
     dropdown_list::DropdownList,
@@ -761,7 +762,7 @@ impl PropertyEditorDefinitionContainer {
         self.definitions.write().insert(
             definition.value_type_id(),
             PropertyEditorDefinitionContainerEntry {
-                source_type_id: *self.context_type_id.lock(),
+                source_type_id: *self.context_type_id.safe_lock(),
                 property_editor: definition,
             },
         )
@@ -786,7 +787,7 @@ impl PropertyEditorDefinitionContainer {
         self.definitions.write().insert(
             definition.value_type_id(),
             PropertyEditorDefinitionContainerEntry {
-                source_type_id: *self.context_type_id.lock(),
+                source_type_id: *self.context_type_id.safe_lock(),
                 property_editor: Box::new(definition),
             },
         )

@@ -36,6 +36,7 @@ use crate::{
         uuid_provider,
         variable::InheritableVariable,
         visitor::prelude::*,
+        SafeLock,
     },
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
@@ -503,7 +504,7 @@ impl TextBox {
         let mut str = str.replace("\r\n", "\n");
         str.retain(|c| c == '\n' || !c.is_control());
         if let Some(filter) = self.filter.as_ref() {
-            let filter = &mut *filter.lock();
+            let filter = &mut *filter.safe_lock();
             str.retain(filter);
         }
         str
@@ -516,7 +517,7 @@ impl TextBox {
             .filter(|c| !c.is_control())
             .collect();
         if let Some(filter) = self.filter.as_ref() {
-            let filter = &mut *filter.lock();
+            let filter = &mut *filter.safe_lock();
             str.retain(filter);
         }
         str
@@ -1106,7 +1107,7 @@ impl Control for TextBox {
                         for symbol in text.chars() {
                             let insert = !symbol.is_control()
                                 && if let Some(filter) = self.filter.as_ref() {
-                                    let filter = &mut *filter.lock();
+                                    let filter = &mut *filter.safe_lock();
                                     filter(symbol)
                                 } else {
                                     true
