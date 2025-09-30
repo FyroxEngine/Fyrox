@@ -26,7 +26,7 @@ use crate::{
     widget::Widget,
     UiNode, UserInterface,
 };
-use fyrox_core::{define_as_any_trait, pool::ObjectOrVariant};
+use fyrox_core::{define_as_any_trait, pool::ObjectOrVariantHelper};
 
 use fyrox_core::algebra::Matrix3;
 use std::{
@@ -358,13 +358,13 @@ pub trait Control:
     }
 }
 
-// Essentially implements ObjectOrVariant for NodeTrait types.
+// Essentially implements ObjectOrVariant for Control types.
 // See ObjectOrVariantHelper for the cause of the indirection.
-impl<T: Control> ObjectOrVariant<UiNode> for PhantomData<T> {
-    fn convert_to_dest_type(node: &UiNode) -> Option<&Self> {
+impl<T: Control> ObjectOrVariantHelper<UiNode, T> for PhantomData<T> {
+    fn convert_to_dest_type_helper(node: &UiNode) -> Option<&T> {
         ControlAsAny::as_any(node.0.deref()).downcast_ref()
     }
-    fn convert_to_dest_type_mut(node: &mut UiNode) -> Option<&mut Self> {
+    fn convert_to_dest_type_helper_mut(node: &mut UiNode) -> Option<&mut T> {
         ControlAsAny::as_any_mut(node.0.deref_mut()).downcast_mut()
     }
 }
