@@ -156,10 +156,11 @@ dylib-engine = ["fyrox/dylib"]
     write_file(
         base_path.join("game/src/lib.rs"),
         r#"//! Game project.
+#[allow(unused_imports)]
+use fyrox::graph::prelude::*;
 use fyrox::{
     core::pool::Handle, core::visitor::prelude::*, core::reflect::prelude::*,
     event::Event,
-    graph::prelude::*,
     gui::{message::UiMessage, UserInterface},
     plugin::{Plugin, PluginContext, PluginRegistrationContext},
     scene::Scene,
@@ -667,10 +668,11 @@ pub fn init_script(root_path: &Path, raw_name: &str) -> Result<(), String> {
         file_name,
         format!(
             r#"
+#[allow(unused_imports)]
+use fyrox::graph::prelude::*;
 use fyrox::{{
     core::{{visitor::prelude::*, reflect::prelude::*, type_traits::prelude::*}},
     event::Event, script::{{ScriptContext, ScriptDeinitContext, ScriptTrait}},
-    graph::prelude::*,
 }};
 
 #[derive(Visit, Reflect, Default, Debug, Clone, TypeUuidProvider, ComponentProvider)]
