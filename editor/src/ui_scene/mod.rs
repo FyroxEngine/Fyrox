@@ -41,7 +41,6 @@ use crate::{
         engine::Engine,
         fxhash::FxHashSet,
         graph::{BaseSceneGraph, SceneGraph},
-        graphics::gpu_texture::PixelKind,
         gui::{
             brush::Brush,
             draw::{CommandTexture, Draw},
@@ -68,6 +67,7 @@ use crate::{
     Message,
 };
 use fyrox::gui::message::UiMessage;
+use fyrox::renderer::ui_renderer::UiRenderInfo;
 use std::{fs::File, io::Write, path::Path};
 
 pub struct PreviewInstance {
@@ -380,14 +380,13 @@ impl SceneController for UiScene {
                 .graphics_context
                 .as_initialized_mut()
                 .renderer
-                .render_ui_to_texture(
-                    self.render_target.clone(),
-                    self.ui.screen_size(),
-                    &self.ui.drawing_context,
-                    Color::DIM_GRAY,
-                    PixelKind::RGBA8,
-                    &engine.resource_manager,
-                ),
+                .render_ui(UiRenderInfo {
+                    render_target: Some(self.render_target.clone()),
+                    screen_size: self.ui.screen_size(),
+                    drawing_context: &self.ui.drawing_context,
+                    clear_color: Color::DIM_GRAY,
+                    resource_manager: &engine.resource_manager,
+                }),
         );
     }
 
