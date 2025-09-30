@@ -35,10 +35,7 @@ use crate::{
         engine::{Engine, GraphicsContext},
         fxhash::FxHashMap,
         graph::{BaseSceneGraph, SceneGraphNode},
-        graphics::{
-            framebuffer::ReadTarget,
-            gpu_texture::{GpuTextureKind, PixelKind},
-        },
+        graphics::{framebuffer::ReadTarget, gpu_texture::GpuTextureKind},
         gui::{
             font::Font, formatted_text::WrapMode, screen::ScreenBuilder, text::TextBuilder,
             widget::WidgetBuilder, HorizontalAlignment, UserInterface, VerticalAlignment,

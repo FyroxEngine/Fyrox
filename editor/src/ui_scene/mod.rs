@@ -41,7 +41,6 @@ use crate::{
         engine::Engine,
         fxhash::FxHashSet,
         graph::{BaseSceneGraph, SceneGraph},
-        graphics::gpu_texture::PixelKind,
         gui::{
             brush::Brush,
             draw::{CommandTexture, Draw},
