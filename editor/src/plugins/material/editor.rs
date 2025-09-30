@@ -274,10 +274,15 @@ impl MaterialFieldEditorBuilder {
             WidgetBuilder::new()
                 .on_row(1)
                 .with_child({
+                    select = make_pick_button(0, ctx);
+                    select
+                })
+                .with_child({
                     edit = ButtonBuilder::new(
                         WidgetBuilder::new()
                             .with_width(40.0)
-                            .with_margin(Thickness::uniform(1.0)),
+                            .with_margin(Thickness::uniform(1.0))
+                            .on_column(1),
                     )
                     .with_text("Edit...")
                     .build(ctx);
@@ -287,21 +292,17 @@ impl MaterialFieldEditorBuilder {
                     make_unique = ButtonBuilder::new(
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(1.0))
-                            .on_column(1)
+                            .on_column(2)
                             .with_tooltip(make_simple_tooltip(ctx, make_unique_tooltip)),
                     )
                     .with_text("Make Unique")
                     .build(ctx);
                     make_unique
-                })
-                .with_child({
-                    select = make_pick_button(2, ctx);
-                    select
                 }),
         )
         .add_row(Row::strict(20.0))
         .add_column(Column::auto())
-        .add_column(Column::stretch())
+        .add_column(Column::auto())
         .add_column(Column::auto())
         .build(ctx);
 
