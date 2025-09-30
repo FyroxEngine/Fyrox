@@ -159,6 +159,7 @@ dylib-engine = ["fyrox/dylib"]
 use fyrox::{
     core::pool::Handle, core::visitor::prelude::*, core::reflect::prelude::*,
     event::Event,
+    graph::prelude::*,
     gui::{message::UiMessage, UserInterface},
     plugin::{Plugin, PluginContext, PluginRegistrationContext},
     scene::Scene,
