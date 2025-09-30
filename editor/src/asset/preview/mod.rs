@@ -674,12 +674,12 @@ pub fn render_ui_to_texture(
         asset::item::DEFAULT_SIZE as u32,
         asset::item::DEFAULT_SIZE as u32,
     );
+    ui.draw();
     graphics_context
         .renderer
         .render_ui(UiRenderInfo {
+            ui,
             render_target: Some(render_target.clone()),
-            screen_size,
-            drawing_context: ui.draw(),
             clear_color: Color::opaque(100, 100, 100),
             resource_manager: &engine.resource_manager,
         })

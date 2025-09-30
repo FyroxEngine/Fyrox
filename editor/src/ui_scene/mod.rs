@@ -381,9 +381,8 @@ impl SceneController for UiScene {
                 .as_initialized_mut()
                 .renderer
                 .render_ui(UiRenderInfo {
+                    ui: &self.ui,
                     render_target: Some(self.render_target.clone()),
-                    screen_size: self.ui.screen_size(),
-                    drawing_context: &self.ui.drawing_context,
                     clear_color: Color::DIM_GRAY,
                     resource_manager: &engine.resource_manager,
                 }),

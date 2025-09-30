@@ -675,6 +675,17 @@ pub struct UiUpdateSwitches {
 
 pub type WidgetPool = Pool<UiNode, WidgetContainer>;
 
+#[derive(Default, Debug, Clone, Reflect, Visit)]
+pub enum RenderMode {
+    /// The UI will be re-rendered on every frame. This is the default behavior.
+    #[default]
+    EveryFrame,
+    /// The UI will be re-rendered only if there was any message with [`MessageDirection::ToWidget`]
+    /// sent to it. This option can be useful for offscreen rending of a user interface that changes
+    /// infrequently.
+    OnChanges,
+}
+
 #[derive(Reflect, Debug)]
 pub struct UserInterface {
     screen_size: Vector2<f32>,
@@ -720,7 +731,14 @@ pub struct UserInterface {
     pub double_click_time_slice: f32,
     pub tooltip_appear_delay: f32,
     pub standard_material: WidgetMaterial,
+    /// Optional render target of the user interface. The UI will be rendered in such target with
+    /// and the target size will be set to the screen size of the user interface.
     pub render_target: Option<TextureResource>,
+    /// Render mode of the user interface. See [`RenderMode`] docs for more info.
+    pub render_mode: RenderMode,
+    /// A flag that indicates that the UI should be rendered. It is only taken into account if
+    /// the render mode is set to [`RenderMode::OnChanges`].
+    pub need_render: bool,
 }
 
 impl Visit for UserInterface {
@@ -757,6 +775,7 @@ impl Visit for UserInterface {
         let _ = self
             .standard_material
             .visit("StandardMaterial", &mut region);
+        let _ = self.render_mode.visit("RenderMode", &mut region);
 
         if region.is_reading() {
             for node in self.nodes.iter() {
@@ -816,6 +835,8 @@ impl Clone for UserInterface {
             tooltip_appear_delay: self.tooltip_appear_delay,
             standard_material: Default::default(),
             render_target: None,
+            render_mode: Default::default(),
+            need_render: self.need_render,
         }
     }
 }
@@ -1123,6 +1144,8 @@ impl UserInterface {
             tooltip_appear_delay: 0.55,
             standard_material: Default::default(),
             render_target: None,
+            render_mode: Default::default(),
+            need_render: true,
         };
         let root_node = UiNode::new(Canvas {
             widget: WidgetBuilder::new().build(&ui.build_ctx()),
@@ -1920,6 +1943,10 @@ impl UserInterface {
                 // we have skip processing of such messages.
                 if !self.nodes.is_valid_handle(message.destination()) {
                     return Some(message);
+                }
+
+                if let RenderMode::OnChanges = self.render_mode {
+                    self.need_render = true;
                 }
 
                 if message.need_perform_layout() {

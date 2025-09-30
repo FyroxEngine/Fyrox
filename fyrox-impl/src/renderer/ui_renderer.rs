@@ -60,6 +60,7 @@ use crate::{
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
+use fyrox_ui::UserInterface;
 use uuid::Uuid;
 
 /// User interface renderer allows you to render drawing context in specified render target.
@@ -98,13 +99,11 @@ pub struct UiRenderContext<'a, 'b, 'c> {
 
 /// Contains all the info required to render a user interface.
 pub struct UiRenderInfo<'a> {
+    /// A reference to a user interface that needs to be rendered.
+    pub ui: &'a UserInterface,
     /// A render target to render a user interface (UI) to. If [`None`], then the UI will be rendered
     /// to the screen directly.
     pub render_target: Option<TextureResource>,
-    /// Screen size for the UI. In most cases, it should be `ui.screen_size()`.
-    pub screen_size: Vector2<f32>,
-    /// A drawing content of a UI. In most cases, it should be `ui.draw()`.
-    pub drawing_context: &'a DrawingContext,
     /// A color that will be used to fill a render target before rendering of the UI. Ignored if the
     /// render target is [`None`] and nothing will be cleared.
     pub clear_color: Color,

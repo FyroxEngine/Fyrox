@@ -116,6 +116,7 @@ use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
 };
+use fyrox_ui::RenderMode;
 use std::{
     any::TypeId,
     cell::Cell,
@@ -2446,13 +2447,21 @@ impl Engine {
             ctx.renderer.render_and_swap_buffers(
                 &self.scenes,
                 self.elapsed_time,
-                self.user_interfaces.iter().map(|ui| UiRenderInfo {
-                    render_target: ui.render_target.clone(),
-                    screen_size: ui.screen_size(),
-                    drawing_context: &ui.drawing_context,
-                    clear_color: Default::default(),
-                    resource_manager: &self.resource_manager,
-                }),
+                self.user_interfaces
+                    .iter_mut()
+                    .filter(|ui| match ui.render_mode {
+                        RenderMode::EveryFrame => true,
+                        RenderMode::OnChanges => ui.need_render,
+                    })
+                    .map(|ui| {
+                        ui.need_render = false;
+                        UiRenderInfo {
+                            ui,
+                            render_target: ui.render_target.clone(),
+                            clear_color: Default::default(),
+                            resource_manager: &self.resource_manager,
+                        }
+                    }),
                 &ctx.window,
                 &self.resource_manager,
             )?;

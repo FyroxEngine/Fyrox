@@ -781,7 +781,7 @@ impl Renderer {
     /// Renders the given UI into specified render target. This method is especially useful if you need
     /// to have off-screen UIs (like interactive touch-screen in Doom 3, Dead Space, etc).
     pub fn render_ui(&mut self, render_info: UiRenderInfo) -> Result<(), FrameworkError> {
-        let screen_size = render_info.screen_size;
+        let screen_size = render_info.ui.screen_size();
 
         let new_width = screen_size.x as usize;
         let new_height = screen_size.y as usize;
@@ -836,7 +836,7 @@ impl Renderer {
             frame_buffer,
             frame_width: screen_size.x,
             frame_height: screen_size.y,
-            drawing_context: render_info.drawing_context,
+            drawing_context: &render_info.ui.drawing_context,
             renderer_resources: &self.renderer_resources,
             texture_cache: &mut self.texture_cache,
             uniform_buffer_cache: &mut self.uniform_buffer_cache,
