@@ -1389,8 +1389,11 @@ fn bytes_in_mip_level(kind: TextureKind, pixel_kind: TexturePixelKind, mip: usiz
         | TexturePixelKind::Luminance16
         | TexturePixelKind::RG8
         | TexturePixelKind::R16F => 2 * pixel_count,
-        TexturePixelKind::RGB8 | TexturePixelKind::BGR8 => 3 * pixel_count,
+        TexturePixelKind::RGB8 | TexturePixelKind::SRGB8 | TexturePixelKind::BGR8 => {
+            3 * pixel_count
+        }
         TexturePixelKind::RGBA8
+        | TexturePixelKind::SRGBA8
         | TexturePixelKind::BGRA8
         | TexturePixelKind::RG16
         | TexturePixelKind::LuminanceAlpha16

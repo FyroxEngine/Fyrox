@@ -104,6 +104,8 @@ pub fn convert_pixel_kind(texture_kind: TexturePixelKind) -> PixelKind {
         TexturePixelKind::LuminanceAlpha16 => PixelKind::LA16,
         TexturePixelKind::R32F => PixelKind::R32F,
         TexturePixelKind::R16F => PixelKind::R16F,
+        TexturePixelKind::SRGBA8 => PixelKind::SRGBA8,
+        TexturePixelKind::SRGB8 => PixelKind::SRGB8,
     }
 }
 
