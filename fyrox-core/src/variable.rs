@@ -337,8 +337,15 @@ where
         if visitor.is_reading() {
             // Try to visit inner value first, this is very useful if user decides to make their
             // variable inheritable, but still keep backward compatibility.
-            visited = self.value.visit(name, visitor).is_ok();
-            self.flags.get_mut().insert(VariableFlags::MODIFIED);
+            let has_flags = if let Ok(mut region) = visitor.enter_region(name) {
+                self.flags.get_mut().0.visit("Flags", &mut region).is_ok()
+            } else {
+                false
+            };
+            if !has_flags {
+                visited = self.value.visit(name, visitor).is_ok();
+                self.flags.get_mut().insert(VariableFlags::MODIFIED);
+            }
         }
 
         if !visited {

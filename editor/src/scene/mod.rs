@@ -211,10 +211,6 @@ impl GameScene {
             scene_content_root,
         );
 
-        // Freeze physics simulation in while editing scene by setting time step to zero.
-        scene.graph.physics.integration_parameters.dt = Some(0.0);
-        scene.graph.physics2d.integration_parameters.dt = Some(0.0);
-
         GameScene {
             editor_objects_root,
             scene_content_root,
@@ -224,6 +220,8 @@ impl GameScene {
             clipboard: Default::default(),
             preview_camera: Default::default(),
             graph_switches: GraphUpdateSwitches {
+                // Freeze physics simulation while editing scene by setting time step to zero.
+                physics_dt: false,
                 physics2d: true,
                 physics: true,
                 // Prevent engine to update lifetime of the nodes and to delete "dead" nodes. Otherwise
