@@ -444,7 +444,7 @@ impl ResourceState {
         let wakers = if let ResourceState::Pending { ref mut wakers, .. } = self {
             std::mem::take(wakers)
         } else {
-            unreachable!()
+            Default::default()
         };
 
         *self = state;

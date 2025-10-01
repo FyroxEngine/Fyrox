@@ -1040,10 +1040,9 @@ impl ResourceManagerState {
             // Wait until the registry is fully loaded.
             let registry_status = registry_status.await;
             if registry_status == ResourceRegistryStatus::Unknown {
-                resource.commit_error(
-                    path.clone(),
-                    LoadError::new("The resource registry is unavailable!".to_string()),
-                );
+                let error = "The resource registry is unavailable!".to_string();
+                Log::err(&error);
+                resource.commit_error(path.clone(), LoadError::new(error));
                 return;
             }
 
@@ -1079,10 +1078,7 @@ impl ResourceManagerState {
 
                                 event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
 
-                                Log::info(format!(
-                                    "Resource {} was loaded successfully!",
-                                    path.display()
-                                ));
+                                info!("Resource {} was loaded successfully!", path.display());
                             }
                             None => {
                                 let error = format!(
@@ -1091,28 +1087,41 @@ impl ResourceManagerState {
                                     path.display(),
                                 );
 
-                                resource.commit_error(path, error);
+                                Log::err(&error);
+
+                                // Do not replace the ok resource with the error if reloading has
+                                // failed.
+                                if !reload {
+                                    resource.commit_error(path, error);
+                                }
                             }
                         }
                     }
                     Err(error) => {
-                        Log::info(format!(
+                        err!(
                             "Resource {} failed to load. Reason: {:?}",
                             path.display(),
                             error
-                        ));
+                        );
 
-                        resource.commit_error(path, error);
+                        // Do not replace the ok resource with the error if reloading has
+                        // failed.
+                        if !reload {
+                            resource.commit_error(path, error);
+                        }
                     }
                 }
             } else {
-                resource.commit_error(
-                    path.clone(),
-                    LoadError::new(format!(
+                if !reload {
+                    let err_msg = format!(
                         "There's no resource loader for {} resource!",
                         path.display()
-                    )),
-                )
+                    );
+
+                    Log::err(&err_msg);
+
+                    resource.commit_error(path.clone(), LoadError::new(err_msg))
+                }
             }
         });
     }
@@ -1207,14 +1216,13 @@ impl ResourceManagerState {
 
     /// Reloads a single resource.
     pub fn reload_resource(&mut self, resource: UntypedResource) {
-        let mut header = resource.0.lock();
+        let header = resource.0.lock();
         match header.state {
             ResourceState::Pending { .. } => {
                 // The resource is loading already.
             }
             ResourceState::LoadError { ref path, .. } => {
                 let path = path.clone();
-                header.state.switch_to_pending_state(path.clone());
                 drop(header);
                 self.spawn_loading_task(path, resource, true)
             }
@@ -1224,7 +1232,6 @@ impl ResourceManagerState {
                     .lock()
                     .uuid_to_path_buf(resource_uuid);
                 if let Some(path) = path {
-                    header.state.switch_to_pending_state(path.clone());
                     drop(header);
                     self.spawn_loading_task(path, resource, true);
                 } else {
