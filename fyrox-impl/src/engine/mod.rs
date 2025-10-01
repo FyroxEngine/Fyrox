@@ -636,7 +636,7 @@ impl ScriptMessageDispatcher {
                     ScriptMessageKind::Hierarchical { root, routing } => match routing {
                         RoutingStrategy::Up => {
                             let mut node = root;
-                            while let Some(node_ref) = scene.graph.try_get(node) {
+                            while let Some(node_ref) = scene.graph.try_get_node(node) {
                                 let parent = node_ref.parent();
 
                                 let mut context = ScriptMessageContext {
@@ -2012,7 +2012,9 @@ impl Engine {
                 {
                     let payload = result.payload;
                     if let Some(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle) {
-                        if let Some(node) = scene.graph.try_get_mut(node_task_handler.node_handle) {
+                        if let Some(node) =
+                            scene.graph.try_get_node_mut(node_task_handler.node_handle)
+                        {
                             if let Some(mut script) = node
                                 .scripts
                                 .get_mut(node_task_handler.script_index)
@@ -2040,7 +2042,7 @@ impl Engine {
                                 );
 
                                 if let Some(node) =
-                                    scene.graph.try_get_mut(node_task_handler.node_handle)
+                                    scene.graph.try_get_node_mut(node_task_handler.node_handle)
                                 {
                                     if let Some(entry) =
                                         node.scripts.get_mut(node_task_handler.script_index)

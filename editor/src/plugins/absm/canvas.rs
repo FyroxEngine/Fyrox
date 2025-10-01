@@ -212,7 +212,7 @@ impl AbsmCanvas {
         T: 'static,
     {
         if ui
-            .try_get(node_handle)
+            .try_get_node(node_handle)
             .is_some_and(|n| n.has_component::<T>())
         {
             return node_handle;
@@ -290,8 +290,8 @@ impl AbsmCanvas {
                 {
                     if transition_handle == transition.handle() {
                         if let (Some(source_state), Some(dest_state)) = (
-                            ui.try_get(transition.segment.source),
-                            ui.try_get(transition.segment.dest),
+                            ui.try_get_node(transition.segment.source),
+                            ui.try_get_node(transition.segment.dest),
                         ) {
                             let source_pos = source_state.center();
                             let dest_pos = dest_state.center();

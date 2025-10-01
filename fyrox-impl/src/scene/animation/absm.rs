@@ -333,7 +333,7 @@ impl NodeTrait for AnimationBlendingStateMachine {
     fn validate(&self, scene: &Scene) -> Result<(), String> {
         if scene
             .graph
-            .try_get(*self.animation_player)
+            .try_get_node(*self.animation_player)
             .and_then(|n| n.component_ref::<AnimationPlayer>())
             .is_none()
         {

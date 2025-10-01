@@ -306,7 +306,7 @@ impl RagdollPreset {
         apply_offset: bool,
         graph: &mut Graph,
     ) -> Handle<Node> {
-        if let Some(from_ref) = graph.try_get(from) {
+        if let Some(from_ref) = graph.try_get_node(from) {
             let offset = if apply_offset {
                 from_ref
                     .up_vector()
@@ -364,7 +364,7 @@ impl RagdollPreset {
         ragdoll: Handle<Node>,
         graph: &mut Graph,
     ) -> Handle<Node> {
-        if let (Some(from_ref), Some(to_ref)) = (graph.try_get(from), graph.try_get(to)) {
+        if let (Some(from_ref), Some(to_ref)) = (graph.try_get_node(from), graph.try_get_node(to)) {
             let pos_from = from_ref.global_position();
             let pos_to = to_ref.global_position();
 
@@ -418,7 +418,7 @@ impl RagdollPreset {
         ragdoll: Handle<Node>,
         graph: &mut Graph,
     ) -> Handle<Node> {
-        if let Some(from_ref) = graph.try_get(from) {
+        if let Some(from_ref) = graph.try_get_node(from) {
             let cuboid = RigidBodyBuilder::new(
                 BaseBuilder::new()
                     .with_name(name)
@@ -458,7 +458,8 @@ impl RagdollPreset {
             (self.left_fore_arm, self.left_hand),
             (self.left_fore_arm, self.right_hand),
         ] {
-            if let (Some(upper_ref), Some(lower_ref)) = (graph.try_get(upper), graph.try_get(lower))
+            if let (Some(upper_ref), Some(lower_ref)) =
+                (graph.try_get_node(upper), graph.try_get_node(lower))
             {
                 base_size = (upper_ref.global_position() - lower_ref.global_position()).norm();
                 break;

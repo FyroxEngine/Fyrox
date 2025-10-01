@@ -119,7 +119,7 @@ impl AnimationPoseExt for AnimationPose {
         for (node, local_pose) in self.poses() {
             if node.is_none() {
                 Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
-            } else if let Some(node) = graph.try_get_mut(*node) {
+            } else if let Some(node) = graph.try_get_node_mut(*node) {
                 local_pose.values.apply(node);
             }
         }
@@ -132,7 +132,7 @@ impl AnimationPoseExt for AnimationPose {
         for (node, local_pose) in self.poses() {
             if node.is_none() {
                 Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
-            } else if let Some(node_ref) = graph.try_get_mut(*node) {
+            } else if let Some(node_ref) = graph.try_get_node_mut(*node) {
                 callback(node_ref, *node, local_pose);
             }
         }

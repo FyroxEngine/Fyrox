@@ -372,7 +372,7 @@ impl SettingsWindow {
                 self.sync_to_model(ui, settings, sender, engine.resource_manager.clone());
             }
 
-            if let Some(node) = ui.try_get(message.destination()) {
+            if let Some(node) = ui.try_get_node(message.destination()) {
                 if let Some(user_data) = node.user_data_cloned::<GroupName>() {
                     let inspector = ui.try_get_of_type::<Inspector>(self.inspector).unwrap();
 

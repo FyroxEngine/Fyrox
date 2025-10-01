@@ -483,12 +483,6 @@ impl Graph {
         self.root
     }
 
-    /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
-    #[inline]
-    pub fn try_get_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
-        self.pool.try_borrow_mut(handle)
-    }
-
     /// Begins multi-borrow that allows you borrow to as many shared references to the graph
     /// nodes as you need and only one mutable reference to a node. See
     /// [`MultiBorrowContext::try_get`] for more info.
@@ -873,7 +867,7 @@ impl Graph {
         where
             F: FnMut(Handle<Node>, &Node) -> bool,
         {
-            graph.try_get(node).and_then(|n| {
+            graph.try_get_node(node).and_then(|n| {
                 if filter(node, n) {
                     let mut aabb = n.local_bounding_box();
                     if aabb.is_invalid_or_degenerate() {
@@ -1083,7 +1077,7 @@ impl Graph {
                 func: &mut impl FnMut(Handle<Node>),
             ) {
                 func(from);
-                if let Some(node) = graph.try_get(from) {
+                if let Some(node) = graph.try_get_node(from) {
                     for &child in node.children() {
                         traverse_recursive(graph, child, func)
                     }
@@ -1534,7 +1528,7 @@ impl Graph {
     #[inline]
     pub fn global_scale(&self, mut node: Handle<Node>) -> Vector3<f32> {
         let mut global_scale = Vector3::repeat(1.0);
-        while let Some(node_ref) = self.try_get(node) {
+        while let Some(node_ref) = self.try_get_node(node) {
             global_scale = global_scale.component_mul(node_ref.local_transform().scale());
             node = node_ref.parent;
         }
@@ -1548,7 +1542,7 @@ impl Graph {
     where
         T: ScriptTrait,
     {
-        self.try_get(node)
+        self.try_get_node(node)
             .and_then(|node| node.try_get_script::<T>())
     }
 
@@ -1560,7 +1554,7 @@ impl Graph {
         &self,
         node: Handle<Node>,
     ) -> Option<impl Iterator<Item = &T>> {
-        self.try_get(node).map(|n| n.try_get_scripts())
+        self.try_get_node(node).map(|n| n.try_get_scripts())
     }
 
     /// Tries to borrow a node using the given handle and searches the script buffer for a script
@@ -1570,7 +1564,7 @@ impl Graph {
     where
         T: ScriptTrait,
     {
-        self.try_get_mut(node)
+        self.try_get_node_mut(node)
             .and_then(|node| node.try_get_script_mut::<T>())
     }
 
@@ -1582,7 +1576,7 @@ impl Graph {
         &mut self,
         node: Handle<Node>,
     ) -> Option<impl Iterator<Item = &mut T>> {
-        self.try_get_mut(node).map(|n| n.try_get_scripts_mut())
+        self.try_get_node_mut(node).map(|n| n.try_get_scripts_mut())
     }
 
     /// Tries to borrow a node and find a component of the given type `C` across **all** available
@@ -1593,7 +1587,7 @@ impl Graph {
     where
         C: Any,
     {
-        self.try_get(node)
+        self.try_get_node(node)
             .and_then(|node| node.try_get_script_component())
     }
 
@@ -1605,7 +1599,7 @@ impl Graph {
     where
         C: Any,
     {
-        self.try_get_mut(node)
+        self.try_get_node_mut(node)
             .and_then(|node| node.try_get_script_component_mut())
     }
 
@@ -1634,7 +1628,7 @@ impl<T: ObjectOrVariant<Node>> Index<Handle<T>> for Graph {
 
     #[inline]
     fn index(&self, index: Handle<T>) -> &Self::Output {
-        self.typed_ref(index)
+        self.try_get(index)
             .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
@@ -1642,7 +1636,7 @@ impl<T: ObjectOrVariant<Node>> Index<Handle<T>> for Graph {
 impl<T: ObjectOrVariant<Node>> IndexMut<Handle<T>> for Graph {
     #[inline]
     fn index_mut(&mut self, index: Handle<T>) -> &mut Self::Output {
-        self.typed_mut(index)
+        self.try_get_mut(index)
             .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
@@ -1808,12 +1802,12 @@ impl BaseSceneGraph for Graph {
     }
 
     #[inline]
-    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+    fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
         self.pool.try_borrow(handle)
     }
 
     #[inline]
-    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+    fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
         self.pool.try_borrow_mut(handle)
     }
 
@@ -1847,12 +1841,12 @@ impl SceneGraph for Graph {
         self.pool.iter_mut()
     }
 
-    fn typed_ref<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Option<&U> {
-        self.pool.typed_ref(handle)
+    fn try_get<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Option<&U> {
+        self.pool.try_get(handle)
     }
 
-    fn typed_mut<U: ObjectOrVariant<Node>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
-        self.pool.typed_mut(handle)
+    fn try_get_mut<U: ObjectOrVariant<Node>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
+        self.pool.try_get_mut(handle)
     }
 }
 
@@ -2351,7 +2345,7 @@ mod test {
         assert!(graph[c].global_visibility());
         assert!(graph[d].global_visibility());
 
-        assert!(!graph.pool.typed_ref(a).unwrap().is_globally_enabled());
+        assert!(!graph.pool.try_get(a).unwrap().is_globally_enabled());
         assert!(!graph[b].is_globally_enabled());
         assert!(!graph[c].is_globally_enabled());
         assert!(!graph[d].is_globally_enabled());
@@ -2363,21 +2357,18 @@ mod test {
         let pivot = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
         let rigid_body = RigidBodyBuilder::new(BaseBuilder::new()).build(&mut graph);
 
-        assert!(graph.pool.typed_ref(pivot).is_some());
-        assert!(graph.pool.typed_ref(pivot.transmute::<Pivot>()).is_some());
-        assert!(graph
-            .pool
-            .typed_ref(pivot.transmute::<RigidBody>())
-            .is_none());
+        assert!(graph.pool.try_get(pivot).is_some());
+        assert!(graph.pool.try_get(pivot.transmute::<Pivot>()).is_some());
+        assert!(graph.pool.try_get(pivot.transmute::<RigidBody>()).is_none());
 
-        assert!(graph.pool.typed_ref(rigid_body).is_some());
+        assert!(graph.pool.try_get(rigid_body).is_some());
         assert!(graph
             .pool
-            .typed_ref(rigid_body.transmute::<RigidBody>())
+            .try_get(rigid_body.transmute::<RigidBody>())
             .is_some());
         assert!(graph
             .pool
-            .typed_ref(rigid_body.transmute::<Pivot>())
+            .try_get(rigid_body.transmute::<Pivot>())
             .is_none());
     }
 }

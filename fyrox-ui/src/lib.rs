@@ -1319,7 +1319,7 @@ impl UserInterface {
                         func: &mut impl FnMut(Handle<UiNode>),
                     ) {
                         func(from);
-                        if let Some(node) = graph.try_get(from) {
+                        if let Some(node) = graph.try_get_node(from) {
                             for &child in node.children() {
                                 traverse_recursive(graph, child, func)
                             }
@@ -1378,10 +1378,10 @@ impl UserInterface {
             self.update_visual_transform(root);
 
             // Recalculate clip bounds, because they depend on the visual transform.
-            if let Some(root_ref) = self.try_get(root) {
+            if let Some(root_ref) = self.try_get_node(root) {
                 self.calculate_clip_bounds(
                     root,
-                    self.try_get(root_ref.parent())
+                    self.try_get_node(root_ref.parent())
                         .map(|c| c.clip_bounds())
                         .unwrap_or_else(|| {
                             Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y)
@@ -1447,7 +1447,7 @@ impl UserInterface {
         self.style = style;
 
         fn notify_depth_first(node: Handle<UiNode>, ui: &UserInterface) {
-            if let Some(node_ref) = ui.try_get(node) {
+            if let Some(node_ref) = ui.try_get_node(node) {
                 for child in node_ref.children.iter() {
                     notify_depth_first(*child, ui);
                 }
@@ -2121,8 +2121,8 @@ impl UserInterface {
                             margin,
                         } => {
                             if let (Some(node), Some(relative_node)) = (
-                                self.try_get(message.destination()),
-                                self.try_get(*relative_to),
+                                self.try_get_node(message.destination()),
+                                self.try_get_node(*relative_to),
                             ) {
                                 // Calculate new anchor point in screen coordinate system.
                                 let relative_node_screen_size = relative_node.screen_bounds().size;
@@ -2178,7 +2178,7 @@ impl UserInterface {
                                     }
                                 }
 
-                                if let Some(parent) = self.try_get(node.parent()) {
+                                if let Some(parent) = self.try_get_node(node.parent()) {
                                     // Transform screen anchor point into the local coordinate system
                                     // of the parent node.
                                     let local_anchor_point =
@@ -2643,7 +2643,7 @@ impl UserInterface {
                 state,
                 text,
             } => {
-                if let Some(keyboard_focus_node) = self.try_get(self.keyboard_focus_node) {
+                if let Some(keyboard_focus_node) = self.try_get_node(self.keyboard_focus_node) {
                     if keyboard_focus_node.is_globally_visible() {
                         match state {
                             ButtonState::Pressed => {
@@ -3293,12 +3293,12 @@ impl BaseSceneGraph for UserInterface {
     }
 
     #[inline]
-    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+    fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
         self.nodes.try_borrow(handle)
     }
 
     #[inline]
-    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+    fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
         self.nodes.try_borrow_mut(handle)
     }
 
@@ -3416,12 +3416,12 @@ impl SceneGraph for UserInterface {
         self.nodes.iter_mut()
     }
 
-    fn typed_ref<U: ObjectOrVariant<UiNode>>(&self, handle: Handle<U>) -> Option<&U> {
-        self.nodes.typed_ref(handle)
+    fn try_get<U: ObjectOrVariant<UiNode>>(&self, handle: Handle<U>) -> Option<&U> {
+        self.nodes.try_get(handle)
     }
 
-    fn typed_mut<U: ObjectOrVariant<UiNode>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
-        self.nodes.typed_mut(handle)
+    fn try_get_mut<U: ObjectOrVariant<UiNode>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
+        self.nodes.try_get_mut(handle)
     }
 }
 

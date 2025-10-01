@@ -300,7 +300,7 @@ impl GameScene {
 
         if let Some(selection) = editor_selection.as_graph() {
             for &node in selection.nodes() {
-                if let Some(node) = scene.graph.try_get(node) {
+                if let Some(node) = scene.graph.try_get_node(node) {
                     scene.drawing_context.draw_oob(
                         &node.local_bounding_box(),
                         node.global_transform(),
@@ -1047,7 +1047,7 @@ impl SceneController for GameScene {
                     UiMessage::with_data(HandlePropertyEditorNameMessage(
                         scene
                             .graph
-                            .try_get((*handle).into())
+                            .try_get_node((*handle).into())
                             .map(|n| n.name_owned()),
                     ))
                     .with_destination(*view)

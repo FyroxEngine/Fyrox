@@ -40,6 +40,7 @@ use crate::{
     send_sync_message, send_sync_messages, Message,
 };
 use fyrox::core::algebra::Vector2;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::gui::widget::WidgetMessage;
 use fyrox::scene::collider::BitMask;
 
@@ -204,7 +205,7 @@ impl CameraPreviewControlPanel {
         let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
         if let Some((camera_handle, original)) = self.camera_state.take() {
-            if let Some(camera) = scene.graph.try_get_mut(camera_handle) {
+            if let Some(camera) = scene.graph.try_get_node_mut(camera_handle) {
                 *camera = original
             }
 

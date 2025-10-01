@@ -76,7 +76,7 @@ impl TileContentDescriptor {
         match tile_content {
             TileContent::Empty => Self::Empty,
             TileContent::Window(window) => Self::Window(
-                ui.try_get(*window)
+                ui.try_get_node(*window)
                     .map(|w| w.name.clone())
                     .unwrap_or_default(),
             ),
@@ -86,7 +86,7 @@ impl TileContentDescriptor {
                     names: windows
                         .iter()
                         .map(|window| {
-                            ui.try_get(*window)
+                            ui.try_get_node(*window)
                                 .map(|w| w.name.clone())
                                 .unwrap_or_default()
                         })
@@ -151,7 +151,7 @@ fn find_window(
 
     if window_handle.is_none() {
         for other_window_handle in windows.iter().cloned() {
-            if let Some(window_node) = ui.try_get(other_window_handle) {
+            if let Some(window_node) = ui.try_get_node(other_window_handle) {
                 if &window_node.name == window_name {
                     return other_window_handle;
                 }
@@ -163,7 +163,7 @@ fn find_window(
 
 impl TileDescriptor {
     pub(super) fn from_tile_handle(handle: Handle<UiNode>, ui: &UserInterface) -> Self {
-        ui.try_get(handle)
+        ui.try_get_node(handle)
             .and_then(|t| t.query_component::<Tile>())
             .map(|t| Self {
                 content: TileContentDescriptor::from_tile(&t.content, ui),

@@ -847,12 +847,12 @@ impl PhysicsWorld {
             }),
             exclude_collider: filter
                 .exclude_collider
-                .and_then(|h| graph.try_get(h))
+                .and_then(|h| graph.try_get_node(h))
                 .and_then(|n| n.component_ref::<dim2::collider::Collider>())
                 .map(|c| c.native.get()),
             exclude_rigid_body: filter
                 .exclude_collider
-                .and_then(|h| graph.try_get(h))
+                .and_then(|h| graph.try_get_node(h))
                 .and_then(|n| n.component_ref::<dim2::rigidbody::RigidBody>())
                 .map(|c| c.native.get()),
             predicate: Some(&predicate),
@@ -1242,12 +1242,12 @@ impl PhysicsWorld {
 
         if let Some(native) = self.joints.set.get_mut(joint.native.get(), false) {
             joint.body1.try_sync_model(|v| {
-                if let Some(rigid_body_node) = nodes.typed_ref(v) {
+                if let Some(rigid_body_node) = nodes.try_get(v) {
                     native.body1 = rigid_body_node.native.get();
                 }
             });
             joint.body2.try_sync_model(|v| {
-                if let Some(rigid_body_node) = nodes.typed_ref(v) {
+                if let Some(rigid_body_node) = nodes.try_get(v) {
                     native.body2 = rigid_body_node.native.get();
                 }
             });
@@ -1295,10 +1295,9 @@ impl PhysicsWorld {
             });
             let mut local_frames = joint.local_frames.borrow_mut();
             if local_frames.is_none() {
-                if let (Some(body1), Some(body2)) = (
-                    nodes.typed_ref(joint.body1()),
-                    nodes.typed_ref(joint.body2()),
-                ) {
+                if let (Some(body1), Some(body2)) =
+                    (nodes.try_get(joint.body1()), nodes.try_get(joint.body2()))
+                {
                     let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
                     native.data =
                         convert_joint_params((*joint.params).clone(), local_frame1, local_frame2);
@@ -1312,7 +1311,7 @@ impl PhysicsWorld {
 
             // A native joint can be created iff both rigid bodies are correctly assigned.
             if let (Some(body1), Some(body2)) =
-                (nodes.typed_ref(body1_handle), nodes.typed_ref(body2_handle))
+                (nodes.try_get(body1_handle), nodes.try_get(body2_handle))
             {
                 // Calculate local frames first (if needed).
                 let mut local_frames = joint.local_frames.borrow_mut();

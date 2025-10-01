@@ -62,7 +62,7 @@ fn set_property<T: Reflect>(
             ctx.get_mut::<GameSceneContext>()
                 .scene
                 .graph
-                .try_get_mut(selected_collider)
+                .try_get_node_mut(selected_collider)
                 .map(|n| n as &mut dyn Reflect)
         },
     )));
@@ -199,7 +199,7 @@ impl ColliderControlPanel {
                     ColliderShape::Capsule(_) => {
                         let local_center = scene
                             .graph
-                            .try_get(collider_ref.parent())
+                            .try_get_node(collider_ref.parent())
                             .map(|p| p.global_transform())
                             .unwrap_or_default()
                             .try_inverse()
