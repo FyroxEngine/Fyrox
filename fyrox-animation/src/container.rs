@@ -31,6 +31,9 @@ use crate::{
     },
     value::TrackValue,
 };
+use fyrox_core::algebra::UnitQuaternion;
+use fyrox_core::math::interpolation::InterpolationContainer;
+use fyrox_core::warn;
 
 /// The kind of track output value, the animation system works only with numeric properties and the number
 /// of variants is small.
@@ -77,6 +80,16 @@ impl Default for TrackValueKind {
     }
 }
 
+#[derive(Visit, Reflect, Debug, Clone, PartialEq)]
+pub enum TrackDataContainerKind {
+    CurveBased(CurveBasedTrackData),
+    Real(InterpolationContainer<f32>),
+    Vector2(InterpolationContainer<Vector2<f32>>),
+    Vector3(InterpolationContainer<Vector3<f32>>),
+    Vector4(InterpolationContainer<Vector4<f32>>),
+    UnitQuaternion(InterpolationContainer<UnitQuaternion<f32>>),
+}
+
 /// Interpolation mode for track data.
 #[derive(Visit, Reflect, Debug, Clone, Default, PartialEq)]
 pub enum InterpolationMode {
@@ -87,6 +100,134 @@ pub enum InterpolationMode {
     ShortPath,
 }
 
+#[derive(Reflect, Debug, Clone, PartialEq)]
+pub struct TrackDataContainer(pub TrackDataContainerKind);
+
+impl Visit for TrackDataContainer {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        #[derive(Visit, Default, PartialEq)]
+        enum Version {
+            CurveBased,
+            #[default]
+            WithKinds,
+        }
+
+        let mut version: Version = Version::CurveBased;
+        let _ = version.visit("Version", &mut region);
+
+        if region.is_reading() && version == Version::CurveBased {
+            let mut curve_based = CurveBasedTrackData::default();
+
+            curve_based.kind.visit("Kind", &mut region)?;
+            curve_based.curves.visit("Curves", &mut region)?;
+
+            self.0 = TrackDataContainerKind::CurveBased(curve_based);
+
+            warn!("Animation track data was read from curve-based version!");
+
+            return Ok(());
+        }
+
+        self.0.visit("Kind", &mut region)?;
+
+        Ok(())
+    }
+}
+
+impl Default for TrackDataContainer {
+    fn default() -> Self {
+        Self(TrackDataContainerKind::CurveBased(Default::default()))
+    }
+}
+
+impl TrackDataContainer {
+    pub fn new_curve_based(kind: TrackValueKind) -> Self {
+        Self(TrackDataContainerKind::CurveBased(
+            CurveBasedTrackData::new(kind),
+        ))
+    }
+
+    #[inline(always)]
+    pub fn fetch_vector2(&self, time: f32) -> Option<TrackValue> {
+        match &self.0 {
+            TrackDataContainerKind::CurveBased(c) => c.fetch_vector2(time),
+            TrackDataContainerKind::Vector2(v) => Some(TrackValue::Vector2(v.value_at(time))),
+            _ => None,
+        }
+    }
+
+    #[inline(always)]
+    pub fn fetch_vector3(&self, time: f32) -> Option<TrackValue> {
+        match &self.0 {
+            TrackDataContainerKind::CurveBased(c) => c.fetch_vector3(time),
+            TrackDataContainerKind::Vector3(v) => Some(TrackValue::Vector3(v.value_at(time))),
+            _ => None,
+        }
+    }
+
+    #[inline(always)]
+    pub fn fetch_vector4(&self, time: f32) -> Option<TrackValue> {
+        match &self.0 {
+            TrackDataContainerKind::CurveBased(c) => c.fetch_vector4(time),
+            TrackDataContainerKind::Vector4(v) => Some(TrackValue::Vector4(v.value_at(time))),
+            _ => None,
+        }
+    }
+
+    #[inline(always)]
+    pub fn fetch_quaternion(&self, time: f32) -> Option<TrackValue> {
+        match &self.0 {
+            TrackDataContainerKind::CurveBased(c) => c.fetch_quaternion(time),
+            TrackDataContainerKind::UnitQuaternion(q) => {
+                Some(TrackValue::UnitQuaternion(q.value_at(time)))
+            }
+            _ => None,
+        }
+    }
+
+    pub fn fetch(&self, time: f32) -> Option<TrackValue> {
+        match &self.0 {
+            TrackDataContainerKind::CurveBased(v) => v.fetch(time),
+            TrackDataContainerKind::Real(v) => Some(TrackValue::Real(v.value_at(time))),
+            TrackDataContainerKind::Vector2(v) => Some(TrackValue::Vector2(v.value_at(time))),
+            TrackDataContainerKind::Vector3(v) => Some(TrackValue::Vector3(v.value_at(time))),
+            TrackDataContainerKind::Vector4(v) => Some(TrackValue::Vector4(v.value_at(time))),
+            TrackDataContainerKind::UnitQuaternion(v) => {
+                Some(TrackValue::UnitQuaternion(v.value_at(time)))
+            }
+        }
+    }
+
+    /// Find a right-most key on one of the curves in the container and returns its position. This position
+    /// can be treated as a maximum "length" of the container.
+    pub fn time_length(&self) -> f32 {
+        match &self.0 {
+            TrackDataContainerKind::CurveBased(v) => v.time_length(),
+            TrackDataContainerKind::Real(v) => v.max_location(),
+            TrackDataContainerKind::Vector2(v) => v.max_location(),
+            TrackDataContainerKind::Vector3(v) => v.max_location(),
+            TrackDataContainerKind::Vector4(v) => v.max_location(),
+            TrackDataContainerKind::UnitQuaternion(v) => v.max_location(),
+        }
+    }
+
+    pub fn as_curve_based_ref(&self) -> &CurveBasedTrackData {
+        match self.0 {
+            TrackDataContainerKind::CurveBased(ref curve_based) => curve_based,
+            _ => panic!("track data container is not curve-based!"),
+        }
+    }
+
+    pub fn as_curve_based_mut(&mut self) -> &mut CurveBasedTrackData {
+        match self.0 {
+            TrackDataContainerKind::CurveBased(ref mut curve_based) => curve_based,
+            _ => panic!("track data container is not curve-based!"),
+        }
+    }
+}
+
 /// Container for a track data. Strictly speaking, it is just a set of parametric curves which can be
 /// fetched at a given time position simultaneously, producing a value of desired type. Which type of
 /// value is produced is defined by [`TrackValueKind`] enumeration. Usually a container contains up to
@@ -94,16 +235,13 @@ pub enum InterpolationMode {
 ///
 /// Each component is bound to a specific curve. For example, in case of [`Vector3`] its components bound
 /// to the following curve indices: `X = 0`, `Y = 1`, `Z = 2`. This order cannot be changed.
-#[derive(Visit, Reflect, Debug, Clone, Default, PartialEq)]
-pub struct TrackDataContainer {
+#[derive(Visit, Reflect, Debug, Clone, PartialEq, Default)]
+pub struct CurveBasedTrackData {
     curves: Vec<Curve>,
     kind: TrackValueKind,
-    /// Interpolation mode.
-    #[visit(optional)] // Backward compatibility.
-    pub mode: InterpolationMode,
 }
 
-impl TrackDataContainer {
+impl CurveBasedTrackData {
     /// Creates a new container, that is able to produce values defined by [`TrackValueKind`] input parameter.
     /// The number of curves in the output container is defined by [`TrackValueKind::components_count`], for
     /// example [`Vector3`] has 3 components (X, Y, Z). An empty container can be created using [`Self::default`]
@@ -117,7 +255,6 @@ impl TrackDataContainer {
             curves: (0..kind.components_count())
                 .map(|_| Curve::default())
                 .collect(),
-            mode: Default::default(),
         }
     }
 
@@ -218,18 +355,11 @@ impl TrackDataContainer {
             let z_curve = self.curves.get_unchecked(2);
 
             // Convert Euler angles to quaternion
-            let (x, y, z) = match self.mode {
-                InterpolationMode::Default => (
-                    x_curve.value_at(time),
-                    y_curve.value_at(time),
-                    z_curve.value_at(time),
-                ),
-                InterpolationMode::ShortPath => (
-                    x_curve.angle_at(time),
-                    y_curve.angle_at(time),
-                    z_curve.angle_at(time),
-                ),
-            };
+            let (x, y, z) = (
+                x_curve.value_at(time),
+                y_curve.value_at(time),
+                z_curve.value_at(time),
+            );
 
             Some(TrackValue::UnitQuaternion(quat_from_euler(
                 Vector3::new(x, y, z),

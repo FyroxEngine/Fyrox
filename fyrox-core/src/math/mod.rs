@@ -26,6 +26,7 @@ pub use fyrox_math::*;
 use crate::math::curve::Curve;
 use crate::math::curve::CurveKey;
 use crate::math::curve::CurveKeyKind;
+use crate::math::interpolation::InterpolationKey;
 use crate::Uuid;
 use crate::{
     algebra::Scalar,
@@ -35,6 +36,7 @@ use crate::{
     visitor::prelude::*,
 };
 use fyrox_core_derive::{impl_reflect, impl_visit};
+use fyrox_math::interpolation::{Interpolatable, InterpolationContainer};
 use std::fmt::Debug;
 
 impl_reflect!(
@@ -173,5 +175,37 @@ impl_visit!(
         #[visit(optional)] // Backward compatibility
         pub name: String,
         pub keys: Vec<CurveKey>,
+    }
+);
+
+impl_reflect!(
+    pub struct InterpolationContainer<T: Interpolatable> {
+        pub id: Uuid,
+        pub name: String,
+        pub keys: Vec<InterpolationKey<T>>,
+    }
+);
+
+impl_visit!(
+    pub struct InterpolationContainer<T: Interpolatable> {
+        pub id: Uuid,
+        pub name: String,
+        pub keys: Vec<InterpolationKey<T>>,
+    }
+);
+
+impl_reflect!(
+    pub struct InterpolationKey<T: Interpolatable> {
+        pub id: Uuid,
+        pub location: f32,
+        pub value: T,
+    }
+);
+
+impl_visit!(
+    pub struct InterpolationKey<T: Interpolatable> {
+        pub id: Uuid,
+        pub location: f32,
+        pub value: T,
     }
 );

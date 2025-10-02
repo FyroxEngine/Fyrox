@@ -24,6 +24,7 @@
 pub mod aabb;
 pub mod curve;
 pub mod frustum;
+pub mod interpolation;
 pub mod octree;
 pub mod plane;
 pub mod ray;

@@ -709,7 +709,7 @@ fn convert_model(
             default: Vector3<f32>,
             transform_value: F,
         ) {
-            let curves = track.data_container_mut().curves_mut();
+            let curves = track.data_container_mut().as_curve_based_mut().curves_mut();
 
             if !fbx_track.curves.contains_key("d|X") {
                 curves[0].add_key(CurveKey::new(0.0, default.x, CurveKeyKind::Constant));
@@ -752,7 +752,7 @@ fn convert_model(
         }
 
         fn add_vec3_key(track: &mut Track, value: Vector3<f32>) {
-            let curves = track.data_container_mut().curves_mut();
+            let curves = track.data_container_mut().as_curve_based_mut().curves_mut();
             curves[0].add_key(CurveKey::new(0.0, value.x, CurveKeyKind::Constant));
             curves[1].add_key(CurveKey::new(0.0, value.y, CurveKeyKind::Constant));
             curves[2].add_key(CurveKey::new(0.0, value.z, CurveKeyKind::Constant));

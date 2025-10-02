@@ -40,6 +40,7 @@ use crate::{
 };
 
 use fyrox::core::reflect::Reflect;
+use fyrox::generic_animation::container::TrackDataContainerKind;
 use fyrox::generic_animation::track::TrackBinding;
 use std::{
     fmt::Debug,
@@ -184,10 +185,14 @@ impl<N: Reflect> ReplaceTrackCurveCommand<N> {
         let tracks_data = tracks_data_state.data().unwrap();
 
         for track in tracks_data.tracks_mut() {
-            for curve in track.data_container_mut().curves_mut() {
-                if curve.id() == self.curve.id() {
-                    std::mem::swap(&mut self.curve, curve);
-                    return;
+            if let TrackDataContainerKind::CurveBased(ref mut curve_based) =
+                track.data_container_mut().0
+            {
+                for curve in curve_based.curves_mut() {
+                    if curve.id() == self.curve.id() {
+                        std::mem::swap(&mut self.curve, curve);
+                        return;
+                    }
                 }
             }
         }

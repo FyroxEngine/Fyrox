@@ -131,7 +131,7 @@ impl Track {
     /// Creates a new track that is responsible in animating a position property of a scene node.
     pub fn new_position() -> Self {
         Self {
-            frames: TrackDataContainer::new(TrackValueKind::Vector3),
+            frames: TrackDataContainer::new_curve_based(TrackValueKind::Vector3),
             binding: ValueBinding::Position,
             ..Default::default()
         }
@@ -140,7 +140,7 @@ impl Track {
     /// Creates a new track that is responsible in animating a rotation property of a scene node.
     pub fn new_rotation() -> Self {
         Self {
-            frames: TrackDataContainer::new(TrackValueKind::UnitQuaternion),
+            frames: TrackDataContainer::new_curve_based(TrackValueKind::UnitQuaternion),
             binding: ValueBinding::Rotation,
             ..Default::default()
         }
@@ -149,7 +149,7 @@ impl Track {
     /// Creates a new track that is responsible in animating a scaling property of a scene node.
     pub fn new_scale() -> Self {
         Self {
-            frames: TrackDataContainer::new(TrackValueKind::Vector3),
+            frames: TrackDataContainer::new_curve_based(TrackValueKind::Vector3),
             binding: ValueBinding::Scale,
             ..Default::default()
         }

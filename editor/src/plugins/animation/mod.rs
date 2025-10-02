@@ -66,6 +66,7 @@ use crate::{
 };
 
 use fyrox::core::reflect::Reflect;
+use fyrox::generic_animation::container::TrackDataContainerKind;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::any::{Any, TypeId};
@@ -767,14 +768,18 @@ impl AnimationEditor {
                                 .iter()
                                 .find(|track| &track.id() == track_id)
                             {
-                                for (index, track_curve) in
-                                    track.data_container().curves_ref().iter().enumerate()
+                                if let TrackDataContainerKind::CurveBased(ref curve_based) =
+                                    track.data_container().0
                                 {
-                                    if !selected_curves
-                                        .iter()
-                                        .any(|(_, curve)| curve.id == track_curve.id)
+                                    for (index, track_curve) in
+                                        curve_based.curves_ref().iter().enumerate()
                                     {
-                                        selected_curves.push((index, track_curve.clone()));
+                                        if !selected_curves
+                                            .iter()
+                                            .any(|(_, curve)| curve.id == track_curve.id)
+                                        {
+                                            selected_curves.push((index, track_curve.clone()));
+                                        }
                                     }
                                 }
                             }
@@ -782,15 +787,21 @@ impl AnimationEditor {
                         SelectedEntity::Curve(curve_id) => {
                             if let Some((index, selected_curve)) =
                                 animation_tracks_data.tracks().iter().find_map(|t| {
-                                    t.data_container().curves_ref().iter().enumerate().find_map(
-                                        |(i, c)| {
-                                            if &c.id() == curve_id {
-                                                Some((i, c))
-                                            } else {
-                                                None
-                                            }
-                                        },
-                                    )
+                                    if let TrackDataContainerKind::CurveBased(ref curve_based) =
+                                        t.data_container().0
+                                    {
+                                        curve_based.curves_ref().iter().enumerate().find_map(
+                                            |(i, c)| {
+                                                if &c.id() == curve_id {
+                                                    Some((i, c))
+                                                } else {
+                                                    None
+                                                }
+                                            },
+                                        )
+                                    } else {
+                                        None
+                                    }
                                 })
                             {
                                 if !selected_curves
@@ -806,9 +817,13 @@ impl AnimationEditor {
                 }
                 let mut background_curves = Vec::<Curve>::new();
                 for track in animation_tracks_data.tracks() {
-                    for curve in track.data_container().curves_ref() {
-                        if !selected_curves.iter().any(|(_, c)| c.id == curve.id) {
-                            background_curves.push(curve.clone());
+                    if let TrackDataContainerKind::CurveBased(ref curve_based) =
+                        track.data_container().0
+                    {
+                        for curve in curve_based.curves_ref() {
+                            if !selected_curves.iter().any(|(_, c)| c.id == curve.id) {
+                                background_curves.push(curve.clone());
+                            }
                         }
                     }
                 }

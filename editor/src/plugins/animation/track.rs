@@ -96,6 +96,7 @@ use crate::{
     },
     send_sync_message, utils,
 };
+use fyrox::generic_animation::container::TrackDataContainerKind;
 use std::{
     any::TypeId,
     cmp::Ordering,
@@ -947,7 +948,7 @@ impl TrackList {
 
                                 if let Some((track_value_kind, actual_value_type)) = types {
                                     let track = Track::new(
-                                        TrackDataContainer::new(track_value_kind),
+                                        TrackDataContainer::new_curve_based(track_value_kind),
                                         ValueBinding::Property {
                                             name: property_path.path.clone().into(),
                                             value_type: actual_value_type,
@@ -1423,103 +1424,107 @@ impl TrackList {
                             Color::opaque(120, 120, 0),
                         ];
 
-                        let curves = model_track
-                            .data_container()
-                            .curves_ref()
-                            .iter()
-                            .enumerate()
-                            .map(|(i, curve)| {
-                                let curve_name = match model_track.data_container().value_kind() {
-                                    TrackValueKind::Real => "Value",
-                                    TrackValueKind::Vector2
-                                    | TrackValueKind::Vector3
-                                    | TrackValueKind::Vector4 => {
-                                        ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_")
-                                    }
-                                    TrackValueKind::UnitQuaternion => match i {
-                                        0 => "Pitch",
-                                        1 => "Yaw",
-                                        2 => "Roll",
-                                        _ => "Unknown",
-                                    },
-                                };
+                        if let TrackDataContainerKind::CurveBased(ref curve_based) =
+                            model_track.data_container().0
+                        {
+                            let curves = curve_based
+                                .curves_ref()
+                                .iter()
+                                .enumerate()
+                                .map(|(i, curve)| {
+                                    let curve_name = match curve_based.value_kind() {
+                                        TrackValueKind::Real => "Value",
+                                        TrackValueKind::Vector2
+                                        | TrackValueKind::Vector3
+                                        | TrackValueKind::Vector4 => {
+                                            ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_")
+                                        }
+                                        TrackValueKind::UnitQuaternion => match i {
+                                            0 => "Pitch",
+                                            1 => "Yaw",
+                                            2 => "Roll",
+                                            _ => "Unknown",
+                                        },
+                                    };
 
-                                let curve_view = TreeBuilder::new(
-                                    WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(
-                                        CurveViewData { id: curve.id() },
-                                    ))),
-                                )
-                                .with_content(
-                                    GridBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_child(
-                                                BorderBuilder::new(
-                                                    WidgetBuilder::new()
-                                                        .on_column(0)
-                                                        .with_foreground(
-                                                            Brush::Solid(Color::TRANSPARENT).into(),
-                                                        )
-                                                        .with_background(
-                                                            Brush::Solid(colors[i]).into(),
-                                                        ),
-                                                )
-                                                .with_pad_by_corner_radius(false)
-                                                .with_corner_radius(2.0f32.into())
-                                                .build(ctx),
-                                            )
-                                            .with_child(
-                                                TextBuilder::new(
-                                                    WidgetBuilder::new().on_column(1).with_margin(
-                                                        Thickness {
-                                                            top: 2.0,
-                                                            left: 3.0,
-                                                            ..Default::default()
-                                                        },
-                                                    ),
-                                                )
-                                                .with_text(curve_name)
-                                                .build(ctx),
-                                            ),
+                                    let curve_view = TreeBuilder::new(
+                                        WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(
+                                            CurveViewData { id: curve.id() },
+                                        ))),
                                     )
-                                    .add_row(Row::auto())
-                                    .add_column(Column::strict(6.0))
-                                    .add_column(Column::stretch())
-                                    .build(ctx),
+                                    .with_content(
+                                        GridBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_child(
+                                                    BorderBuilder::new(
+                                                        WidgetBuilder::new()
+                                                            .on_column(0)
+                                                            .with_foreground(
+                                                                Brush::Solid(Color::TRANSPARENT)
+                                                                    .into(),
+                                                            )
+                                                            .with_background(
+                                                                Brush::Solid(colors[i]).into(),
+                                                            ),
+                                                    )
+                                                    .with_pad_by_corner_radius(false)
+                                                    .with_corner_radius(2.0f32.into())
+                                                    .build(ctx),
+                                                )
+                                                .with_child(
+                                                    TextBuilder::new(
+                                                        WidgetBuilder::new()
+                                                            .on_column(1)
+                                                            .with_margin(Thickness {
+                                                                top: 2.0,
+                                                                left: 3.0,
+                                                                ..Default::default()
+                                                            }),
+                                                    )
+                                                    .with_text(curve_name)
+                                                    .build(ctx),
+                                                ),
+                                        )
+                                        .add_row(Row::auto())
+                                        .add_column(Column::strict(6.0))
+                                        .add_column(Column::stretch())
+                                        .build(ctx),
+                                    )
+                                    .build(ctx);
+
+                                    self.curve_views.insert(curve.id(), curve_view);
+
+                                    curve_view
+                                })
+                                .collect();
+
+                            let track_view = TrackViewBuilder::new(
+                                TreeBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_context_menu(self.context_menu.menu.clone()),
                                 )
-                                .build(ctx);
-
-                                self.curve_views.insert(curve.id(), curve_view);
-
-                                curve_view
-                            })
-                            .collect();
-
-                        let track_view = TrackViewBuilder::new(
-                            TreeBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_context_menu(self.context_menu.menu.clone()),
+                                .with_items(curves),
                             )
-                            .with_items(curves),
-                        )
-                        .with_track_enabled(model_track_binding.is_enabled())
-                        .with_id(model_track.id())
-                        .with_target(model_track_binding.target().into())
-                        .with_name(format!("{}", model_track.value_binding()))
-                        .build(ctx);
+                            .with_track_enabled(model_track_binding.is_enabled())
+                            .with_id(model_track.id())
+                            .with_target(model_track_binding.target().into())
+                            .with_name(format!("{}", model_track.value_binding()))
+                            .build(ctx);
 
-                        send_sync_message(
-                            ui,
-                            TreeMessage::add_item(
-                                parent_group,
-                                MessageDirection::ToWidget,
-                                track_view,
-                            ),
-                        );
+                            send_sync_message(
+                                ui,
+                                TreeMessage::add_item(
+                                    parent_group,
+                                    MessageDirection::ToWidget,
+                                    track_view,
+                                ),
+                            );
 
-                        assert!(self
-                            .track_views
-                            .insert(model_track.id(), track_view)
-                            .is_none());
+                            assert!(self
+                                .track_views
+                                .insert(model_track.id(), track_view)
+                                .is_none());
+                        }
                     }
                 }
             }

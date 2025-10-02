@@ -186,9 +186,10 @@ impl ImportedTrack {
         }
     }
     fn into_track(self) -> (Handle<Node>, Track) {
-        let mut data = TrackDataContainer::new(self.target.kind());
+        // TODO: Replace curve-based track data with explicitly typed.
+        let mut data = TrackDataContainer::new_curve_based(self.target.kind());
         for (i, curve) in self.curves.into_vec().into_iter().enumerate() {
-            data.curves_mut()[i] = Curve::from(curve);
+            data.as_curve_based_mut().curves_mut()[i] = Curve::from(curve);
         }
         (
             self.target.handle,
