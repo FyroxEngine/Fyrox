@@ -779,20 +779,22 @@ impl Renderer {
     }
 
     /// Renders the given UI into specified render target. This method is especially useful if you need
-    /// to have off-screen UIs (like interactive touch-screen in Doom 3, Dead Space, etc).
+    /// to have off-screen UIs. This method will render the specified UI to the given render target.
+    /// If the render target is not specified (set to [`None`]), the UI will be rendered directly on
+    /// screen. Keep in mind that ideally, the resolution of the render target should match the screen
+    /// size of the UI. Otherwise, the rendered image will have some sort of aliasing issues.
     pub fn render_ui(&mut self, render_info: UiRenderInfo) -> Result<(), FrameworkError> {
-        let screen_size = render_info.ui.screen_size();
-
-        let new_width = screen_size.x as usize;
-        let new_height = screen_size.y as usize;
-
-        let viewport = Rect::new(0, 0, new_width as i32, new_height as i32);
-
-        let frame_buffer = if let Some(render_target) = render_info.render_target.as_ref() {
-            let pixel_kind = render_target
+        let (frame_buffer, rt_size) = if let Some(render_target) =
+            render_info.render_target.as_ref()
+        {
+            let (rt_size, rt_pixel_kind) = render_target
                 .data_ref()
                 .as_loaded_ref()
-                .map(|rt| convert_pixel_kind(rt.pixel_kind()))
+                .and_then(|rt| {
+                    rt.kind()
+                        .rectangle_size()
+                        .map(|s| (s.cast::<f32>(), convert_pixel_kind(rt.pixel_kind())))
+                })
                 .ok_or_else(|| FrameworkError::Custom("invalid render target state".to_string()))?;
 
             // Create or reuse existing frame buffer.
@@ -802,12 +804,12 @@ impl Renderer {
                     let frame = frame_buffer.color_attachments().first().unwrap();
                     let color_texture_kind = frame.texture.kind();
                     if let GpuTextureKind::Rectangle { width, height } = color_texture_kind {
-                        if width != new_width
-                            || height != new_height
-                            || frame.texture.pixel_kind() != pixel_kind
+                        if width != rt_size.x as usize
+                            || height != rt_size.y as usize
+                            || frame.texture.pixel_kind() != rt_pixel_kind
                         {
                             *frame_buffer =
-                                make_ui_frame_buffer(screen_size, &*self.server, pixel_kind)?;
+                                make_ui_frame_buffer(rt_size, &*self.server, rt_pixel_kind)?;
                         }
                     } else {
                         return Err(FrameworkError::Custom(
@@ -816,26 +818,28 @@ impl Renderer {
                     }
                     frame_buffer
                 }
-                Entry::Vacant(entry) => entry.insert(make_ui_frame_buffer(
-                    screen_size,
-                    &*self.server,
-                    pixel_kind,
-                )?),
+                Entry::Vacant(entry) => {
+                    entry.insert(make_ui_frame_buffer(rt_size, &*self.server, rt_pixel_kind)?)
+                }
             };
 
+            let viewport = Rect::new(0, 0, rt_size.x as i32, rt_size.y as i32);
             frame_buffer.clear(viewport, Some(render_info.clear_color), Some(0.0), Some(0));
 
-            frame_buffer
+            (frame_buffer, rt_size)
         } else {
-            &self.backbuffer
+            (
+                &mut self.backbuffer,
+                Vector2::new(self.frame_size.0 as f32, self.frame_size.1 as f32),
+            )
         };
 
         self.statistics += self.ui_renderer.render(UiRenderContext {
             server: &*self.server,
-            viewport,
+            viewport: Rect::new(0, 0, rt_size.x as i32, rt_size.y as i32),
             frame_buffer,
-            frame_width: screen_size.x,
-            frame_height: screen_size.y,
+            frame_width: rt_size.x,
+            frame_height: rt_size.y,
             drawing_context: &render_info.ui.drawing_context,
             renderer_resources: &self.renderer_resources,
             texture_cache: &mut self.texture_cache,
@@ -846,8 +850,8 @@ impl Renderer {
         })?;
 
         if let Some(render_target) = render_info.render_target.as_ref() {
-            // Finally register texture in the cache so it will become available as texture in deferred/forward
-            // renderer.
+            // Finally, register texture in the cache so it will become available as texture in
+            // deferred/forward renderer.
             self.texture_cache.try_register(
                 &*self.server,
                 render_target,
