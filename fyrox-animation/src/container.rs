@@ -114,7 +114,11 @@ impl Visit for TrackDataContainer {
             WithKinds,
         }
 
-        let mut version: Version = Version::CurveBased;
+        let mut version: Version = if region.is_reading() {
+            Version::CurveBased
+        } else {
+            Version::default()
+        };
         let _ = version.visit("Version", &mut region);
 
         if region.is_reading() && version == Version::CurveBased {
@@ -224,6 +228,48 @@ impl TrackDataContainer {
         match self.0 {
             TrackDataContainerKind::CurveBased(ref mut curve_based) => curve_based,
             _ => panic!("track data container is not curve-based!"),
+        }
+    }
+
+    pub fn as_quat_ref(&self) -> &InterpolationContainer<UnitQuaternion<f32>> {
+        match self.0 {
+            TrackDataContainerKind::UnitQuaternion(ref container) => container,
+            _ => panic!("track data container is not quat interpolation container!"),
+        }
+    }
+
+    pub fn as_quat_mut(&mut self) -> &mut InterpolationContainer<UnitQuaternion<f32>> {
+        match self.0 {
+            TrackDataContainerKind::UnitQuaternion(ref mut container) => container,
+            _ => panic!("track data container is not quat interpolation container!"),
+        }
+    }
+
+    pub fn as_vec3_ref(&self) -> &InterpolationContainer<Vector3<f32>> {
+        match self.0 {
+            TrackDataContainerKind::Vector3(ref container) => container,
+            _ => panic!("track data container is not vec3 interpolation container!"),
+        }
+    }
+
+    pub fn as_vec3_mut(&mut self) -> &mut InterpolationContainer<Vector3<f32>> {
+        match self.0 {
+            TrackDataContainerKind::Vector3(ref mut container) => container,
+            _ => panic!("track data container is not vec3 interpolation container!"),
+        }
+    }
+
+    pub fn as_real_ref(&self) -> &InterpolationContainer<f32> {
+        match self.0 {
+            TrackDataContainerKind::Real(ref container) => container,
+            _ => panic!("track data container is not real interpolation container!"),
+        }
+    }
+
+    pub fn as_real_mut(&mut self) -> &mut InterpolationContainer<f32> {
+        match self.0 {
+            TrackDataContainerKind::Real(ref mut container) => container,
+            _ => panic!("track data container is not real interpolation container!"),
         }
     }
 }
