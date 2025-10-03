@@ -1,0 +1,16 @@
+# Rust files are text files with Unix-style newlines.
+*.rs text eol=lf
+# Other text files have Unix-style newlines.
+*.shader text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.glsl text eol=lf
+LICENSE text eol=lf
+# Image files are binary
+*.png binary
+*.jpg binary
+*.ttf binary
+*.bin binary
