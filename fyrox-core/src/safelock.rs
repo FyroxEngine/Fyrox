@@ -23,9 +23,11 @@
 //! permanently freezing due to a deadlock.
 
 use parking_lot::{Mutex, MutexGuard};
+#[allow(unused_imports)]
 use std::sync::TryLockError;
 use std::time::Duration;
 
+#[allow(dead_code)]
 const PANIC_MESSAGE: &str = "lock timeout";
 
 /// Trait for lockable objects that can panic if they take too long
