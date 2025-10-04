@@ -260,9 +260,15 @@ fn type_id_to_supported_type(property_type: TypeId) -> Option<(TrackValueKind, V
     } else if property_type == TypeId::of::<Vector4<bool>>() {
         Some((TrackValueKind::Vector4, ValueType::Vector4Bool))
     } else if property_type == TypeId::of::<UnitQuaternion<f32>>() {
-        Some((TrackValueKind::UnitQuaternion, ValueType::UnitQuaternionF32))
+        Some((
+            TrackValueKind::UnitQuaternionEuler,
+            ValueType::UnitQuaternionF32,
+        ))
     } else if property_type == TypeId::of::<UnitQuaternion<f64>>() {
-        Some((TrackValueKind::UnitQuaternion, ValueType::UnitQuaternionF64))
+        Some((
+            TrackValueKind::UnitQuaternionEuler,
+            ValueType::UnitQuaternionF64,
+        ))
     } else {
         None
     }
@@ -1436,12 +1442,15 @@ impl TrackList {
                                     | TrackValueKind::Vector4 => {
                                         ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_")
                                     }
-                                    TrackValueKind::UnitQuaternion => match i {
+                                    TrackValueKind::UnitQuaternionEuler => match i {
                                         0 => "Pitch",
                                         1 => "Yaw",
                                         2 => "Roll",
                                         _ => "Unknown",
                                     },
+                                    TrackValueKind::UnitQuaternion => {
+                                        ["W", "X", "Y", "Z"].get(i).unwrap_or(&"_")
+                                    }
                                 };
 
                                 let curve_view = TreeBuilder::new(
