@@ -1439,7 +1439,8 @@ impl TrackList {
                                     TrackValueKind::Real => "Value",
                                     TrackValueKind::Vector2
                                     | TrackValueKind::Vector3
-                                    | TrackValueKind::Vector4 => {
+                                    | TrackValueKind::Vector4
+                                    | TrackValueKind::UnitQuaternion => {
                                         ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_")
                                     }
                                     TrackValueKind::UnitQuaternionEuler => match i {
@@ -1448,9 +1449,6 @@ impl TrackList {
                                         2 => "Roll",
                                         _ => "Unknown",
                                     },
-                                    TrackValueKind::UnitQuaternion => {
-                                        ["W", "X", "Y", "Z"].get(i).unwrap_or(&"_")
-                                    }
                                 };
 
                                 let curve_view = TreeBuilder::new(
