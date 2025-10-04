@@ -435,6 +435,12 @@ impl RenderDataBundle {
                 write_shader_values(shader_property_group, &mut buf)
             }
 
+            if buf.is_empty() {
+                // There's no need to upload empty uniform blocks. Empty uniform blocks will be
+                // optimized out anyway.
+                continue;
+            }
+
             material_property_group_blocks.push((
                 resource_definition.binding,
                 render_context.uniform_memory_allocator.allocate(buf),

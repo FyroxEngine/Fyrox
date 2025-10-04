@@ -31,6 +31,7 @@ use crate::{
     },
     value::TrackValue,
 };
+use fyrox_core::algebra::{Quaternion, UnitQuaternion};
 
 /// The kind of track output value, the animation system works only with numeric properties and the number
 /// of variants is small.
@@ -51,6 +52,10 @@ pub enum TrackValueKind {
     /// A quaternion that represents some rotation. Requires 3 parametric curves, where `XAngle = 0`, `YAngle = 1`,
     /// `ZAngle = 2`. The order of rotations is `XYZ`. This triple of curves forms Euler angles which are interpolated
     /// and then converted to a quaternion.
+    UnitQuaternionEuler,
+
+    /// A quaternion that represents some rotation. Requires 4 parametric curves for each component.
+    /// The order is XYZW.
     UnitQuaternion,
 }
 
@@ -63,10 +68,11 @@ impl TrackValueKind {
             TrackValueKind::Vector2 => 2,
             TrackValueKind::Vector3 => 3,
             TrackValueKind::Vector4 => 4,
-            TrackValueKind::UnitQuaternion => {
+            TrackValueKind::UnitQuaternionEuler => {
                 // Euler angles
                 3
             }
+            TrackValueKind::UnitQuaternion => 4,
         }
     }
 }
@@ -98,9 +104,6 @@ pub enum InterpolationMode {
 pub struct TrackDataContainer {
     curves: Vec<Curve>,
     kind: TrackValueKind,
-    /// Interpolation mode.
-    #[visit(optional)] // Backward compatibility.
-    pub mode: InterpolationMode,
 }
 
 impl TrackDataContainer {
@@ -117,7 +120,6 @@ impl TrackDataContainer {
             curves: (0..kind.components_count())
                 .map(|_| Curve::default())
                 .collect(),
-            mode: Default::default(),
         }
     }
 
@@ -206,7 +208,7 @@ impl TrackDataContainer {
     }
 
     #[inline(always)]
-    fn fetch_quaternion(&self, time: f32) -> Option<TrackValue> {
+    fn fetch_quaternion_euler(&self, time: f32) -> Option<TrackValue> {
         if self.curves.len() < 3 {
             return None;
         }
@@ -218,22 +220,42 @@ impl TrackDataContainer {
             let z_curve = self.curves.get_unchecked(2);
 
             // Convert Euler angles to quaternion
-            let (x, y, z) = match self.mode {
-                InterpolationMode::Default => (
-                    x_curve.value_at(time),
-                    y_curve.value_at(time),
-                    z_curve.value_at(time),
-                ),
-                InterpolationMode::ShortPath => (
-                    x_curve.angle_at(time),
-                    y_curve.angle_at(time),
-                    z_curve.angle_at(time),
-                ),
-            };
+            let (x, y, z) = (
+                x_curve.value_at(time),
+                y_curve.value_at(time),
+                z_curve.value_at(time),
+            );
 
             Some(TrackValue::UnitQuaternion(quat_from_euler(
                 Vector3::new(x, y, z),
                 RotationOrder::XYZ,
+            )))
+        }
+    }
+
+    #[inline(always)]
+    fn fetch_quaternion(&self, time: f32) -> Option<TrackValue> {
+        if self.curves.len() < 4 {
+            return None;
+        }
+
+        // SAFETY: The indices are guaranteed to be correct by the above check.
+        unsafe {
+            let x_curve = self.curves.get_unchecked(0);
+            let y_curve = self.curves.get_unchecked(1);
+            let z_curve = self.curves.get_unchecked(2);
+            let w_curve = self.curves.get_unchecked(3);
+
+            // Convert Euler angles to quaternion
+            let (x, y, z, w) = (
+                x_curve.value_at(time),
+                y_curve.value_at(time),
+                z_curve.value_at(time),
+                w_curve.value_at(time),
+            );
+
+            Some(TrackValue::UnitQuaternion(UnitQuaternion::from_quaternion(
+                Quaternion::new(w, x, y, z),
             )))
         }
     }
@@ -247,6 +269,7 @@ impl TrackDataContainer {
             TrackValueKind::Vector2 => self.fetch_vector2(time),
             TrackValueKind::Vector3 => self.fetch_vector3(time),
             TrackValueKind::Vector4 => self.fetch_vector4(time),
+            TrackValueKind::UnitQuaternionEuler => self.fetch_quaternion_euler(time),
             TrackValueKind::UnitQuaternion => self.fetch_quaternion(time),
         }
     }

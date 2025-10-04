@@ -140,7 +140,7 @@ impl Track {
     /// Creates a new track that is responsible in animating a rotation property of a scene node.
     pub fn new_rotation() -> Self {
         Self {
-            frames: TrackDataContainer::new(TrackValueKind::UnitQuaternion),
+            frames: TrackDataContainer::new(TrackValueKind::UnitQuaternionEuler),
             binding: ValueBinding::Rotation,
             ..Default::default()
         }

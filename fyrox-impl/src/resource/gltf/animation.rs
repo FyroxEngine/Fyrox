@@ -20,7 +20,6 @@
 
 use super::iter::*;
 use super::simplify::*;
-use crate::core::algebra::{Quaternion, Unit, UnitQuaternion, Vector3};
 use crate::core::log::Log;
 use crate::core::math::curve::{Curve, CurveKey, CurveKeyKind};
 use crate::core::pool::Handle;
@@ -118,7 +117,10 @@ impl ImportedTarget {
                 Some(node.local_transform().position().data.as_slice().into())
             }
             ImportedBinding::Rotation => Some(
-                quaternion_to_euler(*node.local_transform().rotation().get_value_ref())
+                node.local_transform()
+                    .rotation()
+                    .get_value_ref()
+                    .coords
                     .data
                     .as_slice()
                     .into(),
@@ -144,7 +146,7 @@ impl ImportedTrack {
             target,
             curves: match target.binding {
                 ImportedBinding::Position => <[Vec<CurveKey>; 3]>::default().into(),
-                ImportedBinding::Rotation => <[Vec<CurveKey>; 3]>::default().into(),
+                ImportedBinding::Rotation => <[Vec<CurveKey>; 4]>::default().into(),
                 ImportedBinding::Scale => <[Vec<CurveKey>; 3]>::default().into(),
                 ImportedBinding::Weight(_) => <[Vec<CurveKey>; 1]>::default().into(),
             },
@@ -428,49 +430,6 @@ fn count_morph_targets(target: &gltf::Node) -> usize {
     }
 }
 
-fn array_to_euler(quaternion: [f32; 4]) -> Vector3<f32> {
-    quaternion_to_euler(Unit::new_normalize(Quaternion::from(quaternion)))
-}
-
-//  X - pitch, Y - yaw, Z - roll
-// Or maybe X - roll, Y - yaw, Z - pitch
-// Or maybe X - roll, Y - pitch, Z - yaw
-fn quaternion_to_euler(q: UnitQuaternion<f32>) -> Vector3<f32> {
-    let (roll, pitch, yaw) = q.euler_angles();
-    //let (x, y, z) = (pitch, yaw, roll);
-    let (x, y, z) = (roll, pitch, yaw);
-    Vector3::new(x, y, z)
-}
-
-fn quaternion_to_euler_tangents(
-    in_tangent: [f32; 4],
-    value: [f32; 4],
-    out_tangent: [f32; 4],
-) -> (Vector3<f32>, Vector3<f32>) {
-    let a: UnitQuaternion<f32> = Unit::new_normalize(quaternion_subtract(value, in_tangent).into());
-    let v: UnitQuaternion<f32> = Unit::new_normalize(value.into());
-    let b: UnitQuaternion<f32> = Unit::new_normalize(quaternion_add(value, out_tangent).into());
-    (
-        quaternion_to_euler(a.rotation_to(&v)),
-        quaternion_to_euler(v.rotation_to(&b)),
-    )
-}
-
-fn quaternion_add(a: [f32; 4], b: [f32; 4]) -> [f32; 4] {
-    let mut r = [0f32; 4];
-    for i in 0..4 {
-        r[i] = a[i] + b[i];
-    }
-    r
-}
-fn quaternion_subtract(a: [f32; 4], b: [f32; 4]) -> [f32; 4] {
-    let mut r = [0f32; 4];
-    for i in 0..4 {
-        r[i] = a[i] - b[i];
-    }
-    r
-}
-
 fn import_sampler<'a, 's, F>(
     channel: &'a Channel,
     target_handle: Handle<Node>,
@@ -670,11 +629,11 @@ where
         ReadOutputs::MorphTargetWeights(_) => return Err(()),
     };
     let mut track = ImportedTrack::new(target);
-    for i in 0..3 {
+    for i in 0..4 {
         let curve_keys: Vec<CurveKey> = inputs
             .clone()
             .zip(out_iter.clone())
-            .map(|(time, o)| CurveKey::new(time, array_to_euler(o)[i], kind.clone()))
+            .map(|(time, o)| CurveKey::new(time, o[i], kind.clone()))
             .collect::<Vec<_>>();
         track.curves[i] = curve_keys;
     }
@@ -701,11 +660,10 @@ where
         ReadOutputs::MorphTargetWeights(_) => return Err(()),
     };
     let mut track = ImportedTrack::new(target);
-    for i in 0..3 {
+    for i in 0..4 {
         let curve_keys: Vec<CurveKey> = iter_cubic_data(inputs.clone(), out_iter.clone())
             .map(|(time, o)| {
-                let (in_tang, out_tang) = quaternion_to_euler_tangents(o[0], o[1], o[2]);
-                let value = array_to_euler(o[1]);
+                let (in_tang, value, out_tang) = (o[0], o[1], o[2]);
                 CurveKey::new(
                     time,
                     value[i],
