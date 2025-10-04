@@ -90,6 +90,8 @@ use crate::{
     },
     send_sync_message, Editor, Engine, Message,
 };
+use fyrox::asset::event::ResourceEvent;
+use std::sync::mpsc::Receiver;
 use std::sync::{mpsc::Sender, Arc};
 
 pub mod editor;
@@ -660,7 +662,26 @@ impl MaterialEditor {
         }
     }
 
-    pub fn update(&mut self, engine: &mut Engine) {
+    pub fn update(
+        &mut self,
+        engine: &mut Engine,
+        receiver: &Receiver<ResourceEvent>,
+        sender: &MessageSender,
+        icon_request_sender: &Sender<IconRequest>,
+    ) {
+        for event in receiver.try_iter() {
+            if let ResourceEvent::Reloaded(resource) = event {
+                let shader = some_or_continue!(resource.try_cast::<Shader>());
+                let material_resource = some_or_continue!(self.material.as_ref());
+                let material_data = material_resource.data_ref();
+                let material = some_or_continue!(material_data.as_loaded_ref());
+                if material.shader() == &shader {
+                    drop(material_data);
+                    self.set_material(self.material.clone(), sender, icon_request_sender, engine);
+                }
+            }
+        }
+
         self.preview.update(engine)
     }
 }
@@ -696,6 +717,7 @@ fn try_extract_message_value(message: &UiMessage) -> Option<MaterialProperty> {
 #[derive(Default)]
 pub struct MaterialPlugin {
     material_editor: Option<MaterialEditor>,
+    receiver: Option<Receiver<ResourceEvent>>,
 }
 
 impl EditorPlugin for MaterialPlugin {
@@ -704,6 +726,14 @@ impl EditorPlugin for MaterialPlugin {
         container.insert(MaterialPropertyEditorDefinition {
             sender: Mutex::new(editor.message_sender.clone()),
         });
+        let (sender, receiver) = std::sync::mpsc::channel();
+        editor
+            .engine
+            .resource_manager
+            .state()
+            .event_broadcaster
+            .add(sender);
+        self.receiver = Some(receiver);
         container.insert(InheritablePropertyEditorDefinition::<MaterialResource>::new());
         container.insert(InheritablePropertyEditorDefinition::<WidgetMaterial>::new());
         container.insert(InspectablePropertyEditorDefinition::<WidgetMaterial>::new());
@@ -731,7 +761,14 @@ impl EditorPlugin for MaterialPlugin {
 
     fn on_update(&mut self, editor: &mut Editor) {
         let material_editor = some_or_return!(self.material_editor.as_mut());
-        material_editor.update(&mut editor.engine);
+        if let Some(receiver) = self.receiver.as_ref() {
+            material_editor.update(
+                &mut editor.engine,
+                receiver,
+                &editor.message_sender,
+                &editor.asset_browser.preview_sender,
+            );
+        }
     }
 
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
