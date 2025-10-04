@@ -15,7 +15,7 @@ use fyrox_core::{
     sstorage::ImmutableString,
     uuid::{uuid, Uuid},
     visitor::{prelude::*, RegionGuard},
-    TypeUuidProvider,
+    SafeLock, TypeUuidProvider,
 };
 use fyrox_graphics::gpu_program::SamplerFallback;
 use fyrox_resource::{
@@ -1171,7 +1171,7 @@ pub fn visit_old_material(region: &mut RegionGuard) -> Option<MaterialResource> 
             return Some(MaterialResource::new_ok(
                 Uuid::new_v4(),
                 Default::default(),
-                old_material.lock().clone(),
+                old_material.safe_lock().clone(),
             ));
         }
     }

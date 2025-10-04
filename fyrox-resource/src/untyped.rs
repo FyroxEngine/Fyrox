@@ -326,7 +326,11 @@ impl Visit for UntypedResource {
                 // 1) The registry is not loaded.
                 // 2) You're trying to deserialize the resource handle manually without a proper
                 // environment.
-                assert_eq!(status_flag.status(), ResourceRegistryStatus::Loaded);
+                assert_eq!(
+                    status_flag.status(),
+                    ResourceRegistryStatus::Loaded,
+                    "Resource registry is not loaded"
+                );
 
                 let path = match inner_lock.old_format_path {
                     None => {

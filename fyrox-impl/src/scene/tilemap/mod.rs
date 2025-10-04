@@ -63,7 +63,7 @@ use crate::{
         type_traits::prelude::*,
         variable::InheritableVariable,
         visitor::prelude::*,
-        ImmutableString,
+        ImmutableString, SafeLock,
     },
     graph::{constructor::ConstructorProvider, BaseSceneGraph},
     material::{Material, MaterialResource, STANDARD_2D},
@@ -1421,7 +1421,7 @@ impl NodeTrait for TileMap {
         let mut tile_set_lock = TileSetRef::new(tile_set_resource);
         let tile_set = tile_set_lock.as_loaded();
 
-        let mut hidden_tiles = self.hidden_tiles.lock();
+        let mut hidden_tiles = self.hidden_tiles.safe_lock();
         hidden_tiles.clear();
 
         let bounds = ctx
@@ -1440,7 +1440,9 @@ impl NodeTrait for TileMap {
         };
 
         for effect in self.before_effects.iter() {
-            effect.lock().render_special_tiles(&mut tile_render_context);
+            effect
+                .safe_lock()
+                .render_special_tiles(&mut tile_render_context);
         }
         let bounds = tile_render_context.visible_bounds();
         let Some(tiles) = self.tiles.as_ref().map(|r| r.data_ref()) else {
@@ -1465,7 +1467,9 @@ impl NodeTrait for TileMap {
             }
         }
         for effect in self.after_effects.iter() {
-            effect.lock().render_special_tiles(&mut tile_render_context);
+            effect
+                .safe_lock()
+                .render_special_tiles(&mut tile_render_context);
         }
         RdcControlFlow::Continue
     }

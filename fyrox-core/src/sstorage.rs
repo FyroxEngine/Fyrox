@@ -27,6 +27,7 @@ use crate::{
     parking_lot::Mutex,
     uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
+    SafeLock,
 };
 use fxhash::{FxHashMap, FxHasher};
 pub use fyrox_core_derive::TypeUuidProvider;
@@ -86,7 +87,7 @@ impl Visit for ImmutableString {
 
         // Deduplicate on deserialization.
         if visitor.is_reading() {
-            *self = SSTORAGE.lock().insert(string);
+            *self = SSTORAGE.safe_lock().insert(string);
         }
 
         Ok(())
@@ -159,7 +160,7 @@ impl ImmutableString {
     /// memory allocator.
     #[inline]
     pub fn new<S: AsRef<str>>(string: S) -> ImmutableString {
-        SSTORAGE.lock().insert(string)
+        SSTORAGE.safe_lock().insert(string)
     }
 
     /// Returns unique identifier of the string. Keep in mind that uniqueness is guaranteed only
@@ -189,13 +190,13 @@ impl From<&str> for ImmutableString {
 
 impl From<String> for ImmutableString {
     fn from(value: String) -> Self {
-        SSTORAGE.lock().insert_owned(value)
+        SSTORAGE.safe_lock().insert_owned(value)
     }
 }
 
 impl From<&String> for ImmutableString {
     fn from(value: &String) -> Self {
-        SSTORAGE.lock().insert(value)
+        SSTORAGE.safe_lock().insert(value)
     }
 }
 
@@ -269,7 +270,7 @@ impl ImmutableStringStorage {
 impl ImmutableStringStorage {
     /// Returns total amount of immutable strings in the storage.
     pub fn entry_count() -> usize {
-        SSTORAGE.lock().vec.len()
+        SSTORAGE.safe_lock().vec.len()
     }
 }
 

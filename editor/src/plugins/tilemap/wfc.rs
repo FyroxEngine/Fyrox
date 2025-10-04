@@ -22,7 +22,7 @@ use std::hash::Hash;
 
 use fyrox::{
     asset::{untyped::UntypedResource, Resource, ResourceData},
-    core::swap_hash_map_entry,
+    core::{swap_hash_map_entry, SafeLock},
     fxhash::FxHashMap,
     gui::{
         button::ButtonMessage,
@@ -1154,7 +1154,7 @@ impl CommandTrait for WaveFunctionTaskCommand {
     }
 
     fn execute(&mut self, _context: &mut dyn CommandContext) {
-        let mut data_guard = self.task_data.lock();
+        let mut data_guard = self.task_data.safe_lock();
         if data_guard.state == WfcTaskState::Finished {
             write_propagator_to_tile_data(
                 &data_guard.constraint,
@@ -1180,7 +1180,7 @@ impl CommandTrait for WaveFunctionTaskCommand {
     }
 
     fn revert(&mut self, _context: &mut dyn CommandContext) {
-        let mut data_guard = self.task_data.lock();
+        let mut data_guard = self.task_data.safe_lock();
         if data_guard.state != WfcTaskState::Finished {
             data_guard.state = WfcTaskState::Cancelled;
         }
@@ -1201,10 +1201,10 @@ fn run_wfc(
     max_attempts: u32,
     data: TileMapDataResource,
 ) {
-    let attempts = task_data.lock().attempts;
+    let attempts = task_data.safe_lock().attempts;
     let mut rng = thread_rng();
     for i in attempts..max_attempts {
-        let mut guard = task_data.lock();
+        let mut guard = task_data.safe_lock();
         let task_data = guard.deref_mut();
         if task_data.state == WfcTaskState::Cancelled {
             task_data.attempts = i;
@@ -1228,5 +1228,5 @@ fn run_wfc(
         write_propagator_to_tile_data(&task_data.constraint, &task_data.working_propagator, &data);
     }
     Log::err(format!("WFC failed after {max_attempts} attempts"));
-    task_data.lock().state = WfcTaskState::Finished;
+    task_data.safe_lock().state = WfcTaskState::Finished;
 }

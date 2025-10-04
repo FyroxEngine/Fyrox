@@ -32,6 +32,7 @@ use crate::{
     state::WakersList,
 };
 use fxhash::FxHashSet;
+use fyrox_core::SafeLock;
 use ron::ser::PrettyConfig;
 use std::{
     collections::BTreeMap,
@@ -127,24 +128,33 @@ pub struct ResourceRegistryStatusFlag(Arc<Mutex<RegistryReadyFlagData>>);
 impl ResourceRegistryStatusFlag {
     /// Returns current status of the registry.
     pub fn status(&self) -> ResourceRegistryStatus {
-        self.0.lock().status
+        self.0.safe_lock().status
     }
 
-    /// Marks the registry as loaded.
-    pub fn mark_as_loaded(&self) {
-        let mut lock = self.0.lock();
+    fn mark_as(&self, status: ResourceRegistryStatus) {
+        let mut lock = self.0.safe_lock();
 
-        lock.status = ResourceRegistryStatus::Loaded;
+        lock.status = status;
 
         for waker in lock.wakers.drain(..) {
             waker.wake();
         }
     }
 
+    /// Marks the registry as loaded.
+    pub fn mark_as_loaded(&self) {
+        self.mark_as(ResourceRegistryStatus::Loaded);
+    }
+
+    /// Marks the registry as unknown, due to an error.
+    pub fn mark_as_unknown(&self) {
+        self.mark_as(ResourceRegistryStatus::Unknown);
+    }
+
     /// Marks the registry as loading. This method should be used before trying to load a registry
     /// from an external source.
     pub fn mark_as_loading(&self) {
-        self.0.lock().status = ResourceRegistryStatus::Loading;
+        self.0.safe_lock().status = ResourceRegistryStatus::Loading;
     }
 }
 
@@ -152,7 +162,7 @@ impl Future for ResourceRegistryStatusFlag {
     type Output = ResourceRegistryStatus;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut lock = self.0.lock();
+        let mut lock = self.0.safe_lock();
 
         match lock.status {
             ResourceRegistryStatus::Unknown => Poll::Ready(ResourceRegistryStatus::Unknown),
@@ -503,7 +513,7 @@ impl ResourceRegistry {
                 continue;
             }
 
-            if !loaders.lock().is_supported_resource(&path) {
+            if !loaders.safe_lock().is_supported_resource(&path) {
                 if path
                     .extension()
                     .is_some_and(|ext| ext != "meta" && ext != "registry")

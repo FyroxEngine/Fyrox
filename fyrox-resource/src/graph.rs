@@ -22,6 +22,7 @@
 
 use crate::{collect_used_resources, state::ResourceState, untyped::UntypedResource};
 use fxhash::FxHashSet;
+use fyrox_core::SafeLock;
 
 /// A node of [`ResourceDependencyGraph`].
 pub struct ResourceGraphNode {
@@ -40,7 +41,7 @@ impl ResourceGraphNode {
         // Look for dependent resources.
         let mut dependent_resources = FxHashSet::default();
 
-        let header = resource.0.lock();
+        let header = resource.0.safe_lock();
         if let ResourceState::Ok { ref data, .. } = header.state {
             (**data).as_reflect(&mut |entity| {
                 collect_used_resources(entity, &mut dependent_resources);

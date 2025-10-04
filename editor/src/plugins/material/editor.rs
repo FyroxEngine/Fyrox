@@ -28,7 +28,7 @@ use crate::{
         asset::{core::pool::Handle, manager::ResourceManager, state::ResourceState},
         core::{
             color::Color, log::Log, parking_lot::Mutex, reflect::prelude::*,
-            type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+            type_traits::prelude::*, uuid_provider, visitor::prelude::*, SafeLock,
         },
         graph::BaseSceneGraph,
         gui::{
@@ -224,7 +224,7 @@ fn make_name(resource_manager: &ResourceManager, material: &MaterialResource) ->
             if let Some(path) = resource_manager
                 .state()
                 .resource_registry
-                .lock()
+                .safe_lock()
                 .uuid_to_path_buf(resource_uuid)
             {
                 format!(
@@ -394,7 +394,7 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
         Ok(PropertyEditorInstance::Simple {
             editor: MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
                 ctx.build_context,
-                self.sender.lock().clone(),
+                self.sender.safe_lock().clone(),
                 value.clone(),
                 environment.icon_request_sender.clone(),
                 environment.resource_manager.clone(),

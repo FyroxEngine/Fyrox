@@ -25,6 +25,7 @@ use crate::{
     reflect::{blank_reflect, prelude::*},
     sstorage::ImmutableString,
     uuid::Uuid,
+    SafeLock,
 };
 use fyrox_core_derive::impl_reflect;
 use std::{
@@ -444,7 +445,7 @@ macro_rules! impl_reflect_inner_mutability {
 }
 
 impl<T: Reflect + Clone> Reflect for parking_lot::Mutex<T> {
-    impl_reflect_inner_mutability!(self, { self.lock() }, { self.into_inner() });
+    impl_reflect_inner_mutability!(self, { self.safe_lock() }, { self.into_inner() });
 }
 
 impl<T: Reflect + Clone> Reflect for parking_lot::RwLock<T> {
@@ -453,7 +454,7 @@ impl<T: Reflect + Clone> Reflect for parking_lot::RwLock<T> {
 
 #[allow(clippy::mut_mutex_lock)]
 impl<T: Reflect + Clone> Reflect for std::sync::Mutex<T> {
-    impl_reflect_inner_mutability!(self, { self.lock().unwrap() }, { self.into_inner() });
+    impl_reflect_inner_mutability!(self, { self.safe_lock().unwrap() }, { self.into_inner() });
 }
 
 impl<T: Reflect + Clone> Reflect for std::sync::RwLock<T> {
@@ -461,7 +462,7 @@ impl<T: Reflect + Clone> Reflect for std::sync::RwLock<T> {
 }
 
 impl<T: Reflect + Clone> Reflect for Arc<parking_lot::Mutex<T>> {
-    impl_reflect_inner_mutability!(self, { self.lock() }, {
+    impl_reflect_inner_mutability!(self, { self.safe_lock() }, {
         Arc::into_inner(*self)
             .expect("Value cannot be shared!")
             .into_inner()

@@ -23,7 +23,7 @@ use crate::{
     command::{make_command, Command, SetPropertyCommand},
     fyrox::{
         asset::{manager::ResourceManager, options::BaseImportOptions, ResourceData},
-        core::{futures::executor::block_on, reflect::Reflect},
+        core::{futures::executor::block_on, reflect::Reflect, SafeLock},
         engine::Engine,
         gui::inspector::PropertyChanged,
         scene::SceneContainer,
@@ -59,7 +59,7 @@ struct SaveResourceCommand {
 
 impl SaveResourceCommand {
     fn save(&self) {
-        let mut guard = self.resource.0.lock();
+        let mut guard = self.resource.0.safe_lock();
         if let Some(data) = guard.state.data_mut() {
             Log::verify(data.save(&self.path));
         }
@@ -98,7 +98,7 @@ fn load_import_options_or_default(
 ) -> Option<Box<dyn BaseImportOptions>> {
     if let Some(extension) = resource_path.extension() {
         let rm_state = resource_manager.state();
-        let loaders = rm_state.loaders.lock();
+        let loaders = rm_state.loaders.safe_lock();
         for loader in loaders.iter() {
             if loader.supports_extension(&extension.to_string_lossy()) {
                 return if let Some(import_options) = block_on(loader.try_load_import_settings(
@@ -163,7 +163,7 @@ impl SelectionContainer for AssetSelection {
                 block_on(self.resource_manager.request_untyped(&resource.path))
             {
                 if !self.resource_manager.is_built_in_resource(&resource) {
-                    let guard = resource.0.lock();
+                    let guard = resource.0.safe_lock();
                     if let Some(data) = guard.state.data_ref() {
                         callback(&*data.0 as &dyn Reflect, false)
                     }
@@ -205,7 +205,7 @@ impl SelectionContainer for AssetSelection {
                 let resource2 = resource.clone();
                 if !self.resource_manager.is_built_in_resource(&resource) {
                     if let Some(command) = make_command(args, move |_| {
-                        let mut guard = resource.0.lock();
+                        let mut guard = resource.0.safe_lock();
                         let data = &mut **guard.state.data_mut()?;
                         // SAFETY: This is safe, because the closure owns its own copy of
                         // resource strong ref, and the entity getter is used only once per
@@ -264,7 +264,7 @@ impl SelectionContainer for AssetSelection {
                             path.to_string(),
                             value,
                             move |_| {
-                                let mut guard = resource.0.lock();
+                                let mut guard = resource.0.safe_lock();
                                 let data = &mut **guard.state.data_mut()?;
                                 // SAFETY: This is safe, because the closure owns its own copy of
                                 // resource strong ref, and the entity getter is used only once per
