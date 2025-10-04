@@ -1111,17 +1111,15 @@ impl ResourceManagerState {
                         }
                     }
                 }
-            } else {
-                if !reload {
-                    let err_msg = format!(
-                        "There's no resource loader for {} resource!",
-                        path.display()
-                    );
+            } else if !reload {
+                let err_msg = format!(
+                    "There's no resource loader for {} resource!",
+                    path.display()
+                );
 
-                    Log::err(&err_msg);
+                Log::err(&err_msg);
 
-                    resource.commit_error(path.clone(), LoadError::new(err_msg))
-                }
+                resource.commit_error(path.clone(), LoadError::new(err_msg))
             }
         });
     }
