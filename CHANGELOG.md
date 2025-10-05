@@ -131,6 +131,12 @@ First release-candidate version (unreleased).
 - Reduced memory usage when generating asset previews
 - Clamp anisotropy in `[1.0; 16.0]` range to prevent video driver errors
 - Fixed `uuid_provider` macro
+- Correcting InheritableVariable::visit and physics integration parameters dt
+- Fixed selection button being clipped on material property editor
+- Fixed gimbal lock in GLTF animations
+- Prevent crash on empty uniform blocks
+- Update the material editor when hot-reloading a shader
+- Fixed crash on material hot-reloading when a property was removed
 
 ## Added
 
@@ -279,9 +285,19 @@ First release-candidate version (unreleased).
 - Property editors for Run + RunSet
 - Property editor for `char` + editors for mask char in formatted text
 - Named constants for mouse buttons + helper methods for mouse input
+- Ability to set runs via respective message
+- Added srgba8/srgb8 texture formats
+- Added pure color texture
+- Added non-euler-angles-based rotation track
 
 ## Changed
 
+- Preventing deadlocks by replacing `lock` with `safe_lock`
+- Automatically destroy dead senders in resource event broadcasters
+- Renamed pool method typed_ref to try_get
+- Configurable render mode for ui
+- UI rendering api improvements
+- do not alter already loaded resource state when reloading it
 - Use scene skybox if there's no specific environment map
 - Do not prevent building without the opened scene
 - Remove dependency on status code 101 (which is cargo specific, while built-tool has tool-agnostic design)
