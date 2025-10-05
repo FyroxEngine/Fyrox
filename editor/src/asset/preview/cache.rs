@@ -25,7 +25,7 @@ use crate::{
     },
     fyrox::{
         asset::untyped::UntypedResource,
-        core::{futures::executor::block_on, parking_lot::Mutex, pool::Handle, Uuid},
+        core::{futures::executor::block_on, parking_lot::Mutex, pool::Handle, SafeLock, Uuid},
         engine::Engine,
         fxhash::FxHashMap,
         gui::{message::MessageDirection, UiNode},
@@ -57,7 +57,7 @@ impl AssetPreviewCache {
             for request in receiver.iter() {
                 let resource = request.resource.clone();
                 if block_on(resource).is_ok() {
-                    queue.lock().push_back(request);
+                    queue.safe_lock().push_back(request);
                 }
             }
         });
@@ -108,7 +108,7 @@ impl AssetPreviewCache {
     ) {
         let mut generated = 0;
         let queue = self.queue.clone();
-        let mut queue = queue.lock();
+        let mut queue = queue.safe_lock();
         while let Some(request) = queue.pop_back() {
             let IconRequest {
                 widget_handle,

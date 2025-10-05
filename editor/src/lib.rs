@@ -78,7 +78,7 @@ use crate::{
             task::TaskPool,
             uuid::Uuid,
             watcher::FileSystemWatcher,
-            TypeUuidProvider,
+            SafeLock, TypeUuidProvider,
         },
         dpi::{PhysicalPosition, PhysicalSize},
         engine::{
@@ -232,7 +232,7 @@ lazy_static! {
 }
 
 pub fn load_texture_internal(data: &[u8]) -> Option<TextureResource> {
-    let mut cache = EDITOR_TEXTURE_CACHE.lock();
+    let mut cache = EDITOR_TEXTURE_CACHE.safe_lock();
 
     // Editor use data that is embedded in the binary, so each such piece of data will have fixed
     // location in memory. This fact allows us to cache the resources and skip redundant loading if
@@ -2095,7 +2095,7 @@ impl Editor {
             }
         }
 
-        let mut loading_scenes = self.loading_scenes.lock();
+        let mut loading_scenes = self.loading_scenes.safe_lock();
         if loading_scenes.contains(&scene_path) {
             return;
         }
@@ -2121,7 +2121,7 @@ impl Editor {
                         resource_manager,
                     )
                     .await;
-                    loading_scenes.lock().remove(&scene_path);
+                    loading_scenes.safe_lock().remove(&scene_path);
                     match result {
                         Ok(loader) => {
                             let scene = loader.0.finish().await;
@@ -2145,7 +2145,7 @@ impl Editor {
                         &FsResourceIo,
                     )
                     .await;
-                    loading_scenes.lock().remove(&scene_path);
+                    loading_scenes.safe_lock().remove(&scene_path);
                     match result {
                         Ok(ui) => {
                             sender.send(Message::AddUiScene {
@@ -2487,7 +2487,7 @@ impl Editor {
         let ui = self.engine.user_interfaces.first_mut();
 
         if let Some(loading_window) = self.scene_loading_window.take() {
-            let set = self.loading_scenes.lock();
+            let set = self.loading_scenes.safe_lock();
             self.scene_loading_window = loading_window.update(&set, ui);
         }
 
@@ -2498,7 +2498,7 @@ impl Editor {
             }
         }
 
-        if !self.loading_scenes.lock().is_empty() {
+        if !self.loading_scenes.safe_lock().is_empty() {
             self.update_loop_state.request_update_in_next_frame();
         }
 
@@ -2843,7 +2843,7 @@ impl Editor {
         P: Plugin + 'static,
     {
         let inspector = self.plugins.get::<InspectorPlugin>();
-        *inspector.property_editors.context_type_id.lock() = plugin.type_id();
+        *inspector.property_editors.context_type_id.safe_lock() = plugin.type_id();
         inspector
             .property_editors
             .merge(plugin.register_property_editors());
@@ -2883,7 +2883,7 @@ impl Editor {
     {
         let plugin = self.engine.add_dynamic_plugin_custom(plugin);
         let inspector = self.plugins.get::<InspectorPlugin>();
-        *inspector.property_editors.context_type_id.lock() = plugin.type_id();
+        *inspector.property_editors.context_type_id.safe_lock() = plugin.type_id();
         inspector
             .property_editors
             .merge(plugin.register_property_editors());
@@ -2903,7 +2903,7 @@ impl Editor {
             // Keep the editor active if user holds any mouse button.
             || self.engine.user_interfaces.first().captured_node().is_some()
             // Keep the editor active until it fully loads all the queued scenes.
-            ||!self.loading_scenes.lock().is_empty()
+            ||!self.loading_scenes.safe_lock().is_empty()
     }
 
     fn on_resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -3231,7 +3231,7 @@ fn update(editor: &mut Editor, event_loop: &ActiveEventLoop) {
         if need_reload_plugins {
             let on_plugin_reloaded = |plugin: &dyn Plugin| {
                 let inspector = editor.plugins.get_mut::<InspectorPlugin>();
-                *inspector.property_editors.context_type_id.lock() = plugin.type_id();
+                *inspector.property_editors.context_type_id.safe_lock() = plugin.type_id();
                 inspector
                     .property_editors
                     .merge(plugin.register_property_editors());

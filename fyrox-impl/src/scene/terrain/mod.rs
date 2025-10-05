@@ -34,6 +34,7 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
+        SafeLock,
     },
     graphics::ElementRange,
     material::MaterialResourceExtension,
@@ -524,7 +525,7 @@ impl Chunk {
             return;
         };
         let count = heightmap.data_ref().modifications_count();
-        let mut quad_tree = self.quad_tree.lock();
+        let mut quad_tree = self.quad_tree.safe_lock();
         if count != quad_tree.height_mod_count() {
             *quad_tree = make_quad_tree(&self.heightmap, self.height_map_size, self.block_size);
         }
@@ -818,9 +819,12 @@ impl Chunk {
     pub fn debug_draw(&self, transform: &Matrix4<f32>, ctx: &mut SceneDrawingContext) {
         let transform = *transform * Matrix4::new_translation(&self.position());
 
-        self.quad_tree
-            .lock()
-            .debug_draw(&transform, self.height_map_size, self.physical_size, ctx)
+        self.quad_tree.safe_lock().debug_draw(
+            &transform,
+            self.height_map_size,
+            self.physical_size,
+            ctx,
+        )
     }
 
     fn set_block_size(&mut self, block_size: Vector2<u32>) {
@@ -833,7 +837,7 @@ impl Chunk {
         if self.heightmap.is_none() {
             return;
         }
-        *self.quad_tree.lock() =
+        *self.quad_tree.safe_lock() =
             make_quad_tree(&self.heightmap, self.height_map_size, self.block_size);
     }
 }
@@ -2099,7 +2103,7 @@ impl Terrain {
             drop(texture_modifier);
             drop(texture_data);
 
-            *chunk.quad_tree.lock() =
+            *chunk.quad_tree.safe_lock() =
                 make_quad_tree(&chunk.heightmap, chunk.height_map_size, chunk.block_size);
         }
 
@@ -2616,7 +2620,7 @@ impl NodeTrait for Terrain {
                 // The first element of the list is the furthest distance, where the lowest LOD is used.
                 // The formula used to produce this list has been chosen arbitrarily based on what seems to produce
                 // the best results in the render.
-                let quad_tree = chunk.quad_tree.lock();
+                let quad_tree = chunk.quad_tree.safe_lock();
                 let levels = (0..=quad_tree.max_level)
                     .map(|n| {
                         ctx.observer_position.z_far

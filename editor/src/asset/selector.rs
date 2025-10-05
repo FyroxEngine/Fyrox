@@ -28,7 +28,7 @@ use crate::{
         asset::{manager::ResourceManager, untyped::UntypedResource, TypedResourceData},
         core::{
             algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-            visitor::prelude::*,
+            visitor::prelude::*, SafeLock,
         },
         graph::SceneGraph,
         gui::{
@@ -307,8 +307,8 @@ impl<'a> AssetSelectorBuilder<'a> {
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
         let state = resource_manager.state();
-        let loaders = state.loaders.lock();
-        let registry = state.resource_registry.lock();
+        let loaders = state.loaders.safe_lock();
+        let registry = state.resource_registry.safe_lock();
 
         let mut supported_resource_paths = loaders
             .iter()
@@ -337,7 +337,7 @@ impl<'a> AssetSelectorBuilder<'a> {
             .collect::<Vec<_>>();
 
         supported_resource_paths.extend(state.built_in_resources.values().filter_map(|res| {
-            let resource_state = res.resource.0.lock();
+            let resource_state = res.resource.0.safe_lock();
             if self
                 .asset_types
                 .contains(&resource_state.state.data_ref()?.type_uuid())

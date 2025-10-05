@@ -23,7 +23,7 @@
 //! on deserialization to create a default instance of corresponding resource.
 
 use crate::{
-    core::{parking_lot::Mutex, uuid::Uuid, TypeUuidProvider},
+    core::{parking_lot::Mutex, uuid::Uuid, SafeLock, TypeUuidProvider},
     ResourceData,
 };
 use fxhash::FxHashMap;
@@ -62,7 +62,7 @@ impl ResourceConstructorContainer {
     where
         T: ResourceData + Default + TypeUuidProvider,
     {
-        let previous = self.map.lock().insert(
+        let previous = self.map.safe_lock().insert(
             <T as TypeUuidProvider>::type_uuid(),
             ResourceDataConstructor {
                 callback: Box::new(|| Box::<T>::default()),
@@ -75,26 +75,26 @@ impl ResourceConstructorContainer {
 
     /// Adds custom type constructor.
     pub fn add_custom(&self, type_uuid: Uuid, constructor: ResourceDataConstructor) {
-        self.map.lock().insert(type_uuid, constructor);
+        self.map.safe_lock().insert(type_uuid, constructor);
     }
 
     /// Unregisters type constructor.
     pub fn remove(&self, type_uuid: Uuid) {
-        self.map.lock().remove(&type_uuid);
+        self.map.safe_lock().remove(&type_uuid);
     }
 
     /// Makes an attempt to create a resource data using provided type UUID. It may fail if there is no
     /// resource data constructor for specified type UUID.
     pub fn try_create(&self, type_uuid: &Uuid) -> Option<Box<dyn ResourceData>> {
         self.map
-            .lock()
+            .safe_lock()
             .get_mut(type_uuid)
             .map(|c| c.create_instance())
     }
 
     /// Returns total amount of constructors.
     pub fn len(&self) -> usize {
-        self.map.lock().len()
+        self.map.safe_lock().len()
     }
 
     /// Returns true if the container is empty.

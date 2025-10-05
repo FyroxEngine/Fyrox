@@ -33,7 +33,7 @@ use crate::{
         reflect::prelude::*,
         uuid::Uuid,
         visitor::prelude::*,
-        ImmutableString,
+        ImmutableString, SafeLock,
     },
     core::{parking_lot::Mutex, variable::InheritableVariable},
     define_constructor,
@@ -1805,7 +1805,7 @@ impl Widget {
     #[inline]
     pub fn user_data_cloned<T: Clone + 'static>(&self) -> Option<T> {
         self.user_data.as_ref().and_then(|v| {
-            let guard = v.lock();
+            let guard = v.safe_lock();
             guard.downcast_ref::<T>().cloned()
         })
     }
