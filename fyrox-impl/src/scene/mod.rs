@@ -239,7 +239,7 @@ impl Clone for SceneRenderingOptions {
             clear_color: self.clear_color,
             polygon_rasterization_mode: self.polygon_rasterization_mode,
             ambient_lighting_color: self.ambient_lighting_color,
-            environment_lighting_source: Default::default(),
+            environment_lighting_source: self.environment_lighting_source,
         }
     }
 }
