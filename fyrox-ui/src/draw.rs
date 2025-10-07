@@ -34,7 +34,7 @@ use crate::{
     Thickness,
 };
 use bytemuck::{Pod, Zeroable};
-use fyrox_core::math::round_to_step;
+use fyrox_core::math::{round_to_step, OptionRect};
 use fyrox_material::MaterialResource;
 use fyrox_texture::TextureResource;
 use std::ops::Range;
@@ -938,13 +938,13 @@ impl DrawingContext {
 
     #[inline]
     fn bounds_of(&self, range: Range<usize>) -> Rect<f32> {
-        let mut bounds = Rect::new(f32::MAX, f32::MAX, 0.0, 0.0);
+        let mut bounds = OptionRect::default();
         for i in range {
             for &k in self.triangle_buffer[i].as_ref() {
                 bounds.push(self.vertex_buffer[k as usize].pos);
             }
         }
-        bounds
+        bounds.unwrap_or_default()
     }
 
     #[inline]
