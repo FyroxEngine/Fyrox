@@ -140,7 +140,6 @@ impl InteractionMode for UiSelectInteractionMode {
 
             if relative_bounds.intersects(node.screen_bounds()) {
                 ui_selection.insert_or_exclude(handle);
-                break;
             }
 
             self.stack.extend_from_slice(node.children());
