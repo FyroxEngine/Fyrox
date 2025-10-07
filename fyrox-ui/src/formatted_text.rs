@@ -253,6 +253,7 @@ pub struct FormattedText {
     glyphs: Vec<TextGlyph>,
     vertical_alignment: InheritableVariable<VerticalAlignment>,
     horizontal_alignment: InheritableVariable<HorizontalAlignment>,
+    #[reflect(hidden)]
     brush: InheritableVariable<Brush>,
     #[visit(skip)]
     #[reflect(hidden)]
