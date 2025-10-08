@@ -860,7 +860,7 @@ impl Display for ColorGradingLutCreationError {
                 )
             }
             ColorGradingLutCreationError::Texture(v) => {
-                write!(f, "Texture load error: {v:?}")
+                write!(f, "Texture load error: {v}")
             }
         }
     }

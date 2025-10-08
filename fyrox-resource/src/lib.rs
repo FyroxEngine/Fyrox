@@ -39,8 +39,8 @@ use crate::{
 use fxhash::FxHashSet;
 pub use fyrox_core as core;
 use fyrox_core::{combine_uuids, log::Log, SafeLock};
-use std::any::Any;
 use std::path::PathBuf;
+use std::{any::Any, fmt::Display};
 use std::{
     error::Error,
     fmt::{Debug, Formatter},
@@ -110,9 +110,9 @@ pub trait TypedResourceData: ResourceData + Default + TypeUuidProvider {}
 impl<T> TypedResourceData for T where T: ResourceData + Default + TypeUuidProvider {}
 
 /// A trait for resource load error.
-pub trait ResourceLoadError: 'static + Debug + Send + Sync {}
+pub trait ResourceLoadError: 'static + Debug + Display + Send + Sync {}
 
-impl<T> ResourceLoadError for T where T: 'static + Debug + Send + Sync {}
+impl<T> ResourceLoadError for T where T: 'static + Debug + Display + Send + Sync {}
 
 /// Provides typed access to a resource state.
 pub struct ResourceHeaderGuard<'a, T>
@@ -178,11 +178,22 @@ where
 /// ## Default State
 ///
 /// Default state of the resource will be [`ResourceState::Ok`] with `T::default`.
-#[derive(Debug, Reflect)]
+#[derive(Reflect)]
 pub struct Resource<T: Debug> {
     untyped: UntypedResource,
     #[reflect(hidden)]
     phantom: PhantomData<T>,
+}
+
+impl<T: Debug> Debug for Resource<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Resource<{}>({})",
+            std::any::type_name::<T>(),
+            self.untyped
+        )
+    }
 }
 
 impl<T: TypedResourceData> AsRef<UntypedResource> for Resource<T> {
@@ -276,6 +287,10 @@ impl<T> Resource<T>
 where
     T: TypedResourceData,
 {
+    /// Create a summary of this resource handle, wht UUID, embedded/external, and Ok, Pending, Error, etc.
+    pub fn summary(&self) -> String {
+        format!("{}", self.untyped)
+    }
     /// Creates new resource in pending state.
     #[inline]
     pub fn new_pending(path: PathBuf, kind: ResourceKind) -> Self {
@@ -523,15 +538,13 @@ where
             ResourceState::Pending { .. } => {
                 write!(
                     f,
-                    "Attempt to get reference to resource data while it is not loaded! Path is {}",
-                    self.guard.kind
+                    "Attempt to get reference to resource data while it is loading!"
                 )
             }
             ResourceState::LoadError { .. } => {
                 write!(
                     f,
-                    "Attempt to get reference to resource data which failed to load! Path is {}",
-                    self.guard.kind
+                    "Attempt to get reference to resource data which failed to load!"
                 )
             }
             ResourceState::Ok { ref data, .. } => data.fmt(f),
@@ -549,15 +562,20 @@ where
         match self.guard.state {
             ResourceState::Pending { .. } => {
                 panic!(
-                    "Attempt to get reference to resource data while it is not loaded! Path is {}",
-                    self.guard.kind
+                    "Attempt to get reference to resource data while it is loading! Type {}",
+                    std::any::type_name::<T>()
                 )
             }
-            ResourceState::LoadError { .. } => {
-                panic!(
-                    "Attempt to get reference to resource data which failed to load! Path is {}",
-                    self.guard.kind
-                )
+            ResourceState::LoadError {
+                ref path,
+                ref error,
+            } => {
+                let path = if path.as_os_str().is_empty() {
+                    "Unknown".to_string()
+                } else {
+                    format!("{path:?}")
+                };
+                panic!("Attempt to get reference to resource data which failed to load! Type {}. Path: {path}. Error: {error:?}", std::any::type_name::<T>())
             }
             ResourceState::Ok { ref data, .. } => (&**data as &dyn Any)
                 .downcast_ref()
@@ -574,16 +592,10 @@ where
         let header = &mut *self.guard;
         match header.state {
             ResourceState::Pending { .. } => {
-                panic!(
-                    "Attempt to get reference to resource data while it is not loaded! Path is {}",
-                    header.kind
-                )
+                panic!("Attempt to get reference to resource data while it is loading!")
             }
             ResourceState::LoadError { .. } => {
-                panic!(
-                    "Attempt to get reference to resource data which failed to load! Path is {}",
-                    header.kind
-                )
+                panic!("Attempt to get reference to resource data which failed to load!")
             }
             ResourceState::Ok { ref mut data, .. } => (&mut **data as &mut dyn Any)
                 .downcast_mut()

@@ -639,8 +639,10 @@ impl NodeTrait for Mesh {
             } else {
                 for surface in self.surfaces.iter() {
                     let data = surface.data();
-                    let data = data.data_ref();
-                    extend_aabb_from_vertex_buffer(&data.vertex_buffer, &mut bounding_box);
+                    if data.is_ok() {
+                        let data = data.data_ref();
+                        extend_aabb_from_vertex_buffer(&data.vertex_buffer, &mut bounding_box);
+                    }
                 }
             }
 
@@ -721,6 +723,9 @@ impl NodeTrait for Mesh {
             RdcControlFlow::Break
         } else {
             for surface in self.surfaces().iter() {
+                if !surface.data_ref().is_ok() {
+                    continue;
+                }
                 let is_skinned = !surface.bones.is_empty();
 
                 let world = if is_skinned {

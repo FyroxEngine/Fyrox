@@ -435,7 +435,13 @@ impl SceneLoader {
         ));
 
         // Wait everything.
-        join_all(used_resources.into_iter()).await;
+        let results = join_all(used_resources.into_iter()).await;
+
+        for result in results {
+            if let Err(err) = result {
+                Log::err(format!("Scene resource loading error: {:?}", err));
+            }
+        }
 
         Log::info(format!(
             "SceneLoader::finish() - All {used_resources_count} resources have finished loading."

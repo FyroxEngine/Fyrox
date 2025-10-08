@@ -1059,8 +1059,8 @@ impl ResourceGraphVertex {
 
     pub fn resolve(&self) {
         Log::info(format!(
-            "Resolving {} resource from dependency graph...",
-            self.resource.kind()
+            "Resolving {:?} resource from dependency graph...",
+            self.resource.resource_uuid()
         ));
 
         // Wait until resource is fully loaded, then resolve.
@@ -2416,8 +2416,8 @@ impl Engine {
             if let ResourceEvent::Reloaded(resource) = event {
                 if let Some(model) = resource.try_cast::<Model>() {
                     Log::info(format!(
-                        "A model resource {} was reloaded, propagating changes...",
-                        model.kind()
+                        "A model resource {:?} was reloaded, propagating changes...",
+                        model.resource_uuid()
                     ));
 
                     // Build resource dependency graph and resolve it first.
@@ -2799,7 +2799,10 @@ impl Engine {
 
         // Deserialize prefab scene content.
         for (model, scene_state) in prefab_scenes {
-            Log::info(format!("Deserializing {} prefab content...", model.kind()));
+            Log::info(format!(
+                "Deserializing {:?} prefab content...",
+                model.resource_uuid()
+            ));
 
             scene_state.deserialize_into_prefab_scene(
                 &model,

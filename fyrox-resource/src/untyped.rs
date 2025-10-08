@@ -33,6 +33,7 @@ use crate::{
     MODEL_RESOURCE_UUID, SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
 };
 use fyrox_core::err;
+use std::fmt::Write;
 use std::{
     error::Error,
     ffi::OsStr,
@@ -164,6 +165,21 @@ pub struct ResourceHeader {
 
     // TODO: Remove in Fyrox 1.0
     old_format_path: Option<PathBuf>,
+}
+
+impl Display for ResourceHeader {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            ResourceKind::Embedded => f.write_str("Embed")?,
+            ResourceKind::External => f.write_str("Extern")?,
+        }
+        f.write_char(':')?;
+        match &self.state {
+            ResourceState::Pending { .. } => f.write_str("Pending"),
+            ResourceState::LoadError { path, error } => write!(f, "Error({path:?}, {error})"),
+            ResourceState::Ok { .. } => f.write_str("Ok"),
+        }
+    }
 }
 
 impl Visit for ResourceHeader {
@@ -387,6 +403,16 @@ impl Default for UntypedResource {
             ),
             old_format_path: None,
         })))
+    }
+}
+
+impl Display for UntypedResource {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if let Some(header) = self.0.try_lock() {
+            Display::fmt(&header, f)
+        } else {
+            f.write_str("locked")
+        }
     }
 }
 

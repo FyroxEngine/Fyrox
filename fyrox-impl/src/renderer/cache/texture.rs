@@ -255,8 +255,7 @@ impl TextureCache {
                     drop(texture_data_guard);
                     err_once!(
                         texture_resource.key() as usize,
-                        "Failed to create GPU texture from {} texture. Reason: {:?}",
-                        texture_resource.kind(),
+                        "Failed to create GPU texture from texture. Reason: {:?}",
                         e,
                     );
                 }

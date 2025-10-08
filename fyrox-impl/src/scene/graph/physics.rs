@@ -517,6 +517,9 @@ fn make_trimesh(
 
             for surface in mesh.surfaces() {
                 let shared_data = surface.data();
+                if !shared_data.is_ok() {
+                    continue;
+                }
                 let shared_data = shared_data.data_ref();
 
                 let vertices = &shared_data.vertex_buffer;

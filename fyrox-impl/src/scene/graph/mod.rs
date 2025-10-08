@@ -78,6 +78,7 @@ use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::SceneGraphNode;
+use std::fmt::Write;
 use std::ops::Deref;
 use std::{
     any::{Any, TypeId},
@@ -127,7 +128,7 @@ impl GraphPerformanceStatistics {
 pub type NodePool = Pool<Node, NodeContainer>;
 
 /// See module docs.
-#[derive(Debug, Reflect)]
+#[derive(Reflect)]
 pub struct Graph {
     #[reflect(hidden)]
     root: Handle<Node>,
@@ -169,6 +170,22 @@ pub struct Graph {
     pub(crate) message_receiver: Receiver<NodeMessage>,
 
     instance_id_map: FxHashMap<SceneNodeId, Handle<Node>>,
+}
+
+impl Debug for Graph {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Graph")
+            .field("physics", &self.physics)
+            .field("physics2d", &self.physics2d)
+            .field("sound_context", &self.sound_context)
+            .field("performance_statistics", &self.performance_statistics)
+            .field("event_broadcaster", &self.event_broadcaster)
+            .field("lightmap", &self.lightmap)
+            .field("instance_id_map", &self.instance_id_map)
+            .finish()?;
+        f.write_char('\n')?;
+        f.write_str(&self.summary())
+    }
 }
 
 impl Clone for Graph {
@@ -268,7 +285,7 @@ fn clear_links(mut node: Node) -> Node {
 }
 
 /// A set of switches that allows you to disable a particular step of graph update pipeline.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GraphUpdateSwitches {
     /// Enables the physics update to have a non-zero `dt`.
     pub physics_dt: bool,
@@ -351,6 +368,30 @@ impl Graph {
             &mut |_, _, _| {},
         );
         graph
+    }
+
+    fn recursive_summary(&self, indent: usize, current: Handle<Node>, result: &mut String) {
+        for _ in 0..indent {
+            result.push_str("  ");
+        }
+        let Some(node) = self.try_get(current) else {
+            use std::fmt::Write;
+            writeln!(result, "{}: Failed to get", current).unwrap();
+            return;
+        };
+        result.push_str(&node.summary());
+        result.push('\n');
+        for script in node.scripts() {
+            for _ in 0..indent + 1 {
+                result.push_str("  ");
+            }
+            result.push_str("+ Script: ");
+            result.push_str(&script.summary());
+            result.push('\n');
+        }
+        for child in node.children() {
+            self.recursive_summary(indent + 1, *child, result);
+        }
     }
 
     /// Sets new root of the graph and attaches the old root to the new root. Old root becomes a child
@@ -1683,6 +1724,13 @@ impl BaseSceneGraph for Graph {
     type NodeContainer = NodeContainer;
     type Node = Node;
 
+    /// Create a brief debug summary of the contents of this graph.
+    fn summary(&self) -> String {
+        let mut result = String::new();
+        self.recursive_summary(0, self.root, &mut result);
+        result
+    }
+
     #[inline]
     fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
         self.pool
@@ -2192,21 +2240,21 @@ mod test {
             let mesh_pivot = derived_scene
                 .graph
                 .find_by_name_from_root("MeshPivot")
-                .unwrap()
+                .expect("Missing MeshPivot")
                 .0;
             let mesh = derived_scene
                 .graph
                 .find_by_name(mesh_pivot, "Mesh")
-                .unwrap()
+                .expect("Missing Mesh")
                 .0;
             derived_scene
                 .graph
                 .find_by_name_from_root("AddedLater")
-                .unwrap();
+                .expect("Missing AddedLater");
             derived_scene
                 .graph
                 .find_by_name(mesh, "NewChildOfMesh")
-                .unwrap();
+                .expect("Missing NewChildOfMesh");
         }
     }
 

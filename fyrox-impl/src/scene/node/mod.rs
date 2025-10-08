@@ -134,6 +134,36 @@ pub enum RdcControlFlow {
 
 /// A main trait for any scene graph node.
 pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
+    /// Brief debugging information about this node.
+    fn summary(&self) -> String {
+        use std::fmt::Write;
+        let mut result = String::new();
+        let type_name = self
+            .type_name()
+            .strip_prefix("fyrox_impl::scene::")
+            .unwrap_or(self.type_name());
+        write!(result, "{} {}<{}>", self.handle(), self.name(), type_name,).unwrap();
+        if self.children().len() == 1 {
+            result.push_str(" 1 child");
+        } else if self.children().len() > 1 {
+            write!(result, " {} children", self.children().len()).unwrap();
+        }
+        if self.script_count() > 0 {
+            write!(result, " {} scripts", self.script_count()).unwrap();
+        }
+        if self.is_resource_instance_root() {
+            result.push_str(" root");
+        }
+        let origin = self.original_handle_in_resource();
+        if origin.is_some() {
+            write!(result, " from:{}", origin).unwrap();
+        }
+        if let Some(r) = self.resource() {
+            write!(result, " {}", r.summary()).unwrap();
+        }
+        result
+    }
+
     /// Returns axis-aligned bounding box in **local space** of the node.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox;
 
@@ -807,6 +837,7 @@ mod test {
 
             let derived_data = derived_asset.data_ref();
             let derived_scene = derived_data.get_scene();
+
             let pivot = derived_scene
                 .graph
                 .find_by_name_from_root("Pivot")

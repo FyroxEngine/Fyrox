@@ -404,6 +404,7 @@ impl Reader for AsciiReader<'_> {
         let mut visitor = Visitor {
             nodes: Pool::new(),
             unique_id_counter: 1,
+            type_name_map: Default::default(),
             rc_map: Default::default(),
             arc_map: Default::default(),
             reading: true,
