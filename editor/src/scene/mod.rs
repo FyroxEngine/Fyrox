@@ -151,7 +151,7 @@ lazy_static! {
     static ref GRID_SHADER: ShaderResource = {
         ShaderResource::from_str(
             Uuid::new_v4(),
-            include_str!("../../resources/shaders/grid.shader",),
+            include_str!("../../resources/shaders/grid.shader"),
             Default::default(),
         )
         .unwrap()
