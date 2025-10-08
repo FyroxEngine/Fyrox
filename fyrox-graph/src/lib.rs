@@ -686,10 +686,16 @@ pub trait AbstractSceneGraph: 'static {
     ) -> Option<&mut dyn AbstractSceneNode>;
 }
 
+/// BaseSceneGraph is a dyn-compatible trait for all scene graphs to implement.
+/// Methods that would not be dyn-compatible are available through the
+/// [`SceneGraph`] trait.
 pub trait BaseSceneGraph: AbstractSceneGraph {
     type Prefab: PrefabData<Graph = Self>;
     type NodeContainer: PayloadContainer<Element = Self::Node>;
     type Node: SceneGraphNode<SceneGraph = Self, ResourceData = Self::Prefab>;
+
+    /// Generate a string that briefly summarizes the content of the graph for debugging.
+    fn summary(&self) -> String;
 
     /// Returns actual type id of the node.
     fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId>;
@@ -832,6 +838,9 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
     }
 }
 
+/// SceneGraph is a non-dyn-compatible trait for all scene graphs to implement.
+/// To use a scene graph as a dyn object, use `dyn BaseSceneGraph` because
+/// [`BaseSceneGraph`] is dyn-compatible.
 pub trait SceneGraph: BaseSceneGraph {
     type ObjectType: Sized;
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
@@ -1097,6 +1106,7 @@ pub trait SceneGraph: BaseSceneGraph {
         &self,
         from: Handle<Self::Node>,
     ) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
+        self.try_get_node(from).expect("Handle must be valid!");
         GraphTraverseIterator {
             graph: self,
             stack: vec![from],
@@ -1148,7 +1158,6 @@ pub trait SceneGraph: BaseSceneGraph {
             let mut nodes_to_delete = Vec::new();
             for (_, node) in self.traverse_iter(instance_root) {
                 if let Some(resource) = node.resource() {
-                    let kind = resource.kind();
                     if let Some(model) = resource.state().data() {
                         if !model
                             .graph()
@@ -1158,21 +1167,19 @@ pub trait SceneGraph: BaseSceneGraph {
 
                             Log::warn(format!(
                                 "Node {} ({}:{}) and its children will be deleted, because it \
-                    does not exist in the parent asset `{}`!",
+                    does not exist in the parent asset!",
                                 node.name(),
                                 node.self_handle().index(),
                                 node.self_handle().generation(),
-                                kind
                             ))
                         }
                     } else {
                         Log::warn(format!(
                             "Node {} ({}:{}) and its children will be deleted, because its \
-                    parent asset `{}` failed to load!",
+                    parent asset failed to load!",
                             node.name(),
                             node.self_handle().index(),
                             node.self_handle().generation(),
-                            kind
                         ))
                     }
                 }
@@ -1805,6 +1812,10 @@ mod test {
         type Prefab = Graph;
         type NodeContainer = NodeContainer;
         type Node = Node;
+
+        fn summary(&self) -> String {
+            "Summary".to_string()
+        }
 
         fn root(&self) -> Handle<Self::Node> {
             self.root

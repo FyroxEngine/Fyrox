@@ -64,7 +64,6 @@ const INVALID_GENERATION: u32 = 0;
 /// block. It allows to create and delete objects much faster than if they'll
 /// be allocated on heap. Also since objects stored in contiguous memory block
 /// they can be effectively accessed because such memory layout is cache-friendly.
-#[derive(Debug)]
 pub struct Pool<T, P = Option<T>>
 where
     T: Sized,
@@ -72,6 +71,16 @@ where
 {
     records: Vec<PoolRecord<T, P>>,
     free_stack: Vec<u32>,
+}
+
+impl<T: Sized + Debug, P: PayloadContainer<Element = T> + 'static> Debug for Pool<T, P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("Pool");
+        for (handle, value) in self.pair_iter() {
+            s.field(&handle.to_string(), value);
+        }
+        s.finish()
+    }
 }
 
 /// This trait unifies pool objects and their variants.

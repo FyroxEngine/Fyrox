@@ -18,7 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use std::path::{Path, PathBuf};
+use std::{
+    fmt::Display,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     asset::{manager::ResourceManager, state::LoadError, untyped::ResourceKind, Resource},
@@ -96,6 +99,24 @@ pub enum GltfMaterialError {
     Load(LoadError),
     Base64(base64::DecodeError),
     Texture(TextureError),
+}
+
+impl std::error::Error for GltfMaterialError {}
+
+impl Display for GltfMaterialError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GltfMaterialError::ShaderLoadFailed => f.write_str("Shader load failed"),
+            GltfMaterialError::InvalidIndex => f.write_str("Invalid material index"),
+            GltfMaterialError::UnsupportedURI(uri) => {
+                write!(f, "Unsupported material URI {uri:?}")
+            }
+            GltfMaterialError::TextureNotFound(uri) => write!(f, "Texture not found: {uri:?}"),
+            GltfMaterialError::Load(error) => Display::fmt(error, f),
+            GltfMaterialError::Base64(error) => Display::fmt(error, f),
+            GltfMaterialError::Texture(error) => Display::fmt(error, f),
+        }
+    }
 }
 
 impl From<LoadError> for GltfMaterialError {

@@ -859,6 +859,20 @@ impl Script {
         }
     }
 
+    /// Generate a brief summary of this script for debugging purposes.
+    pub fn summary(&self) -> String {
+        let mut summary = String::new();
+        if self.initialized {
+            summary.push_str("init ");
+        }
+        if self.started {
+            summary.push_str("start ");
+        }
+        use std::fmt::Write;
+        write!(summary, "{:?}", self.instance).unwrap();
+        summary
+    }
+
     /// Performs downcasting to a particular type.
     #[inline]
     pub fn cast<T: ScriptTrait>(&self) -> Option<&T> {

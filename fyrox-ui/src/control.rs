@@ -80,6 +80,22 @@ where
 pub trait Control:
     BaseControl + Deref<Target = Widget> + DerefMut + Reflect + Visit + ComponentProvider
 {
+    /// Brief debugging information about this node.
+    fn summary(&self) -> String {
+        use std::fmt::Write;
+        let mut result = String::new();
+        let type_name = BaseControl::type_name(self)
+            .strip_prefix("fyrox_ui::")
+            .unwrap_or(BaseControl::type_name(self));
+        write!(result, "{} {}<{}>", self.handle(), self.name(), type_name,).unwrap();
+        if self.children().len() == 1 {
+            result.push_str(" 1 child");
+        } else if self.children().len() > 1 {
+            write!(result, " {} children", self.children().len()).unwrap();
+        }
+        result
+    }
+
     /// This method will be called before the widget is destroyed (dropped). At the moment, when this
     /// method is called, the widget is still in the widget graph and can be accessed via handles. It
     /// is guaranteed to be called once, and only if the widget is deleted via [`crate::widget::WidgetMessage::remove`].

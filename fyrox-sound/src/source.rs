@@ -242,6 +242,9 @@ impl SoundSource {
             match buffer.state().data() {
                 None => return Err(SoundError::BufferFailedToLoad),
                 Some(locked_buffer) => {
+                    if locked_buffer.duration() == Duration::ZERO {
+                        panic!("Zero duration buffer: {:?}", locked_buffer);
+                    }
                     // Check new buffer if streaming - it must not be used by anyone else.
                     if let SoundBuffer::Streaming(ref mut streaming) = *locked_buffer {
                         if streaming.use_count != 0 {

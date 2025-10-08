@@ -336,7 +336,7 @@ impl SurfaceData {
             if v1 == v2 || v1 == v3 || v2 == v3 {
                 Log::warn(format!(
                     "Degenerated triangle found when calculating tangents. Lighting may be \
-                    incorrect! Triangle indices: {triangle:?}. Triangle vertices: {v1} {v2} {v3}",
+                    incorrect! Triangle indices: {triangle:?}. Triangle vertices: {v1:?} {v2:?} {v3:?}",
                 ));
             }
 

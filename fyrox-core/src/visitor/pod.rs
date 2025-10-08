@@ -26,6 +26,17 @@ use crate::visitor::{
     Visit, VisitResult, Visitor,
 };
 
+const POD_TYPES: &[&str] = &[
+    "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "f32", "f64",
+];
+
+fn type_id_to_str(type_id: u8) -> &'static str {
+    POD_TYPES
+        .get(type_id as usize)
+        .copied()
+        .unwrap_or("Invalid Type")
+}
+
 /// Trait for datatypes that can be converted directly into bytes.
 /// This is required for the type to be used in the Vec of a [PodVecView].
 pub trait Pod: Copy {
@@ -139,7 +150,10 @@ impl<T: Pod> Visit for PodVecView<'_, T> {
                             *self.vec = data;
                             Ok(())
                         } else {
-                            Err(VisitError::TypeMismatch)
+                            Err(VisitError::TypeMismatch {
+                                expected: type_id_to_str(self.type_id),
+                                actual: type_id_to_str(*type_id),
+                            })
                         }
                     }
                     _ => Err(VisitError::FieldTypeDoesNotMatch {
@@ -148,7 +162,7 @@ impl<T: Pod> Visit for PodVecView<'_, T> {
                     }),
                 }
             } else {
-                Err(VisitError::FieldDoesNotExist(name.to_owned()))
+                Err(VisitError::field_does_not_exist(name, visitor))
             }
         } else if visitor.find_field(name).is_some() {
             Err(VisitError::FieldAlreadyExists(name.to_owned()))

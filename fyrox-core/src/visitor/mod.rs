@@ -155,7 +155,7 @@ where
                     }),
                 }
             } else {
-                Err(VisitError::FieldDoesNotExist(name.to_owned()))
+                Err(VisitError::field_does_not_exist(name, visitor))
             }
         } else if visitor.find_field(name).is_some() {
             Err(VisitError::FieldAlreadyExists(name.to_owned()))
@@ -312,13 +312,25 @@ bitflags! {
 /// Whether the value of `x` gets written into `visitor` or overwritten with a value from `visitor` is determined
 /// by whether [Visitor::is_reading()] returns true or false.
 pub struct Visitor {
+    /// The nodes that make up this visitors tree.
     nodes: Pool<VisitorNode>,
+    /// The id for the next `Rc` or `Arc` that the visitor encounters.
     unique_id_counter: u64,
+    /// The name of the type of the `Rc` or `Arc` associated with each id.
+    /// This allows type mismatch errors to include type information.
+    type_name_map: FxHashMap<u64, &'static str>,
+    /// The `Rc` value associated with each id, to allow the visitor to find the `Rc` when reading.
     rc_map: FxHashMap<u64, Rc<dyn Any>>,
+    /// The `Arc` value associated with each id, to allow the visitor to find the `Arc` when reading.
     arc_map: FxHashMap<u64, Arc<dyn Any + Send + Sync>>,
+    /// True if this visitor is being read from, during loading.
+    /// False if this visitor is being written to, during saving.
     reading: bool,
+    /// The handle of the node that is currently being written to or read from.
     current_node: Handle<VisitorNode>,
+    /// The handle of the start of the tree.
     root: Handle<VisitorNode>,
+    /// The version number of the visitor. See [`VisitorVersion`].
     version: u32,
     /// A place to store whatever objects may be needed to help with reading and writing values.
     pub blackboard: Blackboard,
@@ -524,6 +536,7 @@ impl Visitor {
         Self {
             nodes,
             unique_id_counter: 1,
+            type_name_map: FxHashMap::default(),
             rc_map: FxHashMap::default(),
             arc_map: FxHashMap::default(),
             reading: false,
@@ -555,6 +568,7 @@ impl Visitor {
             (id, false)
         } else {
             let id = self.gen_unique_id();
+            self.type_name_map.insert(id, std::any::type_name::<T>());
             self.rc_map.insert(id, rc.clone());
             (id, true)
         }
@@ -574,6 +588,7 @@ impl Visitor {
             (id, false)
         } else {
             let id = self.gen_unique_id();
+            self.type_name_map.insert(id, std::any::type_name::<T>());
             self.arc_map.insert(id, arc.clone());
             (id, true)
         }
@@ -633,7 +648,9 @@ impl Visitor {
                 self.current_node = region;
                 Ok(RegionGuard(self))
             } else {
-                Err(VisitError::RegionDoesNotExist(self.build_breadcrumb(" > ")))
+                Err(VisitError::RegionDoesNotExist(
+                    self.breadcrumbs() + " > " + name,
+                ))
             }
         } else {
             // Make sure that node does not exist already.
@@ -655,6 +672,15 @@ impl Visitor {
         }
     }
 
+    /// Return a string representing all the regions from the root
+    /// to the current node.
+    pub fn breadcrumbs(&self) -> String {
+        self.build_breadcrumb(" > ")
+    }
+
+    /// Return a string representing all the regions from the root
+    /// to the current node, using the given string as the separator between
+    /// region names.
     fn build_breadcrumb(&self, separator: &str) -> String {
         let mut rev = String::new();
         let mut handle = self.current_node;
@@ -687,6 +713,25 @@ impl Visitor {
         } else {
             Ok(())
         }
+    }
+
+    /// Get the content of the current node in human-readable form.
+    pub fn debug(&self) -> String {
+        let mut w = Cursor::new(Vec::<u8>::new());
+        let result = self.debug_to(&mut w);
+        match result {
+            Ok(()) => String::from_utf8_lossy(w.get_ref()).into_owned(),
+            Err(err) => err.to_string(),
+        }
+    }
+
+    /// Write the content of the current node in human-readable form.
+    pub fn debug_to<W: Write>(&self, w: &mut W) -> VisitResult {
+        let writer = AsciiWriter::default();
+        writer.write_node(self, &self.nodes[self.current_node], 0, w)?;
+        writeln!(w)?;
+        w.flush()?;
+        Ok(())
     }
 
     /// Create a string containing all the data of this Visitor in ascii form. The string is

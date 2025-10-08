@@ -207,15 +207,19 @@ fn surface_data_info(resource_manager: &ResourceManager, data: &SurfaceResource)
         .resource_path(data.as_ref())
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|| "External".to_string());
-    let guard = data.data_ref();
-    format!(
-        "{}\nVertices: {}\nTriangles: {}\nUse Count: {}\nId: {}",
-        kind,
-        guard.vertex_buffer.vertex_count(),
-        guard.geometry_buffer.len(),
-        use_count,
-        id
-    )
+    if data.is_ok() {
+        let guard = data.data_ref();
+        format!(
+            "{}\nVertices: {}\nTriangles: {}\nUse Count: {}\nId: {}",
+            kind,
+            guard.vertex_buffer.vertex_count(),
+            guard.geometry_buffer.len(),
+            use_count,
+            id
+        )
+    } else {
+        format!("{}\nNot loaded\nUse Count: {}\nId: {}", kind, use_count, id)
+    }
 }
 
 impl SurfaceDataPropertyEditor {

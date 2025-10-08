@@ -327,7 +327,7 @@ use std::{
     cell::{Ref, RefCell, RefMut},
     collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
     error::Error,
-    fmt::{Debug, Formatter},
+    fmt::{Debug, Formatter, Write},
     ops::{Deref, DerefMut, Index, IndexMut},
     path::Path,
     sync::{
@@ -686,7 +686,7 @@ pub enum RenderMode {
     OnChanges,
 }
 
-#[derive(Reflect, Debug)]
+#[derive(Reflect)]
 pub struct UserInterface {
     screen_size: Vector2<f32>,
     nodes: WidgetPool,
@@ -739,6 +739,48 @@ pub struct UserInterface {
     /// A flag that indicates that the UI should be rendered. It is only taken into account if
     /// the render mode is set to [`RenderMode::OnChanges`].
     pub need_render: bool,
+}
+
+impl Debug for UserInterface {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UserInterface")
+            .field("screen_size", &self.screen_size)
+            .field("drawing_context", &self.drawing_context)
+            .field("visual_debug", &self.visual_debug)
+            .field("root_canvas", &self.root_canvas)
+            .field("picked_node", &self.picked_node)
+            .field("prev_picked_node", &self.prev_picked_node)
+            .field("captured_node", &self.captured_node)
+            .field("keyboard_focus_node", &self.keyboard_focus_node)
+            .field("cursor_position", &self.cursor_position)
+            .field("style", &self.style)
+            .field("receiver", &self.receiver)
+            .field("sender", &self.sender)
+            .field("stack", &self.stack)
+            .field("picking_stack", &self.picking_stack)
+            .field("bubble_queue", &self.bubble_queue)
+            .field("drag_context", &self.drag_context)
+            .field("mouse_state", &self.mouse_state)
+            .field("keyboard_modifiers", &self.keyboard_modifiers)
+            .field("cursor_icon", &self.cursor_icon)
+            .field("active_tooltip", &self.active_tooltip)
+            .field("methods_registry", &self.methods_registry)
+            .field("clipboard", &self.clipboard)
+            .field("layout_events_receiver", &self.layout_events_receiver)
+            .field("layout_events_sender", &self.layout_events_sender)
+            .field("z_index_update_set", &self.z_index_update_set)
+            .field("default_font", &self.default_font)
+            .field("double_click_entries", &self.double_click_entries)
+            .field("double_click_time_slice", &self.double_click_time_slice)
+            .field("tooltip_appear_delay", &self.tooltip_appear_delay)
+            .field("standard_material", &self.standard_material)
+            .field("render_target", &self.render_target)
+            .field("render_mode", &self.render_mode)
+            .field("need_render", &self.need_render)
+            .finish()?;
+        f.write_char('\n')?;
+        f.write_str(&self.summary())
+    }
 }
 
 impl Visit for UserInterface {
@@ -1153,6 +1195,22 @@ impl UserInterface {
         ui.root_canvas = ui.add_node(root_node);
         ui.keyboard_focus_node = ui.root_canvas;
         ui
+    }
+
+    fn recursive_summary(&self, indent: usize, current: Handle<UiNode>, result: &mut String) {
+        for _ in 0..indent {
+            result.push_str("  ");
+        }
+        let Some(node) = self.try_get(current) else {
+            use std::fmt::Write;
+            writeln!(result, "{}: Failed to get", current).unwrap();
+            return;
+        };
+        result.push_str(&node.summary());
+        result.push('\n');
+        for child in node.children() {
+            self.recursive_summary(indent + 1, *child, result);
+        }
     }
 
     pub fn set_tooltip_appear_delay(&mut self, appear_delay: f32) {
@@ -3274,6 +3332,12 @@ impl BaseSceneGraph for UserInterface {
     type Prefab = Self;
     type NodeContainer = WidgetContainer;
     type Node = UiNode;
+
+    fn summary(&self) -> String {
+        let mut result = String::new();
+        self.recursive_summary(0, self.root_canvas, &mut result);
+        result
+    }
 
     #[inline]
     fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
