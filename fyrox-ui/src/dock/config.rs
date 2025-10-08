@@ -22,8 +22,7 @@ use crate::{
     core::{algebra::Vector2, log::Log, pool::Handle, visitor::prelude::*, ImmutableString},
     dock::{Tile, TileBuilder, TileContent},
     message::MessageDirection,
-    widget::WidgetBuilder,
-    window::WindowMessage,
+    widget::{WidgetBuilder, WidgetMessage},
     Orientation, UiNode, UserInterface,
 };
 use fyrox_graph::{BaseSceneGraph, SceneGraph};
@@ -189,10 +188,9 @@ impl TileDescriptor {
                 TileContentDescriptor::Window(window_name) => {
                     let window_handle = find_window(window_name, ui, windows);
                     if window_handle.is_some() {
-                        ui.send_message(WindowMessage::open(
+                        ui.send_message(WidgetMessage::visibility(
                             window_handle,
                             MessageDirection::ToWidget,
-                            false,
                             true,
                         ));
 
