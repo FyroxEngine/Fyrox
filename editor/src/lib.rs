@@ -281,7 +281,7 @@ lazy_static! {
     static ref GIZMO_SHADER: ShaderResource = {
         ShaderResource::from_str(
             Uuid::new_v4(),
-            include_str!("../resources/shaders/gizmo.shader",),
+            include_str!("../resources/shaders/gizmo.shader"),
             Default::default(),
         )
         .unwrap()
