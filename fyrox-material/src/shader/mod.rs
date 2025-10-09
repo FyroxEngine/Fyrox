@@ -487,30 +487,14 @@ pub mod loader;
 /// A name of the standard shader.
 pub const STANDARD_SHADER_NAME: &str = "Standard";
 
-/// A source code of the standard shader.
-pub const STANDARD_SHADER_SRC: &str = include_str!("standard/standard.shader");
-
 /// A name of the standard 2D shader.
 pub const STANDARD_2D_SHADER_NAME: &str = "Standard2D";
-
-/// A source code of the standard 2D shader.
-pub const STANDARD_2D_SHADER_SRC: &str = include_str!("standard/standard2d.shader");
 
 /// A name of the standard particle system shader.
 pub const STANDARD_PARTICLE_SYSTEM_SHADER_NAME: &str = "StandardParticleSystem";
 
-/// A source code of the standard particle system shader.
-pub const STANDARD_PARTICLE_SYSTEM_SHADER_SRC: &str =
-    include_str!("standard/standard_particle_system.shader");
-
-/// A source code of the standard sprite shader.
-pub const STANDARD_SPRITE_SHADER_SRC: &str = include_str!("standard/standard_sprite.shader");
-
 /// A name of the standard two-sides shader.
 pub const STANDARD_TWOSIDES_SHADER_NAME: &str = "StandardTwoSides";
-
-/// A source code of the standard two-sides shader.
-pub const STANDARD_TWOSIDES_SHADER_SRC: &str = include_str!("standard/standard-two-sides.shader");
 
 /// A name of the standard terrain shader.
 pub const STANDARD_TERRAIN_SHADER_NAME: &str = "StandardTerrain";
@@ -521,28 +505,8 @@ pub const STANDARD_TILE_SHADER_NAME: &str = "StandardTile";
 /// A name of the standard sprite shader.
 pub const STANDARD_SPRITE_SHADER_NAME: &str = "StandardSprite";
 
-/// A source code of the standard terrain shader.
-pub const STANDARD_TERRAIN_SHADER_SRC: &str = include_str!("standard/terrain.shader");
-
-/// A list of names of standard shaders.
-pub const STANDARD_SHADER_NAMES: [&str; 6] = [
-    STANDARD_SHADER_NAME,
-    STANDARD_2D_SHADER_NAME,
-    STANDARD_PARTICLE_SYSTEM_SHADER_NAME,
-    STANDARD_SPRITE_SHADER_NAME,
-    STANDARD_TWOSIDES_SHADER_NAME,
-    STANDARD_TERRAIN_SHADER_NAME,
-];
-
-/// A list of source code of standard shaders.
-pub const STANDARD_SHADER_SOURCES: [&str; 6] = [
-    STANDARD_SHADER_SRC,
-    STANDARD_2D_SHADER_SRC,
-    STANDARD_PARTICLE_SYSTEM_SHADER_SRC,
-    STANDARD_SPRITE_SHADER_SRC,
-    STANDARD_TWOSIDES_SHADER_SRC,
-    STANDARD_TERRAIN_SHADER_SRC,
-];
+/// A name of the standard widget shader.
+pub const STANDARD_WIDGET_SHADER_NAME: &str = "StandardWidget";
 
 /// Internal state of the shader.
 ///
@@ -1015,7 +979,7 @@ lazy_static! {
         )
     );
     static ref STANDARD_WIDGET: BuiltInResource<Shader> = BuiltInResource::new(
-        STANDARD_TWOSIDES_SHADER_NAME,
+        STANDARD_WIDGET_SHADER_NAME,
         embedded_data_source!("standard/widget.shader"),
         |data| ShaderResource::new_ok(
             uuid!("f5908aa4-e187-42a8-95d2-dc6577f6def4"),
