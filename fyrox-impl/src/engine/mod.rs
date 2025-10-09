@@ -1318,6 +1318,7 @@ pub(crate) fn initialize_resource_manager_loaders(
         &*material::STANDARD_TERRAIN,
         &*material::STANDARD_TWOSIDES,
         &*material::STANDARD_PARTICLE_SYSTEM,
+        &*material::STANDARD_WIDGET,
     ] {
         state.built_in_resources.add(material.clone());
     }
