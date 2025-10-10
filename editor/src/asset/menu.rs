@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::message::MessageSender;
 use crate::{
     asset::{self, item::AssetItem},
     fyrox::{
@@ -47,13 +48,15 @@ use crate::{
             UiNode, UserInterface,
         },
     },
+    Message,
 };
+use fyrox::core::SafeLock;
 use fyrox::gui::formatted_text::WrapMode;
 use std::{
     fs::File,
     io::Write,
     ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::mpsc::Sender,
 };
 
@@ -347,17 +350,28 @@ impl AssetItemContextMenu {
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) -> bool {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        sender: &MessageSender,
+        engine: &mut Engine,
+    ) -> bool {
         let ui = engine.user_interfaces.first_mut();
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu.handle() {
                 self.placement_target = *target;
                 if let Some(item) = ui.try_get_of_type::<AssetItem>(self.placement_target) {
                     for handle in [self.dependencies, self.duplicate] {
+                        let is_built_in = engine
+                            .resource_manager
+                            .state()
+                            .built_in_resources
+                            .get(&item.path)
+                            .is_some();
                         ui.send_message(WidgetMessage::enabled(
                             handle,
                             MessageDirection::ToWidget,
-                            item.path.is_file(),
+                            item.path.is_file() || is_built_in,
                         ));
                     }
                     if let Some(resource) = item.untyped_resource() {
@@ -409,15 +423,26 @@ impl AssetItemContextMenu {
                 } else if message.destination() == self.duplicate {
                     if let Some(resource) = item.untyped_resource() {
                         if let Some(path) = engine.resource_manager.resource_path(&resource) {
-                            if let Some(built_in) = engine
+                            let built_in = engine
                                 .resource_manager
                                 .state()
                                 .built_in_resources
                                 .get(&path)
-                            {
+                                .cloned();
+                            if let Some(built_in) = built_in {
                                 if let Some(data_source) = built_in.data_source.as_ref() {
+                                    let registry_path = engine
+                                        .resource_manager
+                                        .state()
+                                        .resource_registry
+                                        .safe_lock()
+                                        .path()
+                                        .parent()
+                                        .map(|p| p.to_path_buf())
+                                        .unwrap_or_default();
+
                                     let final_copy_path = asset::make_unique_path(
-                                        Path::new("."),
+                                        &registry_path,
                                         path.to_str().unwrap(),
                                         &data_source.extension,
                                     );
@@ -425,6 +450,9 @@ impl AssetItemContextMenu {
                                     match File::create(&final_copy_path) {
                                         Ok(mut file) => {
                                             Log::verify(file.write_all(&data_source.bytes));
+
+                                            sender
+                                                .send(Message::ShowInAssetBrowser(final_copy_path));
                                         }
                                         Err(err) => Log::err(format!(
                                             "Failed to create a file for resource at path {}. \

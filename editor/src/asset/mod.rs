@@ -705,7 +705,10 @@ impl AssetBrowser {
         if let Some(inspector_addon) = self.inspector_addon.as_mut() {
             inspector_addon.preview.handle_message(message, engine);
         }
-        if self.context_menu.handle_ui_message(message, engine) {
+        if self
+            .context_menu
+            .handle_ui_message(message, &sender, engine)
+        {
             self.schedule_refresh();
         }
         self.dependency_viewer
