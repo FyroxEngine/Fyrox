@@ -1212,8 +1212,12 @@ impl ResourceManagerState {
         }
     }
 
-    /// Reloads a single resource.
+    /// Reloads a single resource. Does nothing in case of built-in resources.
     pub fn reload_resource(&mut self, resource: UntypedResource) {
+        if self.built_in_resources.is_built_in_resource(&resource) {
+            return;
+        }
+
         let header = resource.0.lock();
         match header.state {
             ResourceState::Pending { .. } => {
