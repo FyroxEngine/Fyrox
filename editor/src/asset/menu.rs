@@ -288,6 +288,7 @@ pub struct AssetItemContextMenu {
     pub dependencies: Handle<UiNode>,
     pub delete_confirmation_dialog: Handle<UiNode>,
     pub path_to_delete: PathBuf,
+    pub reload: Handle<UiNode>,
 }
 
 impl AssetItemContextMenu {
@@ -306,6 +307,7 @@ impl AssetItemContextMenu {
         let copy_file_name = item("Copy File Name", ctx);
         let dependencies = item("Dependencies", ctx);
         let rename = item("Rename", ctx);
+        let reload = item("Reload", ctx);
 
         let menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new())
@@ -319,6 +321,7 @@ impl AssetItemContextMenu {
                         show_in_explorer,
                         dependencies,
                         rename,
+                        reload,
                     ]))
                     .build(ctx),
                 )
@@ -340,6 +343,7 @@ impl AssetItemContextMenu {
             delete_confirmation_dialog: Default::default(),
             path_to_delete: Default::default(),
             rename,
+            reload,
         }
     }
 
@@ -481,6 +485,12 @@ impl AssetItemContextMenu {
                             true,
                             true,
                         ));
+                    }
+                } else if message.destination() == self.reload {
+                    if let Ok(resource) =
+                        block_on(engine.resource_manager.request_untyped(&item.path))
+                    {
+                        engine.resource_manager.state().reload_resource(resource);
                     }
                 }
             }
