@@ -91,6 +91,7 @@ use crate::{
     send_sync_message, Editor, Engine, Message,
 };
 use fyrox::asset::event::ResourceEvent;
+use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::{mpsc::Sender, Arc};
 
@@ -244,6 +245,8 @@ impl UiView for Color {
 }
 
 impl MaterialEditor {
+    const TITLE: &'static str = "Material Editor";
+
     pub fn new(
         engine: &mut Engine,
         sender: MessageSender,
@@ -272,7 +275,7 @@ impl MaterialEditor {
         let shader;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(800.0))
             .open(false)
-            .with_title(WindowTitle::text("Material Editor"))
+            .with_title(WindowTitle::text(Self::TITLE))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
@@ -367,6 +370,21 @@ impl MaterialEditor {
         self.material = material;
 
         if let Some(material) = self.material.clone() {
+            let material_name = engine
+                .resource_manager
+                .resource_path(&material)
+                .unwrap_or(PathBuf::from("Embedded"))
+                .to_string_lossy()
+                .to_string();
+            engine
+                .user_interfaces
+                .first()
+                .send_message(WindowMessage::title(
+                    self.window,
+                    MessageDirection::ToWidget,
+                    WindowTitle::text(format!("{} - {}", Self::TITLE, material_name)),
+                ));
+
             engine.scenes[self.preview.scene()].graph[self.preview.model()]
                 .as_mesh_mut()
                 .surfaces_mut()
