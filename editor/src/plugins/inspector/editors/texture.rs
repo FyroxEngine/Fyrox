@@ -54,6 +54,7 @@ use crate::{
     plugins::inspector::EditorEnvironment,
     utils, Message,
 };
+use fyrox::gui::text::TextMessage;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -111,6 +112,7 @@ impl TextureContextMenu {
 pub struct TextureEditor {
     widget: Widget,
     image: Handle<UiNode>,
+    path: Handle<UiNode>,
     texture: Option<TextureResource>,
     selector_mixin: AssetSelectorMixin<Texture>,
     #[visit(skip)]
@@ -152,6 +154,13 @@ impl TextureEditorMessage {
 
 uuid_provider!(TextureEditor = "5db49479-ff89-49b8-a038-0766253d6493");
 
+fn texture_name(texture: Option<&TextureResource>, resource_manager: &ResourceManager) -> String {
+    match texture.and_then(|tex| resource_manager.resource_path(tex.as_ref())) {
+        None => "Unassigned".to_string(),
+        Some(path) => path.to_string_lossy().to_string(),
+    }
+}
+
 impl Control for TextureEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
@@ -178,6 +187,12 @@ impl Control for TextureEditor {
                     self.image,
                     MessageDirection::ToWidget,
                     self.texture.clone(),
+                ));
+
+                ui.send_message(TextMessage::text(
+                    self.path,
+                    MessageDirection::ToWidget,
+                    texture_name(self.texture.as_ref(), &self.selector_mixin.resource_manager),
                 ));
 
                 ui.send_message(message.reverse());
@@ -273,16 +288,7 @@ impl TextureEditorBuilder {
                 .with_margin(Thickness::uniform(1.0))
                 .with_vertical_alignment(VerticalAlignment::Center),
         )
-        .with_text(
-            match self
-                .texture
-                .as_ref()
-                .and_then(|tex| resource_manager.resource_path(tex.as_ref()))
-            {
-                None => "Unassigned".to_string(),
-                Some(path) => path.to_string_lossy().to_string(),
-            },
-        )
+        .with_text(texture_name(self.texture.as_ref(), &resource_manager))
         .build(ctx);
 
         let content = GridBuilder::new(
@@ -307,6 +313,7 @@ impl TextureEditorBuilder {
         let editor = TextureEditor {
             widget,
             image,
+            path,
             texture: None,
             selector_mixin: AssetSelectorMixin::new(select, icon_request_sender, resource_manager),
             sender,
