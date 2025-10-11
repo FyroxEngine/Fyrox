@@ -777,6 +777,7 @@ impl FormattedText {
         self
     }
 
+    /// Returns once all fonts used by this FormattedText are finished loading.
     pub async fn wait_for_fonts(&mut self) -> Result<(), LoadError> {
         (*self.font).clone().await?;
         for run in self.runs.iter() {
@@ -787,6 +788,8 @@ impl FormattedText {
         Ok(())
     }
 
+    /// Returns true if all fonts used by this resource are Ok.
+    /// This `FormattedText` will not build successfully unless this returns true.
     pub fn are_fonts_loaded(&self) -> bool {
         if !self.font.is_ok() {
             return false;
@@ -804,6 +807,7 @@ impl FormattedText {
     pub fn build(&mut self) -> Vector2<f32> {
         let mut lines = std::mem::take(&mut self.lines);
         lines.clear();
+        // Fail early if any font is not available.
         if !self.are_fonts_loaded() {
             Log::err(format!(
                 "Text failed to build due to unloaded fonts. {:?}",
