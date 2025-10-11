@@ -134,6 +134,8 @@ pub enum ResourceRegistrationError {
     InvalidState,
     /// Resource is already registered.
     AlreadyRegistered,
+    /// An error occurred on an attempt to write resource metadata.
+    UnableToCreateMetadata,
 }
 
 impl Display for ResourceRegistrationError {
@@ -147,6 +149,12 @@ impl Display for ResourceRegistrationError {
             }
             ResourceRegistrationError::AlreadyRegistered => {
                 write!(f, "A resource is already registered!")
+            }
+            ResourceRegistrationError::UnableToCreateMetadata => {
+                write!(
+                    f,
+                    "An error occurred on an attempt to write resource metadata!"
+                )
             }
         }
     }
@@ -1201,7 +1209,8 @@ impl ResourceManagerState {
         if let ResourceState::Ok { resource_uuid, .. } = resource_header.state {
             let mut registry = self.resource_registry.lock();
             let mut ctx = registry.modify();
-            ctx.register(resource_uuid, path);
+            ctx.write_metadata(resource_uuid, path)
+                .map_err(|_| ResourceRegistrationError::UnableToCreateMetadata)?;
             drop(ctx);
             drop(registry);
             drop(resource_header);
