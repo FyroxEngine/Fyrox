@@ -231,7 +231,7 @@ impl ResourceRegistryRefMut<'_> {
         uuid: Uuid,
         path: impl AsRef<Path>,
     ) -> Result<Option<PathBuf>, FileError> {
-        ResourceMetadata::new_with_random_id().save_sync(
+        ResourceMetadata { resource_id: uuid }.save_sync(
             &append_extension(path.as_ref(), ResourceMetadata::EXTENSION),
             &*self.registry.io,
         )?;
