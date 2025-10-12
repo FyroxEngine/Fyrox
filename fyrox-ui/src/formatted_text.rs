@@ -28,6 +28,8 @@ use crate::{
     style::StyledProperty,
     HorizontalAlignment, VerticalAlignment,
 };
+use fyrox_core::log::Log;
+use fyrox_resource::state::LoadError;
 pub use run::*;
 use std::ops::{Range, RangeBounds};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
@@ -775,9 +777,44 @@ impl FormattedText {
         self
     }
 
+    /// Returns once all fonts used by this FormattedText are finished loading.
+    pub async fn wait_for_fonts(&mut self) -> Result<(), LoadError> {
+        (*self.font).clone().await?;
+        for run in self.runs.iter() {
+            if let Some(font) = run.font() {
+                font.clone().await?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Returns true if all fonts used by this resource are Ok.
+    /// This `FormattedText` will not build successfully unless this returns true.
+    pub fn are_fonts_loaded(&self) -> bool {
+        if !self.font.is_ok() {
+            return false;
+        }
+        for run in self.runs.iter() {
+            if let Some(font) = run.font() {
+                if !font.is_ok() {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
     pub fn build(&mut self) -> Vector2<f32> {
         let mut lines = std::mem::take(&mut self.lines);
         lines.clear();
+        // Fail early if any font is not available.
+        if !self.are_fonts_loaded() {
+            Log::err(format!(
+                "Text failed to build due to unloaded fonts. {:?}",
+                self.text()
+            ));
+            return Vector2::default();
+        }
         let first_indent = self.line_indent.max(0.0);
         let normal_indent = -self.line_indent.min(0.0);
         let sink = WrapSink {
