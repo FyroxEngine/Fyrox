@@ -273,68 +273,71 @@ impl MaterialEditor {
         let panel;
         let properties_panel;
         let shader;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(800.0))
-            .open(false)
-            .with_title(WindowTitle::text(Self::TITLE))
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
-                            GridBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(0)
-                                    .with_child(
-                                        TextBuilder::new(
-                                            WidgetBuilder::new().on_row(0).on_column(0),
-                                        )
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_width(500.0)
+                .with_height(800.0)
+                .with_name("MaterialEditor"),
+        )
+        .open(false)
+        .with_title(WindowTitle::text(Self::TITLE))
+        .with_content(
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(
+                        GridBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(0)
+                                .with_child(
+                                    TextBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
                                         .with_text("Shader")
                                         .build(ctx),
+                                )
+                                .with_child({
+                                    shader = ResourceFieldBuilder::<Shader>::new(
+                                        WidgetBuilder::new()
+                                            .on_column(1)
+                                            .with_tooltip(shader_tooltip),
+                                        sender,
                                     )
-                                    .with_child({
-                                        shader = ResourceFieldBuilder::<Shader>::new(
-                                            WidgetBuilder::new()
-                                                .on_column(1)
-                                                .with_tooltip(shader_tooltip),
-                                            sender,
-                                        )
-                                        .build(
-                                            ctx,
-                                            icon_request_sender,
-                                            engine.resource_manager.clone(),
-                                        );
-                                        shader
-                                    }),
-                            )
-                            .add_column(Column::strict(150.0))
-                            .add_column(Column::stretch())
-                            .add_row(Row::strict(25.0))
-                            .build(ctx),
+                                    .build(
+                                        ctx,
+                                        icon_request_sender,
+                                        engine.resource_manager.clone(),
+                                    );
+                                    shader
+                                }),
                         )
-                        .with_child(
-                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
-                                .with_content({
-                                    properties_panel = StackPanelBuilder::new(
-                                        WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
-                                    )
-                                    .build(ctx);
-                                    properties_panel
-                                })
-                                .build(ctx),
-                        )
-                        .with_child({
-                            panel = BorderBuilder::new(WidgetBuilder::new().on_row(2).on_column(0))
+                        .add_column(Column::strict(150.0))
+                        .add_column(Column::stretch())
+                        .add_row(Row::strict(25.0))
+                        .build(ctx),
+                    )
+                    .with_child(
+                        ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
+                            .with_content({
+                                properties_panel = StackPanelBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                                )
                                 .build(ctx);
-                            panel
-                        }),
-                )
-                .add_row(Row::strict(26.0))
-                .add_row(Row::stretch())
-                .add_row(Row::strict(300.0))
-                .add_column(Column::stretch())
-                .build(ctx),
+                                properties_panel
+                            })
+                            .build(ctx),
+                    )
+                    .with_child({
+                        panel = BorderBuilder::new(WidgetBuilder::new().on_row(2).on_column(0))
+                            .build(ctx);
+                        panel
+                    }),
             )
-            .build(ctx);
+            .add_row(Row::strict(26.0))
+            .add_row(Row::stretch())
+            .add_row(Row::strict(300.0))
+            .add_column(Column::stretch())
+            .build(ctx),
+        )
+        .build(ctx);
 
         ctx.link(preview.root, panel);
 
