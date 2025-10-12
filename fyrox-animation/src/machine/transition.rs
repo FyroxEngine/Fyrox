@@ -100,7 +100,6 @@ macro_rules! define_two_args_node {
                         static METADATA: FieldMetadata = FieldMetadata {
                             name: "Lhs",
                             display_name: "Lhs",
-                            description: "",
                             tag: "",
                             read_only: false,
                             immutable_collection: false,
@@ -120,7 +119,6 @@ macro_rules! define_two_args_node {
                         static METADATA: FieldMetadata = FieldMetadata {
                             name: "Rhs",
                             display_name: "Rhs",
-                            description: "",
                             tag: "",
                             read_only: false,
                             immutable_collection: false,
@@ -144,7 +142,6 @@ macro_rules! define_two_args_node {
                         static METADATA: FieldMetadata = FieldMetadata {
                             name: "Lhs",
                             display_name: "Lhs",
-                            description: "",
                             tag: "",
                             read_only: false,
                             immutable_collection: false,
@@ -164,7 +161,6 @@ macro_rules! define_two_args_node {
                         static METADATA: FieldMetadata = FieldMetadata {
                             name: "Rhs",
                             display_name: "Rhs",
-                            description: "",
                             tag: "",
                             read_only: false,
                             immutable_collection: false,
@@ -286,7 +282,6 @@ impl<T: EntityId> Reflect for NotNode<T> {
             static METADATA: FieldMetadata = FieldMetadata {
                 name: "Lhs",
                 display_name: "Lhs",
-                description: "",
                 tag: "",
                 read_only: false,
                 immutable_collection: false,
@@ -309,7 +304,6 @@ impl<T: EntityId> Reflect for NotNode<T> {
             static METADATA: FieldMetadata = FieldMetadata {
                 name: "Lhs",
                 display_name: "Lhs",
-                description: "",
                 tag: "",
                 read_only: false,
                 immutable_collection: false,
@@ -453,12 +447,9 @@ impl<T: EntityId> LogicNode<T> {
 #[derive(Default, Debug, Clone, Reflect, PartialEq)]
 pub struct Transition<T: EntityId> {
     /// The name of the transition, it is used for debug output.
-    #[reflect(description = "The name of the transition, it is used for debug output.")]
     pub(crate) name: String,
 
-    /// Total amount of time to transition from `src` to `dst` state.
-    #[reflect(description = "Total amount of time (in seconds) to transition \
-        from source to destination state")]
+    /// Total amount of time (in seconds) to transition from source to destination state.
     pub(crate) transition_time: f32,
 
     pub(crate) elapsed_time: f32,
@@ -469,9 +460,7 @@ pub struct Transition<T: EntityId> {
     #[reflect(read_only)]
     pub(crate) dest: Handle<State<T>>,
 
-    #[reflect(
-        description = "Computational graph that can use any amount of Rule parameters to calculate transition value."
-    )]
+    /// Computational graph that can use any amount of Rule parameters to calculate transition value.
     pub(crate) condition: LogicNode<T>,
 
     /// 0 - evaluates `src` pose, 1 - `dest`, 0..1 - blends `src` and `dest`

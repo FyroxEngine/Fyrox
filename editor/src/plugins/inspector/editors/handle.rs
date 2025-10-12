@@ -23,7 +23,7 @@ use crate::{
     fyrox::{
         core::{
             color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
-            type_traits::prelude::*, visitor::prelude::*,
+            type_traits::prelude::*, visitor::prelude::*, SafeLock,
         },
         graph::BaseSceneGraph,
         gui::{
@@ -523,7 +523,7 @@ impl<T: Reflect> PropertyEditorDefinition for NodeHandlePropertyEditorDefinition
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Handle<T>>()?;
 
-        let sender = self.sender.lock().unwrap().clone();
+        let sender = self.sender.safe_lock().unwrap().clone();
 
         let editor = HandlePropertyEditorBuilder::new(WidgetBuilder::new(), sender.clone())
             .with_value(*value)

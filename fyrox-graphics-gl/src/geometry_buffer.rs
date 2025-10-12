@@ -20,11 +20,11 @@
 
 use crate::{buffer::GlBuffer, server::GlGraphicsServer, ToGlConstant};
 use fyrox_graphics::{
-    buffer::{BufferKind, GpuBufferTrait},
+    buffer::{BufferKind, GpuBufferDescriptor, GpuBufferTrait},
     core::{array_as_u8_slice, math::TriangleDefinition},
     error::FrameworkError,
     geometry_buffer::{
-        AttributeKind, ElementsDescriptor, GeometryBufferDescriptor, GpuGeometryBufferTrait,
+        AttributeKind, ElementsDescriptor, GpuGeometryBufferDescriptor, GpuGeometryBufferTrait,
     },
     ElementKind,
 };
@@ -56,13 +56,29 @@ pub struct GlGeometryBuffer {
 impl GlGeometryBuffer {
     pub fn new(
         server: &GlGraphicsServer,
-        desc: GeometryBufferDescriptor,
+        desc: GpuGeometryBufferDescriptor,
     ) -> Result<Self, FrameworkError> {
         let vao = unsafe { server.gl.create_vertex_array()? };
 
         server.set_vertex_array_object(Some(vao));
+        #[cfg(not(target_arch = "wasm32"))]
+        if server.gl.supports_debug() && server.named_objects.get() {
+            unsafe {
+                server
+                    .gl
+                    .object_label(glow::VERTEX_ARRAY, vao.0.get(), Some(desc.name));
+            }
+        }
 
-        let element_buffer = GlBuffer::new(server, 0, BufferKind::Index, desc.usage)?;
+        let element_buffer = GlBuffer::new(
+            server,
+            GpuBufferDescriptor {
+                name: &format!("{}ElementBuffer", desc.name),
+                size: 0,
+                kind: BufferKind::Index,
+                usage: desc.usage,
+            },
+        )?;
 
         let (element_count, data) = match desc.elements {
             ElementsDescriptor::Triangles(triangles) => {
@@ -75,12 +91,19 @@ impl GlGeometryBuffer {
         element_buffer.write_data(data)?;
 
         let mut buffers = Vec::new();
-        for buffer in desc.buffers {
+        for (i, buffer) in desc.buffers.iter().enumerate() {
             unsafe {
                 let data_size = buffer.data.bytes.map(|bytes| bytes.len()).unwrap_or(0);
 
-                let native_buffer =
-                    GlBuffer::new(server, data_size, BufferKind::Vertex, buffer.usage)?;
+                let native_buffer = GlBuffer::new(
+                    server,
+                    GpuBufferDescriptor {
+                        name: &format!("{}VertexBuffer{i}", desc.name),
+                        size: data_size,
+                        kind: BufferKind::Vertex,
+                        usage: buffer.usage,
+                    },
+                )?;
 
                 if let Some(data) = buffer.data.bytes {
                     native_buffer.write_data(data)?;
@@ -182,10 +205,8 @@ impl GpuGeometryBufferTrait for GlGeometryBuffer {
 impl Drop for GlGeometryBuffer {
     fn drop(&mut self) {
         if let Some(state) = self.state.upgrade() {
-            unsafe {
-                self.buffers.clear();
-                state.gl.delete_vertex_array(self.vertex_array_object);
-            }
+            self.buffers.clear();
+            state.delete_vertex_array_object(self.vertex_array_object);
         }
     }
 }

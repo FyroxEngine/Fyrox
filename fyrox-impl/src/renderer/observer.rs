@@ -18,15 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#![allow(missing_docs)] // TODO
+//! An observer holds all the information required to render a scene from a particular point of view.
+//! Contains all information for rendering, effectively decouples rendering entities from scene
+//! entities. See [`Observer`] docs for more info.
 
-use crate::renderer::utils::CubeMapFaceDescriptor;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         math::{frustum::Frustum, Rect},
         pool::Handle,
     },
+    graphics::gpu_texture::CubeMapFace,
+    renderer::utils::CubeMapFaceDescriptor,
     scene::{
         camera::{Camera, ColorGradingLut, Exposure, PerspectiveProjection, Projection},
         collider::BitMask,
@@ -35,7 +38,6 @@ use crate::{
         Scene,
     },
 };
-use fyrox_graphics::gpu_texture::CubeMapFace;
 use fyrox_texture::TextureResource;
 
 /// Observer position contains all the data, that describes an observer position in 3D space. It
@@ -52,10 +54,12 @@ pub struct ObserverPosition {
     pub view_matrix: Matrix4<f32>,
     /// Projection matrix of the observer.
     pub projection_matrix: Matrix4<f32>,
+    /// Combination of the view and projection matrix.
     pub view_projection_matrix: Matrix4<f32>,
 }
 
 impl ObserverPosition {
+    /// Creates a new observer position from a scene camera.
     pub fn from_camera(camera: &Camera) -> Self {
         Self {
             translation: camera.global_position(),
@@ -78,6 +82,8 @@ pub struct ObserversCollection {
 }
 
 impl ObserversCollection {
+    /// Creates a new observers collection from a scene. This method collects all observers that
+    /// need to render the scene (which includes camera and reflection probes).
     pub fn from_scene(scene: &Scene, frame_size: Vector2<f32>) -> Self {
         let mut observers = Self::default();
         for node in scene.graph.linear_iter() {
@@ -104,7 +110,7 @@ impl ObserversCollection {
                     let projection_matrix = projection.matrix(cube_size);
 
                     for cube_face in CubeMapFaceDescriptor::cube_faces() {
-                        let translation = probe.global_position();
+                        let translation = probe.global_rendering_position();
                         let view_matrix = Matrix4::look_at_rh(
                             &Point3::from(translation),
                             &Point3::from(translation + cube_face.look),
@@ -141,22 +147,42 @@ impl ObserversCollection {
     }
 }
 
+/// An observer holds all the information required to render a scene from a particular point of view.
+/// Contains all information for rendering, effectively decouples rendering entities from scene
+/// entities. Observer can be constructed from an arbitrary set of data or from scene entities,
+/// such as cameras, reflection probes.
 pub struct Observer {
+    /// The handle of the camera that was used to create this Observer.
     pub handle: Handle<Node>,
+    /// Cube map face of a cube render target to which to render a scene. Used for reflection probes
+    /// only.
     pub cube_map_face: Option<CubeMapFace>,
+    /// Render target to which to render the scene.
     pub render_target: Option<TextureResource>,
+    /// Position of the observer. See [`ObserverPosition`] docs for more info.
     pub position: ObserverPosition,
+    /// Environment map which will be used for IBL and reflections. If not set, then scene's skybox
+    /// will be used as an environment map.
     pub environment_map: Option<TextureResource>,
+    /// A set of switches that defines which "layers" of the scene will be rendered.
     pub render_mask: BitMask,
+    /// Projection mode that will be used to project the scene on screen's 2D plane.
     pub projection: Projection,
+    /// Optional color grading lookup table. See [`ColorGradingLut`] docs for more info.
     pub color_grading_lut: Option<ColorGradingLut>,
+    /// A flag, that defines whether the color grading enabled or not.
     pub color_grading_enabled: bool,
+    /// Exposure settings that will be applied to scene's HDR image to convert it to the final
+    /// low dynamic range image that will be shown on a display.
     pub exposure: Exposure,
+    /// Viewport rectangle in screen space. Defines a porting of the screen that needs to be rendered.
     pub viewport: Rect<i32>,
+    /// Frustum of the observer, it can be used for frustum culling.
     pub frustum: Frustum,
 }
 
 impl Observer {
+    /// Creates a new observer from a scene camera.
     pub fn from_camera(camera: &Camera, mut frame_size: Vector2<f32>) -> Self {
         if let Some(render_target) = camera.render_target() {
             if let Some(size) = render_target

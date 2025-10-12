@@ -22,19 +22,20 @@
 
 use crate::{
     core::{algebra::Matrix4, array_as_u8_slice},
+    graphics::{
+        buffer::GpuBufferDescriptor,
+        buffer::{BufferKind, BufferUsage, GpuBuffer},
+        error::FrameworkError,
+        geometry_buffer::GpuGeometryBuffer,
+        gpu_program::SamplerFallback,
+        gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+        sampler::{
+            GpuSampler, GpuSamplerDescriptor, MagnificationFilter, MinificationFilter, WrapMode,
+        },
+        server::GraphicsServer,
+    },
     renderer::{cache::shader::RenderPassContainer, framework::GeometryBufferExt},
     scene::mesh::surface::SurfaceData,
-};
-use fyrox_graphics::{
-    buffer::{BufferKind, BufferUsage, GpuBuffer},
-    error::FrameworkError,
-    geometry_buffer::GpuGeometryBuffer,
-    gpu_program::SamplerFallback,
-    gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
-    sampler::{
-        GpuSampler, GpuSamplerDescriptor, MagnificationFilter, MinificationFilter, WrapMode,
-    },
-    server::GraphicsServer,
 };
 use fyrox_material::shader::ShaderDefinition;
 
@@ -91,6 +92,10 @@ pub struct ShadersContainer {
     pub box_blur: RenderPassContainer,
     /// User interface shader.
     pub ui: RenderPassContainer,
+    /// Environment map specular convolution shader.
+    pub environment_map_specular_convolution: RenderPassContainer,
+    /// Environment map irradiance convolution shader.
+    pub environment_map_irradiance_convolution: RenderPassContainer,
 }
 
 impl ShadersContainer {
@@ -170,6 +175,14 @@ impl ShadersContainer {
                 server,
                 include_str!("../../../fyrox-material/src/shader/standard/widget.shader"),
             )?,
+            environment_map_specular_convolution: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/prefilter.shader"),
+            )?,
+            environment_map_irradiance_convolution: RenderPassContainer::from_str(
+                server,
+                include_str!("shaders/irradiance.shader"),
+            )?,
         })
     }
 }
@@ -217,6 +230,7 @@ impl RendererResources {
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
             white_dummy: server.create_texture(GpuTextureDescriptor {
+                name: "WhiteDummy",
                 kind: GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -226,6 +240,7 @@ impl RendererResources {
                 ..Default::default()
             })?,
             black_dummy: server.create_texture(GpuTextureDescriptor {
+                name: "BlackDummy",
                 kind: GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -235,6 +250,7 @@ impl RendererResources {
                 ..Default::default()
             })?,
             environment_dummy: server.create_texture(GpuTextureDescriptor {
+                name: "EnvironmentDummy",
                 kind: GpuTextureKind::Cube { size: 1 },
                 pixel_kind: PixelKind::RGBA8,
                 data: Some(&[
@@ -248,6 +264,7 @@ impl RendererResources {
                 ..Default::default()
             })?,
             normal_dummy: server.create_texture(GpuTextureDescriptor {
+                name: "NormalDummy",
                 kind: GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -257,6 +274,7 @@ impl RendererResources {
                 ..Default::default()
             })?,
             metallic_dummy: server.create_texture(GpuTextureDescriptor {
+                name: "MetallicDummy",
                 kind: GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -266,6 +284,7 @@ impl RendererResources {
                 ..Default::default()
             })?,
             volume_dummy: server.create_texture(GpuTextureDescriptor {
+                name: "VolumeDummy",
                 kind: GpuTextureKind::Volume {
                     width: 1,
                     height: 1,
@@ -276,11 +295,12 @@ impl RendererResources {
                 ..Default::default()
             })?,
             bone_matrices_stub_uniform_buffer: {
-                let buffer = server.create_buffer(
-                    ShaderDefinition::MAX_BONE_MATRICES * size_of::<Matrix4<f32>>(),
-                    BufferKind::Uniform,
-                    BufferUsage::StaticDraw,
-                )?;
+                let buffer = server.create_buffer(GpuBufferDescriptor {
+                    name: "BoneMatricesStubBuffer",
+                    size: ShaderDefinition::MAX_BONE_MATRICES * size_of::<Matrix4<f32>>(),
+                    kind: BufferKind::Uniform,
+                    usage: BufferUsage::StaticDraw,
+                })?;
                 const SIZE: usize = ShaderDefinition::MAX_BONE_MATRICES * size_of::<Matrix4<f32>>();
                 let zeros = [0.0; SIZE];
                 buffer.write_data(array_as_u8_slice(&zeros))?;
@@ -321,11 +341,13 @@ impl RendererResources {
                 ..Default::default()
             })?,
             quad: GpuGeometryBuffer::from_surface_data(
+                "UnitQuad",
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
                 server,
             )?,
             cube: GpuGeometryBuffer::from_surface_data(
+                "UnitCube",
                 &SurfaceData::make_cube(Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,

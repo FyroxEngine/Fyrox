@@ -417,6 +417,8 @@ pub enum CubeMapFace {
 
 /// Descriptor of a texture that is used to request textures from a graphics server.
 pub struct GpuTextureDescriptor<'a> {
+    /// Name of the texture. This name is used only for debug purposes.
+    pub name: &'a str,
     /// Kind of the texture. See [`GpuTextureKind`] docs for more info.
     pub kind: GpuTextureKind,
     /// Pixel kind of the texture. See [`PixelKind`] docs for more info.
@@ -442,6 +444,7 @@ impl Default for GpuTextureDescriptor<'_> {
     // and may potentially lead to weird behavior!
     fn default() -> Self {
         Self {
+            name: "",
             kind: GpuTextureKind::Rectangle {
                 width: 1,
                 height: 1,
@@ -494,14 +497,15 @@ define_as_any_trait!(GpuTextureAsAny => GpuTextureTrait);
 /// ```
 pub trait GpuTextureTrait: GpuTextureAsAny {
     /// Sets the new data of the texture. This method is also able to change the kind of the texture
-    /// and its pixel kind.
+    /// and its pixel kind. Returns the number of bytes occupied by the texture in the video memory.
+    /// If there's no data specified, the texture will still take the space defined by its metrics.
     fn set_data(
         &self,
         kind: GpuTextureKind,
         pixel_kind: PixelKind,
         mip_count: usize,
         data: Option<&[u8]>,
-    ) -> Result<(), FrameworkError>;
+    ) -> Result<usize, FrameworkError>;
 
     /// Returns kind of the texture.
     fn kind(&self) -> GpuTextureKind;

@@ -18,20 +18,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::inspector::EditorEnvironment;
 use crate::{
-    asset::item::AssetItem,
+    asset::{
+        item::{AssetItem, AssetItemMessage},
+        preview::cache::IconRequest,
+        selector::AssetSelectorMixin,
+    },
     fyrox::{
         asset::manager::ResourceManager,
         core::{
-            futures::executor::block_on, make_relative_path, pool::Handle, reflect::prelude::*,
-            type_traits::prelude::*, visitor::prelude::*,
+            futures::executor::block_on, log::Log, make_relative_path, pool::Handle,
+            reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
         },
         graph::BaseSceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             define_constructor, define_widget_deref,
             grid::{Column, GridBuilder, Row},
+            image::{ImageBuilder, ImageMessage},
             inspector::{
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -41,18 +45,22 @@ use crate::{
             },
             message::{MessageDirection, UiMessage},
             text::{TextBuilder, TextMessage},
+            utils::make_asset_preview_tooltip,
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, Thickness, UiNode, UserInterface,
         },
         scene::mesh::surface::{SurfaceData, SurfaceResource},
     },
     message::MessageSender,
+    plugins::inspector::EditorEnvironment,
+    utils::make_pick_button,
     Message,
 };
-
+use fyrox::gui::brush::Brush;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -71,14 +79,14 @@ impl SurfaceDataPropertyEditorMessage {
 pub struct SurfaceDataPropertyEditor {
     widget: Widget,
     view: Handle<UiNode>,
-    data: SurfaceResource,
+    surface_resource: SurfaceResource,
     text: Handle<UiNode>,
+    image: Handle<UiNode>,
+    image_preview: Handle<UiNode>,
     #[visit(skip)]
     #[reflect(hidden)]
     sender: Option<MessageSender>,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    resource_manager: ResourceManager,
+    asset_selector_mixin: AssetSelectorMixin<SurfaceData>,
 }
 
 define_widget_deref!(SurfaceDataPropertyEditor);
@@ -90,13 +98,14 @@ impl Control for SurfaceDataPropertyEditor {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination == self.view {
                 if let Some(sender) = self.sender.as_ref() {
-                    sender.send(Message::ViewSurfaceData(self.data.clone()));
+                    sender.send(Message::ViewSurfaceData(self.surface_resource.clone()));
                 }
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if message.destination() == self.handle() {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
                     let path = if self
+                        .asset_selector_mixin
                         .resource_manager
                         .state()
                         .built_in_resources
@@ -108,8 +117,10 @@ impl Control for SurfaceDataPropertyEditor {
                     };
 
                     if let Ok(path) = path {
-                        if let Some(request) =
-                            self.resource_manager.try_request::<SurfaceData>(path)
+                        if let Some(request) = self
+                            .asset_selector_mixin
+                            .resource_manager
+                            .try_request::<SurfaceData>(path)
                         {
                             if let Ok(value) = block_on(request) {
                                 ui.send_message(SurfaceDataPropertyEditorMessage::value(
@@ -122,45 +133,101 @@ impl Control for SurfaceDataPropertyEditor {
                     }
                 }
             }
-        } else if let Some(SurfaceDataPropertyEditorMessage::Value(value)) = message.data() {
+        } else if let Some(SurfaceDataPropertyEditorMessage::Value(surface_resource)) =
+            message.data()
+        {
             if message.destination() == self.handle
                 && message.direction() == MessageDirection::ToWidget
-                && &self.data != value
+                && &self.surface_resource != surface_resource
             {
-                self.data = value.clone();
+                self.surface_resource = surface_resource.clone();
                 ui.send_message(message.reverse());
 
                 ui.send_message(TextMessage::text(
                     self.text,
                     MessageDirection::ToWidget,
-                    surface_data_info(&self.resource_manager, value),
+                    surface_data_info(
+                        &self.asset_selector_mixin.resource_manager,
+                        surface_resource,
+                    ),
                 ));
+
+                self.asset_selector_mixin
+                    .request_preview(self.handle, surface_resource);
+            }
+        } else if let Some(AssetItemMessage::Icon {
+            texture,
+            flip_y,
+            color,
+        }) = message.data()
+        {
+            if message.destination() == self.handle
+                && message.direction() == MessageDirection::ToWidget
+            {
+                for widget in [self.image, self.image_preview] {
+                    ui.send_message(ImageMessage::texture(
+                        widget,
+                        MessageDirection::ToWidget,
+                        texture.clone(),
+                    ));
+                    ui.send_message(ImageMessage::flip(
+                        widget,
+                        MessageDirection::ToWidget,
+                        *flip_y,
+                    ));
+                    ui.send_message(WidgetMessage::background(
+                        widget,
+                        MessageDirection::ToWidget,
+                        Brush::Solid(*color).into(),
+                    ))
+                }
             }
         }
+
+        self.asset_selector_mixin
+            .handle_ui_message(Some(&self.surface_resource), ui, message);
+    }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        self.asset_selector_mixin
+            .preview_ui_message(ui, message, |resource| {
+                SurfaceDataPropertyEditorMessage::value(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    resource.try_cast::<SurfaceData>().unwrap(),
+                )
+            })
     }
 }
 
 fn surface_data_info(resource_manager: &ResourceManager, data: &SurfaceResource) -> String {
     let use_count = data.use_count();
+    let id = data.key();
     let kind = resource_manager
         .resource_path(data.as_ref())
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|| "External".to_string());
-    let guard = data.data_ref();
-    format!(
-        "{}\nVertices: {}\nTriangles: {}\nUse Count: {}",
-        kind,
-        guard.vertex_buffer.vertex_count(),
-        guard.geometry_buffer.len(),
-        use_count
-    )
+    if data.is_ok() {
+        let guard = data.data_ref();
+        format!(
+            "{}\nVertices: {}\nTriangles: {}\nUse Count: {}\nId: {}",
+            kind,
+            guard.vertex_buffer.vertex_count(),
+            guard.geometry_buffer.len(),
+            use_count,
+            id
+        )
+    } else {
+        format!("{}\nNot loaded\nUse Count: {}\nId: {}", kind, use_count, id)
+    }
 }
 
 impl SurfaceDataPropertyEditor {
     pub fn build(
         ctx: &mut BuildContext,
-        data: SurfaceResource,
+        surface_resource: SurfaceResource,
         sender: MessageSender,
+        icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
     ) -> Handle<UiNode> {
         let view = ButtonBuilder::new(
@@ -174,20 +241,48 @@ impl SurfaceDataPropertyEditor {
         .with_text("View...")
         .build(ctx);
 
+        let select = make_pick_button(2, ctx);
+
         let text = TextBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
                 .on_column(0)
                 .with_margin(Thickness::uniform(1.0)),
         )
-        .with_text(surface_data_info(&resource_manager, &data))
+        .with_text(surface_data_info(&resource_manager, &surface_resource))
+        .build(ctx);
+
+        let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(None, ctx);
+
+        let image = ImageBuilder::new(
+            WidgetBuilder::new()
+                .on_column(0)
+                .with_width(52.0)
+                .with_height(52.0)
+                .with_tooltip(image_preview_tooltip)
+                .with_margin(Thickness::uniform(1.0)),
+        )
+        .build(ctx);
+
+        let content = GridBuilder::new(
+            WidgetBuilder::new()
+                .on_column(1)
+                .with_child(text)
+                .with_child(view)
+                .with_child(select),
+        )
+        .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .add_column(Column::auto())
+        .add_row(Row::auto())
         .build(ctx);
 
         let widget = WidgetBuilder::new()
+            .with_preview_messages(true)
             .with_child(
-                GridBuilder::new(WidgetBuilder::new().with_child(text).with_child(view))
-                    .add_column(Column::stretch())
+                GridBuilder::new(WidgetBuilder::new().with_child(image).with_child(content))
                     .add_column(Column::auto())
+                    .add_column(Column::stretch())
                     .add_row(Row::auto())
                     .build(ctx),
             )
@@ -196,14 +291,28 @@ impl SurfaceDataPropertyEditor {
 
         let editor = Self {
             widget,
-            data,
+            surface_resource: surface_resource.clone(),
             view,
             sender: Some(sender),
-            resource_manager,
+            asset_selector_mixin: AssetSelectorMixin::new(
+                select,
+                icon_request_sender.clone(),
+                resource_manager,
+            ),
             text,
+            image,
+            image_preview,
         };
 
-        ctx.add_node(UiNode::new(editor))
+        let handle = ctx.add_node(UiNode::new(editor));
+
+        Log::verify(icon_request_sender.send(IconRequest {
+            widget_handle: handle,
+            resource: surface_resource.into_untyped(),
+            force_update: false,
+        }));
+
+        handle
     }
 }
 
@@ -229,6 +338,7 @@ impl PropertyEditorDefinition for SurfaceDataPropertyEditorDefinition {
                 ctx.build_context,
                 value.clone(),
                 self.sender.clone(),
+                environment.icon_request_sender.clone(),
                 environment.resource_manager.clone(),
             ),
         })

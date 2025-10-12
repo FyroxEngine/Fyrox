@@ -22,6 +22,7 @@
 //! things such as loading assets within archive files
 
 use fyrox_core::io::FileError;
+use std::ffi::OsStr;
 use std::{
     fmt::Debug,
     fs::File,
@@ -87,6 +88,12 @@ pub trait ResourceIo: Send + Sync + 'static {
         dest: &'a Path,
     ) -> ResourceIoFuture<'a, Result<(), FileError>>;
 
+    /// Attempts to delete a file at the given `path` asynchronously.
+    fn delete_file<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, Result<(), FileError>>;
+
+    /// Attempts to delete a file at the given `path` synchronously.
+    fn delete_file_sync(&self, path: &Path) -> Result<(), FileError>;
+
     /// Attempts to copy a file at the given `source` path to the given `dest` path.
     fn copy_file<'a>(
         &'a self,
@@ -123,6 +130,7 @@ pub trait ResourceIo: Send + Sync + 'static {
     fn walk_directory<'a>(
         &'a self,
         #[allow(unused)] path: &'a Path,
+        #[allow(unused)] max_depth: usize,
     ) -> ResourceIoFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileError>> {
         let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(empty());
         Box::pin(ready(Ok(iter)))
@@ -143,6 +151,9 @@ pub trait ResourceIo: Send + Sync + 'static {
             Ok(read)
         })
     }
+
+    /// Checks whether the given file name is valid or not.
+    fn is_valid_file_name(&self, name: &OsStr) -> bool;
 
     /// Used to check whether a path exists
     fn exists<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, bool>;
@@ -207,6 +218,18 @@ impl ResourceIo for FsResourceIo {
         })
     }
 
+    fn delete_file<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, Result<(), FileError>> {
+        Box::pin(async move {
+            std::fs::remove_file(path)?;
+            Ok(())
+        })
+    }
+
+    fn delete_file_sync(&self, path: &Path) -> Result<(), FileError> {
+        std::fs::remove_file(path)?;
+        Ok(())
+    }
+
     fn copy_file<'a>(
         &'a self,
         source: &'a Path,
@@ -248,11 +271,13 @@ impl ResourceIo for FsResourceIo {
     fn walk_directory<'a>(
         &'a self,
         path: &'a Path,
+        max_depth: usize,
     ) -> ResourceIoFuture<'a, Result<PathIter, FileError>> {
         Box::pin(async move {
             use walkdir::WalkDir;
 
             let iter = WalkDir::new(path)
+                .max_depth(max_depth)
                 .into_iter()
                 .flatten()
                 .map(|value| value.into_path());
@@ -281,6 +306,34 @@ impl ResourceIo for FsResourceIo {
             let read: Box<dyn FileReader> = Box::new(std::io::BufReader::new(file));
             Ok(read)
         })
+    }
+
+    fn is_valid_file_name(&self, name: &OsStr) -> bool {
+        for &byte in name.as_encoded_bytes() {
+            #[cfg(windows)]
+            {
+                if matches!(
+                    byte,
+                    b'<' | b'>' | b':' | b'"' | b'/' | b'\\' | b'|' | b'?' | b'*'
+                ) {
+                    return false;
+                }
+
+                // ASCII control characters
+                if byte < 32 {
+                    return false;
+                }
+            }
+
+            #[cfg(not(windows))]
+            {
+                if matches!(byte, b'0' | b'/') {
+                    return false;
+                }
+            }
+        }
+
+        true
     }
 
     fn exists<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, bool> {

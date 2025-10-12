@@ -21,6 +21,7 @@
 pub mod cache;
 
 use crate::{
+    asset,
     fyrox::{
         asset::{manager::ResourceManager, untyped::ResourceKind, untyped::UntypedResource},
         core::{
@@ -33,13 +34,13 @@ use crate::{
         },
         engine::{Engine, GraphicsContext},
         fxhash::FxHashMap,
-        graph::BaseSceneGraph,
+        graph::{BaseSceneGraph, SceneGraphNode},
+        graphics::{framebuffer::ReadTarget, gpu_texture::GpuTextureKind},
         gui::{
             font::Font, formatted_text::WrapMode, screen::ScreenBuilder, text::TextBuilder,
             widget::WidgetBuilder, HorizontalAlignment, UserInterface, VerticalAlignment,
         },
         material::{shader::Shader, Material, MaterialResource},
-        renderer::framework::gpu_texture::{GpuTextureKind, PixelKind},
         resource::{
             curve::CurveResourceState,
             model::{Model, ModelResourceExtension},
@@ -49,20 +50,21 @@ use crate::{
         },
         scene::{
             base::BaseBuilder,
-            camera::{CameraBuilder, FitParameters, Projection},
+            camera::{Camera, CameraBuilder, FitParameters, Projection},
             light::{directional::DirectionalLightBuilder, BaseLightBuilder},
             mesh::{
                 surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
                 MeshBuilder, RenderPath,
             },
             node::Node,
+            skybox::SkyBox,
             sound::{HrirSphereResourceData, SoundBuffer, SoundBuilder, Status},
-            Scene,
+            EnvironmentLightingSource, Scene,
         },
     },
     load_image,
 };
-use fyrox::renderer::framework::framebuffer::ReadTarget;
+use fyrox::renderer::ui_renderer::UiRenderInfo;
 use image::{ColorType, GenericImage, Rgba};
 
 #[derive(Default)]
@@ -95,10 +97,39 @@ impl AssetPreviewGeneratorsCollection {
     }
 }
 
+pub fn make_preview_scene(lighting: bool) -> Scene {
+    let mut scene = Scene::new();
+    scene.set_skybox(Some(SkyBox::from_single_color(Color::repeat_opaque(40))));
+    let color = if lighting {
+        Color::repeat_opaque(80)
+    } else {
+        Color::repeat_opaque(180)
+    };
+    scene.rendering_options.ambient_lighting_color = color;
+    scene.rendering_options.clear_color = Some(color);
+    scene.rendering_options.environment_lighting_source = EnvironmentLightingSource::AmbientColor;
+    if lighting {
+        DirectionalLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new()))
+            .build(&mut scene.graph);
+    }
+    scene
+}
+
 #[derive(Clone)]
 pub struct AssetPreviewTexture {
     pub texture: TextureResource,
     pub flip_y: bool,
+    pub color: Color,
+}
+
+impl AssetPreviewTexture {
+    pub fn from_texture_with_gray_tint(texture: TextureResource) -> Self {
+        Self {
+            texture,
+            flip_y: false,
+            color: Color::opaque(190, 190, 190),
+        }
+    }
 }
 
 pub trait AssetPreviewGenerator: Send + Sync + 'static {
@@ -109,6 +140,7 @@ pub trait AssetPreviewGenerator: Send + Sync + 'static {
         resource: &UntypedResource,
         resource_manager: &ResourceManager,
         scene: &mut Scene,
+        preview_camera: Handle<Node>,
     ) -> Handle<Node>;
 
     /// Generates a preview image for an asset. For example, in case of prefabs, it will be the
@@ -136,6 +168,7 @@ impl AssetPreviewGenerator for TexturePreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         if let Some(texture) = resource.try_cast::<Texture>() {
             let scale = if let Some(size) = texture.data_ref().kind().rectangle_size() {
@@ -179,6 +212,7 @@ impl AssetPreviewGenerator for TexturePreview {
             .map(|texture| AssetPreviewTexture {
                 texture,
                 flip_y: false,
+                color: Color::WHITE,
             })
     }
 
@@ -199,6 +233,7 @@ impl AssetPreviewGenerator for SoundPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         if let Some(buffer) = resource.try_cast::<SoundBuffer>() {
             SoundBuilder::new(BaseBuilder::new())
@@ -217,9 +252,9 @@ impl AssetPreviewGenerator for SoundPreview {
     ) -> Option<AssetPreviewTexture> {
         if let Some(buffer) = resource.try_cast::<SoundBuffer>() {
             if let Some(data) = buffer.state().data() {
-                let height = 60.0;
+                let height = asset::item::DEFAULT_SIZE;
                 let half_height = height / 2.0;
-                let width = 60.0;
+                let width = asset::item::DEFAULT_SIZE;
                 let mut image =
                     image::DynamicImage::new(width as u32, height as u32, ColorType::Rgba8);
 
@@ -275,6 +310,7 @@ impl AssetPreviewGenerator for SoundPreview {
                 .map(|texture| AssetPreviewTexture {
                     texture,
                     flip_y: false,
+                    color: Color::WHITE,
                 });
             }
         }
@@ -316,7 +352,7 @@ fn render_scene_to_texture(
         .unwrap_or_default();
     let camera = scene.graph[camera].as_camera_mut();
     let aspect_ratio = 1.0;
-    match camera.fit(&scene_aabb, aspect_ratio) {
+    match camera.fit(&scene_aabb, aspect_ratio, 1.05) {
         FitParameters::Perspective { position, .. } => {
             camera.local_transform_mut().set_position(position);
         }
@@ -334,11 +370,13 @@ fn render_scene_to_texture(
     scene.update(rt_size, 0.016, Default::default());
 
     let temp_handle = Handle::new(u32::MAX, u32::MAX);
-    if let Ok(scene_data) =
-        graphics_context
-            .renderer
-            .render_scene(temp_handle, scene, elapsed_time, 0.0)
-    {
+    if let Ok(scene_data) = graphics_context.renderer.render_scene(
+        temp_handle,
+        scene,
+        elapsed_time,
+        0.0,
+        &engine.resource_manager,
+    ) {
         let ldr_texture = scene_data.scene_data.ldr_scene_frame_texture();
 
         let (width, height) = match ldr_texture.kind() {
@@ -372,6 +410,7 @@ fn render_scene_to_texture(
             texture,
             // OpenGL was designed by mathematicians.
             flip_y: true,
+            color: Color::WHITE,
         })
     } else {
         None
@@ -386,9 +425,21 @@ impl AssetPreviewGenerator for ModelPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
+        preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         if let Some(model) = resource.try_cast::<Model>() {
-            model.instantiate(scene)
+            let instance = model.instantiate(scene);
+
+            for camera in scene
+                .graph
+                .pair_iter_mut()
+                .filter(|(h, _)| *h != preview_camera)
+                .filter_map(|(_, n)| n.component_mut::<Camera>())
+            {
+                camera.set_enabled(false);
+            }
+
+            instance
         } else {
             Handle::NONE
         }
@@ -400,10 +451,9 @@ impl AssetPreviewGenerator for ModelPreview {
         engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
         let model = resource.try_cast::<Model>()?;
-        let mut scene = Scene::new();
-        scene.rendering_options.ambient_lighting_color = Color::opaque(180, 180, 180);
+        let mut scene = make_preview_scene(true);
         model.instantiate(&mut scene);
-        render_scene_to_texture(engine, &mut scene, Vector2::new(128.0, 128.0))
+        render_scene_to_texture(engine, &mut scene, asset::item::DEFAULT_VEC_SIZE)
     }
 
     fn simple_icon(
@@ -423,6 +473,7 @@ impl AssetPreviewGenerator for SurfaceDataPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         if let Some(surface) = resource.try_cast::<SurfaceData>() {
             MeshBuilder::new(BaseBuilder::new())
@@ -439,12 +490,11 @@ impl AssetPreviewGenerator for SurfaceDataPreview {
         engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
         let surface = resource.try_cast::<SurfaceData>()?;
-        let mut scene = Scene::new();
-        scene.rendering_options.ambient_lighting_color = Color::opaque(180, 180, 180);
+        let mut scene = make_preview_scene(true);
         MeshBuilder::new(BaseBuilder::new())
             .with_surfaces(vec![SurfaceBuilder::new(surface.clone()).build()])
             .build(&mut scene.graph);
-        render_scene_to_texture(engine, &mut scene, Vector2::new(128.0, 128.0))
+        render_scene_to_texture(engine, &mut scene, asset::item::DEFAULT_VEC_SIZE)
     }
 
     fn simple_icon(
@@ -464,6 +514,7 @@ impl AssetPreviewGenerator for ShaderPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         if let Some(shader) = resource.try_cast::<Shader>() {
             let material = MaterialResource::new_embedded(Material::from_shader(shader));
@@ -506,6 +557,7 @@ impl AssetPreviewGenerator for MaterialPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         if let Some(material) = resource.try_cast::<Material>() {
             MeshBuilder::new(BaseBuilder::new())
@@ -525,11 +577,10 @@ impl AssetPreviewGenerator for MaterialPreview {
         resource: &UntypedResource,
         engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
-        let mut scene = Scene::new();
-        self.generate_scene(resource, &engine.resource_manager, &mut scene);
-        DirectionalLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new()))
-            .build(&mut scene.graph);
-        render_scene_to_texture(engine, &mut scene, Vector2::new(128.0, 128.0))
+        let mut scene = make_preview_scene(true);
+        self.generate_scene(resource, &engine.resource_manager, &mut scene, Handle::NONE);
+
+        render_scene_to_texture(engine, &mut scene, asset::item::DEFAULT_VEC_SIZE)
     }
 
     fn simple_icon(
@@ -549,6 +600,7 @@ impl AssetPreviewGenerator for HrirPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         _scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         Handle::NONE
     }
@@ -580,6 +632,7 @@ impl AssetPreviewGenerator for CurvePreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         _scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         Handle::NONE
     }
@@ -617,21 +670,31 @@ pub fn render_ui_to_texture(
     ui.update(screen_size, 0.016, &Default::default());
     while ui.poll_message().is_some() {}
     ui.update(screen_size, 0.016, &Default::default());
-    let render_target = TextureResource::new_render_target(256, 256);
+    let render_target = TextureResource::new_render_target(
+        asset::item::DEFAULT_SIZE as u32,
+        asset::item::DEFAULT_SIZE as u32,
+    );
+    ui.draw();
     graphics_context
         .renderer
-        .render_ui_to_texture(
-            render_target.clone(),
-            screen_size,
-            ui.draw(),
-            Color::opaque(100, 100, 100),
-            PixelKind::RGBA8,
-        )
+        .render_ui(UiRenderInfo {
+            ui,
+            render_target: Some(render_target.clone()),
+            clear_color: Color::opaque(100, 100, 100),
+            resource_manager: &engine.resource_manager,
+        })
         .ok()?;
+
+    assert!(graphics_context
+        .renderer
+        .ui_frame_buffers
+        .remove(&render_target.key())
+        .is_some());
 
     Some(AssetPreviewTexture {
         texture: render_target,
         flip_y: true,
+        color: Color::WHITE,
     })
 }
 
@@ -641,6 +704,7 @@ impl AssetPreviewGenerator for FontPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         _scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         Handle::NONE
     }
@@ -651,7 +715,7 @@ impl AssetPreviewGenerator for FontPreview {
         engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
         if let Some(font) = resource.try_cast::<Font>() {
-            let mut ui = UserInterface::new(Vector2::new(60.0, 60.0));
+            let mut ui = UserInterface::new(asset::item::DEFAULT_VEC_SIZE);
             ScreenBuilder::new(
                 WidgetBuilder::new().with_child(
                     TextBuilder::new(WidgetBuilder::new())
@@ -688,6 +752,7 @@ impl AssetPreviewGenerator for UserInterfacePreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         _scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         Handle::NONE
     }
@@ -699,7 +764,7 @@ impl AssetPreviewGenerator for UserInterfacePreview {
     ) -> Option<AssetPreviewTexture> {
         if let Some(ui_resource) = resource.try_cast::<UserInterface>() {
             let mut ui = ui_resource.data_ref().clone();
-            ui.set_screen_size(Vector2::new(256.0, 256.0));
+            ui.set_screen_size(asset::item::DEFAULT_VEC_SIZE);
             render_ui_to_texture(&mut ui, engine)
         } else {
             None

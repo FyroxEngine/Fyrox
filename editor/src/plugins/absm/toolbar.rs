@@ -44,7 +44,7 @@ use crate::plugins::absm::{
     fetch_selection, machine_container_ref,
     selection::AbsmSelection,
 };
-use crate::scene::selector::SelectedHandle;
+use crate::scene::selector::{AllowedType, SelectedHandle};
 use crate::{
     command::{Command, CommandGroup},
     load_image,
@@ -272,7 +272,7 @@ impl Toolbar {
                         .cloned()
                         .filter(|n| {
                             graph
-                                .try_get(*n)
+                                .try_get_node(*n)
                                 .is_some_and(|n| !unique_nodes.contains(&n.parent()))
                         })
                         .collect::<Vec<_>>();
@@ -291,6 +291,14 @@ impl Toolbar {
                         )
                         .open(false)
                         .with_title(WindowTitle::text("Select nodes that will NOT be animated")),
+                    )
+                    .with_allowed_types(
+                        [AllowedType {
+                            id: TypeId::of::<N>(),
+                            name: std::any::type_name::<N>().to_string(),
+                        }]
+                        .into_iter()
+                        .collect(),
                     )
                     .with_hierarchy(root)
                     .build(&mut ui.build_ctx());

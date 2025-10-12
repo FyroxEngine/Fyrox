@@ -20,14 +20,6 @@
 
 #![allow(clippy::manual_map)]
 
-use crate::plugins::animation::{
-    animation_container_ref,
-    command::{
-        AddTrackCommand, RemoveTrackCommand, SetTrackEnabledCommand, SetTrackTargetCommand,
-        SetTrackValueBindingCommand,
-    },
-    selection::{AnimationSelection, SelectedEntity},
-};
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -47,10 +39,12 @@ use crate::{
         generic_animation::{
             container::{TrackDataContainer, TrackValueKind},
             track::Track,
+            track::TrackBinding,
             value::{ValueBinding, ValueType},
             Animation,
         },
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graphics::DrawParameters,
         gui::{
             border::BorderBuilder,
             brush::Brush,
@@ -65,20 +59,32 @@ use crate::{
             popup::PopupBuilder,
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             stack_panel::StackPanelBuilder,
+            style::{resource::StyleResourceExt, Style},
             text::{Text, TextBuilder, TextMessage},
             text_box::{TextBoxBuilder, TextCommitMode},
             tree::{Tree, TreeBuilder, TreeMessage, TreeRootBuilder, TreeRootMessage},
-            utils::{make_cross, make_simple_tooltip},
+            utils::{make_cross, make_image_button_with_tooltip, make_simple_tooltip},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Control, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
             VerticalAlignment,
         },
         resource::texture::TextureBytes,
+        scene::mesh::buffer::{TriangleBuffer, VertexBuffer},
+        scene::sound::Samples,
     },
     load_image,
     menu::create_menu_item,
     message::MessageSender,
+    plugins::animation::{
+        animation_container_ref,
+        command::{
+            AddTrackCommand, RemoveTrackCommand, SetTrackEnabledCommand, SetTrackTargetCommand,
+            SetTrackValueBindingCommand,
+        },
+        selection::{AnimationSelection, SelectedEntity},
+    },
+    scene::selector::AllowedType,
     scene::{
         commands::ChangeSelectionCommand,
         property::{
@@ -90,14 +96,6 @@ use crate::{
     },
     send_sync_message, utils,
 };
-
-use fyrox::generic_animation::track::TrackBinding;
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
-use fyrox::gui::utils::make_image_button_with_tooltip;
-use fyrox::renderer::framework::DrawParameters;
-use fyrox::scene::mesh::buffer::{TriangleBuffer, VertexBuffer};
-use fyrox::scene::sound::Samples;
 use std::{
     any::TypeId,
     cmp::Ordering,
@@ -131,28 +129,31 @@ impl TrackContextMenu {
         let rebind;
         let duplicate;
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            remove_track = create_menu_item("Remove Selected Tracks", vec![], ctx);
-                            remove_track
-                        })
-                        .with_child({
-                            set_target = create_menu_item("Set Target...", vec![], ctx);
-                            set_target
-                        })
-                        .with_child({
-                            rebind = create_menu_item("Rebind...", vec![], ctx);
-                            rebind
-                        })
-                        .with_child({
-                            duplicate = create_menu_item("Duplicate", vec![], ctx);
-                            duplicate
-                        }),
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+                .with_content(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                remove_track =
+                                    create_menu_item("Remove Selected Tracks", vec![], ctx);
+                                remove_track
+                            })
+                            .with_child({
+                                set_target = create_menu_item("Set Target...", vec![], ctx);
+                                set_target
+                            })
+                            .with_child({
+                                rebind = create_menu_item("Rebind...", vec![], ctx);
+                                rebind
+                            })
+                            .with_child({
+                                duplicate = create_menu_item("Duplicate", vec![], ctx);
+                                duplicate
+                            }),
+                    )
+                    .build(ctx),
                 )
-                .build(ctx),
-            ),
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
@@ -259,9 +260,15 @@ fn type_id_to_supported_type(property_type: TypeId) -> Option<(TrackValueKind, V
     } else if property_type == TypeId::of::<Vector4<bool>>() {
         Some((TrackValueKind::Vector4, ValueType::Vector4Bool))
     } else if property_type == TypeId::of::<UnitQuaternion<f32>>() {
-        Some((TrackValueKind::UnitQuaternion, ValueType::UnitQuaternionF32))
+        Some((
+            TrackValueKind::UnitQuaternionEuler,
+            ValueType::UnitQuaternionF32,
+        ))
     } else if property_type == TypeId::of::<UnitQuaternion<f64>>() {
-        Some((TrackValueKind::UnitQuaternion, ValueType::UnitQuaternionF64))
+        Some((
+            TrackValueKind::UnitQuaternionEuler,
+            ValueType::UnitQuaternionF64,
+        ))
     } else {
         None
     }
@@ -784,6 +791,14 @@ impl TrackList {
                     WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                         .with_title(WindowTitle::text("Select a Node To Animate")),
                 )
+                .with_allowed_types(
+                    [AllowedType {
+                        id: TypeId::of::<N>(),
+                        name: std::any::type_name::<N>().to_string(),
+                    }]
+                    .into_iter()
+                    .collect(),
+                )
                 .with_hierarchy(HierarchyNode::from_scene_node(root, Handle::NONE, graph))
                 .build(&mut ui.build_ctx());
 
@@ -927,7 +942,7 @@ impl TrackList {
             if message.destination() == self.property_selector
                 && message.direction() == MessageDirection::FromWidget
             {
-                if let Some(node) = graph.try_get(self.selected_node.into()) {
+                if let Some(node) = graph.try_get_node(self.selected_node.into()) {
                     for property_path in selected_properties {
                         node.resolve_path(&property_path.path, &mut |result| match result {
                             Ok(property) => {
@@ -1108,7 +1123,7 @@ impl TrackList {
         N: SceneGraphNode,
     {
         let mut descriptors = Vec::new();
-        if let Some(node) = graph.try_get(node) {
+        if let Some(node) = graph.try_get_node(node) {
             node.as_reflect(&mut |node| {
                 descriptors = object_to_property_tree("", node, &mut |field: &FieldRef| {
                     let type_id = field.value.field_value_as_reflect().type_id();
@@ -1228,7 +1243,7 @@ impl TrackList {
             return;
         };
 
-        let Some(node) = graph.try_get(binding.target()) else {
+        let Some(node) = graph.try_get_node(binding.target()) else {
             Log::err("Invalid node handle!");
             return;
         };
@@ -1381,7 +1396,7 @@ impl TrackList {
                                             .with_text(format!(
                                                 "{} ({}:{})",
                                                 graph
-                                                    .try_get(model_track_binding.target())
+                                                    .try_get_node(model_track_binding.target())
                                                     .map(|n| n.name())
                                                     .unwrap_or_default(),
                                                 model_track_binding.target().index(),
@@ -1424,10 +1439,11 @@ impl TrackList {
                                     TrackValueKind::Real => "Value",
                                     TrackValueKind::Vector2
                                     | TrackValueKind::Vector3
-                                    | TrackValueKind::Vector4 => {
+                                    | TrackValueKind::Vector4
+                                    | TrackValueKind::UnitQuaternion => {
                                         ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_")
                                     }
-                                    TrackValueKind::UnitQuaternion => match i {
+                                    TrackValueKind::UnitQuaternionEuler => match i {
                                         0 => "Pitch",
                                         1 => "Yaw",
                                         2 => "Roll",
@@ -1572,7 +1588,7 @@ impl TrackList {
                 }
 
                 let mut validation_result = Ok(());
-                if let Some(target) = graph.try_get(model_track_binding.target()) {
+                if let Some(target) = graph.try_get_node(model_track_binding.target()) {
                     if let Some(parent_group) =
                         self.group_views.get(&model_track_binding.target().into())
                     {

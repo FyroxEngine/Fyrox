@@ -20,6 +20,7 @@
 
 //! Scene physics module.
 
+use super::collider::GeometrySource;
 use crate::{
     core::{
         algebra::{
@@ -43,8 +44,10 @@ use crate::{
         collider::{self},
         debug::SceneDrawingContext,
         dim2::{
-            self, collider::ColliderShape, collider::TileMapShape, joint::JointLocalFrames,
-            joint::JointParams, rigidbody::ApplyAction,
+            self,
+            collider::{ColliderShape, TileMapShape},
+            joint::{JointLocalFrames, JointMotorParams, JointParams},
+            rigidbody::ApplyAction,
         },
         graph::{
             isometric_global_transform,
@@ -56,6 +59,7 @@ use crate::{
     },
 };
 pub use rapier2d::geometry::shape::*;
+use rapier2d::parry::query::DefaultQueryDispatcher;
 use rapier2d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
@@ -68,18 +72,14 @@ use rapier2d::{
         InteractionGroups, NarrowPhase, Ray, SharedShape,
     },
     parry::query::ShapeCastOptions,
-    pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline, QueryPipeline},
+    pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline},
 };
 use std::{
-    cell::RefCell,
     cmp::Ordering,
     fmt::{Debug, Formatter},
     hash::Hash,
-    num::NonZeroUsize,
     sync::Arc,
 };
-
-use super::collider::GeometrySource;
 
 /// A trait for ray cast results storage. It has two implementations: Vec and ArrayVec.
 /// Latter is needed for the cases where you need to avoid runtime memory allocations
@@ -506,9 +506,6 @@ pub struct PhysicsWorld {
     event_handler: Box<dyn EventHandler>,
     #[visit(skip)]
     #[reflect(hidden)]
-    query: RefCell<QueryPipeline>,
-    #[visit(skip)]
-    #[reflect(hidden)]
     debug_render_pipeline: Mutex<DebugRenderPipeline>,
 }
 
@@ -616,18 +613,38 @@ impl PhysicsWorld {
                 map: Default::default(),
             },
             event_handler: Box::new(()),
-            query: RefCell::new(Default::default()),
             performance_statistics: Default::default(),
             debug_render_pipeline: Default::default(),
         }
     }
 
-    pub(crate) fn update(&mut self, dt: f32) {
+    /// Update the physics pipeline with a timestep of the given length.
+    ///
+    /// * `dt`: The amount of time that has passed since the previous update.
+    ///   This may be overriden by [`PhysicsWorld::integration_parameters`] if
+    ///   `integration_parameters.dt` is `Some`, in which case that value is used
+    ///   instead of this argument.
+    /// * `dt_enabled`: If this is true then `dt` is used as usual, but if this is false
+    ///   then both the `dt` argument and `integration_parameters.dt` are ignored and
+    ///   a `dt` of zero is used instead, freezing all physics. This corresponds to the
+    ///   [`GraphUpdateSwitches::physics_dt`](crate::scene::graph::GraphUpdateSwitches::physics_dt).
+    pub(crate) fn update(&mut self, dt: f32, dt_enabled: bool) {
         let time = instant::Instant::now();
+        let parameter_dt = self.integration_parameters.dt;
+        let parameter_dt = if parameter_dt == Some(0.0) {
+            None
+        } else {
+            parameter_dt
+        };
+        let dt = if dt_enabled {
+            parameter_dt.unwrap_or(dt)
+        } else {
+            0.0
+        };
 
         if *self.enabled {
             let integration_parameters = rapier2d::dynamics::IntegrationParameters {
-                dt: self.integration_parameters.dt.unwrap_or(dt),
+                dt,
                 min_ccd_dt: self.integration_parameters.min_ccd_dt,
                 contact_damping_ratio: self.integration_parameters.contact_damping_ratio,
                 contact_natural_frequency: self.integration_parameters.contact_natural_frequency,
@@ -640,13 +657,7 @@ impl PhysicsWorld {
                     .integration_parameters
                     .normalized_max_corrective_velocity,
                 normalized_prediction_distance: self.integration_parameters.prediction_distance,
-                num_solver_iterations: NonZeroUsize::new(
-                    self.integration_parameters.num_solver_iterations,
-                )
-                .unwrap(),
-                num_additional_friction_iterations: self
-                    .integration_parameters
-                    .num_additional_friction_iterations,
+                num_solver_iterations: self.integration_parameters.num_solver_iterations,
                 num_internal_pgs_iterations: self
                     .integration_parameters
                     .num_internal_pgs_iterations,
@@ -656,8 +667,6 @@ impl PhysicsWorld {
                 min_island_size: self.integration_parameters.min_island_size as usize,
                 max_ccd_substeps: self.integration_parameters.max_ccd_substeps as usize,
             };
-
-            let mut query = self.query.borrow_mut();
 
             self.pipeline.step(
                 &self.gravity,
@@ -670,7 +679,6 @@ impl PhysicsWorld {
                 &mut self.joints.set,
                 &mut self.multibody_joints.set,
                 &mut self.ccd_solver,
-                Some(&mut query),
                 &(),
                 &*self.event_handler,
             );
@@ -747,7 +755,15 @@ impl PhysicsWorld {
     pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
         let time = instant::Instant::now();
 
-        let query = self.query.borrow_mut();
+        let query = self.broad_phase.as_query_pipeline(
+            &DefaultQueryDispatcher,
+            &self.bodies,
+            &self.colliders,
+            rapier2d::pipeline::QueryFilter::new().groups(InteractionGroups::new(
+                u32_to_group(opts.groups.memberships.0),
+                u32_to_group(opts.groups.filter.0),
+            )),
+        );
 
         query_buffer.clear();
         let ray = Ray::new(
@@ -756,28 +772,15 @@ impl PhysicsWorld {
                 .try_normalize(f32::EPSILON)
                 .unwrap_or_default(),
         );
-        query.intersections_with_ray(
-            &self.bodies,
-            &self.colliders,
-            &ray,
-            opts.max_len,
-            true,
-            rapier2d::pipeline::QueryFilter::new().groups(InteractionGroups::new(
-                u32_to_group(opts.groups.memberships.0),
-                u32_to_group(opts.groups.filter.0),
-            )),
-            |handle, intersection| {
-                query_buffer.push(Intersection {
-                    collider: Handle::decode_from_u128(
-                        self.colliders.get(handle).unwrap().user_data,
-                    ),
-                    normal: intersection.normal,
-                    position: ray.point_at(intersection.time_of_impact),
-                    feature: intersection.feature.into(),
-                    toi: intersection.time_of_impact,
-                })
-            },
-        );
+        for (_, collider, intersection) in query.intersect_ray(ray, opts.max_len, true) {
+            query_buffer.push(Intersection {
+                collider: Handle::decode_from_u128(collider.user_data),
+                normal: intersection.normal,
+                position: ray.point_at(intersection.time_of_impact),
+                feature: intersection.feature.into(),
+                toi: intersection.time_of_impact,
+            });
+        }
         if opts.sort_results {
             query_buffer.sort_intersections_by(|a, b| {
                 if a.toi > b.toi {
@@ -844,18 +847,23 @@ impl PhysicsWorld {
             }),
             exclude_collider: filter
                 .exclude_collider
-                .and_then(|h| graph.try_get(h))
+                .and_then(|h| graph.try_get_node(h))
                 .and_then(|n| n.component_ref::<dim2::collider::Collider>())
                 .map(|c| c.native.get()),
             exclude_rigid_body: filter
                 .exclude_collider
-                .and_then(|h| graph.try_get(h))
+                .and_then(|h| graph.try_get_node(h))
                 .and_then(|n| n.component_ref::<dim2::rigidbody::RigidBody>())
                 .map(|c| c.native.get()),
             predicate: Some(&predicate),
         };
 
-        let query = self.query.borrow_mut();
+        let query = self.broad_phase.as_query_pipeline(
+            &DefaultQueryDispatcher,
+            &self.bodies,
+            &self.colliders,
+            filter,
+        );
 
         let opts = ShapeCastOptions {
             max_time_of_impact: max_toi,
@@ -865,15 +873,7 @@ impl PhysicsWorld {
         };
 
         query
-            .cast_shape(
-                &self.bodies,
-                &self.colliders,
-                shape_pos,
-                shape_vel,
-                shape,
-                opts,
-                filter,
-            )
+            .cast_shape(shape_pos, shape_vel, shape, opts)
             .map(|(handle, toi)| {
                 (
                     Handle::decode_from_u128(self.colliders.get(handle).unwrap().user_data),
@@ -1062,7 +1062,7 @@ impl PhysicsWorld {
             }
         } else {
             let mut builder = RigidBodyBuilder::new(rigid_body_node.body_type().into())
-                .position(isometry_from_global_transform(
+                .pose(isometry_from_global_transform(
                     &rigid_body_node.global_transform(),
                 ))
                 .ccd_enabled(rigid_body_node.is_ccd_enabled())
@@ -1242,12 +1242,12 @@ impl PhysicsWorld {
 
         if let Some(native) = self.joints.set.get_mut(joint.native.get(), false) {
             joint.body1.try_sync_model(|v| {
-                if let Some(rigid_body_node) = nodes.typed_ref(v) {
+                if let Some(rigid_body_node) = nodes.try_get(v) {
                     native.body1 = rigid_body_node.native.get();
                 }
             });
             joint.body2.try_sync_model(|v| {
-                if let Some(rigid_body_node) = nodes.typed_ref(v) {
+                if let Some(rigid_body_node) = nodes.try_get(v) {
                     native.body2 = rigid_body_node.native.get();
                 }
             });
@@ -1256,15 +1256,48 @@ impl PhysicsWorld {
                     // Preserve local frames.
                     convert_joint_params(v, native.data.local_frame1, native.data.local_frame2)
             });
+            joint.motor_params.try_sync_model(|v|{
+                // The free axis is defined to be the x axis for both prismatic and ball joints in fyrox.
+                // If you want the joint to translate / rotate along a different axis, you can rotate the joint itself.
+                let joint_axis = match joint.params.get_value_ref(){
+                    JointParams::PrismaticJoint(_) => JointAxis::LinX,
+                    JointParams::BallJoint(_) => JointAxis::AngX,
+                    _ => {
+                        Log::warn("Try to modify motor parameters for unsupported joint type, this operation will be ignored.");
+                        return;
+                    }
+                };
+                // Force based motor model is better in the Fyrox's context
+                native.data.set_motor_model(joint_axis, rapier2d::prelude::MotorModel::ForceBased);
+                let JointMotorParams {
+                    target_vel,
+                    target_pos,
+                    stiffness,
+                    damping,
+                    max_force
+                } = v;
+                native.data.set_motor(joint_axis, target_pos, target_vel, stiffness, damping);
+                native.data.set_motor_max_force(joint_axis, max_force);
+                // wake up the bodies connected to the joint to ensure they respond to the motor changes immediately
+                // however, the rigid bodies may fall asleep any time later unless Joint::set_motor_* functions are called periodically,
+                // or the rigid bodies are set to cannot sleep
+                let Some(body1) = self.bodies.get_mut(native.body1) else {
+                    return;
+                };
+                body1.wake_up(true);
+                let Some(body2) = self.bodies.get_mut(native.body2) else {
+                    return;
+                };
+                body2.wake_up(true);
+            });
             joint.contacts_enabled.try_sync_model(|v| {
                 native.data.set_contacts_enabled(v);
             });
             let mut local_frames = joint.local_frames.borrow_mut();
             if local_frames.is_none() {
-                if let (Some(body1), Some(body2)) = (
-                    nodes.typed_ref(joint.body1()),
-                    nodes.typed_ref(joint.body2()),
-                ) {
+                if let (Some(body1), Some(body2)) =
+                    (nodes.try_get(joint.body1()), nodes.try_get(joint.body2()))
+                {
                     let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
                     native.data =
                         convert_joint_params((*joint.params).clone(), local_frame1, local_frame2);
@@ -1278,7 +1311,7 @@ impl PhysicsWorld {
 
             // A native joint can be created iff both rigid bodies are correctly assigned.
             if let (Some(body1), Some(body2)) =
-                (nodes.typed_ref(body1_handle), nodes.typed_ref(body2_handle))
+                (nodes.try_get(body1_handle), nodes.try_get(body2_handle))
             {
                 // Calculate local frames first (if needed).
                 let mut local_frames = joint.local_frames.borrow_mut();

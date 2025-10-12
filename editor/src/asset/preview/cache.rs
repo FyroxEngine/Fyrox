@@ -25,33 +25,80 @@ use crate::{
     },
     fyrox::{
         asset::untyped::UntypedResource,
-        core::pool::Handle,
+        core::{futures::executor::block_on, parking_lot::Mutex, pool::Handle, SafeLock, Uuid},
         engine::Engine,
         fxhash::FxHashMap,
         gui::{message::MessageDirection, UiNode},
     },
+    load_image,
 };
-use fyrox::core::Uuid;
-use std::sync::mpsc::Receiver;
+use std::{
+    collections::VecDeque,
+    sync::{mpsc::Receiver, Arc},
+};
 
 pub struct IconRequest {
-    pub asset_item: Handle<UiNode>,
+    pub widget_handle: Handle<UiNode>,
     pub resource: UntypedResource,
+    pub force_update: bool,
 }
 
 pub struct AssetPreviewCache {
-    receiver: Receiver<IconRequest>,
     container: FxHashMap<Uuid, AssetPreviewTexture>,
     throughput: usize,
+    queue: Arc<Mutex<VecDeque<IconRequest>>>,
 }
 
 impl AssetPreviewCache {
     pub fn new(receiver: Receiver<IconRequest>, throughput: usize) -> Self {
+        let queue = Arc::new(Mutex::new(VecDeque::new()));
+        let queue2 = queue.clone();
+        std::thread::spawn(move || {
+            for request in receiver.iter() {
+                let resource = request.resource.clone();
+                if block_on(resource).is_ok() {
+                    queue.safe_lock().push_back(request);
+                }
+            }
+        });
+
         Self {
-            receiver,
             container: Default::default(),
             throughput,
+            queue: queue2,
         }
+    }
+
+    fn preview_for(
+        &mut self,
+        resource: &UntypedResource,
+        generators: &mut AssetPreviewGeneratorsCollection,
+        force_update: bool,
+        generated_counter: &mut usize,
+        engine: &mut Engine,
+    ) -> Option<AssetPreviewTexture> {
+        let resource_uuid = resource.resource_uuid()?;
+
+        if let (false, Some(cached_preview)) = (force_update, self.container.get(&resource_uuid)) {
+            return Some(cached_preview.clone());
+        } else if let Some(generator) = resource
+            .type_uuid()
+            .and_then(|type_uuid| generators.map.get_mut(&type_uuid))
+        {
+            if let Some(preview) = generator.generate_preview(resource, engine) {
+                *generated_counter += 1;
+                self.container.insert(resource_uuid, preview.clone());
+                return Some(preview);
+            } else if let Some(icon) = generator.simple_icon(resource, &engine.resource_manager) {
+                let preview = AssetPreviewTexture::from_texture_with_gray_tint(icon);
+                self.container.insert(resource_uuid, preview.clone());
+                return Some(preview);
+            }
+        }
+
+        load_image!("../../../resources/asset.png").map(|placeholder_image| {
+            AssetPreviewTexture::from_texture_with_gray_tint(placeholder_image)
+        })
     }
 
     pub fn update(
@@ -59,50 +106,32 @@ impl AssetPreviewCache {
         generators: &mut AssetPreviewGeneratorsCollection,
         engine: &mut Engine,
     ) {
-        for request in self.receiver.try_iter().take(self.throughput) {
+        let mut generated = 0;
+        let queue = self.queue.clone();
+        let mut queue = queue.safe_lock();
+        while let Some(request) = queue.pop_back() {
             let IconRequest {
-                asset_item,
+                widget_handle,
                 resource,
+                force_update,
             } = request;
 
-            let preview = if let Some(resource_uuid) = resource.resource_uuid() {
-                if let Some(cached_preview) = self.container.get(&resource_uuid) {
-                    Some(cached_preview.clone())
-                } else if let Some(generator) = resource
-                    .type_uuid()
-                    .and_then(|type_uuid| generators.map.get_mut(&type_uuid))
-                {
-                    if let Some(preview) = generator.generate_preview(&resource, engine) {
-                        self.container.insert(resource_uuid, preview.clone());
-                        Some(preview)
-                    } else if let Some(icon) =
-                        generator.simple_icon(&resource, &engine.resource_manager)
-                    {
-                        let preview = AssetPreviewTexture {
-                            texture: icon,
-                            flip_y: false,
-                        };
-                        self.container.insert(resource_uuid, preview.clone());
-                        Some(preview)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-
-            if let Some(preview) = preview {
+            if let Some(preview) =
+                self.preview_for(&resource, generators, force_update, &mut generated, engine)
+            {
                 let ui = engine.user_interfaces.first();
 
                 ui.send_message(AssetItemMessage::icon(
-                    asset_item,
+                    widget_handle,
                     MessageDirection::ToWidget,
                     Some(preview.texture),
                     preview.flip_y,
+                    preview.color,
                 ));
+            }
+
+            if generated >= self.throughput {
+                break;
             }
         }
     }

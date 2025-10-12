@@ -1638,7 +1638,7 @@ pub struct AttributeViewRefMut<'a, T> {
 
 impl<'a, T> AttributeViewRefMut<'a, T> {
     /// Tries to fetch attribute data at the given index.
-    pub fn get(&'a self, i: usize) -> Option<&'a mut T> {
+    pub fn get(&'a mut self, i: usize) -> Option<&'a mut T> {
         if i < self.count {
             Some(unsafe { &mut *((self.ptr.add(i * self.stride)) as *mut T) })
         } else {

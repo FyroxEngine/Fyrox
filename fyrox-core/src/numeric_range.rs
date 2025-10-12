@@ -19,7 +19,8 @@
 // SOFTWARE.
 
 use crate::num_traits::Num;
-use rand::{distributions::uniform::SampleUniform, Rng};
+use rand::distributions::uniform::SampleUniform;
+use rand::Rng;
 use std::ops::Range;
 
 fn min<T>(a: T, b: T) -> T

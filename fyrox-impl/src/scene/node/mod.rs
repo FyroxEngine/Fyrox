@@ -61,10 +61,11 @@ use crate::{
         Scene,
     },
 };
-use fyrox_core::define_as_any_trait;
+use fyrox_core::{define_as_any_trait, pool::ObjectOrVariantHelper};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
+    marker::PhantomData,
     ops::{Deref, DerefMut},
 };
 
@@ -133,6 +134,36 @@ pub enum RdcControlFlow {
 
 /// A main trait for any scene graph node.
 pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
+    /// Brief debugging information about this node.
+    fn summary(&self) -> String {
+        use std::fmt::Write;
+        let mut result = String::new();
+        let type_name = self
+            .type_name()
+            .strip_prefix("fyrox_impl::scene::")
+            .unwrap_or(self.type_name());
+        write!(result, "{} {}<{}>", self.handle(), self.name(), type_name,).unwrap();
+        if self.children().len() == 1 {
+            result.push_str(" 1 child");
+        } else if self.children().len() > 1 {
+            write!(result, " {} children", self.children().len()).unwrap();
+        }
+        if self.script_count() > 0 {
+            write!(result, " {} scripts", self.script_count()).unwrap();
+        }
+        if self.is_resource_instance_root() {
+            result.push_str(" root");
+        }
+        let origin = self.original_handle_in_resource();
+        if origin.is_some() {
+            write!(result, " from:{}", origin).unwrap();
+        }
+        if let Some(r) = self.resource() {
+            write!(result, " {}", r.summary()).unwrap();
+        }
+        result
+    }
+
     /// Returns axis-aligned bounding box in **local space** of the node.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox;
 
@@ -232,6 +263,17 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
     /// provide centralized diagnostics for scene graph.
     fn validate(&self, #[allow(unused_variables)] scene: &Scene) -> Result<(), String> {
         Ok(())
+    }
+}
+
+// Essentially implements ObjectOrVariant for NodeTrait types.
+// See ObjectOrVariantHelper for the cause of the indirection.
+impl<T: NodeTrait> ObjectOrVariantHelper<Node, T> for PhantomData<T> {
+    fn convert_to_dest_type_helper(node: &Node) -> Option<&T> {
+        NodeAsAny::as_any(node.0.deref()).downcast_ref()
+    }
+    fn convert_to_dest_type_helper_mut(node: &mut Node) -> Option<&mut T> {
+        NodeAsAny::as_any_mut(node.0.deref_mut()).downcast_mut()
     }
 }
 
@@ -629,7 +671,7 @@ mod test {
             uuid::{uuid, Uuid},
             variable::InheritableVariable,
             visitor::{prelude::*, Visitor},
-            TypeUuidProvider,
+            SafeLock, TypeUuidProvider,
         },
         engine::{self, SerializationContext},
         resource::model::{Model, ModelResourceExtension},
@@ -734,7 +776,7 @@ mod test {
         resource_manager
             .state()
             .resource_registry
-            .lock()
+            .safe_lock()
             .set_path("test_output/resources.registry");
 
         let serialization_context = SerializationContext::new();
@@ -782,7 +824,7 @@ mod test {
             mesh.set_cast_shadows(false);
             save_scene(&mut derived, derived_asset_path);
             let registry = resource_manager.state().resource_registry.clone();
-            let mut registry = registry.lock();
+            let mut registry = registry.safe_lock();
             let mut ctx = registry.modify();
             ctx.write_metadata(Uuid::new_v4(), derived_asset_path)
                 .unwrap();
@@ -795,6 +837,7 @@ mod test {
 
             let derived_data = derived_asset.data_ref();
             let derived_scene = derived_data.get_scene();
+
             let pivot = derived_scene
                 .graph
                 .find_by_name_from_root("Pivot")

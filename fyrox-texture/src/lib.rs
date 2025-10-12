@@ -300,8 +300,8 @@ impl ResourceData for Texture {
         let color_type = match self.pixel_kind {
             TexturePixelKind::R8 => ColorType::L8,
             TexturePixelKind::Luminance8 => ColorType::L8,
-            TexturePixelKind::RGB8 => ColorType::Rgb8,
-            TexturePixelKind::RGBA8 => ColorType::Rgba8,
+            TexturePixelKind::RGB8 | TexturePixelKind::SRGB8 => ColorType::Rgb8,
+            TexturePixelKind::RGBA8 | TexturePixelKind::SRGBA8 => ColorType::Rgba8,
             TexturePixelKind::RG8 => ColorType::La8,
             TexturePixelKind::LuminanceAlpha8 => ColorType::La8,
             TexturePixelKind::R16 => ColorType::L16,
@@ -682,6 +682,17 @@ lazy_static! {
             )
             .unwrap()
         });
+    /// Pure color texture.
+    pub static ref PURE_COLOR: BuiltInResource<Texture> = BuiltInResource::new("__PureColorTexture", embedded_data_source!("pure_color.png"),
+        |data| {
+            TextureResource::load_from_memory(
+                uuid!("9709eef2-305c-44da-91e5-6f293d74408a"),
+                ResourceKind::External,
+                data,
+                Default::default()
+            )
+            .unwrap()
+        });
 }
 
 /// Type alias for texture resources.
@@ -689,7 +700,7 @@ pub type TextureResource = Resource<Texture>;
 
 /// Extension trait for texture resources.
 pub trait TextureResourceExtension: Sized {
-    /// Creates new render target for a scene. This method automatically configures GPU texture
+    /// Creates new render target. This method automatically configures GPU texture
     /// to correct settings, after render target was created, it must not be modified, otherwise
     /// result is undefined.
     fn new_render_target(width: u32, height: u32) -> Self;
@@ -698,6 +709,12 @@ pub trait TextureResourceExtension: Sized {
     /// to correct settings. After the render target was created, it must not be modified. Otherwise
     /// the result is undefined. Cube map contains six images
     fn new_cube_render_target(resolution: u32) -> Self;
+
+    /// Creates new render target with the specified pixel kind. This method automatically configures GPU texture
+    /// to correct settings, after render target was created, it must not be modified, otherwise
+    /// result is undefined.
+    fn new_render_target_with_format(width: u32, height: u32, pixel_kind: TexturePixelKind)
+        -> Self;
 
     /// Tries to load a texture from given data. Use this method if you want to
     /// load a texture from embedded data.
@@ -740,12 +757,16 @@ pub trait TextureResourceExtension: Sized {
 
 impl TextureResourceExtension for TextureResource {
     fn new_render_target(width: u32, height: u32) -> Self {
+        Self::new_render_target_with_format(width, height, TexturePixelKind::RGBA8)
+    }
+
+    fn new_cube_render_target(size: u32) -> Self {
         Resource::new_ok(
             Default::default(),
             Default::default(),
             Texture {
                 // Render target will automatically set width and height before rendering.
-                kind: TextureKind::Rectangle { width, height },
+                kind: TextureKind::Cube { size },
                 bytes: Default::default(),
                 pixel_kind: TexturePixelKind::RGBA8,
                 minification_filter: TextureMinificationFilter::Linear,
@@ -768,15 +789,19 @@ impl TextureResourceExtension for TextureResource {
         )
     }
 
-    fn new_cube_render_target(size: u32) -> Self {
+    fn new_render_target_with_format(
+        width: u32,
+        height: u32,
+        pixel_kind: TexturePixelKind,
+    ) -> Self {
         Resource::new_ok(
             Default::default(),
             Default::default(),
             Texture {
                 // Render target will automatically set width and height before rendering.
-                kind: TextureKind::Cube { size },
+                kind: TextureKind::Rectangle { width, height },
                 bytes: Default::default(),
-                pixel_kind: TexturePixelKind::RGBA8,
+                pixel_kind,
                 minification_filter: TextureMinificationFilter::Linear,
                 magnification_filter: TextureMagnificationFilter::Linear,
                 s_wrap_mode: TextureWrapMode::Repeat,
@@ -1088,6 +1113,9 @@ pub enum TexturePixelKind {
 
     /// Red component as 2-byte, half-precision float.
     R16F = 24,
+
+    SRGBA8 = 25,
+    SRGB8 = 26,
 }
 
 impl TexturePixelKind {
@@ -1118,6 +1146,8 @@ impl TexturePixelKind {
             22 => Ok(Self::RGB16F),
             23 => Ok(Self::R32F),
             24 => Ok(Self::R16F),
+            25 => Ok(Self::SRGBA8),
+            26 => Ok(Self::SRGB8),
             _ => Err(format!("Invalid texture kind {id}!")),
         }
     }
@@ -1131,8 +1161,13 @@ impl TexturePixelKind {
     pub fn size_in_bytes(&self) -> Option<usize> {
         match self {
             Self::R8 | Self::Luminance8 => Some(1),
-            Self::RGB8 | Self::BGR8 => Some(3),
-            Self::RGBA8 | Self::RG16 | Self::BGRA8 | Self::LuminanceAlpha16 | Self::R32F => Some(4),
+            Self::RGB8 | Self::SRGB8 | Self::BGR8 => Some(3),
+            Self::RGBA8
+            | Self::SRGBA8
+            | Self::RG16
+            | Self::BGRA8
+            | Self::LuminanceAlpha16
+            | Self::R32F => Some(4),
             Self::RG8 | Self::R16 | Self::LuminanceAlpha8 | Self::Luminance16 | Self::R16F => {
                 Some(2)
             }
@@ -1365,8 +1400,11 @@ fn bytes_in_mip_level(kind: TextureKind, pixel_kind: TexturePixelKind, mip: usiz
         | TexturePixelKind::Luminance16
         | TexturePixelKind::RG8
         | TexturePixelKind::R16F => 2 * pixel_count,
-        TexturePixelKind::RGB8 | TexturePixelKind::BGR8 => 3 * pixel_count,
+        TexturePixelKind::RGB8 | TexturePixelKind::SRGB8 | TexturePixelKind::BGR8 => {
+            3 * pixel_count
+        }
         TexturePixelKind::RGBA8
+        | TexturePixelKind::SRGBA8
         | TexturePixelKind::BGRA8
         | TexturePixelKind::RG16
         | TexturePixelKind::LuminanceAlpha16

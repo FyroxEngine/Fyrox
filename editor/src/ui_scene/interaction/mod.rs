@@ -109,7 +109,7 @@ impl InteractionMode for UiSelectInteractionMode {
         editor_selection: &Selection,
         controller: &mut dyn SceneController,
         engine: &mut Engine,
-        _mouse_pos: Vector2<f32>,
+        mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
@@ -127,30 +127,53 @@ impl InteractionMode for UiSelectInteractionMode {
             .first_mut()
             .node(self.selection_frame)
             .screen_bounds();
+
         let relative_bounds = frame_screen_bounds.translate(-preview_screen_bounds.position);
-        self.stack.clear();
-        self.stack.push(ui_scene.ui.root());
-        let mut ui_selection = UiSelection::default();
-        while let Some(handle) = self.stack.pop() {
-            let node = ui_scene.ui.node(handle);
-            if handle == ui_scene.ui.root() {
+
+        // Small selection box is considered as a click that does single selection.
+        if relative_bounds.size.x < 2.0 && relative_bounds.size.y < 2.0 {
+            let picked = ui_scene.ui.hit_test(mouse_pos);
+            if picked.is_some() {
+                let mut new_selection = if let (Some(current), true) = (
+                    editor_selection.as_ui(),
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .keyboard_modifiers()
+                        .control,
+                ) {
+                    current.clone()
+                } else {
+                    Default::default()
+                };
+                new_selection.insert_or_exclude(picked);
+                self.message_sender
+                    .do_command(ChangeSelectionCommand::new(Selection::new(new_selection)));
+            }
+        } else {
+            self.stack.clear();
+            self.stack.push(ui_scene.ui.root());
+            let mut ui_selection = UiSelection::default();
+            while let Some(handle) = self.stack.pop() {
+                let node = ui_scene.ui.node(handle);
+                if handle == ui_scene.ui.root() {
+                    self.stack.extend_from_slice(node.children());
+                    continue;
+                }
+
+                if relative_bounds.intersects(node.screen_bounds()) {
+                    ui_selection.insert_or_exclude(handle);
+                }
+
                 self.stack.extend_from_slice(node.children());
-                continue;
             }
 
-            if relative_bounds.intersects(node.screen_bounds()) {
-                ui_selection.insert_or_exclude(handle);
-                break;
+            let new_selection = Selection::new(ui_selection);
+
+            if &new_selection != editor_selection {
+                self.message_sender
+                    .do_command(ChangeSelectionCommand::new(new_selection));
             }
-
-            self.stack.extend_from_slice(node.children());
-        }
-
-        let new_selection = Selection::new(ui_selection);
-
-        if &new_selection != editor_selection {
-            self.message_sender
-                .do_command(ChangeSelectionCommand::new(new_selection));
         }
         engine
             .user_interfaces
@@ -213,8 +236,6 @@ impl InteractionMode for UiSelectInteractionMode {
         _settings: &Settings,
     ) {
     }
-
-    fn deactivate(&mut self, _controller: &dyn SceneController, _engine: &mut Engine) {}
 
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
         let select_mode_tooltip = "Select Object(s) - Shortcut: [1]\n\nSelection interaction mode \

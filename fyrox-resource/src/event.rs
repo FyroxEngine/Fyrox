@@ -23,6 +23,7 @@
 use crate::core::{
     parking_lot::Mutex,
     pool::{Handle, Pool},
+    SafeLock,
 };
 use crate::UntypedResource;
 use std::{
@@ -69,22 +70,21 @@ impl ResourceEventBroadcaster {
         }
     }
 
-    /// Adds an event sender to the broadcaster and returns its handle.
+    /// Adds an event sender to the broadcaster and returns its handle. If the receiver part of the
+    /// channel dies, the sender part is automatically removed from the broadcaster.
     pub fn add(&self, sender: ResourceEventSender) -> Handle<ResourceEventSender> {
-        self.container.lock().spawn(sender)
+        self.container.safe_lock().spawn(sender)
     }
 
     /// Removes an event sender by its handle.
     pub fn remove(&self, handle: Handle<ResourceEventSender>) -> ResourceEventSender {
-        self.container.lock().free(handle)
+        self.container.safe_lock().free(handle)
     }
 
     /// Sends an event to all "subscribers" in the broadcaster.
     pub fn broadcast(&self, event: ResourceEvent) {
-        let container = self.container.lock();
-        for sender in container.iter() {
-            let _ = sender.send(event.clone());
-        }
+        let mut container = self.container.safe_lock();
+        container.retain(|sender| sender.send(event.clone()).is_ok());
     }
 
     /// Sends a [`ResourceEvent::Loaded`] event to all "subscribers" in the broadcaster.

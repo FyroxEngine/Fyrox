@@ -32,12 +32,10 @@ pub struct DebuggingSettings {
     pub show_light_bounds: bool,
     #[serde(default)]
     pub show_camera_bounds: bool,
-    #[reflect(description = "Size of pictograms in meters. It is used for objects like lights.")]
+    /// Size of pictograms in meters. It is used for objects like lights.
     #[serde(default)]
     pub pictogram_size: f32,
-    #[reflect(
-        description = "Forces the editor to save the scene in text form as well as standard binary."
-    )]
+    /// Forces the editor to save the scene in text form as well as standard binary.
     #[serde(default)]
     pub save_scene_in_text_form: bool,
 }

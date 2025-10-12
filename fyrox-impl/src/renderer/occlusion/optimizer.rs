@@ -18,21 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::resources::RendererResources;
 use crate::{
     core::{color::Color, math::Rect, ImmutableString},
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{Attachment, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, PixelKind},
+        read_buffer::GpuAsyncReadBuffer,
+        server::GraphicsServer,
+        stats::RenderPassStatistics,
+    },
+    renderer::resources::RendererResources,
     renderer::{
         cache::{
             shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
-        },
-        framework::{
-            error::FrameworkError,
-            framebuffer::{Attachment, GpuFrameBuffer},
-            gpu_texture::{GpuTexture, PixelKind},
-            read_buffer::GpuAsyncReadBuffer,
-            server::GraphicsServer,
-            stats::RenderPassStatistics,
         },
         make_viewport_matrix,
     },
@@ -52,13 +52,21 @@ impl VisibilityBufferOptimizer {
         w_tiles: usize,
         h_tiles: usize,
     ) -> Result<Self, FrameworkError> {
-        let optimized_visibility_buffer =
-            server.create_2d_render_target(PixelKind::R32UI, w_tiles, h_tiles)?;
+        let optimized_visibility_buffer = server.create_2d_render_target(
+            "OptimizedVisibilityTexture",
+            PixelKind::R32UI,
+            w_tiles,
+            h_tiles,
+        )?;
 
         Ok(Self {
             framebuffer: server
                 .create_frame_buffer(None, vec![Attachment::color(optimized_visibility_buffer)])?,
-            pixel_buffer: server.create_async_read_buffer(size_of::<u32>(), w_tiles * h_tiles)?,
+            pixel_buffer: server.create_async_read_buffer(
+                "OcclusionReadBuffer",
+                size_of::<u32>(),
+                w_tiles * h_tiles,
+            )?,
             w_tiles,
             h_tiles,
         })

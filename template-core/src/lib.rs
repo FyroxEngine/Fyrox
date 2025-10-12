@@ -156,10 +156,12 @@ dylib-engine = ["fyrox/dylib"]
     write_file(
         base_path.join("game/src/lib.rs"),
         r#"//! Game project.
+#[allow(unused_imports)]
+use fyrox::graph::prelude::*;
 use fyrox::{
     core::pool::Handle, core::visitor::prelude::*, core::reflect::prelude::*,
     event::Event,
-    gui::message::UiMessage,
+    gui::{message::UiMessage, UserInterface},
     plugin::{Plugin, PluginContext, PluginRegistrationContext},
     scene::Scene,
 };
@@ -205,6 +207,7 @@ impl Plugin for Game {
         &mut self,
         _context: &mut PluginContext,
         _message: &UiMessage,
+        _ui_handle: Handle<UserInterface>
     ) {
         // Handle UI events here.
     }
@@ -328,47 +331,15 @@ fyrox = {{workspace = true}}
         format!(
             r#"//! Executor with your game connected to it as a plugin.
 #![cfg(target_arch = "wasm32")]
+
 use fyrox::engine::executor::Executor;
 use fyrox::event_loop::EventLoop;
-use {name}::Game;
 use fyrox::core::wasm_bindgen::{{self, prelude::*}};
 
-#[wasm_bindgen]
-extern "C" {{
-    #[wasm_bindgen(js_namespace = console)]
-    fn error(msg: String);
-
-    type Error;
-
-    #[wasm_bindgen(constructor)]
-    fn new() -> Error;
-
-    #[wasm_bindgen(structural, method, getter)]
-    fn stack(error: &Error) -> String;
-}}
-
-fn custom_panic_hook(info: &std::panic::PanicHookInfo) {{
-    let mut msg = info.to_string();
-    msg.push_str("\n\nStack:\n\n");
-    let e = Error::new();
-    let stack = e.stack();
-    msg.push_str(&stack);
-    msg.push_str("\n\n");
-    error(msg);
-}}
-
-#[inline]
-pub fn set_panic_hook() {{
-    use std::sync::Once;
-    static SET_HOOK: Once = Once::new();
-    SET_HOOK.call_once(|| {{
-        std::panic::set_hook(Box::new(custom_panic_hook));
-    }});
-}}
+use {name}::Game;
 
 #[wasm_bindgen]
 pub fn main() {{
-    set_panic_hook();
     let mut executor = Executor::new(Some(EventLoop::new().unwrap()));
     executor.add_plugin(Game::default());
     executor.run()
@@ -538,7 +509,7 @@ version = "0.1.0"
 edition = "2021"
 
 [package.metadata.android]
-# This folder is used as a temporary storage for assets. Project exporter will clone everything 
+# This folder is used as a temporary storage for assets. Project exporter will clone everything
 # from data folder to this folder and cargo-apk will create the apk with these assets.
 assets = "assets"
 strip = "strip"
@@ -578,6 +549,7 @@ fn android_main(app: fyrox::platform::android::activity::AndroidApp) {{
     io::ANDROID_APP
         .set(app.clone())
         .expect("ANDROID_APP cannot be set twice.");
+    #[allow(deprecated)]
     let event_loop = EventLoopBuilder::new().with_android_app(app).build().unwrap();
     let mut executor = Executor::from_params(Some(event_loop), Default::default());
     executor.add_plugin(Game::default());
@@ -654,6 +626,12 @@ opt-level = 3
         )?;
     }
 
+    // Write flake.nix for nixOS
+    write_file_binary(
+        base_path.join("flake.nix"),
+        include_bytes!("nixos/flake.nix"),
+    )?;
+
     Ok(())
 }
 
@@ -690,6 +668,8 @@ pub fn init_script(root_path: &Path, raw_name: &str) -> Result<(), String> {
         file_name,
         format!(
             r#"
+#[allow(unused_imports)]
+use fyrox::graph::prelude::*;
 use fyrox::{{
     core::{{visitor::prelude::*, reflect::prelude::*, type_traits::prelude::*}},
     event::Event, script::{{ScriptContext, ScriptDeinitContext, ScriptTrait}},

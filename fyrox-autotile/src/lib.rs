@@ -518,7 +518,7 @@ impl Ord for PatternBits {
 #[inline]
 fn nine_position_to_index(position: Vector2<usize>) -> usize {
     if position.y > 2 || position.x > 2 {
-        panic!("Illegal terrain bit position: {:?}", position);
+        panic!("Illegal terrain bit position: {position:?}");
     }
     bit_pos(position.x, position.y)
 }
@@ -594,8 +594,8 @@ mod tests {
         let result_1 = results.get(&Some(1)).copied().unwrap_or_default();
         let result_2 = results.get(&Some(2)).copied().unwrap_or_default();
         assert_eq!(results.get(&None).copied().unwrap_or_default(), 0, "None");
-        assert!((21..27).contains(&result_1), "1: {}", result_1);
-        assert!((45..55).contains(&result_2), "2: {}", result_2);
+        assert!((21..27).contains(&result_1), "1: {result_1}");
+        assert!((45..55).contains(&result_2), "2: {result_2}");
         assert_eq!(results.values().sum::<usize>(), 75, "Sum");
     }
     #[test]
@@ -615,9 +615,9 @@ mod tests {
         let result_2 = results.get(&Some(2)).copied().unwrap_or_default();
         let result_3 = results.get(&Some(2)).copied().unwrap_or_default();
         assert_eq!(results.get(&None).copied().unwrap_or_default(), 0, "None");
-        assert!((210..270).contains(&result_1), "1: {}", result_1);
-        assert!((210..270).contains(&result_2), "2: {}", result_2);
-        assert!((210..270).contains(&result_3), "3: {}", result_3);
+        assert!((210..270).contains(&result_1), "1: {result_1}");
+        assert!((210..270).contains(&result_2), "2: {result_2}");
+        assert!((210..270).contains(&result_3), "3: {result_3}");
         assert_eq!(results.values().sum::<usize>(), 750, "Sum");
     }
     #[test]

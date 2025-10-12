@@ -60,32 +60,26 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 pub struct BallJoint {
     /// Whether X angular limits are enabled or not. Default is `false`
-    #[reflect(description = "Whether X angular limits are enabled or not.")]
     #[visit(optional)] // Backward compatibility
     pub x_limits_enabled: bool,
 
     /// Allowed angle range around local X axis of the joint (in radians).
-    #[reflect(description = "Allowed angle range around local X axis of the joint (in radians).")]
     #[visit(optional)] // Backward compatibility
     pub x_limits_angles: Range<f32>,
 
     /// Whether Y angular limits are enabled or not. Default is `false`
-    #[reflect(description = "Whether Y angular limits are enabled or not.")]
     #[visit(optional)] // Backward compatibility
     pub y_limits_enabled: bool,
 
     /// Allowed angle range around local Y axis of the joint (in radians).
-    #[reflect(description = "Allowed angle range around local Y axis of the joint (in radians).")]
     #[visit(optional)] // Backward compatibility
     pub y_limits_angles: Range<f32>,
 
     /// Whether Z angular limits are enabled or not. Default is `false`
-    #[reflect(description = "Whether Z angular limits are enabled or not.")]
     #[visit(optional)] // Backward compatibility
     pub z_limits_enabled: bool,
 
     /// Allowed angle range around local Z axis of the joint (in radians).
-    #[reflect(description = "Allowed angle range around local Z axis of the joint (in radians).")]
     #[visit(optional)] // Backward compatibility
     pub z_limits_angles: Range<f32>,
 }
@@ -113,14 +107,10 @@ pub struct FixedJoint;
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 pub struct PrismaticJoint {
     /// Whether linear limits along local joint X axis are enabled or not. Default is `false`
-    #[reflect(description = "Whether linear limits along local joint X axis are enabled or not.")]
     #[visit(optional)] // Backward compatibility
     pub limits_enabled: bool,
 
     /// The min an max relative position of the attached bodies along local X axis of the joint.
-    #[reflect(
-        description = "The min an max relative position of the attached bodies along local X axis of the joint."
-    )]
     #[visit(optional)] // Backward compatibility
     pub limits: Range<f32>,
 }
@@ -140,14 +130,10 @@ impl Default for PrismaticJoint {
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 pub struct RevoluteJoint {
     /// Whether angular limits around local X axis of the joint are enabled or not. Default is `false`
-    #[reflect(
-        description = "Whether angular limits around local X axis of the joint are enabled or not."
-    )]
     #[visit(optional)] // Backward compatibility
     pub limits_enabled: bool,
 
     /// Allowed angle range around local X axis of the joint (in radians).
-    #[reflect(description = "Allowed angle range around local X axis of the joint (in radians).")]
     #[visit(optional)] // Backward compatibility
     pub limits: Range<f32>,
 }
@@ -159,6 +145,21 @@ impl Default for RevoluteJoint {
             limits: -std::f32::consts::PI..std::f32::consts::PI,
         }
     }
+}
+
+/// Parameters that define how the joint motor will behave.
+#[derive(Default, Clone, Debug, PartialEq, Visit, Reflect)]
+pub struct JointMotorParams {
+    /// The target velocity of the motor.
+    pub target_vel: f32,
+    /// The target position of the motor.
+    pub target_pos: f32,
+    /// The stiffness coefficient of the motor’s spring-like equation.
+    pub stiffness: f32,
+    /// The damping coefficient of the motor’s spring-like equation.
+    pub damping: f32,
+    /// The maximum force this motor can deliver.
+    pub max_force: f32,
 }
 
 /// The exact kind of the joint.
@@ -222,6 +223,10 @@ pub struct Joint {
     #[reflect(setter = "set_params")]
     pub(crate) params: InheritableVariable<JointParams>,
 
+    #[reflect(setter = "set_motor_params")]
+    #[visit(optional)] // Backward compatibility
+    pub(crate) motor_params: InheritableVariable<JointMotorParams>,
+
     #[reflect(setter = "set_body1")]
     pub(crate) body1: InheritableVariable<Handle<RigidBody>>,
 
@@ -250,6 +255,7 @@ impl Default for Joint {
         Self {
             base: Default::default(),
             params: Default::default(),
+            motor_params: Default::default(),
             body1: Default::default(),
             body2: Default::default(),
             contacts_enabled: InheritableVariable::new_modified(true),
@@ -279,6 +285,7 @@ impl Clone for Joint {
         Self {
             base: self.base.clone(),
             params: self.params.clone(),
+            motor_params: self.motor_params.clone(),
             body1: self.body1.clone(),
             body2: self.body2.clone(),
             contacts_enabled: self.contacts_enabled.clone(),
@@ -313,6 +320,39 @@ impl Joint {
         self.params.set_value_and_mark_modified(params)
     }
 
+    /// Returns a shared reference to the current joint motor parameters.
+    pub fn motor_params(&self) -> &JointMotorParams {
+        &self.motor_params
+    }
+
+    /// Returns a mutable reference to the current joint motor parameters. Obtaining the mutable reference
+    ///
+    /// Recommend calling [`Self::set_motor_force_as_prismatic`] or [`Self::set_motor_torque_as_revolute`] for prismatic or revolute joints.
+    ///
+    /// Currently we do not support motor forces on more than one axis.
+    ///
+    /// If you have more complex needs, you may try to chain different joints together.
+    /// # Notice
+    /// If the joint is not RevoluteJoint or PrismaticJoint, modifying the motor parameters directly may lead to unexpected behavior.
+    pub fn motor_params_mut(&mut self) -> &mut JointMotorParams {
+        self.motor_params.get_value_mut_and_mark_modified()
+    }
+
+    /// Sets new joint motor parameters.
+    ///
+    /// Recommend calling [`Self::set_motor_force_as_prismatic`] or [`Self::set_motor_torque_as_revolute`] for prismatic or revolute joints.
+    ///
+    /// Currently we do not support motor forces on more than one axis.
+    ///
+    /// If you have more complex needs, you may try to chain different joints together.
+    /// # Notice
+    /// If the joint is not RevoluteJoint or PrismaticJoint, modifying the motor parameters directly may lead to unexpected behavior.
+    pub fn set_motor_params(&mut self, motor_params: JointMotorParams) -> JointMotorParams {
+        // to see how setting these params affect the rapier3d physics engine,
+        // go to sync_native function in this file.
+        self.motor_params.set_value_and_mark_modified(motor_params)
+    }
+
     /// Sets the first body of the joint. The handle should point to the RigidBody node, otherwise
     /// the joint will have no effect!
     pub fn set_body1(&mut self, handle: Handle<RigidBody>) -> Handle<RigidBody> {
@@ -335,7 +375,7 @@ impl Joint {
         *self.body2
     }
 
-    /// Sets whether the connected bodies should ignore collisions with each other or not.  
+    /// Sets whether the connected bodies should ignore collisions with each other or not.
     pub fn set_contacts_enabled(&mut self, enabled: bool) -> bool {
         self.contacts_enabled.set_value_and_mark_modified(enabled)
     }
@@ -354,6 +394,217 @@ impl Joint {
     /// Returns true if automatic rebinding of the joint is enabled or not.
     pub fn is_auto_rebinding_enabled(&self) -> bool {
         *self.auto_rebind
+    }
+
+    /// Sets the motor force of the joint assuming it is a [`PrismaticJoint`].
+    ///
+    /// Call [`Self::disable_motor`] to properly stop the motor and set the joint free.
+    /// # Arguments
+    /// * `force` - The maximum force this motor can deliver.
+    /// * `max_vel` - The target velocity of the motor.
+    /// * `damping` - Penalizes high velocities to avoid overshooting the target velocity. A higher damping value will result in a smoother transition to the target velocity.
+    /// # Errors
+    /// If the joint is not a [`PrismaticJoint`], this function will do nothing and return an Err.
+    /// # Notice
+    /// The rigid bodies attached to the joint may fall asleep anytime regardless whether the motor is enabled or not.
+    ///
+    /// To avoid this behavior, call this function periodically or call [`RigidBody::set_can_sleep`] on the rigid bodies with "false".
+    pub fn set_motor_force_as_prismatic(
+        &mut self,
+        force: f32,
+        max_vel: f32,
+        damping: f32,
+    ) -> Result<(), String> {
+        let JointParams::PrismaticJoint(_) = self.params() else {
+            return Err("Joint is not a PrismaticJoint".to_string());
+        };
+        let motor_params = JointMotorParams {
+            target_vel: max_vel,
+            target_pos: 0.0,
+            stiffness: 0.0,
+            damping,
+            max_force: force,
+        };
+        // retrieving the mutable reference to the joint params will cause the engine to do additional calculations to reflect changes to the physics engine.
+        self.set_motor_params(motor_params);
+        Ok(())
+    }
+
+    /// Sets the motor torque of the joint assuming it is a [`RevoluteJoint`].
+    ///
+    /// Call [`Self::disable_motor`] to properly stop the motor and set the joint free.
+    /// # Arguments
+    /// * `torque` - The maximum torque this motor can deliver.
+    /// * `max_angular_vel` - The target angular velocity of the motor.
+    /// * `damping` - Penalizes high angular velocities to avoid overshooting the target angular velocity. A higher damping value will result in a smoother transition to the target angular velocity.
+    /// # Errors
+    /// If the joint is not a [`RevoluteJoint`], this function will do nothing and return an Err.
+    /// # Notice
+    /// The rigid bodies attached to the joint may fall asleep anytime regardless whether the motor is enabled or not.
+    ///
+    /// To avoid this behavior, call this function periodically or call [`RigidBody::set_can_sleep`] on the rigid bodies with "false".
+    pub fn set_motor_torque_as_revolute(
+        &mut self,
+        torque: f32,
+        max_angular_vel: f32,
+        damping: f32,
+    ) -> Result<(), String> {
+        let JointParams::RevoluteJoint(_) = self.params() else {
+            return Err("Joint is not a RevoluteJoint".to_string());
+        };
+        let motor_params = JointMotorParams {
+            target_vel: max_angular_vel,
+            target_pos: 0.0,
+            stiffness: 0.0,
+            damping,
+            max_force: torque,
+        };
+        // retrieving the mutable reference to the joint params will cause the engine to do additional calculations to reflect changes to the physics engine.
+        self.set_motor_params(motor_params);
+        Ok(())
+    }
+
+    /// Sets the motor target position of the joint assuming it is a [`PrismaticJoint`].
+    ///
+    /// After the joint reaches the target position, the joint will act as a spring with the specified stiffness and damping values.
+    ///
+    /// Call [`Self::disable_motor`] to stop the motor and remove the spring effect.
+    /// # Arguments
+    /// * `target_position` - The target position that the joint will try to reach, can be negative.
+    /// * `stiffness` - Controls how fast the joint will try to reach the target position.
+    /// * `max_force` - The maximum force this motor can deliver.
+    /// * `damping` - Penalizes high velocities to avoid overshooting the target position. A higher damping value will result in a smoother transition to the target position.
+    /// # Errors
+    /// If the joint is not a [`PrismaticJoint`], the function will do nothing and return an Err.
+    /// # Notice
+    /// The rigid bodies attached to the joint may fall asleep anytime regardless whether the motor is enabled or not.
+    ///
+    /// To avoid this behavior, call this function periodically or call [`RigidBody::set_can_sleep`] on the rigid bodies with "false".
+    pub fn set_motor_target_position_as_prismatic(
+        &mut self,
+        target_position: f32,
+        stiffness: f32,
+        max_force: f32,
+        damping: f32,
+    ) -> Result<(), String> {
+        let JointParams::PrismaticJoint(_) = self.params() else {
+            return Err("Joint is not a PrismaticJoint".to_string());
+        };
+        let motor_params = JointMotorParams {
+            target_vel: 0.0,
+            target_pos: target_position,
+            stiffness,
+            damping,
+            max_force,
+        };
+        // retrieving the mutable reference to the joint params will cause the engine to do additional calculations to reflect changes to the physics engine.
+        self.set_motor_params(motor_params);
+        Ok(())
+    }
+
+    /// Sets the motor target angle of the joint assuming it is a [`RevoluteJoint`].
+    ///
+    /// After the joint reaches the target angle, the joint will act as a spring with the specified stiffness and damping values.
+    ///
+    /// Call [`Self::disable_motor`] to stop the motor and remove the spring effect.
+    /// # Arguments
+    /// * `target_angle` - The target angle **in radians** that the joint will try to reach, can be negative. If the value is greater than 2π or less than -2π, the joint will turn multiple times to reach the target angle.
+    /// * `stiffness` - Controls how fast the joint will try to reach the target angle.
+    /// * `max_torque` - The maximum torque this motor can deliver.
+    /// * `damping` - Penalizes high angular velocities to avoid overshooting the target angle. A higher damping value will result in a smoother transition to the target angle.
+    /// # Errors
+    /// If the joint is not a [`RevoluteJoint`], the function will do nothing and return an Err.
+    /// # Notice
+    /// The rigid bodies attached to the joint may fall asleep anytime regardless whether the motor is enabled or not.
+    ///
+    /// To avoid this behavior, call this function periodically or call [`RigidBody::set_can_sleep`] on the rigid bodies with "false".
+    pub fn set_motor_target_angle_as_revolute(
+        &mut self,
+        target_angle: f32,
+        stiffness: f32,
+        max_torque: f32,
+        damping: f32,
+    ) -> Result<(), String> {
+        let JointParams::RevoluteJoint(_) = self.params() else {
+            return Err("Joint is not a RevoluteJoint".to_string());
+        };
+        let motor_params = JointMotorParams {
+            target_vel: 0.0,
+            target_pos: target_angle,
+            stiffness,
+            damping,
+            max_force: max_torque,
+        };
+        // retrieving the mutable reference to the joint params will cause the engine to do additional calculations to reflect changes to the physics engine.
+        self.set_motor_params(motor_params);
+        Ok(())
+    }
+
+    /// Makes the [`BallJoint`] to restore its original orientation with motor torque.
+    ///
+    /// Acts as a flexible fixed joint that tolerates some angular movement and tries to restore the original orientation.
+    ///
+    /// For flexible fixed joints that tolerate some translational movement, consider using a [`PrismaticJoint`] and call [`Self::set_motor_target_position_as_prismatic`].
+    ///
+    /// The motor torque is uniform across all three axes of the joint.
+    ///
+    /// /// Call [`Self::disable_motor`] to stop the motor and remove the spring effect.
+    ///
+    /// # Arguments
+    /// * `stiffness` - Controls how fast the joint will try to restore its original orientation.
+    /// * `max_torque` - The maximum torque this motor can deliver.
+    /// * `damping` - Penalizes high angular velocities to avoid overshooting the original orientation. A higher damping value will result in a smoother transition to the original orientation.
+    /// # Errors
+    /// If the joint is not a [`BallJoint`], the function will do nothing and return an Err.
+    /// # Notice
+    /// The rigid bodies attached to the joint may fall asleep anytime regardless whether the motor is enabled or not.
+    ///
+    /// To avoid this behavior, call this function periodically or call [`RigidBody::set_can_sleep`] on the rigid bodies with "false".
+    pub fn set_motor_resistive_torque_as_ball(
+        &mut self,
+        stiffness: f32,
+        max_torque: f32,
+        damping: f32,
+    ) -> Result<(), String> {
+        let JointParams::BallJoint(_) = self.params() else {
+            return Err("Joint is not a BallJoint".to_string());
+        };
+        let motor_params = JointMotorParams {
+            target_vel: 0.0,
+            target_pos: 0.0,
+            stiffness,
+            damping,
+            max_force: max_torque,
+        };
+        // retrieving the mutable reference to the joint params will cause the engine to do additional calculations to reflect changes to the physics engine.
+        self.set_motor_params(motor_params);
+        Ok(())
+    }
+
+    /// Disables the motor of the joint assuming it is a [`RevoluteJoint`], [`PrismaticJoint`] or [`BallJoint`].
+    ///
+    /// After this call, the joint will no longer apply any motor force or torque to the connected bodies.
+    /// # Errors
+    /// If the joint is not a [`RevoluteJoint`], [`PrismaticJoint`] or [`BallJoint`], the function will do nothing and return an Err.
+    pub fn disable_motor(&mut self) -> Result<(), String> {
+        if !matches!(
+            self.params(),
+            JointParams::RevoluteJoint(_)
+                | JointParams::PrismaticJoint(_)
+                | JointParams::BallJoint(_)
+        ) {
+            return Err("Joint is not a RevoluteJoint, PrismaticJoint or BallJoint".to_string());
+        }
+        let motor_params = JointMotorParams {
+            target_vel: 0.0,
+            target_pos: 0.0,
+            stiffness: 0.0,
+            damping: 0.0,
+            max_force: 0.0,
+        };
+        // retrieving the mutable reference to the joint params will cause the engine to do additional calculations to reflect changes to the physics engine.
+        self.set_motor_params(motor_params);
+        Ok(())
     }
 }
 
@@ -428,13 +679,13 @@ impl NodeTrait for Joint {
     }
 
     fn validate(&self, scene: &Scene) -> Result<(), String> {
-        if scene.graph.typed_ref(self.body1()).is_none() {
+        if scene.graph.try_get(self.body1()).is_none() {
             return Err("3D Joint has invalid or unassigned handle to a \
             first body, the joint will not operate!"
                 .to_string());
         }
 
-        if scene.graph.typed_ref(self.body2()).is_none() {
+        if scene.graph.try_get(self.body2()).is_none() {
             return Err("3D Joint has invalid or unassigned handle to a \
             second body, the joint will not operate!"
                 .to_string());
@@ -448,6 +699,7 @@ impl NodeTrait for Joint {
 pub struct JointBuilder {
     base_builder: BaseBuilder,
     params: JointParams,
+    motor_params: JointMotorParams,
     body1: Handle<RigidBody>,
     body2: Handle<RigidBody>,
     contacts_enabled: bool,
@@ -460,6 +712,7 @@ impl JointBuilder {
         Self {
             base_builder,
             params: Default::default(),
+            motor_params: Default::default(),
             body1: Default::default(),
             body2: Default::default(),
             contacts_enabled: true,
@@ -470,6 +723,12 @@ impl JointBuilder {
     /// Sets desired joint parameters which defines exact type of the joint.
     pub fn with_params(mut self, params: JointParams) -> Self {
         self.params = params;
+        self
+    }
+
+    /// Set desired motor parameters which defines how the joint motor will behave.
+    pub fn with_motor_params(mut self, motor_params: JointMotorParams) -> Self {
+        self.motor_params = motor_params;
         self
     }
 
@@ -487,7 +746,7 @@ impl JointBuilder {
         self
     }
 
-    /// Sets whether the connected bodies should ignore collisions with each other or not.  
+    /// Sets whether the connected bodies should ignore collisions with each other or not.
     pub fn with_contacts_enabled(mut self, enabled: bool) -> Self {
         self.contacts_enabled = enabled;
         self
@@ -505,6 +764,7 @@ impl JointBuilder {
         Joint {
             base: self.base_builder.build_base(),
             params: self.params.into(),
+            motor_params: self.motor_params.into(),
             body1: self.body1.into(),
             body2: self.body2.into(),
             contacts_enabled: self.contacts_enabled.into(),

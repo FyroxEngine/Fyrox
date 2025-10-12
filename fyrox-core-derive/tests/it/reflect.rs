@@ -355,7 +355,6 @@ fn default_prop_metadata() -> FieldMetadata<'static> {
         max_value: None,
         step: None,
         precision: None,
-        description: "",
         tag: "",
         doc: "",
     }
@@ -412,13 +411,13 @@ fn inspect_attributes() {
         _skipped: u32,
         #[reflect(display_name = "Super X")]
         x: f32,
+        /// This is a property description.
         #[reflect(
             read_only,
             min_value = 0.1,
             max_value = 1.1,
             step = 0.1,
             precision = 3,
-            description = "This is a property description.",
             tag = "SomeTag"
         )]
         y: f32,
@@ -447,7 +446,6 @@ fn inspect_attributes() {
                 max_value: Some(1.1),
                 step: Some(0.1),
                 precision: Some(3),
-                description: "This is a property description.",
                 tag: "SomeTag",
                 doc: "",
             },

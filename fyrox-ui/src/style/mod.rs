@@ -47,6 +47,7 @@ use fyrox_resource::{
 };
 use fyrox_texture::TextureResource;
 use lazy_static::lazy_static;
+use std::any::{Any, TypeId};
 use std::{
     ops::{Deref, DerefMut},
     path::Path,
@@ -72,6 +73,20 @@ pub enum StyleProperty {
 impl Default for StyleProperty {
     fn default() -> Self {
         Self::Number(0.0)
+    }
+}
+
+impl StyleProperty {
+    /// Returns type id of the actual value stored in the property. The set of potential types is
+    /// finite (see [`StyleProperty`] declaration).
+    pub fn value_type_id(&self) -> TypeId {
+        match self {
+            StyleProperty::Number(v) => v.type_id(),
+            StyleProperty::Thickness(v) => v.type_id(),
+            StyleProperty::Color(v) => v.type_id(),
+            StyleProperty::Brush(v) => v.type_id(),
+            StyleProperty::Texture(v) => v.type_id(),
+        }
     }
 }
 
@@ -124,7 +139,7 @@ pub struct StyledProperty<T> {
     /// Property value.
     pub property: T,
     /// Name of the property in a style table.
-    #[reflect(hidden)]
+    #[reflect(read_only, display_name = "Property Name")]
     pub name: ImmutableString,
 }
 
@@ -297,6 +312,8 @@ impl Style {
     pub const BRUSH_ERROR: &'static str = "Global.Brush.Error";
     /// The name of the ok brush.
     pub const BRUSH_OK: &'static str = "Global.Brush.Ok";
+    /// The name of the highlight brush used to highlight widgets with keyboard focus.
+    pub const BRUSH_HIGHLIGHT: &'static str = "Global.Brush.Highlight";
     /// The name of the font size property.
     pub const FONT_SIZE: &'static str = "Global.Font.Size";
 
@@ -341,10 +358,14 @@ impl Style {
                 Brush::Solid(Color::opaque(80, 118, 178)),
             )
             .set(
+                Self::BRUSH_HIGHLIGHT,
+                Brush::Solid(Color::opaque(80, 118, 178)),
+            )
+            .set(
                 Self::BRUSH_DIM_BLUE,
                 Brush::Solid(Color::opaque(66, 99, 149)),
             )
-            .set(Self::BRUSH_TEXT, Brush::Solid(Color::opaque(220, 220, 220)))
+            .set(Self::BRUSH_TEXT, Brush::Solid(Color::opaque(190, 190, 190)))
             .set(Self::BRUSH_FOREGROUND, Brush::Solid(Color::WHITE))
             .set(Self::BRUSH_INFORMATION, Brush::Solid(Color::ANTIQUE_WHITE))
             .set(Self::BRUSH_WARNING, Brush::Solid(Color::GOLD))
@@ -378,6 +399,10 @@ impl Style {
             )
             .set(
                 Self::BRUSH_BRIGHT_BLUE,
+                Brush::Solid(Color::opaque(80, 118, 178)),
+            )
+            .set(
+                Self::BRUSH_HIGHLIGHT,
                 Brush::Solid(Color::opaque(80, 118, 178)),
             )
             .set(
@@ -527,5 +552,27 @@ impl Style {
         let mut style = Style::default();
         style.visit("Style", &mut visitor)?;
         Ok(style)
+    }
+
+    /// Returns an immutable reference to the internal container with the style properties.
+    /// Keep in mind, that the returned container contains only the properties of the current
+    /// style! Properties of the parent style(s) should be obtained separately.
+    pub fn inner(&self) -> &FxHashMap<ImmutableString, StyleProperty> {
+        &self.variables
+    }
+
+    /// Collects all the properties in the current and ancestor style chain. Returns a hash map with
+    /// all property values with their names. Basically, this method merges all the styles with their
+    /// ancestor style chain.
+    pub fn all_properties(&self) -> FxHashMap<ImmutableString, StyleProperty> {
+        let mut properties = self
+            .parent
+            .as_ref()
+            .map(|parent| parent.data_ref().all_properties())
+            .unwrap_or_default();
+        for (name, property) in self.variables.iter() {
+            properties.insert(name.clone(), property.clone());
+        }
+        properties
     }
 }

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#![allow(deprecated)] // TODO
 #![allow(irrefutable_let_patterns)]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::large_enum_variant)]
@@ -26,6 +27,7 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::inconsistent_struct_constructor)]
 #![allow(clippy::mutable_key_type)]
+#![allow(mismatched_lifetime_syntaxes)]
 
 #[macro_use]
 extern crate lazy_static;
@@ -56,9 +58,7 @@ pub mod utils;
 pub mod world;
 
 pub use fyrox;
-use fyrox::core::make_relative_path;
 
-use crate::plugins::probe::ReflectionProbePlugin;
 use crate::{
     asset::{item::AssetItem, AssetBrowser},
     audio::{preview::AudioPreviewPanel, AudioPanel},
@@ -67,32 +67,35 @@ use crate::{
     configurator::Configurator,
     export::ExportWindow,
     fyrox::{
-        asset::{io::FsResourceIo, manager::ResourceManager},
+        asset::{io::FsResourceIo, manager::ResourceManager, untyped::ResourceKind},
         core::{
             algebra::{Matrix3, Vector2},
             color::Color,
-            futures::executor::block_on,
             log::{Log, MessageKind},
+            make_relative_path,
             parking_lot::Mutex,
             pool::Handle,
             task::TaskPool,
             uuid::Uuid,
             watcher::FileSystemWatcher,
-            TypeUuidProvider,
+            SafeLock, TypeUuidProvider,
         },
         dpi::{PhysicalPosition, PhysicalSize},
-        engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
+        engine::{
+            ApplicationLoopController, Engine, EngineInitParams, GraphicsContextParams,
+            SerializationContext,
+        },
         event::{Event, WindowEvent},
-        event_loop::{EventLoop, EventLoopWindowTarget},
-        fxhash::FxHashMap,
-        graph::BaseSceneGraph,
+        event_loop::EventLoop,
+        fxhash::{FxHashMap, FxHashSet},
+        graph::{BaseSceneGraph, SceneGraph},
         gui::{
             brush::Brush,
             button::ButtonBuilder,
             constructor::new_widget_constructor_container,
             dock::{
-                DockingManager, DockingManagerBuilder, DockingManagerMessage, TileBuilder,
-                TileContent,
+                config::DockingManagerLayoutDescriptor, DockingManager, DockingManagerBuilder,
+                DockingManagerMessage, TileBuilder, TileContent,
             },
             dropdown_list::DropdownListBuilder,
             file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
@@ -105,11 +108,12 @@ use crate::{
             messagebox::{
                 MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult,
             },
+            stack_panel::StackPanelBuilder,
             style::{resource::StyleResource, Style},
-            text::TextBuilder,
+            text::{TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, UiNode, UserInterface, VerticalAlignment,
+            BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         material::{
             shader::{ShaderResource, ShaderResourceExtension},
@@ -141,9 +145,15 @@ use crate::{
     particle::ParticleSystemPreviewControlPanel,
     plugin::{EditorPlugin, EditorPluginsContainer},
     plugins::{
-        absm::AbsmEditor, absm::AbsmEditorPlugin, animation::AnimationEditorPlugin,
-        collider::ColliderPlugin, curve_editor::CurveEditorPlugin, material::MaterialPlugin,
-        ragdoll::RagdollPlugin, settings::SettingsPlugin, stats::UiStatisticsPlugin,
+        absm::{AbsmEditor, AbsmEditorPlugin},
+        animation::AnimationEditorPlugin,
+        collider::ColliderPlugin,
+        curve_editor::CurveEditorPlugin,
+        material::MaterialPlugin,
+        probe::ReflectionProbePlugin,
+        ragdoll::RagdollPlugin,
+        settings::SettingsPlugin,
+        stats::UiStatisticsPlugin,
         tilemap::TileMapEditorPlugin,
     },
     scene::{
@@ -165,8 +175,7 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::EditorSceneWrapper, menu::SceneNodeContextMenu, WorldViewer},
 };
-use fyrox::asset::untyped::ResourceKind;
-use fyrox::engine::ApplicationLoopController;
+use fyrox::event_loop::ActiveEventLoop;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
@@ -223,7 +232,7 @@ lazy_static! {
 }
 
 pub fn load_texture_internal(data: &[u8]) -> Option<TextureResource> {
-    let mut cache = EDITOR_TEXTURE_CACHE.lock();
+    let mut cache = EDITOR_TEXTURE_CACHE.safe_lock();
 
     // Editor use data that is embedded in the binary, so each such piece of data will have fixed
     // location in memory. This fact allows us to cache the resources and skip redundant loading if
@@ -272,7 +281,7 @@ lazy_static! {
     static ref GIZMO_SHADER: ShaderResource = {
         ShaderResource::from_str(
             Uuid::new_v4(),
-            include_str!("../resources/shaders/gizmo.shader",),
+            include_str!("../resources/shaders/gizmo.shader"),
             Default::default(),
         )
         .unwrap()
@@ -518,19 +527,11 @@ impl Default for UpdateLoopState {
 
 impl UpdateLoopState {
     fn request_update_in_next_frame(&mut self) {
-        if !self.is_warming_up() {
-            self.0 = 2;
-        }
+        self.0 = self.0.max(3);
     }
 
     fn request_update_in_current_frame(&mut self) {
-        if !self.is_warming_up() {
-            self.0 = 1;
-        }
-    }
-
-    fn is_warming_up(&self) -> bool {
-        self.0 > 2
+        self.0 = self.0.max(1);
     }
 
     fn decrease_counter(&mut self) {
@@ -539,6 +540,79 @@ impl UpdateLoopState {
 
     fn is_suspended(&self) -> bool {
         self.0 == 0
+    }
+}
+
+pub struct SceneLoadingWindow {
+    window: Handle<UiNode>,
+    scene_list_text: Handle<UiNode>,
+}
+
+impl SceneLoadingWindow {
+    pub fn new(ctx: &mut BuildContext) -> Self {
+        let scene_list_text = TextBuilder::new(WidgetBuilder::new()).build(ctx);
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(100.0))
+            .with_title(WindowTitle::text("Please wait..."))
+            .can_close(false)
+            .can_minimize(false)
+            .open(false)
+            .can_maximize(false)
+            .with_remove_on_close(true)
+            .with_content(
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_margin(Thickness::uniform(2.0))
+                        .with_child(
+                            TextBuilder::new(
+                                WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                            )
+                            .with_wrap(WrapMode::Word)
+                            .with_text(
+                                "Please wait until the following scene(s) are \
+                                fully loaded.",
+                            )
+                            .build(ctx),
+                        )
+                        .with_child(scene_list_text),
+                )
+                .build(ctx),
+            )
+            .build(ctx);
+
+        ctx.send_message(WindowMessage::open_modal(
+            window,
+            MessageDirection::ToWidget,
+            true,
+            true,
+        ));
+
+        Self {
+            window,
+            scene_list_text,
+        }
+    }
+
+    pub fn update(self, set: &FxHashSet<PathBuf>, ui: &UserInterface) -> Option<Self> {
+        if set.is_empty() {
+            ui.send_message(WindowMessage::close(
+                self.window,
+                MessageDirection::ToWidget,
+            ));
+            return None;
+        }
+
+        let list = set.iter().fold(String::new(), |mut str, path| {
+            str.push_str(&path.to_string_lossy());
+            str.push('\n');
+            str
+        });
+        ui.send_message(TextMessage::text(
+            self.scene_list_text,
+            MessageDirection::ToWidget,
+            list,
+        ));
+
+        Some(self)
     }
 }
 
@@ -588,6 +662,82 @@ pub struct Editor {
     pub processed_ui_messages: usize,
     pub styles: FxHashMap<EditorStyle, StyleResource>,
     pub running_game_process: Option<(std::process::Child, Arc<AtomicBool>)>,
+    pub user_project_icon: Option<Vec<u8>>,
+    pub user_project_name: String,
+    pub user_project_version: String,
+    pub loading_scenes: Arc<Mutex<FxHashSet<PathBuf>>>,
+    pub scene_loading_window: Option<SceneLoadingWindow>,
+    pub default_layout: DockingManagerLayoutDescriptor,
+}
+
+fn make_dark_style() -> StyleResource {
+    let mut dark_style = Style::dark_style();
+    dark_style
+        .set(WorldViewer::INSTANCE_BRUSH, Brush::solid(160, 160, 200))
+        .set(AssetItem::SELECTED_PREVIEW, Brush::solid(217, 230, 255))
+        .set(
+            AssetItem::SELECTED_TEXT_BORDER_BACKGROUND,
+            Brush::solid(44, 93, 135),
+        )
+        .set(AssetItem::TEXT_BORDER_DROP_BRUSH, Brush::solid(51, 81, 226))
+        .set(AssetItem::DESELECTED_PREVIEW, Brush::Solid(Color::WHITE))
+        .set(
+            AssetItem::DESELECTED_TEXT_BORDER_BACKGROUND,
+            Brush::transparent(),
+        )
+        .set(AssetItem::NORMAL_TEXT_BORDER_BRUSH, Brush::transparent())
+        .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
+        .set(AbsmEditor::NORMAL_ROOT_COLOR, Brush::solid(40, 80, 0))
+        .set(AbsmEditor::SELECTED_ROOT_COLOR, Brush::solid(60, 100, 0))
+        .set(
+            AssetBrowser::ADD_ASSET_NORMAL_BRUSH,
+            Brush::solid(23, 123, 53),
+        )
+        .set(
+            AssetBrowser::ADD_ASSET_HOVER_BRUSH,
+            Brush::solid(29, 148, 65),
+        )
+        .set(
+            AssetBrowser::ADD_ASSET_PRESSED_BRUSH,
+            Brush::solid(15, 79, 34),
+        );
+
+    StyleResource::new_embedded(dark_style)
+}
+
+fn make_light_style() -> StyleResource {
+    let mut light_style = Style::light_style();
+    light_style
+        .set(WorldViewer::INSTANCE_BRUSH, Brush::solid(70, 70, 120))
+        .set(AssetItem::SELECTED_PREVIEW, Brush::solid(217, 230, 255))
+        .set(
+            AssetItem::SELECTED_TEXT_BORDER_BACKGROUND,
+            Brush::solid(44, 93, 135),
+        )
+        .set(AssetItem::TEXT_BORDER_DROP_BRUSH, Brush::solid(51, 81, 226))
+        .set(AssetItem::DESELECTED_PREVIEW, Brush::Solid(Color::WHITE))
+        .set(
+            AssetItem::DESELECTED_TEXT_BORDER_BACKGROUND,
+            Brush::transparent(),
+        )
+        .set(AssetItem::NORMAL_TEXT_BORDER_BRUSH, Brush::transparent())
+        .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
+        .set(AbsmEditor::NORMAL_ROOT_COLOR, Brush::solid(40, 80, 0))
+        .set(AbsmEditor::SELECTED_ROOT_COLOR, Brush::solid(60, 100, 0))
+        .set(
+            AssetBrowser::ADD_ASSET_NORMAL_BRUSH,
+            Brush::solid(23, 123, 53),
+        )
+        .set(
+            AssetBrowser::ADD_ASSET_HOVER_BRUSH,
+            Brush::solid(29, 148, 65),
+        )
+        .set(
+            AssetBrowser::ADD_ASSET_PRESSED_BRUSH,
+            Brush::solid(15, 79, 34),
+        );
+
+    StyleResource::new_embedded(light_style)
 }
 
 impl Editor {
@@ -604,67 +754,9 @@ impl Editor {
 
         Log::add_listener(log_message_sender);
 
-        let mut dark_style = Style::dark_style();
-        dark_style
-            .set(
-                WorldViewer::INSTANCE_BRUSH,
-                Brush::Solid(Color::opaque(160, 160, 200)),
-            )
-            .set(
-                AssetItem::SELECTED_FOREGROUND,
-                Brush::Solid(Color::opaque(200, 220, 240)),
-            )
-            .set(
-                AssetItem::SELECTED_BACKGROUND,
-                Brush::Solid(Color::opaque(100, 100, 100)),
-            )
-            .set(
-                AssetItem::DESELECTED_BRUSH,
-                Brush::Solid(Color::TRANSPARENT),
-            )
-            .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
-            .set(
-                AbsmEditor::NORMAL_ROOT_COLOR,
-                Brush::Solid(Color::opaque(40, 80, 0)),
-            )
-            .set(
-                AbsmEditor::SELECTED_ROOT_COLOR,
-                Brush::Solid(Color::opaque(60, 100, 0)),
-            );
-
-        let dark_style = StyleResource::new_embedded(dark_style);
-        let mut light_style = Style::light_style();
-        light_style
-            .set(
-                WorldViewer::INSTANCE_BRUSH,
-                Brush::Solid(Color::opaque(70, 70, 120)),
-            )
-            .set(
-                AssetItem::SELECTED_FOREGROUND,
-                Brush::Solid(Color::opaque(200, 220, 240)),
-            )
-            .set(
-                AssetItem::SELECTED_BACKGROUND,
-                Brush::Solid(Color::opaque(100, 100, 100)),
-            )
-            .set(
-                AssetItem::DESELECTED_BRUSH,
-                Brush::Solid(Color::TRANSPARENT),
-            )
-            .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
-            .set(
-                AbsmEditor::NORMAL_ROOT_COLOR,
-                Brush::Solid(Color::opaque(40, 80, 0)),
-            )
-            .set(
-                AbsmEditor::SELECTED_ROOT_COLOR,
-                Brush::Solid(Color::opaque(60, 100, 0)),
-            );
-
-        let light_style = StyleResource::new_embedded(light_style);
         let styles = [
-            (EditorStyle::Dark, dark_style),
-            (EditorStyle::Light, light_style),
+            (EditorStyle::Dark, make_dark_style()),
+            (EditorStyle::Light, make_light_style()),
         ]
         .into_iter()
         .collect::<FxHashMap<_, _>>();
@@ -704,6 +796,7 @@ impl Editor {
             vsync: true,
             msaa_sample_count: Some(4),
             graphics_server_constructor: Default::default(),
+            named_objects: false,
         };
 
         let serialization_context = Arc::new(SerializationContext::new());
@@ -741,7 +834,11 @@ impl Editor {
         let asset_browser = AssetBrowser::new(&mut engine);
         let menu = Menu::new(&mut engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(&mut engine, message_sender.clone());
-        let audio_panel = AudioPanel::new(&mut engine, message_sender.clone());
+        let audio_panel = AudioPanel::new(
+            &mut engine,
+            message_sender.clone(),
+            asset_browser.preview_sender.clone(),
+        );
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
         let navmesh_panel = NavmeshPanel::new(scene_viewer.frame(), ctx, message_sender.clone());
         let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(
@@ -928,15 +1025,24 @@ impl Editor {
         .build(ctx);
 
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
+
+        let ui = engine.user_interfaces.first_mut();
+        ui.update(
+            Vector2::new(inner_size.width, inner_size.height),
+            1.0 / 60.0,
+            &Default::default(),
+        );
+        let default_layout = ui
+            .try_get_of_type::<DockingManager>(docking_manager)
+            .unwrap()
+            .layout(ui);
+
         if let Some(layout) = settings.windows.layout.as_ref() {
-            engine
-                .user_interfaces
-                .first_mut()
-                .send_message(DockingManagerMessage::layout(
-                    docking_manager,
-                    MessageDirection::ToWidget,
-                    layout.clone(),
-                ));
+            ui.send_message(DockingManagerMessage::layout(
+                docking_manager,
+                MessageDirection::ToWidget,
+                layout.clone(),
+            ));
         }
 
         let editor = Self {
@@ -1002,6 +1108,12 @@ impl Editor {
             processed_ui_messages: 0,
             styles,
             running_game_process: None,
+            user_project_icon: None,
+            user_project_name: Default::default(),
+            user_project_version: Default::default(),
+            loading_scenes: Default::default(),
+            scene_loading_window: None,
+            default_layout,
         };
 
         if let Some(data) = startup_data {
@@ -1324,6 +1436,7 @@ impl Editor {
                     statistics_window: &mut self.statistics_window,
                 },
                 settings: &mut self.settings,
+                icon_request_sender: self.asset_browser.preview_sender.clone(),
             },
         );
 
@@ -1356,8 +1469,7 @@ impl Editor {
             }
         }
         self.log.handle_ui_message(message, ui);
-        self.asset_browser
-            .handle_ui_message(message, engine, self.message_sender.clone());
+
         self.command_stack_viewer.handle_ui_message(message);
         self.scene_viewer.handle_ui_message(
             message,
@@ -1370,6 +1482,12 @@ impl Editor {
         let current_scene_entry = self.scenes.current_scene_entry_mut();
 
         if let Some(current_scene_entry) = current_scene_entry {
+            self.asset_browser.handle_ui_message(
+                message,
+                engine,
+                current_scene_entry,
+                self.message_sender.clone(),
+            );
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
                 self.particle_system_control_panel.handle_ui_message(
                     message,
@@ -1551,11 +1669,11 @@ impl Editor {
 
         let mut command = build_profile.run_command.make_command();
 
-        command
-            .stdout(Stdio::piped())
-            .arg("--")
-            .arg("--override-scene")
-            .arg(path);
+        let command = command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        if !build_profile.run_command.skip_passthrough_marker {
+            command.arg("--");
+        }
+        command.arg("--override-scene").arg(path);
 
         match command.spawn() {
             Ok(mut process) => {
@@ -1563,11 +1681,20 @@ impl Editor {
 
                 // Capture output from child process.
                 let mut stdout = process.stdout.take().unwrap();
+                let mut stderr = process.stderr.take().unwrap();
                 let reader_active = active.clone();
                 std::thread::spawn(move || {
                     while reader_active.load(Ordering::SeqCst) {
                         for line in BufReader::new(&mut stdout).lines().take(10).flatten() {
                             Log::info(line);
+                        }
+                    }
+                });
+                let reader_active = active.clone();
+                std::thread::spawn(move || {
+                    while reader_active.load(Ordering::SeqCst) {
+                        for line in BufReader::new(&mut stderr).lines().take(10).flatten() {
+                            Log::err(line);
                         }
                     }
                 });
@@ -1696,6 +1823,7 @@ impl Editor {
                     game_scene,
                     engine,
                     self.message_sender.clone(),
+                    self.asset_browser.preview_sender.clone(),
                 );
                 let sender = &self.message_sender;
                 self.world_viewer.sync_to_model(
@@ -1967,57 +2095,69 @@ impl Editor {
             }
         }
 
+        let mut loading_scenes = self.loading_scenes.safe_lock();
+        if loading_scenes.contains(&scene_path) {
+            return;
+        }
+        loading_scenes.insert(scene_path.clone());
+        drop(loading_scenes);
+
+        let ui = self.engine.user_interfaces.first_mut();
+        self.scene_loading_window
+            .get_or_insert_with(|| SceneLoadingWindow::new(&mut ui.build_ctx()));
+        self.update_loop_state.request_update_in_next_frame();
+
         if let Some(ext) = scene_path.extension() {
+            let resource_manager = self.engine.resource_manager.clone();
+            let sender = self.message_sender.clone();
+            let loading_scenes = self.loading_scenes.clone();
             if ext == "rgs" {
-                let engine = &mut self.engine;
-                let result = {
-                    block_on(SceneLoader::from_file(
+                let serialization_context = self.engine.serialization_context.clone();
+                self.engine.task_pool.inner().spawn_task(async move {
+                    let result = SceneLoader::from_file(
                         &scene_path,
                         &FsResourceIo,
-                        engine.serialization_context.clone(),
-                        engine.resource_manager.clone(),
-                    ))
-                };
-                match result {
-                    Ok(loader) => {
-                        let scene = block_on(loader.0.finish());
-                        let entry = EditorSceneEntry::new_game_scene(
-                            scene,
-                            Some(scene_path),
-                            engine,
-                            &mut self.settings,
-                            self.message_sender.clone(),
-                            &self.scene_viewer,
-                            self.highlighter.clone(),
-                        );
-                        self.add_scene(entry);
+                        serialization_context,
+                        resource_manager,
+                    )
+                    .await;
+                    loading_scenes.safe_lock().remove(&scene_path);
+                    match result {
+                        Ok(loader) => {
+                            let scene = loader.0.finish().await;
+                            sender.send(Message::AddScene {
+                                scene,
+                                path: scene_path,
+                            });
+                        }
+                        Err(e) => {
+                            Log::err(e.to_string());
+                        }
                     }
-                    Err(e) => {
-                        Log::err(e.to_string());
-                    }
-                }
+                });
             } else if ext == "ui" {
-                match block_on(UserInterface::load_from_file_ex(
-                    &scene_path,
-                    self.engine.widget_constructors.clone(),
-                    self.engine.resource_manager.clone(),
-                    &FsResourceIo,
-                )) {
-                    Ok(ui) => {
-                        let entry = EditorSceneEntry::new_ui_scene(
-                            ui,
-                            Some(scene_path),
-                            self.message_sender.clone(),
-                            &self.scene_viewer,
-                            &mut self.engine,
-                            &self.settings,
-                        );
-                        self.add_scene(entry);
+                let widget_constructors = self.engine.widget_constructors.clone();
+                self.engine.task_pool.inner().spawn_task(async move {
+                    let result = UserInterface::load_from_file_ex(
+                        &scene_path,
+                        widget_constructors,
+                        resource_manager,
+                        &FsResourceIo,
+                    )
+                    .await;
+                    loading_scenes.safe_lock().remove(&scene_path);
+                    match result {
+                        Ok(ui) => {
+                            sender.send(Message::AddUiScene {
+                                ui,
+                                path: scene_path,
+                            });
+                        }
+                        Err(e) => {
+                            Log::err(e.to_string());
+                        }
                     }
-                    Err(e) => {
-                        Log::err(e.to_string());
-                    }
-                }
+                });
             } else {
                 Log::err(format!(
                     "{} is not a game scene or UI scene!",
@@ -2098,8 +2238,11 @@ impl Editor {
     fn on_scene_changed(&mut self) {
         let ui = &self.engine.user_interfaces.first();
         if let Some(entry) = self.scenes.current_scene_entry_ref() {
-            if entry.controller.downcast_ref::<GameScene>().is_some() {
+            if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
                 self.world_viewer.item_context_menu = Some(self.scene_node_context_menu.clone());
+                if let Some(overlay_pass) = self.overlay_pass.as_ref() {
+                    overlay_pass.borrow_mut().scene_handle = game_scene.scene;
+                }
             } else if entry.controller.downcast_ref::<UiScene>().is_some() {
                 self.world_viewer.item_context_menu = Some(self.widget_context_menu.clone());
             } else {
@@ -2168,8 +2311,6 @@ impl Editor {
     fn configure(&mut self, working_directory: PathBuf) {
         assert!(self.scenes.is_empty());
 
-        self.asset_browser.clear_preview(&mut self.engine);
-
         let current_working_directory = std::env::current_dir().unwrap();
         if current_working_directory != working_directory {
             std::env::set_current_dir(working_directory.clone()).unwrap();
@@ -2183,8 +2324,10 @@ impl Editor {
         let graphics_context = engine.graphics_context.as_initialized_mut();
 
         graphics_context.window.set_title(&format!(
-            "FyroxEd {}: {}",
+            "FyroxEd{} {}{}: {}",
+            self.user_project_name,
             *EDITOR_VERSION,
+            self.user_project_version,
             working_directory.to_string_lossy()
         ));
 
@@ -2200,7 +2343,7 @@ impl Editor {
         engine.resource_manager.state().destroy_unused_resources();
 
         self.asset_browser
-            .set_working_directory(engine, &working_directory, &self.message_sender);
+            .set_working_directory(engine, &working_directory);
 
         self.world_viewer
             .on_configure(engine.user_interfaces.first(), &self.settings);
@@ -2343,11 +2486,20 @@ impl Editor {
 
         let ui = self.engine.user_interfaces.first_mut();
 
+        if let Some(loading_window) = self.scene_loading_window.take() {
+            let set = self.loading_scenes.safe_lock();
+            self.scene_loading_window = loading_window.update(&set, ui);
+        }
+
         if let Some(active_tooltip) = ui.active_tooltip() {
             if !active_tooltip.shown {
                 // Keep the editor running until the current tooltip is not shown.
                 self.update_loop_state.request_update_in_next_frame();
             }
+        }
+
+        if !self.loading_scenes.safe_lock().is_empty() {
+            self.update_loop_state.request_update_in_next_frame();
         }
 
         self.log.update(self.settings.general.max_log_entries, ui);
@@ -2400,6 +2552,8 @@ impl Editor {
                     .handle_message(&message, &self.message_sender);
 
                 if let Some(entry) = self.scenes.current_scene_entry_mut() {
+                    self.asset_browser
+                        .on_message(&mut self.engine, entry, &message, &self.plugins);
                     if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
                         self.particle_system_control_panel.handle_message(
                             &message,
@@ -2450,6 +2604,30 @@ impl Editor {
                         self.world_viewer.sync_selection = true;
                     }
                     Message::SaveScene { id: scene, path } => self.save_scene(scene, path),
+                    Message::AddScene { scene, path } => {
+                        let entry = EditorSceneEntry::new_game_scene(
+                            scene,
+                            Some(path),
+                            &mut self.engine,
+                            &mut self.settings,
+                            self.message_sender.clone(),
+                            &self.scene_viewer,
+                            self.highlighter.clone(),
+                        );
+                        self.add_scene(entry);
+                        needs_sync = true;
+                    }
+                    Message::AddUiScene { ui, path } => {
+                        let entry = EditorSceneEntry::new_ui_scene(
+                            ui,
+                            Some(path),
+                            self.message_sender.clone(),
+                            &self.scene_viewer,
+                            &mut self.engine,
+                            &self.settings,
+                        );
+                        self.add_scene(entry);
+                    }
                     Message::LoadScene(scene_path) => {
                         self.load_scene(scene_path);
                         needs_sync = true;
@@ -2550,6 +2728,9 @@ impl Editor {
                     Message::LoadLayout => {
                         self.load_layout();
                     }
+                    Message::ResetLayout => {
+                        self.reset_layout();
+                    }
                     Message::ViewSurfaceData(data) => {
                         let mut viewer = SurfaceDataViewer::new(&mut self.engine);
                         viewer.open(data, &mut self.engine);
@@ -2646,12 +2827,23 @@ impl Editor {
         }
     }
 
+    fn reset_layout(&self) {
+        self.engine
+            .user_interfaces
+            .first()
+            .send_message(DockingManagerMessage::layout(
+                self.docking_manager,
+                MessageDirection::ToWidget,
+                self.default_layout.clone(),
+            ));
+    }
+
     pub fn add_game_plugin<P>(&mut self, plugin: P)
     where
         P: Plugin + 'static,
     {
         let inspector = self.plugins.get::<InspectorPlugin>();
-        *inspector.property_editors.context_type_id.lock() = plugin.type_id();
+        *inspector.property_editors.context_type_id.safe_lock() = plugin.type_id();
         inspector
             .property_editors
             .merge(plugin.register_property_editors());
@@ -2691,7 +2883,7 @@ impl Editor {
     {
         let plugin = self.engine.add_dynamic_plugin_custom(plugin);
         let inspector = self.plugins.get::<InspectorPlugin>();
-        *inspector.property_editors.context_type_id.lock() = plugin.type_id();
+        *inspector.property_editors.context_type_id.safe_lock() = plugin.type_id();
         inspector
             .property_editors
             .merge(plugin.register_property_editors());
@@ -2710,16 +2902,22 @@ impl Editor {
             && (self.focused || !self.settings.general.suspend_unfocused_editor)
             // Keep the editor active if user holds any mouse button.
             || self.engine.user_interfaces.first().captured_node().is_some()
+            // Keep the editor active until it fully loads all the queued scenes.
+            ||!self.loading_scenes.safe_lock().is_empty()
     }
 
-    fn on_resumed(&mut self, evt: &EventLoopWindowTarget<()>) {
+    fn on_resumed(&mut self, event_loop: &ActiveEventLoop) {
         let engine = &mut self.engine;
 
-        engine.initialize_graphics_context(evt).unwrap();
+        engine.initialize_graphics_context(event_loop).unwrap();
 
         let graphics_context = engine.graphics_context.as_initialized_mut();
 
-        graphics_context.set_window_icon_from_memory(include_bytes!("../resources/icon.png"));
+        graphics_context.set_window_icon_from_memory(
+            self.user_project_icon
+                .as_deref()
+                .unwrap_or(include_bytes!("../resources/icon.png")),
+        );
 
         // High-DPI screen support
         Log::info(format!(
@@ -2925,7 +3123,7 @@ fn set_ui_scaling(ui: &UserInterface, scale: f32) {
     ));
 }
 
-fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
+fn update(editor: &mut Editor, event_loop: &ActiveEventLoop) {
     let elapsed = editor.game_loop_data.clock.elapsed().as_secs_f32();
     editor.game_loop_data.clock = Instant::now();
     editor.game_loop_data.lag += elapsed;
@@ -2968,7 +3166,7 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
 
         editor.engine.pre_update(
             FIXED_TIMESTEP,
-            ApplicationLoopController::WindowTarget(window_target),
+            ApplicationLoopController::ActiveEventLoop(event_loop),
             &mut editor.game_loop_data.lag,
             switches,
         );
@@ -3027,13 +3225,13 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
             FIXED_TIMESTEP,
             &Default::default(),
             &mut editor.game_loop_data.lag,
-            ApplicationLoopController::WindowTarget(window_target),
+            ApplicationLoopController::ActiveEventLoop(event_loop),
         );
 
         if need_reload_plugins {
             let on_plugin_reloaded = |plugin: &dyn Plugin| {
                 let inspector = editor.plugins.get_mut::<InspectorPlugin>();
-                *inspector.property_editors.context_type_id.lock() = plugin.type_id();
+                *inspector.property_editors.context_type_id.safe_lock() = plugin.type_id();
                 inspector
                     .property_editors
                     .merge(plugin.register_property_editors());
@@ -3041,7 +3239,7 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
 
             editor.engine.handle_plugins_hot_reloading(
                 FIXED_TIMESTEP,
-                ApplicationLoopController::WindowTarget(window_target),
+                ApplicationLoopController::ActiveEventLoop(event_loop),
                 &mut editor.game_loop_data.lag,
                 on_plugin_reloaded,
             );

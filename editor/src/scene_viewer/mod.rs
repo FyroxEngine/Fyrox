@@ -24,6 +24,7 @@ use crate::{
         engine::Engine,
         fxhash::FxHashMap,
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graphics::PolygonFillMode,
         gui::{
             border::BorderBuilder,
             brush::Brush,
@@ -47,13 +48,11 @@ use crate::{
                 make_dropdown_list_option_with_height, make_image_button_with_tooltip,
                 make_simple_tooltip,
             },
-            vec::{Vec3EditorBuilder, Vec3EditorMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
             VerticalAlignment,
         },
-        renderer::framework::PolygonFillMode,
         resource::texture::TextureResource,
         scene::camera::Projection,
     },
@@ -109,8 +108,8 @@ impl GridSnappingMenu {
             .with_header({
                 button = make_image_button_with_tooltip(
                     ctx,
-                    22.0,
-                    22.0,
+                    20.0,
+                    20.0,
                     load_image!("../../resources/grid_snapping.png"),
                     "Snapping Options",
                     None,
@@ -190,7 +189,7 @@ impl GridSnappingMenu {
                 .add_row(Row::auto())
                 .add_row(Row::auto())
                 .add_row(Row::auto())
-                .add_column(Column::stretch())
+                .add_column(Column::auto())
                 .add_column(Column::auto())
                 .build(ctx),
             )
@@ -285,7 +284,6 @@ pub struct SceneViewer {
     sender: MessageSender,
     interaction_mode_panel: Handle<UiNode>,
     contextual_actions: Handle<UiNode>,
-    global_position_display: Handle<UiNode>,
     no_scene_reminder: Handle<UiNode>,
     tab_control: Handle<UiNode>,
     scene_gizmo: SceneGizmo,
@@ -319,7 +317,6 @@ impl SceneViewer {
 
         let grid_snap_menu = GridSnappingMenu::new(ctx, settings);
 
-        let global_position_display;
         let debug_switches;
         let contextual_actions = StackPanelBuilder::new(
             WidgetBuilder::new()
@@ -343,33 +340,22 @@ impl SceneViewer {
                 })
                 .with_child(grid_snap_menu.menu)
                 .with_child({
-                    global_position_display = Vec3EditorBuilder::<f32>::new(
+                    debug_switches = DropdownListBuilder::new(
                         WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_tooltip(make_simple_tooltip(
-                                ctx,
-                                "Global Coordinates of the Current Selection",
-                            ))
-                            .with_width(160.0),
+                            .with_width(90.0)
+                            .with_margin(Thickness::uniform(1.0)),
                     )
-                    .with_precision(1)
-                    .with_editable(false)
+                    .with_items(
+                        GraphicsDebugSwitches::iter()
+                            .zip(GraphicsDebugSwitches::VARIANTS.iter())
+                            .map(|(variant, v)| {
+                                make_dropdown_list_option_universal(ctx, v, 22.0, variant)
+                            })
+                            .collect::<Vec<_>>(),
+                    )
+                    .with_close_on_selection(true)
+                    .with_selected(0)
                     .build(ctx);
-                    global_position_display
-                })
-                .with_child({
-                    debug_switches =
-                        DropdownListBuilder::new(WidgetBuilder::new().with_width(120.0))
-                            .with_items(
-                                GraphicsDebugSwitches::iter()
-                                    .zip(GraphicsDebugSwitches::VARIANTS.iter())
-                                    .map(|(variant, v)| {
-                                        make_dropdown_list_option_universal(ctx, v, 22.0, variant)
-                                    })
-                                    .collect::<Vec<_>>(),
-                            )
-                            .with_selected(0)
-                            .build(ctx);
                     debug_switches
                 }),
         )
@@ -407,6 +393,7 @@ impl SceneViewer {
                                         .map(|p| make_dropdown_list_option(ctx, &p.name))
                                         .collect::<Vec<_>>(),
                                 )
+                                .with_close_on_selection(true)
                                 .with_selected(settings.build.selected_profile)
                                 .build(ctx);
                                 build_profile
@@ -593,7 +580,6 @@ impl SceneViewer {
             play,
             interaction_mode_panel,
             contextual_actions,
-            global_position_display,
             build_profile,
             stop,
             no_scene_reminder,
@@ -1057,23 +1043,6 @@ impl SceneViewer {
                     entry.controller.downcast_ref::<GameScene>().is_some(),
                 ),
             );
-
-            if let (Some(game_scene), Some(selection)) = (
-                entry.controller.downcast_ref::<GameScene>(),
-                entry.selection.as_graph(),
-            ) {
-                let scene = &engine.scenes[game_scene.scene];
-                if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(Vec3EditorMessage::value(
-                            self.global_position_display,
-                            MessageDirection::ToWidget,
-                            position,
-                        ));
-                }
-            }
         }
 
         send_sync_message(

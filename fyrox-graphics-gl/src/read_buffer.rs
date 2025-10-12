@@ -18,10 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::texture::PixelDescriptor;
-use crate::{buffer::GlBuffer, framebuffer::GlFrameBuffer, server::GlGraphicsServer, ToGlConstant};
+use crate::{
+    buffer::GlBuffer,
+    framebuffer::GlFrameBuffer,
+    server::{FrameBufferBindingPoint, GlGraphicsServer},
+    texture::PixelDescriptor,
+    ToGlConstant,
+};
 use fyrox_graphics::{
-    buffer::{BufferKind, BufferUsage, GpuBufferTrait},
+    buffer::{BufferKind, BufferUsage, GpuBufferDescriptor, GpuBufferTrait},
     core::{algebra::Vector2, math::Rect},
     error::FrameworkError,
     framebuffer::GpuFrameBufferTrait,
@@ -29,8 +34,7 @@ use fyrox_graphics::{
     read_buffer::GpuAsyncReadBufferTrait,
 };
 use glow::{HasContext, PixelPackData};
-use std::cell::Cell;
-use std::rc::Weak;
+use std::{cell::Cell, rc::Weak};
 
 #[derive(Copy, Clone)]
 struct ReadRequest {
@@ -48,15 +52,19 @@ pub struct GlAsyncReadBuffer {
 impl GlAsyncReadBuffer {
     pub fn new(
         server: &GlGraphicsServer,
+        name: &str,
         pixel_size: usize,
         pixel_count: usize,
     ) -> Result<Self, FrameworkError> {
         let size_bytes = pixel_count * pixel_size;
         let buffer = GlBuffer::new(
             server,
-            size_bytes,
-            BufferKind::PixelRead,
-            BufferUsage::StreamRead,
+            GpuBufferDescriptor {
+                name,
+                size: size_bytes,
+                kind: BufferKind::PixelRead,
+                usage: BufferUsage::StreamRead,
+            },
         )?;
         Ok(Self {
             server: server.weak(),
@@ -141,9 +149,7 @@ impl GpuAsyncReadBufferTrait for GlAsyncReadBuffer {
 
             server.gl.bind_buffer(buffer_gl_usage, Some(self.buffer.id));
 
-            server
-                .gl
-                .bind_framebuffer(glow::READ_FRAMEBUFFER, framebuffer.id());
+            server.set_framebuffer(FrameBufferBindingPoint::Read, framebuffer.id());
 
             server
                 .gl

@@ -58,6 +58,7 @@ use crate::plugins::animation::{
     },
     selection::AnimationSelection,
 };
+use crate::scene::selector::AllowedType;
 use crate::{
     command::{Command, CommandGroup},
     load_image,
@@ -72,6 +73,7 @@ use crate::{
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::utils::make_dropdown_list_option_universal;
+use std::any::TypeId;
 use std::path::Path;
 
 enum ImportMode {
@@ -275,6 +277,14 @@ impl RootMotionDropdownArea {
                         .with_title(WindowTitle::text("Select a Root Node"))
                         .open(false),
                     )
+                    .with_allowed_types(
+                        [AllowedType {
+                            id: TypeId::of::<N>(),
+                            name: std::any::type_name::<N>().to_string(),
+                        }]
+                        .into_iter()
+                        .collect(),
+                    )
                     .build(&mut ui.build_ctx());
 
                     ui.send_message(NodeSelectorMessage::hierarchy(
@@ -381,7 +391,7 @@ impl RootMotionDropdownArea {
                         .content,
                     MessageDirection::ToWidget,
                     graph
-                        .try_get(settings.node)
+                        .try_get_node(settings.node)
                         .map(|n| n.name().to_owned())
                         .unwrap_or_else(|| String::from("<Unassigned>")),
                 ),
@@ -1050,6 +1060,14 @@ impl Toolbar {
                         .with_remove_on_close(true)
                         .with_title(WindowTitle::text("Select a Target Node"))
                         .open(false),
+                )
+                .with_allowed_types(
+                    [AllowedType {
+                        id: TypeId::of::<N>(),
+                        name: std::any::type_name::<N>().to_string(),
+                    }]
+                    .into_iter()
+                    .collect(),
                 )
                 .build(&mut ui.build_ctx());
 

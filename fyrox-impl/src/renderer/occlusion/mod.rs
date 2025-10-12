@@ -23,7 +23,6 @@
 mod grid;
 mod optimizer;
 
-use crate::renderer::resources::RendererResources;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -34,19 +33,20 @@ use crate::{
         ImmutableString,
     },
     graph::BaseSceneGraph,
+    graphics::{
+        error::FrameworkError,
+        framebuffer::Attachment,
+        framebuffer::GpuFrameBuffer,
+        gpu_texture::GpuTexture,
+        gpu_texture::{GpuTextureKind, PixelKind},
+        server::GraphicsServer,
+        stats::RenderPassStatistics,
+    },
+    renderer::resources::RendererResources,
     renderer::{
         cache::shader::{binding, property, PropertyGroup, RenderMaterial},
         cache::uniform::UniformBufferCache,
         debug_renderer::{self, DebugRenderer},
-        framework::{
-            error::FrameworkError,
-            framebuffer::Attachment,
-            framebuffer::GpuFrameBuffer,
-            gpu_texture::GpuTexture,
-            gpu_texture::{GpuTextureKind, PixelKind},
-            server::GraphicsServer,
-            stats::RenderPassStatistics,
-        },
         occlusion::{
             grid::{GridCache, Visibility},
             optimizer::VisibilityBufferOptimizer,
@@ -114,7 +114,7 @@ impl TileBuffer {
 
 fn inflated_world_aabb(graph: &Graph, object: Handle<Node>) -> Option<AxisAlignedBoundingBox> {
     let mut aabb = graph
-        .try_get(object)
+        .try_get_node(object)
         .map(|node_ref| node_ref.world_bounding_box())?;
     aabb.inflate(Vector3::repeat(0.01));
     Some(aabb)
@@ -127,12 +127,26 @@ impl OcclusionTester {
         height: usize,
         tile_size: usize,
     ) -> Result<Self, FrameworkError> {
-        let depth_stencil = server.create_2d_render_target(PixelKind::D24S8, width, height)?;
-        let visibility_mask = server.create_2d_render_target(PixelKind::RGBA8, width, height)?;
+        let depth_stencil = server.create_2d_render_target(
+            "OcclusionTesterDepthStencilTexture",
+            PixelKind::D24S8,
+            width,
+            height,
+        )?;
+        let visibility_mask = server.create_2d_render_target(
+            "OcclusionTesterVisibilityMask",
+            PixelKind::RGBA8,
+            width,
+            height,
+        )?;
         let w_tiles = width / tile_size + 1;
         let h_tiles = height / tile_size + 1;
-        let tile_buffer =
-            server.create_2d_render_target(PixelKind::R32UI, w_tiles * (MAX_BITS + 1), h_tiles)?;
+        let tile_buffer = server.create_2d_render_target(
+            "OcclusionTesterTileBuffer",
+            PixelKind::R32UI,
+            w_tiles * (MAX_BITS + 1),
+            h_tiles,
+        )?;
 
         Ok(Self {
             framebuffer: server.create_frame_buffer(
@@ -214,7 +228,7 @@ impl OcclusionTester {
         let mut lines = Vec::new();
         for (object_index, object) in self.objects_to_test.iter().enumerate() {
             let object_index = object_index as u32;
-            let Some(node_ref) = graph.try_get(*object) else {
+            let Some(node_ref) = graph.try_get_node(*object) else {
                 continue;
             };
 

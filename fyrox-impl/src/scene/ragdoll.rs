@@ -101,7 +101,6 @@ impl Reflect for Limb {
                 static METADATA: FieldMetadata = FieldMetadata {
                     name: "Bone",
                     display_name: "Bone",
-                    description: "",
                     tag: "",
                     read_only: false,
                     immutable_collection: false,
@@ -120,7 +119,6 @@ impl Reflect for Limb {
                 static METADATA: FieldMetadata = FieldMetadata {
                     name: "PhysicalBone",
                     display_name: "Physical Bone",
-                    description: "",
                     tag: "",
                     read_only: false,
                     immutable_collection: false,
@@ -139,7 +137,6 @@ impl Reflect for Limb {
                 static METADATA: FieldMetadata = FieldMetadata {
                     name: "Children",
                     display_name: "Children",
-                    description: "",
                     tag: "",
                     read_only: false,
                     immutable_collection: false,
@@ -163,7 +160,6 @@ impl Reflect for Limb {
                 static METADATA: FieldMetadata = FieldMetadata {
                     name: "Bone",
                     display_name: "Bone",
-                    description: "",
                     tag: "",
                     read_only: false,
                     immutable_collection: false,
@@ -182,7 +178,6 @@ impl Reflect for Limb {
                 static METADATA: FieldMetadata = FieldMetadata {
                     name: "PhysicalBone",
                     display_name: "Physical Bone",
-                    description: "",
                     tag: "",
                     read_only: false,
                     immutable_collection: false,
@@ -201,7 +196,6 @@ impl Reflect for Limb {
                 static METADATA: FieldMetadata = FieldMetadata {
                     name: "Children",
                     display_name: "Children",
-                    description: "",
                     tag: "",
                     read_only: false,
                     immutable_collection: false,

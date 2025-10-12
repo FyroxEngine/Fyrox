@@ -18,14 +18,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    core::pool::Handle,
-    generic_animation::machine::{PoseNode, State, Transition},
+use crate::{
+    command::{make_command, Command, SetPropertyCommand},
+    fyrox::{
+        core::log::Log,
+        core::pool::ErasedHandle,
+        core::pool::Handle,
+        core::reflect::Reflect,
+        core::variable::InheritableVariable,
+        engine::Engine,
+        generic_animation::machine::Machine,
+        generic_animation::machine::{PoseNode, State, Transition},
+        graph::{BaseSceneGraph, SceneGraphNode},
+        gui::inspector::PropertyChanged,
+        scene::SceneContainer,
+    },
+    message::MessageSender,
+    plugins::absm::command::fetch_machine,
+    scene::controller::SceneController,
+    scene::GameScene,
+    scene::SelectionContainer,
+    ui_scene::UiScene,
 };
-use crate::scene::SelectionContainer;
-
-use fyrox::core::reflect::Reflect;
 use std::fmt::{Debug, Formatter};
+use std::ops::Deref;
 
 #[derive(Eq)]
 pub enum SelectedEntity<N: Reflect> {
@@ -118,8 +134,176 @@ where
     }
 }
 
+pub fn get_machine_ref<'a, N: Reflect>(
+    controller: &'a dyn SceneController,
+    node_handle: Handle<N>,
+    scene_container: &'a SceneContainer,
+) -> Option<&'a Machine<Handle<N>>> {
+    if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
+        scene_container[game_scene.scene]
+            .graph
+            .node(ErasedHandle::from(node_handle).into())
+            .component_ref::<InheritableVariable<Machine<Handle<N>>>>()
+            .map(|v| v.deref())
+    } else if let Some(ui) = controller.downcast_ref::<UiScene>() {
+        ui.ui
+            .node(ErasedHandle::from(node_handle).into())
+            .component_ref::<InheritableVariable<Machine<Handle<N>>>>()
+            .map(|v| v.deref())
+    } else {
+        None
+    }
+}
+
 impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
     fn len(&self) -> usize {
         self.entities.len()
+    }
+
+    fn first_selected_entity(
+        &self,
+        controller: &dyn SceneController,
+        scenes: &SceneContainer,
+        callback: &mut dyn FnMut(&dyn Reflect, bool),
+    ) {
+        if let Some(machine) = get_machine_ref(controller, self.absm_node_handle, scenes) {
+            if let Some(first) = self.entities.first() {
+                if let Some(layer_index) = self.layer {
+                    if let Some(layer) = machine.layers().get(layer_index) {
+                        match first {
+                            SelectedEntity::Transition(transition) => {
+                                (callback)(&layer.transitions()[*transition] as &dyn Reflect, false)
+                            }
+                            SelectedEntity::State(state) => {
+                                (callback)(&layer.states()[*state] as &dyn Reflect, false)
+                            }
+                            SelectedEntity::PoseNode(pose) => {
+                                (callback)(&layer.nodes()[*pose] as &dyn Reflect, false)
+                            }
+                        };
+                    }
+                }
+            }
+        }
+    }
+
+    fn on_property_changed(
+        &mut self,
+        _controller: &mut dyn SceneController,
+        args: &PropertyChanged,
+        _engine: &mut Engine,
+        sender: &MessageSender,
+    ) {
+        let group = if let Some(layer_index) = self.layer {
+            let absm_node_handle = self.absm_node_handle;
+            self.entities
+                .iter()
+                .filter_map(|ent| match *ent {
+                    SelectedEntity::Transition(transition) => make_command(args, move |ctx| {
+                        let machine = fetch_machine(ctx, absm_node_handle);
+                        machine
+                            .layers_mut()
+                            .get_mut(layer_index)?
+                            .transitions_mut()
+                            .try_borrow_mut(transition)
+                            .map(|t| t as &mut dyn Reflect)
+                    }),
+                    SelectedEntity::State(state) => make_command(args, move |ctx| {
+                        let machine = fetch_machine(ctx, absm_node_handle);
+                        machine
+                            .layers_mut()
+                            .get_mut(layer_index)?
+                            .states_mut()
+                            .try_borrow_mut(state)
+                            .map(|s| s as &mut dyn Reflect)
+                    }),
+                    SelectedEntity::PoseNode(pose) => make_command(args, move |ctx| {
+                        let machine = fetch_machine(ctx, absm_node_handle);
+                        machine
+                            .layers_mut()
+                            .get_mut(layer_index)?
+                            .nodes_mut()
+                            .try_borrow_mut(pose)
+                            .map(|p| p as &mut dyn Reflect)
+                    }),
+                })
+                .collect()
+        } else {
+            vec![]
+        };
+
+        if group.is_empty() {
+            if !args.is_inheritable() {
+                Log::err(format!("Failed to handle a property {}", args.path()))
+            }
+        } else if group.len() == 1 {
+            sender.do_command_group(group);
+        }
+    }
+
+    fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {
+        let group = if let Some(layer_index) = self.layer {
+            let absm_node_handle = self.absm_node_handle;
+            self.entities
+                .iter()
+                .filter_map(|ent| match *ent {
+                    SelectedEntity::Transition(transition) => value.try_clone_box().map(|value| {
+                        Command::new(SetPropertyCommand::new(
+                            path.to_string(),
+                            value,
+                            move |ctx| {
+                                let machine = fetch_machine(ctx, absm_node_handle);
+                                machine
+                                    .layers_mut()
+                                    .get_mut(layer_index)?
+                                    .transitions_mut()
+                                    .try_borrow_mut(transition)
+                                    .map(|t| t as &mut dyn Reflect)
+                            },
+                        ))
+                    }),
+                    SelectedEntity::State(state) => value.try_clone_box().map(|value| {
+                        Command::new(SetPropertyCommand::new(
+                            path.to_string(),
+                            value,
+                            move |ctx| {
+                                let machine = fetch_machine(ctx, absm_node_handle);
+                                machine
+                                    .layers_mut()
+                                    .get_mut(layer_index)?
+                                    .states_mut()
+                                    .try_borrow_mut(state)
+                                    .map(|s| s as &mut dyn Reflect)
+                            },
+                        ))
+                    }),
+                    SelectedEntity::PoseNode(pose) => value.try_clone_box().map(|value| {
+                        Command::new(SetPropertyCommand::new(
+                            path.to_string(),
+                            value,
+                            move |ctx| {
+                                let machine = fetch_machine(ctx, absm_node_handle);
+                                machine
+                                    .layers_mut()
+                                    .get_mut(layer_index)?
+                                    .nodes_mut()
+                                    .try_borrow_mut(pose)
+                                    .map(|n| n as &mut dyn Reflect)
+                            },
+                        ))
+                    }),
+                })
+                .collect()
+        } else {
+            vec![]
+        };
+
+        if group.len() == 1 {
+            sender.do_command_group(group);
+        }
+    }
+
+    fn provide_docs(&self, _controller: &dyn SceneController, _engine: &Engine) -> Option<String> {
+        None
     }
 }

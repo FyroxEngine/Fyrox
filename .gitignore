@@ -10,6 +10,7 @@
 /fyrox-resource/test.txt
 /fyrox-core-derive/test_output
 /fyrox-impl/test_output
+/fyrox-impl/test_restore_integrity
 history.bin
 settings.ron
 /template-core/*.version

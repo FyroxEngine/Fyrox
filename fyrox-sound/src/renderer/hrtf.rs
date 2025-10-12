@@ -94,9 +94,50 @@ use fyrox_resource::{
     Resource, ResourceData,
 };
 use hrtf::HrirSphere;
-use std::error::Error;
-use std::path::Path;
+use std::{error::Error, ops::Deref};
 use std::{fmt::Debug, fmt::Formatter, path::PathBuf, sync::Arc};
+use std::{fmt::Display, path::Path};
+
+/// An error that occurs during HRIR sphere loading.
+pub struct HrtfError(pub hrtf::HrtfError);
+
+impl std::error::Error for HrtfError {}
+
+impl From<hrtf::HrtfError> for HrtfError {
+    fn from(value: hrtf::HrtfError) -> Self {
+        Self(value)
+    }
+}
+
+impl From<HrtfError> for hrtf::HrtfError {
+    fn from(value: HrtfError) -> Self {
+        value.0
+    }
+}
+
+impl Deref for HrtfError {
+    type Target = hrtf::HrtfError;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Debug for HrtfError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&self.0, f)
+    }
+}
+
+impl Display for HrtfError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            hrtf::HrtfError::IoError(error) => Display::fmt(error, f),
+            hrtf::HrtfError::InvalidFileFormat => f.write_str("Invalid file format"),
+            hrtf::HrtfError::InvalidLength(n) => write!(f, "Invalid length {n}"),
+        }
+    }
+}
 
 /// See module docs.
 #[derive(Clone, Debug, Default, Reflect)]
@@ -255,8 +296,9 @@ impl ResourceLoader for HrirSphereLoader {
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
         Box::pin(async move {
             let reader = io.file_reader(&path).await.map_err(LoadError::new)?;
-            let hrir_sphere =
-                HrirSphere::new(reader, context::SAMPLE_RATE).map_err(LoadError::new)?;
+            let hrir_sphere = HrirSphere::new(reader, context::SAMPLE_RATE)
+                .map_err(HrtfError::from)
+                .map_err(LoadError::new)?;
             Ok(LoaderPayload::new(HrirSphereResourceData {
                 hrir_sphere: Some(hrir_sphere),
             }))

@@ -76,6 +76,13 @@ impl ProgressBarMessage {
 /// }
 /// ```
 ///
+/// ## Style
+///
+/// It is possible to specify custom indicator (the part that show the progress) and the back of
+/// the progress bar. Use [`ProgressBarBuilder::with_indicator`] and [`ProgressBarBuilder::with_body`]
+/// methods respectively. These methods can accept any widget, but usually it i a
+/// [`crate::border::Border`], [`crate::image::Image`], [`crate::nine_patch::NinePatch`] widgets.
+///
 /// ## Changing progress
 ///
 /// To change progress of a progress bar all you need is to send [`ProgressBarMessage::Progress`] to it:

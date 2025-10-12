@@ -21,6 +21,7 @@
 //! Property editor for [`InheritableVariable`]. It acts like a proxy to inner property, but also
 //! adds special "revert" button that is used to revert value to its parent's value.
 
+use crate::resources::REVERT_ICON;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
@@ -29,21 +30,21 @@ use crate::{
     },
     define_constructor,
     grid::{Column, GridBuilder, Row},
+    image::ImageBuilder,
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        InspectorError, PropertyChanged,
+        FieldKind, InheritableAction, InspectorError, PropertyChanged,
     },
-    inspector::{FieldKind, InheritableAction},
     message::UiMessage,
+    style::{resource::StyleResourceExt, Style},
     utils::make_simple_tooltip,
     widget::WidgetBuilder,
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, VerticalAlignment,
     Widget, WidgetMessage,
 };
-
 use fyrox_graph::BaseSceneGraph;
 use std::{
     any::TypeId,
@@ -160,14 +161,24 @@ impl InheritablePropertyEditorBuilder {
             revert = ButtonBuilder::new(
                 WidgetBuilder::new()
                     .with_visibility(self.modified)
-                    .with_width(16.0)
-                    .with_height(16.0)
+                    .with_width(20.0)
+                    .with_height(20.0)
                     .with_vertical_alignment(VerticalAlignment::Top)
                     .with_tooltip(make_simple_tooltip(ctx, "Revert To Parent"))
                     .with_margin(Thickness::uniform(1.0))
                     .on_column(1),
             )
-            .with_text("<")
+            .with_content(
+                ImageBuilder::new(
+                    WidgetBuilder::new()
+                        .with_background(ctx.style.property(Style::BRUSH_BRIGHTEST))
+                        .with_margin(Thickness::uniform(1.0))
+                        .with_width(16.0)
+                        .with_height(16.0),
+                )
+                .with_opt_texture(REVERT_ICON.clone())
+                .build(ctx),
+            )
             .build(ctx);
             revert
         }))
@@ -243,7 +254,6 @@ where
                     max_value: property_info.max_value,
                     step: property_info.step,
                     precision: property_info.precision,
-                    description: property_info.description,
                     tag: property_info.tag,
                     doc: property_info.doc,
                 },
@@ -264,6 +274,7 @@ where
                         filter: ctx.filter,
                         name_column_width: ctx.name_column_width,
                         base_path: ctx.base_path.clone(),
+                        has_parent_object: ctx.has_parent_object,
                     })?;
 
             let wrapper = InheritablePropertyEditorBuilder::new(WidgetBuilder::new())
@@ -276,9 +287,11 @@ where
                     PropertyEditorInstance::Custom { editor, .. } => editor,
                 })
                 .with_modified(
-                    ctx.property_info
-                        .cast_value::<InheritableVariable<T>>()?
-                        .is_modified(),
+                    ctx.has_parent_object
+                        && ctx
+                            .property_info
+                            .cast_value::<InheritableVariable<T>>()?
+                            .is_modified(),
                 )
                 .build(ctx.build_context);
 
@@ -315,9 +328,11 @@ where
                 .send_message(InheritablePropertyEditorMessage::modified(
                     instance.handle,
                     MessageDirection::ToWidget,
-                    ctx.property_info
-                        .cast_value::<InheritableVariable<T>>()?
-                        .is_modified(),
+                    ctx.has_parent_object
+                        && ctx
+                            .property_info
+                            .cast_value::<InheritableVariable<T>>()?
+                            .is_modified(),
                 ));
 
             let property_info = ctx.property_info;
@@ -334,7 +349,6 @@ where
                     max_value: property_info.max_value,
                     step: property_info.step,
                     precision: property_info.precision,
-                    description: property_info.description,
                     tag: property_info.tag,
                     doc: property_info.doc,
                 },
@@ -355,6 +369,7 @@ where
                     filter: ctx.filter,
                     name_column_width: ctx.name_column_width,
                     base_path: ctx.base_path.clone(),
+                    has_parent_object: ctx.has_parent_object,
                 });
         }
 

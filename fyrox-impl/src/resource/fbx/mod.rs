@@ -42,6 +42,7 @@ use crate::{
         pool::Handle,
     },
     graph::BaseSceneGraph,
+    material,
     material::MaterialResourceBinding,
     resource::{
         fbx::{
@@ -79,7 +80,9 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::track::TrackBinding;
-use fyrox_core::Uuid;
+use fyrox_core::{err, Uuid};
+use fyrox_material::shader::{ShaderResource, ShaderResourceExtension};
+use fyrox_material::MaterialResource;
 use fyrox_resource::io::ResourceIo;
 use fyrox_resource::untyped::ResourceKind;
 use std::{cmp::Ordering, path::Path};
@@ -282,51 +285,25 @@ fn make_blend_shapes_container(
     }
 }
 
-async fn create_surfaces(
-    fbx_scene: &FbxScene,
-    data_set: Vec<FbxSurfaceData>,
-    resource_manager: ResourceManager,
-    model: &FbxModel,
-    model_path: &Path,
-    model_import_options: &ModelImportOptions,
-) -> Result<Vec<Surface>, FbxError> {
-    let mut surfaces = Vec::new();
+type EngineMaterial = material::Material;
+type MaterialMap = FxHashMap<Handle<FbxComponent>, MaterialResource>;
 
-    // Create surfaces per material
-    if model.materials.is_empty() {
-        assert_eq!(data_set.len(), 1);
-        let data = data_set.into_iter().next().unwrap();
-        let mut surface_data = data.base_mesh_builder.build();
-        surface_data.blend_shapes_container =
-            make_blend_shapes_container(&surface_data.vertex_buffer, data.blend_shapes);
-        let mut surface = Surface::new(SurfaceResource::new_ok(
-            Uuid::new_v4(),
-            ResourceKind::External,
-            surface_data,
-        ));
-        surface.vertex_weights = data.skin_data;
-        surfaces.push(surface);
-    } else {
-        assert_eq!(data_set.len(), model.materials.len());
-        for (&material_handle, data) in model.materials.iter().zip(data_set.into_iter()) {
-            let mut surface_data = data.base_mesh_builder.build();
-            surface_data.blend_shapes_container =
-                make_blend_shapes_container(&surface_data.vertex_buffer, data.blend_shapes);
-            let mut surface = Surface::new(SurfaceResource::new_ok(
-                Uuid::new_v4(),
-                ResourceKind::External,
-                surface_data,
-            ));
-            surface.vertex_weights = data.skin_data;
-            let material = fbx_scene.get(material_handle).as_material()?;
-            surface
-                .material()
-                .data_ref()
-                .set_property("diffuseColor", material.diffuse_color);
+async fn create_materials(
+    fbx_scene: &FbxScene,
+    resource_manager: &ResourceManager,
+    model_import_options: &ModelImportOptions,
+    model_path: &Path,
+) -> Result<MaterialMap, FbxError> {
+    let mut map = MaterialMap::default();
+    for (component_handle, component) in fbx_scene.pair_iter() {
+        if let FbxComponent::Material(fbx_material) = component {
+            let mut material = EngineMaterial::from_shader(ShaderResource::standard());
+
+            material.set_property("diffuseColor", fbx_material.diffuse_color);
 
             let io = resource_manager.resource_io();
 
-            for (name, texture_handle) in material.textures.iter() {
+            for (name, texture_handle) in fbx_material.textures.iter() {
                 let texture = fbx_scene.get(*texture_handle).as_texture()?;
                 let path = texture.get_root_file_path(&fbx_scene.components);
 
@@ -354,7 +331,7 @@ async fn create_surfaces(
 
                                 let path = Path::new(".");
 
-                                if let Ok(iter) = io.walk_directory(path).await {
+                                if let Ok(iter) = io.walk_directory(path, usize::MAX).await {
                                     for dir in iter {
                                         if io.is_dir(&dir).await {
                                             let candidate = dir.join(filename);
@@ -432,7 +409,7 @@ async fn create_surfaces(
                         };
 
                         if let Some(property_name) = name {
-                            surface.material().data_ref().bind(
+                            material.bind(
                                 property_name,
                                 MaterialResourceBinding::Texture(MaterialTextureBinding {
                                     value: Some(texture),
@@ -449,6 +426,55 @@ async fn create_surfaces(
                     }
                 }
             }
+
+            let old_material =
+                map.insert(component_handle, MaterialResource::new_embedded(material));
+            assert!(old_material.is_none());
+        }
+    }
+    Ok(map)
+}
+
+fn create_surfaces(
+    data_set: Vec<FbxSurfaceData>,
+    model: &FbxModel,
+    materials: &MaterialMap,
+) -> Result<Vec<Surface>, FbxError> {
+    let mut surfaces = Vec::new();
+
+    // Create surfaces per material
+    if model.materials.is_empty() {
+        assert_eq!(data_set.len(), 1);
+        let data = data_set.into_iter().next().unwrap();
+        let mut surface_data = data.base_mesh_builder.build();
+        surface_data.blend_shapes_container =
+            make_blend_shapes_container(&surface_data.vertex_buffer, data.blend_shapes);
+        let mut surface = Surface::new(SurfaceResource::new_ok(
+            Uuid::new_v4(),
+            ResourceKind::External,
+            surface_data,
+        ));
+        surface.vertex_weights = data.skin_data;
+        surfaces.push(surface);
+    } else {
+        assert_eq!(data_set.len(), model.materials.len());
+        for (&material_handle, data) in model.materials.iter().zip(data_set.into_iter()) {
+            let mut surface_data = data.base_mesh_builder.build();
+            surface_data.blend_shapes_container =
+                make_blend_shapes_container(&surface_data.vertex_buffer, data.blend_shapes);
+            let mut surface = Surface::new(SurfaceResource::new_ok(
+                Uuid::new_v4(),
+                ResourceKind::External,
+                surface_data,
+            ));
+            surface.vertex_weights = data.skin_data;
+
+            if let Some(material) = materials.get(&material_handle) {
+                surface.set_material(material.clone());
+            } else {
+                err!("No respective material");
+            }
+
             surfaces.push(surface);
         }
     }
@@ -456,14 +482,12 @@ async fn create_surfaces(
     Ok(surfaces)
 }
 
-async fn convert_mesh(
+fn convert_mesh(
     base: BaseBuilder,
     fbx_scene: &FbxScene,
-    resource_manager: ResourceManager,
     model: &FbxModel,
     graph: &mut Graph,
-    model_path: &Path,
-    model_import_options: &ModelImportOptions,
+    materials: &MaterialMap,
 ) -> Result<Handle<Node>, FbxError> {
     let geometric_transform = Matrix4::new_translation(&model.geometric_translation)
         * quat_from_euler(model.geometric_rotation).to_homogeneous()
@@ -603,15 +627,7 @@ async fn convert_mesh(
             }
         }
 
-        let mut surfaces = create_surfaces(
-            fbx_scene,
-            data_set,
-            resource_manager.clone(),
-            model,
-            model_path,
-            model_import_options,
-        )
-        .await?;
+        let mut surfaces = create_surfaces(data_set, model, materials)?;
 
         if geom.tangents.is_none() {
             for surface in surfaces.iter_mut() {
@@ -649,29 +665,18 @@ fn convert_model_to_base(model: &FbxModel) -> BaseBuilder {
         )
 }
 
-async fn convert_model(
+fn convert_model(
     fbx_scene: &FbxScene,
     model: &FbxModel,
-    resource_manager: ResourceManager,
     graph: &mut Graph,
     animation: &mut Animation,
-    model_path: &Path,
-    model_import_options: &ModelImportOptions,
+    materials: &MaterialMap,
 ) -> Result<Handle<Node>, FbxError> {
     let base = convert_model_to_base(model);
 
-    // Create node with correct kind.
+    // Create node with the correct kind.
     let node_handle = if !model.geoms.is_empty() {
-        convert_mesh(
-            base,
-            fbx_scene,
-            resource_manager,
-            model,
-            graph,
-            model_path,
-            model_import_options,
-        )
-        .await?
+        convert_mesh(base, fbx_scene, model, graph, materials)?
     } else if model.light.is_some() {
         fbx_scene.get(model.light).as_light()?.convert(base, graph)
     } else {
@@ -812,25 +817,30 @@ async fn convert(
     let mut animation = Animation::default();
     animation.set_name("Animation");
 
+    let materials = create_materials(
+        fbx_scene,
+        &resource_manager,
+        model_import_options,
+        model_path,
+    )
+    .await?;
+
     let mut fbx_model_to_node_map = FxHashMap::default();
     for (component_handle, component) in fbx_scene.pair_iter() {
         if let FbxComponent::Model(model) = component {
             let node = convert_model(
                 fbx_scene,
                 model,
-                resource_manager.clone(),
                 &mut scene.graph,
                 &mut animation,
-                model_path,
-                model_import_options,
-            )
-            .await?;
+                &materials,
+            )?;
             scene.graph.link_nodes(node, root);
             fbx_model_to_node_map.insert(component_handle, node);
         }
     }
 
-    // Do not create animation player if there's no animation content.
+    // Do not create the animation player if there's no animation content.
     if !animation.tracks_data().data_ref().tracks().is_empty() {
         let mut animations_container = AnimationContainer::new();
         animations_container.add(animation);

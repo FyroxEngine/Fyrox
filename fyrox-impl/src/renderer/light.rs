@@ -18,38 +18,45 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::DynamicSurfaceCache;
-use crate::renderer::observer::Observer;
-use crate::renderer::resources::RendererResources;
-use crate::renderer::utils::make_brdf_lut;
 use crate::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
         color::Color,
         math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
         ImmutableString,
     },
+    graphics::{
+        buffer::BufferUsage,
+        error::FrameworkError,
+        framebuffer::GpuFrameBuffer,
+        geometry_buffer::GpuGeometryBuffer,
+        gpu_texture::{GpuTexture, GpuTextureKind},
+        server::GraphicsServer,
+        ColorMask, CompareFunc, CullFace, DrawParameters, ElementRange, StencilAction, StencilFunc,
+        StencilOp,
+    },
     renderer::{
         bundle::{LightSourceKind, RenderDataBundleStorage},
         cache::{
             shader::{binding, property, PropertyGroup, RenderMaterial, ShaderCache},
             uniform::{UniformBufferCache, UniformMemoryAllocator},
+            DynamicSurfaceCache,
         },
-        framework::{
-            buffer::BufferUsage, error::FrameworkError, framebuffer::GpuFrameBuffer,
-            geometry_buffer::GpuGeometryBuffer, server::GraphicsServer, ColorMask, CompareFunc,
-            CullFace, DrawParameters, ElementRange, GeometryBufferExt, StencilAction, StencilFunc,
-            StencilOp,
-        },
+        convolution::{EnvironmentMapIrradianceConvolution, EnvironmentMapSpecularConvolution},
+        framework::GeometryBufferExt,
         gbuffer::GBuffer,
         light_volume::LightVolumeRenderer,
         make_viewport_matrix,
+        observer::Observer,
+        resources::RendererResources,
         shadow::{
             csm::{CsmRenderContext, CsmRenderer},
             point::{PointShadowMapRenderContext, PointShadowMapRenderer},
             spot::SpotShadowMapRenderer,
         },
         ssao::ScreenSpaceAmbientOcclusionRenderer,
+        utils::make_brdf_lut,
         visibility::ObserverVisibilityCache,
         GeometryCache, LightingStatistics, QualitySettings, RenderPassStatistics, TextureCache,
     },
@@ -59,10 +66,9 @@ use crate::{
             surface::SurfaceData,
             vertex::SimpleVertex,
         },
-        Scene,
+        EnvironmentLightingSource, Scene,
     },
 };
-use fyrox_graphics::gpu_texture::GpuTexture;
 
 pub struct DeferredLightRenderer {
     sphere: GpuGeometryBuffer,
@@ -82,6 +88,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub observer: &'a Observer,
     pub gbuffer: &'a mut GBuffer,
     pub ambient_color: Color,
+    pub environment_lighting_source: EnvironmentLightingSource,
     pub render_data_bundle: &'a RenderDataBundleStorage,
     pub settings: &'a QualitySettings,
     pub textures: &'a mut TextureCache,
@@ -94,6 +101,10 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
     pub ssao_renderer: &'a ScreenSpaceAmbientOcclusionRenderer,
+    pub resource_manager: &'a ResourceManager,
+    pub environment_map_specular_convolution: &'a mut Option<EnvironmentMapSpecularConvolution>,
+    pub environment_map_irradiance_convolution: &'a EnvironmentMapIrradianceConvolution,
+    pub need_recalculate_convolution: &'a mut bool,
 }
 
 impl DeferredLightRenderer {
@@ -138,6 +149,7 @@ impl DeferredLightRenderer {
 
         Ok(Self {
             skybox: GpuGeometryBuffer::from_surface_data(
+                "SkyBox",
                 &SurfaceData::new(
                     VertexBuffer::new(vertices.len(), vertices).unwrap(),
                     TriangleBuffer::new(vec![
@@ -159,11 +171,13 @@ impl DeferredLightRenderer {
                 server,
             )?,
             sphere: GpuGeometryBuffer::from_surface_data(
+                "Sphere",
                 &SurfaceData::make_sphere(10, 10, 1.0, &Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,
             )?,
             cone: GpuGeometryBuffer::from_surface_data(
+                "Cone",
                 &SurfaceData::make_cone(
                     16,
                     0.5,
@@ -189,7 +203,8 @@ impl DeferredLightRenderer {
                 quality_defaults.csm_settings.size,
                 quality_defaults.csm_settings.precision,
             )?,
-            brdf_lut: make_brdf_lut(server, 256, 256)?,
+            // Use `test_write_brdf_lut` to re-generate the BRDF if needed.
+            brdf_lut: make_brdf_lut(server, 256, include_bytes!("brdf_256x256_256samples.bin"))?,
         })
     }
 
@@ -242,6 +257,7 @@ impl DeferredLightRenderer {
             scene,
             observer,
             gbuffer,
+            environment_lighting_source,
             render_data_bundle,
             shader_cache,
             ambient_color,
@@ -255,6 +271,10 @@ impl DeferredLightRenderer {
             uniform_memory_allocator,
             dynamic_surface_cache,
             ssao_renderer,
+            resource_manager,
+            environment_map_specular_convolution,
+            environment_map_irradiance_convolution,
+            need_recalculate_convolution,
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
@@ -288,7 +308,7 @@ impl DeferredLightRenderer {
 
         // Render skybox (if any).
         if let Some(skybox) = scene.skybox_ref().and_then(|s| s.cubemap_ref()) {
-            if let Some(texture_sampler_pair) = textures.get(server, skybox) {
+            if let Some(texture_sampler_pair) = textures.get(server, resource_manager, skybox) {
                 let size = observer.position.z_far / 2.0f32.sqrt();
                 let scale = Matrix4::new_scaling(size);
                 let wvp = Matrix4::new_translation(&observer.position.translation) * scale;
@@ -327,7 +347,48 @@ impl DeferredLightRenderer {
             .as_ref()
             .or(render_data_bundle.environment_map.as_ref())
             .or_else(|| scene.skybox_ref().and_then(|s| s.cubemap_ref()))
-            .and_then(|c| textures.get(server, c).map(|d| &d.gpu_texture))
+            .and_then(|c| {
+                textures
+                    .get(server, resource_manager, c)
+                    .map(|d| &d.gpu_texture)
+            })
+            .unwrap_or(&renderer_resources.environment_dummy);
+
+        if *need_recalculate_convolution {
+            // Prepare the specular convolution.
+            let environment_map_size = if let GpuTextureKind::Cube { size } = environment_map.kind()
+            {
+                size
+            } else {
+                1
+            };
+            if environment_map_specular_convolution.is_none()
+                || environment_map_specular_convolution
+                    .as_ref()
+                    .is_some_and(|conv| conv.size != environment_map_size)
+            {
+                *environment_map_specular_convolution = Some(
+                    EnvironmentMapSpecularConvolution::new(server, environment_map_size)?,
+                );
+            }
+            pass_stats += environment_map_specular_convolution
+                .as_ref()
+                .unwrap()
+                .render(environment_map, uniform_buffer_cache, renderer_resources)?;
+
+            // Prepare the irradiance component of the probe.
+            pass_stats += environment_map_irradiance_convolution.render(
+                environment_map,
+                uniform_buffer_cache,
+                renderer_resources,
+            )?;
+
+            *need_recalculate_convolution = false;
+        }
+
+        let specular_convolution = environment_map_specular_convolution
+            .as_ref()
+            .map(|c| c.cube_map())
             .unwrap_or(&renderer_resources.environment_dummy);
 
         // Ambient light.
@@ -338,12 +399,17 @@ impl DeferredLightRenderer {
         let gbuffer_ambient_map = gbuffer.ambient_texture();
         let ao_map = ssao_renderer.ao_map();
 
+        let skybox_lighting = matches!(
+            environment_lighting_source,
+            EnvironmentLightingSource::SkyBox
+        );
         let ambient_color = ambient_color.srgb_to_linear_f32();
         let properties = PropertyGroup::from([
             property("worldViewProjection", &frame_matrix),
             property("ambientColor", &ambient_color),
             property("cameraPosition", &observer.position.translation),
             property("invViewProj", &inv_view_projection),
+            property("skyboxLighting", &skybox_lighting),
         ]);
         let material = RenderMaterial::from([
             binding(
@@ -365,7 +431,7 @@ impl DeferredLightRenderer {
                 },
             ),
             binding(
-                "ambientTexture",
+                "bakedLightingTexture",
                 (
                     gbuffer_ambient_map,
                     &renderer_resources.nearest_clamp_sampler,
@@ -387,10 +453,17 @@ impl DeferredLightRenderer {
                 ),
             ),
             binding(
-                "environmentMap",
+                "prefilteredSpecularMap",
                 (
-                    environment_map,
+                    specular_convolution,
                     &renderer_resources.linear_mipmap_linear_clamp_sampler,
+                ),
+            ),
+            binding(
+                "irradianceMap",
+                (
+                    environment_map_irradiance_convolution.cube_map(),
+                    &renderer_resources.linear_clamp_sampler,
                 ),
             ),
             binding(
@@ -640,6 +713,7 @@ impl DeferredLightRenderer {
                             renderer_resources,
                             uniform_memory_allocator,
                             dynamic_surface_cache,
+                            resource_manager,
                         )?;
 
                         light_stats.spot_shadow_maps_rendered += 1;
@@ -661,6 +735,7 @@ impl DeferredLightRenderer {
                                     renderer_resources,
                                     uniform_memory_allocator,
                                     dynamic_surface_cache,
+                                    resource_manager,
                                 })?;
 
                         light_stats.point_shadow_maps_rendered += 1;
@@ -679,6 +754,7 @@ impl DeferredLightRenderer {
                             renderer_resources,
                             uniform_memory_allocator,
                             dynamic_surface_cache,
+                            resource_manager,
                         })?;
 
                         light_stats.csm_rendered += 1;
@@ -699,19 +775,11 @@ impl DeferredLightRenderer {
                         ref cookie_texture,
                         ..
                     } => {
-                        let (cookie_enabled, cookie_texture) =
-                            if let Some(texture) = cookie_texture.as_ref() {
-                                if let Some(cookie) = textures.get(server, texture) {
-                                    (true, (&cookie.gpu_texture, &cookie.gpu_sampler))
-                                } else {
-                                    (
-                                        false,
-                                        (
-                                            &renderer_resources.white_dummy,
-                                            &renderer_resources.linear_wrap_sampler,
-                                        ),
-                                    )
-                                }
+                        let (cookie_enabled, cookie_texture) = if let Some(texture) =
+                            cookie_texture.as_ref()
+                        {
+                            if let Some(cookie) = textures.get(server, resource_manager, texture) {
+                                (true, (&cookie.gpu_texture, &cookie.gpu_sampler))
                             } else {
                                 (
                                     false,
@@ -720,7 +788,16 @@ impl DeferredLightRenderer {
                                         &renderer_resources.linear_wrap_sampler,
                                     ),
                                 )
-                            };
+                            }
+                        } else {
+                            (
+                                false,
+                                (
+                                    &renderer_resources.white_dummy,
+                                    &renderer_resources.linear_wrap_sampler,
+                                ),
+                            )
+                        };
 
                         light_stats.spot_lights_rendered += 1;
 

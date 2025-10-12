@@ -651,6 +651,7 @@ impl BrushPanel {
             filter: Default::default(),
             name_column_width: 150.0,
             base_path: Default::default(),
+            has_parent_object: false,
         });
 
         let inspector;

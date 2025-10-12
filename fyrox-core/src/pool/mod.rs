@@ -64,7 +64,6 @@ const INVALID_GENERATION: u32 = 0;
 /// block. It allows to create and delete objects much faster than if they'll
 /// be allocated on heap. Also since objects stored in contiguous memory block
 /// they can be effectively accessed because such memory layout is cache-friendly.
-#[derive(Debug)]
 pub struct Pool<T, P = Option<T>>
 where
     T: Sized,
@@ -74,23 +73,70 @@ where
     free_stack: Vec<u32>,
 }
 
-pub trait BorrowAs<Object, Container: PayloadContainer<Element = Object>> {
-    type Target;
-    fn borrow_as_ref(self, pool: &Pool<Object, Container>) -> Option<&Self::Target>;
-    fn borrow_as_mut(self, pool: &mut Pool<Object, Container>) -> Option<&mut Self::Target>;
+impl<T: Sized + Debug, P: PayloadContainer<Element = T> + 'static> Debug for Pool<T, P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("Pool");
+        for (handle, value) in self.pair_iter() {
+            s.field(&handle.to_string(), value);
+        }
+        s.finish()
+    }
 }
 
-impl<Object, Container: PayloadContainer<Element = Object> + 'static> BorrowAs<Object, Container>
-    for Handle<Object>
-{
-    type Target = Object;
+/// This trait unifies pool objects and their variants.
+///
+/// If T is the pool object type, [`ObjectOrVariant::convert_to_dest_type`] returns the pool object itself.
+///
+/// If T is a variant of the pool object type, [`ObjectOrVariant::convert_to_dest_type`] returns the variant of the pool object.
+///
+/// The [`Pool`] struct uses this trait to unify the logic of retrieving both pool objects and their variants.
+pub trait ObjectOrVariant<T> {
+    fn convert_to_dest_type(object: &T) -> Option<&Self>;
+    fn convert_to_dest_type_mut(object: &mut T) -> Option<&mut Self>;
+}
 
-    fn borrow_as_ref(self, pool: &Pool<Object, Container>) -> Option<&Object> {
-        pool.try_borrow(self)
+/// This trait is a helper trait for implementing [`ObjectOrVariant`] indirectly in child crates.
+///
+/// To implement [`ObjectOrVariant`] for type `U` in a child crate, you need to implement [`ObjectOrVariantHelper`] for [`PhantomData<U>`].
+///
+/// This is necessary because Rust does not support `impl<T> ForeignTrait<LocalType> for T`
+///
+/// But Rust does support `impl<T> ForeignTrait<LocalType> for ForeignType<T>`
+///
+/// Details can be found in [here](https://rust-lang.github.io/rfcs/2451-re-rebalancing-coherence.html#concrete-orphan-rules).
+///
+/// Therefore, we cannot implement [`ObjectOrVariant`] directly using `impl<U: TraitBound> ObjectOrVariant<LocalType> for U`
+///
+/// but we can do `impl<U: TraitBound> ObjectOrVariantHelper<LocalType, U> for PhantomData<U>`
+///
+/// There is an indirection to get rid of [`PhantomData<U>`] because we want to have a clean API for pool methods
+/// where you can pass in `U` directly instead of [`PhantomData<U>`].
+pub trait ObjectOrVariantHelper<T, U> {
+    fn convert_to_dest_type_helper(object: &T) -> Option<&U>;
+    fn convert_to_dest_type_helper_mut(object: &mut T) -> Option<&mut U>;
+}
+
+// This is the default implementation for pool object types.
+// For pool object variant types, they need to be implemented case by case, since Rust does not support multiple blanket implementations.
+impl<T> ObjectOrVariantHelper<T, T> for PhantomData<T> {
+    fn convert_to_dest_type_helper(object: &T) -> Option<&T> {
+        Some(object)
     }
+    fn convert_to_dest_type_helper_mut(object: &mut T) -> Option<&mut T> {
+        Some(object)
+    }
+}
 
-    fn borrow_as_mut(self, pool: &mut Pool<Object, Container>) -> Option<&mut Object> {
-        pool.try_borrow_mut(self)
+// This blanket implementation wraps types that implement ObjectOrVariantHelper with the ObjectOrVariant trait.
+impl<T, U> ObjectOrVariant<T> for U
+where
+    PhantomData<U>: ObjectOrVariantHelper<T, U>,
+{
+    fn convert_to_dest_type(object: &T) -> Option<&Self> {
+        PhantomData::<U>::convert_to_dest_type_helper(object)
+    }
+    fn convert_to_dest_type_mut(object: &mut T) -> Option<&mut Self> {
+        PhantomData::<U>::convert_to_dest_type_helper_mut(object)
     }
 }
 
@@ -414,16 +460,15 @@ where
     }
 
     #[inline]
-    pub fn typed_ref<Ref>(&self, handle: impl BorrowAs<T, P, Target = Ref>) -> Option<&Ref> {
-        handle.borrow_as_ref(self)
+    pub fn try_get<U: ObjectOrVariant<T>>(&self, handle: Handle<U>) -> Option<&U> {
+        let pool_object = self.try_borrow(handle.transmute())?;
+        U::convert_to_dest_type(pool_object)
     }
 
     #[inline]
-    pub fn typed_mut<Ref>(
-        &mut self,
-        handle: impl BorrowAs<T, P, Target = Ref>,
-    ) -> Option<&mut Ref> {
-        handle.borrow_as_mut(self)
+    pub fn try_get_mut<U: ObjectOrVariant<T>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
+        let pool_object = self.try_borrow_mut(handle.transmute())?;
+        U::convert_to_dest_type_mut(pool_object)
     }
 
     #[inline]
@@ -1367,29 +1412,28 @@ where
     }
 }
 
-impl<Object, Container, Borrow, Ref> Index<Borrow> for Pool<Object, Container>
+impl<T, U, Container> Index<Handle<U>> for Pool<T, Container>
 where
-    Object: 'static,
-    Container: PayloadContainer<Element = Object> + 'static,
-    Borrow: BorrowAs<Object, Container, Target = Ref>,
+    T: 'static,
+    U: ObjectOrVariant<T>,
+    Container: PayloadContainer<Element = T> + 'static,
 {
-    type Output = Ref;
-
+    type Output = U;
     #[inline]
-    fn index(&self, index: Borrow) -> &Self::Output {
-        self.typed_ref(index).expect("The handle must be valid!")
+    fn index(&self, index: Handle<U>) -> &Self::Output {
+        self.try_get(index).expect("The handle must be valid!")
     }
 }
 
-impl<Object, Container, Borrow, Ref> IndexMut<Borrow> for Pool<Object, Container>
+impl<T, U, Container> IndexMut<Handle<U>> for Pool<T, Container>
 where
-    Object: 'static,
-    Container: PayloadContainer<Element = Object> + 'static,
-    Borrow: BorrowAs<Object, Container, Target = Ref>,
+    T: 'static,
+    U: ObjectOrVariant<T>,
+    Container: PayloadContainer<Element = T> + 'static,
 {
     #[inline]
-    fn index_mut(&mut self, index: Borrow) -> &mut Self::Output {
-        self.typed_mut(index).expect("The handle must be valid!")
+    fn index_mut(&mut self, index: Handle<U>) -> &mut Self::Output {
+        self.try_get_mut(index).expect("The handle must be valid!")
     }
 }
 

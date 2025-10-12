@@ -30,20 +30,20 @@ use crate::{
         math::Rect,
         sstorage::ImmutableString,
     },
+    graphics::{
+        buffer::BufferUsage,
+        error::FrameworkError,
+        framebuffer::GpuFrameBuffer,
+        geometry_buffer::{
+            AttributeDefinition, AttributeKind, ElementsDescriptor, GpuGeometryBuffer,
+            GpuGeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
+        },
+        server::GraphicsServer,
+    },
     renderer::{
         cache::{
             shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
-        },
-        framework::{
-            buffer::BufferUsage,
-            error::FrameworkError,
-            framebuffer::GpuFrameBuffer,
-            geometry_buffer::{
-                AttributeDefinition, AttributeKind, ElementsDescriptor, GeometryBufferDescriptor,
-                GpuGeometryBuffer, VertexBufferData, VertexBufferDescriptor,
-            },
-            server::GraphicsServer,
         },
         resources::RendererResources,
         RenderPassStatistics,
@@ -84,7 +84,8 @@ pub fn draw_rect(rect: &Rect<f32>, lines: &mut Vec<Line>, color: Color) {
 
 impl DebugRenderer {
     pub(crate) fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let desc = GeometryBufferDescriptor {
+        let desc = GpuGeometryBufferDescriptor {
+            name: "DebugGeometryBuffer",
             elements: ElementsDescriptor::Lines(&[]),
             buffers: &[VertexBufferDescriptor {
                 usage: BufferUsage::DynamicDraw,

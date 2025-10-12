@@ -65,19 +65,21 @@ impl CanvasContextMenu {
         let create_state;
         let connect_all_nodes;
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(WidgetBuilder::new().with_children([
-                    {
-                        create_state = create_menu_item("Create State", vec![], ctx);
-                        create_state
-                    },
-                    {
-                        connect_all_nodes = create_menu_item("Connect all nodes", vec![], ctx);
-                        connect_all_nodes
-                    },
-                ]))
-                .build(ctx),
-            ),
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+                .with_content(
+                    StackPanelBuilder::new(WidgetBuilder::new().with_children([
+                        {
+                            create_state = create_menu_item("Create State", vec![], ctx);
+                            create_state
+                        },
+                        {
+                            connect_all_nodes = create_menu_item("Connect all nodes", vec![], ctx);
+                            connect_all_nodes
+                        },
+                    ]))
+                    .build(ctx),
+                )
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
@@ -168,37 +170,40 @@ impl NodeContextMenu {
         let enter_state;
         let connect_to_all_nodes;
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            create_transition = create_menu_item("Create Transition", vec![], ctx);
-                            create_transition
-                        })
-                        .with_child({
-                            remove = create_menu_item("Remove", vec![], ctx);
-                            remove
-                        })
-                        .with_child({
-                            set_as_entry_state =
-                                create_menu_item("Set As Entry State", vec![], ctx);
-                            set_as_entry_state
-                        })
-                        .with_child({
-                            enter_state = create_menu_item("Enter State", vec![], ctx);
-                            enter_state
-                        })
-                        .with_child({
-                            connect_to_all_nodes = create_menu_item(
-                                "Create all transition from current state",
-                                vec![],
-                                ctx,
-                            );
-                            connect_to_all_nodes
-                        }),
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+                .with_content(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                create_transition =
+                                    create_menu_item("Create Transition", vec![], ctx);
+                                create_transition
+                            })
+                            .with_child({
+                                remove = create_menu_item("Remove", vec![], ctx);
+                                remove
+                            })
+                            .with_child({
+                                set_as_entry_state =
+                                    create_menu_item("Set As Entry State", vec![], ctx);
+                                set_as_entry_state
+                            })
+                            .with_child({
+                                enter_state = create_menu_item("Enter State", vec![], ctx);
+                                enter_state
+                            })
+                            .with_child({
+                                connect_to_all_nodes = create_menu_item(
+                                    "Create all transition from current state",
+                                    vec![],
+                                    ctx,
+                                );
+                                connect_to_all_nodes
+                            }),
+                    )
+                    .build(ctx),
                 )
-                .build(ctx),
-            ),
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
@@ -343,13 +348,15 @@ impl TransitionContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let remove;
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                    remove = create_menu_item("Remove Transition", vec![], ctx);
-                    remove
-                }))
-                .build(ctx),
-            ),
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+                .with_content(
+                    StackPanelBuilder::new(WidgetBuilder::new().with_child({
+                        remove = create_menu_item("Remove Transition", vec![], ctx);
+                        remove
+                    }))
+                    .build(ctx),
+                )
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());

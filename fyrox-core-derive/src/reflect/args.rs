@@ -238,12 +238,6 @@ pub struct FieldArgs {
     /// Maximum amount of decimal places for a numeric property.
     #[darling(default)]
     pub precision: Option<usize>,
-
-    /// `#[reflect(description = "This is a property description.")]`
-    ///
-    /// Description of the property.
-    #[darling(default)]
-    pub description: Option<String>,
 }
 
 impl FieldArgs {

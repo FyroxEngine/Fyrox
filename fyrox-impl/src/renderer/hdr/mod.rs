@@ -18,13 +18,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::resources::RendererResources;
 use crate::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Vector2},
         color::Color,
         math::Rect,
         value_as_u8_slice, ImmutableString,
+    },
+    graphics::{
+        error::FrameworkError,
+        framebuffer::ReadTarget,
+        framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+        server::GraphicsServer,
     },
     renderer::{
         cache::{
@@ -32,18 +39,13 @@ use crate::{
             texture::TextureCache,
             uniform::UniformBufferCache,
         },
-        framework::{
-            error::FrameworkError,
-            framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
-            gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
-            server::GraphicsServer,
-        },
         hdr::{adaptation::AdaptationChain, luminance::luminance_evaluator::LuminanceEvaluator},
-        make_viewport_matrix, RenderPassStatistics,
+        make_viewport_matrix,
+        resources::RendererResources,
+        RenderPassStatistics,
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
-use fyrox_graphics::framebuffer::ReadTarget;
 
 mod adaptation;
 mod luminance;
@@ -61,7 +63,8 @@ pub struct LumBuffer {
 
 impl LumBuffer {
     fn new(server: &dyn GraphicsServer, size: usize) -> Result<Self, FrameworkError> {
-        let texture = server.create_2d_render_target(PixelKind::R32F, size, size)?;
+        let texture =
+            server.create_2d_render_target("LuminanceTexture", PixelKind::R32F, size, size)?;
         Ok(Self {
             framebuffer: server.create_frame_buffer(None, vec![Attachment::color(texture)])?,
             size,
@@ -108,6 +111,7 @@ impl HighDynamicRangeRenderer {
             ],
             adaptation_chain: AdaptationChain::new(server)?,
             stub_lut: server.create_texture(GpuTextureDescriptor {
+                name: "StubHdrLut",
                 kind: GpuTextureKind::Volume {
                     width: 1,
                     height: 1,
@@ -292,13 +296,14 @@ impl HighDynamicRangeRenderer {
         texture_cache: &mut TextureCache,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
+        resource_manager: &ResourceManager,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let frame_matrix = make_viewport_matrix(viewport);
 
         let color_grading_lut_tex = color_grading_lut
             .and_then(|l| {
                 texture_cache
-                    .get(server, l.lut_ref())
+                    .get(server, resource_manager, l.lut_ref())
                     .map(|t| (&t.gpu_texture, &t.gpu_sampler))
             })
             .unwrap_or((&self.stub_lut, &renderer_resources.nearest_clamp_sampler));
@@ -369,6 +374,7 @@ impl HighDynamicRangeRenderer {
         texture_cache: &mut TextureCache,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
+        resource_manager: &ResourceManager,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
         stats += self.calculate_frame_luminance(
@@ -390,6 +396,7 @@ impl HighDynamicRangeRenderer {
             texture_cache,
             uniform_buffer_cache,
             renderer_resources,
+            resource_manager,
         )?;
         Ok(stats)
     }

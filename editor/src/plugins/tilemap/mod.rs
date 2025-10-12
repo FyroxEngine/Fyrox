@@ -33,7 +33,6 @@ mod handle_field;
 mod interaction_mode;
 mod macro_inspector;
 mod macro_tab;
-mod misc;
 pub mod palette;
 pub mod panel;
 mod panel_preview;
@@ -582,7 +581,7 @@ impl TileMapEditorPlugin {
         let entry = editor.scenes.current_scene_entry_mut()?;
         let game_scene = entry.controller.downcast_mut::<GameScene>()?;
         let scene = &mut editor.engine.scenes[game_scene.scene];
-        let node = scene.graph.try_get_mut(self.tile_map)?;
+        let node = scene.graph.try_get_node_mut(self.tile_map)?;
         node.component_mut::<TileMap>()
     }
     fn open_panel_for_tile_set(
@@ -726,7 +725,7 @@ impl EditorPlugin for TileMapEditorPlugin {
 
         let palette = self.state.lock().selection_palette();
         if let Some(palette) = ui
-            .try_get_mut(palette)
+            .try_get_node_mut(palette)
             .and_then(|p| p.cast_mut::<PaletteWidget>())
         {
             palette.sync_selection_to_model();
@@ -822,6 +821,7 @@ impl EditorPlugin for TileMapEditorPlugin {
                     self.brush_macro_list.clone(),
                     editor.message_sender.clone(),
                     editor.engine.resource_manager.clone(),
+                    editor.asset_browser.preview_sender.clone(),
                     &mut ui.build_ctx(),
                 );
                 tile_set_editor.set_tile_resource(&editor.engine.resource_manager, tile_book, ui);
@@ -873,7 +873,7 @@ impl EditorPlugin for TileMapEditorPlugin {
             // Remove the editor data from the currently selected tile map, so it will render as normal.
             if let Some(tile_map) = scene
                 .graph
-                .try_get_mut(self.tile_map)
+                .try_get_node_mut(self.tile_map)
                 .and_then(|n| n.component_mut::<TileMap>())
             {
                 tile_map.before_effects.clear();

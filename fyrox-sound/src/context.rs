@@ -42,6 +42,7 @@ use fyrox_core::{
     reflect::prelude::*,
     uuid_provider,
     visitor::prelude::*,
+    SafeLock,
 };
 use std::{
     sync::{Arc, Mutex, MutexGuard},
@@ -370,7 +371,7 @@ impl SoundContext {
     /// You'll get a deadlock, so general rule here is to not store result of this method
     /// anywhere.
     pub fn state(&self) -> MutexGuard<'_, State> {
-        self.state.as_ref().unwrap().lock().unwrap()
+        self.state.as_ref().unwrap().safe_lock().unwrap()
     }
 
     /// Creates deep copy instead of shallow which is done by clone().

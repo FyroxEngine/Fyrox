@@ -273,7 +273,7 @@ lazy_static! {
     static ref GIZMO_SHADER: ShaderResource = {
         ShaderResource::from_str(
             Uuid::new_v4(),
-            include_str!("../../../resources/shaders/sprite_gizmo.shader",),
+            include_str!("../../../resources/shaders/sprite_gizmo.shader"),
             Default::default(),
         )
         .unwrap()
@@ -392,7 +392,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 filter: Some(&mut |handle, _| handle != self.move_gizmo.origin),
                 ignore_back_faces: false,
                 use_picking_loop: false,
-                only_meshes: false,
+                method: Default::default(),
                 settings: &settings.selection,
             },
         ) {
@@ -496,7 +496,8 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 ctx.get_mut::<GameSceneContext>()
                     .scene
                     .graph
-                    .node_mut(collider)
+                    .try_get_node_mut(collider)
+                    .map(|n| n as &mut dyn Reflect)
             });
             self.message_sender.do_command(command);
         }
@@ -529,7 +530,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 filter: Some(&mut |handle, _| handle != self.move_gizmo.origin),
                 ignore_back_faces: false,
                 use_picking_loop: false,
-                only_meshes: false,
+                method: Default::default(),
                 settings: &settings.selection,
             },
         ) {
@@ -701,7 +702,6 @@ impl EditorPlugin for ColliderPlugin {
 
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
         let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
-        let selection = some_or_return!(entry.selection.as_graph());
         let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
 
         let scene = &mut editor.engine.scenes[game_scene.scene];
@@ -714,9 +714,11 @@ impl EditorPlugin for ColliderPlugin {
                 mode.shape_gizmo.destroy(scene);
             }
 
-            let first_selected_collider = selection.nodes().iter().find(|h| {
-                scene.graph.has_component::<Collider>(**h)
-                    || scene.graph.has_component::<dim2::collider::Collider>(**h)
+            let first_selected_collider = entry.selection.as_graph().and_then(|n| {
+                n.nodes().iter().find(|h| {
+                    scene.graph.has_component::<Collider>(**h)
+                        || scene.graph.has_component::<dim2::collider::Collider>(**h)
+                })
             });
 
             if let Some(first_selected_collider) = first_selected_collider {

@@ -40,6 +40,7 @@ use crate::{
     send_sync_message, send_sync_messages, Message,
 };
 use fyrox::core::algebra::Vector2;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::gui::widget::WidgetMessage;
 use fyrox::scene::collider::BitMask;
 
@@ -118,34 +119,34 @@ impl CameraPreviewControlPanel {
 
         if let Message::SelectionChanged { .. } = message {
             let scene = &engine.scenes[game_scene.scene];
-            if let Some(selection) = editor_selection.as_graph() {
-                let any_camera = selection
-                    .nodes
+
+            let any_camera = editor_selection.as_graph().is_some_and(|s| {
+                s.nodes
                     .iter()
-                    .any(|n| scene.graph.try_get_of_type::<Camera>(*n).is_some());
-                if any_camera {
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(WindowMessage::open_and_align(
-                            self.window,
-                            MessageDirection::ToWidget,
-                            self.scene_viewer_frame,
-                            HorizontalAlignment::Right,
-                            VerticalAlignment::Top,
-                            Thickness::top_right(5.0),
-                            false,
-                            false,
-                        ));
-                } else {
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(WindowMessage::close(
-                            self.window,
-                            MessageDirection::ToWidget,
-                        ));
-                }
+                    .any(|n| scene.graph.try_get_of_type::<Camera>(*n).is_some())
+            });
+            if any_camera {
+                engine
+                    .user_interfaces
+                    .first_mut()
+                    .send_message(WindowMessage::open_and_align(
+                        self.window,
+                        MessageDirection::ToWidget,
+                        self.scene_viewer_frame,
+                        HorizontalAlignment::Right,
+                        VerticalAlignment::Top,
+                        Thickness::top_right(5.0),
+                        false,
+                        false,
+                    ));
+            } else {
+                engine
+                    .user_interfaces
+                    .first_mut()
+                    .send_message(WindowMessage::close(
+                        self.window,
+                        MessageDirection::ToWidget,
+                    ));
             }
         }
     }
@@ -204,7 +205,9 @@ impl CameraPreviewControlPanel {
         let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
         if let Some((camera_handle, original)) = self.camera_state.take() {
-            scene.graph[camera_handle] = original;
+            if let Some(camera) = scene.graph.try_get_node_mut(camera_handle) {
+                *camera = original
+            }
 
             assert!(node_overrides.remove(&camera_handle));
         }

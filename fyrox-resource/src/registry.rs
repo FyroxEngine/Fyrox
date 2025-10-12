@@ -32,6 +32,7 @@ use crate::{
     state::WakersList,
 };
 use fxhash::FxHashSet;
+use fyrox_core::SafeLock;
 use ron::ser::PrettyConfig;
 use std::{
     collections::BTreeMap,
@@ -67,8 +68,7 @@ impl RegistryContainerExt for RegistryContainer {
     fn serialize_to_string(&self) -> Result<String, FileError> {
         ron::ser::to_string_pretty(self, PrettyConfig::default()).map_err(|err| {
             FileError::Custom(format!(
-                "Unable to serialize resource registry! Reason: {}",
-                err
+                "Unable to serialize resource registry! Reason: {err}"
             ))
         })
     }
@@ -77,8 +77,7 @@ impl RegistryContainerExt for RegistryContainer {
         resource_io.load_file(path).await.and_then(|metadata| {
             ron::de::from_bytes::<Self>(&metadata).map_err(|err| {
                 FileError::Custom(format!(
-                    "Unable to deserialize the resource registry. Reason: {:?}",
-                    err
+                    "Unable to deserialize the resource registry. Reason: {err:?}"
                 ))
             })
         })
@@ -129,24 +128,33 @@ pub struct ResourceRegistryStatusFlag(Arc<Mutex<RegistryReadyFlagData>>);
 impl ResourceRegistryStatusFlag {
     /// Returns current status of the registry.
     pub fn status(&self) -> ResourceRegistryStatus {
-        self.0.lock().status
+        self.0.safe_lock().status
     }
 
-    /// Marks the registry as loaded.
-    pub fn mark_as_loaded(&self) {
-        let mut lock = self.0.lock();
+    fn mark_as(&self, status: ResourceRegistryStatus) {
+        let mut lock = self.0.safe_lock();
 
-        lock.status = ResourceRegistryStatus::Loaded;
+        lock.status = status;
 
         for waker in lock.wakers.drain(..) {
             waker.wake();
         }
     }
 
+    /// Marks the registry as loaded.
+    pub fn mark_as_loaded(&self) {
+        self.mark_as(ResourceRegistryStatus::Loaded);
+    }
+
+    /// Marks the registry as unknown, due to an error.
+    pub fn mark_as_unknown(&self) {
+        self.mark_as(ResourceRegistryStatus::Unknown);
+    }
+
     /// Marks the registry as loading. This method should be used before trying to load a registry
     /// from an external source.
     pub fn mark_as_loading(&self) {
-        self.0.lock().status = ResourceRegistryStatus::Loading;
+        self.0.safe_lock().status = ResourceRegistryStatus::Loading;
     }
 }
 
@@ -154,7 +162,7 @@ impl Future for ResourceRegistryStatusFlag {
     type Output = ResourceRegistryStatus;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut lock = self.0.lock();
+        let mut lock = self.0.safe_lock();
 
         match lock.status {
             ResourceRegistryStatus::Unknown => Poll::Ready(ResourceRegistryStatus::Unknown),
@@ -216,14 +224,38 @@ pub struct ResourceRegistryRefMut<'a> {
 }
 
 impl ResourceRegistryRefMut<'_> {
-    /// Writes the new metadata file for a resource at the given path.
-    pub fn write_metadata(&mut self, uuid: Uuid, path: impl AsRef<Path>) -> Result<(), FileError> {
-        ResourceMetadata::new_with_random_id().save_sync(
+    /// Writes the new metadata file for a resource at the given path and registers the resource
+    /// in the registry.
+    pub fn write_metadata(
+        &mut self,
+        uuid: Uuid,
+        path: impl AsRef<Path>,
+    ) -> Result<Option<PathBuf>, FileError> {
+        ResourceMetadata { resource_id: uuid }.save_sync(
             &append_extension(path.as_ref(), ResourceMetadata::EXTENSION),
             &*self.registry.io,
         )?;
-        self.register(uuid, path.as_ref().to_path_buf());
-        Ok(())
+
+        Ok(self.register(uuid, path.as_ref().to_path_buf()))
+    }
+
+    /// Unregisters the resource at the given path (if any) from the registry and deletes its
+    /// associated metadata file.
+    pub fn remove_metadata(&mut self, path: impl AsRef<Path>) -> Result<(), FileError> {
+        if let Some(uuid) = self.registry.path_to_uuid(path.as_ref()) {
+            self.unregister(uuid);
+
+            let metadata_path = append_extension(path.as_ref(), ResourceMetadata::EXTENSION);
+
+            self.registry.io.delete_file_sync(&metadata_path)?;
+
+            Ok(())
+        } else {
+            Err(FileError::Custom(format!(
+                "The {} resource is not registered in the registry!",
+                path.as_ref().display()
+            )))
+        }
     }
 
     /// Registers a new pair `UUID -> Path`.
@@ -272,7 +304,7 @@ pub struct ResourceRegistry {
 impl ResourceRegistry {
     /// Default path of the registry. It can be overridden on a registry instance using
     /// [`Self::set_path`] method.
-    pub const DEFAULT_PATH: &'static str = "./data/resources.registry";
+    pub const DEFAULT_PATH: &'static str = "data/resources.registry";
 
     /// Creates a new resource registry with the given resource IO.
     pub fn new(io: Arc<dyn ResourceIo>) -> Self {
@@ -330,14 +362,24 @@ impl ResourceRegistry {
         replace_slashes(ret)
     }
 
+    /// Returns a reference to the actual container of the resource entries.
+    pub fn inner(&self) -> &RegistryContainer {
+        &self.paths
+    }
+
     /// Sets a new path for the registry, but **does not** saves it.
     pub fn set_path(&mut self, path: impl AsRef<Path>) {
         self.path = path.as_ref().to_owned();
     }
 
-    /// Returns a path to which the resource could be saved.
+    /// Returns a path to which the resource registry is (or may) be saved.
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    /// Returns a directory to which the resource registry is (or may) be saved.
+    pub fn directory(&self) -> Option<&Path> {
+        self.path.parent()
     }
 
     /// Asynchronously saves the registry.
@@ -403,6 +445,11 @@ impl ResourceRegistry {
             .find_map(|(k, v)| if v == path { Some(*k) } else { None })
     }
 
+    /// Checks if the path is registered in the resource registry.
+    pub fn is_registered(&self, path: &Path) -> bool {
+        self.path_to_uuid(path).is_some()
+    }
+
     /// Searches for supported resources starting from the given path and builds a mapping `UUID -> Path`.
     /// If a supported resource does not have a metadata file besides it, this method will automatically
     /// add it with a new UUID and add the resource to the registry.
@@ -466,7 +513,7 @@ impl ResourceRegistry {
                 continue;
             }
 
-            if !loaders.lock().is_supported_resource(&path) {
+            if !loaders.safe_lock().is_supported_resource(&path) {
                 if path
                     .extension()
                     .is_some_and(|ext| ext != "meta" && ext != "registry")

@@ -24,6 +24,7 @@
 //! OS file selector.
 
 use crate::{
+    button::{ButtonBuilder, ButtonMessage},
     core::{
         parking_lot::Mutex, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         uuid_provider, visitor::prelude::*,
@@ -31,16 +32,17 @@ use crate::{
     define_constructor,
     file_browser::menu::ItemContextMenu,
     grid::{Column, GridBuilder, Row},
+    image::ImageBuilder,
     message::{MessageDirection, UiMessage},
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
     text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
     tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
+    utils::make_simple_tooltip,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use core::time;
-
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
@@ -65,8 +67,7 @@ use sysinfo::{DiskExt, RefreshKind, SystemExt};
 mod menu;
 mod selector;
 
-use crate::button::{ButtonBuilder, ButtonMessage};
-use crate::utils::make_simple_tooltip;
+use crate::resources::FOLDER_ICON;
 pub use selector::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -162,6 +163,7 @@ pub struct FileBrowser {
     #[visit(skip)]
     #[reflect(hidden)]
     pub watcher: Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>,
+    pub root_title: Option<String>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for FileBrowser {
@@ -194,6 +196,7 @@ impl Clone for FileBrowser {
             fs_receiver: None,
             item_context_menu: self.item_context_menu.clone(),
             watcher: None,
+            root_title: self.root_title.clone(),
         }
     }
 }
@@ -214,6 +217,7 @@ impl FileBrowser {
             &self.path,
             self.filter.clone(),
             self.item_context_menu.clone(),
+            self.root_title.as_deref(),
             &mut ui.build_ctx(),
         );
 
@@ -270,6 +274,7 @@ impl Control for FileBrowser {
                                     &existing_path,
                                     self.filter.clone(),
                                     self.item_context_menu.clone(),
+                                    self.root_title.as_deref(),
                                     &mut ui.build_ctx(),
                                 );
 
@@ -366,6 +371,7 @@ impl Control for FileBrowser {
                                         path,
                                         parent_path,
                                         self.item_context_menu.clone(),
+                                        self.root_title.as_deref(),
                                         ui,
                                     );
                                 } else if !tree.always_show_expander {
@@ -455,6 +461,7 @@ impl Control for FileBrowser {
                                 &path,
                                 &parent_path,
                                 self.item_context_menu.clone(),
+                                self.root_title.as_deref(),
                                 ui,
                             );
                         }
@@ -493,7 +500,7 @@ impl Control for FileBrowser {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(&first_selected) = selection.first() {
-                    if let Some(first_selected_ref) = ui.try_get(first_selected) {
+                    if let Some(first_selected_ref) = ui.try_get_node(first_selected) {
                         let mut path = first_selected_ref
                             .user_data_cloned::<PathBuf>()
                             .unwrap()
@@ -593,6 +600,13 @@ impl Control for FileBrowser {
             }
         }
     }
+
+    fn accepts_drop(&self, widget: Handle<UiNode>, ui: &UserInterface) -> bool {
+        ui.node(widget)
+            .user_data
+            .as_ref()
+            .is_some_and(|data| data.lock().downcast_ref::<PathBuf>().is_some())
+    }
 }
 
 fn parent_path(path: &Path) -> PathBuf {
@@ -687,7 +701,54 @@ fn build_tree_item<P: AsRef<Path>>(
     menu: RcUiNodeHandle,
     expanded: bool,
     ctx: &mut BuildContext,
+    root_title: Option<&str>,
 ) -> Handle<UiNode> {
+    let content = GridBuilder::new(
+        WidgetBuilder::new()
+            .with_child(if path.as_ref().is_dir() {
+                ImageBuilder::new(
+                    WidgetBuilder::new()
+                        .with_width(16.0)
+                        .with_height(16.0)
+                        .on_column(0)
+                        .with_margin(Thickness {
+                            left: 4.0,
+                            top: 1.0,
+                            right: 1.0,
+                            bottom: 1.0,
+                        }),
+                )
+                .with_opt_texture(FOLDER_ICON.clone())
+                .build(ctx)
+            } else {
+                Handle::NONE
+            })
+            .with_child(
+                TextBuilder::new(
+                    WidgetBuilder::new()
+                        .with_margin(Thickness::left(4.0))
+                        .on_column(1),
+                )
+                .with_text(
+                    if let Some(root_title) = root_title.filter(|_| path.as_ref() == Path::new("."))
+                    {
+                        root_title.to_string()
+                    } else {
+                        path.as_ref()
+                            .to_string_lossy()
+                            .replace(&parent_path.as_ref().to_string_lossy().to_string(), "")
+                            .replace('\\', "")
+                    },
+                )
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .build(ctx),
+            ),
+    )
+    .add_row(Row::stretch())
+    .add_column(Column::auto())
+    .add_column(Column::stretch())
+    .build(ctx);
+
     let is_dir_empty = path
         .as_ref()
         .read_dir()
@@ -699,17 +760,7 @@ fn build_tree_item<P: AsRef<Path>>(
     )
     .with_expanded(expanded)
     .with_always_show_expander(!is_dir_empty)
-    .with_content(
-        TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(4.0)))
-            .with_text(
-                path.as_ref()
-                    .to_string_lossy()
-                    .replace(&parent_path.as_ref().to_string_lossy().to_string(), "")
-                    .replace('\\', ""),
-            )
-            .with_vertical_text_alignment(VerticalAlignment::Center)
-            .build(ctx),
-    )
+    .with_content(content)
     .build(ctx)
 }
 
@@ -719,9 +770,17 @@ fn build_tree<P: AsRef<Path>>(
     path: P,
     parent_path: P,
     menu: RcUiNodeHandle,
+    root_title: Option<&str>,
     ui: &mut UserInterface,
 ) -> Handle<UiNode> {
-    let subtree = build_tree_item(path, parent_path, menu, false, &mut ui.build_ctx());
+    let subtree = build_tree_item(
+        path,
+        parent_path,
+        menu,
+        false,
+        &mut ui.build_ctx(),
+        root_title,
+    );
     insert_subtree_in_parent(ui, parent, is_parent_root, subtree);
     subtree
 }
@@ -758,6 +817,7 @@ fn build_all(
     final_path: &Path,
     mut filter: Option<Filter>,
     menu: RcUiNodeHandle,
+    root_title: Option<&str>,
     ctx: &mut BuildContext,
 ) -> BuildResult {
     let mut dest_path = PathBuf::new();
@@ -804,7 +864,7 @@ fn build_all(
         } else {
             root.as_path()
         };
-        let item = build_tree_item(path, Path::new(""), menu.clone(), true, ctx);
+        let item = build_tree_item(path, Path::new(""), menu.clone(), true, ctx, root_title);
         root_items.push(item);
         item
     } else {
@@ -821,8 +881,14 @@ fn build_all(
                 let disk_letter = disk.chars().next().unwrap() as u8;
                 let is_disk_part_of_path = dest_disk == Some(disk_letter);
 
-                let item =
-                    build_tree_item(disk.as_ref(), "", menu.clone(), is_disk_part_of_path, ctx);
+                let item = build_tree_item(
+                    disk.as_ref(),
+                    "",
+                    menu.clone(),
+                    is_disk_part_of_path,
+                    ctx,
+                    root_title,
+                );
 
                 if is_disk_part_of_path {
                     parent = item;
@@ -879,6 +945,7 @@ fn build_all(
                         menu.clone(),
                         is_part_of_final_path,
                         ctx,
+                        root_title,
                     );
 
                     if parent.is_some() {
@@ -913,6 +980,7 @@ pub struct FileBrowserBuilder {
     root: Option<PathBuf>,
     mode: FileBrowserMode,
     show_path: bool,
+    root_title: Option<String>,
 }
 
 impl FileBrowserBuilder {
@@ -924,7 +992,13 @@ impl FileBrowserBuilder {
             root: None,
             mode: FileBrowserMode::Open,
             show_path: true,
+            root_title: None,
         }
+    }
+
+    pub fn with_root_title(mut self, root_title: Option<String>) -> Self {
+        self.root_title = root_title;
+        self
     }
 
     pub fn with_filter(mut self, filter: Filter) -> Self {
@@ -981,6 +1055,7 @@ impl FileBrowserBuilder {
             self.path.as_path(),
             self.filter.clone(),
             item_context_menu.clone(),
+            self.root_title.as_deref(),
             ctx,
         );
 
@@ -1152,6 +1227,7 @@ impl FileBrowserBuilder {
             file_name,
             watcher: setup_filebrowser_fs_watcher(fs_sender, the_path),
             item_context_menu,
+            root_title: self.root_title,
         };
         ctx.add_node(UiNode::new(browser))
     }
@@ -1223,6 +1299,7 @@ mod test {
             "./test/path1",
             "./test",
             RcUiNodeHandle::new(Handle::new(0, 1), ui.sender()),
+            None,
             &mut ui,
         );
 

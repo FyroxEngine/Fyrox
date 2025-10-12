@@ -511,20 +511,22 @@ impl BlendSpaceFieldBuilder {
         let add_point;
         let remove_point;
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            add_point = create_menu_item("Add Point", vec![], ctx);
-                            add_point
-                        })
-                        .with_child({
-                            remove_point = create_menu_item("Remove Point", vec![], ctx);
-                            remove_point
-                        }),
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+                .with_content(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                add_point = create_menu_item("Add Point", vec![], ctx);
+                                add_point
+                            })
+                            .with_child({
+                                remove_point = create_menu_item("Remove Point", vec![], ctx);
+                                remove_point
+                            }),
+                    )
+                    .build(ctx),
                 )
-                .build(ctx),
-            ),
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());

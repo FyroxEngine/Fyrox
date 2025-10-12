@@ -25,13 +25,9 @@ pub mod menu;
 pub mod selection;
 pub mod utils;
 
-use crate::command::SetPropertyCommand;
-use crate::plugins::inspector::editors::handle::{
-    HandlePropertyEditorHierarchyMessage, HandlePropertyEditorNameMessage,
-};
 use crate::{
     asset::item::AssetItem,
-    command::{make_command, Command, CommandGroup, CommandStack},
+    command::{Command, CommandGroup, CommandStack},
     fyrox::{
         core::{
             algebra::{Vector2, Vector3},
@@ -41,28 +37,22 @@ use crate::{
             make_relative_path,
             math::Rect,
             pool::{ErasedHandle, Handle},
-            reflect::Reflect,
         },
         engine::Engine,
         fxhash::FxHashSet,
-        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graph::{BaseSceneGraph, SceneGraph},
         gui::{
-            absm::AnimationBlendingStateMachine,
-            animation::AnimationPlayer,
             brush::Brush,
             draw::{CommandTexture, Draw},
-            inspector::PropertyChanged,
             message::{KeyCode, MessageDirection, MouseButton},
             UiNode, UiUpdateSwitches, UserInterface, UserInterfaceResourceExtension,
         },
-        renderer::framework::gpu_texture::PixelKind,
         resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
         scene::SceneContainer,
     },
     message::MessageSender,
-    plugins::{
-        absm::{command::fetch_machine, selection::SelectedEntity},
-        animation::{self, command::fetch_animations_container},
+    plugins::inspector::editors::handle::{
+        HandlePropertyEditorHierarchyMessage, HandlePropertyEditorNameMessage,
     },
     scene::{
         commands::ChangeSelectionCommand, controller::SceneController, selector::HierarchyNode,
@@ -71,14 +61,13 @@ use crate::{
     settings::{keys::KeyBindings, Settings},
     ui_scene::{
         clipboard::Clipboard,
-        commands::{
-            graph::AddUiPrefabCommand, widget::RevertWidgetPropertyCommand, UiSceneContext,
-        },
+        commands::{graph::AddUiPrefabCommand, UiSceneContext},
         selection::UiSelection,
     },
     Message,
 };
 use fyrox::gui::message::UiMessage;
+use fyrox::renderer::ui_renderer::UiRenderInfo;
 use std::{fs::File, io::Write, path::Path};
 
 pub struct PreviewInstance {
@@ -111,7 +100,7 @@ impl UiScene {
     }
 
     fn select_object(&mut self, handle: ErasedHandle) {
-        if self.ui.try_get(handle.into()).is_some() {
+        if self.ui.try_get_node(handle.into()).is_some() {
             self.message_sender
                 .do_command(ChangeSelectionCommand::new(Selection::new(
                     UiSelection::single_or_empty(handle.into()),
@@ -369,7 +358,7 @@ impl SceneController for UiScene {
         // Draw selection on top.
         if let Some(selection) = editor_selection.as_ui() {
             for node in selection.widgets.iter() {
-                if let Some(node) = self.ui.try_get(*node) {
+                if let Some(node) = self.ui.try_get_node(*node) {
                     let bounds = node.screen_bounds();
                     let clip_bounds = node.clip_bounds();
                     let drawing_context = &mut self.ui.drawing_context;
@@ -391,13 +380,12 @@ impl SceneController for UiScene {
                 .graphics_context
                 .as_initialized_mut()
                 .renderer
-                .render_ui_to_texture(
-                    self.render_target.clone(),
-                    self.ui.screen_size(),
-                    &self.ui.drawing_context,
-                    Color::DIM_GRAY,
-                    PixelKind::RGBA8,
-                ),
+                .render_ui(UiRenderInfo {
+                    ui: &self.ui,
+                    render_target: Some(self.render_target.clone()),
+                    clear_color: Color::DIM_GRAY,
+                    resource_manager: &engine.resource_manager,
+                }),
         );
     }
 
@@ -468,7 +456,7 @@ impl SceneController for UiScene {
                 engine.user_interfaces.first_mut().send_message(
                     UiMessage::with_data(HandlePropertyEditorNameMessage(
                         self.ui
-                            .try_get((*handle).into())
+                            .try_get_node((*handle).into())
                             .map(|n| n.name().to_owned()),
                     ))
                     .with_destination(*view)
@@ -513,304 +501,5 @@ impl SceneController for UiScene {
                 name
             })
             .collect::<Vec<_>>()
-    }
-
-    fn first_selected_entity(
-        &self,
-        selection: &Selection,
-        _scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect),
-    ) {
-        if let Some(selection) = selection.as_ui() {
-            if let Some(first) = selection.widgets.first() {
-                if let Some(node) = self.ui.try_get(*first).map(|n| n as &dyn Reflect) {
-                    (callback)(node)
-                }
-            }
-        } else if let Some(selection) = selection.as_animation() {
-            if let Some(animation) = self
-                .ui
-                .try_get_of_type::<AnimationPlayer>(selection.animation_player)
-                .and_then(|player| player.animations().try_get(selection.animation))
-            {
-                if let Some(animation::selection::SelectedEntity::Signal(id)) =
-                    selection.entities.first()
-                {
-                    if let Some(signal) = animation.signals().iter().find(|s| s.id == *id) {
-                        (callback)(signal as &dyn Reflect);
-                    }
-                }
-            }
-        } else if let Some(selection) = selection.as_absm() {
-            if let Some(node) = self
-                .ui
-                .try_get_of_type::<AnimationBlendingStateMachine>(selection.absm_node_handle)
-            {
-                if let Some(first) = selection.entities.first() {
-                    let machine = node.machine();
-                    if let Some(layer_index) = selection.layer {
-                        if let Some(layer) = machine.layers().get(layer_index) {
-                            match first {
-                                SelectedEntity::Transition(transition) => {
-                                    (callback)(&layer.transitions()[*transition] as &dyn Reflect)
-                                }
-                                SelectedEntity::State(state) => {
-                                    (callback)(&layer.states()[*state] as &dyn Reflect)
-                                }
-                                SelectedEntity::PoseNode(pose) => {
-                                    (callback)(&layer.nodes()[*pose] as &dyn Reflect)
-                                }
-                            };
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn on_property_changed(
-        &mut self,
-        args: &PropertyChanged,
-        selection: &Selection,
-        _engine: &mut Engine,
-    ) {
-        let group = if let Some(selection) = selection.as_ui() {
-            selection
-                .widgets
-                .iter()
-                .filter_map(|&node_handle| {
-                    if let Some(node) = self.ui.try_get(node_handle) {
-                        if args.is_inheritable() {
-                            // Prevent reverting property value if there's no parent resource.
-                            if node.resource().is_some() {
-                                Some(Command::new(RevertWidgetPropertyCommand::new(
-                                    args.path(),
-                                    node_handle,
-                                )))
-                            } else {
-                                None
-                            }
-                        } else {
-                            make_command(args, move |ctx| {
-                                ctx.get_mut::<UiSceneContext>().ui.node_mut(node_handle)
-                            })
-                        }
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>()
-        } else if let Some(selection) = selection.as_animation() {
-            if self
-                .ui
-                .try_get_of_type::<AnimationPlayer>(selection.animation_player)
-                .and_then(|player| player.animations().try_get(selection.animation))
-                .is_some()
-            {
-                let animation_player = selection.animation_player;
-                let animation = selection.animation;
-                selection
-                    .entities
-                    .iter()
-                    .filter_map(|e| {
-                        if let &animation::selection::SelectedEntity::Signal(id) = e {
-                            make_command(args, move |ctx| {
-                                fetch_animations_container(animation_player, ctx)[animation]
-                                    .signals_mut()
-                                    .iter_mut()
-                                    .find(|s| s.id == id)
-                                    .unwrap()
-                            })
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            } else {
-                vec![]
-            }
-        } else if let Some(selection) = selection.as_absm() {
-            if self
-                .ui
-                .try_get(selection.absm_node_handle)
-                .and_then(|n| n.component_ref::<AnimationBlendingStateMachine>())
-                .is_some()
-            {
-                if let Some(layer_index) = selection.layer {
-                    let absm_node_handle = selection.absm_node_handle;
-                    selection
-                        .entities
-                        .iter()
-                        .filter_map(|ent| match *ent {
-                            SelectedEntity::Transition(transition) => {
-                                make_command(args, move |ctx| {
-                                    let machine = fetch_machine(ctx, absm_node_handle);
-                                    &mut machine.layers_mut()[layer_index].transitions_mut()
-                                        [transition]
-                                })
-                            }
-                            SelectedEntity::State(state) => make_command(args, move |ctx| {
-                                let machine = fetch_machine(ctx, absm_node_handle);
-                                &mut machine.layers_mut()[layer_index].states_mut()[state]
-                            }),
-                            SelectedEntity::PoseNode(pose) => make_command(args, move |ctx| {
-                                let machine = fetch_machine(ctx, absm_node_handle);
-                                &mut machine.layers_mut()[layer_index].nodes_mut()[pose]
-                            }),
-                        })
-                        .collect()
-                } else {
-                    vec![]
-                }
-            } else {
-                vec![]
-            }
-        } else {
-            vec![]
-        };
-
-        if group.is_empty() {
-            if !args.is_inheritable() {
-                Log::err(format!("Failed to handle a property {}", args.path()))
-            }
-        } else if group.len() == 1 {
-            self.message_sender
-                .send(Message::DoCommand(group.into_iter().next().unwrap()))
-        } else {
-            self.message_sender.do_command(CommandGroup::from(group));
-        }
-    }
-
-    fn paste_property(
-        &mut self,
-        path: &str,
-        value: &dyn Reflect,
-        selection: &Selection,
-        _engine: &mut Engine,
-    ) {
-        let group = if let Some(selection) = selection.as_ui() {
-            selection
-                .widgets
-                .iter()
-                .filter_map(|&node_handle| {
-                    value.try_clone_box().map(|value| {
-                        Command::new(SetPropertyCommand::new(
-                            path.to_string(),
-                            value,
-                            move |ctx| ctx.get_mut::<UiSceneContext>().ui.node_mut(node_handle),
-                        ))
-                    })
-                })
-                .collect::<Vec<_>>()
-        } else if let Some(selection) = selection.as_animation() {
-            if self
-                .ui
-                .try_get_of_type::<AnimationPlayer>(selection.animation_player)
-                .and_then(|player| player.animations().try_get(selection.animation))
-                .is_some()
-            {
-                let animation_player = selection.animation_player;
-                let animation = selection.animation;
-                selection
-                    .entities
-                    .iter()
-                    .filter_map(|e| {
-                        if let &animation::selection::SelectedEntity::Signal(id) = e {
-                            value.try_clone_box().map(|value| {
-                                Command::new(SetPropertyCommand::new(
-                                    path.to_string(),
-                                    value,
-                                    move |ctx| {
-                                        fetch_animations_container(animation_player, ctx)[animation]
-                                            .signals_mut()
-                                            .iter_mut()
-                                            .find(|s| s.id == id)
-                                            .unwrap()
-                                    },
-                                ))
-                            })
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            } else {
-                vec![]
-            }
-        } else if let Some(selection) = selection.as_absm() {
-            if self
-                .ui
-                .try_get(selection.absm_node_handle)
-                .and_then(|n| n.component_ref::<AnimationBlendingStateMachine>())
-                .is_some()
-            {
-                if let Some(layer_index) = selection.layer {
-                    let absm_node_handle = selection.absm_node_handle;
-                    selection
-                        .entities
-                        .iter()
-                        .filter_map(|ent| match *ent {
-                            SelectedEntity::Transition(transition) => {
-                                value.try_clone_box().map(|value| {
-                                    Command::new(SetPropertyCommand::new(
-                                        path.to_string(),
-                                        value,
-                                        move |ctx| {
-                                            let machine = fetch_machine(ctx, absm_node_handle);
-                                            &mut machine.layers_mut()[layer_index].transitions_mut()
-                                                [transition]
-                                        },
-                                    ))
-                                })
-                            }
-                            SelectedEntity::State(state) => value.try_clone_box().map(|value| {
-                                Command::new(SetPropertyCommand::new(
-                                    path.to_string(),
-                                    value,
-                                    move |ctx| {
-                                        let machine = fetch_machine(ctx, absm_node_handle);
-                                        &mut machine.layers_mut()[layer_index].states_mut()[state]
-                                    },
-                                ))
-                            }),
-                            SelectedEntity::PoseNode(pose) => value.try_clone_box().map(|value| {
-                                Command::new(SetPropertyCommand::new(
-                                    path.to_string(),
-                                    value,
-                                    move |ctx| {
-                                        let machine = fetch_machine(ctx, absm_node_handle);
-                                        &mut machine.layers_mut()[layer_index].nodes_mut()[pose]
-                                    },
-                                ))
-                            }),
-                        })
-                        .collect()
-                } else {
-                    vec![]
-                }
-            } else {
-                vec![]
-            }
-        } else {
-            vec![]
-        };
-
-        if group.len() == 1 {
-            self.message_sender
-                .send(Message::DoCommand(group.into_iter().next().unwrap()))
-        } else {
-            self.message_sender.do_command(CommandGroup::from(group));
-        }
-    }
-
-    fn provide_docs(&self, selection: &Selection, _engine: &Engine) -> Option<String> {
-        if let Some(selection) = selection.as_ui() {
-            selection
-                .widgets
-                .first()
-                .and_then(|h| self.ui.try_get(*h).map(|n| n.doc().to_string()))
-        } else {
-            None
-        }
     }
 }

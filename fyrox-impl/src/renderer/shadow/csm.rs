@@ -18,16 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::DynamicSurfaceCache;
-use crate::renderer::observer::Observer;
-use crate::renderer::observer::ObserverPosition;
-use crate::renderer::resources::RendererResources;
-use crate::renderer::settings::ShadowMapPrecision;
 use crate::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         color::Color,
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Rect},
+    },
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{Attachment, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, PixelKind},
+        server::GraphicsServer,
     },
     renderer::{
         bundle::{
@@ -36,12 +38,11 @@ use crate::{
         },
         cache::{
             geometry::GeometryCache, shader::ShaderCache, texture::TextureCache,
-            uniform::UniformMemoryAllocator,
+            uniform::UniformMemoryAllocator, DynamicSurfaceCache,
         },
-        framework::{
-            error::FrameworkError, framebuffer::Attachment, gpu_texture::PixelKind,
-            server::GraphicsServer,
-        },
+        observer::{Observer, ObserverPosition},
+        resources::RendererResources,
+        settings::ShadowMapPrecision,
         RenderPassStatistics, DIRECTIONAL_SHADOW_PASS_NAME,
     },
     scene::{
@@ -50,8 +51,6 @@ use crate::{
     },
 };
 use approx::relative_eq;
-use fyrox_graphics::framebuffer::GpuFrameBuffer;
-use fyrox_graphics::gpu_texture::GpuTexture;
 
 pub struct Cascade {
     pub frame_buffer: GpuFrameBuffer,
@@ -66,6 +65,7 @@ impl Cascade {
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {
         let depth = server.create_2d_render_target(
+            "CsmCascadeTexture",
             match precision {
                 ShadowMapPrecision::Full => PixelKind::D32F,
                 ShadowMapPrecision::Half => PixelKind::D16,
@@ -106,6 +106,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub renderer_resources: &'a RendererResources,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
+    pub resource_manager: &'a ResourceManager,
 }
 
 impl CsmRenderer {
@@ -156,6 +157,7 @@ impl CsmRenderer {
             renderer_resources,
             uniform_memory_allocator,
             dynamic_surface_cache,
+            resource_manager,
         } = ctx;
 
         let LightSourceKind::Directional { ref csm_options } = light.kind else {
@@ -282,6 +284,7 @@ impl CsmRenderer {
                     frame_buffer: framebuffer,
                     viewport,
                     uniform_memory_allocator,
+                    resource_manager,
                     use_pom: false,
                     light_position: &Default::default(),
                     renderer_resources,

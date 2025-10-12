@@ -18,29 +18,33 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    core::{
-        algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
-        color::Color,
-        math::{plane::Plane, Matrix4Ext},
-        pool::Handle,
-    },
-    scene::{
-        base::BaseBuilder,
-        graph::Graph,
-        mesh::{
-            surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
-            MeshBuilder, RenderPath,
-        },
-        node::Node,
-        pivot::PivotBuilder,
-        transform::TransformBuilder,
-    },
-};
 use crate::{
-    make_color_material, scene::GameScene, set_mesh_diffuse_color,
-    world::selection::GraphSelection, Engine,
+    fyrox::{
+        core::{
+            algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
+            color::Color,
+            math::{plane::Plane, Matrix4Ext},
+            pool::Handle,
+        },
+        graph::BaseSceneGraph,
+        scene::{
+            base::BaseBuilder,
+            graph::Graph,
+            mesh::{
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
+                MeshBuilder, RenderPath,
+            },
+            node::Node,
+            pivot::PivotBuilder,
+            transform::TransformBuilder,
+        },
+    },
+    interaction::gizmo::utils,
+    make_color_material,
+    scene::{GameScene, Selection},
+    set_mesh_diffuse_color,
+    settings::Settings,
+    Engine,
 };
 
 pub enum RotateGizmoMode {
@@ -218,20 +222,14 @@ impl RotationGizmo {
         UnitQuaternion::default()
     }
 
-    pub fn sync_transform(
+    pub fn sync_with_selection(
         &self,
         graph: &mut Graph,
-        selection: &GraphSelection,
-        scale: Vector3<f32>,
+        camera: Handle<Node>,
+        settings: &Settings,
+        selection: &Selection,
     ) {
-        if let Some((rotation, position)) = selection.global_rotation_position(graph) {
-            let node = &mut graph[self.origin];
-            node.set_visibility(true);
-            node.local_transform_mut()
-                .set_rotation(rotation)
-                .set_position(position)
-                .set_scale(scale);
-        }
+        utils::sync_gizmo_with_selection(self.origin, graph, camera, settings, selection)
     }
 
     pub fn set_visible(&self, graph: &mut Graph, visible: bool) {

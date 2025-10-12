@@ -18,29 +18,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::{Command, CommandGroup};
-use crate::fyrox::{
-    core::{
-        algebra::{UnitQuaternion, Vector2},
-        math::round_to_step,
-        pool::Handle,
-        uuid::{uuid, Uuid},
-        TypeUuidProvider,
-    },
-    gui::{BuildContext, UiNode},
-};
-use crate::scene::SelectionContainer;
 use crate::{
     camera::PickingOptions,
+    command::{Command, CommandGroup},
+    fyrox::{
+        core::{
+            algebra::{UnitQuaternion, Vector2},
+            math::round_to_step,
+            pool::Handle,
+            some_or_return,
+            uuid::{uuid, Uuid},
+            TypeUuidProvider,
+        },
+        gui::{BuildContext, UiNode},
+    },
     interaction::{
-        calculate_gizmo_distance_scaling, gizmo::rotate_gizmo::RotationGizmo,
-        make_interaction_mode_button, InteractionMode,
+        gizmo::rotate_gizmo::RotationGizmo, make_interaction_mode_button, InteractionMode,
     },
     message::MessageSender,
     scene::{
         commands::{graph::RotateNodeCommand, ChangeSelectionCommand},
         controller::SceneController,
-        GameScene, Selection,
+        GameScene, Selection, SelectionContainer,
     },
     settings::Settings,
     world::selection::GraphSelection,
@@ -96,7 +95,7 @@ impl InteractionMode for RotateInteractionMode {
                 filter: Some(&mut |handle, _| handle != self.rotation_gizmo.origin),
                 ignore_back_faces: false,
                 use_picking_loop: true,
-                only_meshes: false,
+                method: Default::default(),
                 settings: &settings.selection,
             },
         ) {
@@ -163,7 +162,7 @@ impl InteractionMode for RotateInteractionMode {
                         filter: None,
                         ignore_back_faces: settings.selection.ignore_back_faces,
                         use_picking_loop: true,
-                        only_meshes: false,
+                        method: Default::default(),
                         settings: &settings.selection,
                     },
                 )
@@ -249,7 +248,7 @@ impl InteractionMode for RotateInteractionMode {
                             filter: None,
                             ignore_back_faces: false,
                             use_picking_loop: false,
-                            only_meshes: false,
+                            method: Default::default(),
                             settings: &settings.selection,
                         },
                     )
@@ -269,26 +268,15 @@ impl InteractionMode for RotateInteractionMode {
         editor_selection: &Selection,
         controller: &mut dyn SceneController,
         engine: &mut Engine,
-        _settings: &Settings,
+        settings: &Settings,
     ) {
-        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
-            return;
-        };
-
-        if let Some(selection) = editor_selection.as_graph() {
-            let graph = &mut engine.scenes[game_scene.scene].graph;
-            if editor_selection.is_empty() {
-                self.rotation_gizmo.set_visible(graph, false);
-            } else {
-                let scale = calculate_gizmo_distance_scaling(
-                    graph,
-                    game_scene.camera_controller.camera,
-                    self.rotation_gizmo.origin,
-                ) * _settings.graphics.gizmo_scale;
-                self.rotation_gizmo.sync_transform(graph, selection, scale);
-                self.rotation_gizmo.set_visible(graph, true);
-            }
-        }
+        let game_scene = some_or_return!(controller.downcast_mut::<GameScene>());
+        self.rotation_gizmo.sync_with_selection(
+            &mut engine.scenes[game_scene.scene].graph,
+            game_scene.camera_controller.camera,
+            settings,
+            editor_selection,
+        );
     }
 
     fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {

@@ -128,6 +128,7 @@ fn create_items<'a, 'b, T, I>(
     filter: PropertyFilter,
     name_column_width: f32,
     base_path: String,
+    has_parent_object: bool,
 ) -> Result<Vec<Item>, InspectorError>
 where
     T: Reflect,
@@ -149,7 +150,6 @@ where
                 max_value: property_info.max_value,
                 step: property_info.step,
                 precision: property_info.precision,
-                description: property_info.description,
                 tag: property_info.tag,
                 doc: property_info.doc,
             };
@@ -173,6 +173,7 @@ where
                         filter: filter.clone(),
                         name_column_width,
                         base_path: format!("{base_path}[{index}]"),
+                        has_parent_object,
                     })?;
 
             if let PropertyEditorInstance::Simple { editor } = editor {
@@ -253,6 +254,7 @@ where
         sync_flag: u64,
         name_column_width: f32,
         base_path: String,
+        has_parent_object: bool,
     ) -> Result<Handle<UiNode>, InspectorError> {
         let definition_container = self
             .definition_container
@@ -272,6 +274,7 @@ where
                 self.filter,
                 name_column_width,
                 base_path,
+                has_parent_object,
             )?
         } else {
             Vec::new()
@@ -337,7 +340,7 @@ where
         let container = make_expander_container(
             ctx.layer_index,
             ctx.property_info.display_name,
-            ctx.property_info.description,
+            ctx.property_info.doc,
             Handle::NONE,
             {
                 editor = ArrayEditorBuilder::new(
@@ -355,6 +358,7 @@ where
                     ctx.sync_flag,
                     ctx.name_column_width,
                     ctx.base_path.clone(),
+                    ctx.has_parent_object,
                 )?;
                 editor
             },
@@ -381,6 +385,7 @@ where
             environment,
             name_column_width,
             base_path,
+            has_parent_object,
         } = ctx;
 
         let instance_ref = if let Some(instance) = ui.node(instance).cast::<ArrayEditor>() {
@@ -413,7 +418,6 @@ where
                     max_value: property_info.max_value,
                     step: property_info.step,
                     precision: property_info.precision,
-                    description: property_info.description,
                     tag: property_info.tag,
                     doc: property_info.doc,
                 };
@@ -438,6 +442,7 @@ where
                             filter: filter.clone(),
                             name_column_width,
                             base_path: format!("{base_path}[{index}]"),
+                            has_parent_object,
                         })?
                 {
                     ui.send_message(message.with_flags(ctx.sync_flag))

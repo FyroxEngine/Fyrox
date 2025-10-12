@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::style::DEFAULT_STYLE;
 use crate::{
     brush::Brush,
     core::{
@@ -32,7 +33,7 @@ use crate::{
         reflect::prelude::*,
         uuid::Uuid,
         visitor::prelude::*,
-        ImmutableString,
+        ImmutableString, SafeLock,
     },
     core::{parking_lot::Mutex, variable::InheritableVariable},
     define_constructor,
@@ -444,6 +445,10 @@ pub enum WidgetMessage {
 
     /// Applies a style to the widget.
     Style(StyleResource),
+
+    /// Asks a widget to reset its visual state. The actual response to this message is widget-specific.
+    /// In most cases, it does nothing.
+    ResetVisual,
 }
 
 impl WidgetMessage {
@@ -745,6 +750,11 @@ impl WidgetMessage {
         /// Creates [`WidgetMessage::Style`] message.
         WidgetMessage:Style => fn style(StyleResource), layout: false
     );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::ResetVisual`] message.
+        WidgetMessage:ResetVisual => fn reset_visual(), layout: false
+    );
 }
 
 #[doc(hidden)]
@@ -854,6 +864,8 @@ pub struct Widget {
     pub allow_drag: InheritableVariable<bool>,
     /// A flag, that defines whether the drop from drag'n'drop functionality can be accepted by the widget or not.
     pub allow_drop: InheritableVariable<bool>,
+    /// Style of the widget.
+    pub style: Option<StyleResource>,
     /// Optional, user-defined data.
     #[reflect(hidden)]
     #[visit(skip)]
@@ -879,10 +891,10 @@ pub struct Widget {
     /// Current render transform of the node. It modifies layout information of the widget, as well as it affects visual transform
     /// of the widget.
     #[reflect(hidden)]
-    pub layout_transform: Matrix3<f32>,
+    layout_transform: Matrix3<f32>,
     /// Current render transform of the node. It only modifies the widget at drawing stage, layout information remains unmodified.
     #[reflect(hidden)]
-    pub render_transform: Matrix3<f32>,
+    render_transform: Matrix3<f32>,
     /// Current visual transform of the node. It always contains a result of mixing the layout and
     /// render transformation matrices. Visual transform could be used to transform a point to
     /// screen space. To transform a screen space point to local coordinates use [`Widget::screen_to_local`]
@@ -1089,6 +1101,7 @@ impl Widget {
     pub fn invalidate_layout(&self) {
         self.invalidate_measure();
         self.invalidate_arrange();
+        self.try_send_transform_changed_event();
     }
 
     pub(crate) fn notify_z_index_changed(&self) {
@@ -1388,10 +1401,22 @@ impl Widget {
         self.visual_scaling().max()
     }
 
+    /// Sets new render transform.
+    pub fn set_render_transform(&mut self, transform: Matrix3<f32>) {
+        self.render_transform = transform;
+        self.try_send_transform_changed_event();
+    }
+
     /// Returns current render transform of the widget.
     #[inline]
     pub fn render_transform(&self) -> &Matrix3<f32> {
         &self.render_transform
+    }
+
+    /// Sets new layout transform.
+    pub fn set_layout_transform(&mut self, transform: Matrix3<f32>) {
+        self.layout_transform = transform;
+        self.invalidate_layout();
     }
 
     /// Returns current layout transform of the widget.
@@ -1519,12 +1544,11 @@ impl Widget {
                     }
                     WidgetMessage::LayoutTransform(transform) => {
                         if &self.layout_transform != transform {
-                            self.layout_transform = *transform;
-                            self.invalidate_layout();
+                            self.set_layout_transform(*transform);
                         }
                     }
                     WidgetMessage::RenderTransform(transform) => {
-                        self.render_transform = *transform;
+                        self.set_render_transform(*transform);
                     }
                     WidgetMessage::ZIndex(index) => {
                         if *self.z_index != *index {
@@ -1540,6 +1564,7 @@ impl Widget {
                     WidgetMessage::Style(style) => {
                         self.background.update(style);
                         self.foreground.update(style);
+                        self.style = Some(style.clone());
                     }
                     _ => (),
                 }
@@ -1651,9 +1676,18 @@ impl Widget {
 
     #[inline]
     pub(crate) fn commit_arrange(&self, position: Vector2<f32>, size: Vector2<f32>) {
-        self.actual_local_size.set(size);
-        self.actual_local_position.set(position);
+        let old_actual_local_size = self.actual_local_size.replace(size);
+        let old_actual_local_position = self.actual_local_position.replace(position);
         self.arrange_valid.set(true);
+        if old_actual_local_position != position || old_actual_local_size != size {
+            self.try_send_transform_changed_event();
+        }
+    }
+
+    fn try_send_transform_changed_event(&self) {
+        if let Some(sender) = self.layout_events_sender.as_ref() {
+            let _ = sender.send(LayoutEvent::TransformChanged(self.handle));
+        }
     }
 
     #[inline]
@@ -1661,6 +1695,13 @@ impl Widget {
         self.invalidate_layout();
         self.request_update_visibility();
         self.children = children;
+    }
+
+    /// Returns `true` if the widget has a parent object in a resource from which it may restore
+    /// values of its inheritable properties.
+    #[inline]
+    pub fn has_inheritance_parent(&self) -> bool {
+        self.original_handle_in_resource.is_some() && self.resource.is_some()
     }
 
     /// Returns `true` if the current results of arrangement of the widget are valid, `false` - otherwise.
@@ -1764,7 +1805,7 @@ impl Widget {
     #[inline]
     pub fn user_data_cloned<T: Clone + 'static>(&self) -> Option<T> {
         self.user_data.as_ref().and_then(|v| {
-            let guard = v.lock();
+            let guard = v.safe_lock();
             guard.downcast_ref::<T>().cloned()
         })
     }
@@ -1928,6 +1969,8 @@ pub struct WidgetBuilder {
     pub accepts_input: bool,
     /// A material that will be used for rendering.
     pub material: WidgetMaterial,
+    /// Style of the widget.
+    pub style: StyleResource,
 }
 
 impl Default for WidgetBuilder {
@@ -1978,6 +2021,7 @@ impl WidgetBuilder {
             tab_stop: false,
             accepts_input: false,
             material: Default::default(),
+            style: DEFAULT_STYLE.resource.clone(),
         }
     }
 
@@ -2316,6 +2360,7 @@ impl WidgetBuilder {
             resource: None,
             material: self.material.into(),
             original_handle_in_resource: Default::default(),
+            style: Some(ctx.style.clone()),
         }
     }
 }

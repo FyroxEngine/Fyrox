@@ -18,13 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::inspector::{
-    editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
-    InspectorPlugin,
-};
 use crate::{
-    asset::item::AssetItem,
+    asset::preview::cache::IconRequest,
     fyrox::{
+        asset::manager::ResourceManager,
         core::{
             algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
             color::Color,
@@ -34,36 +31,38 @@ use crate::{
             sstorage::ImmutableString,
         },
         fxhash::FxHashMap,
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
+        graphics::gpu_program::{ShaderProperty, ShaderPropertyKind},
         gui::{
             border::BorderBuilder,
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             color::{ColorFieldBuilder, ColorFieldMessage},
             dock::DockingManagerMessage,
             grid::{Column, GridBuilder, Row},
-            image::{Image, ImageBuilder, ImageMessage},
-            inspector::editors::inherit::InheritablePropertyEditorDefinition,
+            inspector::editors::{
+                inherit::InheritablePropertyEditorDefinition,
+                inspectable::InspectablePropertyEditorDefinition,
+            },
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             matrix::{MatrixEditorBuilder, MatrixEditorMessage},
-            menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
             message::{MessageDirection, UiMessage},
             numeric::{NumericUpDownBuilder, NumericUpDownMessage},
-            popup::{Placement, PopupBuilder, PopupMessage},
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
             text::TextBuilder,
-            vec::{Vec2EditorMessage, Vec3EditorMessage, Vec4EditorMessage},
-            vec::{VecEditorBuilder, VecEditorMessage},
-            widget::{WidgetBuilder, WidgetMessage},
+            utils::make_simple_tooltip,
+            vec::{
+                Vec2EditorMessage, Vec3EditorMessage, Vec4EditorMessage, VecEditorBuilder,
+                VecEditorMessage,
+            },
+            widget::{WidgetBuilder, WidgetMaterial, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
+            BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         material::{
             shader::{Shader, ShaderResourceKind},
             MaterialProperty, MaterialResource, MaterialResourceBinding, MaterialTextureBinding,
         },
-        renderer::framework::gpu_program::{ShaderProperty, ShaderPropertyKind},
-        resource::texture::Texture,
         scene::{
             base::BaseBuilder,
             mesh::{
@@ -74,7 +73,16 @@ use crate::{
     },
     message::MessageSender,
     plugin::EditorPlugin,
-    plugins::material::editor::MaterialPropertyEditorDefinition,
+    plugins::{
+        inspector::{
+            editors::{
+                resource::{ResourceFieldBuilder, ResourceFieldMessage},
+                texture::{TextureEditorBuilder, TextureEditorMessage},
+            },
+            InspectorPlugin,
+        },
+        material::editor::MaterialPropertyEditorDefinition,
+    },
     preview::PreviewPanel,
     scene::commands::material::{
         SetMaterialBindingCommand, SetMaterialPropertyGroupPropertyValueCommand,
@@ -82,55 +90,12 @@ use crate::{
     },
     send_sync_message, Editor, Engine, Message,
 };
-use fyrox::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;
-use fyrox::gui::utils::make_simple_tooltip;
-use fyrox::gui::widget::WidgetMaterial;
-use std::sync::Arc;
+use fyrox::asset::event::ResourceEvent;
+use std::path::PathBuf;
+use std::sync::mpsc::Receiver;
+use std::sync::{mpsc::Sender, Arc};
 
 pub mod editor;
-
-struct TextureContextMenu {
-    popup: RcUiNodeHandle,
-    show_in_asset_browser: Handle<UiNode>,
-    unassign: Handle<UiNode>,
-    target: Handle<UiNode>,
-}
-
-impl TextureContextMenu {
-    fn new(ctx: &mut BuildContext) -> Self {
-        let show_in_asset_browser;
-        let unassign;
-        let popup = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            show_in_asset_browser = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Show In Asset Browser"))
-                                .build(ctx);
-                            show_in_asset_browser
-                        })
-                        .with_child({
-                            unassign = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Unassign"))
-                                .build(ctx);
-                            unassign
-                        }),
-                )
-                .build(ctx),
-            ),
-        )
-        .build(ctx);
-        let popup = RcUiNodeHandle::new(popup, ctx.sender());
-
-        Self {
-            popup,
-            show_in_asset_browser,
-            unassign,
-            target: Default::default(),
-        }
-    }
-}
 
 enum ResourceViewKind {
     Sampler,
@@ -153,7 +118,6 @@ pub struct MaterialEditor {
     preview: PreviewPanel,
     material: Option<MaterialResource>,
     shader: Handle<UiNode>,
-    texture_context_menu: TextureContextMenu,
 }
 
 fn make_item_container(ctx: &mut BuildContext, name: &str, item: Handle<UiNode>) -> Handle<UiNode> {
@@ -281,7 +245,13 @@ impl UiView for Color {
 }
 
 impl MaterialEditor {
-    pub fn new(engine: &mut Engine, sender: MessageSender) -> Self {
+    const TITLE: &'static str = "Material Editor";
+
+    pub fn new(
+        engine: &mut Engine,
+        sender: MessageSender,
+        icon_request_sender: Sender<IconRequest>,
+    ) -> Self {
         let mut preview = PreviewPanel::new(engine, 350, 400);
 
         let graph = &mut engine.scenes[preview.scene()].graph;
@@ -303,67 +273,75 @@ impl MaterialEditor {
         let panel;
         let properties_panel;
         let shader;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(800.0))
-            .open(false)
-            .with_title(WindowTitle::text("Material Editor"))
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
-                            GridBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(0)
-                                    .with_child(
-                                        TextBuilder::new(
-                                            WidgetBuilder::new().on_row(0).on_column(0),
-                                        )
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_width(500.0)
+                .with_height(800.0)
+                .with_name("MaterialEditor"),
+        )
+        .open(false)
+        .with_title(WindowTitle::text(Self::TITLE))
+        .with_content(
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(
+                        GridBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(0)
+                                .with_child(
+                                    TextBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
                                         .with_text("Shader")
                                         .build(ctx),
+                                )
+                                .with_child({
+                                    shader = ResourceFieldBuilder::<Shader>::new(
+                                        WidgetBuilder::new()
+                                            .on_column(1)
+                                            .with_tooltip(shader_tooltip),
+                                        sender,
                                     )
-                                    .with_child({
-                                        shader = ResourceFieldBuilder::<Shader>::new(
-                                            WidgetBuilder::new()
-                                                .on_column(1)
-                                                .with_tooltip(shader_tooltip),
-                                            sender,
-                                        )
-                                        .build(ctx, engine.resource_manager.clone());
-                                        shader
-                                    }),
-                            )
-                            .add_column(Column::strict(150.0))
-                            .add_column(Column::stretch())
-                            .add_row(Row::strict(25.0))
-                            .build(ctx),
+                                    .build(
+                                        ctx,
+                                        icon_request_sender,
+                                        engine.resource_manager.clone(),
+                                    );
+                                    shader
+                                }),
                         )
-                        .with_child(
-                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
-                                .with_content({
-                                    properties_panel =
-                                        StackPanelBuilder::new(WidgetBuilder::new()).build(ctx);
-                                    properties_panel
-                                })
-                                .build(ctx),
-                        )
-                        .with_child({
-                            panel = BorderBuilder::new(WidgetBuilder::new().on_row(2).on_column(0))
+                        .add_column(Column::strict(150.0))
+                        .add_column(Column::stretch())
+                        .add_row(Row::strict(25.0))
+                        .build(ctx),
+                    )
+                    .with_child(
+                        ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
+                            .with_content({
+                                properties_panel = StackPanelBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                                )
                                 .build(ctx);
-                            panel
-                        }),
-                )
-                .add_row(Row::strict(26.0))
-                .add_row(Row::stretch())
-                .add_row(Row::strict(300.0))
-                .add_column(Column::stretch())
-                .build(ctx),
+                                properties_panel
+                            })
+                            .build(ctx),
+                    )
+                    .with_child({
+                        panel = BorderBuilder::new(WidgetBuilder::new().on_row(2).on_column(0))
+                            .build(ctx);
+                        panel
+                    }),
             )
-            .build(ctx);
+            .add_row(Row::strict(26.0))
+            .add_row(Row::stretch())
+            .add_row(Row::strict(300.0))
+            .add_column(Column::stretch())
+            .build(ctx),
+        )
+        .build(ctx);
 
         ctx.link(preview.root, panel);
 
         Self {
-            texture_context_menu: TextureContextMenu::new(ctx),
             window,
             preview,
             properties_panel,
@@ -387,10 +365,31 @@ impl MaterialEditor {
         ));
     }
 
-    pub fn set_material(&mut self, material: Option<MaterialResource>, engine: &mut Engine) {
+    pub fn set_material(
+        &mut self,
+        material: Option<MaterialResource>,
+        sender: &MessageSender,
+        icon_request_sender: &Sender<IconRequest>,
+        engine: &mut Engine,
+    ) {
         self.material = material;
 
         if let Some(material) = self.material.clone() {
+            let material_name = engine
+                .resource_manager
+                .resource_path(&material)
+                .unwrap_or(PathBuf::from("Embedded"))
+                .to_string_lossy()
+                .to_string();
+            engine
+                .user_interfaces
+                .first()
+                .send_message(WindowMessage::title(
+                    self.window,
+                    MessageDirection::ToWidget,
+                    WindowTitle::text(format!("{} - {}", Self::TITLE, material_name)),
+                ));
+
             engine.scenes[self.preview.scene()].graph[self.preview.model()]
                 .as_mesh_mut()
                 .surfaces_mut()
@@ -400,13 +399,19 @@ impl MaterialEditor {
         }
 
         let ui = engine.user_interfaces.first_mut();
-        self.create_property_editors(ui);
+        self.create_property_editors(ui, sender, icon_request_sender, &engine.resource_manager);
         self.sync_to_model(ui);
     }
 
     /// Creates property editors for each resource descriptor used by material's shader. Fills
     /// the views with default values from the shader.
-    fn create_property_editors(&mut self, ui: &mut UserInterface) {
+    fn create_property_editors(
+        &mut self,
+        ui: &mut UserInterface,
+        sender: &MessageSender,
+        icon_request_sender: &Sender<IconRequest>,
+        resource_manager: &ResourceManager,
+    ) {
         for resource_view in self.resource_views.drain(..) {
             send_sync_message(
                 ui,
@@ -428,22 +433,33 @@ impl MaterialEditor {
             }
 
             let view = match resource.kind {
-                ShaderResourceKind::Texture { .. } => {
-                    let editor = ImageBuilder::new(
+                ShaderResourceKind::Texture { fallback, .. } => {
+                    let texture = material
+                        .texture_ref(resource.name.clone())
+                        .and_then(|d| d.value.clone());
+                    let path = texture
+                        .as_ref()
+                        .and_then(|tex| resource_manager.resource_path(tex.as_ref()))
+                        .map(|path| path.to_string_lossy().to_string())
+                        .unwrap_or_else(|| fallback.as_ref().to_string());
+                    let ctx = &mut ui.build_ctx();
+                    let editor = TextureEditorBuilder::new(
                         WidgetBuilder::new()
                             .with_height(28.0)
                             .with_user_data(Arc::new(Mutex::new(resource.name.clone())))
                             .with_allow_drop(true)
-                            .with_context_menu(self.texture_context_menu.popup.clone()),
+                            .with_tooltip(make_simple_tooltip(ctx, &path)),
                     )
-                    .build(&mut ui.build_ctx());
+                    .with_texture(texture)
+                    .build(
+                        ctx,
+                        sender.clone(),
+                        icon_request_sender.clone(),
+                        resource_manager.clone(),
+                    );
                     ResourceView {
                         name: resource.name.clone(),
-                        container: make_item_container(
-                            &mut ui.build_ctx(),
-                            resource.name.as_str(),
-                            editor,
-                        ),
+                        container: make_item_container(ctx, resource.name.as_str(), editor),
                         kind: ResourceViewKind::Sampler,
                         editor,
                     }
@@ -510,7 +526,9 @@ impl MaterialEditor {
             .collect::<Vec<_>>();
 
         let panel = StackPanelBuilder::new(
-            WidgetBuilder::new().with_children(property_containers.iter().cloned()),
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(2.0))
+                .with_children(property_containers.iter().cloned()),
         )
         .build(ctx);
 
@@ -551,7 +569,7 @@ impl MaterialEditor {
             match binding_value {
                 MaterialResourceBinding::Texture(ref binding) => send_sync_message(
                     ui,
-                    ImageMessage::texture(
+                    TextureEditorMessage::texture(
                         view.editor,
                         MessageDirection::ToWidget,
                         binding.value.clone(),
@@ -563,10 +581,7 @@ impl MaterialEditor {
                     };
 
                     for (property_name, property_value) in group.properties() {
-                        let item = *property_views
-                            .get(property_name)
-                            .unwrap_or_else(|| panic!("Property not found {}", property_name));
-
+                        let item = *some_or_continue!(property_views.get(property_name));
                         match property_value {
                             MaterialProperty::Float(value) => value.send(ui, item),
                             MaterialProperty::FloatArray(value) => sync_array(ui, item, value),
@@ -626,77 +641,21 @@ impl MaterialEditor {
                     ));
                 }
             }
-        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.texture_context_menu.popup.handle() {
-                self.texture_context_menu.target = *target;
-            }
-        } else if let Some(MenuItemMessage::Click) = message.data() {
-            if message.destination() == self.texture_context_menu.show_in_asset_browser
-                && self.texture_context_menu.target.is_some()
-            {
-                let texture = (*engine
-                    .user_interfaces
-                    .first_mut()
-                    .node(self.texture_context_menu.target)
-                    .cast::<Image>()
-                    .unwrap()
-                    .texture)
-                    .clone();
-
-                if let Some(path) =
-                    texture.and_then(|t| engine.resource_manager.resource_path(t.as_ref()))
-                {
-                    sender.send(Message::ShowInAssetBrowser(path));
-                }
-            } else if message.destination() == self.texture_context_menu.unassign
-                && self.texture_context_menu.target.is_some()
-            {
-                if let Some(binding_name) = engine
-                    .user_interfaces
-                    .first_mut()
-                    .node(self.texture_context_menu.target)
-                    .user_data_cloned::<ImmutableString>()
-                {
-                    sender.do_command(SetMaterialBindingCommand::new(
-                        material.clone(),
-                        binding_name.clone(),
-                        MaterialResourceBinding::Texture(MaterialTextureBinding { value: None }),
-                        engine.resource_manager.resource_path(material.as_ref()),
-                    ));
-                }
-            }
         }
 
         for resource_view in self.resource_views.iter() {
             match resource_view.kind {
                 ResourceViewKind::Sampler => {
-                    if let Some(WidgetMessage::Drop(handle)) = message.data() {
-                        if let Some(asset_item) = engine
-                            .user_interfaces
-                            .first_mut()
-                            .node(*handle)
-                            .cast::<AssetItem>()
-                        {
-                            if resource_view.editor == message.destination() {
-                                let texture = asset_item.resource::<Texture>();
-
-                                engine.user_interfaces.first_mut().send_message(
-                                    ImageMessage::texture(
-                                        message.destination(),
-                                        MessageDirection::ToWidget,
-                                        texture.clone(),
-                                    ),
-                                );
-
-                                sender.do_command(SetMaterialBindingCommand::new(
-                                    material.clone(),
-                                    resource_view.name.clone(),
-                                    MaterialResourceBinding::Texture(MaterialTextureBinding {
-                                        value: texture,
-                                    }),
-                                    engine.resource_manager.resource_path(material.as_ref()),
-                                ));
-                            }
+                    if let Some(TextureEditorMessage::Texture(texture)) = message.data() {
+                        if resource_view.editor == message.destination() {
+                            sender.do_command(SetMaterialBindingCommand::new(
+                                material.clone(),
+                                resource_view.name.clone(),
+                                MaterialResourceBinding::Texture(MaterialTextureBinding {
+                                    value: texture.clone(),
+                                }),
+                                engine.resource_manager.resource_path(material.as_ref()),
+                            ));
                         }
                     }
                 }
@@ -725,7 +684,26 @@ impl MaterialEditor {
         }
     }
 
-    pub fn update(&mut self, engine: &mut Engine) {
+    pub fn update(
+        &mut self,
+        engine: &mut Engine,
+        receiver: &Receiver<ResourceEvent>,
+        sender: &MessageSender,
+        icon_request_sender: &Sender<IconRequest>,
+    ) {
+        for event in receiver.try_iter() {
+            if let ResourceEvent::Reloaded(resource) = event {
+                let shader = some_or_continue!(resource.try_cast::<Shader>());
+                let material_resource = some_or_continue!(self.material.as_ref());
+                let material_data = material_resource.data_ref();
+                let material = some_or_continue!(material_data.as_loaded_ref());
+                if material.shader() == &shader {
+                    drop(material_data);
+                    self.set_material(self.material.clone(), sender, icon_request_sender, engine);
+                }
+            }
+        }
+
         self.preview.update(engine)
     }
 }
@@ -761,6 +739,7 @@ fn try_extract_message_value(message: &UiMessage) -> Option<MaterialProperty> {
 #[derive(Default)]
 pub struct MaterialPlugin {
     material_editor: Option<MaterialEditor>,
+    receiver: Option<Receiver<ResourceEvent>>,
 }
 
 impl EditorPlugin for MaterialPlugin {
@@ -768,8 +747,15 @@ impl EditorPlugin for MaterialPlugin {
         let container = &editor.plugins.get_mut::<InspectorPlugin>().property_editors;
         container.insert(MaterialPropertyEditorDefinition {
             sender: Mutex::new(editor.message_sender.clone()),
-            resource_manager: editor.engine.resource_manager.clone(),
         });
+        let (sender, receiver) = std::sync::mpsc::channel();
+        editor
+            .engine
+            .resource_manager
+            .state()
+            .event_broadcaster
+            .add(sender);
+        self.receiver = Some(receiver);
         container.insert(InheritablePropertyEditorDefinition::<MaterialResource>::new());
         container.insert(InheritablePropertyEditorDefinition::<WidgetMaterial>::new());
         container.insert(InspectablePropertyEditorDefinition::<WidgetMaterial>::new());
@@ -797,7 +783,14 @@ impl EditorPlugin for MaterialPlugin {
 
     fn on_update(&mut self, editor: &mut Editor) {
         let material_editor = some_or_return!(self.material_editor.as_mut());
-        material_editor.update(&mut editor.engine);
+        if let Some(receiver) = self.receiver.as_ref() {
+            material_editor.update(
+                &mut editor.engine,
+                receiver,
+                &editor.message_sender,
+                &editor.asset_browser.preview_sender,
+            );
+        }
     }
 
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
@@ -807,11 +800,20 @@ impl EditorPlugin for MaterialPlugin {
 
         let engine = &mut editor.engine;
 
-        let material_editor = self
-            .material_editor
-            .get_or_insert_with(|| MaterialEditor::new(engine, editor.message_sender.clone()));
+        let material_editor = self.material_editor.get_or_insert_with(|| {
+            MaterialEditor::new(
+                engine,
+                editor.message_sender.clone(),
+                editor.asset_browser.preview_sender.clone(),
+            )
+        });
 
-        material_editor.set_material(Some(material.clone()), engine);
+        material_editor.set_material(
+            Some(material.clone()),
+            &editor.message_sender,
+            &editor.asset_browser.preview_sender,
+            engine,
+        );
 
         let ui = engine.user_interfaces.first_mut();
         ui.send_message(WindowMessage::open(

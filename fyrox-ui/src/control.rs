@@ -26,10 +26,12 @@ use crate::{
     widget::Widget,
     UiNode, UserInterface,
 };
-use fyrox_core::define_as_any_trait;
+use fyrox_core::{define_as_any_trait, pool::ObjectOrVariantHelper};
 
+use fyrox_core::algebra::Matrix3;
 use std::{
     any::Any,
+    marker::PhantomData,
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -78,6 +80,22 @@ where
 pub trait Control:
     BaseControl + Deref<Target = Widget> + DerefMut + Reflect + Visit + ComponentProvider
 {
+    /// Brief debugging information about this node.
+    fn summary(&self) -> String {
+        use std::fmt::Write;
+        let mut result = String::new();
+        let type_name = BaseControl::type_name(self)
+            .strip_prefix("fyrox_ui::")
+            .unwrap_or(BaseControl::type_name(self));
+        write!(result, "{} {}<{}>", self.handle(), self.name(), type_name,).unwrap();
+        if self.children().len() == 1 {
+            result.push_str(" 1 child");
+        } else if self.children().len() > 1 {
+            write!(result, " {} children", self.children().len()).unwrap();
+        }
+        result
+    }
+
     /// This method will be called before the widget is destroyed (dropped). At the moment, when this
     /// method is called, the widget is still in the widget graph and can be accessed via handles. It
     /// is guaranteed to be called once, and only if the widget is deleted via [`crate::widget::WidgetMessage::remove`].
@@ -266,7 +284,12 @@ pub trait Control:
     /// for [`DrawingContext`] for more info.
     fn draw(&self, #[allow(unused_variables)] drawing_context: &mut DrawingContext) {}
 
-    fn on_visual_transform_changed(&self) {}
+    fn on_visual_transform_changed(
+        &self,
+        #[allow(unused_variables)] old_transform: &Matrix3<f32>,
+        #[allow(unused_variables)] new_transform: &Matrix3<f32>,
+    ) {
+    }
 
     /// The same as [`Self::draw`], but it runs after all descendant widgets are rendered.
     fn post_draw(&self, #[allow(unused_variables)] drawing_context: &mut DrawingContext) {}
@@ -337,5 +360,27 @@ pub trait Control:
         #[allow(unused_variables)] ui: &mut UserInterface,
         #[allow(unused_variables)] event: &OsEvent,
     ) {
+    }
+
+    /// Checks whether a `widget` will be accepted by the current widget or not when dropped. This
+    /// method is used only to switch the cursor icon. The default implementation returns `allow_drop`
+    /// flag of the widget, which, if set to `true`, basically allows unconditional drop of any content.
+    fn accepts_drop(
+        &self,
+        #[allow(unused_variables)] widget: Handle<UiNode>,
+        #[allow(unused_variables)] ui: &UserInterface,
+    ) -> bool {
+        *self.allow_drop
+    }
+}
+
+// Essentially implements ObjectOrVariant for Control types.
+// See ObjectOrVariantHelper for the cause of the indirection.
+impl<T: Control> ObjectOrVariantHelper<UiNode, T> for PhantomData<T> {
+    fn convert_to_dest_type_helper(node: &UiNode) -> Option<&T> {
+        ControlAsAny::as_any(node.0.deref()).downcast_ref()
+    }
+    fn convert_to_dest_type_helper_mut(node: &mut UiNode) -> Option<&mut T> {
+        ControlAsAny::as_any_mut(node.0.deref_mut()).downcast_mut()
     }
 }

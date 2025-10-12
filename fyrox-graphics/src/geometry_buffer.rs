@@ -127,7 +127,9 @@ impl ElementsDescriptor<'_> {
 
 /// Descriptor of the geometry buffer. It essentially binds multiple vertex buffers and one element
 /// buffer.
-pub struct GeometryBufferDescriptor<'a> {
+pub struct GpuGeometryBufferDescriptor<'a> {
+    /// Name of the geometry buffer. Used only for debugging purposes.
+    pub name: &'a str,
     /// Vertex buffers of the buffer. There must be at least one vertex buffer.
     pub buffers: &'a [VertexBufferDescriptor<'a>],
     /// Usage of the geometry buffer. See [`BufferUsage`] docs for more info.
@@ -152,7 +154,7 @@ define_as_any_trait!(GpuGeometryBufferAsAny => GpuGeometryBufferTrait);
 ///     error::FrameworkError,
 ///     geometry_buffer::{
 ///         AttributeDefinition, AttributeKind, ElementsDescriptor, GpuGeometryBuffer,
-///         GeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
+///         GpuGeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
 ///     },
 ///     server::GraphicsServer,
 /// };
@@ -183,7 +185,8 @@ define_as_any_trait!(GpuGeometryBufferAsAny => GpuGeometryBufferTrait);
 ///
 ///     let triangles = [TriangleDefinition([0, 1, 2])];
 ///
-///     server.create_geometry_buffer(GeometryBufferDescriptor {
+///     server.create_geometry_buffer(GpuGeometryBufferDescriptor {
+///         name: "MyBuffer",
 ///         buffers: &[VertexBufferDescriptor {
 ///             usage: BufferUsage::StaticDraw,
 ///             attributes: &[AttributeDefinition {

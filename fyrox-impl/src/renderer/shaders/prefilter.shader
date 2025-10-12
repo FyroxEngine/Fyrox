@@ -44,7 +44,6 @@
                 r#"
                     layout (location = 0) in vec3 vertexPosition;
 
-                    out vec4 color;
                     out vec3 localPos;
 
                     void main()
@@ -67,7 +66,7 @@
                         bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
                         bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
                         bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
-                        return float(bits) * 2.3283064365386963e-10; // / 0x100000000
+                        return float(bits) * 2.3283064e-10; // / 0x100000000
                     }
 
                     vec2 Hammersley(uint i, uint N)
@@ -96,7 +95,6 @@
                         return normalize(sampleVec);
                     }
 
-                    const float PI = 3.14159265359;
 
                     void main()
                     {
@@ -104,7 +102,7 @@
                         vec3 R = N;
                         vec3 V = R;
 
-                        const uint SAMPLE_COUNT = 1024u;
+                        const uint SAMPLE_COUNT = 64u;
                         float totalWeight = 0.0;
                         vec3 prefilteredColor = vec3(0.0);
                         for(uint i = 0u; i < SAMPLE_COUNT; ++i)

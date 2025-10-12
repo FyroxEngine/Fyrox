@@ -20,6 +20,7 @@
 
 use crate::server::GlGraphicsServer;
 use crate::ToGlConstant;
+use fyrox_graphics::buffer::GpuBufferDescriptor;
 use fyrox_graphics::{
     buffer::{BufferKind, BufferUsage, GpuBufferTrait},
     error::FrameworkError,
@@ -66,25 +67,33 @@ pub struct GlBuffer {
 impl GlBuffer {
     pub fn new(
         server: &GlGraphicsServer,
-        size_bytes: usize,
-        kind: BufferKind,
-        usage: BufferUsage,
+        desc: GpuBufferDescriptor,
     ) -> Result<Self, FrameworkError> {
+        let GpuBufferDescriptor {
+            #[allow(unused_variables)]
+            name,
+            size,
+            kind,
+            usage,
+        } = desc;
+        server.memory_usage.borrow_mut().buffers += size;
         unsafe {
             let gl_kind = kind.into_gl();
             let gl_usage = usage.into_gl();
             let id = server.gl.create_buffer()?;
             server.gl.bind_buffer(gl_kind, Some(id));
-            if size_bytes > 0 {
-                server
-                    .gl
-                    .buffer_data_size(gl_kind, size_bytes as i32, gl_usage);
+            #[cfg(not(target_arch = "wasm32"))]
+            if server.gl.supports_debug() && server.named_objects.get() {
+                server.gl.object_label(glow::BUFFER, id.0.get(), Some(name));
+            }
+            if size > 0 {
+                server.gl.buffer_data_size(gl_kind, size as i32, gl_usage);
             }
             server.gl.bind_buffer(gl_kind, None);
             Ok(Self {
                 state: server.weak(),
                 id,
-                size: Cell::new(size_bytes),
+                size: Cell::new(size),
                 kind,
                 usage,
             })
@@ -96,6 +105,7 @@ impl Drop for GlBuffer {
     fn drop(&mut self) {
         unsafe {
             if let Some(state) = self.state.upgrade() {
+                state.memory_usage.borrow_mut().buffers -= self.size.get();
                 state.gl.delete_buffer(self.id);
             }
         }
@@ -133,6 +143,10 @@ impl GpuBufferTrait for GlBuffer {
                 // Update the data.
                 server.gl.buffer_sub_data_u8_slice(gl_kind, 0, data);
             } else {
+                let mut memory_usage = server.memory_usage.borrow_mut();
+                memory_usage.buffers -= self.size.get();
+                memory_usage.buffers += data.len();
+
                 // Realloc the internal storage.
                 server.gl.buffer_data_u8_slice(gl_kind, data, gl_usage);
                 self.size.set(data.len());

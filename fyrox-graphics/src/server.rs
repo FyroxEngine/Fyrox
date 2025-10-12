@@ -24,10 +24,10 @@
 //! supported by the engine.
 
 use crate::{
-    buffer::{BufferKind, BufferUsage, GpuBuffer},
+    buffer::{GpuBuffer, GpuBufferDescriptor},
     error::FrameworkError,
     framebuffer::{Attachment, GpuFrameBuffer},
-    geometry_buffer::{GeometryBufferDescriptor, GpuGeometryBuffer},
+    geometry_buffer::{GpuGeometryBuffer, GpuGeometryBufferDescriptor},
     gpu_program::{GpuProgram, GpuShader, ShaderKind, ShaderResourceDefinition},
     gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
     query::GpuQuery,
@@ -37,6 +37,7 @@ use crate::{
     PolygonFace, PolygonFillMode,
 };
 use fyrox_core::define_as_any_trait;
+use std::fmt::{Display, Formatter};
 use std::rc::{Rc, Weak};
 
 /// Graphics server capabilities.
@@ -49,6 +50,30 @@ pub struct ServerCapabilities {
     /// The maximum, absolute value of the texture level-of-detail bias. The value must be at least
     /// 2.0.
     pub max_lod_bias: f32,
+}
+
+/// Contains information about used memory per each category of GPU resource. This is not precise
+/// data; it only calculates total requested memory by the user of a graphics server and does not
+/// include additional memory overhead in the video driver. Yet this information could still be
+/// useful.
+#[derive(Default, Debug, Clone)]
+pub struct ServerMemoryUsage {
+    /// Total number of bytes used by all textures (including render targets).
+    pub textures: usize,
+    /// Total number of bytes used by all buffers (vertex, index, uniform, etc.)
+    pub buffers: usize,
+}
+
+impl Display for ServerMemoryUsage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        const MEGABYTE: f32 = 1024.0 * 1024.0;
+        write!(
+            f,
+            "Textures: {:.3} Mb\nBuffers: {:.3} Mb",
+            self.textures as f32 / MEGABYTE,
+            self.buffers as f32 / MEGABYTE
+        )
+    }
 }
 
 /// A shared reference to a graphics server.
@@ -65,12 +90,7 @@ define_as_any_trait!(GraphicsServerAsAny => GraphicsServer);
 pub trait GraphicsServer: GraphicsServerAsAny {
     /// Creates a GPU buffer with the given size and kind. Usage is a hint to the video driver
     /// that allows to perform some potential performance optimizations.
-    fn create_buffer(
-        &self,
-        size: usize,
-        buffer_kind: BufferKind,
-        buffer_usage: BufferUsage,
-    ) -> Result<GpuBuffer, FrameworkError>;
+    fn create_buffer(&self, desc: GpuBufferDescriptor) -> Result<GpuBuffer, FrameworkError>;
 
     /// Creates a new GPU texture using the given descriptor.
     fn create_texture(&self, desc: GpuTextureDescriptor) -> Result<GpuTexture, FrameworkError>;
@@ -106,9 +126,9 @@ pub trait GraphicsServer: GraphicsServerAsAny {
         line_offset: isize,
     ) -> Result<GpuShader, FrameworkError>;
 
-    /// Creates a new named GPU program using a pair of vertex and fragment shaders. The name could
-    /// be used for debugging purposes. The implementation of graphics server will generate proper
-    /// resource bindings in the shader code for you.
+    /// Creates a new named GPU program using source code of both vertex and fragment shaders. The
+    /// name could be used for debugging purposes. The implementation of graphics server will generate
+    /// proper resource bindings in the shader code for you.
     fn create_program(
         &self,
         name: &str,
@@ -119,10 +139,22 @@ pub trait GraphicsServer: GraphicsServerAsAny {
         resources: &[ShaderResourceDefinition],
     ) -> Result<GpuProgram, FrameworkError>;
 
+    /// Creates a new named GPU program using a pair of vertex and fragment shaders. The name could
+    /// be used for debugging purposes. The implementation of graphics server will generate proper
+    /// resource bindings in the shader code for you.
+    fn create_program_from_shaders(
+        &self,
+        name: &str,
+        vertex_shader: &GpuShader,
+        fragment_shader: &GpuShader,
+        resources: &[ShaderResourceDefinition],
+    ) -> Result<GpuProgram, FrameworkError>;
+
     /// Creates a new read-back buffer, that can be used to obtain texture data from GPU. It can be
     /// used to read rendering result from GPU to CPU memory and save the result to disk.
     fn create_async_read_buffer(
         &self,
+        name: &str,
         pixel_size: usize,
         pixel_count: usize,
     ) -> Result<GpuAsyncReadBuffer, FrameworkError>;
@@ -132,7 +164,7 @@ pub trait GraphicsServer: GraphicsServerAsAny {
     /// GPU.
     fn create_geometry_buffer(
         &self,
-        desc: GeometryBufferDescriptor,
+        desc: GpuGeometryBufferDescriptor,
     ) -> Result<GpuGeometryBuffer, FrameworkError>;
 
     /// Creates a weak reference to the shared graphics server.
@@ -165,22 +197,30 @@ pub trait GraphicsServer: GraphicsServerAsAny {
     /// Returns current capabilities of the graphics server. See [`ServerCapabilities`] for more info.
     fn capabilities(&self) -> ServerCapabilities;
 
-    /// Sets current polygon fill mode. See [`PolygonFace`] and [`PolygonFillMode`] docs for more info.
+    /// Sets current polygon fill mode for front faces, back faces, or both.
+    /// The mode of front faces is controlled separately from the mode of back faces,
+    /// and `polygon_face` determines which mode is set by this method.
+    /// See [`PolygonFace`] and [`PolygonFillMode`] docs for more info.
     fn set_polygon_fill_mode(&self, polygon_face: PolygonFace, polygon_fill_mode: PolygonFillMode);
 
     /// Generates mipmaps for the given texture. Graphics server implementation can pick any desired
     /// way of mipmaps generation, depending on the underlying GAPI capabilities.
     fn generate_mipmap(&self, texture: &GpuTexture);
 
+    /// Fetches the total amount of memory used by the graphics server.
+    fn memory_usage(&self) -> ServerMemoryUsage;
+
     /// A shortcut for [`Self::create_texture`], that creates a rectangular texture with the given
     /// size and pixel kind.
     fn create_2d_render_target(
         &self,
+        name: &str,
         pixel_kind: PixelKind,
         width: usize,
         height: usize,
     ) -> Result<GpuTexture, FrameworkError> {
         self.create_texture(GpuTextureDescriptor {
+            name,
             kind: GpuTextureKind::Rectangle { width, height },
             pixel_kind,
             ..Default::default()
@@ -191,10 +231,12 @@ pub trait GraphicsServer: GraphicsServerAsAny {
     /// size and pixel kind.
     fn create_cube_render_target(
         &self,
+        name: &str,
         pixel_kind: PixelKind,
         size: usize,
     ) -> Result<GpuTexture, FrameworkError> {
         self.create_texture(GpuTextureDescriptor {
+            name,
             kind: GpuTextureKind::Cube { size },
             pixel_kind,
             ..Default::default()

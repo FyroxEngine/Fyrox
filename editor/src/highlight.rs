@@ -23,16 +23,16 @@ use crate::{
         core::{color::Color, pool::Handle, sstorage::ImmutableString},
         fxhash::FxHashSet,
         graph::{BaseSceneGraph, SceneGraph},
+        graphics::{
+            error::FrameworkError,
+            framebuffer::{Attachment, GpuFrameBuffer},
+            gpu_texture::PixelKind,
+            server::GraphicsServer,
+        },
         renderer::{
             bundle::{BundleRenderContext, RenderContext, RenderDataBundleStorage},
             cache::shader::{
                 binding, property, PropertyGroup, RenderMaterial, RenderPassContainer,
-            },
-            framework::{
-                error::FrameworkError,
-                framebuffer::{Attachment, GpuFrameBuffer},
-                gpu_texture::PixelKind,
-                server::GraphicsServer,
             },
             make_viewport_matrix, RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
         },
@@ -59,11 +59,11 @@ impl HighlightRenderPass {
         height = height.max(1);
 
         let depth_stencil = server
-            .create_2d_render_target(PixelKind::D24S8, width, height)
+            .create_2d_render_target("HighlightDepthStencil", PixelKind::D24S8, width, height)
             .unwrap();
 
         let frame_texture = server
-            .create_2d_render_target(PixelKind::RGBA8, width, height)
+            .create_2d_render_target("HighlightFrameTexture", PixelKind::RGBA8, width, height)
             .unwrap();
 
         server
@@ -159,6 +159,7 @@ impl SceneRenderPass for HighlightRenderPass {
                     scene_depth: Some(ctx.depth_texture),
                     viewport: ctx.observer.viewport,
                     uniform_memory_allocator: ctx.uniform_memory_allocator,
+                    resource_manager: ctx.resource_manager,
                 },
             )?;
         }

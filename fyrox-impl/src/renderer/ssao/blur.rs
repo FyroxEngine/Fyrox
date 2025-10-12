@@ -18,21 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::resources::RendererResources;
 use crate::{
     core::{math::Rect, ImmutableString},
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, PixelKind},
+        server::GraphicsServer,
+    },
     renderer::{
         cache::{
             shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
         },
-        framework::{
-            error::FrameworkError,
-            framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
-            gpu_texture::{GpuTexture, PixelKind},
-            server::GraphicsServer,
-        },
         make_viewport_matrix,
+        resources::RendererResources,
     },
 };
 
@@ -48,7 +48,8 @@ impl Blur {
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {
-        let frame = server.create_2d_render_target(PixelKind::R32F, width, height)?;
+        let frame =
+            server.create_2d_render_target("BlurTexture", PixelKind::R32F, width, height)?;
         Ok(Self {
             framebuffer: server.create_frame_buffer(None, vec![Attachment::color(frame)])?,
             width,

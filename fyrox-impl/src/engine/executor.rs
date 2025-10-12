@@ -33,7 +33,7 @@ use crate::{
         Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
     },
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
+    event_loop::{ControlFlow, EventLoop},
     plugin::Plugin,
     utils::translate_event,
     window::WindowAttributes,
@@ -48,6 +48,7 @@ use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
 };
+use winit::event_loop::ActiveEventLoop;
 
 #[derive(Parser, Debug, Default)]
 #[clap(author, version, about, long_about = None)]
@@ -130,6 +131,7 @@ impl Executor {
                 vsync: true,
                 msaa_sample_count: None,
                 graphics_server_constructor: Default::default(),
+                named_objects: false,
             },
         )
     }
@@ -315,16 +317,16 @@ fn run_normal(
     engine.enable_plugins(
         override_scene,
         true,
-        ApplicationLoopController::WindowTarget(&event_loop),
+        ApplicationLoopController::EventLoop(&event_loop),
     );
 
-    run_executor(event_loop, move |event, window_target| {
-        window_target.set_control_flow(ControlFlow::Wait);
+    run_executor(event_loop, move |event, active_event_loop| {
+        active_event_loop.set_control_flow(ControlFlow::Wait);
 
-        engine.handle_os_event_by_plugins(
+        engine.handle_os_events(
             &event,
             fixed_time_step,
-            ApplicationLoopController::WindowTarget(window_target),
+            ApplicationLoopController::ActiveEventLoop(active_event_loop),
             &mut lag,
         );
 
@@ -336,12 +338,12 @@ fn run_normal(
         match event {
             Event::Resumed => {
                 engine
-                    .initialize_graphics_context(window_target)
+                    .initialize_graphics_context(active_event_loop)
                     .expect("Unable to initialize graphics context!");
 
                 engine.handle_graphics_context_created_by_plugins(
                     fixed_time_step,
-                    ApplicationLoopController::WindowTarget(window_target),
+                    ApplicationLoopController::ActiveEventLoop(active_event_loop),
                     &mut lag,
                 );
             }
@@ -352,14 +354,14 @@ fn run_normal(
 
                 engine.handle_graphics_context_destroyed_by_plugins(
                     fixed_time_step,
-                    ApplicationLoopController::WindowTarget(window_target),
+                    ApplicationLoopController::ActiveEventLoop(active_event_loop),
                     &mut lag,
                 );
             }
             Event::AboutToWait => {
                 game_loop_iteration(
                     &mut engine,
-                    ApplicationLoopController::WindowTarget(window_target),
+                    ApplicationLoopController::ActiveEventLoop(active_event_loop),
                     &mut previous,
                     &mut lag,
                     fixed_time_step,
@@ -371,7 +373,7 @@ fn run_normal(
             }
             Event::WindowEvent { event, .. } => {
                 match event {
-                    WindowEvent::CloseRequested => window_target.exit(),
+                    WindowEvent::CloseRequested => active_event_loop.exit(),
                     WindowEvent::Resized(size) => {
                         if let Err(e) = engine.set_frame_size(size.into()) {
                             Log::writeln(
@@ -383,7 +385,7 @@ fn run_normal(
                     WindowEvent::RedrawRequested => {
                         engine.handle_before_rendering_by_plugins(
                             fixed_time_step,
-                            ApplicationLoopController::WindowTarget(window_target),
+                            ApplicationLoopController::ActiveEventLoop(active_event_loop),
                             &mut lag,
                         );
 
@@ -471,9 +473,10 @@ fn game_loop_iteration(
     }
 }
 
+#[allow(deprecated)] // TODO
 fn run_executor<F>(event_loop: EventLoop<()>, callback: F)
 where
-    F: FnMut(Event<()>, &EventLoopWindowTarget<()>) + 'static,
+    F: FnMut(Event<()>, &ActiveEventLoop) + 'static,
 {
     #[cfg(target_arch = "wasm32")]
     {

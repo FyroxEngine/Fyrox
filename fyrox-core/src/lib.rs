@@ -25,6 +25,7 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
 #![allow(clippy::doc_lazy_continuation)]
+#![allow(mismatched_lifetime_syntaxes)]
 
 #[macro_use]
 extern crate memoffset;
@@ -43,6 +44,7 @@ pub use uuid;
 use crate::visitor::{Visit, VisitResult, Visitor};
 use bytemuck::Pod;
 use fxhash::FxHashMap;
+pub use safelock::*;
 use std::collections::hash_map::Entry;
 use std::ffi::OsString;
 use std::hash::Hasher;
@@ -65,6 +67,7 @@ pub mod pool;
 pub mod quadtree;
 pub mod rectpack;
 pub mod reflect;
+mod safelock;
 pub mod sparse;
 pub mod sstorage;
 pub mod task;

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::camera::PickMethod;
 use crate::{
     camera::{CameraController, PickingOptions},
     command::{Command, CommandGroup},
@@ -40,8 +41,8 @@ use crate::{
         },
     },
     interaction::{
-        calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo,
-        make_interaction_mode_button, plane::PlaneKind, InteractionMode,
+        gizmo::move_gizmo::MoveGizmo, make_interaction_mode_button, plane::PlaneKind,
+        InteractionMode,
     },
     message::MessageSender,
     scene::{
@@ -53,6 +54,7 @@ use crate::{
     world::selection::GraphSelection,
     Engine, Message,
 };
+use fyrox::core::some_or_return;
 
 struct Entry {
     node: Handle<Node>,
@@ -214,7 +216,7 @@ impl MoveContext {
                 ignore_back_faces: settings.selection.ignore_back_faces,
                 // We need info only about closest intersection.
                 use_picking_loop: false,
-                only_meshes: true,
+                method: PickMethod::PRECISE_HULL_RAY_TEST,
                 settings: &settings.selection,
             },
         ) {
@@ -327,7 +329,7 @@ impl InteractionMode for MoveInteractionMode {
                 filter: Some(&mut |handle, _| handle != self.move_gizmo.origin),
                 ignore_back_faces: false,
                 use_picking_loop: true,
-                only_meshes: false,
+                method: Default::default(),
                 settings: &settings.selection,
             },
         ) {
@@ -406,7 +408,7 @@ impl InteractionMode for MoveInteractionMode {
                         filter: None,
                         ignore_back_faces: settings.selection.ignore_back_faces,
                         use_picking_loop: true,
-                        only_meshes: false,
+                        method: Default::default(),
                         settings: &settings.selection,
                     },
                 )
@@ -472,7 +474,7 @@ impl InteractionMode for MoveInteractionMode {
                         filter: None,
                         ignore_back_faces: false,
                         use_picking_loop: false,
-                        only_meshes: false,
+                        method: Default::default(),
                         settings: &settings.selection,
                     },
                 )
@@ -487,26 +489,15 @@ impl InteractionMode for MoveInteractionMode {
         editor_selection: &Selection,
         controller: &mut dyn SceneController,
         engine: &mut Engine,
-        _settings: &Settings,
+        settings: &Settings,
     ) {
-        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
-            return;
-        };
-
-        let scene = &mut engine.scenes[game_scene.scene];
-        let graph = &mut scene.graph;
-        if editor_selection.is_empty() {
-            self.move_gizmo.set_visible(graph, false);
-        } else {
-            let scale = calculate_gizmo_distance_scaling(
-                graph,
-                game_scene.camera_controller.camera,
-                self.move_gizmo.origin,
-            ) * _settings.graphics.gizmo_scale;
-            self.move_gizmo.set_visible(graph, true);
-            self.move_gizmo
-                .sync_transform(scene, editor_selection, scale);
-        }
+        let game_scene = some_or_return!(controller.downcast_mut::<GameScene>());
+        self.move_gizmo.sync_with_selection(
+            &mut engine.scenes[game_scene.scene].graph,
+            game_scene.camera_controller.camera,
+            settings,
+            editor_selection,
+        );
     }
 
     fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {

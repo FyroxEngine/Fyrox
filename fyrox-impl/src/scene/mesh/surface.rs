@@ -336,7 +336,7 @@ impl SurfaceData {
             if v1 == v2 || v1 == v3 || v2 == v3 {
                 Log::warn(format!(
                     "Degenerated triangle found when calculating tangents. Lighting may be \
-                    incorrect! Triangle indices: {triangle:?}. Triangle vertices: {v1} {v2} {v3}",
+                    incorrect! Triangle indices: {triangle:?}. Triangle vertices: {v1:?} {v2:?} {v3:?}",
                 ));
             }
 
@@ -737,8 +737,8 @@ impl SurfaceData {
                 let c = ((num_segments + 1) * (j - 1) + i) as u32;
                 let d = ((num_segments + 1) * j + i) as u32;
 
-                triangles.push(TriangleDefinition([a, b, d]));
-                triangles.push(TriangleDefinition([b, c, d]));
+                triangles.push(TriangleDefinition([d, b, a]));
+                triangles.push(TriangleDefinition([d, c, b]));
             }
         }
 
@@ -1255,11 +1255,9 @@ pub struct Surface {
     /// Array of handles to scene nodes which are used as bones.
     pub bones: InheritableVariable<Vec<Handle<Node>>>,
 
-    #[reflect(
-        description = "If true, then the current material will become a unique instance when cloning the surface.\
-        Could be useful if you need to have unique materials per on every instance. Keep in mind that this option \
-        might affect performance!"
-    )]
+    /// If true, then the current material will become a unique instance when cloning the surface.
+    /// Could be useful if you need to have unique materials per on every instance. Keep in mind that
+    /// this option might affect performance!
     unique_material: InheritableVariable<bool>,
 
     // Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)

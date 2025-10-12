@@ -113,13 +113,13 @@ mod tests {
     fn select_example1() {
         let iter = [0, 1, 2, 3, 4, 5, 6, 7, 8].into_iter();
         let result: Vec<_> = select_iterator(iter, 1, 3).collect();
-        assert!(result.clone().into_iter().eq([1, 4, 7]), "{:?}", result);
+        assert!(result.clone().into_iter().eq([1, 4, 7]), "{result:?}");
     }
     #[test]
     fn select_example2() {
         let iter = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].into_iter();
         let result: Vec<_> = select_iterator(iter, 3, 5).collect();
-        assert!(result.clone().into_iter().eq([3, 8]), "{:?}", result);
+        assert!(result.clone().into_iter().eq([3, 8]), "{result:?}");
     }
     #[test]
     fn cubic1() {
@@ -131,8 +131,7 @@ mod tests {
                 .clone()
                 .into_iter()
                 .eq([(0, [-1, 0, 1]), (1, [2, 3, 4])]),
-            "{:?}",
-            result
+            "{result:?}"
         );
     }
 }

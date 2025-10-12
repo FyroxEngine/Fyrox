@@ -21,7 +21,6 @@
 //! Resource management
 
 #![forbid(unsafe_code)]
-#![allow(missing_docs)]
 #![allow(clippy::doc_lazy_continuation)]
 #![allow(clippy::mutable_key_type)]
 #![warn(missing_docs)]
@@ -39,9 +38,9 @@ use crate::{
 };
 use fxhash::FxHashSet;
 pub use fyrox_core as core;
-use fyrox_core::{combine_uuids, log::Log};
-use std::any::Any;
+use fyrox_core::{combine_uuids, log::Log, SafeLock};
 use std::path::PathBuf;
+use std::{any::Any, fmt::Display};
 use std::{
     error::Error,
     fmt::{Debug, Formatter},
@@ -111,9 +110,9 @@ pub trait TypedResourceData: ResourceData + Default + TypeUuidProvider {}
 impl<T> TypedResourceData for T where T: ResourceData + Default + TypeUuidProvider {}
 
 /// A trait for resource load error.
-pub trait ResourceLoadError: 'static + Debug + Send + Sync {}
+pub trait ResourceLoadError: 'static + Debug + Display + Send + Sync {}
 
-impl<T> ResourceLoadError for T where T: 'static + Debug + Send + Sync {}
+impl<T> ResourceLoadError for T where T: 'static + Debug + Display + Send + Sync {}
 
 /// Provides typed access to a resource state.
 pub struct ResourceHeaderGuard<'a, T>
@@ -154,6 +153,23 @@ where
             None
         }
     }
+
+    /// Tries to fetch the underlying data of the resource type. This operation will fail if the
+    /// locked resource is not in [`ResourceState::Ok`] or if its actual data does not match the
+    /// type of the resource.
+    pub fn data_ref_with_id(&self) -> Option<(&T, &Uuid)> {
+        if let ResourceState::Ok {
+            ref data,
+            ref resource_uuid,
+        } = self.guard.state
+        {
+            (&**data as &dyn Any)
+                .downcast_ref::<T>()
+                .map(|typed| (typed, resource_uuid))
+        } else {
+            None
+        }
+    }
 }
 
 /// A resource of particular data type. It is a typed wrapper around [`UntypedResource`] which
@@ -162,16 +178,33 @@ where
 /// ## Default State
 ///
 /// Default state of the resource will be [`ResourceState::Ok`] with `T::default`.
-#[derive(Debug, Reflect)]
+#[derive(Reflect)]
 pub struct Resource<T: Debug> {
     untyped: UntypedResource,
     #[reflect(hidden)]
     phantom: PhantomData<T>,
 }
 
+impl<T: Debug> Debug for Resource<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Resource<{}>({})",
+            std::any::type_name::<T>(),
+            self.untyped
+        )
+    }
+}
+
 impl<T: TypedResourceData> AsRef<UntypedResource> for Resource<T> {
     fn as_ref(&self) -> &UntypedResource {
         &self.untyped
+    }
+}
+
+impl AsRef<UntypedResource> for UntypedResource {
+    fn as_ref(&self) -> &UntypedResource {
+        self
     }
 }
 
@@ -254,6 +287,10 @@ impl<T> Resource<T>
 where
     T: TypedResourceData,
 {
+    /// Create a summary of this resource handle, wht UUID, embedded/external, and Ok, Pending, Error, etc.
+    pub fn summary(&self) -> String {
+        format!("{}", self.untyped)
+    }
     /// Creates new resource in pending state.
     #[inline]
     pub fn new_pending(path: PathBuf, kind: ResourceKind) -> Self {
@@ -386,7 +423,7 @@ where
     #[inline]
     pub fn data_ref(&self) -> ResourceDataRef<'_, T> {
         ResourceDataRef {
-            guard: self.untyped.0.lock(),
+            guard: self.untyped.0.safe_lock(),
             phantom: Default::default(),
         }
     }
@@ -501,15 +538,13 @@ where
             ResourceState::Pending { .. } => {
                 write!(
                     f,
-                    "Attempt to get reference to resource data while it is not loaded! Path is {}",
-                    self.guard.kind
+                    "Attempt to get reference to resource data while it is loading!"
                 )
             }
             ResourceState::LoadError { .. } => {
                 write!(
                     f,
-                    "Attempt to get reference to resource data which failed to load! Path is {}",
-                    self.guard.kind
+                    "Attempt to get reference to resource data which failed to load!"
                 )
             }
             ResourceState::Ok { ref data, .. } => data.fmt(f),
@@ -527,15 +562,20 @@ where
         match self.guard.state {
             ResourceState::Pending { .. } => {
                 panic!(
-                    "Attempt to get reference to resource data while it is not loaded! Path is {}",
-                    self.guard.kind
+                    "Attempt to get reference to resource data while it is loading! Type {}",
+                    std::any::type_name::<T>()
                 )
             }
-            ResourceState::LoadError { .. } => {
-                panic!(
-                    "Attempt to get reference to resource data which failed to load! Path is {}",
-                    self.guard.kind
-                )
+            ResourceState::LoadError {
+                ref path,
+                ref error,
+            } => {
+                let path = if path.as_os_str().is_empty() {
+                    "Unknown".to_string()
+                } else {
+                    format!("{path:?}")
+                };
+                panic!("Attempt to get reference to resource data which failed to load! Type {}. Path: {path}. Error: {error:?}", std::any::type_name::<T>())
             }
             ResourceState::Ok { ref data, .. } => (&**data as &dyn Any)
                 .downcast_ref()
@@ -552,16 +592,10 @@ where
         let header = &mut *self.guard;
         match header.state {
             ResourceState::Pending { .. } => {
-                panic!(
-                    "Attempt to get reference to resource data while it is not loaded! Path is {}",
-                    header.kind
-                )
+                panic!("Attempt to get reference to resource data while it is loading!")
             }
             ResourceState::LoadError { .. } => {
-                panic!(
-                    "Attempt to get reference to resource data which failed to load! Path is {}",
-                    header.kind
-                )
+                panic!("Attempt to get reference to resource data which failed to load!")
             }
             ResourceState::Ok { ref mut data, .. } => (&mut **data as &mut dyn Any)
                 .downcast_mut()
@@ -681,7 +715,8 @@ mod tests {
     };
     use fyrox_core::{
         append_extension, futures::executor::block_on, io::FileError, parking_lot::Mutex,
-        reflect::prelude::*, task::TaskPool, uuid, visitor::prelude::*, TypeUuidProvider, Uuid,
+        reflect::prelude::*, task::TaskPool, uuid, visitor::prelude::*, SafeLock, TypeUuidProvider,
+        Uuid,
     };
     use ron::ser::PrettyConfig;
     use serde::{Deserialize, Serialize};
@@ -708,8 +743,7 @@ mod tests {
             resource_io.load_file(path).await.and_then(|metadata| {
                 ron::de::from_bytes::<Self>(&metadata).map_err(|err| {
                     FileError::Custom(format!(
-                        "Unable to deserialize the resource metadata. Reason: {:?}",
-                        err
+                        "Unable to deserialize the resource metadata. Reason: {err:?}"
                     ))
                 })
             })
@@ -833,7 +867,7 @@ mod tests {
         resource_manager
             .state()
             .resource_registry
-            .lock()
+            .safe_lock()
             .set_path(Path::new(TEST_FOLDER2).join("resources.registry"));
         resource_manager.add_loader(MyDataLoader {});
         resource_manager.update_or_load_registry();
@@ -856,7 +890,7 @@ mod tests {
         resource_manager
             .state()
             .resource_registry
-            .lock()
+            .safe_lock()
             .set_path(Path::new(TEST_FOLDER3).join("resources.registry"));
         resource_manager.add_loader(MyDataLoader {});
         resource_manager.update_or_load_registry();
@@ -868,8 +902,8 @@ mod tests {
         assert_eq!(block_on(res2.clone()).unwrap().data_ref().data, 1);
         let new_res1_path = ResourceRegistry::normalize_path(make_file_path(TEST_FOLDER3, 3));
         let new_res2_path = ResourceRegistry::normalize_path(make_file_path(TEST_FOLDER3, 4));
-        block_on(resource_manager.move_resource(res1.as_ref(), &new_res1_path)).unwrap();
-        block_on(resource_manager.move_resource(res2.as_ref(), &new_res2_path)).unwrap();
+        block_on(resource_manager.move_resource(res1.as_ref(), &new_res1_path, true)).unwrap();
+        block_on(resource_manager.move_resource(res2.as_ref(), &new_res2_path, true)).unwrap();
         assert_eq!(
             resource_manager.resource_path(res1.as_ref()).unwrap(),
             new_res1_path

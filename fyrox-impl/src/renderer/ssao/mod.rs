@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::resources::RendererResources;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
@@ -26,20 +25,21 @@ use crate::{
         math::{lerpf, Rect},
         sstorage::ImmutableString,
     },
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{Attachment, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+        server::GraphicsServer,
+    },
     rand::Rng,
     renderer::{
         cache::{
             shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
         },
-        framework::{
-            error::FrameworkError,
-            framebuffer::{Attachment, GpuFrameBuffer},
-            gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
-            server::GraphicsServer,
-        },
         gbuffer::GBuffer,
         make_viewport_matrix,
+        resources::RendererResources,
         ssao::blur::Blur,
         RenderPassStatistics,
     },
@@ -74,7 +74,8 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         let width = (frame_width / 2).max(1);
         let height = (frame_height / 2).max(1);
 
-        let occlusion = server.create_2d_render_target(PixelKind::R32F, width, height)?;
+        let occlusion =
+            server.create_2d_render_target("SsaoTexture", PixelKind::R32F, width, height)?;
 
         let mut rng = crate::rand::thread_rng();
 
@@ -110,6 +111,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     pixel[2] = 0u8; // B
                 }
                 server.create_texture(GpuTextureDescriptor {
+                    name: "SsaoNoise",
                     kind: GpuTextureKind::Rectangle {
                         width: NOISE_SIZE,
                         height: NOISE_SIZE,

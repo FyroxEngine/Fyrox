@@ -106,6 +106,7 @@ impl ParameterPanel {
                     filter: Default::default(),
                     name_column_width: 150.0,
                     base_path: Default::default(),
+                    has_parent_object: false,
                 })
             })
             .unwrap_or_default();
@@ -176,7 +177,7 @@ impl ParameterPanel {
                 } else {
                     sender.send(Message::DoCommand(
                         make_command(args, move |ctx| {
-                            fetch_machine(ctx, absm_node_handle).parameters_mut()
+                            Some(fetch_machine(ctx, absm_node_handle).parameters_mut())
                         })
                         .unwrap(),
                     ));

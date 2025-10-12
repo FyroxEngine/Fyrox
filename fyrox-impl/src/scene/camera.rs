@@ -376,7 +376,8 @@ pub struct Camera {
     color_grading_enabled: InheritableVariable<bool>,
 
     #[reflect(setter = "set_render_target")]
-    render_target: InheritableVariable<Option<TextureResource>>,
+    #[visit(skip)]
+    render_target: Option<TextureResource>,
 
     #[visit(skip)]
     #[reflect(hidden)]
@@ -433,6 +434,15 @@ pub enum FitParameters {
         /// New vertical size for orthographic projection.
         vertical_size: f32,
     },
+}
+
+impl FitParameters {
+    fn fallback_perspective() -> Self {
+        Self::Perspective {
+            position: Default::default(),
+            distance: 1.0,
+        }
+    }
 }
 
 impl Camera {
@@ -599,7 +609,16 @@ impl Camera {
     /// the method returns a set of parameters that can be used as you want.
     #[inline]
     #[must_use]
-    pub fn fit(&self, aabb: &AxisAlignedBoundingBox, aspect_ratio: f32) -> FitParameters {
+    pub fn fit(
+        &self,
+        aabb: &AxisAlignedBoundingBox,
+        aspect_ratio: f32,
+        scale: f32,
+    ) -> FitParameters {
+        if aabb.is_invalid_or_degenerate() {
+            return FitParameters::fallback_perspective();
+        }
+
         let look_vector = self
             .look_vector()
             .try_normalize(f32::EPSILON)
@@ -608,8 +627,13 @@ impl Camera {
         match self.projection.deref() {
             Projection::Perspective(perspective) => {
                 let radius = aabb.half_extents().max();
-                let distance = radius / (perspective.fov * 0.5).sin();
 
+                let denominator = (perspective.fov * 0.5).sin();
+                if denominator == 0.0 {
+                    return FitParameters::fallback_perspective();
+                }
+
+                let distance = radius / denominator * scale;
                 FitParameters::Perspective {
                     position: aabb.center() - look_vector.scale(distance),
                     distance,
@@ -638,8 +662,9 @@ impl Camera {
                 }
 
                 FitParameters::Orthographic {
-                    position: aabb.center() - look_vector.scale((aabb.max - aabb.min).norm()),
-                    vertical_size: (max_y - min_y).max((max_x - min_x) * aspect_ratio),
+                    position: aabb.center()
+                        - look_vector.scale((aabb.max - aabb.min).norm() * scale),
+                    vertical_size: (max_y - min_y).max((max_x - min_x) * aspect_ratio) * scale,
                 }
             }
         }
@@ -727,17 +752,20 @@ impl Camera {
     ///     camera.set_render_target(Some(render_target));
     /// }
     /// ```
+    ///
+    /// # Serialization
+    ///
+    /// The render target is non-serializable, and you have to re-create it after deserialization.
     pub fn set_render_target(
         &mut self,
         render_target: Option<TextureResource>,
     ) -> Option<TextureResource> {
-        self.render_target
-            .set_value_and_mark_modified(render_target)
+        std::mem::replace(&mut self.render_target, render_target)
     }
 
     /// Returns a reference to the current render target (if any).
     pub fn render_target(&self) -> Option<&TextureResource> {
-        (*self.render_target).as_ref()
+        self.render_target.as_ref()
     }
 }
 
@@ -832,7 +860,7 @@ impl Display for ColorGradingLutCreationError {
                 )
             }
             ColorGradingLutCreationError::Texture(v) => {
-                write!(f, "Texture load error: {v:?}")
+                write!(f, "Texture load error: {v}")
             }
         }
     }
@@ -1101,7 +1129,7 @@ impl CameraBuilder {
             exposure: self.exposure.into(),
             color_grading_lut: self.color_grading_lut.into(),
             color_grading_enabled: self.color_grading_enabled.into(),
-            render_target: None.into(),
+            render_target: self.render_target,
         }
     }
 

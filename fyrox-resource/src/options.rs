@@ -24,9 +24,11 @@ use crate::{
     core::{append_extension, log::Log},
     io::ResourceIo,
 };
+use fyrox_core::io::FileError;
 use fyrox_core::reflect::Reflect;
 use ron::ser::PrettyConfig;
 use serde::{de::DeserializeOwned, Serialize};
+use std::io::{ErrorKind, Write};
 use std::{fs::File, path::Path};
 
 /// Extension of import options file.
@@ -45,8 +47,9 @@ pub trait ImportOptions:
 {
     /// Saves import options into a specified file.
     fn save_internal(&self, path: &Path) -> bool {
-        if let Ok(file) = File::create(path) {
-            if ron::ser::to_writer_pretty(file, self, PrettyConfig::default()).is_ok() {
+        if let Ok(mut file) = File::create(path) {
+            if let Ok(string) = ron::ser::to_string_pretty(self, PrettyConfig::default()) {
+                Log::verify(file.write_all(string.as_bytes()));
                 return true;
             }
         }
@@ -86,6 +89,15 @@ where
             }
         },
         Err(e) => {
+            // Missing options file is a normal situation, the engine will use default import options
+            // instead. Any other error indicates a real issue that needs to be highlighted to the
+            // user.
+            if let FileError::Io(ref err) = e {
+                if err.kind() == ErrorKind::NotFound {
+                    return None;
+                }
+            }
+
             Log::warn(format!(
                 "Unable to load options file {} for {} resource, fallback to defaults! Reason: {:?}",
                 settings_path.display(),

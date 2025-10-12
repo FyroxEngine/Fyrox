@@ -66,7 +66,7 @@ use crate::{
         },
         mesh::Mesh,
         navmesh,
-        node::{container::NodeContainer, Node, NodeTrait, SyncContext, UpdateContext},
+        node::{container::NodeContainer, Node, SyncContext, UpdateContext},
         pivot::Pivot,
         sound::context::SoundContext,
         transform::TransformBuilder,
@@ -76,9 +76,10 @@ use crate::{
 };
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::pool::BorrowAs;
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::SceneGraphNode;
-use std::ops::{Deref, DerefMut};
+use std::fmt::Write;
+use std::ops::Deref;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -126,22 +127,8 @@ impl GraphPerformanceStatistics {
 /// A helper type alias for node pool.
 pub type NodePool = Pool<Node, NodeContainer>;
 
-impl<T: NodeTrait> BorrowAs<Node, NodeContainer> for Handle<T> {
-    type Target = T;
-
-    fn borrow_as_ref(self, pool: &NodePool) -> Option<&T> {
-        pool.try_borrow(self.transmute())
-            .and_then(|n| NodeAsAny::as_any(n.0.deref()).downcast_ref::<T>())
-    }
-
-    fn borrow_as_mut(self, pool: &mut NodePool) -> Option<&mut T> {
-        pool.try_borrow_mut(self.transmute())
-            .and_then(|n| NodeAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
-    }
-}
-
 /// See module docs.
-#[derive(Debug, Reflect)]
+#[derive(Reflect)]
 pub struct Graph {
     #[reflect(hidden)]
     root: Handle<Node>,
@@ -183,6 +170,22 @@ pub struct Graph {
     pub(crate) message_receiver: Receiver<NodeMessage>,
 
     instance_id_map: FxHashMap<SceneNodeId, Handle<Node>>,
+}
+
+impl Debug for Graph {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Graph")
+            .field("physics", &self.physics)
+            .field("physics2d", &self.physics2d)
+            .field("sound_context", &self.sound_context)
+            .field("performance_statistics", &self.performance_statistics)
+            .field("event_broadcaster", &self.event_broadcaster)
+            .field("lightmap", &self.lightmap)
+            .field("instance_id_map", &self.instance_id_map)
+            .finish()?;
+        f.write_char('\n')?;
+        f.write_str(&self.summary())
+    }
 }
 
 impl Clone for Graph {
@@ -282,8 +285,10 @@ fn clear_links(mut node: Node) -> Node {
 }
 
 /// A set of switches that allows you to disable a particular step of graph update pipeline.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GraphUpdateSwitches {
+    /// Enables the physics update to have a non-zero `dt`.
+    pub physics_dt: bool,
     /// Enables or disables update of the 2D physics.
     pub physics2d: bool,
     /// Enables or disables update of the 3D physics.
@@ -301,6 +306,7 @@ pub struct GraphUpdateSwitches {
 impl Default for GraphUpdateSwitches {
     fn default() -> Self {
         Self {
+            physics_dt: true,
             physics2d: true,
             physics: true,
             node_overrides: Default::default(),
@@ -364,6 +370,30 @@ impl Graph {
         graph
     }
 
+    fn recursive_summary(&self, indent: usize, current: Handle<Node>, result: &mut String) {
+        for _ in 0..indent {
+            result.push_str("  ");
+        }
+        let Some(node) = self.try_get(current) else {
+            use std::fmt::Write;
+            writeln!(result, "{}: Failed to get", current).unwrap();
+            return;
+        };
+        result.push_str(&node.summary());
+        result.push('\n');
+        for script in node.scripts() {
+            for _ in 0..indent + 1 {
+                result.push_str("  ");
+            }
+            result.push_str("+ Script: ");
+            result.push_str(&script.summary());
+            result.push('\n');
+        }
+        for child in node.children() {
+            self.recursive_summary(indent + 1, *child, result);
+        }
+    }
+
     /// Sets new root of the graph and attaches the old root to the new root. Old root becomes a child
     /// node of the new root.
     pub fn change_root_node(&mut self, root: Node) {
@@ -390,7 +420,7 @@ impl Graph {
                         }
                     })
                 },
-                &[],
+                &[TypeId::of::<UntypedResource>()],
             );
         }
         references
@@ -492,12 +522,6 @@ impl Graph {
     #[inline]
     pub fn get_root(&self) -> Handle<Node> {
         self.root
-    }
-
-    /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
-    #[inline]
-    pub fn try_get_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
-        self.pool.try_borrow_mut(handle)
     }
 
     /// Begins multi-borrow that allows you borrow to as many shared references to the graph
@@ -884,7 +908,7 @@ impl Graph {
         where
             F: FnMut(Handle<Node>, &Node) -> bool,
         {
-            graph.try_get(node).and_then(|n| {
+            graph.try_get_node(node).and_then(|n| {
                 if filter(node, n) {
                     let mut aabb = n.local_bounding_box();
                     if aabb.is_invalid_or_degenerate() {
@@ -1094,7 +1118,7 @@ impl Graph {
                 func: &mut impl FnMut(Handle<Node>),
             ) {
                 func(from);
-                if let Some(node) = graph.try_get(from) {
+                if let Some(node) = graph.try_get_node(from) {
                     for &child in node.children() {
                         traverse_recursive(graph, child, func)
                     }
@@ -1214,13 +1238,13 @@ impl Graph {
 
         if switches.physics {
             self.physics.performance_statistics.reset();
-            self.physics.update(dt);
+            self.physics.update(dt, switches.physics_dt);
             self.performance_statistics.physics = self.physics.performance_statistics.clone();
         }
 
         if switches.physics2d {
             self.physics2d.performance_statistics.reset();
-            self.physics2d.update(dt);
+            self.physics2d.update(dt, switches.physics_dt);
             self.performance_statistics.physics2d = self.physics2d.performance_statistics.clone();
         }
 
@@ -1545,7 +1569,7 @@ impl Graph {
     #[inline]
     pub fn global_scale(&self, mut node: Handle<Node>) -> Vector3<f32> {
         let mut global_scale = Vector3::repeat(1.0);
-        while let Some(node_ref) = self.try_get(node) {
+        while let Some(node_ref) = self.try_get_node(node) {
             global_scale = global_scale.component_mul(node_ref.local_transform().scale());
             node = node_ref.parent;
         }
@@ -1559,7 +1583,7 @@ impl Graph {
     where
         T: ScriptTrait,
     {
-        self.try_get(node)
+        self.try_get_node(node)
             .and_then(|node| node.try_get_script::<T>())
     }
 
@@ -1571,7 +1595,7 @@ impl Graph {
         &self,
         node: Handle<Node>,
     ) -> Option<impl Iterator<Item = &T>> {
-        self.try_get(node).map(|n| n.try_get_scripts())
+        self.try_get_node(node).map(|n| n.try_get_scripts())
     }
 
     /// Tries to borrow a node using the given handle and searches the script buffer for a script
@@ -1581,7 +1605,7 @@ impl Graph {
     where
         T: ScriptTrait,
     {
-        self.try_get_mut(node)
+        self.try_get_node_mut(node)
             .and_then(|node| node.try_get_script_mut::<T>())
     }
 
@@ -1593,7 +1617,7 @@ impl Graph {
         &mut self,
         node: Handle<Node>,
     ) -> Option<impl Iterator<Item = &mut T>> {
-        self.try_get_mut(node).map(|n| n.try_get_scripts_mut())
+        self.try_get_node_mut(node).map(|n| n.try_get_scripts_mut())
     }
 
     /// Tries to borrow a node and find a component of the given type `C` across **all** available
@@ -1604,7 +1628,7 @@ impl Graph {
     where
         C: Any,
     {
-        self.try_get(node)
+        self.try_get_node(node)
             .and_then(|node| node.try_get_script_component())
     }
 
@@ -1616,7 +1640,7 @@ impl Graph {
     where
         C: Any,
     {
-        self.try_get_mut(node)
+        self.try_get_node_mut(node)
             .and_then(|node| node.try_get_script_component_mut())
     }
 
@@ -1640,20 +1664,20 @@ impl Graph {
     }
 }
 
-impl<T, B: BorrowAs<Node, NodeContainer, Target = T>> Index<B> for Graph {
+impl<T: ObjectOrVariant<Node>> Index<Handle<T>> for Graph {
     type Output = T;
 
     #[inline]
-    fn index(&self, typed_handle: B) -> &Self::Output {
-        self.typed_ref(typed_handle)
+    fn index(&self, index: Handle<T>) -> &Self::Output {
+        self.try_get(index)
             .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
 
-impl<T, B: BorrowAs<Node, NodeContainer, Target = T>> IndexMut<B> for Graph {
+impl<T: ObjectOrVariant<Node>> IndexMut<Handle<T>> for Graph {
     #[inline]
-    fn index_mut(&mut self, typed_handle: B) -> &mut Self::Output {
-        self.typed_mut(typed_handle)
+    fn index_mut(&mut self, index: Handle<T>) -> &mut Self::Output {
+        self.try_get_mut(index)
             .expect("The node handle is invalid or the object it points to has different type.")
     }
 }
@@ -1699,6 +1723,13 @@ impl BaseSceneGraph for Graph {
     type Prefab = Model;
     type NodeContainer = NodeContainer;
     type Node = Node;
+
+    /// Create a brief debug summary of the contents of this graph.
+    fn summary(&self) -> String {
+        let mut result = String::new();
+        self.recursive_summary(0, self.root, &mut result);
+        result
+    }
 
     #[inline]
     fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
@@ -1819,12 +1850,12 @@ impl BaseSceneGraph for Graph {
     }
 
     #[inline]
-    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+    fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
         self.pool.try_borrow(handle)
     }
 
     #[inline]
-    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+    fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
         self.pool.try_borrow_mut(handle)
     }
 
@@ -1842,6 +1873,7 @@ impl BaseSceneGraph for Graph {
 }
 
 impl SceneGraph for Graph {
+    type ObjectType = Node;
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.pool.pair_iter()
@@ -1857,18 +1889,12 @@ impl SceneGraph for Graph {
         self.pool.iter_mut()
     }
 
-    fn typed_ref<Ref>(
-        &self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&Ref> {
-        self.pool.typed_ref(handle)
+    fn try_get<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Option<&U> {
+        self.pool.try_get(handle)
     }
 
-    fn typed_mut<Ref>(
-        &mut self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&mut Ref> {
-        self.pool.typed_mut(handle)
+    fn try_get_mut<U: ObjectOrVariant<Node>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
+        self.pool.try_get_mut(handle)
     }
 }
 
@@ -2118,14 +2144,14 @@ mod test {
             .unwrap();
     }
 
-    fn make_resource_manager() -> ResourceManager {
+    fn make_resource_manager(root: &Path) -> ResourceManager {
         let resource_manager =
             ResourceManager::new(Arc::new(FsResourceIo), Arc::new(Default::default()));
         resource_manager
             .state()
             .resource_registry
             .lock()
-            .set_path("test_output/resources.registry");
+            .set_path(root.join("resources.registry"));
         engine::initialize_resource_manager_loaders(
             &resource_manager,
             Arc::new(SerializationContext::new()),
@@ -2136,35 +2162,37 @@ mod test {
 
     #[test]
     fn test_restore_integrity() {
-        if !Path::new("test_output").exists() {
-            fs::create_dir_all("test_output").unwrap();
+        let root = Path::new("test_restore_integrity");
+
+        if !root.exists() {
+            fs::create_dir_all(root).unwrap();
         }
 
-        let root_asset_path = Path::new("test_output/root2.rgs");
-        let derived_asset_path = Path::new("test_output/derived2.rgs");
+        let root_asset_path = root.join("root2.rgs");
+        let derived_asset_path = root.join("derived2.rgs");
 
         // Create root scene and save it.
         {
             let mut scene = create_scene();
-            save_scene(&mut scene, root_asset_path);
+            save_scene(&mut scene, &root_asset_path);
         }
 
         // Create root resource instance in a derived resource. This creates a derived asset.
         {
-            let resource_manager = make_resource_manager();
-            let root_asset = block_on(resource_manager.request::<Model>(root_asset_path)).unwrap();
+            let resource_manager = make_resource_manager(root);
+            let root_asset = block_on(resource_manager.request::<Model>(&root_asset_path)).unwrap();
 
             let mut derived = Scene::new();
             root_asset.instantiate(&mut derived);
-            save_scene(&mut derived, derived_asset_path);
+            save_scene(&mut derived, &derived_asset_path);
         }
 
         // Now load the root asset, modify it, save it back and reload the derived asset.
         {
-            let resource_manager = make_resource_manager();
+            let resource_manager = make_resource_manager(root);
             let mut scene = block_on(
                 block_on(SceneLoader::from_file(
-                    root_asset_path,
+                    &root_asset_path,
                     &FsResourceIo,
                     Arc::new(SerializationContext::new()),
                     resource_manager.clone(),
@@ -2188,12 +2216,12 @@ mod test {
             scene.graph.remove_node(existing_pivot);
 
             // Save the scene back.
-            save_scene(&mut scene, root_asset_path);
+            save_scene(&mut scene, &root_asset_path);
         }
 
         // Load the derived scene and check if its content was synced with the content of the root asset.
         {
-            let resource_manager = make_resource_manager();
+            let resource_manager = make_resource_manager(root);
             let derived_asset =
                 block_on(resource_manager.request::<Model>(derived_asset_path)).unwrap();
 
@@ -2212,21 +2240,21 @@ mod test {
             let mesh_pivot = derived_scene
                 .graph
                 .find_by_name_from_root("MeshPivot")
-                .unwrap()
+                .expect("Missing MeshPivot")
                 .0;
             let mesh = derived_scene
                 .graph
                 .find_by_name(mesh_pivot, "Mesh")
-                .unwrap()
+                .expect("Missing Mesh")
                 .0;
             derived_scene
                 .graph
                 .find_by_name_from_root("AddedLater")
-                .unwrap();
+                .expect("Missing AddedLater");
             derived_scene
                 .graph
                 .find_by_name(mesh, "NewChildOfMesh")
-                .unwrap();
+                .expect("Missing NewChildOfMesh");
         }
     }
 
@@ -2365,7 +2393,7 @@ mod test {
         assert!(graph[c].global_visibility());
         assert!(graph[d].global_visibility());
 
-        assert!(!graph.pool.typed_ref(a).unwrap().is_globally_enabled());
+        assert!(!graph.pool.try_get(a).unwrap().is_globally_enabled());
         assert!(!graph[b].is_globally_enabled());
         assert!(!graph[c].is_globally_enabled());
         assert!(!graph[d].is_globally_enabled());
@@ -2377,21 +2405,18 @@ mod test {
         let pivot = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
         let rigid_body = RigidBodyBuilder::new(BaseBuilder::new()).build(&mut graph);
 
-        assert!(graph.pool.typed_ref(pivot).is_some());
-        assert!(graph.pool.typed_ref(pivot.transmute::<Pivot>()).is_some());
-        assert!(graph
-            .pool
-            .typed_ref(pivot.transmute::<RigidBody>())
-            .is_none());
+        assert!(graph.pool.try_get(pivot).is_some());
+        assert!(graph.pool.try_get(pivot.transmute::<Pivot>()).is_some());
+        assert!(graph.pool.try_get(pivot.transmute::<RigidBody>()).is_none());
 
-        assert!(graph.pool.typed_ref(rigid_body).is_some());
+        assert!(graph.pool.try_get(rigid_body).is_some());
         assert!(graph
             .pool
-            .typed_ref(rigid_body.transmute::<RigidBody>())
+            .try_get(rigid_body.transmute::<RigidBody>())
             .is_some());
         assert!(graph
             .pool
-            .typed_ref(rigid_body.transmute::<Pivot>())
+            .try_get(rigid_body.transmute::<Pivot>())
             .is_none());
     }
 }

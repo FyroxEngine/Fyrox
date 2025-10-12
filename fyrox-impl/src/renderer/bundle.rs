@@ -35,6 +35,18 @@ use crate::{
         sstorage::ImmutableString,
     },
     graph::BaseSceneGraph,
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
+        gpu_program::{
+            SamplerFallback, ShaderProperty, ShaderPropertyKind, ShaderResourceDefinition,
+            ShaderResourceKind,
+        },
+        gpu_texture::GpuTexture,
+        server::GraphicsServer,
+        uniform::{ByteStorage, StaticUniformBuffer, UniformBuffer},
+        ElementRange,
+    },
     material::{self, shader::ShaderDefinition, Material, MaterialPropertyRef, MaterialResource},
     renderer::{
         cache::{
@@ -43,15 +55,6 @@ use crate::{
             texture::TextureCache,
             uniform::{UniformBlockLocation, UniformMemoryAllocator},
             DynamicSurfaceCache, TimeToLive,
-        },
-        framework::{
-            error::FrameworkError,
-            framebuffer::{GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
-            gpu_program::{ShaderProperty, ShaderPropertyKind, ShaderResourceKind},
-            gpu_texture::GpuTexture,
-            server::GraphicsServer,
-            uniform::{ByteStorage, StaticUniformBuffer, UniformBuffer},
-            ElementRange,
         },
         observer::ObserverPosition,
         RenderPassStatistics,
@@ -77,7 +80,7 @@ use crate::{
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use fyrox_graph::{SceneGraph, SceneGraphNode};
-use fyrox_graphics::gpu_program::{SamplerFallback, ShaderResourceDefinition};
+use fyrox_resource::manager::ResourceManager;
 use std::{
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
@@ -131,6 +134,7 @@ pub struct BundleRenderContext<'a> {
     pub frame_buffer: &'a GpuFrameBuffer,
     pub viewport: Rect<i32>,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
+    pub resource_manager: &'a ResourceManager,
 
     // Built-in uniforms.
     pub use_pom: bool,
@@ -170,18 +174,24 @@ impl Default for SurfaceInstanceData {
 }
 
 /// A set of surface instances that share the same vertex/index data and a material.
+/// Geometry instancing means rendering multiple copies of the same mesh in a scene at once,
+/// reusing the same vertex data but with a different world transform each time.
+/// This technique can be used for objects such as trees that may need to be repeated many times in a scene.
+/// See [`SurfaceInstanceData`] for the properties that can change between instances of the bundle.
 pub struct RenderDataBundle {
-    /// A pointer to shared surface data.
+    /// A pointer to shared surface data, such as vertices, triangle indices, and blend shapes.
     pub data: SurfaceResource,
     /// Amount of time (in seconds) for GPU geometry buffer (vertex + index buffers) generated for
     /// the `data`.
     pub time_to_live: TimeToLive,
-    /// A set of instances.
+    /// A set of instances, each with their own world transform and other properties.
     pub instances: Vec<SurfaceInstanceData>,
     /// A material that is shared across all instances.
     pub material: MaterialResource,
     /// A render path of the bundle.
     pub render_path: RenderPath,
+    /// The priority of this bundle when sorting the bundles to determine which will be rendered
+    /// first. Bundles with lower values are rendered before bundles with higher values.
     sort_index: u64,
 }
 
@@ -208,7 +218,7 @@ pub struct InstanceUniformData {
 /// Describes where to the actual uniform data is located in the memory backed by the uniform
 /// memory allocator on per-bundle basis.
 pub struct BundleUniformData {
-    /// Material info block location.
+    /// Material info block location in the form of (binding point, position within allocator)
     pub material_property_group_blocks: Vec<(usize, UniformBlockLocation)>,
     /// Lights info block location.
     pub light_data_block: UniformBlockLocation,
@@ -343,6 +353,7 @@ pub fn make_texture_binding(
     resource_definition: &ShaderResourceDefinition,
     renderer_resources: &RendererResources,
     fallback: SamplerFallback,
+    resource_manager: &ResourceManager,
     texture_cache: &mut TextureCache,
 ) -> ResourceBinding {
     let fallback = renderer_resources.sampler_fallback(fallback);
@@ -356,7 +367,7 @@ pub fn make_texture_binding(
                     .as_ref()
                     .and_then(|t| {
                         texture_cache
-                            .get(server, t)
+                            .get(server, resource_manager, t)
                             .map(|t| (&t.gpu_texture, &t.gpu_sampler))
                     })
                     .unwrap_or(fallback)
@@ -422,6 +433,12 @@ impl RenderDataBundle {
                 // important, because some drivers will crash if uniform buffer has insufficient
                 // data.
                 write_shader_values(shader_property_group, &mut buf)
+            }
+
+            if buf.is_empty() {
+                // There's no need to upload empty uniform blocks. Empty uniform blocks will be
+                // optimized out anyway.
+                continue;
             }
 
             material_property_group_blocks.push((
@@ -620,6 +637,7 @@ impl RenderDataBundle {
                             resource_definition,
                             render_context.renderer_resources,
                             fallback,
+                            render_context.resource_manager,
                             render_context.texture_cache,
                         ));
                     }
@@ -879,7 +897,7 @@ impl RenderDataBundleStorage {
             if let Some(lod_group) = node.lod_group() {
                 for level in lod_group.levels.iter() {
                     for &object in level.objects.iter() {
-                        if let Some(object_ref) = graph.try_get(object) {
+                        if let Some(object_ref) = graph.try_get_node(object) {
                             let distance = observer_position
                                 .translation
                                 .metric_distance(&object_ref.global_position());
@@ -1166,6 +1184,7 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
         let mut hasher = FxHasher::default();
         hasher.write_u64(material.key());
         layout.hash(&mut hasher);
+        hasher.write_u64(sort_index);
         hasher.write_u32(render_path as u32);
         let key = hasher.finish();
 

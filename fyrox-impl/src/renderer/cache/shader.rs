@@ -20,6 +20,17 @@
 
 use crate::{
     core::{arrayvec::ArrayVec, log::Log, math::Rect, sstorage::ImmutableString},
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{DrawCallStatistics, GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
+        geometry_buffer::GpuGeometryBuffer,
+        gpu_program::{GpuProgram, ShaderResourceDefinition, ShaderResourceKind},
+        gpu_texture::GpuTexture,
+        sampler::GpuSampler,
+        server::GraphicsServer,
+        uniform::StaticUniformBuffer,
+        DrawParameters, ElementRange,
+    },
     material::{
         shader::{Shader, ShaderResource},
         MaterialPropertyRef,
@@ -27,20 +38,9 @@ use crate::{
     renderer::{
         bundle,
         cache::{uniform::UniformBufferCache, TemporaryCache},
-        framework::{
-            error::FrameworkError,
-            framebuffer::{DrawCallStatistics, GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
-            geometry_buffer::GpuGeometryBuffer,
-            gpu_program::{GpuProgram, ShaderResourceDefinition, ShaderResourceKind},
-            gpu_texture::GpuTexture,
-            server::GraphicsServer,
-            DrawParameters, ElementRange,
-        },
     },
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::sampler::GpuSampler;
-use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::ops::Deref;
 
 pub struct NamedValue<T> {

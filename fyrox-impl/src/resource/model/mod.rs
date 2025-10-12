@@ -491,6 +491,12 @@ impl ModelResourceExtension for ModelResource {
     }
 
     fn begin_instantiation<'a>(&'a self, dest_scene: &'a mut Scene) -> InstantiationContext<'a> {
+        if !self.is_ok() {
+            Log::err(format!(
+                "Instantiating a model from a resource that is not loaded: {self:?}"
+            ));
+            panic!();
+        }
         InstantiationContext {
             model: self,
             dest_scene,

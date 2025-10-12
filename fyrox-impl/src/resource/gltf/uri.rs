@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn split() {
         let r: Vec<_> = "abc:def".splitn(2, ':').collect();
-        assert!(r == vec!["abc", "def"], "{:?}", r);
+        assert!(r == vec!["abc", "def"], "{r:?}");
     }
     #[test]
     fn simple() {
@@ -138,8 +138,7 @@ mod tests {
                     data: None,
                 }
             ),
-            "{:?}",
-            u
+            "{u:?}"
         )
     }
     #[test]
@@ -157,8 +156,7 @@ mod tests {
                     data: None,
                 }
             ),
-            "{:?}",
-            u
+            "{u:?}"
         )
     }
     #[test]
@@ -176,8 +174,7 @@ mod tests {
                     data: None,
                 }
             ),
-            "{:?}",
-            u
+            "{u:?}"
         )
     }
     #[test]
@@ -195,8 +192,7 @@ mod tests {
                     data: Some("ABCDEFG"),
                 }
             ),
-            "{:?}",
-            u
+            "{u:?}"
         )
     }
 }

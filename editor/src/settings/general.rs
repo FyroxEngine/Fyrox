@@ -47,41 +47,31 @@ pub enum EditorStyle {
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
 pub struct GeneralSettings {
-    #[reflect(
-        description = "Defines whether the editor checks for references to an object that is about to be deleted or not."
-    )]
+    /// Defines whether the editor checks for references to an object that is about to be deleted or not.
     pub show_node_removal_dialog: bool,
 
-    #[reflect(
-        description = "When set, suspends the editor execution if its main window is unfocused. Use this option to reduce \
-    CPU/GPU resources consumption when you don't need the editor to run in the background."
-    )]
+    /// When set, suspends the editor execution if its main window is unfocused. Use this option to reduce \
+    /// CPU/GPU resources consumption when you don't need the editor to run in the background.
     #[serde(default = "default_suspension_state")]
     pub suspend_unfocused_editor: bool,
 
     #[serde(default = "default_script_editor")]
     pub script_editor: ScriptEditor,
 
+    /// Maximum capacity of actions history stack stored by the editor. Default is 512. Large numbers
+    /// will increase maximum amount of memory needed for the editor.
     #[serde(default = "default_max_history_entries")]
-    #[reflect(
-        description = "Maximum capacity of actions history stack stored by the editor. Default is \
-    512. Large numbers will increase maximum amount of memory needed for the editor."
-    )]
     pub max_history_entries: usize,
 
-    #[reflect(
-        description = "Enables or disables preview generation for assets in the asset browser. \
-    This feature could be disabled, if you're getting performance issues when there's a lot of assets \
-    in a folder. Due to technical difficulties, preview generation will be done on main thread, which \
-    could cause lag spikes."
-    )]
+    /// Enables or disables preview generation for assets in the asset browser. This feature could
+    /// be disabled, if you're getting performance issues when there's a lot of assets in a folder.
+    /// Due to technical difficulties, preview generation will be done on main thread, which could
+    /// cause lag spikes.
     #[serde(default = "default_generate_previews")]
     pub generate_previews: bool,
 
-    #[reflect(
-        description = "Maximum amount of log entries. Large values could harm performance and \
-        increase memory usage. Typical values are 200-500."
-    )]
+    /// Maximum amount of log entries. Large values could harm performance and increase memory usage.
+    /// Typical values are 200-500
     #[serde(default = "default_max_log_entries")]
     pub max_log_entries: usize,
 

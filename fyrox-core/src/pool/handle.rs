@@ -86,7 +86,6 @@ impl<T: Reflect> ReflectHandle for Handle<T> {
 static INDEX_METADATA: FieldMetadata = FieldMetadata {
     name: "Index",
     display_name: "Index",
-    description: "",
     tag: "",
     read_only: false,
     immutable_collection: false,
@@ -100,7 +99,6 @@ static INDEX_METADATA: FieldMetadata = FieldMetadata {
 static GENERATION_METADATA: FieldMetadata = FieldMetadata {
     name: "Generation",
     display_name: "Generation",
-    description: "",
     tag: "",
     read_only: false,
     immutable_collection: false,

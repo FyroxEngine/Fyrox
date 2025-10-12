@@ -95,7 +95,6 @@ where
                     max_value: property_info.max_value,
                     step: property_info.step,
                     precision: property_info.precision,
-                    description: property_info.description,
                     tag: property_info.tag,
                     doc: property_info.doc,
                 },
@@ -115,6 +114,7 @@ where
                     filter: ctx.filter,
                     name_column_width: ctx.name_column_width,
                     base_path: ctx.base_path.clone(),
+                    has_parent_object: ctx.has_parent_object,
                 })
         } else {
             Err(InspectorError::Custom("No editor!".to_string()))
@@ -144,7 +144,6 @@ where
                     max_value: property_info.max_value,
                     step: property_info.step,
                     precision: property_info.precision,
-                    description: property_info.description,
                     tag: property_info.tag,
                     doc: property_info.doc,
                 },
@@ -165,6 +164,7 @@ where
                     filter: ctx.filter,
                     name_column_width: ctx.name_column_width,
                     base_path: ctx.base_path.clone(),
+                    has_parent_object: ctx.has_parent_object,
                 });
         }
 

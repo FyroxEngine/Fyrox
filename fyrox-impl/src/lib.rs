@@ -32,6 +32,7 @@
 #![allow(clippy::approx_constant)]
 #![allow(clippy::doc_lazy_continuation)]
 #![allow(clippy::mutable_key_type)]
+#![allow(mismatched_lifetime_syntaxes)]
 
 pub mod engine;
 pub mod material;
@@ -65,6 +66,12 @@ pub use fyrox_ui as gui;
 
 #[doc(inline)]
 pub use fyrox_autotile as autotile;
+
+#[doc(inline)]
+pub use fyrox_graphics as graphics;
+
+#[doc(inline)]
+pub use fyrox_graphics_gl as graphics_gl;
 
 /// Defines a builder's `with_xxx` method.
 #[macro_export]

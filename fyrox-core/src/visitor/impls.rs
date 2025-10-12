@@ -56,7 +56,7 @@ macro_rules! impl_visit_as_field {
                             }),
                         }
                     } else {
-                        Err(VisitError::FieldDoesNotExist(name.to_owned()))
+                        Err(VisitError::field_does_not_exist(name, visitor))
                     }
                 } else if visitor.find_field(name).is_some() {
                     Err(VisitError::FieldAlreadyExists(name.to_owned()))
@@ -201,6 +201,8 @@ where
             } else {
                 self.as_mut().unwrap().visit("Data", &mut region)?;
             }
+        } else if region.reading {
+            *self = None;
         }
 
         Ok(())
@@ -238,7 +240,7 @@ impl Visit for String {
                     }),
                 }
             } else {
-                Err(VisitError::FieldDoesNotExist(name.to_owned()))
+                Err(VisitError::field_does_not_exist(name, visitor))
             }
         } else if visitor.find_field(name).is_some() {
             Err(VisitError::FieldAlreadyExists(name.to_owned()))
@@ -317,11 +319,23 @@ where
                 if let Ok(res) = Rc::downcast::<T>(ptr.clone()) {
                     *self = res;
                 } else {
-                    return Err(VisitError::TypeMismatch);
+                    return Err(VisitError::TypeMismatch {
+                        expected: std::any::type_name::<T>(),
+                        actual: region.type_name_map.get(&id).unwrap_or(&"MISSING"),
+                    });
                 }
             } else {
+                region.type_name_map.insert(id, std::any::type_name::<T>());
                 region.rc_map.insert(id, self.clone());
-                unsafe { rc_to_raw(self).visit("RcData", &mut region)? };
+                let result = unsafe { rc_to_raw(self).visit("RcData", &mut region) };
+                // Sometimes visiting is done experimentally, just to see if it would succeed, and visiting continues along a different
+                // path on failure. This means that the visitor must be in a valid state even after a failure, so we must remove
+                // the invalid rc_map entry if visiting failed.
+                if result.is_err() {
+                    region.type_name_map.remove(&id);
+                    region.rc_map.remove(&id);
+                    return result;
+                }
             }
         } else {
             let (mut id, serialize_data) = region.rc_id(self);
@@ -408,11 +422,23 @@ where
                 if let Ok(res) = Arc::downcast::<T>(ptr.clone()) {
                     *self = res;
                 } else {
-                    return Err(VisitError::TypeMismatch);
+                    return Err(VisitError::TypeMismatch {
+                        expected: std::any::type_name::<T>(),
+                        actual: region.type_name_map.get(&id).unwrap_or(&"MISSING"),
+                    });
                 }
             } else {
+                region.type_name_map.insert(id, std::any::type_name::<T>());
                 region.arc_map.insert(id, self.clone());
-                unsafe { arc_to_raw(self).visit("ArcData", &mut region)? };
+                let result = unsafe { arc_to_raw(self).visit("ArcData", &mut region) };
+                // Sometimes visiting is done experimentally, just to see if it would succeed, and visiting continues along a different
+                // path on failure. This means that the visitor must be in a valid state even after a failure, so we must remove
+                // the invalid arc_map entry if visiting failed.
+                if result.is_err() {
+                    region.type_name_map.remove(&id);
+                    region.arc_map.remove(&id);
+                    return result;
+                }
             }
         } else {
             let (mut id, serialize_data) = region.arc_id(self);
@@ -442,14 +468,26 @@ where
                     if let Ok(res) = Rc::downcast::<T>(ptr.clone()) {
                         *self = Rc::downgrade(&res);
                     } else {
-                        return Err(VisitError::TypeMismatch);
+                        return Err(VisitError::TypeMismatch {
+                            expected: std::any::type_name::<T>(),
+                            actual: region.type_name_map.get(&id).unwrap_or(&"MISSING"),
+                        });
                     }
                 } else {
                     // Create new value wrapped into Rc and deserialize it.
                     let rc = Rc::new(T::default());
+                    region.type_name_map.insert(id, std::any::type_name::<T>());
                     region.rc_map.insert(id, rc.clone());
 
-                    unsafe { rc_to_raw(&rc).visit("RcData", &mut region)? };
+                    let result = unsafe { rc_to_raw(&rc).visit("RcData", &mut region) };
+                    // Sometimes visiting is done experimentally, just to see if it would succeed, and visiting continues along a different
+                    // path on failure. This means that the visitor must be in a valid state even after a failure, so we must remove
+                    // the invalid rc_map entry if visiting failed.
+                    if result.is_err() {
+                        region.type_name_map.remove(&id);
+                        region.rc_map.remove(&id);
+                        return result;
+                    }
 
                     *self = Rc::downgrade(&rc);
                 }
@@ -485,12 +523,24 @@ where
                     if let Ok(res) = Arc::downcast::<T>(ptr.clone()) {
                         *self = Arc::downgrade(&res);
                     } else {
-                        return Err(VisitError::TypeMismatch);
+                        return Err(VisitError::TypeMismatch {
+                            expected: std::any::type_name::<T>(),
+                            actual: region.type_name_map.get(&id).unwrap_or(&"MISSING"),
+                        });
                     }
                 } else {
                     let arc = Arc::new(T::default());
+                    region.type_name_map.insert(id, std::any::type_name::<T>());
                     region.arc_map.insert(id, arc.clone());
-                    unsafe { arc_to_raw(&arc).visit("ArcData", &mut region)? };
+                    let result = unsafe { arc_to_raw(&arc).visit("ArcData", &mut region) };
+                    // Sometimes visiting is done experimentally, just to see if it would succeed, and visiting continues along a different
+                    // path on failure. This means that the visitor must be in a valid state even after a failure, so we must remove
+                    // the invalid arc_map entry if visiting failed.
+                    if result.is_err() {
+                        region.type_name_map.remove(&id);
+                        region.arc_map.remove(&id);
+                        return result;
+                    }
                     *self = Arc::downgrade(&arc);
                 }
             }

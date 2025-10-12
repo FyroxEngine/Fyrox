@@ -20,7 +20,7 @@
 
 //! All possible errors that can happen in the engine.
 
-use crate::{renderer::framework::error::FrameworkError, scene::sound::SoundError};
+use crate::{graphics::error::FrameworkError, scene::sound::SoundError};
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 

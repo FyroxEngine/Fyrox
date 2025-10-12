@@ -12,7 +12,7 @@
             binding: 1
         ),
         (
-            name: "ambientTexture",
+            name: "bakedLightingTexture",
             kind: Texture(kind: Sampler2D, fallback: White),
             binding: 2
         ),
@@ -32,14 +32,19 @@
             binding: 5
         ),
         (
-            name: "environmentMap",
+            name: "prefilteredSpecularMap",
             kind: Texture(kind: SamplerCube, fallback: White),
             binding: 6
         ),
         (
+            name: "irradianceMap",
+            kind: Texture(kind: SamplerCube, fallback: White),
+            binding: 7
+        ),
+        (
             name: "brdfLUT",
             kind: Texture(kind: Sampler2D, fallback: White),
-            binding: 7
+            binding: 8
         ),
         (
             name: "properties",
@@ -48,6 +53,7 @@
                 (name: "ambientColor", kind: Vector4()),
                 (name: "cameraPosition", kind: Vector3()),
                 (name: "invViewProj", kind: Matrix4()),
+                (name: "skyboxLighting", kind: Bool()),
             ]),
             binding: 0
         ),
@@ -119,15 +125,16 @@
                         vec3 material = texture(materialTexture, texCoord).rgb;
                         float metallic = material.x;
                         float roughness = material.y;
+                        float materialAo = material.z;
 
                         vec3 viewVector = normalize(properties.cameraPosition - fragmentPosition);
                         vec3 reflectionVector = -reflect(viewVector, fragmentNormal);
 
                         float clampedCosViewAngle = max(dot(fragmentNormal, viewVector), 0.0);
 
-                        ivec2 cubeMapSize = textureSize(environmentMap, 0);
-                        float mip = roughness * (floor(log2(max(float(cubeMapSize.x), float(cubeMapSize.y)))) + 1.0);
-                        vec3 reflection = textureLod(environmentMap, reflectionVector, mip).rgb;
+                        ivec2 cubeMapSize = textureSize(prefilteredSpecularMap, 0);
+                        float mip = roughness * (floor(log2(float(cubeMapSize.x))) + 1.0);
+                        vec3 reflection = properties.skyboxLighting ? S_SRGBToLinear(textureLod(prefilteredSpecularMap, reflectionVector, mip)).rgb : properties.ambientColor.rgb;
 
                         vec3 F0 = mix(vec3(0.04), albedo.rgb, metallic);
                         vec3 F = S_FresnelSchlickRoughness(clampedCosViewAngle, F0, roughness);
@@ -136,15 +143,14 @@
                         vec2 envBRDF = texture(brdfLUT, vec2(clampedCosViewAngle, roughness)).rg;
                         vec3 specular = reflection * (F * envBRDF.x + envBRDF.y);
 
-                        float ambientOcclusion = texture(aoSampler, texCoord).r;
-                        vec4 emission = texture(ambientTexture, texCoord);
+                        float ambientOcclusion = texture(aoSampler, texCoord).r * materialAo;
+                        vec4 bakedLighting = texture(bakedLightingTexture, texCoord);
 
-                        vec3 diffuse = (properties.ambientColor.rgb + emission.rgb) * albedo.rgb;
+                        vec3 irradiance = S_SRGBToLinear(texture(irradianceMap, fragmentNormal)).rgb;
+                        vec3 diffuse = (properties.skyboxLighting ? irradiance : properties.ambientColor.rgb) * albedo.rgb;
 
-                        FragColor.rgb = (kD * diffuse + specular) * ambientOcclusion;
-                        FragColor.a = emission.a;
-
-                        // TODO: Implement IBL.
+                        FragColor.rgb = bakedLighting.rgb + (kD * diffuse + specular) * ambientOcclusion;
+                        FragColor.a = bakedLighting.a;
                     }
                 "#,
         )

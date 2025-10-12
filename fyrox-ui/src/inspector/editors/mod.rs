@@ -21,7 +21,6 @@
 //! A collection of [PropertyEditorDefinition] objects for a wide variety of types,
 //! including standard Rust types and Fyrox core types.
 
-use crate::inspector::editors::texture_slice::TextureSlicePropertyEditorDefinition;
 use crate::{
     absm::{EventAction, EventKind},
     bit::BitField,
@@ -40,17 +39,21 @@ use crate::{
         sstorage::ImmutableString,
         uuid::Uuid,
         visitor::prelude::*,
+        SafeLock,
     },
     decorator::Decorator,
     dropdown_list::DropdownList,
     expander::Expander,
-    formatted_text::{FormattedText, WrapMode},
+    font::FontResource,
+    formatted_text::{FormattedText, Run, RunSet, WrapMode},
     grid::{Grid, GridDimension, SizeMode},
     image::Image,
     inspector::{
         editors::{
             array::ArrayPropertyEditorDefinition,
             bool::BoolPropertyEditorDefinition,
+            cell::CellPropertyEditorDefinition,
+            char::CharPropertyEditorDefinition,
             collection::{CollectionItem, VecCollectionPropertyEditorDefinition},
             color::{ColorGradientPropertyEditorDefinition, ColorPropertyEditorDefinition},
             curve::CurvePropertyEditorDefinition,
@@ -68,6 +71,7 @@ use crate::{
             refcell::RefCellPropertyEditorDefinition,
             string::StringPropertyEditorDefinition,
             style::StyledPropertyEditorDefinition,
+            texture_slice::TextureSlicePropertyEditorDefinition,
             utf32::Utf32StringPropertyEditorDefinition,
             uuid::UuidPropertyEditorDefinition,
             vec::{
@@ -108,6 +112,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_animation::machine::Parameter;
+use fyrox_core::algebra::{Matrix2, Matrix3, Matrix4};
 use fyrox_texture::TextureResource;
 use std::{
     any::{Any, TypeId},
@@ -124,6 +129,8 @@ use strum::VariantNames;
 pub mod array;
 pub mod bit;
 pub mod bool;
+pub mod cell;
+pub mod char;
 pub mod collection;
 pub mod color;
 pub mod curve;
@@ -140,7 +147,7 @@ pub mod range;
 pub mod rect;
 pub mod refcell;
 pub mod string;
-mod style;
+pub mod style;
 pub mod texture_slice;
 pub mod utf32;
 pub mod uuid;
@@ -180,6 +187,11 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
     /// Width of the property name column.
     pub name_column_width: f32,
     pub base_path: String,
+    /// A flag, that defines whether the inspectable object has a parent object from which it can
+    /// obtain initial property values when clicking on "Revert" button. This flag is used only for
+    /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
+    /// when it does nothing (when there's no parent object).
+    pub has_parent_object: bool,
 }
 
 /// This structure is passed to [PropertyEditorDefinition::create_message] in order to generate a message that will
@@ -207,7 +219,7 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
     /// The layer_index indicates the nesting level of the widget that will receive the created message.
     pub layer_index: usize,
     /// Optional untyped information about the broader application in which
-    /// this proprety is being translated. This allows the created message to
+    /// this property is being translated. This allows the created message to
     /// adapt to the situation if we can successfully cast the given
     /// [InspectorEnvironment] into a specific type.
     pub environment: Option<Arc<dyn InspectorEnvironment>>,
@@ -220,6 +232,11 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
     /// Width of the property name column.
     pub name_column_width: f32,
     pub base_path: String,
+    /// A flag, that defines whether the inspectable object has a parent object from which it can
+    /// obtain initial property values when clicking on "Revert" button. This flag is used only for
+    /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
+    /// when it does nothing (when there's no parent object).
+    pub has_parent_object: bool,
 }
 
 /// The details relevant to translating a message from an editor widget into
@@ -227,7 +244,7 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
 /// can use to update the inspected property based on the messages from the editor.
 pub struct PropertyEditorTranslationContext<'b, 'c> {
     /// Optional untyped information about the broader application in which
-    /// this proprety is being translated. This allows the translation to
+    /// this property is being translated. This allows the translation to
     /// adapt to the situation if we can successfully cast the given
     /// [InspectorEnvironment] into a specific type.
     ///
@@ -415,6 +432,7 @@ impl PropertyEditorDefinitionContainer {
         // bool + InheritableVariable<bool>
         container.insert(InheritablePropertyEditorDefinition::<bool>::new());
         container.insert(BoolPropertyEditorDefinition);
+        container.insert(CellPropertyEditorDefinition::<bool>::new());
 
         // String
         container.insert(StringPropertyEditorDefinition);
@@ -426,9 +444,10 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InheritablePropertyEditorDefinition::<ImmutableString>::new());
         container.insert(VecCollectionPropertyEditorDefinition::<ImmutableString>::new());
 
-        // NumericType + InheritableVariable<NumericType>
+        // NumericType + InheritableVariable<NumericType> + CellPropertyEditorDefinition<NumericType>
         reg_property_editor! { container, NumericPropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
         reg_property_editor! { container, InheritablePropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
+        reg_property_editor! { container, CellPropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
 
         // Vector4<NumericType> + InheritableVariable<Vector4>
         reg_property_editor! { container, Vec4PropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
@@ -454,6 +473,10 @@ impl PropertyEditorDefinitionContainer {
         reg_matrix_property_editor! { container, MatrixPropertyEditorDefinition[2, 2]: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
         reg_matrix_property_editor! { container, MatrixPropertyEditorDefinition[3, 3]: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
         reg_matrix_property_editor! { container, MatrixPropertyEditorDefinition[4, 4]: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
+
+        container.insert(CellPropertyEditorDefinition::<Matrix2<f32>>::new());
+        container.insert(CellPropertyEditorDefinition::<Matrix3<f32>>::new());
+        container.insert(CellPropertyEditorDefinition::<Matrix4<f32>>::new());
 
         // Range<NumericType> + InheritableVariable<Range<NumericType>>
         reg_property_editor! { container, RangePropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
@@ -587,6 +610,17 @@ impl PropertyEditorDefinitionContainer {
         >::new());
 
         container.insert(TextureSlicePropertyEditorDefinition);
+
+        container.insert(InspectablePropertyEditorDefinition::<RunSet>::new());
+        container.insert(InspectablePropertyEditorDefinition::<Run>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<Run>::new());
+        container.insert(EnumPropertyEditorDefinition::<FontResource>::new_optional());
+        container.insert(EnumPropertyEditorDefinition::<Brush>::new_optional());
+        container.insert(EnumPropertyEditorDefinition::<Vector2<f32>>::new_optional());
+
+        container.insert(InheritablePropertyEditorDefinition::<Option<char>>::new());
+        container.insert(EnumPropertyEditorDefinition::<char>::new_optional());
+        container.insert(CharPropertyEditorDefinition);
 
         // Styled.
         container.insert(InheritablePropertyEditorDefinition::<StyledProperty<f32>>::new());
@@ -728,7 +762,7 @@ impl PropertyEditorDefinitionContainer {
         self.definitions.write().insert(
             definition.value_type_id(),
             PropertyEditorDefinitionContainerEntry {
-                source_type_id: *self.context_type_id.lock(),
+                source_type_id: *self.context_type_id.safe_lock(),
                 property_editor: definition,
             },
         )
@@ -753,7 +787,7 @@ impl PropertyEditorDefinitionContainer {
         self.definitions.write().insert(
             definition.value_type_id(),
             PropertyEditorDefinitionContainerEntry {
-                source_type_id: *self.context_type_id.lock(),
+                source_type_id: *self.context_type_id.safe_lock(),
                 property_editor: Box::new(definition),
             },
         )

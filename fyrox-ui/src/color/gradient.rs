@@ -285,7 +285,7 @@ impl Control for ColorGradientEditor {
                     gradient,
                 ));
             } else if message.destination() == self.remove_point
-                && ui.try_get(self.context_menu_target.get()).is_some()
+                && ui.try_get_node(self.context_menu_target.get()).is_some()
             {
                 let gradient = self.fetch_gradient(self.context_menu_target.get(), ui);
 
@@ -333,7 +333,7 @@ impl Control for ColorGradientEditor {
 
                 if message.destination() == self.point_context_menu.handle() {
                     if let Some(point) = ui
-                        .try_get(self.context_menu_target.get())
+                        .try_get_node(self.context_menu_target.get())
                         .and_then(|n| n.query_component::<ColorPoint>())
                     {
                         let mut msg = ColorFieldMessage::color(
@@ -413,15 +413,17 @@ impl ColorGradientEditorBuilder {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let add_point;
         let context_menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new()).with_content(
-                StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                    add_point = MenuItemBuilder::new(WidgetBuilder::new())
-                        .with_content(MenuItemContent::text("Add Point"))
-                        .build(ctx);
-                    add_point
-                }))
-                .build(ctx),
-            ),
+            PopupBuilder::new(WidgetBuilder::new())
+                .with_content(
+                    StackPanelBuilder::new(WidgetBuilder::new().with_child({
+                        add_point = MenuItemBuilder::new(WidgetBuilder::new())
+                            .with_content(MenuItemContent::text("Add Point"))
+                            .build(ctx);
+                        add_point
+                    }))
+                    .build(ctx),
+                )
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let context_menu = RcUiNodeHandle::new(context_menu, ctx.sender());
@@ -429,24 +431,26 @@ impl ColorGradientEditorBuilder {
         let selector_field;
         let remove_point;
         let point_context_menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_width(200.0)).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            remove_point = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Remove Point"))
-                                .build(ctx);
-                            remove_point
-                        })
-                        .with_child({
-                            selector_field =
-                                ColorFieldBuilder::new(WidgetBuilder::new().with_height(18.0))
+            PopupBuilder::new(WidgetBuilder::new().with_width(200.0))
+                .with_content(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                remove_point = MenuItemBuilder::new(WidgetBuilder::new())
+                                    .with_content(MenuItemContent::text("Remove Point"))
                                     .build(ctx);
-                            selector_field
-                        }),
+                                remove_point
+                            })
+                            .with_child({
+                                selector_field =
+                                    ColorFieldBuilder::new(WidgetBuilder::new().with_height(18.0))
+                                        .build(ctx);
+                                selector_field
+                            }),
+                    )
+                    .build(ctx),
                 )
-                .build(ctx),
-            ),
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let point_context_menu = RcUiNodeHandle::new(point_context_menu, ctx.sender());

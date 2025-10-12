@@ -26,7 +26,20 @@ use crate::error::FrameworkError;
 use bytemuck::Pod;
 use fyrox_core::{array_as_u8_slice, array_as_u8_slice_mut, define_as_any_trait};
 
-/// GPU buffer kind.
+/// Specifications for a buffer that are passed to [`crate::server::GraphicsServer::create_buffer`] so that the server
+/// knows what buffer to create.
+pub struct GpuBufferDescriptor<'a> {
+    /// A label for the buffer for debugging, as might be passed to `glObjectLabel` in an OpenGL server.
+    pub name: &'a str,
+    /// The size of the buffer in bytes, as might be passed to `glBufferData` in an OpenGL server.
+    pub size: usize,
+    /// What is stored in the buffer? Vertices, indices, uniforms, pixels, etc.
+    pub kind: BufferKind,
+    /// An efficiency hint for how the buffer will be used.
+    pub usage: BufferUsage,
+}
+
+/// GPU buffer kind, as used in [`GpuBufferDescriptor`].
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum BufferKind {
     /// Vertex buffer. It is used to supply vertex data (such as positions, normals, texture
@@ -105,7 +118,9 @@ define_as_any_trait!(GpuBufferAsAny => GpuBufferTrait);
 ///     error::FrameworkError,
 ///     server::GraphicsServer,
 ///     uniform::DynamicUniformBuffer,
-/// };
+/// };///
+///
+/// use fyrox_graphics::buffer::GpuBufferDescriptor;
 ///
 /// fn create_buffer(server: &dyn GraphicsServer) -> Result<GpuBuffer, FrameworkError> {
 ///     let uniforms = DynamicUniformBuffer::new()
@@ -114,8 +129,12 @@ define_as_any_trait!(GpuBufferAsAny => GpuBufferTrait);
 ///         .with(&123.0f32)
 ///         .finish();
 ///
-///     let buffer =
-///         server.create_buffer(uniforms.len(), BufferKind::Uniform, BufferUsage::StaticDraw)?;
+///     let buffer = server.create_buffer(GpuBufferDescriptor{
+///             name: "MyBuffer",
+///             size: uniforms.len(),
+///             kind: BufferKind::Uniform,
+///             usage: BufferUsage::StaticDraw
+///     })?;
 ///
 ///     buffer.write_data(&uniforms)?;
 ///

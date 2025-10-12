@@ -47,6 +47,7 @@ use crate::scene::Scene;
 use gltf::json;
 use gltf::Document;
 use gltf::Gltf;
+use std::fmt::Display;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -85,6 +86,27 @@ enum GltfLoadError {
     Material(GltfMaterialError),
     Surface(SurfaceDataError),
     JSON(json::Error),
+}
+
+impl std::error::Error for GltfLoadError {}
+
+impl Display for GltfLoadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GltfLoadError::InvalidIndex => f.write_str("Invalid index"),
+            GltfLoadError::InvalidPath => f.write_str("Invalid path"),
+            GltfLoadError::UnsupportedURI(uri) => write!(f, "Unsupported URL {uri:?}"),
+            GltfLoadError::MissingEmbeddedBin => f.write_str("Missing embedded bin"),
+            GltfLoadError::Gltf(error) => Display::fmt(error, f),
+            GltfLoadError::Texture(error) => Display::fmt(error, f),
+            GltfLoadError::File(error) => Display::fmt(error, f),
+            GltfLoadError::Base64(error) => Display::fmt(error, f),
+            GltfLoadError::Load(error) => Display::fmt(error, f),
+            GltfLoadError::Material(error) => Display::fmt(error, f),
+            GltfLoadError::Surface(error) => Display::fmt(error, f),
+            GltfLoadError::JSON(error) => Display::fmt(error, f),
+        }
+    }
 }
 
 impl From<json::Error> for GltfLoadError {
@@ -627,7 +649,7 @@ fn build_node_family(
             // We have a never-seen-before inv_bind_pose, so create a child for that inv_bind_pose.
             let skin_index = pair.skin_index;
             let base_builder = BaseBuilder::new()
-                .with_name(format!("{}:{}", name, skin_index))
+                .with_name(format!("{name}:{skin_index}"))
                 .with_inv_bind_pose_transform(pair.bone.inv_bind_pose);
             let handle: Handle<Node> = graph.add_node(PivotBuilder::new(base_builder).build_node());
             bone_children.push(SkinNodePair {

@@ -20,49 +20,47 @@
 
 //! See [`UiRenderer`] docs.
 
-use crate::renderer::cache::uniform::{UniformBlockLocation, UniformMemoryAllocator};
-use crate::renderer::resources::RendererResources;
 use crate::{
-    asset::untyped::ResourceKind,
+    asset::{manager::ResourceManager, untyped::ResourceKind},
     core::{
         algebra::{Matrix4, Vector2, Vector4},
+        arrayvec::ArrayVec,
         color::Color,
         math::Rect,
+        some_or_continue,
         sstorage::ImmutableString,
+    },
+    graphics::{
+        buffer::BufferUsage,
+        error::FrameworkError,
+        framebuffer::{GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
+        geometry_buffer::{
+            AttributeDefinition, AttributeKind, ElementsDescriptor, GpuGeometryBuffer,
+            GpuGeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
+        },
+        gpu_program::ShaderResourceKind,
+        server::GraphicsServer,
+        uniform::StaticUniformBuffer,
+        BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
+        ElementRange, ScissorBox, StencilFunc,
     },
     gui::{
         brush::Brush,
+        draw::Command,
         draw::{CommandTexture, DrawingContext},
     },
     renderer::{
         bundle::{self, make_texture_binding},
         cache::{
             shader::{binding, property, PropertyGroup, RenderMaterial, ShaderCache},
-            uniform::UniformBufferCache,
+            uniform::{UniformBlockLocation, UniformBufferCache, UniformMemoryAllocator},
         },
-        framework::{
-            buffer::BufferUsage,
-            error::FrameworkError,
-            framebuffer::GpuFrameBuffer,
-            geometry_buffer::{
-                AttributeDefinition, AttributeKind, ElementsDescriptor, GeometryBufferDescriptor,
-                GpuGeometryBuffer, VertexBufferData, VertexBufferDescriptor,
-            },
-            server::GraphicsServer,
-            BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
-            ElementRange, ScissorBox, StencilFunc,
-        },
+        resources::RendererResources,
         RenderPassStatistics, TextureCache,
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
-use fyrox_core::arrayvec::ArrayVec;
-use fyrox_graphics::{
-    framebuffer::{ResourceBindGroup, ResourceBinding},
-    gpu_program::ShaderResourceKind,
-    uniform::StaticUniformBuffer,
-};
-use fyrox_ui::draw::Command;
+use fyrox_ui::UserInterface;
 use uuid::Uuid;
 
 /// User interface renderer allows you to render drawing context in specified render target.
@@ -95,6 +93,22 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     pub render_pass_cache: &'a mut ShaderCache,
     /// A reference to the uniform memory allocator.
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
+    /// A reference to the resource manager.
+    pub resource_manager: &'a ResourceManager,
+}
+
+/// Contains all the info required to render a user interface.
+pub struct UiRenderInfo<'a> {
+    /// A reference to a user interface that needs to be rendered.
+    pub ui: &'a UserInterface,
+    /// A render target to render a user interface (UI) to. If [`None`], then the UI will be rendered
+    /// to the screen directly.
+    pub render_target: Option<TextureResource>,
+    /// A color that will be used to fill a render target before rendering of the UI. Ignored if the
+    /// render target is [`None`] and nothing will be cleared.
+    pub clear_color: Color,
+    /// A reference to the resource manager.
+    pub resource_manager: &'a ResourceManager,
 }
 
 fn write_uniform_blocks(
@@ -108,9 +122,10 @@ fn write_uniform_blocks(
     for cmd in commands {
         let mut command_block_locations = ArrayVec::<(usize, UniformBlockLocation), 8>::new();
 
-        let material = cmd.material.data_ref();
-        let shader = material.shader();
-        let shader = shader.data_ref();
+        let material_data_guard = cmd.material.data_ref();
+        let material = some_or_continue!(material_data_guard.as_loaded_ref());
+        let shader_data_guard = material.shader().data_ref();
+        let shader = some_or_continue!(shader_data_guard.as_loaded_ref());
 
         for resource in shader.definition.resources.iter() {
             if resource.name.as_str() == "fyrox_widgetData" {
@@ -209,7 +224,8 @@ fn write_uniform_blocks(
 
 impl UiRenderer {
     pub(in crate::renderer) fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let geometry_buffer_desc = GeometryBufferDescriptor {
+        let geometry_buffer_desc = GpuGeometryBufferDescriptor {
+            name: "UiGeometryBuffer",
             elements: ElementsDescriptor::Triangles(&[]),
             buffers: &[VertexBufferDescriptor {
                 usage: BufferUsage::DynamicDraw,
@@ -241,7 +257,8 @@ impl UiRenderer {
             usage: BufferUsage::DynamicDraw,
         };
 
-        let clipping_geometry_buffer_desc = GeometryBufferDescriptor {
+        let clipping_geometry_buffer_desc = GpuGeometryBufferDescriptor {
+            name: "UiClippingGeometryBuffer",
             elements: ElementsDescriptor::Triangles(&[]),
             buffers: &[VertexBufferDescriptor {
                 usage: BufferUsage::DynamicDraw,
@@ -284,6 +301,7 @@ impl UiRenderer {
             uniform_buffer_cache,
             render_pass_cache,
             uniform_memory_allocator,
+            resource_manager,
         } = args;
 
         let mut statistics = RenderPassStatistics::default();
@@ -376,11 +394,12 @@ impl UiRenderer {
                 count: cmd.triangles.end - cmd.triangles.start,
             };
 
-            let material = cmd.material.data_ref();
-            let shader = material.shader();
+            let material_data_guard = cmd.material.data_ref();
+            let material = some_or_continue!(material_data_guard.as_loaded_ref());
 
-            if let Some(render_pass_container) = render_pass_cache.get(server, shader) {
-                let shader = shader.data_ref();
+            if let Some(render_pass_container) = render_pass_cache.get(server, material.shader()) {
+                let shader_data_guard = material.shader().data_ref();
+                let shader = some_or_continue!(shader_data_guard.as_loaded_ref());
 
                 let render_pass = render_pass_container.get(&ImmutableString::new("Forward"))?;
 
@@ -430,6 +449,7 @@ impl UiRenderer {
                                                 }
                                                 if let Some(texture) = texture_cache.get(
                                                     server,
+                                                    resource_manager,
                                                     &page
                                                         .texture
                                                         .as_ref()
@@ -446,7 +466,9 @@ impl UiRenderer {
                                         }
                                     }
                                     CommandTexture::Texture(texture) => {
-                                        if let Some(texture) = texture_cache.get(server, texture) {
+                                        if let Some(texture) =
+                                            texture_cache.get(server, resource_manager, texture)
+                                        {
                                             diffuse_texture =
                                                 (&texture.gpu_texture, &texture.gpu_sampler);
                                         }
@@ -462,10 +484,11 @@ impl UiRenderer {
                             } else {
                                 resource_bindings.push(make_texture_binding(
                                     server,
-                                    &material,
+                                    material,
                                     resource,
                                     renderer_resources,
                                     fallback,
+                                    resource_manager,
                                     texture_cache,
                                 ))
                             }

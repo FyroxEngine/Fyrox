@@ -23,8 +23,6 @@
 
 #![warn(missing_docs)]
 
-use crate::style::resource::StyleResourceExt;
-use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -39,26 +37,24 @@ use crate::{
     message::{ButtonState, KeyCode, MessageDirection, OsEvent, UiMessage},
     popup::{Placement, Popup, PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
+    style::{resource::StyleResourceExt, Style},
     text::TextBuilder,
     utils::{make_arrow_primitives, ArrowDirection},
     vector_image::VectorImageBuilder,
-    widget,
-    widget::{Widget, WidgetBuilder, WidgetMessage},
+    widget::{self, Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
     UserInterface, VerticalAlignment,
 };
-
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph, SceneGraph, SceneGraphNode,
 };
-use std::cmp::Ordering;
-use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
 use std::{
     any::TypeId,
+    cmp::Ordering,
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
+    sync::{mpsc::Sender, Arc},
 };
 
 /// A set of messages that can be used to manipulate a [`Menu`] widget at runtime.
@@ -250,6 +246,8 @@ pub struct Menu {
     active: bool,
     #[component(include)]
     items: ItemsContainer,
+    /// A flag, that defines whether the menu should restrict all the mouse input or not.
+    pub restrict_picking: InheritableVariable<bool>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for Menu {
@@ -276,17 +274,22 @@ impl Control for Menu {
             match msg {
                 MenuMessage::Activate => {
                     if !self.active {
-                        ui.push_picking_restriction(RestrictionEntry {
-                            handle: self.handle(),
-                            stop: false,
-                        });
+                        if *self.restrict_picking {
+                            ui.push_picking_restriction(RestrictionEntry {
+                                handle: self.handle(),
+                                stop: false,
+                            });
+                        }
                         self.active = true;
                     }
                 }
                 MenuMessage::Deactivate => {
                     if self.active {
                         self.active = false;
-                        ui.remove_picking_restriction(self.handle());
+
+                        if *self.restrict_picking {
+                            ui.remove_picking_restriction(self.handle());
+                        }
 
                         // Close descendant menu items.
                         let mut stack = self.children().to_vec();
@@ -905,6 +908,7 @@ impl Control for MenuItem {
 pub struct MenuBuilder {
     widget_builder: WidgetBuilder,
     items: Vec<Handle<UiNode>>,
+    restrict_picking: bool,
 }
 
 impl MenuBuilder {
@@ -913,12 +917,19 @@ impl MenuBuilder {
         Self {
             widget_builder,
             items: Default::default(),
+            restrict_picking: false,
         }
     }
 
     /// Sets the desired items of the menu.
     pub fn with_items(mut self, items: Vec<Handle<UiNode>>) -> Self {
         self.items = items;
+        self
+    }
+
+    /// Sets a flag, that defines whether the popup should restrict all the mouse input or not.
+    pub fn with_restrict_picking(mut self, restrict_picking: bool) -> Self {
+        self.restrict_picking = restrict_picking;
         self
     }
 
@@ -955,6 +966,7 @@ impl MenuBuilder {
                 items: self.items.into(),
                 navigation_direction: NavigationDirection::Horizontal,
             },
+            restrict_picking: self.restrict_picking.into(),
         };
 
         ctx.add_node(UiNode::new(menu))
@@ -1047,6 +1059,7 @@ pub struct MenuItemBuilder {
     content: Option<MenuItemContent>,
     back: Option<Handle<UiNode>>,
     clickable_when_not_empty: bool,
+    restrict_picking: bool,
 }
 
 impl MenuItemBuilder {
@@ -1058,6 +1071,7 @@ impl MenuItemBuilder {
             content: None,
             back: None,
             clickable_when_not_empty: false,
+            restrict_picking: false,
         }
     }
 
@@ -1086,6 +1100,12 @@ impl MenuItemBuilder {
         self
     }
 
+    /// Sets a flag, that defines whether the popup should restrict all the mouse input or not.
+    pub fn with_restrict_picking(mut self, restrict_picking: bool) -> Self {
+        self.restrict_picking = restrict_picking;
+        self
+    }
+
     /// Finishes menu item building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let mut arrow_widget = Handle::NONE;
@@ -1098,13 +1118,14 @@ impl MenuItemBuilder {
                 arrow,
             }) => GridBuilder::new(
                 WidgetBuilder::new()
+                    .with_vertical_alignment(VerticalAlignment::Center)
                     .with_child(*icon)
                     .with_child(
                         TextBuilder::new(
                             WidgetBuilder::new()
                                 .with_margin(Thickness::left(2.0))
-                                .on_row(1)
-                                .on_column(1),
+                                .on_column(1)
+                                .with_vertical_alignment(VerticalAlignment::Center),
                         )
                         .with_text(text)
                         .build(ctx),
@@ -1114,7 +1135,6 @@ impl MenuItemBuilder {
                             WidgetBuilder::new()
                                 .with_horizontal_alignment(HorizontalAlignment::Right)
                                 .with_margin(Thickness::uniform(1.0))
-                                .on_row(1)
                                 .on_column(2),
                         )
                         .with_text(shortcut)
@@ -1125,7 +1145,6 @@ impl MenuItemBuilder {
                             VectorImageBuilder::new(
                                 WidgetBuilder::new()
                                     .with_visibility(!self.items.is_empty())
-                                    .on_row(1)
                                     .on_column(3)
                                     .with_width(8.0)
                                     .with_height(8.0)
@@ -1141,9 +1160,7 @@ impl MenuItemBuilder {
                         arrow_widget
                     }),
             )
-            .add_row(Row::stretch())
             .add_row(Row::auto())
-            .add_row(Row::stretch())
             .add_column(Column::auto())
             .add_column(Column::stretch())
             .add_column(Column::auto())
@@ -1187,6 +1204,7 @@ impl MenuItemBuilder {
                     .build(ctx);
                     panel
                 })
+                .with_restrict_picking(self.restrict_picking)
                 // We'll manually control if popup is either open or closed.
                 .stays_open(true),
         )
@@ -1241,9 +1259,10 @@ impl ConstructorProvider<UiNode, UserInterface> for ContextMenu {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
             .with_variant("Context Menu", |ui| {
-                ContextMenuBuilder::new(PopupBuilder::new(
-                    WidgetBuilder::new().with_name("Context Menu"),
-                ))
+                ContextMenuBuilder::new(
+                    PopupBuilder::new(WidgetBuilder::new().with_name("Context Menu"))
+                        .with_restrict_picking(false),
+                )
                 .build(&mut ui.build_ctx())
                 .into()
             })
@@ -1295,7 +1314,7 @@ impl Control for ContextMenu {
 
         if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
             if !message.handled() {
-                if let Some(parent_menu_item) = ui.try_get(self.parent_menu_item) {
+                if let Some(parent_menu_item) = ui.try_get_node(self.parent_menu_item) {
                     if keyboard_navigation(
                         ui,
                         *key_code,
@@ -1450,6 +1469,18 @@ fn keyboard_navigation(
     }
 
     false
+}
+
+/// Creates a menu items splitter. Such splitter could be used to divide a menu into groups with
+/// common semantics (for example: new document, new image; save, save all; close).
+pub fn make_menu_splitter(ctx: &mut BuildContext) -> Handle<UiNode> {
+    BorderBuilder::new(
+        WidgetBuilder::new()
+            .with_height(1.0)
+            .with_margin(Thickness::top_bottom(1.0))
+            .with_foreground(ctx.style.property(Style::BRUSH_LIGHTEST)),
+    )
+    .build(ctx)
 }
 
 #[cfg(test)]

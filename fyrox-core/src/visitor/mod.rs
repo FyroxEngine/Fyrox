@@ -155,7 +155,7 @@ where
                     }),
                 }
             } else {
-                Err(VisitError::FieldDoesNotExist(name.to_owned()))
+                Err(VisitError::field_does_not_exist(name, visitor))
             }
         } else if visitor.find_field(name).is_some() {
             Err(VisitError::FieldAlreadyExists(name.to_owned()))
@@ -312,13 +312,25 @@ bitflags! {
 /// Whether the value of `x` gets written into `visitor` or overwritten with a value from `visitor` is determined
 /// by whether [Visitor::is_reading()] returns true or false.
 pub struct Visitor {
+    /// The nodes that make up this visitors tree.
     nodes: Pool<VisitorNode>,
+    /// The id for the next `Rc` or `Arc` that the visitor encounters.
     unique_id_counter: u64,
+    /// The name of the type of the `Rc` or `Arc` associated with each id.
+    /// This allows type mismatch errors to include type information.
+    type_name_map: FxHashMap<u64, &'static str>,
+    /// The `Rc` value associated with each id, to allow the visitor to find the `Rc` when reading.
     rc_map: FxHashMap<u64, Rc<dyn Any>>,
+    /// The `Arc` value associated with each id, to allow the visitor to find the `Arc` when reading.
     arc_map: FxHashMap<u64, Arc<dyn Any + Send + Sync>>,
+    /// True if this visitor is being read from, during loading.
+    /// False if this visitor is being written to, during saving.
     reading: bool,
+    /// The handle of the node that is currently being written to or read from.
     current_node: Handle<VisitorNode>,
+    /// The handle of the start of the tree.
     root: Handle<VisitorNode>,
+    /// The version number of the visitor. See [`VisitorVersion`].
     version: u32,
     /// A place to store whatever objects may be needed to help with reading and writing values.
     pub blackboard: Blackboard,
@@ -342,6 +354,62 @@ impl Debug for Visitor {
 }
 
 /// Trait of types that can be read from a [Visitor] or written to a Visitor.
+///
+/// ## Code Generation
+///
+/// Procedural macro could be used to generate trivial implementations for this trait, which covers
+/// 99% of the cases. Consider the following example:
+///
+/// ```rust
+/// use fyrox_core::visitor::prelude::*;
+///
+/// #[derive(Visit, Default)]
+/// struct MyType {
+///     field_a: u32,
+///     field_b: String
+/// }
+/// ```
+///
+/// The generated code will be something like this:
+///
+/// ```rust
+/// use fyrox_core::visitor::prelude::*;
+///
+/// struct MyType {
+///     field_a: u32,
+///     field_b: String
+/// }
+///
+/// impl Visit for MyType {
+///     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+///         let mut region = visitor.enter_region(name)?;
+///
+///         self.field_a.visit("FieldA", &mut region)?;
+///         self.field_b.visit("FieldB", &mut region)?;
+///
+///         Ok(())
+///     }
+/// }
+/// ```
+///
+/// ### Type Attributes
+///
+/// - `#[visit(optional)]` - marks all the fields of the type as optional and suppresses any errors
+/// on serialization and deserialization. In the generated code, all the fields will be visited like
+/// this `let _ = self.field_a.visit("FieldA", &mut region);`
+/// - `#[visit(pre_visit_method = "function_name")]` - name of a function, that will be called
+/// before the generated body.
+/// - `#[visit(post_visit_method = "function_name")]` - name of a function, that will be called
+/// after the generated body.
+///
+/// ### Field Attributes
+///
+/// - `#[visit(skip)]` - disables serialization and deserialization of the field.
+/// - `#[visit(rename = "new_name")]` - overrides the name of the field with `new_name`. In the
+/// generated code, all the fields will be visited like this `self.field_a.visit("new_name", &mut region)?;`
+/// - `#[visit(optional)]` - marks the field as optional and suppresses any errors on serialization
+/// and deserialization. In the generated code, all the fields will be visited like this
+/// `let _ = self.field_a.visit("FieldA", &mut region);`
 pub trait Visit {
     /// Read or write this value, depending on whether [Visitor::is_reading()] is true or false.
     ///
@@ -468,6 +536,7 @@ impl Visitor {
         Self {
             nodes,
             unique_id_counter: 1,
+            type_name_map: FxHashMap::default(),
             rc_map: FxHashMap::default(),
             arc_map: FxHashMap::default(),
             reading: false,
@@ -499,6 +568,7 @@ impl Visitor {
             (id, false)
         } else {
             let id = self.gen_unique_id();
+            self.type_name_map.insert(id, std::any::type_name::<T>());
             self.rc_map.insert(id, rc.clone());
             (id, true)
         }
@@ -518,12 +588,14 @@ impl Visitor {
             (id, false)
         } else {
             let id = self.gen_unique_id();
+            self.type_name_map.insert(id, std::any::type_name::<T>());
             self.arc_map.insert(id, arc.clone());
             (id, true)
         }
     }
 
-    fn find_field(&mut self, name: &str) -> Option<&mut Field> {
+    /// Tries to find a field by its name.
+    pub fn find_field(&mut self, name: &str) -> Option<&mut Field> {
         self.nodes
             .borrow_mut(self.current_node)
             .fields
@@ -576,7 +648,9 @@ impl Visitor {
                 self.current_node = region;
                 Ok(RegionGuard(self))
             } else {
-                Err(VisitError::RegionDoesNotExist(self.build_breadcrumb(" > ")))
+                Err(VisitError::RegionDoesNotExist(
+                    self.breadcrumbs() + " > " + name,
+                ))
             }
         } else {
             // Make sure that node does not exist already.
@@ -598,6 +672,15 @@ impl Visitor {
         }
     }
 
+    /// Return a string representing all the regions from the root
+    /// to the current node.
+    pub fn breadcrumbs(&self) -> String {
+        self.build_breadcrumb(" > ")
+    }
+
+    /// Return a string representing all the regions from the root
+    /// to the current node, using the given string as the separator between
+    /// region names.
     fn build_breadcrumb(&self, separator: &str) -> String {
         let mut rev = String::new();
         let mut handle = self.current_node;
@@ -630,6 +713,25 @@ impl Visitor {
         } else {
             Ok(())
         }
+    }
+
+    /// Get the content of the current node in human-readable form.
+    pub fn debug(&self) -> String {
+        let mut w = Cursor::new(Vec::<u8>::new());
+        let result = self.debug_to(&mut w);
+        match result {
+            Ok(()) => String::from_utf8_lossy(w.get_ref()).into_owned(),
+            Err(err) => err.to_string(),
+        }
+    }
+
+    /// Write the content of the current node in human-readable form.
+    pub fn debug_to<W: Write>(&self, w: &mut W) -> VisitResult {
+        let writer = AsciiWriter::default();
+        writer.write_node(self, &self.nodes[self.current_node], 0, w)?;
+        writeln!(w)?;
+        w.flush()?;
+        Ok(())
     }
 
     /// Create a string containing all the data of this Visitor in ascii form. The string is

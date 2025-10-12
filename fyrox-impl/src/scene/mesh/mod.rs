@@ -21,13 +21,6 @@
 //! Contains all structures and methods to create and manage mesh scene graph nodes. See [`Mesh`] docs for more info
 //! and usage examples.
 
-use crate::material::{
-    Material, MaterialResourceBinding, MaterialResourceExtension, MaterialTextureBinding,
-};
-use crate::renderer::cache::DynamicSurfaceCache;
-use crate::resource::texture::PLACEHOLDER;
-use crate::scene::mesh::surface::SurfaceBuilder;
-use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3, Vector4},
@@ -41,12 +34,17 @@ use crate::{
         visitor::prelude::*,
     },
     graph::{BaseSceneGraph, SceneGraph},
-    material::MaterialResource,
+    graphics::ElementRange,
+    material::{
+        Material, MaterialResource, MaterialResourceBinding, MaterialResourceExtension,
+        MaterialTextureBinding,
+    },
     renderer::{
         self,
         bundle::{RenderContext, RenderDataBundleStorageTrait, SurfaceInstanceData},
-        framework::ElementRange,
+        cache::DynamicSurfaceCache,
     },
+    resource::texture::PLACEHOLDER,
     scene::{
         base::{Base, BaseBuilder},
         debug::{Line, SceneDrawingContext},
@@ -57,8 +55,10 @@ use crate::{
                 VertexAttributeUsage, VertexBuffer, VertexBufferRefMut, VertexReadTrait,
                 VertexViewMut, VertexWriteTrait,
             },
+            surface::SurfaceBuilder,
             surface::{BlendShape, Surface, SurfaceData, SurfaceResource},
         },
+        node::constructor::NodeConstructor,
         node::{Node, NodeTrait, RdcControlFlow, SyncContext},
     },
 };
@@ -327,13 +327,22 @@ pub struct Mesh {
     #[reflect(setter = "set_render_path")]
     render_path: InheritableVariable<RenderPath>,
 
+    /// Defines the batching mode used by the mesh.
+    ///
+    /// ## Static batching
+    ///
+    /// Static batching. Render data of all **descendant** nodes will be baked into a static buffer,
+    /// and it will be drawn. This mode "bakes" world transform of a node into vertices, thus making
+    /// them immovable.
+    ///
+    /// ## Dynamic Batching
+    ///
+    /// Dynamically merges render data of all **descendant** nodes. It could be useful to reduce the
+    /// number of draw calls per frame if you have lots of meshes with small vertex count. Does not
+    /// work with meshes that have skin or blend shapes. Such meshes will be drawn in a separate draw
+    /// call.
     #[visit(optional)]
-    #[reflect(
-        setter = "set_batching_mode",
-        description = "Enable or disable dynamic batching. It could be useful to reduce amount \
-    of draw calls per frame if you have lots of meshes with small vertex count. Does not work with \
-    meshes, that have skin or blend shapes. Such meshes will be drawn in a separate draw call."
-    )]
+    #[reflect(setter = "set_batching_mode")]
     batching_mode: InheritableVariable<BatchingMode>,
 
     #[visit(optional)]
@@ -514,9 +523,20 @@ impl Mesh {
         bounding_box
     }
 
-    /// Enable or disable dynamic batching. It could be useful to reduce amount of draw calls per
-    /// frame if you have lots of meshes with small vertex count. Does not work with meshes, that
-    /// have skin or blend shapes. Such meshes will be drawn in a separate draw call.
+    /// Defines the batching mode used by the mesh.
+    ///
+    /// ## Static batching
+    ///
+    /// Static batching. Render data of all **descendant** nodes will be baked into a static buffer,
+    /// and it will be drawn. This mode "bakes" world transform of a node into vertices, thus making
+    /// them immovable.
+    ///
+    /// ## Dynamic Batching
+    ///
+    /// Dynamically merges render data of all **descendant** nodes. It could be useful to reduce the
+    /// number of draw calls per frame if you have lots of meshes with small vertex count. Does not
+    /// work with meshes that have skin or blend shapes. Such meshes will be drawn in a separate draw
+    /// call.
     pub fn set_batching_mode(&mut self, mode: BatchingMode) -> BatchingMode {
         if let BatchingMode::None | BatchingMode::Dynamic = mode {
             // Destroy batched data.
@@ -619,8 +639,10 @@ impl NodeTrait for Mesh {
             } else {
                 for surface in self.surfaces.iter() {
                     let data = surface.data();
-                    let data = data.data_ref();
-                    extend_aabb_from_vertex_buffer(&data.vertex_buffer, &mut bounding_box);
+                    if data.is_ok() {
+                        let data = data.data_ref();
+                        extend_aabb_from_vertex_buffer(&data.vertex_buffer, &mut bounding_box);
+                    }
                 }
             }
 
@@ -701,6 +723,9 @@ impl NodeTrait for Mesh {
             RdcControlFlow::Break
         } else {
             for surface in self.surfaces().iter() {
+                if !surface.data_ref().is_ok() {
+                    continue;
+                }
                 let is_skinned = !surface.bones.is_empty();
 
                 let world = if is_skinned {
@@ -755,7 +780,9 @@ impl NodeTrait for Mesh {
                                     .bones
                                     .iter()
                                     .map(|bone_handle| {
-                                        if let Some(bone_node) = ctx.graph.try_get(*bone_handle) {
+                                        if let Some(bone_node) =
+                                            ctx.graph.try_get_node(*bone_handle)
+                                        {
                                             bone_node.global_transform()
                                                 * bone_node.inv_bind_pose_transform()
                                         } else {

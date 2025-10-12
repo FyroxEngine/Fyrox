@@ -24,11 +24,12 @@ use crate::untyped::ResourceKind;
 use crate::{
     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
     manager::ResourceManager,
-    ResourceData, ResourceLoadError,
+    ResourceData, ResourceLoadError, TypedResourceData,
 };
 use fyrox_core::reflect::ReflectHandle;
 use fyrox_core::warn;
 use std::any::{Any, TypeId};
+use std::fmt::Display;
 use std::path::PathBuf;
 use std::{
     ops::{Deref, DerefMut},
@@ -65,15 +66,26 @@ impl DerefMut for WakersList {
     }
 }
 
-/// Arbitrary loading error, that could be optionally be empty.  
+/// Arbitrary loading error, that could be optionally be empty.
 #[derive(Reflect, Debug, Clone, Default)]
 #[reflect(hide_all)]
 pub struct LoadError(pub Option<Arc<dyn ResourceLoadError>>);
+
+impl std::error::Error for LoadError {}
 
 impl LoadError {
     /// Creates new loading error from a value of the given type.
     pub fn new<T: ResourceLoadError>(value: T) -> Self {
         Self(Some(Arc::new(value)))
+    }
+}
+
+impl Display for LoadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            None => f.write_str("None"),
+            Some(x) => Display::fmt(x, f),
+        }
     }
 }
 
@@ -444,7 +456,7 @@ impl ResourceState {
         let wakers = if let ResourceState::Pending { ref mut wakers, .. } = self {
             std::mem::take(wakers)
         } else {
-            unreachable!()
+            Default::default()
         };
 
         *self = state;
@@ -468,6 +480,40 @@ impl ResourceState {
             path,
             error: LoadError::new(error),
         })
+    }
+
+    /// Tries to get the resource data. Will fail if the resource is not in [`ResourceState::Ok`].
+    pub fn data_ref(&self) -> Option<&ResourceDataWrapper> {
+        match self {
+            ResourceState::Pending { .. } | ResourceState::LoadError { .. } => None,
+            ResourceState::Ok { data, .. } => Some(data),
+        }
+    }
+
+    /// Tries to get the resource data. Will fail if the resource is not in [`ResourceState::Ok`].
+    pub fn data_mut(&mut self) -> Option<&mut ResourceDataWrapper> {
+        match self {
+            ResourceState::Pending { .. } | ResourceState::LoadError { .. } => None,
+            ResourceState::Ok { data, .. } => Some(data),
+        }
+    }
+
+    /// Tries to get the resource data of the given type. Will fail if the resource is not in
+    /// [`ResourceState::Ok`].
+    pub fn data_ref_of_type<T: TypedResourceData>(&self) -> Option<&T> {
+        match self {
+            ResourceState::Pending { .. } | ResourceState::LoadError { .. } => None,
+            ResourceState::Ok { data, .. } => (&**data as &dyn Any).downcast_ref::<T>(),
+        }
+    }
+
+    /// Tries to get the resource data of the given type. Will fail if the resource is not in
+    /// [`ResourceState::Ok`].
+    pub fn data_mut_of_type<T: TypedResourceData>(&mut self) -> Option<&mut T> {
+        match self {
+            ResourceState::Pending { .. } | ResourceState::LoadError { .. } => None,
+            ResourceState::Ok { data, .. } => (&mut **data as &mut dyn Any).downcast_mut::<T>(),
+        }
     }
 }
 

@@ -121,10 +121,8 @@ pub struct Sound {
     #[reflect(setter = "set_spatial_blend")]
     spatial_blend: InheritableVariable<f32>,
 
+    /// A name of a sound effect to which the sound will attach to when instantiated.
     #[visit(optional)]
-    #[reflect(
-        description = "A name of a sound effect to which the sound will attach to when instantiated."
-    )]
     audio_bus: InheritableVariable<String>,
 
     #[reflect(hidden)]

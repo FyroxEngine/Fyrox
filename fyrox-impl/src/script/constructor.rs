@@ -24,7 +24,7 @@ use crate::{
     core::{
         parking_lot::{Mutex, MutexGuard},
         uuid::Uuid,
-        TypeUuidProvider,
+        SafeLock, TypeUuidProvider,
     },
     script::{Script, ScriptTrait},
 };
@@ -68,7 +68,7 @@ impl ScriptConstructorContainer {
     where
         T: TypeUuidProvider + ScriptTrait + Default,
     {
-        let old = self.map.lock().insert(
+        let old = self.map.safe_lock().insert(
             T::type_uuid(),
             ScriptConstructor {
                 constructor: Box::new(|| Script::new(T::default())),
@@ -89,7 +89,7 @@ impl ScriptConstructorContainer {
         type_uuid: Uuid,
         constructor: ScriptConstructor,
     ) -> Result<(), String> {
-        let mut map = self.map.lock();
+        let mut map = self.map.safe_lock();
         if let Some(old) = map.get(&type_uuid) {
             return Err(format!(
                 "cannot add {} ({}) because its uuid is already used by {} ({})",
@@ -102,20 +102,20 @@ impl ScriptConstructorContainer {
 
     /// Unregisters type constructor.
     pub fn remove(&self, type_uuid: Uuid) {
-        self.map.lock().remove(&type_uuid);
+        self.map.safe_lock().remove(&type_uuid);
     }
 
     /// Makes an attempt to create a script using provided type UUID. It may fail if there is no
     /// script constructor for specified type UUID.
     pub fn try_create(&self, type_uuid: &Uuid) -> Option<Script> {
         self.map
-            .lock()
+            .safe_lock()
             .get_mut(type_uuid)
             .map(|c| (c.constructor)())
     }
 
     /// Returns inner map of script constructors.
     pub fn map(&self) -> MutexGuard<BTreeMap<Uuid, ScriptConstructor>> {
-        self.map.lock()
+        self.map.safe_lock()
     }
 }

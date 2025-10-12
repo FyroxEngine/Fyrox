@@ -20,12 +20,12 @@
 
 use crate::{
     core::{algebra::Vector2, math::Rect, sstorage::ImmutableString},
+    graphics::{error::FrameworkError, framebuffer::GpuFrameBuffer, gpu_texture::GpuTexture},
     renderer::{
         cache::{
             shader::{binding, property, PropertyGroup, RenderMaterial},
             uniform::UniformBufferCache,
         },
-        framework::{error::FrameworkError, framebuffer::GpuFrameBuffer, gpu_texture::GpuTexture},
         make_viewport_matrix,
         resources::RendererResources,
         RenderPassStatistics,

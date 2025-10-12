@@ -19,11 +19,14 @@
 // SOFTWARE.
 
 use crate::{
-    asset::item::AssetItem,
+    asset::{
+        item::AssetItem, item::AssetItemMessage, preview::cache::IconRequest,
+        selector::AssetSelectorMixin,
+    },
     fyrox::{
         asset::{manager::ResourceManager, state::LoadError, Resource, TypedResourceData},
         core::{
-            color::Color, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
+            color::Color, log::Log, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
             type_traits::prelude::*, uuid::uuid, visitor::prelude::*, PhantomDataSendSync,
         },
         graph::BaseSceneGraph,
@@ -33,7 +36,7 @@ use crate::{
             define_constructor,
             draw::{CommandTexture, Draw, DrawingContext},
             grid::{Column, GridBuilder, Row},
-            image::ImageBuilder,
+            image::{ImageBuilder, ImageMessage},
             inspector::{
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -47,17 +50,17 @@ use crate::{
             BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
     },
-    load_image,
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
-    Message,
+    utils, Message,
 };
+use fyrox::gui::utils::make_asset_preview_tooltip;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     path::Path,
-    sync::Arc,
+    sync::{mpsc::Sender, Arc},
 };
 
 fn resource_path<T>(resource_manager: &ResourceManager, resource: &Option<Resource<T>>) -> String
@@ -125,9 +128,7 @@ where
 {
     widget: Widget,
     name: Handle<UiNode>,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    resource_manager: ResourceManager,
+    selector_mixin: AssetSelectorMixin<T>,
     #[visit(skip)]
     #[reflect(hidden)]
     resource: Option<Resource<T>>,
@@ -135,6 +136,8 @@ where
     #[visit(skip)]
     #[reflect(hidden)]
     sender: MessageSender,
+    image: Handle<UiNode>,
+    image_preview: Handle<UiNode>,
 }
 
 impl<T> Debug for ResourceField<T>
@@ -154,10 +157,12 @@ where
         Self {
             widget: self.widget.clone(),
             name: self.name,
-            resource_manager: self.resource_manager.clone(),
+            selector_mixin: self.selector_mixin.clone(),
             resource: self.resource.clone(),
             locate: self.locate,
             sender: self.sender.clone(),
+            image: self.image,
+            image_preview: self.image_preview,
         }
     }
 }
@@ -230,7 +235,7 @@ where
                 ui.send_message(TextMessage::text(
                     self.name,
                     MessageDirection::ToWidget,
-                    resource_path(&self.resource_manager, resource),
+                    resource_path(&self.selector_mixin.resource_manager, resource),
                 ));
 
                 ui.send_message(message.reverse());
@@ -238,12 +243,57 @@ where
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.locate {
                 if let Some(resource) = self.resource.as_ref() {
-                    if let Some(path) = self.resource_manager.resource_path(resource.as_ref()) {
+                    if let Some(path) = self
+                        .selector_mixin
+                        .resource_manager
+                        .resource_path(resource.as_ref())
+                    {
                         self.sender.send(Message::ShowInAssetBrowser(path));
                     }
                 }
             }
+        } else if let Some(AssetItemMessage::Icon {
+            texture,
+            flip_y,
+            color,
+        }) = message.data()
+        {
+            if message.destination() == self.handle
+                && message.direction() == MessageDirection::ToWidget
+            {
+                for widget in [self.image, self.image_preview] {
+                    ui.send_message(ImageMessage::texture(
+                        widget,
+                        MessageDirection::ToWidget,
+                        texture.clone(),
+                    ));
+                    ui.send_message(ImageMessage::flip(
+                        widget,
+                        MessageDirection::ToWidget,
+                        *flip_y,
+                    ));
+                    ui.send_message(WidgetMessage::background(
+                        widget,
+                        MessageDirection::ToWidget,
+                        Brush::Solid(*color).into(),
+                    ))
+                }
+            }
         }
+
+        self.selector_mixin
+            .handle_ui_message(self.resource.as_ref(), ui, message);
+    }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        self.selector_mixin
+            .preview_ui_message(ui, message, |resource| {
+                ResourceFieldMessage::value(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    resource.try_cast::<T>(),
+                )
+            });
     }
 }
 
@@ -276,36 +326,42 @@ where
     pub fn build(
         self,
         ctx: &mut BuildContext,
+        icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
     ) -> Handle<UiNode> {
+        let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(None, ctx);
+
         let name;
         let locate;
+        let select;
+        let image;
         let field = ResourceField {
             widget: self
                 .widget_builder
+                .with_preview_messages(true)
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
-                            .with_child(
-                                ImageBuilder::new(
+                            .with_child({
+                                image = ImageBuilder::new(
                                     WidgetBuilder::new()
                                         .on_column(0)
                                         .with_width(16.0)
                                         .with_height(16.0)
-                                        .with_margin(Thickness::uniform(1.0)),
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(image_preview_tooltip),
                                 )
-                                .with_opt_texture(load_image!(
-                                    "../../../../resources/sound_source.png"
-                                ))
-                                .build(ctx),
-                            )
+                                .with_sync_with_texture_size(false)
+                                .build(ctx);
+                                image
+                            })
                             .with_child({
                                 name = TextBuilder::new(
                                     WidgetBuilder::new()
                                         .on_column(1)
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_vertical_alignment(VerticalAlignment::Center),
+                                        .with_margin(Thickness::uniform(1.0)),
                                 )
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .with_text(resource_path(&resource_manager, &self.resource))
                                 .build(ctx);
                                 name
@@ -320,24 +376,45 @@ where
                                 .with_text("<<")
                                 .build(ctx);
                                 locate
+                            })
+                            .with_child({
+                                select = utils::make_pick_button(3, ctx);
+                                select
                             }),
                     )
                     .add_column(Column::auto())
                     .add_column(Column::stretch())
                     .add_column(Column::auto())
-                    .add_row(Row::stretch())
+                    .add_column(Column::auto())
+                    .add_row(Row::auto())
                     .build(ctx),
                 )
                 .with_allow_drop(true)
                 .build(ctx),
             name,
-            resource_manager,
-            resource: self.resource,
+            selector_mixin: AssetSelectorMixin::new(
+                select,
+                icon_request_sender.clone(),
+                resource_manager,
+            ),
+            resource: self.resource.clone(),
             locate,
             sender: self.sender,
+            image,
+            image_preview,
         };
 
-        ctx.add_node(UiNode::new(field))
+        let handle = ctx.add_node(UiNode::new(field));
+
+        if let Some(resource) = self.resource.as_ref() {
+            Log::verify(icon_request_sender.send(IconRequest {
+                widget_handle: handle,
+                resource: resource.clone().into_untyped(),
+                force_update: false,
+            }));
+        }
+
+        handle
     }
 }
 
@@ -388,7 +465,11 @@ where
         Ok(PropertyEditorInstance::Simple {
             editor: ResourceFieldBuilder::new(WidgetBuilder::new(), self.sender.clone())
                 .with_resource(value.clone())
-                .build(ctx.build_context, environment.resource_manager.clone()),
+                .build(
+                    ctx.build_context,
+                    environment.icon_request_sender.clone(),
+                    environment.resource_manager.clone(),
+                ),
         })
     }
 
@@ -427,13 +508,16 @@ mod test {
     use fyrox::asset::manager::ResourceManager;
     use fyrox::resource::model::Model;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+    use std::sync::mpsc::channel;
     use std::sync::Arc;
 
     #[test]
     fn test_deletion() {
+        let (sender, _) = channel();
         test_widget_deletion(|ctx| {
             ResourceFieldBuilder::<Model>::new(WidgetBuilder::new(), Default::default()).build(
                 ctx,
+                sender,
                 ResourceManager::new(Arc::new(FsResourceIo), Default::default()),
             )
         });

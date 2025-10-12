@@ -18,13 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::resources::RendererResources;
-use crate::renderer::settings::ShadowMapPrecision;
 use crate::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Point3, Vector3},
         color::Color,
         math::Rect,
+    },
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{Attachment, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+        server::GraphicsServer,
     },
     renderer::{
         bundle::{BundleRenderContext, RenderDataBundleStorage, RenderDataBundleStorageOptions},
@@ -32,13 +37,9 @@ use crate::{
             shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator,
             DynamicSurfaceCache,
         },
-        framework::{
-            error::FrameworkError,
-            framebuffer::{Attachment, GpuFrameBuffer},
-            gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
-            server::GraphicsServer,
-        },
         observer::ObserverPosition,
+        resources::RendererResources,
+        settings::ShadowMapPrecision,
         shadow::cascade_size,
         utils::CubeMapFaceDescriptor,
         GeometryCache, RenderPassStatistics, POINT_SHADOW_PASS_NAME,
@@ -67,6 +68,7 @@ pub(crate) struct PointShadowMapRenderContext<'a> {
     pub renderer_resources: &'a RendererResources,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     pub dynamic_surface_cache: &'a mut DynamicSurfaceCache,
+    pub resource_manager: &'a ResourceManager,
 }
 
 impl PointShadowMapRenderer {
@@ -81,6 +83,7 @@ impl PointShadowMapRenderer {
             precision: ShadowMapPrecision,
         ) -> Result<GpuFrameBuffer, FrameworkError> {
             let depth = server.create_2d_render_target(
+                "PointShadowMapDepthTexture",
                 match precision {
                     ShadowMapPrecision::Full => PixelKind::D32F,
                     ShadowMapPrecision::Half => PixelKind::D16,
@@ -90,6 +93,7 @@ impl PointShadowMapRenderer {
             )?;
 
             let cube_map = server.create_texture(GpuTextureDescriptor {
+                name: "PointLightShadowCubeMap",
                 kind: GpuTextureKind::Cube { size },
                 pixel_kind: PixelKind::R16F,
                 ..Default::default()
@@ -145,6 +149,7 @@ impl PointShadowMapRenderer {
             renderer_resources,
             uniform_memory_allocator,
             dynamic_surface_cache,
+            resource_manager,
         } = args;
 
         let framebuffer = &self.cascades[cascade];
@@ -158,7 +163,7 @@ impl PointShadowMapRenderer {
             Matrix4::new_perspective(1.0, std::f32::consts::FRAC_PI_2, z_near, z_far);
 
         for face in self.faces.iter() {
-            framebuffer.set_cubemap_face(0, face.face);
+            framebuffer.set_cubemap_face(0, face.face, 0);
             framebuffer.clear(viewport, Some(Color::WHITE), Some(1.0), None);
 
             let light_look_at = light_pos + face.look;
@@ -199,6 +204,7 @@ impl PointShadowMapRenderer {
                     frame_buffer: framebuffer,
                     viewport,
                     uniform_memory_allocator,
+                    resource_manager,
                     use_pom: false,
                     light_position: &light_pos,
                     renderer_resources,

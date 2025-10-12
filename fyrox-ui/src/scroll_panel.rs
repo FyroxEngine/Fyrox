@@ -22,8 +22,6 @@
 //! from top-left corner. It is used to provide basic scrolling functionality. See [`ScrollPanel`] docs for more
 //! info and usage examples.
 
-#![allow(missing_docs)]
-
 use crate::{
     brush::Brush,
     core::{
@@ -207,7 +205,7 @@ impl ScrollPanel {
         children_size
     }
     fn bring_into_view(&self, ui: &UserInterface, handle: Handle<UiNode>) {
-        let Some(node_to_focus_ref) = ui.try_get(handle) else {
+        let Some(node_to_focus_ref) = ui.try_get_node(handle) else {
             return;
         };
         let mut parent = handle;

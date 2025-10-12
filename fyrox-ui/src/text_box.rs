@@ -36,6 +36,7 @@ use crate::{
         uuid_provider,
         variable::InheritableVariable,
         visitor::prelude::*,
+        SafeLock,
     },
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
@@ -48,6 +49,8 @@ use crate::{
 };
 use copypasta::ClipboardProvider;
 
+use fyrox_core::algebra::Matrix3;
+use fyrox_core::some_or_return;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::RefCell,
@@ -501,7 +504,7 @@ impl TextBox {
         let mut str = str.replace("\r\n", "\n");
         str.retain(|c| c == '\n' || !c.is_control());
         if let Some(filter) = self.filter.as_ref() {
-            let filter = &mut *filter.lock();
+            let filter = &mut *filter.safe_lock();
             str.retain(filter);
         }
         str
@@ -514,7 +517,7 @@ impl TextBox {
             .filter(|c| !c.is_control())
             .collect();
         if let Some(filter) = self.filter.as_ref() {
-            let filter = &mut *filter.lock();
+            let filter = &mut *filter.safe_lock();
             str.retain(filter);
         }
         str
@@ -902,7 +905,7 @@ impl TextBox {
         if let Some(index) = self.position_to_char_index_clamped(position) {
             let text_ref = self.formatted_text.borrow();
             let text = text_ref.get_raw_text();
-            let search_whitespace = !text[index].is_whitespace();
+            let search_whitespace = !some_or_return!(text.get(index)).is_whitespace();
 
             let mut left_index = index;
             while left_index > 0 {
@@ -951,11 +954,17 @@ impl Control for TextBox {
             .build()
     }
 
-    fn on_visual_transform_changed(&self) {
-        self.formatted_text
-            .borrow_mut()
-            .set_super_sampling_scale(self.visual_max_scaling())
-            .build();
+    fn on_visual_transform_changed(
+        &self,
+        old_transform: &Matrix3<f32>,
+        new_transform: &Matrix3<f32>,
+    ) {
+        if old_transform != new_transform {
+            self.formatted_text
+                .borrow_mut()
+                .set_super_sampling_scale(self.visual_max_scaling())
+                .build();
+        }
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
@@ -1098,7 +1107,7 @@ impl Control for TextBox {
                         for symbol in text.chars() {
                             let insert = !symbol.is_control()
                                 && if let Some(filter) = self.filter.as_ref() {
-                                    let filter = &mut *filter.lock();
+                                    let filter = &mut *filter.safe_lock();
                                     filter(symbol)
                                 } else {
                                     true
@@ -1437,6 +1446,11 @@ impl Control for TextBox {
                                 self.invalidate_layout();
                                 ui.send_message(message.reverse());
                             }
+                        }
+                        TextMessage::Runs(runs) => {
+                            text.set_runs(runs.clone());
+                            drop(text);
+                            self.invalidate_layout();
                         }
                     }
                 }

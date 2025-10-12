@@ -51,12 +51,34 @@ fn impl_visit_struct(
             field_args.style,
         );
 
+        fn make_method_call(name: Option<&Ident>) -> TokenStream2 {
+            match name {
+                None => {
+                    quote! { (); }
+                }
+                Some(method_name) => {
+                    quote! { self.#method_name(visitor); }
+                }
+            }
+        }
+
+        let pre_visit_method = make_method_call(ty_args.pre_visit_method.as_ref());
+        let post_visit_method = make_method_call(ty_args.post_visit_method.as_ref());
+
         quote! {
+            #pre_visit_method
+
             let mut region = match visitor.enter_region(name) {
                 Ok(x) => x,
                 Err(err) => return Err(err),
             };
+
             #(#field_visits)*
+
+            ::std::mem::drop(region);
+
+            #post_visit_method
+
             Ok(())
         }
     };

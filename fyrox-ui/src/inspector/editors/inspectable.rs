@@ -100,13 +100,14 @@ where
             filter: ctx.filter,
             name_column_width: ctx.name_column_width,
             base_path: ctx.base_path.clone(),
+            has_parent_object: ctx.has_parent_object,
         });
 
         let editor;
         let container = make_expander_container(
             ctx.layer_index,
             ctx.property_info.display_name,
-            ctx.property_info.description,
+            ctx.property_info.doc,
             Handle::NONE,
             {
                 editor = InspectorBuilder::new(WidgetBuilder::new())

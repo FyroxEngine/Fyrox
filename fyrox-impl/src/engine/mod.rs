@@ -25,10 +25,14 @@
 
 pub mod error;
 pub mod executor;
+pub mod input;
 pub mod task;
 
 mod hotreload;
+mod wasm_utils;
 
+use crate::engine::input::InputState;
+use crate::renderer::ui_renderer::UiRenderInfo;
 use crate::scene::skybox::SkyBoxKind;
 use crate::{
     asset::{
@@ -51,6 +55,7 @@ use crate::{
     engine::{error::EngineError, task::TaskPoolHandler},
     event::Event,
     graph::{BaseSceneGraph, NodeMapping, SceneGraph},
+    graphics::error::FrameworkError,
     gui::{
         constructor::WidgetConstructorContainer,
         font::{loader::FontLoader, Font, BUILT_IN_FONT},
@@ -68,7 +73,7 @@ use crate::{
         dylib::DyLibDynamicPlugin, DynamicPlugin, Plugin, PluginContainer, PluginContext,
         PluginRegistrationContext,
     },
-    renderer::{framework::error::FrameworkError, Renderer},
+    renderer::Renderer,
     resource::{
         curve::{loader::CurveLoader, CurveResourceState},
         model::{loader::ModelLoader, Model, ModelResource},
@@ -99,17 +104,19 @@ use crate::{
         Script, ScriptContext, ScriptDeinitContext, ScriptMessage, ScriptMessageContext,
         ScriptMessageKind, ScriptMessageSender, UniversalScriptContext,
     },
-    window::{Window, WindowBuilder},
+    window::Window,
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
 use fyrox_core::visitor::error::VisitError;
+use fyrox_core::warn;
 use fyrox_graphics::server::SharedGraphicsServer;
 use fyrox_graphics_gl::server::GlGraphicsServer;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
 };
+use fyrox_ui::RenderMode;
 use std::{
     any::TypeId,
     cell::Cell,
@@ -126,9 +133,10 @@ use std::{
     time::Duration,
 };
 use uuid::Uuid;
+use winit::event::{DeviceEvent, ElementState, WindowEvent};
+use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::{
     dpi::{Position, Size},
-    event_loop::EventLoopWindowTarget,
     window::Icon,
     window::WindowAttributes,
 };
@@ -491,6 +499,8 @@ pub struct Engine {
     // Amount of time (in seconds) that passed from creation of the engine.
     elapsed_time: f32,
 
+    input_state: InputState,
+
     /// A special container that is able to create nodes by their type UUID. Use a copy of this
     /// value whenever you need it as a parameter in other parts of the engine.
     pub serialization_context: Arc<SerializationContext>,
@@ -580,6 +590,7 @@ impl ScriptMessageDispatcher {
         user_interfaces: &mut UiContainer,
         graphics_context: &mut GraphicsContext,
         task_pool: &mut TaskPoolHandler,
+        input_state: &InputState,
     ) {
         while let Ok(message) = self.message_receiver.try_recv() {
             let type_id = match message.payload.get_dynamic_type_id() {
@@ -614,6 +625,7 @@ impl ScriptMessageDispatcher {
                                 graphics_context,
                                 user_interfaces,
                                 script_index: 0,
+                                input_state,
                             };
 
                             process_node_scripts(&mut context, &mut |s, ctx| {
@@ -624,7 +636,7 @@ impl ScriptMessageDispatcher {
                     ScriptMessageKind::Hierarchical { root, routing } => match routing {
                         RoutingStrategy::Up => {
                             let mut node = root;
-                            while let Some(node_ref) = scene.graph.try_get(node) {
+                            while let Some(node_ref) = scene.graph.try_get_node(node) {
                                 let parent = node_ref.parent();
 
                                 let mut context = ScriptMessageContext {
@@ -640,6 +652,7 @@ impl ScriptMessageDispatcher {
                                     graphics_context,
                                     user_interfaces,
                                     script_index: 0,
+                                    input_state,
                                 };
 
                                 if receivers.contains(&node) {
@@ -666,6 +679,7 @@ impl ScriptMessageDispatcher {
                                     graphics_context,
                                     user_interfaces,
                                     script_index: 0,
+                                    input_state,
                                 };
 
                                 if receivers.contains(&node) {
@@ -691,6 +705,7 @@ impl ScriptMessageDispatcher {
                                 graphics_context,
                                 user_interfaces,
                                 script_index: 0,
+                                input_state,
                             };
 
                             process_node_scripts(&mut context, &mut |s, ctx| {
@@ -755,6 +770,7 @@ impl ScriptProcessor {
         user_interfaces: &mut UiContainer,
         dt: f32,
         elapsed_time: f32,
+        input_state: &InputState,
     ) {
         self.wait_list
             .retain_mut(|context| !context.is_all_loaded());
@@ -826,6 +842,7 @@ impl ScriptProcessor {
                     graphics_context,
                     user_interfaces,
                     script_index: 0,
+                    input_state,
                 };
 
                 'init_loop: for init_loop_iteration in 0..max_iterations {
@@ -936,6 +953,7 @@ impl ScriptProcessor {
                 user_interfaces,
                 graphics_context,
                 task_pool,
+                input_state,
             );
 
             // As the last step, destroy queued scripts.
@@ -951,6 +969,7 @@ impl ScriptProcessor {
                 graphics_context,
                 task_pool,
                 script_index: 0,
+                input_state,
             };
             while let Some((handle, mut script, index)) = destruction_queue.pop_front() {
                 context.node_handle = handle;
@@ -980,6 +999,7 @@ impl ScriptProcessor {
                     graphics_context,
                     user_interfaces,
                     script_index: 0,
+                    input_state,
                 };
 
                 // Destroy every script instance from nodes that were still alive.
@@ -1039,8 +1059,8 @@ impl ResourceGraphVertex {
 
     pub fn resolve(&self) {
         Log::info(format!(
-            "Resolving {} resource from dependency graph...",
-            self.resource.kind()
+            "Resolving {:?} resource from dependency graph...",
+            self.resource.resource_uuid()
         ));
 
         // Wait until resource is fully loaded, then resolve.
@@ -1079,8 +1099,9 @@ pub type GraphicsServerConstructorResult = Result<(Window, SharedGraphicsServer)
 /// as the server.
 pub type GraphicsServerConstructorCallback = dyn Fn(
     &GraphicsContextParams,
-    &EventLoopWindowTarget<()>,
-    WindowBuilder,
+    &ActiveEventLoop,
+    WindowAttributes,
+    bool,
 ) -> GraphicsServerConstructorResult;
 
 /// Graphics server constructor is used to initialize different graphics servers in unified manner.
@@ -1090,14 +1111,17 @@ pub struct GraphicsServerConstructor(Rc<GraphicsServerConstructorCallback>);
 
 impl Default for GraphicsServerConstructor {
     fn default() -> Self {
-        Self(Rc::new(|params, window_target, window_builder| {
-            GlGraphicsServer::new(
-                params.vsync,
-                params.msaa_sample_count,
-                window_target,
-                window_builder,
-            )
-        }))
+        Self(Rc::new(
+            |params, window_target, window_builder, named_objects| {
+                GlGraphicsServer::new(
+                    params.vsync,
+                    params.msaa_sample_count,
+                    window_target,
+                    window_builder,
+                    named_objects,
+                )
+            },
+        ))
     }
 }
 
@@ -1117,6 +1141,11 @@ pub struct GraphicsContextParams {
 
     /// Graphic server constructor. See [`GraphicsServerConstructor`] docs for more info.
     pub graphics_server_constructor: GraphicsServerConstructor,
+
+    /// A flag, that if raised tells the engine to assign meaningful names for GPU objects. This
+    /// option is very useful for debugging. This option is off by default, because if may cause
+    /// crashes on some video driver due to poor implementation in the driver.
+    pub named_objects: bool,
 }
 
 impl Default for GraphicsContextParams {
@@ -1126,6 +1155,7 @@ impl Default for GraphicsContextParams {
             vsync: true,
             msaa_sample_count: None,
             graphics_server_constructor: Default::default(),
+            named_objects: false,
         }
     }
 }
@@ -1226,6 +1256,7 @@ pub(crate) fn process_scripts<T>(
     user_interfaces: &mut UiContainer,
     dt: f32,
     elapsed_time: f32,
+    input_state: &InputState,
     mut func: T,
 ) where
     T: FnMut(&mut Script, &mut ScriptContext),
@@ -1244,6 +1275,7 @@ pub(crate) fn process_scripts<T>(
         graphics_context,
         user_interfaces,
         script_index: 0,
+        input_state,
     };
 
     for node_index in 0..context.scene.graph.capacity() {
@@ -1276,6 +1308,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.built_in_resources.add(BUILT_IN_FONT.clone());
 
     state.built_in_resources.add(texture::PLACEHOLDER.clone());
+    state.built_in_resources.add(texture::PURE_COLOR.clone());
     state.built_in_resources.add(style::DEFAULT_STYLE.clone());
 
     for material in [
@@ -1285,6 +1318,7 @@ pub(crate) fn initialize_resource_manager_loaders(
         &*material::STANDARD_TERRAIN,
         &*material::STANDARD_TWOSIDES,
         &*material::STANDARD_PARTICLE_SYSTEM,
+        &*material::STANDARD_WIDGET,
     ] {
         state.built_in_resources.add(material.clone());
     }
@@ -1363,7 +1397,9 @@ pub enum ApplicationLoopController<'a> {
         running: &'a Cell<bool>,
     },
     /// Normal application loop controller with full window, graphics, sound support.
-    WindowTarget(&'a EventLoopWindowTarget<()>),
+    ActiveEventLoop(&'a ActiveEventLoop),
+    /// Normal application loop controller without a window.
+    EventLoop(&'a EventLoop<()>),
 }
 
 impl ApplicationLoopController<'_> {
@@ -1371,7 +1407,10 @@ impl ApplicationLoopController<'_> {
     pub fn exit(&self) {
         match self {
             ApplicationLoopController::Headless { running } => running.set(false),
-            ApplicationLoopController::WindowTarget(window_target) => window_target.exit(),
+            ApplicationLoopController::ActiveEventLoop(event_loop) => event_loop.exit(),
+            ApplicationLoopController::EventLoop(_) => {
+                warn!("Can't exit the loop until it is activated!")
+            }
         }
     }
 }
@@ -1406,7 +1445,8 @@ impl Engine {
     ///     window_attributes,
     ///     vsync: true,
     ///     msaa_sample_count: None,
-    ///     graphics_server_constructor: Default::default()
+    ///     graphics_server_constructor: Default::default(),
+    ///     named_objects: false
     /// };
     /// let task_pool = Arc::new(TaskPool::new());
     ///
@@ -1429,6 +1469,9 @@ impl Engine {
             resource_manager,
             task_pool,
         } = params;
+
+        #[cfg(target_arch = "wasm32")]
+        wasm_utils::set_panic_hook();
 
         initialize_resource_manager_loaders(&resource_manager, serialization_context.clone());
 
@@ -1461,6 +1504,7 @@ impl Engine {
             plugins_enabled: false,
             elapsed_time: 0.0,
             task_pool: TaskPoolHandler::new(task_pool),
+            input_state: Default::default(),
         })
     }
 
@@ -1473,46 +1517,15 @@ impl Engine {
     /// graphics context at all (for example - if you're making game server).
     pub fn initialize_graphics_context(
         &mut self,
-        window_target: &EventLoopWindowTarget<()>,
+        event_loop: &ActiveEventLoop,
     ) -> Result<(), EngineError> {
         if let GraphicsContext::Uninitialized(params) = &self.graphics_context {
-            let mut window_builder = WindowBuilder::new();
-            if let Some(inner_size) = params.window_attributes.inner_size {
-                window_builder = window_builder.with_inner_size(inner_size);
-            }
-            if let Some(min_inner_size) = params.window_attributes.min_inner_size {
-                window_builder = window_builder.with_min_inner_size(min_inner_size);
-            }
-            if let Some(max_inner_size) = params.window_attributes.max_inner_size {
-                window_builder = window_builder.with_min_inner_size(max_inner_size);
-            }
-            if let Some(position) = params.window_attributes.position {
-                window_builder = window_builder.with_position(position);
-            }
-            if let Some(resize_increments) = params.window_attributes.resize_increments {
-                window_builder = window_builder.with_resize_increments(resize_increments);
-            }
-            unsafe {
-                window_builder = window_builder
-                    .with_parent_window(params.window_attributes.parent_window().cloned());
-            }
-            window_builder = window_builder
-                .with_resizable(params.window_attributes.resizable)
-                .with_enabled_buttons(params.window_attributes.enabled_buttons)
-                .with_title(params.window_attributes.title.clone())
-                .with_fullscreen(params.window_attributes.fullscreen().cloned())
-                .with_maximized(params.window_attributes.maximized)
-                .with_visible(params.window_attributes.visible)
-                .with_transparent(params.window_attributes.transparent)
-                .with_decorations(params.window_attributes.decorations)
-                .with_window_icon(params.window_attributes.window_icon.clone())
-                .with_theme(params.window_attributes.preferred_theme)
-                .with_content_protected(params.window_attributes.content_protected)
-                .with_window_level(params.window_attributes.window_level)
-                .with_active(params.window_attributes.active);
-
-            let (window, server) =
-                params.graphics_server_constructor.0(params, window_target, window_builder)?;
+            let (window, server) = params.graphics_server_constructor.0(
+                params,
+                event_loop,
+                params.window_attributes.clone(),
+                params.named_objects,
+            )?;
             let frame_size = (window.inner_size().width, window.inner_size().height);
 
             let renderer = Renderer::new(server, frame_size, &self.resource_manager)?;
@@ -1579,6 +1592,7 @@ impl Engine {
                 vsync: params.vsync,
                 msaa_sample_count: params.msaa_sample_count,
                 graphics_server_constructor: params.graphics_server_constructor.clone(),
+                named_objects: params.named_objects,
             });
 
             self.sound_engine.destroy_audio_output_device();
@@ -1691,6 +1705,7 @@ impl Engine {
                             async_scene_loader: &mut self.async_scene_loader,
                             loop_controller: controller,
                             task_pool: &mut self.task_pool,
+                            input_state: &self.input_state,
                         };
 
                         for plugin in self.plugins.iter_mut() {
@@ -1724,6 +1739,7 @@ impl Engine {
                     async_scene_loader: &mut self.async_scene_loader,
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
+                    input_state: &self.input_state,
                 };
 
                 match loading_result.result {
@@ -1869,7 +1885,7 @@ impl Engine {
         let window_size = if let GraphicsContext::Initialized(ctx) = &mut self.graphics_context {
             let inner_size = ctx.window.inner_size();
             let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
-            ctx.renderer.update_caches(dt);
+            ctx.renderer.update_caches(&self.resource_manager, dt);
             window_size
         } else {
             Vector2::new(1.0, 1.0)
@@ -1920,6 +1936,10 @@ impl Engine {
             self.elapsed_time += dt;
 
             self.post_update_plugins(dt, controller, lag);
+
+            self.input_state.mouse.speed = Vector2::default();
+            self.input_state.keyboard.released_keys.clear();
+            self.input_state.keyboard.pressed_keys.clear();
         }
     }
 
@@ -1946,6 +1966,7 @@ impl Engine {
             &mut self.user_interfaces,
             dt,
             self.elapsed_time,
+            &self.input_state,
         );
 
         self.performance_statistics.scripts_time = instant::Instant::now() - time;
@@ -1978,6 +1999,7 @@ impl Engine {
                         async_scene_loader: &mut self.async_scene_loader,
                         loop_controller: controller,
                         task_pool: &mut self.task_pool,
+                        input_state: &self.input_state,
                     },
                 )
             } else if let Some(node_task_handler) = self.task_pool.pop_node_task_handler(result.id)
@@ -1991,7 +2013,9 @@ impl Engine {
                 {
                     let payload = result.payload;
                     if let Some(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle) {
-                        if let Some(node) = scene.graph.try_get_mut(node_task_handler.node_handle) {
+                        if let Some(node) =
+                            scene.graph.try_get_node_mut(node_task_handler.node_handle)
+                        {
                             if let Some(mut script) = node
                                 .scripts
                                 .get_mut(node_task_handler.script_index)
@@ -2014,11 +2038,12 @@ impl Engine {
                                         graphics_context: &mut self.graphics_context,
                                         user_interfaces: &mut self.user_interfaces,
                                         script_index: node_task_handler.script_index,
+                                        input_state: &self.input_state,
                                     },
                                 );
 
                                 if let Some(node) =
-                                    scene.graph.try_get_mut(node_task_handler.node_handle)
+                                    scene.graph.try_get_node_mut(node_task_handler.node_handle)
                                 {
                                     if let Some(entry) =
                                         node.scripts.get_mut(node_task_handler.script_index)
@@ -2067,6 +2092,7 @@ impl Engine {
                 async_scene_loader: &mut self.async_scene_loader,
                 loop_controller: controller,
                 task_pool: &mut self.task_pool,
+                input_state: &self.input_state,
             };
 
             for plugin in self.plugins.iter_mut() {
@@ -2100,10 +2126,11 @@ impl Engine {
                         async_scene_loader: &mut self.async_scene_loader,
                         loop_controller: controller,
                         task_pool: &mut self.task_pool,
+                        input_state: &self.input_state,
                     };
 
                     for plugin in self.plugins.iter_mut() {
-                        plugin.on_ui_message(&mut context, &message);
+                        plugin.on_ui_message(&mut context, &message, ui);
                     }
                 }
             }
@@ -2136,6 +2163,7 @@ impl Engine {
                 async_scene_loader: &mut self.async_scene_loader,
                 loop_controller: controller,
                 task_pool: &mut self.task_pool,
+                input_state: &self.input_state,
             };
 
             for plugin in self.plugins.iter_mut() {
@@ -2146,13 +2174,83 @@ impl Engine {
         self.performance_statistics.plugins_time += instant::Instant::now() - time;
     }
 
-    pub(crate) fn handle_os_event_by_plugins(
+    /// Should be called on every OS event to update the internal state of the engine accordingly.
+    pub fn handle_os_events(
         &mut self,
         event: &Event<()>,
         dt: f32,
         controller: ApplicationLoopController,
         lag: &mut f32,
     ) {
+        match event {
+            Event::WindowEvent { event, .. } => match event {
+                WindowEvent::KeyboardInput { event, .. } => {
+                    let keyboard = &mut self.input_state.keyboard;
+
+                    match event.state {
+                        ElementState::Pressed => {
+                            if keyboard
+                                .keys
+                                .get(&event.physical_key)
+                                .is_none_or(|state| *state == ElementState::Released)
+                            {
+                                keyboard.pressed_keys.insert(event.physical_key);
+                            }
+                        }
+                        ElementState::Released => {
+                            if keyboard
+                                .keys
+                                .get(&event.physical_key)
+                                .is_some_and(|state| *state == ElementState::Pressed)
+                            {
+                                keyboard.released_keys.insert(event.physical_key);
+                            }
+                        }
+                    }
+
+                    keyboard.keys.insert(event.physical_key, event.state);
+                }
+                WindowEvent::CursorMoved { position, .. } => {
+                    self.input_state.mouse.position =
+                        Vector2::new(position.x as f32, position.y as f32);
+                }
+                _ => (),
+            },
+            Event::DeviceEvent { event, .. } => match event {
+                DeviceEvent::MouseMotion { delta } => {
+                    self.input_state.mouse.speed = Vector2::new(delta.0 as f32, delta.1 as f32);
+                }
+                DeviceEvent::Button { button, state } => {
+                    let mouse = &mut self.input_state.mouse;
+
+                    match *state {
+                        ElementState::Pressed => {
+                            if mouse
+                                .buttons_state
+                                .get(button)
+                                .is_none_or(|state| *state == ElementState::Released)
+                            {
+                                mouse.pressed_buttons.insert(*button);
+                            }
+                        }
+                        ElementState::Released => {
+                            if mouse
+                                .buttons_state
+                                .get(button)
+                                .is_some_and(|state| *state == ElementState::Pressed)
+                            {
+                                mouse.released_buttons.insert(*button);
+                            }
+                        }
+                    }
+
+                    mouse.buttons_state.insert(*button, *state);
+                }
+                _ => (),
+            },
+            _ => (),
+        }
+
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
                 plugin.on_os_event(
@@ -2172,6 +2270,7 @@ impl Engine {
                         async_scene_loader: &mut self.async_scene_loader,
                         loop_controller: controller,
                         task_pool: &mut self.task_pool,
+                        input_state: &self.input_state,
                     },
                 );
             }
@@ -2201,6 +2300,7 @@ impl Engine {
                     async_scene_loader: &mut self.async_scene_loader,
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
+                    input_state: &self.input_state,
                 });
             }
         }
@@ -2229,6 +2329,7 @@ impl Engine {
                     async_scene_loader: &mut self.async_scene_loader,
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
+                    input_state: &self.input_state,
                 });
             }
         }
@@ -2257,6 +2358,7 @@ impl Engine {
                     async_scene_loader: &mut self.async_scene_loader,
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
+                    input_state: &self.input_state,
                 });
             }
         }
@@ -2295,6 +2397,7 @@ impl Engine {
                     &mut self.user_interfaces,
                     dt,
                     self.elapsed_time,
+                    &self.input_state,
                     |script, context| {
                         if script.initialized && script.started {
                             script.on_os_event(event, context);
@@ -2314,8 +2417,8 @@ impl Engine {
             if let ResourceEvent::Reloaded(resource) = event {
                 if let Some(model) = resource.try_cast::<Model>() {
                     Log::info(format!(
-                        "A model resource {} was reloaded, propagating changes...",
-                        model.kind()
+                        "A model resource {:?} was reloaded, propagating changes...",
+                        model.resource_uuid()
                     ));
 
                     // Build resource dependency graph and resolve it first.
@@ -2347,8 +2450,23 @@ impl Engine {
             ctx.renderer.render_and_swap_buffers(
                 &self.scenes,
                 self.elapsed_time,
-                self.user_interfaces.iter().map(|ui| &ui.drawing_context),
+                self.user_interfaces
+                    .iter_mut()
+                    .filter(|ui| match ui.render_mode {
+                        RenderMode::EveryFrame => true,
+                        RenderMode::OnChanges => ui.need_render,
+                    })
+                    .map(|ui| {
+                        ui.need_render = false;
+                        UiRenderInfo {
+                            ui,
+                            render_target: ui.render_target.clone(),
+                            clear_color: Default::default(),
+                            resource_manager: &self.resource_manager,
+                        }
+                    }),
                 &ctx.window,
+                &self.resource_manager,
             )?;
         }
 
@@ -2385,6 +2503,7 @@ impl Engine {
                             async_scene_loader: &mut self.async_scene_loader,
                             loop_controller: controller,
                             task_pool: &mut self.task_pool,
+                            input_state: &self.input_state,
                         },
                     );
                 }
@@ -2408,6 +2527,7 @@ impl Engine {
                         async_scene_loader: &mut self.async_scene_loader,
                         loop_controller: controller,
                         task_pool: &mut self.task_pool,
+                        input_state: &self.input_state,
                     });
                 }
             }
@@ -2425,6 +2545,10 @@ impl Engine {
             widget_constructors,
             resource_manager,
         });
+
+        // New plugins may add custom resources and we must re-scan the data folder to include
+        // such resources in the registry.
+        resource_manager.update_or_load_registry();
     }
 
     fn register_plugin(&self, plugin: &dyn Plugin) {
@@ -2676,7 +2800,10 @@ impl Engine {
 
         // Deserialize prefab scene content.
         for (model, scene_state) in prefab_scenes {
-            Log::info(format!("Deserializing {} prefab content...", model.kind()));
+            Log::info(format!(
+                "Deserializing {:?} prefab content...",
+                model.resource_uuid()
+            ));
 
             scene_state.deserialize_into_prefab_scene(
                 &model,
@@ -2713,6 +2840,7 @@ impl Engine {
             async_scene_loader: &mut self.async_scene_loader,
             loop_controller: controller,
             task_pool: &mut self.task_pool,
+            input_state: &self.input_state,
         });
 
         Log::info(format!("Plugin {plugin_index} was successfully reloaded!"));
@@ -3000,6 +3128,7 @@ mod test {
                 &mut user_interfaces,
                 0.0,
                 0.0,
+                &Default::default(),
             );
 
             match iteration {
@@ -3166,6 +3295,7 @@ mod test {
                 &mut user_interfaces,
                 0.0,
                 0.0,
+                &Default::default(),
             );
 
             match iteration {
@@ -3437,6 +3567,7 @@ mod test {
                 &mut user_interfaces,
                 0.0,
                 0.0,
+                &Default::default(),
             );
 
             match iteration {

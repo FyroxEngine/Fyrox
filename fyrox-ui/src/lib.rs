@@ -135,9 +135,9 @@
 //!
 //! ### Controls
 //!
-//! Control widgets primary purpose is to provide users with intractable UI elements to control some aspect of the program.
+//! Control widgets primary purpose is to provide users with interactable UI elements to control some aspect of the program.
 //!
-//! * [`crate::border::Border`]: The Button provides a press-able control that can contain other UI elements, for example a Text
+//! * [`crate::button::Button`]: The Button provides a press-able control that can contain other UI elements, for example a Text
 //! or Image Widget.
 //! * [`crate::check_box::CheckBox`]: The Check Box is a toggle-able control that can contain other UI elements, for example a Text
 //! or Image Widget.
@@ -189,6 +189,24 @@
 //! **Important**: This example **does not** include any drawing or OS event processing! It is because this
 //! crate is OS- and GAPI-agnostic and do not create native OS windows and cannot draw anything on screen.
 //! For more specific examples, please see `examples` of the crate.
+//!
+//! ## Keyboard Focus
+//!
+//! Widgets can receive keyboard events, but only one widget at a time can have the keyboard focus.
+//! The focused widget is automatically highlighted by the UI library using a rounded rectangle of
+//! bright-blue color. Such highlighting can be disabled by setting a [`Style::BRUSH_HIGHLIGHT`]
+//! property at the root style of your [`UserInterface`] instance.
+//!
+//! ```rust
+//! use fyrox_core::color::Color;
+//! use fyrox_ui::brush::Brush;
+//! use fyrox_ui::style::Style;
+//! use fyrox_ui::UserInterface;
+//!
+//! fn disable_highlighting(ui: &mut UserInterface) {
+//!     ui.style().data_ref().set(Style::BRUSH_HIGHLIGHT, Brush::Solid(Color::TRANSPARENT));
+//! }
+//! ```
 
 #![forbid(unsafe_code)]
 #![allow(irrefutable_let_patterns)]
@@ -200,6 +218,7 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::doc_lazy_continuation)]
 #![allow(clippy::mutable_key_type)]
+#![allow(mismatched_lifetime_syntaxes)]
 
 pub use copypasta;
 pub use fyrox_core as core;
@@ -247,6 +266,7 @@ pub mod popup;
 pub mod progress_bar;
 pub mod range;
 pub mod rect;
+pub mod resources;
 pub mod screen;
 pub mod scroll_bar;
 pub mod scroll_panel;
@@ -307,7 +327,7 @@ use std::{
     cell::{Ref, RefCell, RefMut},
     collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
     error::Error,
-    fmt::{Debug, Formatter},
+    fmt::{Debug, Formatter, Write},
     ops::{Deref, DerefMut, Index, IndexMut},
     path::Path,
     sync::{
@@ -320,8 +340,8 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
-use fyrox_core::futures::future::join_all;
 use fyrox_core::log::Log;
+use fyrox_core::{futures::future::join_all, pool::ObjectOrVariant};
 use fyrox_graph::{
     AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping, PrefabData,
     SceneGraph, SceneGraphNode,
@@ -335,9 +355,10 @@ use crate::style::resource::{StyleResource, StyleResourceExt};
 use crate::style::{Style, DEFAULT_STYLE};
 use crate::widget::WidgetMaterial;
 pub use fyrox_animation as generic_animation;
-use fyrox_core::pool::{BorrowAs, ErasedHandle};
+use fyrox_core::pool::ErasedHandle;
 use fyrox_resource::untyped::ResourceKind;
 pub use fyrox_texture as texture;
+use fyrox_texture::TextureResource;
 
 #[derive(Default, Clone, Reflect, Debug)]
 pub(crate) struct RcUiNodeHandleInner {
@@ -591,6 +612,7 @@ pub enum LayoutEvent {
     ArrangementInvalidated(Handle<UiNode>),
     VisibilityChanged(Handle<UiNode>),
     ZIndexChanged(Handle<UiNode>),
+    TransformChanged(Handle<UiNode>),
 }
 
 #[derive(Clone, Debug, Visit, Reflect, Default)]
@@ -653,21 +675,18 @@ pub struct UiUpdateSwitches {
 
 pub type WidgetPool = Pool<UiNode, WidgetContainer>;
 
-impl<T: Control> BorrowAs<UiNode, WidgetContainer> for Handle<T> {
-    type Target = T;
-
-    fn borrow_as_ref(self, pool: &WidgetPool) -> Option<&T> {
-        pool.try_borrow(self.transmute())
-            .and_then(|n| ControlAsAny::as_any(n.0.deref()).downcast_ref::<T>())
-    }
-
-    fn borrow_as_mut(self, pool: &mut WidgetPool) -> Option<&mut T> {
-        pool.try_borrow_mut(self.transmute())
-            .and_then(|n| ControlAsAny::as_any_mut(n.0.deref_mut()).downcast_mut::<T>())
-    }
+#[derive(Default, Debug, Clone, Reflect, Visit)]
+pub enum RenderMode {
+    /// The UI will be re-rendered on every frame. This is the default behavior.
+    #[default]
+    EveryFrame,
+    /// The UI will be re-rendered only if there was any message with [`MessageDirection::ToWidget`]
+    /// sent to it. This option can be useful for offscreen rending of a user interface that changes
+    /// infrequently.
+    OnChanges,
 }
 
-#[derive(Reflect, Debug)]
+#[derive(Reflect)]
 pub struct UserInterface {
     screen_size: Vector2<f32>,
     nodes: WidgetPool,
@@ -703,7 +722,6 @@ pub struct UserInterface {
     layout_events_receiver: Receiver<LayoutEvent>,
     #[reflect(hidden)]
     layout_events_sender: Sender<LayoutEvent>,
-    need_update_global_transform: bool,
     #[reflect(hidden)]
     z_index_update_set: FxHashSet<Handle<UiNode>>,
     #[reflect(hidden)]
@@ -713,6 +731,56 @@ pub struct UserInterface {
     pub double_click_time_slice: f32,
     pub tooltip_appear_delay: f32,
     pub standard_material: WidgetMaterial,
+    /// Optional render target of the user interface. The UI will be rendered in such target with
+    /// and the target size will be set to the screen size of the user interface.
+    pub render_target: Option<TextureResource>,
+    /// Render mode of the user interface. See [`RenderMode`] docs for more info.
+    pub render_mode: RenderMode,
+    /// A flag that indicates that the UI should be rendered. It is only taken into account if
+    /// the render mode is set to [`RenderMode::OnChanges`].
+    pub need_render: bool,
+}
+
+impl Debug for UserInterface {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UserInterface")
+            .field("screen_size", &self.screen_size)
+            .field("drawing_context", &self.drawing_context)
+            .field("visual_debug", &self.visual_debug)
+            .field("root_canvas", &self.root_canvas)
+            .field("picked_node", &self.picked_node)
+            .field("prev_picked_node", &self.prev_picked_node)
+            .field("captured_node", &self.captured_node)
+            .field("keyboard_focus_node", &self.keyboard_focus_node)
+            .field("cursor_position", &self.cursor_position)
+            .field("style", &self.style)
+            .field("receiver", &self.receiver)
+            .field("sender", &self.sender)
+            .field("stack", &self.stack)
+            .field("picking_stack", &self.picking_stack)
+            .field("bubble_queue", &self.bubble_queue)
+            .field("drag_context", &self.drag_context)
+            .field("mouse_state", &self.mouse_state)
+            .field("keyboard_modifiers", &self.keyboard_modifiers)
+            .field("cursor_icon", &self.cursor_icon)
+            .field("active_tooltip", &self.active_tooltip)
+            .field("methods_registry", &self.methods_registry)
+            .field("clipboard", &self.clipboard)
+            .field("layout_events_receiver", &self.layout_events_receiver)
+            .field("layout_events_sender", &self.layout_events_sender)
+            .field("z_index_update_set", &self.z_index_update_set)
+            .field("default_font", &self.default_font)
+            .field("double_click_entries", &self.double_click_entries)
+            .field("double_click_time_slice", &self.double_click_time_slice)
+            .field("tooltip_appear_delay", &self.tooltip_appear_delay)
+            .field("standard_material", &self.standard_material)
+            .field("render_target", &self.render_target)
+            .field("render_mode", &self.render_mode)
+            .field("need_render", &self.need_render)
+            .finish()?;
+        f.write_char('\n')?;
+        f.write_str(&self.summary())
+    }
 }
 
 impl Visit for UserInterface {
@@ -749,6 +817,7 @@ impl Visit for UserInterface {
         let _ = self
             .standard_material
             .visit("StandardMaterial", &mut region);
+        let _ = self.render_mode.visit("RenderMode", &mut region);
 
         if region.is_reading() {
             for node in self.nodes.iter() {
@@ -801,13 +870,15 @@ impl Clone for UserInterface {
             clipboard: Clipboard(ClipboardContext::new().ok().map(RefCell::new)),
             layout_events_receiver,
             layout_events_sender,
-            need_update_global_transform: self.need_update_global_transform,
             z_index_update_set: self.z_index_update_set.clone(),
             default_font: self.default_font.clone(),
             double_click_entries: self.double_click_entries.clone(),
             double_click_time_slice: self.double_click_time_slice,
             tooltip_appear_delay: self.tooltip_appear_delay,
             standard_material: Default::default(),
+            render_target: None,
+            render_mode: Default::default(),
+            need_render: self.need_render,
         }
     }
 }
@@ -1063,6 +1134,11 @@ fn remap_handles(old_new_mapping: &NodeHandleMap<UiNode>, ui: &mut UserInterface
     }
 }
 
+struct VisualTransformUpdateData {
+    roots: FxHashSet<Handle<UiNode>>,
+    visited: Vec<bool>,
+}
+
 impl UserInterface {
     pub fn new(screen_size: Vector2<f32>) -> UserInterface {
         let (sender, receiver) = mpsc::channel();
@@ -1103,13 +1179,15 @@ impl UserInterface {
             clipboard: Clipboard(ClipboardContext::new().ok().map(RefCell::new)),
             layout_events_receiver,
             layout_events_sender,
-            need_update_global_transform: Default::default(),
             z_index_update_set: Default::default(),
             default_font: BUILT_IN_FONT.resource(),
             double_click_entries: Default::default(),
             double_click_time_slice: 0.5, // 500 ms is standard in most operating systems.
             tooltip_appear_delay: 0.55,
             standard_material: Default::default(),
+            render_target: None,
+            render_mode: Default::default(),
+            need_render: true,
         };
         let root_node = UiNode::new(Canvas {
             widget: WidgetBuilder::new().build(&ui.build_ctx()),
@@ -1117,6 +1195,22 @@ impl UserInterface {
         ui.root_canvas = ui.add_node(root_node);
         ui.keyboard_focus_node = ui.root_canvas;
         ui
+    }
+
+    fn recursive_summary(&self, indent: usize, current: Handle<UiNode>, result: &mut String) {
+        for _ in 0..indent {
+            result.push_str("  ");
+        }
+        let Some(node) = self.try_get(current) else {
+            use std::fmt::Write;
+            writeln!(result, "{}: Failed to get", current).unwrap();
+            return;
+        };
+        result.push_str(&node.summary());
+        result.push('\n');
+        for child in node.children() {
+            self.recursive_summary(indent + 1, *child, result);
+        }
     }
 
     pub fn set_tooltip_appear_delay(&mut self, appear_delay: f32) {
@@ -1197,24 +1291,25 @@ impl UserInterface {
                 .nodes
                 .try_borrow_dependant_mut(node_handle, |n| n.parent());
 
-            let widget = widget.unwrap();
+            if let Some(widget) = widget {
+                if widget.is_globally_visible() {
+                    self.stack.extend_from_slice(widget.children());
 
-            if widget.is_globally_visible() {
-                self.stack.extend_from_slice(widget.children());
+                    let mut layout_transform = *widget.layout_transform();
 
-                let mut layout_transform = widget.layout_transform;
+                    layout_transform[6] = widget.actual_local_position().x;
+                    layout_transform[7] = widget.actual_local_position().y;
 
-                layout_transform[6] = widget.actual_local_position().x;
-                layout_transform[7] = widget.actual_local_position().y;
+                    let visual_transform = if let Some(parent) = parent {
+                        parent.visual_transform() * layout_transform * widget.render_transform()
+                    } else {
+                        layout_transform * widget.render_transform()
+                    };
 
-                let visual_transform = if let Some(parent) = parent {
-                    parent.visual_transform * layout_transform * widget.render_transform
-                } else {
-                    layout_transform * widget.render_transform
-                };
-
-                widget.visual_transform = visual_transform;
-                widget.on_visual_transform_changed();
+                    let old_transform =
+                        std::mem::replace(&mut widget.visual_transform, visual_transform);
+                    widget.on_visual_transform_changed(&old_transform, &visual_transform);
+                }
             }
         }
     }
@@ -1227,7 +1322,7 @@ impl UserInterface {
         self.screen_size = screen_size;
     }
 
-    fn handle_layout_events(&mut self) {
+    fn handle_layout_events(&mut self, data: &mut VisualTransformUpdateData) {
         fn invalidate_recursive_up(
             nodes: &Pool<UiNode, WidgetContainer>,
             node: Handle<UiNode>,
@@ -1252,7 +1347,6 @@ impl UserInterface {
                     invalidate_recursive_up(&self.nodes, node, |node_ref| {
                         node_ref.arrange_valid.set(false)
                     });
-                    self.need_update_global_transform = true;
                 }
                 LayoutEvent::VisibilityChanged(node) => {
                     self.update_global_visibility(node);
@@ -1264,6 +1358,40 @@ impl UserInterface {
                         // performance.
                         self.z_index_update_set.insert(node_ref.parent);
                     }
+                }
+                LayoutEvent::TransformChanged(node) => {
+                    let is_visited = &mut data.visited[node.index() as usize];
+
+                    if *is_visited {
+                        continue;
+                    }
+
+                    *is_visited = true;
+
+                    data.roots.insert(node);
+
+                    // Mark the entire hierarchy as visited.
+                    fn traverse_recursive(
+                        graph: &UserInterface,
+                        from: Handle<UiNode>,
+                        func: &mut impl FnMut(Handle<UiNode>),
+                    ) {
+                        func(from);
+                        if let Some(node) = graph.try_get_node(from) {
+                            for &child in node.children() {
+                                traverse_recursive(graph, child, func)
+                            }
+                        }
+                    }
+
+                    traverse_recursive(self, node, &mut |h| {
+                        data.visited[h.index() as usize] = true;
+
+                        // Remove a descendant from the list of potential roots.
+                        if h != node && data.roots.contains(&h) {
+                            data.roots.remove(&h);
+                        }
+                    })
                 }
             }
         }
@@ -1288,24 +1416,36 @@ impl UserInterface {
     pub fn update_layout(&mut self, screen_size: Vector2<f32>) {
         self.screen_size = screen_size;
 
-        self.handle_layout_events();
+        let mut data = VisualTransformUpdateData {
+            roots: Default::default(),
+            visited: vec![false; self.nodes.get_capacity() as usize],
+        };
+
+        self.handle_layout_events(&mut data);
 
         self.measure_node(self.root_canvas, screen_size);
-        let arrangement_changed = self.arrange_node(
+        self.arrange_node(
             self.root_canvas,
             &Rect::new(0.0, 0.0, screen_size.x, screen_size.y),
         );
 
-        if self.need_update_global_transform {
-            self.update_visual_transform(self.root_canvas);
-            self.need_update_global_transform = false;
-        }
+        // Arrange step may produce changes that affects visual transform.
+        self.handle_layout_events(&mut data);
 
-        if arrangement_changed {
-            self.calculate_clip_bounds(
-                self.root_canvas,
-                Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y),
-            );
+        for root in data.roots {
+            self.update_visual_transform(root);
+
+            // Recalculate clip bounds, because they depend on the visual transform.
+            if let Some(root_ref) = self.try_get_node(root) {
+                self.calculate_clip_bounds(
+                    root,
+                    self.try_get_node(root_ref.parent())
+                        .map(|c| c.clip_bounds())
+                        .unwrap_or_else(|| {
+                            Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y)
+                        }),
+                );
+            }
         }
     }
 
@@ -1334,19 +1474,26 @@ impl UserInterface {
 
         self.update_tooltips(dt);
 
-        if !self.drag_context.is_dragging {
-            // Try to fetch new cursor icon starting from current picked node. Traverse
-            // tree up until cursor with different value is found.
-            self.cursor_icon = CursorIcon::default();
-            let mut handle = self.picked_node;
-            while handle.is_some() {
-                let node = &self.nodes[handle];
-                if let Some(cursor) = node.cursor() {
-                    self.cursor_icon = cursor;
-                    break;
+        // Try to fetch new cursor icon starting from current picked node. Traverse
+        // tree up until cursor with different value is found.
+        self.cursor_icon = CursorIcon::default();
+        let mut handle = self.picked_node;
+        while handle.is_some() {
+            let node = &self.nodes[handle];
+            if self.drag_context.is_dragging {
+                if handle != self.drag_context.drag_node {
+                    if node.accepts_drop(self.drag_context.drag_node, self) {
+                        self.cursor_icon = CursorIcon::Crosshair;
+                        break;
+                    } else {
+                        self.cursor_icon = CursorIcon::NoDrop;
+                    }
                 }
-                handle = node.parent();
+            } else if let Some(cursor) = node.cursor() {
+                self.cursor_icon = cursor;
+                break;
             }
+            handle = node.parent();
         }
     }
 
@@ -1358,7 +1505,7 @@ impl UserInterface {
         self.style = style;
 
         fn notify_depth_first(node: Handle<UiNode>, ui: &UserInterface) {
-            if let Some(node_ref) = ui.try_get(node) {
+            if let Some(node_ref) = ui.try_get_node(node) {
                 for child in node_ref.children.iter() {
                     notify_depth_first(*child, ui);
                 }
@@ -1446,7 +1593,7 @@ impl UserInterface {
                     bounds,
                     DEFAULT_STYLE
                         .resource
-                        .get_or_default(Style::BRUSH_BRIGHT_BLUE),
+                        .get_or_default(Style::BRUSH_HIGHLIGHT),
                     CommandTexture::None,
                     &self.standard_material,
                     None,
@@ -1498,7 +1645,7 @@ impl UserInterface {
                 size.y = node.height();
             }
 
-            size = transform_size(size, &node.layout_transform);
+            size = transform_size(size, node.layout_transform());
 
             if !node.ignore_layout_rounding {
                 size.x = size.x.ceil();
@@ -1511,7 +1658,7 @@ impl UserInterface {
             size.y = size.y.min(final_rect.h());
 
             let transformed_rect =
-                Rect::new(0.0, 0.0, size.x, size.y).transform(&node.layout_transform);
+                Rect::new(0.0, 0.0, size.x, size.y).transform(node.layout_transform());
 
             size = transformed_rect.size;
 
@@ -1573,7 +1720,7 @@ impl UserInterface {
                 },
             );
 
-            size = transform_size(size, &node.layout_transform);
+            size = transform_size(size, node.layout_transform());
 
             if size.x.is_finite() {
                 size.x = size.x.clamp(node.min_size().x, node.max_size().x);
@@ -1585,7 +1732,7 @@ impl UserInterface {
             let mut desired_size = node.measure_override(self, size);
 
             desired_size = Rect::new(0.0, 0.0, desired_size.x, desired_size.y)
-                .transform(&node.layout_transform)
+                .transform(node.layout_transform())
                 .size;
 
             if !node.width().is_nan() {
@@ -1856,6 +2003,10 @@ impl UserInterface {
                     return Some(message);
                 }
 
+                if let RenderMode::OnChanges = self.render_mode {
+                    self.need_render = true;
+                }
+
                 if message.need_perform_layout() {
                     self.update_layout(self.screen_size);
                 }
@@ -1906,7 +2057,8 @@ impl UserInterface {
                                 self.unlink_node(message.destination());
 
                                 let node = &self.nodes[message.destination()];
-                                let new_position = node.screen_position();
+                                let new_position =
+                                    self.screen_to_root_canvas_space(node.screen_position());
                                 self.send_message(WidgetMessage::desired_position(
                                     message.destination(),
                                     MessageDirection::ToWidget,
@@ -2027,8 +2179,8 @@ impl UserInterface {
                             margin,
                         } => {
                             if let (Some(node), Some(relative_node)) = (
-                                self.try_get(message.destination()),
-                                self.try_get(*relative_to),
+                                self.try_get_node(message.destination()),
+                                self.try_get_node(*relative_to),
                             ) {
                                 // Calculate new anchor point in screen coordinate system.
                                 let relative_node_screen_size = relative_node.screen_bounds().size;
@@ -2084,7 +2236,7 @@ impl UserInterface {
                                     }
                                 }
 
-                                if let Some(parent) = self.try_get(node.parent()) {
+                                if let Some(parent) = self.try_get_node(node.parent()) {
                                     // Transform screen anchor point into the local coordinate system
                                     // of the parent node.
                                     let local_anchor_point =
@@ -2483,10 +2635,11 @@ impl UserInterface {
                 if self.drag_context.is_dragging
                     && self.nodes.is_valid_handle(self.drag_context.drag_preview)
                 {
+                    let local_position = self.screen_to_root_canvas_space(*position);
                     self.send_message(WidgetMessage::desired_position(
                         self.drag_context.drag_preview,
                         MessageDirection::ToWidget,
-                        *position,
+                        local_position,
                     ));
                 }
 
@@ -2548,7 +2701,7 @@ impl UserInterface {
                 state,
                 text,
             } => {
-                if let Some(keyboard_focus_node) = self.try_get(self.keyboard_focus_node) {
+                if let Some(keyboard_focus_node) = self.try_get_node(self.keyboard_focus_node) {
                     if keyboard_focus_node.is_globally_visible() {
                         match state {
                             ButtonState::Pressed => {
@@ -3180,6 +3333,12 @@ impl BaseSceneGraph for UserInterface {
     type NodeContainer = WidgetContainer;
     type Node = UiNode;
 
+    fn summary(&self) -> String {
+        let mut result = String::new();
+        self.recursive_summary(0, self.root_canvas, &mut result);
+        result
+    }
+
     #[inline]
     fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
         self.nodes
@@ -3198,12 +3357,12 @@ impl BaseSceneGraph for UserInterface {
     }
 
     #[inline]
-    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+    fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
         self.nodes.try_borrow(handle)
     }
 
     #[inline]
-    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+    fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
         self.nodes.try_borrow_mut(handle)
     }
 
@@ -3305,6 +3464,7 @@ impl BaseSceneGraph for UserInterface {
 }
 
 impl SceneGraph for UserInterface {
+    type ObjectType = UiNode;
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.nodes.pair_iter()
@@ -3320,18 +3480,12 @@ impl SceneGraph for UserInterface {
         self.nodes.iter_mut()
     }
 
-    fn typed_ref<Ref>(
-        &self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&Ref> {
-        self.nodes.typed_ref(handle)
+    fn try_get<U: ObjectOrVariant<UiNode>>(&self, handle: Handle<U>) -> Option<&U> {
+        self.nodes.try_get(handle)
     }
 
-    fn typed_mut<Ref>(
-        &mut self,
-        handle: impl BorrowAs<Self::Node, Self::NodeContainer, Target = Ref>,
-    ) -> Option<&mut Ref> {
-        self.nodes.typed_mut(handle)
+    fn try_get_mut<U: ObjectOrVariant<UiNode>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
+        self.nodes.try_get_mut(handle)
     }
 }
 

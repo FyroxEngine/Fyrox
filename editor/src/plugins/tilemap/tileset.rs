@@ -23,6 +23,7 @@
 //! with only minor modifications needed when switching between the two modes.
 
 use super::{commands::*, *};
+use crate::asset::preview::cache::IconRequest;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -55,6 +56,7 @@ use crate::{
 use fyrox::scene::tilemap::brush::TileMapBrushResource;
 use macro_tab::MacroTab;
 use palette::{PaletteWidgetBuilder, DEFAULT_MATERIAL_COLOR};
+use std::sync::mpsc::Sender;
 
 const TAB_MARGIN: Thickness = Thickness {
     left: 10.0,
@@ -198,6 +200,7 @@ impl TileSetEditor {
         macro_list: BrushMacroListRef,
         sender: MessageSender,
         resource_manager: ResourceManager,
+        icon_request_sender: Sender<IconRequest>,
         ctx: &mut BuildContext,
     ) -> Self {
         let mut brush_macro_cell_sets = MacroCellSetList::default();
@@ -212,7 +215,7 @@ impl TileSetEditor {
         let tile_set_field =
             ResourceFieldBuilder::<TileSet>::new(WidgetBuilder::new().on_column(1), sender.clone())
                 .with_resource(tile_book.get_tile_set())
-                .build(ctx, resource_manager.clone());
+                .build(ctx, icon_request_sender.clone(), resource_manager.clone());
         let tile_set_selector = GridBuilder::new(
             WidgetBuilder::new()
                 .with_visibility(tile_book.is_brush())
@@ -318,6 +321,7 @@ impl TileSetEditor {
             tiles_palette,
             tile_book.clone(),
             sender,
+            icon_request_sender,
             resource_manager.clone(),
             ctx,
         );

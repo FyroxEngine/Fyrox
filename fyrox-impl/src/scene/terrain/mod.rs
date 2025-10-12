@@ -34,19 +34,20 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
+        SafeLock,
     },
+    graphics::ElementRange,
     material::MaterialResourceExtension,
     material::{Material, MaterialProperty, MaterialResource},
     renderer::{
         self,
         bundle::{RenderContext, SurfaceInstanceData},
-        framework::ElementRange,
     },
     resource::texture::{
-        Texture, TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension,
+        Texture, TextureDataRefMut, TextureKind, TextureMagnificationFilter,
+        TextureMinificationFilter, TexturePixelKind, TextureResource, TextureResourceExtension,
         TextureWrapMode,
     },
-    resource::texture::{TextureDataRefMut, TextureMagnificationFilter, TextureMinificationFilter},
     scene::node::RdcControlFlow,
     scene::{
         base::{Base, BaseBuilder},
@@ -350,12 +351,10 @@ fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> TextureR
 pub struct Chunk {
     #[reflect(hidden)]
     quad_tree: Mutex<QuadTree>,
-    #[reflect(
-        setter = "set_height_map",
-        description = "Height map of the chunk. You can assign a custom height map image here. Keep in mind, that \
-        only Red channel will be used! The assigned texture will be automatically converted to internal format suitable \
-        for terrain needs."
-    )]
+    /// Height map of the chunk. You can assign a custom height map image here. Keep in mind, that
+    /// only Red channel will be used! The assigned texture will be automatically converted to internal
+    /// format suitable for terrain needs.
+    #[reflect(setter = "set_height_map")]
     heightmap: Option<TextureResource>,
     #[reflect(hidden)]
     hole_mask: Option<TextureResource>,
@@ -526,7 +525,7 @@ impl Chunk {
             return;
         };
         let count = heightmap.data_ref().modifications_count();
-        let mut quad_tree = self.quad_tree.lock();
+        let mut quad_tree = self.quad_tree.safe_lock();
         if count != quad_tree.height_mod_count() {
             *quad_tree = make_quad_tree(&self.heightmap, self.height_map_size, self.block_size);
         }
@@ -820,9 +819,12 @@ impl Chunk {
     pub fn debug_draw(&self, transform: &Matrix4<f32>, ctx: &mut SceneDrawingContext) {
         let transform = *transform * Matrix4::new_translation(&self.position());
 
-        self.quad_tree
-            .lock()
-            .debug_draw(&transform, self.height_map_size, self.physical_size, ctx)
+        self.quad_tree.safe_lock().debug_draw(
+            &transform,
+            self.height_map_size,
+            self.physical_size,
+            ctx,
+        )
     }
 
     fn set_block_size(&mut self, block_size: Vector2<u32>) {
@@ -835,7 +837,7 @@ impl Chunk {
         if self.heightmap.is_none() {
             return;
         }
-        *self.quad_tree.lock() =
+        *self.quad_tree.safe_lock() =
             make_quad_tree(&self.heightmap, self.height_map_size, self.block_size);
     }
 }
@@ -1075,29 +1077,19 @@ pub struct Terrain {
     #[reflect(setter = "set_layers")]
     layers: InheritableVariable<Vec<Layer>>,
 
-    /// Size of the chunk, in meters.
-    /// This value becomes the [Chunk::physical_size] of newly created chunks.
-    #[reflect(
-        min_value = 0.001,
-        description = "Size of the chunk, in meters.",
-        setter = "set_chunk_size"
-    )]
+    /// Size of the chunk, in meters. This value becomes the [Chunk::physical_size] of newly created
+    /// chunks.
+    #[reflect(min_value = 0.001, setter = "set_chunk_size")]
     chunk_size: InheritableVariable<Vector2<f32>>,
 
-    /// Min and max 'coordinate' of chunks along X axis.
-    #[reflect(
-        step = 1.0,
-        description = "Min and max 'coordinate' of chunks along X axis. Modifying this will create new chunks or destroy existing chunks.",
-        setter = "set_width_chunks"
-    )]
+    /// Min and max 'coordinate' of chunks along X axis. Modifying this will create new chunks or
+    /// destroy existing chunks.
+    #[reflect(step = 1.0, setter = "set_width_chunks")]
     width_chunks: InheritableVariable<Range<i32>>,
 
-    /// Min and max 'coordinate' of chunks along Y axis.
-    #[reflect(
-        step = 1.0,
-        description = "Min and max 'coordinate' of chunks along Y axis. Modifying this will create new chunks or destroy existing chunks.",
-        setter = "set_length_chunks"
-    )]
+    /// Min and max 'coordinate' of chunks along Y axis. Modifying this will create new chunks or
+    /// destroy existing chunks.
+    #[reflect(step = 1.0, setter = "set_length_chunks")]
     length_chunks: InheritableVariable<Range<i32>>,
 
     /// Size of the height map per chunk, in pixels. Warning: any change to this value will result in resampling!
@@ -1108,14 +1100,7 @@ pub struct Terrain {
     /// If there cannot be an equal number of vertices on each side of the split, then the split will be made
     /// so that the number of vertices is as close to equal as possible, but this may result in vertices not being
     /// properly aligned between adjacent blocks.
-    #[reflect(
-        min_value = 2.0,
-        step = 1.0,
-        description = "Size of the height map per chunk, in pixels. \
-        Each dimension should be a power of 2 plus 3, for example: 7 (4 + 3), 11 (8 + 3), 19 (16 + 3), etc. \
-        Warning: any change to this value will result in resampling!",
-        setter = "set_height_map_size"
-    )]
+    #[reflect(min_value = 2.0, step = 1.0, setter = "set_height_map_size")]
     height_map_size: InheritableVariable<Vector2<u32>>,
 
     /// Size of the mesh block that will be scaled to various sizes to render the terrain at various levels of detail,
@@ -1124,23 +1109,11 @@ pub struct Terrain {
     /// Each dimension should be one greater than some power of 2, such as 5 = 4 + 1, 9 = 8 + 1, 17 = 16 + 1, and so on.
     /// This helps the vertices of the block to align with the pixels of the height data texture.
     /// Excluding the one-pixel margin that is not rendered, height data should also be one greater than some power of 2.
-    #[reflect(
-        min_value = 8.0,
-        step = 1.0,
-        setter = "set_block_size",
-        description = "Size of the mesh block in vertices. \
-        Each dimension should be a power of 2 plus 1, for example: 5 (4 + 1), 9 (8 + 1), 17 (16 + 1), etc. \
-        The power of two should not be greater than the power of two of the height map size."
-    )]
+    #[reflect(min_value = 8.0, step = 1.0, setter = "set_block_size")]
     block_size: InheritableVariable<Vector2<u32>>,
 
     /// Size of the blending mask per chunk, in pixels. Warning: any change to this value will result in resampling!
-    #[reflect(
-        min_value = 1.0,
-        step = 1.0,
-        description = "Size of the blending mask per chunk, in pixels. Warning: any change to this value will result in resampling!",
-        setter = "set_mask_size"
-    )]
+    #[reflect(min_value = 1.0, step = 1.0, setter = "set_mask_size")]
     mask_size: InheritableVariable<Vector2<u32>>,
 
     #[reflect(immutable_collection)]
@@ -2130,7 +2103,7 @@ impl Terrain {
             drop(texture_modifier);
             drop(texture_data);
 
-            *chunk.quad_tree.lock() =
+            *chunk.quad_tree.safe_lock() =
                 make_quad_tree(&chunk.heightmap, chunk.height_map_size, chunk.block_size);
         }
 
@@ -2647,7 +2620,7 @@ impl NodeTrait for Terrain {
                 // The first element of the list is the furthest distance, where the lowest LOD is used.
                 // The formula used to produce this list has been chosen arbitrarily based on what seems to produce
                 // the best results in the render.
-                let quad_tree = chunk.quad_tree.lock();
+                let quad_tree = chunk.quad_tree.safe_lock();
                 let levels = (0..=quad_tree.max_level)
                     .map(|n| {
                         ctx.observer_position.z_far

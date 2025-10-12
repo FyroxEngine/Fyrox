@@ -118,8 +118,6 @@ fn quote_field_prop(
 
     let immutable_collection = field.immutable_collection;
 
-    let description = field.description.clone().unwrap_or_default();
-
     let variant = if is_mut {
         quote! { FieldMut }
     } else {
@@ -139,7 +137,6 @@ fn quote_field_prop(
                 max_value: #max_value,
                 step: #step,
                 precision: #precision,
-                description: #description,
             };
 
             #variant {

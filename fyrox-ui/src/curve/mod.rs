@@ -37,6 +37,7 @@ use crate::{
         type_traits::prelude::*,
         uuid_provider,
         visitor::prelude::*,
+        SafeLock,
     },
     curve::key::{CurveKeyView, CurveKeyViewContainer},
     define_constructor,
@@ -121,35 +122,35 @@ pub struct CurveTransformCell(Mutex<CurveTransform>);
 
 impl Clone for CurveTransformCell {
     fn clone(&self) -> Self {
-        Self(Mutex::new(self.0.lock().clone()))
+        Self(Mutex::new(self.0.safe_lock().clone()))
     }
 }
 
 impl CurveTransformCell {
     /// Position of the center of the curve editor in the curve coordinate space.
     pub fn position(&self) -> Vector2<f32> {
-        self.0.lock().position
+        self.0.safe_lock().position
     }
     /// Scape of the curve editor: multiply curve space units by this to get screen space units.
     pub fn scale(&self) -> Vector2<f32> {
-        self.0.lock().scale
+        self.0.safe_lock().scale
     }
     /// Location of the curve editor on the screen, in screen space units.
     pub fn bounds(&self) -> Rect<f32> {
-        self.0.lock().bounds
+        self.0.safe_lock().bounds
     }
     /// Modify the current position. Call this when the center of the curve view should change.
     pub fn set_position(&self, position: Vector2<f32>) {
-        self.0.lock().position = position
+        self.0.safe_lock().position = position
     }
     /// Modify the current zoom of the curve view.
     pub fn set_scale(&self, scale: Vector2<f32>) {
-        self.0.lock().scale = scale;
+        self.0.safe_lock().scale = scale;
     }
     /// Update the bounds of the curve view. Call this to ensure the CurveTransform accurately
     /// reflects the actual size of the widget being drawn.
     pub fn set_bounds(&self, bounds: Rect<f32>) {
-        self.0.lock().bounds = bounds;
+        self.0.safe_lock().bounds = bounds;
     }
     /// Just like [CurveTransformCell::y_step_iter] but for x-coordinates.
     /// Iterate through a list of x-coordinates across the width of the bounds.
@@ -159,7 +160,7 @@ impl CurveTransformCell {
     /// This iterator indates where grid lines should be drawn to make a curve easier
     /// to read for the user.
     pub fn x_step_iter(&self, grid_size: f32) -> StepIterator {
-        self.0.lock().x_step_iter(grid_size)
+        self.0.safe_lock().x_step_iter(grid_size)
     }
     /// Just like [CurveTransformCell::x_step_iter] but for y-coordinates.
     /// Iterate through a list of y-coordinates across the width of the bounds.
@@ -169,31 +170,31 @@ impl CurveTransformCell {
     /// This iterator indates where grid lines should be drawn to make a curve easier
     /// to read for the user.
     pub fn y_step_iter(&self, grid_size: f32) -> StepIterator {
-        self.0.lock().y_step_iter(grid_size)
+        self.0.safe_lock().y_step_iter(grid_size)
     }
     /// Construct the transformation matrices to reflect the current position, scale, and bounds.
     pub fn update_transform(&self) {
-        self.0.lock().update_transform();
+        self.0.safe_lock().update_transform();
     }
     /// Transform a point on the curve into a point in the local coordinate space of the widget.
     pub fn curve_to_local(&self) -> MappedMutexGuard<Matrix3<f32>> {
-        MutexGuard::map(self.0.lock(), |t| &mut t.curve_to_local)
+        MutexGuard::map(self.0.safe_lock(), |t| &mut t.curve_to_local)
     }
     /// Transform a point on the curve into a point on the screen.
     pub fn curve_to_screen(&self) -> MappedMutexGuard<Matrix3<f32>> {
-        MutexGuard::map(self.0.lock(), |t| &mut t.curve_to_screen)
+        MutexGuard::map(self.0.safe_lock(), |t| &mut t.curve_to_screen)
     }
     /// Transform a point in the local coordinate space of the widget into a point in the coordinate space of the curve.
     /// After the transformation, the x-coordinate could be a key location and the y-coordinate could be a key value.
     /// Y-coordinates are flipped so that positive-y becomes the up direction.
     pub fn local_to_curve(&self) -> MappedMutexGuard<Matrix3<f32>> {
-        MutexGuard::map(self.0.lock(), |t| &mut t.local_to_curve)
+        MutexGuard::map(self.0.safe_lock(), |t| &mut t.local_to_curve)
     }
     /// Transform a point on the screen into a point in the coordinate space of the curve.
     /// After the transformation, the x-coordinate could be a key location and the y-coordinate could be a key value.
     /// Y-coordinates are flipped so that positive-y becomes the up direction.
     pub fn screen_to_curve(&self) -> MappedMutexGuard<Matrix3<f32>> {
-        MutexGuard::map(self.0.lock(), |t| &mut t.screen_to_curve)
+        MutexGuard::map(self.0.safe_lock(), |t| &mut t.screen_to_curve)
     }
 }
 
@@ -344,7 +345,7 @@ pub struct StepIterator {
 }
 
 impl StepIterator {
-    /// Construct an interator that starts at or before `start` and ends at or after `end`.
+    /// Construct an iterator that starts at or before `start` and ends at or after `end`.
     /// The intention is to cover the whole range of `start` to `end` at least.
     pub fn new(step: f32, start: f32, end: f32) -> Self {
         Self {
@@ -1834,125 +1835,138 @@ impl CurveEditorBuilder {
         let key_location;
         let copy_keys;
         let paste_keys;
-        let context_menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new()).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            key_properties = GridBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_enabled(false)
-                                    .with_child(
-                                        TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_vertical_alignment(VerticalAlignment::Center)
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .on_row(0)
-                                                .on_column(0),
-                                        )
-                                        .with_text("Location")
-                                        .build(ctx),
+        let context_menu =
+            ContextMenuBuilder::new(
+                PopupBuilder::new(WidgetBuilder::new())
+                    .with_content(
+                        StackPanelBuilder::new(
+                            WidgetBuilder::new()
+                                .with_child({
+                                    key_properties = GridBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_enabled(false)
+                                            .with_child(
+                                                TextBuilder::new(
+                                                    WidgetBuilder::new()
+                                                        .with_vertical_alignment(
+                                                            VerticalAlignment::Center,
+                                                        )
+                                                        .with_margin(Thickness::uniform(1.0))
+                                                        .on_row(0)
+                                                        .on_column(0),
+                                                )
+                                                .with_text("Location")
+                                                .build(ctx),
+                                            )
+                                            .with_child({
+                                                key_location = NumericUpDownBuilder::<f32>::new(
+                                                    WidgetBuilder::new()
+                                                        .with_margin(Thickness::uniform(1.0))
+                                                        .on_row(0)
+                                                        .on_column(1),
+                                                )
+                                                .build(ctx);
+                                                key_location
+                                            })
+                                            .with_child(
+                                                TextBuilder::new(
+                                                    WidgetBuilder::new()
+                                                        .with_vertical_alignment(
+                                                            VerticalAlignment::Center,
+                                                        )
+                                                        .with_margin(Thickness::uniform(1.0))
+                                                        .on_row(1)
+                                                        .on_column(0),
+                                                )
+                                                .with_text("Value")
+                                                .build(ctx),
+                                            )
+                                            .with_child({
+                                                key_value = NumericUpDownBuilder::<f32>::new(
+                                                    WidgetBuilder::new()
+                                                        .with_margin(Thickness::uniform(1.0))
+                                                        .on_row(1)
+                                                        .on_column(1),
+                                                )
+                                                .build(ctx);
+                                                key_value
+                                            }),
                                     )
-                                    .with_child({
-                                        key_location = NumericUpDownBuilder::<f32>::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .on_row(0)
-                                                .on_column(1),
-                                        )
+                                    .add_column(Column::auto())
+                                    .add_column(Column::stretch())
+                                    .add_row(Row::strict(22.0))
+                                    .add_row(Row::strict(22.0))
+                                    .build(ctx);
+                                    key_properties
+                                })
+                                .with_child({
+                                    add_key = MenuItemBuilder::new(WidgetBuilder::new())
+                                        .with_content(MenuItemContent::text("Add Key"))
                                         .build(ctx);
-                                        key_location
-                                    })
-                                    .with_child(
-                                        TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_vertical_alignment(VerticalAlignment::Center)
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .on_row(1)
-                                                .on_column(0),
-                                        )
-                                        .with_text("Value")
-                                        .build(ctx),
+                                    add_key
+                                })
+                                .with_child({
+                                    remove = MenuItemBuilder::new(
+                                        WidgetBuilder::new().with_enabled(false),
                                     )
-                                    .with_child({
-                                        key_value = NumericUpDownBuilder::<f32>::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .on_row(1)
-                                                .on_column(1),
-                                        )
+                                    .with_content(MenuItemContent::text("Remove"))
+                                    .build(ctx);
+                                    remove
+                                })
+                                .with_child({
+                                    key = MenuItemBuilder::new(
+                                        WidgetBuilder::new().with_enabled(false),
+                                    )
+                                    .with_content(MenuItemContent::text("Key..."))
+                                    .with_items(vec![
+                                        {
+                                            make_constant =
+                                                MenuItemBuilder::new(WidgetBuilder::new())
+                                                    .with_content(MenuItemContent::text("Constant"))
+                                                    .build(ctx);
+                                            make_constant
+                                        },
+                                        {
+                                            make_linear =
+                                                MenuItemBuilder::new(WidgetBuilder::new())
+                                                    .with_content(MenuItemContent::text("Linear"))
+                                                    .build(ctx);
+                                            make_linear
+                                        },
+                                        {
+                                            make_cubic = MenuItemBuilder::new(WidgetBuilder::new())
+                                                .with_content(MenuItemContent::text("Cubic"))
+                                                .build(ctx);
+                                            make_cubic
+                                        },
+                                    ])
+                                    .build(ctx);
+                                    key
+                                })
+                                .with_child({
+                                    zoom_to_fit = MenuItemBuilder::new(WidgetBuilder::new())
+                                        .with_content(MenuItemContent::text("Zoom To Fit"))
                                         .build(ctx);
-                                        key_value
-                                    }),
-                            )
-                            .add_column(Column::auto())
-                            .add_column(Column::stretch())
-                            .add_row(Row::strict(22.0))
-                            .add_row(Row::strict(22.0))
-                            .build(ctx);
-                            key_properties
-                        })
-                        .with_child({
-                            add_key = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Add Key"))
-                                .build(ctx);
-                            add_key
-                        })
-                        .with_child({
-                            remove = MenuItemBuilder::new(WidgetBuilder::new().with_enabled(false))
-                                .with_content(MenuItemContent::text("Remove"))
-                                .build(ctx);
-                            remove
-                        })
-                        .with_child({
-                            key = MenuItemBuilder::new(WidgetBuilder::new().with_enabled(false))
-                                .with_content(MenuItemContent::text("Key..."))
-                                .with_items(vec![
-                                    {
-                                        make_constant = MenuItemBuilder::new(WidgetBuilder::new())
-                                            .with_content(MenuItemContent::text("Constant"))
-                                            .build(ctx);
-                                        make_constant
-                                    },
-                                    {
-                                        make_linear = MenuItemBuilder::new(WidgetBuilder::new())
-                                            .with_content(MenuItemContent::text("Linear"))
-                                            .build(ctx);
-                                        make_linear
-                                    },
-                                    {
-                                        make_cubic = MenuItemBuilder::new(WidgetBuilder::new())
-                                            .with_content(MenuItemContent::text("Cubic"))
-                                            .build(ctx);
-                                        make_cubic
-                                    },
-                                ])
-                                .build(ctx);
-                            key
-                        })
-                        .with_child({
-                            zoom_to_fit = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Zoom To Fit"))
-                                .build(ctx);
-                            zoom_to_fit
-                        })
-                        .with_child({
-                            copy_keys = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Copy Selected Keys"))
-                                .build(ctx);
-                            copy_keys
-                        })
-                        .with_child({
-                            paste_keys = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Paste Keys"))
-                                .build(ctx);
-                            paste_keys
-                        }),
-                )
-                .build(ctx),
-            ),
-        )
-        .build(ctx);
+                                    zoom_to_fit
+                                })
+                                .with_child({
+                                    copy_keys = MenuItemBuilder::new(WidgetBuilder::new())
+                                        .with_content(MenuItemContent::text("Copy Selected Keys"))
+                                        .build(ctx);
+                                    copy_keys
+                                })
+                                .with_child({
+                                    paste_keys = MenuItemBuilder::new(WidgetBuilder::new())
+                                        .with_content(MenuItemContent::text("Paste Keys"))
+                                        .build(ctx);
+                                    paste_keys
+                                }),
+                        )
+                        .build(ctx),
+                    )
+                    .with_restrict_picking(false),
+            )
+            .build(ctx);
         let context_menu = RcUiNodeHandle::new(context_menu, ctx.sender());
 
         if self.widget_builder.foreground.is_none() {

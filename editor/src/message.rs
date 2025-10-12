@@ -19,23 +19,28 @@
 // SOFTWARE.
 
 use crate::{
-    command::{Command, CommandTrait},
+    command::{Command, CommandGroup, CommandTrait},
     fyrox::{
         core::{
             log::Log,
             pool::{ErasedHandle, Handle},
             uuid::Uuid,
         },
-        gui::UiNode,
+        gui::{inspector::PropertyChanged, UiNode},
         material::MaterialResource,
-        scene::{camera::Projection, mesh::surface::SurfaceResource, node::Node},
+        scene::{
+            camera::Projection,
+            mesh::surface::SurfaceResource,
+            node::Node,
+            tilemap::{brush::TileMapBrushResource, tileset::TileSetResource},
+        },
     },
     scene::Selection,
     SaveSceneConfirmationDialogAction,
 };
-use fyrox::scene::tilemap::{brush::TileMapBrushResource, tileset::TileSetResource};
-use std::sync::mpsc::channel;
-use std::{path::PathBuf, sync::mpsc::Sender};
+use fyrox::gui::UserInterface;
+use fyrox::scene::Scene;
+use std::{path::PathBuf, sync::mpsc::channel, sync::mpsc::Sender};
 
 #[derive(Debug)]
 pub enum Message {
@@ -51,6 +56,14 @@ pub enum Message {
         path: PathBuf,
     },
     SaveAllScenes,
+    AddScene {
+        scene: Scene,
+        path: PathBuf,
+    },
+    AddUiScene {
+        ui: UserInterface,
+        path: PathBuf,
+    },
     LoadScene(PathBuf),
     CloseScene(Uuid),
     SetInteractionMode(Uuid),
@@ -103,6 +116,7 @@ pub enum Message {
     ShowDocumentation(String),
     SaveLayout,
     LoadLayout,
+    ResetLayout,
     ViewSurfaceData(SurfaceResource),
     SyncInteractionModes,
     SetAssetBrowserCurrentDir(PathBuf),
@@ -131,5 +145,27 @@ impl MessageSender {
 
     pub fn send(&self, message: Message) {
         Log::verify(self.0.send(message));
+    }
+
+    pub fn send_command(&self, command: Command) {
+        self.send(Message::DoCommand(command))
+    }
+
+    pub fn do_command_group(&self, group: Vec<Command>) {
+        if group.len() == 1 {
+            self.send(Message::DoCommand(group.into_iter().next().unwrap()))
+        } else {
+            self.do_command(CommandGroup::from(group));
+        }
+    }
+
+    pub fn do_command_group_with_inheritance(&self, group: Vec<Command>, args: &PropertyChanged) {
+        if group.is_empty() {
+            if !args.is_inheritable() {
+                Log::err(format!("Failed to handle a property {}", args.path()))
+            }
+        } else {
+            self.do_command_group(group);
+        }
     }
 }

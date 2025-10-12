@@ -81,67 +81,40 @@ pub struct Transform {
     #[reflect(hidden)]
     dirty: Cell<bool>,
 
-    #[reflect(
-        description = "Local scale of the transform",
-        setter = "set_scale_internal",
-        step = 0.1
-    )]
+    /// Local scale of the transform
+    #[reflect(setter = "set_scale_internal", step = 0.1)]
     local_scale: InheritableVariable<Vector3<f32>>,
 
-    #[reflect(
-        description = "Local position of the transform",
-        setter = "set_position_internal",
-        step = 0.1
-    )]
+    /// Local position of the transform
+    #[reflect(setter = "set_position_internal", step = 0.1)]
     local_position: InheritableVariable<Vector3<f32>>,
 
-    #[reflect(
-        description = "Local rotation of the transform",
-        setter = "set_rotation_internal",
-        step = 1.0
-    )]
+    /// Local rotation of the transform
+    #[reflect(setter = "set_rotation_internal", step = 1.0)]
     local_rotation: InheritableVariable<UnitQuaternion<f32>>,
 
-    #[reflect(
-        description = "Pre rotation of the transform. Applied before local rotation.",
-        setter = "set_pre_rotation_internal",
-        step = 1.0
-    )]
+    /// Pre rotation of the transform. Applied before local rotation.
+    #[reflect(setter = "set_pre_rotation_internal", step = 1.0)]
     pre_rotation: InheritableVariable<UnitQuaternion<f32>>,
 
-    #[reflect(
-        description = "Post rotation of the transform. Applied after local rotation.",
-        setter = "set_post_rotation_internal",
-        step = 1.0
-    )]
+    /// Post rotation of the transform. Applied after local rotation.
+    #[reflect(setter = "set_post_rotation_internal", step = 1.0)]
     post_rotation: InheritableVariable<UnitQuaternion<f32>>,
 
-    #[reflect(
-        description = "Rotation offset of the transform.",
-        setter = "set_rotation_offset_internal",
-        step = 0.1
-    )]
+    /// Rotation offset of the transform.
+    #[reflect(setter = "set_rotation_offset_internal", step = 0.1)]
     rotation_offset: InheritableVariable<Vector3<f32>>,
 
-    #[reflect(
-        description = "Rotation pivot of the transform.",
-        setter = "set_rotation_pivot_internal",
-        step = 0.1
-    )]
+    /// Rotation pivot of the transform.
+    #[reflect(setter = "set_rotation_pivot_internal", step = 0.1)]
     rotation_pivot: InheritableVariable<Vector3<f32>>,
 
-    #[reflect(
-        description = "Scale offset of the transform.",
-        setter = "set_scaling_offset_internal",
-        step = 0.1
-    )]
+    /// Scale offset of the transform.
+    #[reflect(setter = "set_scaling_offset_internal", step = 0.1)]
     scaling_offset: InheritableVariable<Vector3<f32>>,
 
-    #[reflect(
-        description = "Scale pivot of the transform.",
-        setter = "set_scaling_pivot_internal",
-        step = 0.1
-    )]
+    /// Scale pivot of the transform.
+    #[reflect(setter = "set_scaling_pivot_internal", step = 0.1)]
     scaling_pivot: InheritableVariable<Vector3<f32>>,
 
     // Combined transform. Final result of combination of other properties.

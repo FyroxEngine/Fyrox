@@ -22,13 +22,12 @@
 
 use crate::{
     core::algebra::Matrix4,
-    renderer::framework::{
+    graphics::{
         error::FrameworkError,
-        gpu_texture::{GpuTextureDescriptor, GpuTextureKind, PixelKind},
+        gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
         server::GraphicsServer,
     },
 };
-use fyrox_graphics::gpu_texture::GpuTexture;
 
 /// Generic, texture-based, storage for matrices with somewhat unlimited capacity.
 ///
@@ -47,6 +46,7 @@ impl MatrixStorage {
         let identity = [Matrix4::<f32>::identity()];
         Ok(Self {
             texture: server.create_texture(GpuTextureDescriptor {
+                name: "MatrixStorage",
                 kind: GpuTextureKind::Rectangle {
                     width: 4,
                     height: 1,

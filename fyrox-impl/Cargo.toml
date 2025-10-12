@@ -27,28 +27,28 @@ fyrox-graphics-gl = { path = "../fyrox-graphics-gl", version = "1.0.0-rc.1" }
 fyrox-texture = { path = "../fyrox-texture", version = "1.0.0-rc.1" }
 fyrox-autotile = { path = "../fyrox-autotile", version = "1.0.0-rc.1" }
 fyrox-material = { path = "../fyrox-material", version = "1.0.0-rc.1" }
-rapier2d = { version = "0.23", features = ["debug-render"] }
-rapier3d = { version = "0.23", features = ["debug-render"] }
+rapier2d = { version = "0.29", features = ["debug-render"] }
+rapier3d = { version = "0.29", features = ["debug-render"] }
 image = { version = "0.25.1", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
 inflate = "0.4.5"
 serde = { version = "1", features = ["derive"] }
 lazy_static = "1.4.0"
 rayon = "1.5.1"
-bitflags = "2.2.1"
+bitflags = "2.9.1"
 walkdir = "2.3.2"
-ron = "0.8.0"
+ron = "0.11.0"
 fxhash = "0.2.1"
-strum = "0.26.1"
-strum_macros = "0.26.1"
+strum = "0.27"
+strum_macros = "0.27"
 clap = { version = "4", features = ["derive"] }
-winit = { version = "0.29.2", features = ["serde"] }
+winit = { version = "0.30", features = ["serde"] }
 half = { version = "2.2.1", features = ["bytemuck"] }
 base64 = "0.22.1"
-uvgen = "0.2.0"
-lightmap = "0.2"
+uvgen = "0.3.0"
+lightmap = "0.3.0"
 libloading = "0.8.1"
 gltf = { version = "1.4.0", default-features = false, features = ["names", "utils", "extras"] }
-bytemuck = { version = "1.16.1", features = ["derive"] }
+bytemuck = { version = "1.23.2", features = ["derive"] }
 approx = "0.5.1"
 
 # These dependencies aren't used by the engine, but it is necessary to prevent cargo from rebuilding
@@ -73,14 +73,29 @@ approx = "0.5.1"
 # make a list of features used by these crates and compare them for both game.txt and editor.txt. If features
 # don't match, add a new dependency of the corresponding crate below with such features and the issue should
 # be fixed.
-hashbrown = { version = "0.14.3", features = ["raw"] }
+#
+# In most cases, it is enough to copy dependencies from the `fyroxed_base` crate to fix these issues.
+#
+# === start of additional deps ===
+hashbrown = { version = "0.15", features = ["default", "default-hasher"] }
 imageproc = "0.25.0"
+serde_core = { version = "1.0.225", features = ["default"] }
+wide = { version = "0.7.33", features = ["std", "default"] }
 serde_json = { version = "1", features = ["raw_value", "default", "std", "unbounded_depth"] }
-uuid = { version = "1.7.0", features = ["v4"] }
+uuid = { version = "1", features = ["v4", "default", "js"] }
+toml = { version = "0.9", default-features = false, features = ["parse"] }
+toml_edit = "0.23"
+rust-fuzzy-search = "0.1.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+cargo_metadata = "0.22"
+open = "5"
+opener = { version = "0.8", default-features = false, features = ["reveal"] }
+# === end of additional deps ===
 
 [features]
 enable_profiler = ["fyrox-core/enable_profiler"]
 mesh_analysis = []
 
 [target.'cfg(target_os = "android")'.dependencies]
-winit = { version = "0.29.2", features = ["android-native-activity"] }
+winit = { version = "0.30", features = ["android-native-activity"] }

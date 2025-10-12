@@ -62,6 +62,18 @@ pub enum Brush {
     },
 }
 
+impl Brush {
+    /// Creates a new [`Brush::Solid`] using the given RGB color.
+    pub fn solid(r: u8, g: u8, b: u8) -> Self {
+        Self::Solid(Color::opaque(r, g, b))
+    }
+
+    /// Creates a new transparent [`Brush::Solid`].
+    pub fn transparent() -> Self {
+        Self::Solid(Color::TRANSPARENT)
+    }
+}
+
 impl From<Color> for Brush {
     fn from(color: Color) -> Self {
         Brush::Solid(color)

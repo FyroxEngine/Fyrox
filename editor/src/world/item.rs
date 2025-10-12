@@ -225,7 +225,7 @@ impl Control for SceneItem {
         } else if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::DragOver(_) => {
-                    if let Some(background) = ui.try_get(self.tree.background) {
+                    if let Some(background) = ui.try_get_node(self.tree.background) {
                         let cursor_pos = ui.cursor_position();
                         let bounds = background.screen_bounds();
                         let deflated_bounds = bounds.deflate(0.0, 5.0);
@@ -320,7 +320,8 @@ impl SceneItemBuilder {
                             .with_height(16.0)
                             .on_column(0)
                             .with_margin(Thickness::left_right(1.0))
-                            .with_visibility(self.icon.is_some()),
+                            .with_visibility(self.icon.is_some())
+                            .with_background(ctx.style.property(Style::BRUSH_TEXT)),
                     )
                     .with_opt_texture(self.icon)
                     .build(ctx),
@@ -333,9 +334,9 @@ impl SceneItemBuilder {
                                     .unwrap_or(ctx.style.property(Style::BRUSH_TEXT)),
                             )
                             .with_margin(Thickness::left(1.0))
-                            .on_column(1)
-                            .with_vertical_alignment(VerticalAlignment::Center),
+                            .on_column(1),
                     )
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
                     .with_text(format!(
                         "{} ({}:{})",
                         self.name,

@@ -28,6 +28,7 @@ use crate::{
     },
     load_image,
 };
+use fyrox::core::color::Color;
 use fyrox::resource::texture::TextureResource;
 
 pub struct TileSetPreview;
@@ -38,6 +39,7 @@ impl AssetPreviewGenerator for TileSetPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         _scene: &mut Scene,
+        _preview_camera: Handle<Node>,
     ) -> Handle<Node> {
         Handle::NONE
     }
@@ -52,6 +54,7 @@ impl AssetPreviewGenerator for TileSetPreview {
         Some(AssetPreviewTexture {
             texture,
             flip_y: false,
+            color: Color::WHITE,
         })
     }
 

@@ -23,7 +23,6 @@
 //!
 //! See [`Rectangle`] docs for more info.
 
-use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
@@ -33,26 +32,27 @@ use crate::{
         reflect::prelude::*,
         type_traits::prelude::*,
         uuid::{uuid, Uuid},
+        value_as_u8_slice,
         variable::InheritableVariable,
         visitor::prelude::*,
     },
+    graph::{constructor::ConstructorProvider, BaseSceneGraph},
     material::{self, Material, MaterialResource},
     renderer::{self, bundle::RenderContext},
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        mesh::buffer::{
-            VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexTrait,
+        mesh::{
+            buffer::{
+                VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
+                VertexTrait,
+            },
+            RenderPath,
         },
-        mesh::RenderPath,
-        node::{Node, NodeTrait, RdcControlFlow},
+        node::{constructor::NodeConstructor, Node, NodeTrait, RdcControlFlow},
     },
 };
 use bytemuck::{Pod, Zeroable};
-use fyrox_core::value_as_u8_slice;
-
-use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::BaseSceneGraph;
 use std::{
     hash::{Hash, Hasher},
     ops::{Deref, DerefMut},
@@ -128,6 +128,11 @@ impl Hash for RectangleVertex {
 /// Rectangle is the simplest "2D" node, it can be used to create "2D" graphics. 2D is in quotes
 /// here because the node is actually a 3D node, like everything else in the engine.
 ///
+/// # Flipping
+///
+/// It is possible to flip the sprite on both axes, vertical and horizontal. Use [`Rectangle::set_flip_x`]
+/// and [`Rectangle::set_flip_y`] methods to flip the sprite on desired axes.
+///
 /// ## Material
 ///
 /// Rectangles could use an arbitrary material for rendering, which means that you have full control
@@ -177,6 +182,12 @@ pub struct Rectangle {
     uv_rect: InheritableVariable<Rect<f32>>,
 
     material: InheritableVariable<MaterialResource>,
+
+    #[reflect(setter = "set_flip_x")]
+    flip_x: InheritableVariable<bool>,
+
+    #[reflect(setter = "set_flip_y")]
+    flip_y: InheritableVariable<bool>,
 }
 
 impl Visit for Rectangle {
@@ -197,6 +208,10 @@ impl Visit for Rectangle {
 
         self.base.visit("Base", &mut region)?;
         self.color.visit("Color", &mut region)?;
+
+        // Backward compatibility.
+        let _ = self.flip_x.visit("FlipX", &mut region);
+        let _ = self.flip_y.visit("FlipY", &mut region);
         let _ = self.uv_rect.visit("UvRect", &mut region);
 
         Ok(())
@@ -214,6 +229,8 @@ impl Default for Rectangle {
                 Default::default(),
                 Material::standard_2d(),
             )),
+            flip_x: Default::default(),
+            flip_y: Default::default(),
         }
     }
 }
@@ -277,6 +294,26 @@ impl Rectangle {
     pub fn set_uv_rect(&mut self, uv_rect: Rect<f32>) -> Rect<f32> {
         self.uv_rect.set_value_and_mark_modified(uv_rect)
     }
+
+    /// Enables (`true`) or disables (`false`) horizontal flipping of the rectangle.
+    pub fn set_flip_x(&mut self, flip: bool) -> bool {
+        self.flip_x.set_value_and_mark_modified(flip)
+    }
+
+    /// Returns `true` if the rectangle is flipped horizontally, `false` - otherwise.
+    pub fn is_flip_x(&self) -> bool {
+        *self.flip_x
+    }
+
+    /// Enables (`true`) or disables (`false`) vertical flipping of the rectangle.
+    pub fn set_flip_y(&mut self, flip: bool) -> bool {
+        self.flip_y.set_value_and_mark_modified(flip)
+    }
+
+    /// Returns `true` if the rectangle is flipped vertically, `false` - otherwise.
+    pub fn is_flip_y(&self) -> bool {
+        *self.flip_y
+    }
 }
 
 impl ConstructorProvider<Node, Graph> for Rectangle {
@@ -318,38 +355,55 @@ impl NodeTrait for Rectangle {
 
         type Vertex = RectangleVertex;
 
+        let lx = self.uv_rect.position.x;
+        let rx = self.uv_rect.position.x + self.uv_rect.size.x;
+        let ty = self.uv_rect.position.y;
+        let by = self.uv_rect.position.y + self.uv_rect.size.y;
+
         let vertices = [
-            Vertex {
-                position: global_transform
-                    .transform_point(&Point3::new(-0.5, 0.5, 0.0))
-                    .coords,
-                tex_coord: self.uv_rect.right_top_corner(),
-                color: *self.color,
-            },
             Vertex {
                 position: global_transform
                     .transform_point(&Point3::new(0.5, 0.5, 0.0))
                     .coords,
-                tex_coord: self.uv_rect.left_top_corner(),
+                tex_coord: Vector2::new(
+                    if *self.flip_x { rx } else { lx },
+                    if *self.flip_y { by } else { ty },
+                ),
                 color: *self.color,
             },
             Vertex {
                 position: global_transform
-                    .transform_point(&Point3::new(0.5, -0.5, 0.0))
+                    .transform_point(&Point3::new(-0.5, 0.5, 0.0))
                     .coords,
-                tex_coord: self.uv_rect.left_bottom_corner(),
+                tex_coord: Vector2::new(
+                    if *self.flip_x { lx } else { rx },
+                    if *self.flip_y { by } else { ty },
+                ),
                 color: *self.color,
             },
             Vertex {
                 position: global_transform
                     .transform_point(&Point3::new(-0.5, -0.5, 0.0))
                     .coords,
-                tex_coord: self.uv_rect.right_bottom_corner(),
+                tex_coord: Vector2::new(
+                    if *self.flip_x { lx } else { rx },
+                    if *self.flip_y { ty } else { by },
+                ),
+                color: *self.color,
+            },
+            Vertex {
+                position: global_transform
+                    .transform_point(&Point3::new(0.5, -0.5, 0.0))
+                    .coords,
+                tex_coord: Vector2::new(
+                    if *self.flip_x { rx } else { lx },
+                    if *self.flip_y { ty } else { by },
+                ),
                 color: *self.color,
             },
         ];
 
-        let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([2, 3, 0])];
+        let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
 
         let sort_index = ctx.calculate_sorting_index(self.global_position());
 
@@ -384,6 +438,8 @@ pub struct RectangleBuilder {
     color: Color,
     uv_rect: Rect<f32>,
     material: MaterialResource,
+    flip_x: bool,
+    flip_y: bool,
 }
 
 impl RectangleBuilder {
@@ -398,6 +454,8 @@ impl RectangleBuilder {
                 Default::default(),
                 Material::standard_2d(),
             ),
+            flip_x: false,
+            flip_y: false,
         }
     }
 
@@ -420,6 +478,18 @@ impl RectangleBuilder {
         self
     }
 
+    /// Flips the rectangle horizontally.
+    pub fn with_flip_x(mut self, flip_x: bool) -> Self {
+        self.flip_x = flip_x;
+        self
+    }
+
+    /// Flips the rectangle vertically.
+    pub fn with_flip_y(mut self, flip_y: bool) -> Self {
+        self.flip_y = flip_y;
+        self
+    }
+
     /// Creates new [`Rectangle`] instance.
     pub fn build_rectangle(self) -> Rectangle {
         Rectangle {
@@ -427,6 +497,8 @@ impl RectangleBuilder {
             color: self.color.into(),
             uv_rect: self.uv_rect.into(),
             material: self.material.into(),
+            flip_x: self.flip_x.into(),
+            flip_y: self.flip_y.into(),
         }
     }
 

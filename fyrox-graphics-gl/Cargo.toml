@@ -13,7 +13,7 @@ repository = "https://github.com/FyroxEngine/Fyrox"
 rust-version = "1.86"
 
 [dependencies]
-winit = { version = "0.29.2", features = ["serde"] }
+winit = { version = "0.30", features = ["serde"] }
 fyrox-graphics = { version = "1.0.0-rc.1", path = "../fyrox-graphics" }
 fyrox-core = { version = "1.0.0-rc.1", path = "../fyrox-core" }
 fxhash = "0.2.1"
@@ -22,9 +22,9 @@ glow = "0.16"
 serde = { version = "1.0.215", features = ["derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-glutin = "0.31"
-glutin-winit = "0.4.2"
-raw-window-handle = "0.5.0"
+glutin = "0.32"
+glutin-winit = "0.5"
+raw-window-handle = "0.6"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 serde-wasm-bindgen = "0.6.3"

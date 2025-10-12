@@ -18,7 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use std::path::{Path, PathBuf};
+use std::{
+    fmt::Display,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     asset::{manager::ResourceManager, state::LoadError, untyped::ResourceKind, Resource},
@@ -98,6 +101,24 @@ pub enum GltfMaterialError {
     Texture(TextureError),
 }
 
+impl std::error::Error for GltfMaterialError {}
+
+impl Display for GltfMaterialError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GltfMaterialError::ShaderLoadFailed => f.write_str("Shader load failed"),
+            GltfMaterialError::InvalidIndex => f.write_str("Invalid material index"),
+            GltfMaterialError::UnsupportedURI(uri) => {
+                write!(f, "Unsupported material URI {uri:?}")
+            }
+            GltfMaterialError::TextureNotFound(uri) => write!(f, "Texture not found: {uri:?}"),
+            GltfMaterialError::Load(error) => Display::fmt(error, f),
+            GltfMaterialError::Base64(error) => Display::fmt(error, f),
+            GltfMaterialError::Texture(error) => Display::fmt(error, f),
+        }
+    }
+}
+
 impl From<LoadError> for GltfMaterialError {
     fn from(error: LoadError) -> Self {
         GltfMaterialError::Load(error)
@@ -152,7 +173,7 @@ pub async fn import_materials(
         match import_material(mat, textures).await {
             Ok(res) => result.push(res),
             Err(err) => {
-                Log::err(format!("glTF material failed to import. Reason: {:?}", err));
+                Log::err(format!("glTF material failed to import. Reason: {err:?}"));
                 result.push(MaterialResource::new_ok(
                     Uuid::new_v4(),
                     ResourceKind::Embedded,
@@ -382,7 +403,7 @@ async fn search_for_path(filename: &str, context: &TextureContext<'_>) -> Option
             let io = context.resource_manager.resource_io();
             let mut texture_path = None;
             let path = Path::new(".");
-            if let Ok(iter) = io.walk_directory(path).await {
+            if let Ok(iter) = io.walk_directory(path, usize::MAX).await {
                 for dir in iter {
                     if io.is_dir(&dir).await {
                         let candidate = dir.join(filename);

@@ -33,6 +33,7 @@ use crate::{
     MODEL_RESOURCE_UUID, SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
 };
 use fyrox_core::err;
+use std::fmt::Write;
 use std::{
     error::Error,
     ffi::OsStr,
@@ -166,6 +167,21 @@ pub struct ResourceHeader {
     old_format_path: Option<PathBuf>,
 }
 
+impl Display for ResourceHeader {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            ResourceKind::Embedded => f.write_str("Embed")?,
+            ResourceKind::External => f.write_str("Extern")?,
+        }
+        f.write_char(':')?;
+        match &self.state {
+            ResourceState::Pending { .. } => f.write_str("Pending"),
+            ResourceState::LoadError { path, error } => write!(f, "Error({path:?}, {error})"),
+            ResourceState::Ok { .. } => f.write_str("Ok"),
+        }
+    }
+}
+
 impl Visit for ResourceHeader {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
@@ -245,7 +261,9 @@ impl Visit for ResourceHeader {
         }
 
         self.kind.visit("Kind", &mut region)?;
-        self.state.visit(self.kind, "State", &mut region)?;
+        if !region.is_reading() || region.find_field("TypeUuid").is_some() {
+            self.state.visit(self.kind, "State", &mut region)?;
+        }
 
         Ok(())
     }
@@ -324,7 +342,11 @@ impl Visit for UntypedResource {
                 // 1) The registry is not loaded.
                 // 2) You're trying to deserialize the resource handle manually without a proper
                 // environment.
-                assert_eq!(status_flag.status(), ResourceRegistryStatus::Loaded);
+                assert_eq!(
+                    status_flag.status(),
+                    ResourceRegistryStatus::Loaded,
+                    "Resource registry is not loaded"
+                );
 
                 let path = match inner_lock.old_format_path {
                     None => {
@@ -381,6 +403,16 @@ impl Default for UntypedResource {
             ),
             old_format_path: None,
         })))
+    }
+}
+
+impl Display for UntypedResource {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if let Some(header) = self.0.try_lock() {
+            Display::fmt(&header, f)
+        } else {
+            f.write_str("locked")
+        }
     }
 }
 
@@ -468,6 +500,16 @@ impl UntypedResource {
     /// Returns actual unique type id of underlying resource data.
     pub fn type_uuid(&self) -> Option<Uuid> {
         let header = self.0.lock();
+        match header.state {
+            ResourceState::Ok { ref data, .. } => Some(data.type_uuid()),
+            _ => None,
+        }
+    }
+
+    /// Tries to get an actual unique type id of underlying resource data. Returns `None` if the
+    /// resource cannot be locked or if it is not loaded.
+    pub fn type_uuid_non_blocking(&self) -> Option<Uuid> {
+        let header = self.0.try_lock()?;
         match header.state {
             ResourceState::Ok { ref data, .. } => Some(data.type_uuid()),
             _ => None,

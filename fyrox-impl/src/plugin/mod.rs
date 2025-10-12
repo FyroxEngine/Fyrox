@@ -24,6 +24,7 @@
 
 pub mod dylib;
 
+use crate::engine::input::InputState;
 use crate::engine::ApplicationLoopController;
 use crate::{
     asset::manager::ResourceManager,
@@ -41,6 +42,7 @@ use crate::{
 };
 use fyrox_core::define_as_any_trait;
 use fyrox_core::visitor::error::VisitError;
+use fyrox_ui::UserInterface;
 use std::{
     ops::{Deref, DerefMut},
     path::Path,
@@ -183,6 +185,14 @@ pub struct PluginContext<'a, 'b> {
 
     /// Task pool for asynchronous task management.
     pub task_pool: &'a mut TaskPoolHandler,
+
+    /// A stored state of most common input events. It is used a "shortcut" in cases where event-based
+    /// approach is too verbose. It may be useful in simple scenarios where you just need to know
+    /// if a button (on keyboard, mouse) was pressed and do something.
+    ///
+    /// **Important:** this structure does not track from which device the corresponding event has
+    /// come from, if you have more than one keyboard and/or mouse, use event-based approach instead!
+    pub input_state: &'a InputState,
 }
 
 define_as_any_trait!(PluginAsAny => Plugin);
@@ -308,12 +318,14 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
     fn on_graphics_context_destroyed(&mut self, #[allow(unused_variables)] context: PluginContext) {
     }
 
-    /// The method will be called when there is any message from main user interface instance
-    /// of the engine.
+    /// The method will be called when there is any message from a user interface (UI) instance
+    /// of the engine. Use `ui_handle` parameter to find out from which UI the message has come
+    /// from.
     fn on_ui_message(
         &mut self,
         #[allow(unused_variables)] context: &mut PluginContext,
         #[allow(unused_variables)] message: &UiMessage,
+        #[allow(unused_variables)] ui_handle: Handle<UserInterface>,
     ) {
     }
 

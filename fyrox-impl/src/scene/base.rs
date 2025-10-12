@@ -61,18 +61,13 @@ use super::collider::BitMask;
 #[derive(Debug, Default, Clone, Visit, Reflect, PartialEq, TypeUuidProvider)]
 #[type_uuid(id = "576b31a2-2b39-4c79-95dd-26aeaf381d8b")]
 pub struct LevelOfDetail {
-    #[reflect(
-        description = "Beginning of the range in which the level will be visible. \
-    It is expressed in normalized coordinates: where 0.0 - closest to camera, 1.0 - \
-    farthest from camera."
-    )]
+    /// Beginning of the range in which the level will be visible. It is expressed in normalized
+    /// coordinates: where 0.0 - closest to camera, 1.0 - farthest from camera.
     begin: f32,
-    #[reflect(description = "End of the range in which the level will be visible. \
-    It is expressed in normalized coordinates: where 0.0 - closest to camera, 1.0 - \
-    farthest from camera.")]
+    /// End of the range in which the level will be visible. It is expressed in normalized coordinates:
+    /// where 0.0 - closest to camera, 1.0 - farthest from camera.
     end: f32,
-    /// List of objects, where each object represents level of detail of parent's
-    /// LOD group.
+    /// List of objects, where each object represents level of detail of parent's LOD group.
     pub objects: Vec<Handle<Node>>,
 }
 
@@ -301,7 +296,6 @@ pub enum NodeScriptMessage {
     Deserialize,
 )]
 #[repr(transparent)]
-#[reflect(hide_all)]
 pub struct SceneNodeId(pub Uuid);
 
 impl Visit for SceneNodeId {
@@ -467,15 +461,9 @@ pub struct Base {
 
     /// Control whether this node should be rendered. A node should be rendered only if its render mask shares
     /// some set bits in common with the render mask of the camera.
-    #[reflect(
-        description = "Control whether this node should be rendered. A node should be rendered only if its render mask shares\
-        some set bits in common with the render mask of the camera."
-    )]
     pub render_mask: InheritableVariable<BitMask>,
 
-    #[reflect(
-        description = "Maximum amount of Some(time) that node will \"live\" or None if the node has unlimited lifetime."
-    )]
+    /// Maximum amount of Some(time) that node will \"live\" or None if the node has unlimited lifetime.
     pub(crate) lifetime: InheritableVariable<Option<f32>>,
 
     #[reflect(setter = "set_lod_group")]
@@ -504,7 +492,7 @@ pub struct Base {
     #[reflect(read_only)]
     pub(crate) is_resource_instance_root: bool,
 
-    #[reflect(hidden)]
+    #[reflect(read_only)]
     pub(crate) global_visibility: Cell<bool>,
 
     #[reflect(hidden)]
@@ -513,7 +501,7 @@ pub struct Base {
     #[reflect(hidden)]
     pub(crate) children: Vec<Handle<Node>>,
 
-    #[reflect(hidden)]
+    #[reflect(read_only)]
     pub(crate) global_transform: Cell<Matrix4<f32>>,
 
     // Bone-specific matrix. Non-serializable.
@@ -531,8 +519,10 @@ pub struct Base {
     #[reflect(hidden)]
     pub(crate) original_handle_in_resource: Handle<Node>,
 
-    #[reflect(read_only)]
-    #[reflect(hidden)]
+    /// Unique id of a node, that could be used as a reliable "index" of the node. This id is mostly
+    /// useful for network games. Keep in mind, that this id **will** be randomized in case if you're
+    /// instantiating a prefab. In other words, all instances of a prefab will have unique instance
+    /// id.
     pub(crate) instance_id: SceneNodeId,
 
     // Scripts of the scene node.
@@ -543,7 +533,7 @@ pub struct Base {
     // Use it at your own risk only when you're completely sure what you are doing.
     pub(crate) scripts: Vec<ScriptRecord>,
 
-    #[reflect(hidden)]
+    #[reflect(read_only)]
     pub(crate) global_enabled: Cell<bool>,
 }
 
@@ -782,6 +772,13 @@ impl Base {
     #[inline]
     pub fn original_handle_in_resource(&self) -> Handle<Node> {
         self.original_handle_in_resource
+    }
+
+    /// Returns `true` if the node has a parent object in a resource from which it may restore
+    /// values of its inheritable properties.
+    #[inline]
+    pub fn has_inheritance_parent(&self) -> bool {
+        self.original_handle_in_resource.is_some() && self.resource.is_some()
     }
 
     /// Returns position of the node in absolute coordinates.
@@ -1127,7 +1124,7 @@ impl Base {
                 if let Some(ancestor_node) = model
                     .get_scene()
                     .graph
-                    .try_get(self.original_handle_in_resource)
+                    .try_get_node(self.original_handle_in_resource)
                 {
                     return if ancestor_node.resource.is_none() {
                         Some(resource.clone())

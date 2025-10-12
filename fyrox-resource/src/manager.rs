@@ -22,18 +22,19 @@
 //! docs for more info.
 
 pub use crate::builtin::*;
-use crate::state::ResourceDataWrapper;
 use crate::{
     constructor::ResourceConstructorContainer,
     core::{
-        append_extension,
+        append_extension, err,
         futures::future::join_all,
+        info,
         io::FileError,
         log::Log,
-        make_relative_path, notify,
+        notify, ok_or_continue,
         parking_lot::{Mutex, MutexGuard},
         task::TaskPool,
         watcher::FileSystemWatcher,
+        TypeUuidProvider, Uuid,
     },
     entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
     event::{ResourceEvent, ResourceEventBroadcaster},
@@ -42,17 +43,19 @@ use crate::{
     metadata::ResourceMetadata,
     options::OPTIONS_EXTENSION,
     registry::{ResourceRegistry, ResourceRegistryStatus},
-    state::{LoadError, ResourceState},
+    state::{LoadError, ResourceDataWrapper, ResourceState},
     untyped::ResourceKind,
     Resource, TypedResourceData, UntypedResource,
 };
 use fxhash::FxHashSet;
-use fyrox_core::{err, info, Uuid};
+use fyrox_core::{make_relative_path, some_or_continue, some_or_return};
 use std::{
     fmt::{Debug, Display, Formatter},
+    io::Error,
     marker::PhantomData,
     path::{Path, PathBuf},
     sync::Arc,
+    time::Duration,
 };
 
 /// A set of resources that can be waited for.
@@ -131,6 +134,8 @@ pub enum ResourceRegistrationError {
     InvalidState,
     /// Resource is already registered.
     AlreadyRegistered,
+    /// An error occurred on an attempt to write resource metadata.
+    UnableToCreateMetadata,
 }
 
 impl Display for ResourceRegistrationError {
@@ -145,6 +150,222 @@ impl Display for ResourceRegistrationError {
             ResourceRegistrationError::AlreadyRegistered => {
                 write!(f, "A resource is already registered!")
             }
+            ResourceRegistrationError::UnableToCreateMetadata => {
+                write!(
+                    f,
+                    "An error occurred on an attempt to write resource metadata!"
+                )
+            }
+        }
+    }
+}
+
+/// All the required and validated data that is needed to move a resource from the path A to the path B.
+pub struct ResourceMoveContext {
+    relative_src_path: PathBuf,
+    relative_dest_path: PathBuf,
+    resource_uuid: Uuid,
+}
+
+/// A possible set of errors that may occur during resource movement.
+#[derive(Debug)]
+pub enum ResourceMovementError {
+    /// An IO error.
+    Io(std::io::Error),
+    /// A file error.
+    FileError(FileError),
+    /// The resource at the `src_path` already exist at the `dest_path`.
+    AlreadyExist {
+        /// Source path of the resource.
+        src_path: PathBuf,
+        /// The path at which a resource with the same name is located.
+        dest_path: PathBuf,
+    },
+    /// The new path for a resource is invalid.
+    DestinationPathIsInvalid {
+        /// Source path of the resource.
+        src_path: PathBuf,
+        /// The invalid destination path.
+        dest_path: PathBuf,
+    },
+    /// Resource registry location is unknown (the registry wasn't saved yet).
+    ResourceRegistryLocationUnknown {
+        /// A path of the resource being moved.
+        resource_path: PathBuf,
+    },
+    /// The resource is not in the registry.
+    NotInRegistry {
+        /// A path of the resource being moved.
+        resource_path: PathBuf,
+    },
+    /// Attempting to move a resource outside the registry.
+    OutsideOfRegistry {
+        /// An absolute path of the resource being moved.
+        absolute_src_path: PathBuf,
+        /// An absolute path of the destination folder.
+        absolute_dest_dir: PathBuf,
+        /// An absolute path of the resource registry.
+        absolute_registry_dir: PathBuf,
+    },
+    /// A resource has no path. It is either an embedded resource or in an invalid
+    /// state (failed to load or still loading).
+    NoPath(UntypedResource),
+}
+
+impl From<FileError> for ResourceMovementError {
+    fn from(value: FileError) -> Self {
+        Self::FileError(value)
+    }
+}
+
+impl From<std::io::Error> for ResourceMovementError {
+    fn from(value: Error) -> Self {
+        Self::Io(value)
+    }
+}
+
+impl Display for ResourceMovementError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResourceMovementError::Io(err) => {
+                write!(f, "Io error: {err}")
+            }
+            ResourceMovementError::FileError(err) => {
+                write!(f, "File error: {err}")
+            }
+            ResourceMovementError::AlreadyExist {
+                src_path,
+                dest_path,
+            } => {
+                write!(
+                    f,
+                    "Unable to move the {} resource, because the destination \
+                    path {} points to an existing file!",
+                    src_path.display(),
+                    dest_path.display()
+                )
+            }
+            ResourceMovementError::DestinationPathIsInvalid {
+                src_path,
+                dest_path,
+            } => {
+                write!(
+                    f,
+                    "Unable to move the {} resource, because the destination \
+                    path {} is invalid!",
+                    src_path.display(),
+                    dest_path.display()
+                )
+            }
+            ResourceMovementError::ResourceRegistryLocationUnknown { resource_path } => {
+                write!(
+                    f,
+                    "Unable to move the {} resource, because the registry location is unknown!",
+                    resource_path.display()
+                )
+            }
+            ResourceMovementError::NotInRegistry { resource_path } => {
+                write!(
+                    f,
+                    "Unable to move the {} resource, because it is not in the registry!",
+                    resource_path.display()
+                )
+            }
+            ResourceMovementError::OutsideOfRegistry {
+                absolute_src_path,
+                absolute_dest_dir,
+                absolute_registry_dir,
+            } => {
+                write!(
+                    f,
+                    "Unable to move the {} resource to {} path, because \
+            the new path is located outside the resource registry path {}!",
+                    absolute_src_path.display(),
+                    absolute_dest_dir.display(),
+                    absolute_registry_dir.display()
+                )
+            }
+            ResourceMovementError::NoPath(resource) => {
+                write!(
+                    f,
+                    "Unable to move {} resource, because it does not have a \
+                file system path!",
+                    resource.key()
+                )
+            }
+        }
+    }
+}
+
+/// A set of potential errors that may occur when moving a folder with resources.
+#[derive(Debug)]
+pub enum FolderMovementError {
+    /// An IO error.
+    Io(std::io::Error),
+    /// A file error.
+    FileError(FileError),
+    /// A [`ResourceMovementError`].
+    ResourceMovementError(ResourceMovementError),
+    /// The folder is not in the registry.
+    NotInRegistry {
+        /// A path of the folder being moved.
+        dest_dir: PathBuf,
+    },
+    /// Trying to move a folder into one of its own sub-folders.
+    HierarchyError {
+        /// Path of the folder being moved.
+        src_dir: PathBuf,
+        /// Destination directory.
+        dest_dir: PathBuf,
+    },
+}
+
+impl From<FileError> for FolderMovementError {
+    fn from(value: FileError) -> Self {
+        Self::FileError(value)
+    }
+}
+
+impl From<std::io::Error> for FolderMovementError {
+    fn from(value: Error) -> Self {
+        Self::Io(value)
+    }
+}
+
+impl From<ResourceMovementError> for FolderMovementError {
+    fn from(value: ResourceMovementError) -> Self {
+        Self::ResourceMovementError(value)
+    }
+}
+
+impl Display for FolderMovementError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FolderMovementError::Io(err) => {
+                write!(f, "Io error: {err}")
+            }
+            FolderMovementError::FileError(err) => {
+                write!(f, "File error: {err}")
+            }
+            FolderMovementError::ResourceMovementError(err) => {
+                write!(f, "{err}")
+            }
+            FolderMovementError::NotInRegistry { dest_dir } => {
+                write!(
+                    f,
+                    "Unable to move the {} folder, because it is not in the registry!",
+                    dest_dir.display()
+                )
+            }
+            FolderMovementError::HierarchyError { src_dir, dest_dir } => {
+                write!(
+                    f,
+                    "Trying to move a folder into one of its own sub-folders. \
+                    Source folder is {}, destination folder is {}",
+                    src_dir.display(),
+                    dest_dir.display()
+                )
+            }
         }
     }
 }
@@ -157,9 +378,17 @@ impl ResourceManager {
         }
     }
 
-    /// Returns a guarded reference to internal state of resource manager.
+    /// Returns a guarded reference to the internal state of resource manager. This is blocking
+    /// method and it may deadlock if used incorrectly (trying to get the state lock one more time
+    /// when there's an existing lock in the same thread, multi-threading-related deadlock and so on).
     pub fn state(&self) -> MutexGuard<'_, ResourceManagerState> {
         self.state.lock()
+    }
+
+    /// Returns a guarded reference to the internal state of resource manager. This method will try
+    /// to acquire the state lock for the given time and if it fails, returns `None`.
+    pub fn try_get_state(&self, timeout: Duration) -> Option<MutexGuard<'_, ResourceManagerState>> {
+        self.state.try_lock_for(timeout)
     }
 
     /// Returns the ResourceIo used by this resource manager
@@ -226,10 +455,28 @@ impl ResourceManager {
     {
         let mut state = self.state();
 
-        assert!(state
-            .loaders
-            .lock()
-            .is_extension_matches_type::<T>(path.as_ref()));
+        let untyped = state.request(path.as_ref());
+
+        let data_type_uuid_matches = untyped
+            .type_uuid_non_blocking()
+            .is_some_and(|uuid| uuid == <T as TypeUuidProvider>::type_uuid());
+
+        if !data_type_uuid_matches {
+            let has_loader_for_extension = state
+                .loaders
+                .lock()
+                .is_extension_matches_type::<T>(path.as_ref());
+
+            if !has_loader_for_extension {
+                panic!(
+                    "Unable to get a resource of type {} from {} path! The resource has no \
+                    associated loader for its extension and its actual data has some other \
+                    data type!",
+                    <T as TypeUuidProvider>::type_uuid(),
+                    path.as_ref().display()
+                )
+            }
+        }
 
         Resource {
             untyped: state.request(path),
@@ -249,10 +496,13 @@ impl ResourceManager {
     {
         let mut state = self.state();
         let untyped = state.request(path.as_ref());
-        if state
-            .loaders
-            .lock()
-            .is_extension_matches_type::<T>(path.as_ref())
+        if untyped
+            .type_uuid_non_blocking()
+            .is_some_and(|uuid| uuid == <T as TypeUuidProvider>::type_uuid())
+            || state
+                .loaders
+                .lock()
+                .is_extension_matches_type::<T>(path.as_ref())
         {
             Some(Resource {
                 untyped,
@@ -268,8 +518,14 @@ impl ResourceManager {
     /// 1) The resource is in invalid state (not in [`ResourceState::Ok`]).
     /// 2) The resource wasn't registered in the resource registry.
     /// 3) The resource registry wasn't loaded.
-    pub fn resource_path(&self, resource: &UntypedResource) -> Option<PathBuf> {
+    pub fn resource_path(&self, resource: impl AsRef<UntypedResource>) -> Option<PathBuf> {
         self.state().resource_path(resource)
+    }
+
+    /// Tries to fetch a resource path associated with the given UUID. Returns [`None`] if there's
+    /// no resource with the given UUID.
+    pub fn uuid_to_resource_path(&self, resource_uuid: Uuid) -> Option<PathBuf> {
+        self.state().uuid_to_resource_path(resource_uuid)
     }
 
     /// Same as [`Self::request`], but returns untyped resource.
@@ -304,51 +560,73 @@ impl ResourceManager {
         self.state().register(resource, path)
     }
 
-    /// Attempts to move a resource from its current location to the new path.
+    /// Checks whether the given resource is a built-in resource instance or not.
+    pub fn is_built_in_resource(&self, resource: impl AsRef<UntypedResource>) -> bool {
+        self.state()
+            .built_in_resources
+            .is_built_in_resource(resource)
+    }
+
+    /// Creates a resource movement context.
+    #[allow(clippy::await_holding_lock)]
+    pub async fn make_resource_move_context(
+        &self,
+        src_path: impl AsRef<Path>,
+        dest_path: impl AsRef<Path>,
+        overwrite_existing: bool,
+    ) -> Result<ResourceMoveContext, ResourceMovementError> {
+        self.state()
+            .make_resource_move_context(src_path, dest_path, overwrite_existing)
+            .await
+    }
+
+    /// Returns `true` if a resource at the `src_path` can be moved to the `dest_path`, false -
+    /// otherwise. Source path must be a valid resource path, and the dest path must have a valid
+    /// new directory part of the path.
+    #[allow(clippy::await_holding_lock)]
+    pub async fn can_resource_be_moved(
+        &self,
+        src_path: impl AsRef<Path>,
+        dest_path: impl AsRef<Path>,
+        overwrite_existing: bool,
+    ) -> bool {
+        self.state()
+            .can_resource_be_moved(src_path, dest_path, overwrite_existing)
+            .await
+    }
+
+    /// Tries to move a resource at the given path to the new path. The path of the resource must be
+    /// registered in the resource registry for the resource to be moveable. This method can also be
+    /// used to rename the source file of a resource.
+    #[allow(clippy::await_holding_lock)]
+    pub async fn move_resource_by_path(
+        &self,
+        src_path: impl AsRef<Path>,
+        dest_path: impl AsRef<Path>,
+        overwrite_existing: bool,
+    ) -> Result<(), ResourceMovementError> {
+        self.state()
+            .move_resource_by_path(src_path, dest_path, overwrite_existing)
+            .await
+    }
+
+    /// Attempts to move a resource from its current location to the new path. The resource must
+    /// be registered in the resource registry to be moveable. This method can also be used to
+    /// rename the source file of a resource.
     pub async fn move_resource(
         &self,
-        resource: &UntypedResource,
+        resource: impl AsRef<UntypedResource>,
         new_path: impl AsRef<Path>,
-    ) -> Result<(), FileError> {
-        let resource_uuid = resource
-            .resource_uuid()
-            .ok_or_else(|| FileError::Custom("Unable to move non-loaded resource!".to_string()))?;
+        overwrite_existing: bool,
+    ) -> Result<(), ResourceMovementError> {
+        let resource_path = self.resource_path(resource).ok_or_else(|| {
+            FileError::Custom(
+                "Cannot move the resource because it does not have a path!".to_string(),
+            )
+        })?;
 
-        let new_path = new_path.as_ref().to_owned();
-        let io = self.state().resource_io.clone();
-        let registry = self.state().resource_registry.clone();
-        let existing_path = registry
-            .lock()
-            .uuid_to_path(resource_uuid)
-            .map(|path| path.to_path_buf())
-            .ok_or_else(|| FileError::Custom("Cannot move embedded resource!".to_string()))?;
-
-        // Move the file with its optional import options and mandatory metadata.
-        io.move_file(&existing_path, &new_path).await?;
-
-        // Separate scope to lock the mutex as short as possible.
-        {
-            let mut registry = registry.lock();
-            let mut ctx = registry.modify();
-            assert_eq!(
-                ctx.register(resource_uuid, new_path.clone()).as_ref(),
-                Some(&existing_path)
-            );
-        }
-
-        let options_path = append_extension(&existing_path, OPTIONS_EXTENSION);
-        if io.exists(&options_path).await {
-            let new_options_path = append_extension(&new_path, OPTIONS_EXTENSION);
-            io.move_file(&options_path, &new_options_path).await?;
-        }
-
-        let metadata_path = append_extension(&existing_path, ResourceMetadata::EXTENSION);
-        if io.exists(&metadata_path).await {
-            let new_metadata_path = append_extension(&new_path, ResourceMetadata::EXTENSION);
-            io.move_file(&metadata_path, &new_metadata_path).await?;
-        }
-
-        Ok(())
+        self.move_resource_by_path(resource_path, new_path, overwrite_existing)
+            .await
     }
 
     /// Reloads all loaded resources. Normally it should never be called, because it is **very** heavy
@@ -357,6 +635,29 @@ impl ResourceManager {
     pub async fn reload_resources(&self) {
         let resources = self.state().reload_resources();
         join_all(resources).await;
+    }
+
+    /// Checks if there's a loader for the given resource path.
+    pub fn is_supported_resource(&self, path: &Path) -> bool {
+        self.state().is_supported_resource(path)
+    }
+
+    /// Checks if the given path is located inside the folder tracked by the resource registry.
+    pub fn is_path_in_registry(&self, path: &Path) -> bool {
+        self.state().is_path_in_registry(path)
+    }
+
+    /// Tries to move a folder to some other folder.
+    #[allow(clippy::await_holding_lock)]
+    pub async fn try_move_folder(
+        &self,
+        src_dir: &Path,
+        dest_dir: &Path,
+        overwrite_existing: bool,
+    ) -> Result<(), FolderMovementError> {
+        self.state()
+            .try_move_folder(src_dir, dest_dir, overwrite_existing)
+            .await
     }
 }
 
@@ -397,8 +698,7 @@ impl ResourceManagerState {
         );
 
         // Try to update the registry first.
-        // Wasm is an exception, because it does not have a file system.
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
         fyrox_core::futures::executor::block_on(async move {
             let new_data =
                 ResourceRegistry::scan(resource_io.clone(), task_loaders, &path, excluded_folders)
@@ -408,8 +708,7 @@ impl ResourceManagerState {
             registry_status.mark_as_loaded();
         });
 
-        // WASM can only try to asynchronously load the existing registry.
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(any(target_arch = "wasm32", target_os = "android"))]
         self.task_pool.spawn_task(async move {
             use crate::registry::RegistryContainerExt;
             // Then load the registry.
@@ -516,22 +815,64 @@ impl ResourceManagerState {
             let mut changed_resources = FxHashSet::default();
 
             if let Some(evt) = watcher.try_get_event() {
-                if let notify::EventKind::Modify(_) = evt.kind {
-                    for path in evt.paths {
-                        if let Ok(relative_path) = make_relative_path(path) {
-                            let registry = self.resource_registry.lock();
-                            if registry
-                                .excluded_folders
-                                .iter()
-                                .any(|folder| relative_path.starts_with(folder))
-                            {
-                                continue;
-                            }
+                for path in evt.paths {
+                    let relative_path = ok_or_continue!(fyrox_core::make_relative_path(path));
 
-                            if self.loaders.lock().is_supported_resource(&relative_path) {
-                                changed_resources.insert(relative_path);
+                    let mut registry = self.resource_registry.lock();
+                    if registry
+                        .excluded_folders
+                        .iter()
+                        .any(|folder| relative_path.starts_with(folder))
+                    {
+                        continue;
+                    }
+
+                    if !self.loaders.lock().is_supported_resource(&relative_path) {
+                        continue;
+                    }
+
+                    match evt.kind {
+                        notify::EventKind::Modify(_) => {
+                            changed_resources.insert(relative_path);
+                        }
+                        // The resource may be moved together with its metadata, so we need to check
+                        // if the resource is actually registered.
+                        notify::EventKind::Remove(_) if registry.is_registered(&relative_path) => {
+                            match registry.modify().remove_metadata(&relative_path) {
+                                Ok(_) => {
+                                    info!(
+                                        "The resource {} was unregistered successfully!",
+                                        relative_path.as_path().display(),
+                                    )
+                                }
+                                Err(err) => {
+                                    err!(
+                                        "Unable to unregister the resource {}. Reason: {err:?}",
+                                        relative_path.as_path().display()
+                                    )
+                                }
                             }
                         }
+                        notify::EventKind::Create(_) if !registry.is_registered(&relative_path) => {
+                            let uuid = Uuid::new_v4();
+                            match registry.modify().write_metadata(uuid, &relative_path) {
+                                Ok(old_path) => {
+                                    assert!(old_path.is_none());
+                                    info!(
+                                        "The resource {} was registered successfully with {} id!",
+                                        relative_path.as_path().display(),
+                                        uuid
+                                    )
+                                }
+                                Err(err) => {
+                                    err!(
+                                        "Unable to register the resource {}. Reason: {err:?}",
+                                        relative_path.as_path().display()
+                                    )
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -707,10 +1048,9 @@ impl ResourceManagerState {
             // Wait until the registry is fully loaded.
             let registry_status = registry_status.await;
             if registry_status == ResourceRegistryStatus::Unknown {
-                resource.commit_error(
-                    path.clone(),
-                    LoadError::new("The resource registry is unavailable!".to_string()),
-                );
+                let error = "The resource registry is unavailable!".to_string();
+                Log::err(&error);
+                resource.commit_error(path.clone(), LoadError::new(error));
                 return;
             }
 
@@ -746,10 +1086,7 @@ impl ResourceManagerState {
 
                                 event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
 
-                                Log::info(format!(
-                                    "Resource {} was loaded successfully!",
-                                    path.display()
-                                ));
+                                info!("Resource {} was loaded successfully!", path.display());
                             }
                             None => {
                                 let error = format!(
@@ -758,28 +1095,39 @@ impl ResourceManagerState {
                                     path.display(),
                                 );
 
-                                resource.commit_error(path, error);
+                                Log::err(&error);
+
+                                // Do not replace the ok resource with the error if reloading has
+                                // failed.
+                                if !reload {
+                                    resource.commit_error(path, error);
+                                }
                             }
                         }
                     }
                     Err(error) => {
-                        Log::info(format!(
+                        err!(
                             "Resource {} failed to load. Reason: {:?}",
                             path.display(),
                             error
-                        ));
+                        );
 
-                        resource.commit_error(path, error);
+                        // Do not replace the ok resource with the error if reloading has
+                        // failed.
+                        if !reload {
+                            resource.commit_error(path, error);
+                        }
                     }
                 }
-            } else {
-                resource.commit_error(
-                    path.clone(),
-                    LoadError::new(format!(
-                        "There's no resource loader for {} resource!",
-                        path.display()
-                    )),
-                )
+            } else if !reload {
+                let err_msg = format!(
+                    "There's no resource loader for {} resource!",
+                    path.display()
+                );
+
+                Log::err(&err_msg);
+
+                resource.commit_error(path.clone(), LoadError::new(err_msg))
             }
         });
     }
@@ -789,13 +1137,48 @@ impl ResourceManagerState {
     /// 1) The resource is in invalid state (not in [`ResourceState::Ok`]).
     /// 2) The resource wasn't registered in the resource registry.
     /// 3) The resource registry wasn't loaded.
-    pub fn resource_path(&self, resource: &UntypedResource) -> Option<PathBuf> {
-        let header = resource.0.lock();
+    ///
+    /// ## Built-in resources
+    ///
+    /// As a last resort, this method tries to find a built-in resource descriptor corresponding
+    /// to the given resource and returns its "path". In reality, it is just a string id, since
+    /// built-in resources are stored inside the binary.
+    pub fn resource_path(&self, resource: impl AsRef<UntypedResource>) -> Option<PathBuf> {
+        let header = resource.as_ref().0.lock();
         if let ResourceState::Ok { resource_uuid, .. } = header.state {
             let registry = self.resource_registry.lock();
-            registry.uuid_to_path_buf(resource_uuid)
+            if let Some(path) = registry.uuid_to_path_buf(resource_uuid) {
+                Some(path)
+            } else {
+                drop(header);
+                self.built_in_resources
+                    .find_by_uuid(resource_uuid)
+                    .map(|built_in_resource| built_in_resource.id.clone())
+            }
         } else {
             None
+        }
+    }
+
+    /// Tries to fetch a resource path associated with the given UUID. Returns [`None`] if there's
+    /// no resource with the given UUID.
+    ///
+    /// ## Built-in resources
+    ///
+    /// As a last resort, this method tries to find a built-in resource descriptor corresponding
+    /// to the given resource uuid and returns its "path". In reality, it is just a string id, since
+    /// built-in resources are stored inside the binary.
+    pub fn uuid_to_resource_path(&self, resource_uuid: Uuid) -> Option<PathBuf> {
+        if let Some(path) = self
+            .resource_registry
+            .lock()
+            .uuid_to_path_buf(resource_uuid)
+        {
+            Some(path)
+        } else {
+            self.built_in_resources
+                .find_by_uuid(resource_uuid)
+                .map(|built_in_resource| built_in_resource.id.clone())
         }
     }
 
@@ -826,7 +1209,8 @@ impl ResourceManagerState {
         if let ResourceState::Ok { resource_uuid, .. } = resource_header.state {
             let mut registry = self.resource_registry.lock();
             let mut ctx = registry.modify();
-            ctx.register(resource_uuid, path);
+            ctx.write_metadata(resource_uuid, path)
+                .map_err(|_| ResourceRegistrationError::UnableToCreateMetadata)?;
             drop(ctx);
             drop(registry);
             drop(resource_header);
@@ -837,16 +1221,19 @@ impl ResourceManagerState {
         }
     }
 
-    /// Reloads a single resource.
+    /// Reloads a single resource. Does nothing in case of built-in resources.
     pub fn reload_resource(&mut self, resource: UntypedResource) {
-        let mut header = resource.0.lock();
+        if self.built_in_resources.is_built_in_resource(&resource) {
+            return;
+        }
+
+        let header = resource.0.lock();
         match header.state {
             ResourceState::Pending { .. } => {
                 // The resource is loading already.
             }
             ResourceState::LoadError { ref path, .. } => {
                 let path = path.clone();
-                header.state.switch_to_pending_state(path.clone());
                 drop(header);
                 self.spawn_loading_task(path, resource, true)
             }
@@ -856,7 +1243,6 @@ impl ResourceManagerState {
                     .lock()
                     .uuid_to_path_buf(resource_uuid);
                 if let Some(path) = path {
-                    header.state.switch_to_pending_state(path.clone());
                     drop(header);
                     self.spawn_loading_task(path, resource, true);
                 } else {
@@ -929,6 +1315,244 @@ impl ResourceManagerState {
                 self.resources.remove(position);
             }
         }
+    }
+
+    /// Creates a resource movement context.
+    #[allow(clippy::await_holding_lock)]
+    pub async fn make_resource_move_context(
+        &self,
+        src_path: impl AsRef<Path>,
+        dest_path: impl AsRef<Path>,
+        overwrite_existing: bool,
+    ) -> Result<ResourceMoveContext, ResourceMovementError> {
+        let src_path = src_path.as_ref();
+        let dest_path = dest_path.as_ref();
+
+        let relative_src_path = fyrox_core::make_relative_path(src_path)?;
+        let relative_dest_path = fyrox_core::make_relative_path(dest_path)?;
+
+        if let Some(file_stem) = relative_dest_path.file_stem() {
+            if !self.resource_io.is_valid_file_name(file_stem) {
+                return Err(ResourceMovementError::DestinationPathIsInvalid {
+                    src_path: relative_src_path.clone(),
+                    dest_path: relative_dest_path.clone(),
+                });
+            }
+        }
+
+        if !overwrite_existing && self.resource_io.exists(&relative_dest_path).await {
+            return Err(ResourceMovementError::AlreadyExist {
+                src_path: relative_src_path.clone(),
+                dest_path: relative_dest_path.clone(),
+            });
+        }
+
+        let registry_lock_guard = self.resource_registry.lock();
+        let absolute_registry_dir = if let Some(directory) = registry_lock_guard.directory() {
+            fyrox_core::replace_slashes(self.resource_io.canonicalize_path(directory).await?)
+        } else {
+            return Err(ResourceMovementError::ResourceRegistryLocationUnknown {
+                resource_path: relative_src_path.clone(),
+            });
+        };
+        let resource_uuid = registry_lock_guard
+            .path_to_uuid(&relative_src_path)
+            .ok_or_else(|| ResourceMovementError::NotInRegistry {
+                resource_path: relative_src_path.clone(),
+            })?;
+
+        let relative_dest_dir = relative_dest_path.parent().unwrap_or(Path::new("."));
+        let absolute_dest_dir = fyrox_core::replace_slashes(
+            self.resource_io
+                .canonicalize_path(relative_dest_dir)
+                .await?,
+        );
+
+        let absolute_src_path = fyrox_core::replace_slashes(
+            self.resource_io
+                .canonicalize_path(&relative_src_path)
+                .await?,
+        );
+        if !absolute_dest_dir.starts_with(&absolute_registry_dir) {
+            return Err(ResourceMovementError::OutsideOfRegistry {
+                absolute_src_path,
+                absolute_dest_dir,
+                absolute_registry_dir,
+            });
+        }
+
+        drop(registry_lock_guard);
+
+        Ok(ResourceMoveContext {
+            relative_src_path,
+            relative_dest_path,
+            resource_uuid,
+        })
+    }
+
+    /// Returns `true` if a resource at the `src_path` can be moved to the `dest_path`, false -
+    /// otherwise. Source path must be a valid resource path, and the dest path must have a valid
+    /// new directory part of the path.
+    pub async fn can_resource_be_moved(
+        &self,
+        src_path: impl AsRef<Path>,
+        dest_path: impl AsRef<Path>,
+        overwrite_existing: bool,
+    ) -> bool {
+        self.make_resource_move_context(src_path, dest_path, overwrite_existing)
+            .await
+            .is_ok()
+    }
+
+    /// Tries to move a resource at the given path to the new path. The path of the resource must be
+    /// registered in the resource registry for the resource to be moveable. This method can also be
+    /// used to rename the source file of a resource.
+    pub async fn move_resource_by_path(
+        &self,
+        src_path: impl AsRef<Path>,
+        dest_path: impl AsRef<Path>,
+        overwrite_existing: bool,
+    ) -> Result<(), ResourceMovementError> {
+        let ResourceMoveContext {
+            relative_src_path,
+            relative_dest_path,
+
+            resource_uuid,
+        } = self
+            .make_resource_move_context(src_path, dest_path, overwrite_existing)
+            .await?;
+
+        // Move the file with its optional import options and mandatory metadata.
+        self.resource_io
+            .move_file(&relative_src_path, &relative_dest_path)
+            .await?;
+
+        let current_path = self
+            .resource_registry
+            .lock()
+            .modify()
+            .register(resource_uuid, relative_dest_path.to_path_buf());
+        assert_eq!(current_path.as_ref(), Some(&relative_src_path));
+
+        let options_path = append_extension(&relative_src_path, OPTIONS_EXTENSION);
+        if self.resource_io.exists(&options_path).await {
+            let new_options_path = append_extension(&relative_dest_path, OPTIONS_EXTENSION);
+            self.resource_io
+                .move_file(&options_path, &new_options_path)
+                .await?;
+        }
+
+        let metadata_path = append_extension(&relative_src_path, ResourceMetadata::EXTENSION);
+        if self.resource_io.exists(&metadata_path).await {
+            let new_metadata_path =
+                append_extension(&relative_dest_path, ResourceMetadata::EXTENSION);
+            self.resource_io
+                .move_file(&metadata_path, &new_metadata_path)
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    /// Attempts to move a resource from its current location to the new path. The resource must
+    /// be registered in the resource registry to be moveable. This method can also be used to
+    /// rename the source file of a resource.
+    pub async fn move_resource(
+        &self,
+        resource: impl AsRef<UntypedResource>,
+        new_path: impl AsRef<Path>,
+        overwrite_existing: bool,
+    ) -> Result<(), ResourceMovementError> {
+        let resource_path = self.resource_path(resource).ok_or_else(|| {
+            FileError::Custom(
+                "Cannot move the resource because it does not have a path!".to_string(),
+            )
+        })?;
+
+        self.move_resource_by_path(resource_path, new_path, overwrite_existing)
+            .await
+    }
+
+    /// Checks if there's a loader for the given resource path.
+    pub fn is_supported_resource(&self, path: &Path) -> bool {
+        let ext = some_or_return!(path.extension(), false);
+        let ext = some_or_return!(ext.to_str(), false);
+
+        self.loaders
+            .lock()
+            .iter()
+            .any(|loader| loader.supports_extension(ext))
+    }
+
+    /// Checks if the given path is located inside the folder tracked by the resource registry.
+    pub fn is_path_in_registry(&self, path: &Path) -> bool {
+        let registry = self.resource_registry.lock();
+        if let Some(registry_directory) = registry.directory() {
+            if let Ok(canonical_registry_path) = registry_directory.canonicalize() {
+                if let Ok(canonical_path) = path.canonicalize() {
+                    return canonical_path.starts_with(canonical_registry_path);
+                }
+            }
+        }
+        false
+    }
+
+    /// Tries to move a folder to some other folder.
+    pub async fn try_move_folder(
+        &self,
+        src_dir: &Path,
+        dest_dir: &Path,
+        overwrite_existing: bool,
+    ) -> Result<(), FolderMovementError> {
+        if dest_dir.starts_with(src_dir) {
+            return Err(FolderMovementError::HierarchyError {
+                src_dir: src_dir.to_path_buf(),
+                dest_dir: dest_dir.to_path_buf(),
+            });
+        }
+
+        // Early validation to prevent error spam when trying to move a folder out of the
+        // assets directory.
+        if !self.is_path_in_registry(dest_dir) {
+            return Err(FolderMovementError::NotInRegistry {
+                dest_dir: dest_dir.to_path_buf(),
+            });
+        }
+
+        // At this point we have a folder dropped on some other folder. In this case
+        // we need to move all the assets from the dropped folder to a new subfolder (with the same
+        // name as the dropped folder) of the other folder first. After that we can move the rest
+        // of the files and finally delete the dropped folder.
+        let mut what_where_stack = vec![(src_dir.to_path_buf(), dest_dir.to_path_buf())];
+        while let Some((src_dir, target_dir)) = what_where_stack.pop() {
+            let src_dir_name = some_or_continue!(src_dir.file_name());
+
+            let target_sub_dir = target_dir.join(src_dir_name);
+            if !self.resource_io.exists(&target_sub_dir).await {
+                std::fs::create_dir(&target_sub_dir)?;
+            }
+
+            let target_sub_dir_normalized = ok_or_continue!(make_relative_path(&target_sub_dir));
+
+            for path in self.resource_io.walk_directory(&src_dir, 1).await? {
+                if path.is_file() {
+                    let file_name = some_or_continue!(path.file_name());
+                    if self.is_supported_resource(&path) {
+                        let dest_path = target_sub_dir_normalized.join(file_name);
+                        self.move_resource_by_path(path, &dest_path, overwrite_existing)
+                            .await?;
+                    }
+                } else if path.is_dir() && path != src_dir {
+                    // Sub-folders will be processed after all assets from current dir
+                    // were moved.
+                    what_where_stack.push((path, target_sub_dir.clone()));
+                }
+            }
+        }
+
+        std::fs::remove_dir_all(src_dir)?;
+
+        Ok(())
     }
 }
 

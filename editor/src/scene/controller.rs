@@ -21,10 +21,9 @@
 use crate::{
     command::{Command, CommandStack},
     fyrox::{
-        core::{algebra::Vector2, math::Rect, pool::Handle, reflect::Reflect},
+        core::{algebra::Vector2, math::Rect, pool::Handle},
         engine::Engine,
         gui::{
-            inspector::PropertyChanged,
             message::{KeyCode, MouseButton},
             UiNode,
         },
@@ -169,30 +168,6 @@ pub trait SceneController: SceneControllerAsAny {
         selection: &mut Selection,
         engine: &mut Engine,
     ) -> Vec<String>;
-
-    fn first_selected_entity(
-        &self,
-        selection: &Selection,
-        scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect),
-    );
-
-    fn on_property_changed(
-        &mut self,
-        args: &PropertyChanged,
-        selection: &Selection,
-        engine: &mut Engine,
-    );
-
-    fn paste_property(
-        &mut self,
-        path: &str,
-        value: &dyn Reflect,
-        selection: &Selection,
-        engine: &mut Engine,
-    );
-
-    fn provide_docs(&self, selection: &Selection, engine: &Engine) -> Option<String>;
 }
 
 impl dyn SceneController {

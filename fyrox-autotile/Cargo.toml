@@ -14,6 +14,6 @@ readme = "README.md"
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 
 [dependencies]
-nalgebra = { version = "0.33", features = ["bytemuck"] }
+nalgebra = { version = "0.34", features = ["bytemuck"] }
 fxhash = "0.2.1"
-rand = "0.8.5"
+rand = "0.8"

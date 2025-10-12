@@ -23,15 +23,14 @@
 use crate::{
     core::{algebra::Vector3, pool::Handle},
     graph::BaseSceneGraph,
-    renderer::framework::{
+    graphics::{
         error::FrameworkError,
-        query::{QueryKind, QueryResult},
+        query::{GpuQuery, QueryKind, QueryResult},
         server::GraphicsServer,
     },
     scene::{graph::Graph, node::Node},
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::query::GpuQuery;
 use std::fmt::{Debug, Formatter};
 
 struct PendingQuery {
@@ -283,7 +282,7 @@ impl VisibilityCache {
     /// Updates the cache by removing unused data.
     pub fn update(&mut self, graph: &Graph) {
         self.observers.retain(|observer, data| {
-            let Some(observer_ref) = graph.try_get(*observer) else {
+            let Some(observer_ref) = graph.try_get_node(*observer) else {
                 return false;
             };
 

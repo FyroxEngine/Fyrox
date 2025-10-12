@@ -38,6 +38,9 @@ pub struct CommandDescriptor {
     pub command: String,
     pub args: Vec<String>,
     pub environment_variables: Vec<EnvironmentVariable>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    #[serde(default)]
+    pub skip_passthrough_marker: bool,
 }
 
 impl CommandDescriptor {
@@ -74,11 +77,10 @@ impl Display for CommandDescriptor {
 #[type_uuid(id = "1a9443df-bf75-42fb-93d3-860a0249168a")]
 pub struct BuildProfile {
     pub name: String,
-    #[reflect(description = "A set of commands that will be used to build your game.")]
+    /// A set of commands that will be used to build your game.
     pub build_commands: Vec<CommandDescriptor>,
-    #[reflect(description = "A set of commands that will be used to run your game. \
-        This set of commands will be executed right after build commands (if the \
-        build was successful)")]
+    /// A set of commands that will be used to run your game. This set of commands will be executed
+    /// right after build commands (if the build was successful).
     pub run_command: CommandDescriptor,
 }
 
@@ -109,6 +111,7 @@ impl BuildProfile {
                     "--package".to_string(),
                     "executor".to_string(),
                 ],
+                skip_passthrough_marker: false,
                 environment_variables: vec![],
             }],
             run_command: CommandDescriptor {
@@ -118,6 +121,7 @@ impl BuildProfile {
                     "--package".to_string(),
                     "executor".to_string(),
                 ],
+                skip_passthrough_marker: false,
                 environment_variables: vec![],
             },
         }
@@ -147,6 +151,7 @@ impl BuildProfile {
                         "--profile".to_string(),
                         "dev-hot-reload".to_string(),
                     ],
+                    skip_passthrough_marker: false,
                     environment_variables: vec![EnvironmentVariable {
                         name: "RUSTFLAGS".to_string(),
                         value: "-C prefer-dynamic=yes".to_string(),
@@ -179,6 +184,7 @@ impl BuildProfile {
                 "--profile".to_string(),
                 "dev-hot-reload".to_string(),
             ],
+            skip_passthrough_marker: false,
             environment_variables: vec![EnvironmentVariable {
                 name: "RUSTFLAGS".to_string(),
                 value: "-C prefer-dynamic=yes".to_string(),
@@ -199,6 +205,7 @@ impl BuildProfile {
                 "--profile".to_string(),
                 "dev-hot-reload".to_string(),
             ],
+            skip_passthrough_marker: false,
             environment_variables: vec![EnvironmentVariable {
                 name: "RUSTFLAGS".to_string(),
                 value: "-C prefer-dynamic=yes".to_string(),
@@ -231,6 +238,7 @@ impl BuildProfile {
                     "--package".to_string(),
                     "editor".to_string(),
                 ],
+                skip_passthrough_marker: false,
                 environment_variables: vec![],
             }],
             run_command: CommandDescriptor {
@@ -240,6 +248,7 @@ impl BuildProfile {
                     "--package".to_string(),
                     "editor".to_string(),
                 ],
+                skip_passthrough_marker: false,
                 environment_variables: vec![],
             },
         }

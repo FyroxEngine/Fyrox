@@ -540,7 +540,7 @@ impl TileSetPropertyValue {
     #[inline]
     pub fn nine_position_to_index(position: Vector2<usize>) -> usize {
         if position.y > 2 || position.x > 2 {
-            panic!("Illegal nine slice position: {:?}", position);
+            panic!("Illegal nine slice position: {position:?}");
         }
         position.y * 3 + position.x
     }

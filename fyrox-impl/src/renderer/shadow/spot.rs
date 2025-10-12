@@ -18,31 +18,33 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::DynamicSurfaceCache;
-use crate::renderer::observer::ObserverPosition;
-use crate::renderer::resources::RendererResources;
-use crate::renderer::settings::ShadowMapPrecision;
-use crate::scene::collider::BitMask;
 use crate::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Vector3},
         color::Color,
         math::Rect,
     },
+    graphics::{
+        error::FrameworkError,
+        framebuffer::{Attachment, GpuFrameBuffer},
+        gpu_texture::{GpuTexture, PixelKind},
+        server::GraphicsServer,
+    },
     renderer::{
         bundle::{BundleRenderContext, RenderDataBundleStorage, RenderDataBundleStorageOptions},
-        cache::{shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator},
-        framework::{
-            error::FrameworkError, framebuffer::Attachment, gpu_texture::PixelKind,
-            server::GraphicsServer,
+        cache::{
+            shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator,
+            DynamicSurfaceCache,
         },
+        observer::ObserverPosition,
+        resources::RendererResources,
+        settings::ShadowMapPrecision,
         shadow::cascade_size,
         GeometryCache, RenderPassStatistics, SPOT_SHADOW_PASS_NAME,
     },
-    scene::graph::Graph,
+    scene::{collider::BitMask, graph::Graph},
 };
-use fyrox_graphics::framebuffer::GpuFrameBuffer;
-use fyrox_graphics::gpu_texture::GpuTexture;
 
 pub struct SpotShadowMapRenderer {
     precision: ShadowMapPrecision,
@@ -66,6 +68,7 @@ impl SpotShadowMapRenderer {
             precision: ShadowMapPrecision,
         ) -> Result<GpuFrameBuffer, FrameworkError> {
             let depth = server.create_2d_render_target(
+                "SpotShadowMapCascade",
                 match precision {
                     ShadowMapPrecision::Full => PixelKind::D32F,
                     ShadowMapPrecision::Half => PixelKind::D16,
@@ -123,6 +126,7 @@ impl SpotShadowMapRenderer {
         renderer_resources: &RendererResources,
         uniform_memory_allocator: &mut UniformMemoryAllocator,
         dynamic_surface_cache: &mut DynamicSurfaceCache,
+        resource_manager: &ResourceManager,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 
@@ -164,6 +168,7 @@ impl SpotShadowMapRenderer {
                 frame_buffer: framebuffer,
                 viewport,
                 uniform_memory_allocator,
+                resource_manager,
                 use_pom: false,
                 light_position: &Default::default(),
                 renderer_resources,

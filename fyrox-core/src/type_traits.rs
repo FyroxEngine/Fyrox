@@ -21,6 +21,7 @@
 use crate::math::Rect;
 pub use fyrox_core_derive::ComponentProvider;
 pub use fyrox_core_derive::TypeUuidProvider;
+use nalgebra::{Vector2, Vector3, Vector4};
 use std::any::{Any, TypeId};
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -38,8 +39,8 @@ pub trait TypeUuidProvider: Sized {
 
 #[macro_export]
 macro_rules! uuid_provider {
-    ($type:ident $(<$($generics:tt),*>)? = $uuid:expr) => {
-        impl$(<$($generics),*>)? $crate::type_traits::TypeUuidProvider for $type $(<$($generics),*>)? {
+    ($type:ty = $uuid:expr) => {
+        impl $crate::type_traits::TypeUuidProvider for $type {
             fn type_uuid() -> $crate::uuid::Uuid {
                 $crate::uuid::uuid!($uuid)
             }
@@ -73,6 +74,11 @@ uuid_provider!(isize = "0a06591a-1c66-4299-ba6f-2b205b795575");
 uuid_provider!(bool = "3b104074-9d39-4a2b-b974-da8cc1759fe8");
 uuid_provider!(PathBuf = "3b104074-9d39-4a2b-b974-da8cc1759666");
 uuid_provider!(String = "3b104074-9d39-4a2b-b974-da8cc1759999");
+uuid_provider!(char = "9b5050ef-b3e5-41d2-90f8-8273bcdf7bfb");
+
+uuid_provider!(Vector2<f32> = "79d4fae7-27f7-4d28-ac3e-6a569b025a82");
+uuid_provider!(Vector3<f32> = "85e32efb-1784-46f7-8ec0-8ee038661ed4");
+uuid_provider!(Vector4<f32> = "c5222adb-5b68-4105-93e9-4ecaee39987f");
 
 impl<T: TypeUuidProvider> TypeUuidProvider for Rect<T> {
     fn type_uuid() -> Uuid {

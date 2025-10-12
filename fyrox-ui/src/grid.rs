@@ -446,7 +446,7 @@ impl Grid {
                         .iter()
                         .copied()
                         .filter(|&c| {
-                            let Some(child_ref) = ui.try_get(c) else {
+                            let Some(child_ref) = ui.try_get_node(c) else {
                                 return false;
                             };
                             child_ref.row() == row_index && child_ref.column() == column_index
@@ -470,7 +470,7 @@ impl Grid {
             }
         }
         for handle in self.children() {
-            let Some(node) = ui.try_get(*handle) else {
+            let Some(node) = ui.try_get_node(*handle) else {
                 continue;
             };
             let Some(row) = rows.get_mut(node.row()) else {
@@ -507,7 +507,7 @@ impl Grid {
         measure_width: bool,
         measure_height: bool,
     ) {
-        let Some(node) = ui.try_get(child) else {
+        let Some(node) = ui.try_get_node(child) else {
             return;
         };
         let mut rows = self.rows.borrow_mut();
@@ -619,7 +619,7 @@ impl Control for Grid {
             let space_y = calc_avg_size_for_stretch_dim(&self.rows, available_size.y).unwrap();
             // Now that we finally have the vertical stretch amount, we can properly measure group 1 (auto width, stretch height).
             // This is the only time we measure a node twice. The first time was just to discover the width.
-            // This measurement is just for height, now that we can give the node the true available veritical size.
+            // This measurement is just for height, now that we can give the node the true available vertical size.
             self.measure_group_height(&groups[1], ui, Vector2::new(available_size.x, space_y));
             self.measure_group(&groups[3], ui, Vector2::new(space_x, space_y));
         }

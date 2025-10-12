@@ -20,12 +20,14 @@
 
 use crate::fyrox::{
     core::{
-        reflect::{is_path_to_array_element, Reflect, ResolvePath, SetFieldByPathError},
-        ComponentProvider,
+        err,
+        reflect::{
+            is_path_to_array_element, Reflect, ResolvePath, SetFieldByPathError, SetFieldError,
+        },
+        some_or_return, ComponentProvider,
     },
     gui::inspector::{PropertyAction, PropertyChanged},
 };
-use fyrox::core::reflect::SetFieldError;
 use std::{
     any::{type_name, TypeId},
     fmt::{Debug, Formatter},
@@ -341,10 +343,19 @@ impl CommandStack {
     }
 }
 
-pub fn make_command<F>(property_changed: &PropertyChanged, entity_getter: F) -> Option<Command>
-where
-    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
+pub trait EntityGetter:
+    FnMut(&mut dyn CommandContext) -> Option<&mut dyn Reflect> + 'static
 {
+}
+impl<F> EntityGetter for F where
+    F: 'static + FnMut(&mut dyn CommandContext) -> Option<&mut dyn Reflect>
+{
+}
+
+pub fn make_command(
+    property_changed: &PropertyChanged,
+    entity_getter: impl EntityGetter,
+) -> Option<Command> {
     match PropertyAction::from_field_kind(&property_changed.value) {
         PropertyAction::Modify { value } => Some(Command::new(SetPropertyCommand::new(
             property_changed.path(),
@@ -373,33 +384,24 @@ where
     entity.resolve_path_mut(path, &mut |result| match result {
         Ok(field) => func.take().unwrap()(field),
         Err(e) => {
-            fyrox::core::log::Log::err(format!("There is no such property {path}! Reason: {e:?}"))
+            err!("There is no such property {path}! Reason: {e:?}")
         }
     })
 }
 
-pub struct SetPropertyCommand<F>
-where
-    F: FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
-{
+pub struct SetPropertyCommand<F: EntityGetter> {
     value: Option<Box<dyn Reflect>>,
     path: String,
     entity_getter: F,
 }
 
-impl<F> Debug for SetPropertyCommand<F>
-where
-    F: FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
-{
+impl<F: EntityGetter> Debug for SetPropertyCommand<F> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "SetPropertyCommand")
     }
 }
 
-impl<F> SetPropertyCommand<F>
-where
-    F: FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
-{
+impl<F: EntityGetter> SetPropertyCommand<F> {
     pub fn new(path: String, value: Box<dyn Reflect>, entity_getter: F) -> Self {
         Self {
             value: Some(value),
@@ -410,44 +412,46 @@ where
 
     fn swap(&mut self, ctx: &mut dyn CommandContext) {
         if is_path_to_array_element(&self.path) {
-            (self.entity_getter)(ctx).resolve_path_mut(&self.path, &mut |result| match result {
+            let entity = some_or_return!((self.entity_getter)(ctx));
+            entity.resolve_path_mut(&self.path, &mut |result| match result {
                 Err(reason) => {
-                    fyrox::core::log::Log::err(format!(
+                    err!(
                         "Failed to set property {}! Invalid path {:?}!",
-                        self.path, reason
-                    ));
+                        self.path,
+                        reason
+                    );
                 }
                 Ok(property) => match property.set(self.value.take().unwrap()) {
                     Ok(old_value) => {
                         self.value = Some(old_value);
                     }
                     Err(current_value) => {
-                        fyrox::core::log::Log::err(format!(
+                        err!(
                             "Failed to set property {}! Incompatible types. \
                             Target property: {}. Value: {}!",
                             self.path,
                             property.type_name(),
                             current_value.type_name()
-                        ));
+                        );
                         self.value = Some(current_value);
                     }
                 },
             });
         } else {
-            (self.entity_getter)(ctx).set_field_by_path(
-                &self.path,
-                self.value.take().unwrap(),
-                &mut |result| match result {
+            let entity = some_or_return!((self.entity_getter)(ctx));
+            entity.set_field_by_path(&self.path, self.value.take().unwrap(), &mut |result| {
+                match result {
                     Ok(old_value) => {
                         self.value = Some(old_value);
                     }
                     Err(result) => {
                         let value = match result {
                             SetFieldByPathError::InvalidPath { value, reason } => {
-                                fyrox::core::log::Log::err(format!(
+                                err!(
                                     "Failed to set property {}! Invalid path {:?}!",
-                                    self.path, reason
-                                ));
+                                    self.path,
+                                    reason
+                                );
 
                                 value
                             }
@@ -455,22 +459,22 @@ where
                                 field_type_name,
                                 value,
                             } => {
-                                fyrox::core::log::Log::err(format!(
+                                err!(
                                     "Failed to set property {}! Incompatible types. \
                                     Target property: {}. Value: {}!",
                                     self.path,
                                     field_type_name,
                                     value.type_name()
-                                ));
+                                );
 
                                 value
                             }
                             SetFieldByPathError::SetFieldError(err) => match err {
                                 SetFieldError::NoSuchField { value, .. } => {
-                                    fyrox::core::log::Log::err(format!(
+                                    err!(
                                         "Failed to set property {}, because it does not exist!",
                                         self.path,
-                                    ));
+                                    );
 
                                     value
                                 }
@@ -478,13 +482,13 @@ where
                                     field_type_name,
                                     value,
                                 } => {
-                                    fyrox::core::log::Log::err(format!(
+                                    err!(
                                         "Failed to set property {}! Incompatible types. \
                                     Target property: {}. Value: {}!",
                                         self.path,
                                         field_type_name,
                                         value.type_name()
-                                    ));
+                                    );
 
                                     value
                                 }
@@ -492,16 +496,13 @@ where
                         };
                         self.value = Some(value);
                     }
-                },
-            );
+                }
+            });
         }
     }
 }
 
-impl<F> CommandTrait for SetPropertyCommand<F>
-where
-    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
-{
+impl<F: EntityGetter> CommandTrait for SetPropertyCommand<F> {
     fn name(&mut self, _: &dyn CommandContext) -> String {
         format!("Set {} property", self.path)
     }
@@ -515,28 +516,19 @@ where
     }
 }
 
-pub struct AddCollectionItemCommand<F>
-where
-    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
-{
+pub struct AddCollectionItemCommand<F: EntityGetter> {
     path: String,
     item: Option<Box<dyn Reflect>>,
     entity_getter: F,
 }
 
-impl<F> Debug for AddCollectionItemCommand<F>
-where
-    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
-{
+impl<F: EntityGetter> Debug for AddCollectionItemCommand<F> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "AddCollectionItemCommand")
     }
 }
 
-impl<F> AddCollectionItemCommand<F>
-where
-    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
-{
+impl<F: EntityGetter> AddCollectionItemCommand<F> {
     pub fn new(path: String, item: Box<dyn Reflect>, entity_getter: F) -> Self {
         Self {
             path,
@@ -546,83 +538,64 @@ where
     }
 }
 
-impl<F> CommandTrait for AddCollectionItemCommand<F>
-where
-    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
-{
+impl<F: EntityGetter> CommandTrait for AddCollectionItemCommand<F> {
     fn name(&mut self, _: &dyn CommandContext) -> String {
         format!("Add item to {} collection", self.path)
     }
 
     fn execute(&mut self, ctx: &mut dyn CommandContext) {
-        try_modify_property((self.entity_getter)(ctx), &self.path, |field| {
+        let entity = some_or_return!((self.entity_getter)(ctx));
+        try_modify_property(entity, &self.path, |field| {
             field.as_list_mut(&mut |result| {
                 if let Some(list) = result {
                     if let Err(item) = list.reflect_push(self.item.take().unwrap()) {
-                        fyrox::core::log::Log::err(format!(
+                        err!(
                             "Failed to push item to {} collection. Type mismatch {} and {}!",
                             self.path,
                             item.type_name(),
                             list.type_name()
-                        ));
+                        );
                         self.item = Some(item);
                     }
                 } else {
-                    fyrox::core::log::Log::err(format!(
-                        "Property {} is not a collection!",
-                        self.path
-                    ))
+                    err!("Property {} is not a collection!", self.path)
                 }
             });
         })
     }
 
     fn revert(&mut self, ctx: &mut dyn CommandContext) {
-        try_modify_property((self.entity_getter)(ctx), &self.path, |field| {
+        let entity = some_or_return!((self.entity_getter)(ctx));
+        try_modify_property(entity, &self.path, |field| {
             field.as_list_mut(&mut |result| {
                 if let Some(list) = result {
                     if let Some(item) = list.reflect_pop() {
                         self.item = Some(item);
                     } else {
-                        fyrox::core::log::Log::err(format!(
-                            "Failed to pop item from {} collection!",
-                            self.path
-                        ))
+                        err!("Failed to pop item from {} collection!", self.path)
                     }
                 } else {
-                    fyrox::core::log::Log::err(format!(
-                        "Property {} is not a collection!",
-                        self.path
-                    ))
+                    err!("Property {} is not a collection!", self.path)
                 }
             });
         })
     }
 }
 
-pub struct RemoveCollectionItemCommand<F>
-where
-    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
-{
+pub struct RemoveCollectionItemCommand<F: EntityGetter> {
     path: String,
     index: usize,
     value: Option<Box<dyn Reflect>>,
     entity_getter: F,
 }
 
-impl<F> Debug for RemoveCollectionItemCommand<F>
-where
-    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
-{
+impl<F: EntityGetter> Debug for RemoveCollectionItemCommand<F> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "RemoveCollectionItemCommand")
     }
 }
 
-impl<F> RemoveCollectionItemCommand<F>
-where
-    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
-{
+impl<F: EntityGetter> RemoveCollectionItemCommand<F> {
     pub fn new(path: String, index: usize, entity_getter: F) -> Self {
         Self {
             path,
@@ -633,45 +606,38 @@ where
     }
 }
 
-impl<F> CommandTrait for RemoveCollectionItemCommand<F>
-where
-    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
-{
+impl<F: EntityGetter> CommandTrait for RemoveCollectionItemCommand<F> {
     fn name(&mut self, _: &dyn CommandContext) -> String {
         format!("Remove collection {} item {}", self.path, self.index)
     }
 
     fn execute(&mut self, ctx: &mut dyn CommandContext) {
-        try_modify_property((self.entity_getter)(ctx), &self.path, |field| {
+        let entity = some_or_return!((self.entity_getter)(ctx));
+        try_modify_property(entity, &self.path, |field| {
             field.as_list_mut(&mut |result| {
                 if let Some(list) = result {
                     self.value = list.reflect_remove(self.index);
                 } else {
-                    fyrox::core::log::Log::err(format!(
-                        "Property {} is not a collection!",
-                        self.path
-                    ))
+                    err!("Property {} is not a collection!", self.path)
                 }
             })
         })
     }
 
     fn revert(&mut self, ctx: &mut dyn CommandContext) {
-        try_modify_property((self.entity_getter)(ctx), &self.path, |field| {
+        let entity = some_or_return!((self.entity_getter)(ctx));
+        try_modify_property(entity, &self.path, |field| {
             field.as_list_mut(&mut |result| {
                 if let Some(list) = result {
                     if let Err(item) = list.reflect_insert(self.index, self.value.take().unwrap()) {
                         self.value = Some(item);
-                        fyrox::core::log::Log::err(format!(
+                        err!(
                             "Failed to insert item to {} collection. Type mismatch!",
                             self.path
-                        ))
+                        )
                     }
                 } else {
-                    fyrox::core::log::Log::err(format!(
-                        "Property {} is not a collection!",
-                        self.path
-                    ))
+                    err!("Property {} is not a collection!", self.path)
                 }
             });
         })

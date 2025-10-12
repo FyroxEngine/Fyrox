@@ -41,6 +41,7 @@ use crate::{
     scene::mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
 };
 
+use std::fmt::Display;
 use std::num::TryFromIntError;
 
 /// This type represents any error that may occur while importing mesh data from glTF.
@@ -83,6 +84,30 @@ pub enum SurfaceDataError {
     Fetch(buffer::VertexFetchError),
 }
 
+impl std::error::Error for SurfaceDataError {}
+
+impl Display for SurfaceDataError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SurfaceDataError::CountMismatch => f.write_str("Count mismatch"),
+            SurfaceDataError::MissingPosition => f.write_str("Missing position"),
+            SurfaceDataError::MissingNormal => f.write_str("Missing normal"),
+            SurfaceDataError::MissingTexCoords => f.write_str("Missing texcoords"),
+            SurfaceDataError::MissingBoneWeight => f.write_str("Missing bone weight"),
+            SurfaceDataError::MissingBoneIndex => f.write_str("Missing bone index"),
+            SurfaceDataError::InvalidBoneIndex => f.write_str("Invalid bone index"),
+            SurfaceDataError::InvalidMode => f.write_str("Invalid mode"),
+            SurfaceDataError::InvalidIndex => f.write_str("Invalid index"),
+            SurfaceDataError::Int(error) => Display::fmt(error, f),
+            SurfaceDataError::InvalidVertexCount(geometry_type, count) => {
+                write!(f, "Cannot have {count} vertices {geometry_type}.")
+            }
+            SurfaceDataError::Validation(error) => Display::fmt(error, f),
+            SurfaceDataError::Fetch(error) => Display::fmt(error, f),
+        }
+    }
+}
+
 impl From<ValidationError> for SurfaceDataError {
     fn from(error: ValidationError) -> Self {
         SurfaceDataError::Validation(error)
@@ -106,6 +131,16 @@ pub enum GeometryType {
     Triangles,
     TriangleStrip,
     TriangleFan,
+}
+
+impl Display for GeometryType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GeometryType::Triangles => f.write_str("triangles"),
+            GeometryType::TriangleStrip => f.write_str("triangle strip"),
+            GeometryType::TriangleFan => f.write_str("triangle fan"),
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]

@@ -18,8 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::buffer::GlBuffer;
+#![allow(deprecated)] // TODO
+
 use crate::{
+    buffer::GlBuffer,
     framebuffer::GlFrameBuffer,
     geometry_buffer::GlGeometryBuffer,
     program::{GlProgram, GlShader},
@@ -30,17 +32,17 @@ use crate::{
     ToGlConstant,
 };
 use fyrox_graphics::{
-    buffer::{BufferKind, BufferUsage, GpuBuffer},
+    buffer::{GpuBuffer, GpuBufferDescriptor},
     core::{color::Color, log::Log, math::Rect},
     error::FrameworkError,
     framebuffer::{Attachment, GpuFrameBuffer},
-    geometry_buffer::{GeometryBufferDescriptor, GpuGeometryBuffer},
+    geometry_buffer::{GpuGeometryBuffer, GpuGeometryBufferDescriptor},
     gpu_program::{GpuProgram, GpuShader, ShaderKind, ShaderResourceDefinition},
     gpu_texture::{GpuTexture, GpuTextureDescriptor},
     query::GpuQuery,
     read_buffer::GpuAsyncReadBuffer,
     sampler::{GpuSampler, GpuSamplerDescriptor},
-    server::{GraphicsServer, ServerCapabilities, SharedGraphicsServer},
+    server::{GraphicsServer, ServerCapabilities, ServerMemoryUsage, SharedGraphicsServer},
     stats::PipelineStatistics,
     BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, CompareFunc, CullFace,
     DrawParameters, PolygonFace, PolygonFillMode, ScissorBox, StencilAction, StencilFunc,
@@ -61,15 +63,12 @@ use glutin::{
 use glutin_winit::{DisplayBuilder, GlWindow};
 #[cfg(not(target_arch = "wasm32"))]
 use raw_window_handle::HasRawWindowHandle;
-use std::cell::RefCell;
-use std::ops::DerefMut;
+use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 #[cfg(not(target_arch = "wasm32"))]
 use std::{ffi::CString, num::NonZeroU32};
-use winit::{
-    event_loop::EventLoopWindowTarget,
-    window::{Window, WindowBuilder},
-};
+use winit::event_loop::ActiveEventLoop;
+use winit::window::{Window, WindowAttributes};
 
 impl ToGlConstant for PolygonFace {
     fn into_gl(self) -> u32 {
@@ -168,49 +167,122 @@ impl ToGlConstant for CullFace {
     }
 }
 
+/// Indicator of whether we are using the embedded version of OpenGL.
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub enum GlKind {
+    /// The full Open Graphics Library, without restrictions for embedded systems.
     OpenGL,
+    /// OpenGL for Embedded Systems is a subset of OpenGL designed for systems such as smartphones, tablet computers, and PDAs.
     OpenGLES,
 }
 
+/// A representation of the state of the GL context. OpenGL keeps track of various flags and values internally,
+/// and this struct remembers those settings. This makes it possible to check if a setting is actually being changed
+/// when a new value is supplied, so we can avoid calling OpenGL functions unnecessarily.
+///
+/// For example: we can call [`GlGraphicsServer::set_clear_color`] multiple times with the same color, and it will not
+/// result in repeated calls to the underlying `glClearColor` function because `GlGraphicsServer` will store the color
+/// in its `InnerState` and avoid calling `glClearColor` when it would be redundant.
 pub(crate) struct InnerState {
+    /// True if blending is currently enabled in the GL context due to a blending function being set in the [`DrawParameters`].
+    /// Protects `glEnable(GL_BLEND)` and `glDisable(GL_BLEND)`.
     blend: bool,
 
+    /// True if depth testing is currently enabled in the GL contex due to a depth test function being set in [`DrawParameters`].
+    /// Protects `glEnable(GL_DEPTH_TEST)` and `glDisable(GL_DEPTH_TEST)`.
     depth_test: bool,
+    /// True if depth mask is currently enabled in the GL context.
+    /// Protects `glDepthMask`.
     depth_write: bool,
+    /// The depth test function currently set in the context, only to be used if `depth_test` is true.
+    /// Protects `glDepthFunc`.
     depth_func: CompareFunc,
 
+    /// A mask that defines which colors will be stored in a frame buffer during rendering operation.
+    /// By default, all colors are stored (every field is set to `true`).
+    /// Protects `glColorMask`.
     color_write: ColorMask,
+    /// True if stencil testing is currently enabled in the GL contex due to a stencil function being set in [`DrawParameters`].
+    /// Protects `glEnable(GL_STENCIL_TEST)` and `glDisable(GL_STENCIL_TEST)`.
     stencil_test: bool,
+    /// Which side of the geometry is OpenGL set to cull?
+    /// Protects `glCullFace`.
     cull_face: CullFace,
+    /// True if culling is enabled, with `cull_face` determining whether to cull the front or the back.
+    /// Protects `glEnable(GL_CULL_FACE)` and `glDisable(GL_CULL_FACE)`.
     culling: bool,
-    stencil_mask: u32,
+    /// The color that GL will use when clearing color buffers.
+    /// Protects `glClearColor`.
     clear_color: Color,
+    /// The stencil value that GL will use when clearing the stencil buffer.
+    /// Protects `glClearStencil`.
     clear_stencil: i32,
+    /// The depth value that GL will use when clearing the depth buffer.
+    /// Protects `glClearDepth`.
     clear_depth: f32,
+    /// True if OpenGL is limiting rendering to a specific rectangle.
+    /// The size and position of the rectangle is not stored in `InnerState`, but it is changed in
+    /// OpenGL by calling [`GlGraphicsServer::set_scissor_box`].
+    /// Protects `glEnable(GL_SCISSOR_TEST)` and `glDisable(GL_SCISSOR_TEST)`.
     scissor_test: bool,
 
-    polygon_face: PolygonFace,
-    polygon_fill_mode: PolygonFillMode,
+    /// The fill mode for the front of polygons.
+    /// Protects `glPolygonMode`.
+    front_fill_mode: PolygonFillMode,
+    /// The fill mode for the back of polygons.
+    /// Protects `glPolygonMode`.
+    back_fill_mode: PolygonFillMode,
 
-    framebuffer: Option<glow::Framebuffer>,
+    /// The identifier for the currently bound frame buffer for writing. Frame buffers in OpenGL are identified by numbers.
+    /// If there is a currently bound frame buffer for writing, then this will be that frame buffer's number.
+    /// Otherwise, this will be None.
+    /// Protects `glBindFramebuffer`.
+    write_framebuffer: Option<glow::Framebuffer>,
+    /// The identifier for the currently bound frame buffer for reading. Frame buffers in OpenGL are identified by numbers.
+    /// If there is a currently bound frame buffer for reading, then this will be that frame buffer's number.
+    /// Otherwise, this will be None.
+    /// Protects `glBindFramebuffer`.
+    read_framebuffer: Option<glow::Framebuffer>,
+    /// Protects `glViewport`.
     viewport: Rect<i32>,
 
+    /// Protects `glBlendFuncSeparate`.
     blend_func: BlendFunc,
+    /// Protects `glBlendEquationSeparate`.
     blend_equation: BlendEquation,
 
+    /// Protects `glUseProgram`.
     program: Option<glow::Program>,
+    /// Protects `glBindTexture` and `glActiveTexture`.
     texture_units_storage: TextureUnitsStorage,
 
+    /// Similar to `depth_func`, this controls how the stencil buffer will determine which fragments to draw.
+    /// Protects `glStencilFunc`.
     stencil_func: StencilFunc,
+    /// A set of actions that will be performed with the stencil buffer during various testing stages.
+    /// `stencil_mask` can limit which bits of the stencil buffer are affected.
+    /// Protects `glStencilOp` and `glStencilMask`.
     stencil_op: StencilOp,
 
+    /// Protects `glBindVertexArray`.
     vao: Option<glow::VertexArray>,
 
+    /// Counts of various rendering operations.
     frame_statistics: PipelineStatistics,
+    /// Indicator of whether we are using the embedded version of OpenGL.
     gl_kind: GlKind,
 
+    /// A pool of available query identifiers for use by [`GlQuery`].
+    /// Each time a `GlQuery` is created, it checks this list for unused query identifies and pops off
+    /// the last one to use, or it creates a new query if the list is empty. When `GlQuery` is dropped,
+    /// it returns its query identifier to this list.
+    ///
+    /// Each query corresponds to some count that is recorded during rendering, such as the number of
+    /// sambles that pass the depth check or the number of primitives that are generated.
+    /// The only query types that are supported by Fyrox are given in `QueryKind` in the fyrox-graphics crate.
+    ///
+    /// Once the rendering commands have been sent, we may use the query identifier to wait until the
+    /// rendering is finished the desired number is available.
     pub(crate) queries: Vec<glow::Query>,
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -234,14 +306,14 @@ impl InnerState {
             stencil_test: false,
             cull_face: CullFace::Back,
             culling: false,
-            stencil_mask: 0xFFFF_FFFF,
             clear_color: Color::from_rgba(0, 0, 0, 0),
             clear_stencil: 0,
             clear_depth: 1.0,
             scissor_test: false,
-            polygon_face: Default::default(),
-            polygon_fill_mode: Default::default(),
-            framebuffer: None,
+            front_fill_mode: PolygonFillMode::default(),
+            back_fill_mode: PolygonFillMode::default(),
+            read_framebuffer: None,
+            write_framebuffer: None,
             blend_func: Default::default(),
             viewport: Rect::new(0, 0, 1, 1),
             program: Default::default(),
@@ -262,11 +334,201 @@ impl InnerState {
             gl_surface,
         }
     }
+
+    pub(crate) fn delete_framebuffer(
+        &mut self,
+        framebuffer: Option<glow::Framebuffer>,
+        gl: &glow::Context,
+    ) {
+        if self.read_framebuffer == framebuffer {
+            self.set_framebuffer(FrameBufferBindingPoint::Read, None, gl);
+        }
+        if self.write_framebuffer == framebuffer {
+            self.set_framebuffer(FrameBufferBindingPoint::Write, None, gl);
+        }
+
+        if let Some(id) = framebuffer {
+            unsafe {
+                gl.delete_framebuffer(id);
+            }
+        }
+    }
+
+    pub(crate) fn set_framebuffer(
+        &mut self,
+        binding_point: FrameBufferBindingPoint,
+        framebuffer: Option<glow::Framebuffer>,
+        gl: &glow::Context,
+    ) {
+        match binding_point {
+            FrameBufferBindingPoint::Read => {
+                if self.read_framebuffer != framebuffer {
+                    self.read_framebuffer = framebuffer;
+
+                    self.frame_statistics.framebuffer_binding_changes += 1;
+
+                    unsafe { gl.bind_framebuffer(glow::READ_FRAMEBUFFER, self.read_framebuffer) }
+                }
+            }
+            FrameBufferBindingPoint::Write => {
+                if self.write_framebuffer != framebuffer {
+                    self.write_framebuffer = framebuffer;
+
+                    self.frame_statistics.framebuffer_binding_changes += 1;
+
+                    unsafe { gl.bind_framebuffer(glow::DRAW_FRAMEBUFFER, self.write_framebuffer) }
+                }
+            }
+            FrameBufferBindingPoint::ReadWrite => {
+                if self.write_framebuffer != framebuffer || self.read_framebuffer != framebuffer {
+                    self.write_framebuffer = framebuffer;
+                    self.read_framebuffer = framebuffer;
+
+                    self.frame_statistics.framebuffer_binding_changes += 1;
+
+                    unsafe { gl.bind_framebuffer(glow::FRAMEBUFFER, framebuffer) }
+                }
+            }
+        }
+    }
+
+    pub(crate) fn delete_texture(&mut self, texture: glow::Texture, gl: &glow::Context) {
+        unsafe {
+            for unit in self.texture_units_storage.units.iter_mut() {
+                for binding in unit.bindings.iter_mut() {
+                    if binding.texture == Some(texture) {
+                        binding.texture = None;
+                    }
+                }
+            }
+
+            gl.delete_texture(texture);
+        }
+    }
+
+    /// Bind the texture with the given identifier to the given target in the given unit.
+    /// Target numbers can be found using [`ToGlConstant::into_gl`] on `GpuTextureKind` from the `fyrox-graphics` crate.
+    /// The given unit will be activated if it is not already active.
+    /// If a texture is already bound in the unit, it will be unbound.
+    pub(crate) fn set_texture(
+        &mut self,
+        unit_index: u32,
+        target: u32,
+        texture: Option<glow::Texture>,
+        gl: &glow::Context,
+    ) {
+        unsafe fn bind_texture(
+            gl: &glow::Context,
+            target: u32,
+            texture: Option<glow::Texture>,
+            unit_index: u32,
+            active_unit: &mut u32,
+        ) {
+            if *active_unit != unit_index {
+                *active_unit = unit_index;
+                gl.active_texture(glow::TEXTURE0 + unit_index);
+            }
+            gl.bind_texture(target, texture);
+        }
+
+        unsafe {
+            let unit = &mut self.texture_units_storage.units[unit_index as usize];
+            let active_unit = &mut self.texture_units_storage.active_unit;
+            for binding in unit.bindings.iter_mut() {
+                if binding.target == target {
+                    if binding.texture != texture {
+                        binding.texture = texture;
+                        bind_texture(gl, binding.target, texture, unit_index, active_unit);
+                        self.frame_statistics.texture_binding_changes += 1;
+                    }
+                } else if binding.texture.is_some() {
+                    binding.texture = None;
+                    bind_texture(gl, binding.target, None, unit_index, active_unit);
+                    self.frame_statistics.texture_binding_changes += 1;
+                }
+            }
+        }
+    }
+
+    pub(crate) fn delete_program(&mut self, program: glow::Program, gl: &glow::Context) {
+        if self.program == Some(program) {
+            self.program = None;
+        }
+
+        unsafe {
+            gl.delete_program(program);
+        }
+    }
+
+    pub(crate) fn set_program(&mut self, program: Option<glow::Program>, gl: &glow::Context) {
+        if self.program != program {
+            self.program = program;
+
+            self.frame_statistics.program_binding_changes += 1;
+
+            unsafe {
+                gl.use_program(program);
+            }
+        }
+    }
+
+    pub(crate) fn delete_vertex_array_object(
+        &mut self,
+        vao: glow::VertexArray,
+        gl: &glow::Context,
+    ) {
+        if self.vao == Some(vao) {
+            self.vao = None;
+        }
+
+        unsafe {
+            gl.delete_vertex_array(vao);
+        }
+    }
+
+    pub(crate) fn set_vertex_array_object(
+        &mut self,
+        vao: Option<glow::VertexArray>,
+        gl: &glow::Context,
+    ) {
+        if self.vao != vao {
+            self.vao = vao;
+
+            self.frame_statistics.vao_binding_changes += 1;
+
+            unsafe {
+                gl.bind_vertex_array(self.vao);
+            }
+        }
+    }
 }
 
+/// A frame buffer can be bound for reading, writing, or both.
+pub enum FrameBufferBindingPoint {
+    Read,
+    Write,
+    ReadWrite,
+}
+
+/// `GlGraphicsServer` implements the [`GraphicsServer`] trait using the `glow` crate.
+/// `glow` is "GL on Whatever: a set of bindings to run GL anywhere (Open GL, OpenGL ES, and WebGL) and avoid target-specific code."
 pub struct GlGraphicsServer {
+    /// `glow::Context` provides access to the current rendering state.
+    /// It creates buffers, creates textures, compiles shaders, accepts geometry data,
+    /// and broadly provides access too all sorts of rendering services.
     pub gl: glow::Context,
+    /// Controls whether objects the `glow::Context::object_label` method should be used
+    /// to assign labels to rendering objects. These labels can help with debugging.
+    pub named_objects: Cell<bool>,
+    /// A representation of the state of the GL context. OpenGL keeps track of various flags and values internally,
+    /// and this struct remembers those settings. This makes it possible to check if a setting is actually being changed
+    /// when a new value is supplied, so we can avoid calling OpenGL functions unnecessarily.
     pub(crate) state: RefCell<InnerState>,
+    /// Contains information about used memory per each category of GPU resource.
+    pub(crate) memory_usage: RefCell<ServerMemoryUsage>,
+    /// A weak reference to the `Rc` that contains this server.
+    /// This is needed in order to convert a borrow of this server into an `Rc` reference of
+    /// this server, for implementing [`GlGraphicsServer::weak`] and [`GraphicsServer::weak`].
     this: RefCell<Option<Weak<GlGraphicsServer>>>,
 }
 
@@ -276,12 +538,20 @@ struct TextureBinding {
     texture: Option<glow::Texture>,
 }
 
+/// A record of which texture is bound to each target.
+/// There is one binding for each of the texture targets
+/// defined by `GpuTextureKind` in the `fyrox-graphics` crate.
+/// It is forbidden to have multiple targets bound at once in any unit,
+/// and [`GlGraphicsServer::set_texture`] enforces this by automatically unbinding other targets.
 #[derive(Copy, Clone)]
 struct TextureUnit {
     bindings: [TextureBinding; 4],
 }
 
 impl Default for TextureUnit {
+    /// Initialize the array of texture bindings with the valid target
+    /// values that can be produced by [`ToGlConstant::into_gl`] on `GpuTextureKind`
+    /// in the `fyrox-graphics` crate.
     fn default() -> Self {
         Self {
             bindings: [
@@ -306,9 +576,12 @@ impl Default for TextureUnit {
     }
 }
 
+/// A record of every texture binding in every unit and the currently active unit.
 #[derive(Default)]
 struct TextureUnitsStorage {
+    /// The currently active texture unit, as set by `glActiveTexture`.
     active_unit: u32,
+    /// The textures that are bound to each target in each texture unit.
     units: [TextureUnit; 32],
 }
 
@@ -318,8 +591,9 @@ impl GlGraphicsServer {
     pub fn new(
         #[allow(unused_variables)] vsync: bool,
         #[allow(unused_variables)] msaa_sample_count: Option<u8>,
-        window_target: &EventLoopWindowTarget<()>,
-        window_builder: WindowBuilder,
+        window_target: &ActiveEventLoop,
+        mut window_attributes: WindowAttributes,
+        named_objects: bool,
     ) -> Result<(Window, SharedGraphicsServer), FrameworkError> {
         #[cfg(not(target_arch = "wasm32"))]
         let (window, gl_context, gl_surface, mut context, gl_kind) = {
@@ -333,14 +607,14 @@ impl GlGraphicsServer {
             }
 
             let (opt_window, gl_config) = DisplayBuilder::new()
-                .with_window_builder(Some(window_builder))
+                .with_window_attributes(Some(window_attributes))
                 .build(window_target, template, |mut configs| {
                     configs.next().unwrap()
                 })?;
 
             let window = opt_window.unwrap();
 
-            let raw_window_handle = window.raw_window_handle();
+            let raw_window_handle = window.raw_window_handle().unwrap();
 
             let gl_display = gl_config.display();
 
@@ -363,7 +637,7 @@ impl GlGraphicsServer {
                 .build(Some(raw_window_handle));
 
             unsafe {
-                let attrs = window.build_surface_attributes(Default::default());
+                let attrs = window.build_surface_attributes(Default::default()).unwrap();
 
                 let gl_surface = gl_config
                     .display()
@@ -415,8 +689,8 @@ impl GlGraphicsServer {
                 platform::web::WindowExtWebSys,
             };
 
-            let inner_size = window_builder.window_attributes().inner_size;
-            let window = window_builder.build(window_target).unwrap();
+            let inner_size = window_attributes.inner_size;
+            let window = window_target.create_window(window_attributes).unwrap();
 
             let web_window = fyrox_core::web_sys::window().unwrap();
             let scale_factor = web_window.device_pixel_ratio();
@@ -501,7 +775,13 @@ impl GlGraphicsServer {
 
         unsafe {
             context.depth_func(CompareFunc::default().into_gl());
-            context.enable(glow::TEXTURE_CUBE_MAP_SEAMLESS);
+
+            if context
+                .supported_extensions()
+                .contains("GL_ARB_seamless_cubemap_per_texture")
+            {
+                context.enable(glow::TEXTURE_CUBE_MAP_SEAMLESS);
+            }
 
             #[cfg(debug_assertions)]
             {
@@ -571,6 +851,7 @@ impl GlGraphicsServer {
 
         let state = Self {
             gl: context,
+            named_objects: Cell::new(named_objects),
             state: RefCell::new(InnerState::new(
                 gl_kind,
                 #[cfg(not(target_arch = "wasm32"))]
@@ -578,6 +859,7 @@ impl GlGraphicsServer {
                 #[cfg(not(target_arch = "wasm32"))]
                 gl_surface,
             )),
+            memory_usage: Default::default(),
             this: Default::default(),
         };
 
@@ -588,14 +870,17 @@ impl GlGraphicsServer {
         Ok((window, shared))
     }
 
+    /// A weak reference to the `Rc` where the server is stored.
     pub fn weak(&self) -> Weak<Self> {
         self.this.borrow().as_ref().unwrap().clone()
     }
 
+    /// Determine if we are using the embedded version of OpenGL.
     pub fn gl_kind(&self) -> GlKind {
         self.state.borrow().gl_kind
     }
 
+    /// Find the number of a texture unit where no texture is bound, if possible.
     pub fn free_texture_unit(&self) -> Option<u32> {
         let state = self.state.borrow();
         for (index, unit) in state.texture_units_storage.units.iter().enumerate() {
@@ -610,20 +895,27 @@ impl GlGraphicsServer {
         None
     }
 
-    pub(crate) fn set_framebuffer(&self, framebuffer: Option<glow::Framebuffer>) {
-        let mut state = self.state.borrow_mut();
-        if state.framebuffer != framebuffer {
-            state.framebuffer = framebuffer;
-
-            state.frame_statistics.framebuffer_binding_changes += 1;
-
-            unsafe {
-                self.gl
-                    .bind_framebuffer(glow::FRAMEBUFFER, state.framebuffer)
-            }
-        }
+    /// `glDeleteFramebuffers`
+    pub(crate) fn delete_framebuffer(&self, framebuffer: Option<glow::Framebuffer>) {
+        self.state
+            .borrow_mut()
+            .delete_framebuffer(framebuffer, &self.gl)
     }
 
+    /// Choose the current frame buffer for reading or writing. See `glBindFramebuffer` from OpenGL.
+    /// * `binding_point`: Are we going to read from this buffer, write to it, or both?
+    /// * `framebuffer`: The buffer that we are going to use.
+    pub(crate) fn set_framebuffer(
+        &self,
+        binding_point: FrameBufferBindingPoint,
+        framebuffer: Option<glow::Framebuffer>,
+    ) {
+        self.state
+            .borrow_mut()
+            .set_framebuffer(binding_point, framebuffer, &self.gl)
+    }
+
+    /// Choose a rectangle where rendering will happen. See `glViewport` from OpenGL.
     pub(crate) fn set_viewport(&self, viewport: Rect<i32>) {
         let mut state = self.state.borrow_mut();
         if state.viewport != viewport {
@@ -640,6 +932,8 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Turn blending on or off, allowing rendered pixels to be influenced by the pixels that
+    /// are already in the frame buffer. See 'glEnable(GL_BLEND)` or `glDisable(GL_BLEND)` from OpenGL.
     pub(crate) fn set_blend(&self, blend: bool) {
         let mut state = self.state.borrow_mut();
         if state.blend != blend {
@@ -657,6 +951,9 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Turn depth testing on or off, allowing the content of the depth buffer to determine whether
+    /// a rendered pixel will be written to the frame buffer.
+    /// See `glEnable(GL_DEPTH_TEST)` or `glDisable(GL_DEPTH_TEST)` from OpenGL.
     pub(crate) fn set_depth_test(&self, depth_test: bool) {
         let mut state = self.state.borrow_mut();
         if state.depth_test != depth_test {
@@ -672,6 +969,8 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Turn depth writing on or off, allowing the depth buffer to be modified when rendering.
+    /// See `glDepthMask` from OpenGL.
     pub(crate) fn set_depth_write(&self, depth_write: bool) {
         let mut state = self.state.borrow_mut();
         if state.depth_write != depth_write {
@@ -683,6 +982,8 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Turn writing to each color channel on or off. For example, writing red values might be disabled.
+    /// See `glColorMask` from OpenGL.
     pub(crate) fn set_color_write(&self, color_write: ColorMask) {
         let mut state = self.state.borrow_mut();
         if state.color_write != color_write {
@@ -699,6 +1000,9 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Turn stencil testing on or off, allowing the content of the stencil buffer to determine whether
+    /// each rendered pixel will be written.
+    /// See `glEnable(GL_STENCIL_TEST)` or `glDisable(GL_STENCIL_TEST)` from OpenGL.
     pub(crate) fn set_stencil_test(&self, stencil_test: bool) {
         let mut state = self.state.borrow_mut();
         if state.stencil_test != stencil_test {
@@ -714,6 +1018,7 @@ impl GlGraphicsServer {
         }
     }
 
+    /// See `glCullFace` from OpenGL.
     pub(crate) fn set_cull_face(&self, cull_face: CullFace) {
         let mut state = self.state.borrow_mut();
         if state.cull_face != cull_face {
@@ -723,6 +1028,7 @@ impl GlGraphicsServer {
         }
     }
 
+    /// See `glEnable(GL_CULL_FACE)` or `glDisable(GL_CULL_FACE)` from OpenGL.
     pub(crate) fn set_culling(&self, culling: bool) {
         let mut state = self.state.borrow_mut();
         if state.culling != culling {
@@ -738,10 +1044,14 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Control which bits of the stencil buffer may be modified.
+    /// Bits of `stencil_mask` that are 1 correspond to bits of the buffer that may be modified.
+    /// If `stencil_mask` is 0 then nothing in the stencil mask can be modified.
+    /// See `glStencilMask` from OpenGL.
     pub(crate) fn set_stencil_mask(&self, stencil_mask: u32) {
         let mut state = self.state.borrow_mut();
-        if state.stencil_mask != stencil_mask {
-            state.stencil_mask = stencil_mask;
+        if state.stencil_op.write_mask != stencil_mask {
+            state.stencil_op.write_mask = stencil_mask;
 
             unsafe {
                 self.gl.stencil_mask(stencil_mask);
@@ -749,6 +1059,7 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Set the color used when clearing a color buffer. See `glClearColor`.
     pub(crate) fn set_clear_color(&self, color: Color) {
         let mut state = self.state.borrow_mut();
         if state.clear_color != color {
@@ -761,6 +1072,7 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Set the depth used when clearing a depth buffer. See `glClearDepth`.
     pub(crate) fn set_clear_depth(&self, depth: f32) {
         let mut state = self.state.borrow_mut();
         if (state.clear_depth - depth).abs() > f32::EPSILON {
@@ -772,6 +1084,7 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Set the value used when clearing a stencil buffer. See `glClearStencil`.
     pub(crate) fn set_clear_stencil(&self, stencil: i32) {
         let mut state = self.state.borrow_mut();
         if state.clear_stencil != stencil {
@@ -783,6 +1096,10 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Modify how pixels are blended by changing the factors that multiply the source pixel
+    /// (coming from the fragment shader) and the destination pixel (already in the frame buffer).
+    /// See [`BlendFactor`] for available factors.
+    /// See `glBlendFuncSeparate` from OpenGL.
     pub(crate) fn set_blend_func(&self, func: BlendFunc) {
         let mut state = self.state.borrow_mut();
         if state.blend_func != func {
@@ -799,6 +1116,9 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Modify how pixels are blended by changing the formula that is used to combine the source pixel
+    /// (coming from the fragment shader) and the destination pixel (already in the frame buffer).
+    /// See `glBlendEquationSeparate` from OpenGL.
     pub(crate) fn set_blend_equation(&self, equation: BlendEquation) {
         let mut state = self.state.borrow_mut();
         if state.blend_equation != equation {
@@ -813,6 +1133,8 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Set the function used to compare the fragment shader's z to the depth buffer
+    /// and thereby decide whether to render the pixel. See `glDepthFunc` from OpenGL.
     pub(crate) fn set_depth_func(&self, depth_func: CompareFunc) {
         let mut state = self.state.borrow_mut();
         if state.depth_func != depth_func {
@@ -824,56 +1146,34 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Delete the given program. See `glDeleteProgram` from OpenGL.
+    pub fn delete_program(&self, program: glow::Program) {
+        self.state.borrow_mut().delete_program(program, &self.gl);
+    }
+
+    /// Choose the program to use for the following rendering commands. See `glUseProgram` from OpenGL.
     pub(crate) fn set_program(&self, program: Option<glow::Program>) {
-        let mut state = self.state.borrow_mut();
-        if state.program != program {
-            state.program = program;
-
-            state.frame_statistics.program_binding_changes += 1;
-
-            unsafe {
-                self.gl.use_program(state.program);
-            }
-        }
+        self.state.borrow_mut().set_program(program, &self.gl)
     }
 
+    /// Delete the given texture. See `glDeleteTextures` from OpenGL.
+    pub(crate) fn delete_texture(&self, texture: glow::Texture) {
+        self.state.borrow_mut().delete_texture(texture, &self.gl)
+    }
+
+    /// Bind the texture with the given identifier to the given target in the given unit.
+    /// Target numbers can be found using [`ToGlConstant::into_gl`] on `GpuTextureKind` from the `fyrox-graphics` crate.
+    /// The given unit will be activated if it is not already active.
+    /// If a texture is already bound in the unit, it will be unbound.
     pub(crate) fn set_texture(&self, unit_index: u32, target: u32, texture: Option<glow::Texture>) {
-        unsafe fn bind_texture(
-            gl: &glow::Context,
-            target: u32,
-            texture: Option<glow::Texture>,
-            unit_index: u32,
-            active_unit: &mut u32,
-        ) {
-            if *active_unit != unit_index {
-                *active_unit = unit_index;
-                gl.active_texture(glow::TEXTURE0 + unit_index);
-            }
-            gl.bind_texture(target, texture);
-        }
-
-        unsafe {
-            let mut state_guard = self.state.borrow_mut();
-            let state = state_guard.deref_mut();
-
-            let unit = &mut state.texture_units_storage.units[unit_index as usize];
-            let active_unit = &mut state.texture_units_storage.active_unit;
-            for binding in unit.bindings.iter_mut() {
-                if binding.target == target {
-                    if binding.texture != texture {
-                        binding.texture = texture;
-                        bind_texture(&self.gl, binding.target, texture, unit_index, active_unit);
-                        state.frame_statistics.texture_binding_changes += 1;
-                    }
-                } else if binding.texture.is_some() {
-                    binding.texture = None;
-                    bind_texture(&self.gl, binding.target, None, unit_index, active_unit);
-                    state.frame_statistics.texture_binding_changes += 1;
-                }
-            }
-        }
+        self.state
+            .borrow_mut()
+            .set_texture(unit_index, target, texture, &self.gl)
     }
 
+    /// Modify how the stencil buffer prevents pixels from being drawn.
+    /// See [`StencilFunc`] for the available options.
+    /// See `glStencilFunc` from OpenGL.
     pub(crate) fn set_stencil_func(&self, func: StencilFunc) {
         let mut state = self.state.borrow_mut();
         if state.stencil_func != func {
@@ -889,9 +1189,13 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Modify how the stencil buffer is written to by rendering.
+    /// See [`StencilOp`] for details of the available options.
+    /// See `glStencilOp` and `glStencilMask` from OpenGL.
     pub(crate) fn set_stencil_op(&self, op: StencilOp) {
         let mut state = self.state.borrow_mut();
-        if state.stencil_op != op {
+        let new_mask = op.write_mask;
+        if !state.stencil_op.eq_actions(&op) {
             state.stencil_op = op;
 
             unsafe {
@@ -900,25 +1204,31 @@ impl GlGraphicsServer {
                     state.stencil_op.zfail.into_gl(),
                     state.stencil_op.zpass.into_gl(),
                 );
-
+            }
+        }
+        if state.stencil_op.write_mask != new_mask {
+            state.stencil_op.write_mask = new_mask;
+            unsafe {
                 self.gl.stencil_mask(state.stencil_op.write_mask);
             }
         }
     }
 
-    pub(crate) fn set_vertex_array_object(&self, vao: Option<glow::VertexArray>) {
-        let mut state = self.state.borrow_mut();
-        if state.vao != vao {
-            state.vao = vao;
-
-            state.frame_statistics.vao_binding_changes += 1;
-
-            unsafe {
-                self.gl.bind_vertex_array(state.vao);
-            }
-        }
+    /// `glDeleteVertexArrays`
+    pub(crate) fn delete_vertex_array_object(&self, vao: glow::VertexArray) {
+        self.state
+            .borrow_mut()
+            .delete_vertex_array_object(vao, &self.gl);
     }
 
+    /// `glBindVertexArray`
+    pub(crate) fn set_vertex_array_object(&self, vao: Option<glow::VertexArray>) {
+        self.state
+            .borrow_mut()
+            .set_vertex_array_object(vao, &self.gl);
+    }
+
+    /// `glEnable(GL_SCISSOR_TEST)` or `glDisable(GL_SCISSOR_TEST)`.
     pub(crate) fn set_scissor_test(&self, scissor_test: bool) {
         let mut state = self.state.borrow_mut();
         if state.scissor_test != scissor_test {
@@ -934,6 +1244,7 @@ impl GlGraphicsServer {
         }
     }
 
+    /// `glScissor`
     pub(crate) fn set_scissor_box(&self, scissor_box: &ScissorBox) {
         unsafe {
             self.gl.scissor(
@@ -945,6 +1256,7 @@ impl GlGraphicsServer {
         }
     }
 
+    /// Call the necessary GL functions to set the given parameters.
     pub(crate) fn apply_draw_parameters(&self, draw_params: &DrawParameters) {
         let DrawParameters {
             cull_face,
@@ -1001,18 +1313,8 @@ impl GlGraphicsServer {
 }
 
 impl GraphicsServer for GlGraphicsServer {
-    fn create_buffer(
-        &self,
-        size: usize,
-        buffer_kind: BufferKind,
-        buffer_usage: BufferUsage,
-    ) -> Result<GpuBuffer, FrameworkError> {
-        Ok(GpuBuffer(Rc::new(GlBuffer::new(
-            self,
-            size,
-            buffer_kind,
-            buffer_usage,
-        )?)))
+    fn create_buffer(&self, desc: GpuBufferDescriptor) -> Result<GpuBuffer, FrameworkError> {
+        Ok(GpuBuffer(Rc::new(GlBuffer::new(self, desc)?)))
     }
 
     fn create_texture(&self, desc: GpuTextureDescriptor) -> Result<GpuTexture, FrameworkError> {
@@ -1081,13 +1383,31 @@ impl GraphicsServer for GlGraphicsServer {
         )?)))
     }
 
+    fn create_program_from_shaders(
+        &self,
+        name: &str,
+        vertex_shader: &GpuShader,
+        fragment_shader: &GpuShader,
+        resources: &[ShaderResourceDefinition],
+    ) -> Result<GpuProgram, FrameworkError> {
+        Ok(GpuProgram(Rc::new(GlProgram::from_shaders_and_resources(
+            self,
+            name,
+            vertex_shader,
+            fragment_shader,
+            resources,
+        )?)))
+    }
+
     fn create_async_read_buffer(
         &self,
+        name: &str,
         pixel_size: usize,
         pixel_count: usize,
     ) -> Result<GpuAsyncReadBuffer, FrameworkError> {
         Ok(GpuAsyncReadBuffer(Rc::new(GlAsyncReadBuffer::new(
             self,
+            name,
             pixel_size,
             pixel_count,
         )?)))
@@ -1095,7 +1415,7 @@ impl GraphicsServer for GlGraphicsServer {
 
     fn create_geometry_buffer(
         &self,
-        desc: GeometryBufferDescriptor,
+        desc: GpuGeometryBufferDescriptor,
     ) -> Result<GpuGeometryBuffer, FrameworkError> {
         Ok(GpuGeometryBuffer(Rc::new(GlGeometryBuffer::new(
             self, desc,
@@ -1120,19 +1440,6 @@ impl GraphicsServer for GlGraphicsServer {
 
     fn invalidate_resource_bindings_cache(&self) {
         let mut state = self.state.borrow_mut();
-
-        unsafe {
-            for (unit_index, unit) in state.texture_units_storage.units.iter().enumerate() {
-                self.gl.active_texture(glow::TEXTURE0 + unit_index as u32);
-                for binding in unit.bindings.iter() {
-                    self.gl.bind_texture(binding.target, None)
-                }
-            }
-            self.gl.active_texture(glow::TEXTURE0);
-        }
-        state.texture_units_storage = Default::default();
-
-        state.program = Default::default();
         state.frame_statistics = Default::default();
     }
 
@@ -1191,17 +1498,30 @@ impl GraphicsServer for GlGraphicsServer {
     }
 
     fn set_polygon_fill_mode(&self, polygon_face: PolygonFace, polygon_fill_mode: PolygonFillMode) {
+        let (set_front, set_back) = match polygon_face {
+            PolygonFace::Front => (true, false),
+            PolygonFace::Back => (false, true),
+            PolygonFace::FrontAndBack => (true, true),
+        };
         let mut state = self.state.borrow_mut();
-        if state.polygon_fill_mode != polygon_fill_mode || state.polygon_face != polygon_face {
-            state.polygon_fill_mode = polygon_fill_mode;
-            state.polygon_face = polygon_face;
+        if (set_front && state.front_fill_mode != polygon_fill_mode)
+            || (set_back && state.back_fill_mode != polygon_fill_mode)
+        {
+            if set_front {
+                state.front_fill_mode = polygon_fill_mode;
+            }
+            if set_back {
+                state.back_fill_mode = polygon_fill_mode;
+            }
 
             unsafe {
-                self.gl.polygon_mode(
-                    state.polygon_face.into_gl(),
-                    state.polygon_fill_mode.into_gl(),
-                )
+                self.gl
+                    .polygon_mode(polygon_face.into_gl(), polygon_fill_mode.into_gl())
             }
         }
+    }
+
+    fn memory_usage(&self) -> ServerMemoryUsage {
+        self.memory_usage.borrow().clone()
     }
 }

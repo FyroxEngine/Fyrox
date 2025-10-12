@@ -34,7 +34,7 @@ use crate::{
     Thickness,
 };
 use bytemuck::{Pod, Zeroable};
-use fyrox_core::math::round_to_step;
+use fyrox_core::math::{round_to_step, OptionRect};
 use fyrox_material::MaterialResource;
 use fyrox_texture::TextureResource;
 use std::ops::Range;
@@ -100,6 +100,7 @@ impl Draw for ClippingGeometry {
 }
 
 impl ClippingGeometry {
+    #[inline]
     pub fn is_contains_point(&self, pos: Vector2<f32>) -> bool {
         for triangle in self.triangle_buffer.iter() {
             if let Some((va, vb, vc)) = self.triangle_points(triangle) {
@@ -112,6 +113,7 @@ impl ClippingGeometry {
         false
     }
 
+    #[inline]
     pub fn triangle_points(
         &self,
         triangle: &TriangleDefinition,
@@ -140,6 +142,7 @@ pub struct Command {
 }
 
 pub trait Draw {
+    #[inline]
     fn push_vertex(&mut self, pos: Vector2<f32>, tex_coord: Vector2<f32>) {
         self.push_vertex_raw(Vertex::new(pos, tex_coord))
     }
@@ -150,6 +153,7 @@ pub trait Draw {
 
     fn last_vertex_index(&self) -> u32;
 
+    #[inline]
     fn push_triangle_multicolor(&mut self, vertices: [(Vector2<f32>, Color); 3]) {
         let index = self.last_vertex_index();
         for &(pos, color) in &vertices {
@@ -163,6 +167,7 @@ pub trait Draw {
         self.push_triangle(index, index + 1, index + 2);
     }
 
+    #[inline]
     fn push_triangle_filled(&mut self, vertices: [Vector2<f32>; 3]) {
         let index = self.last_vertex_index();
 
@@ -173,6 +178,7 @@ pub trait Draw {
         self.push_triangle(index, index + 1, index + 2);
     }
 
+    #[inline]
     fn push_line(&mut self, a: Vector2<f32>, b: Vector2<f32>, thickness: f32) {
         let index = self.last_vertex_index();
         let perp = get_line_thickness_vector(a, b, thickness);
@@ -185,6 +191,7 @@ pub trait Draw {
         self.push_triangle(index + 2, index + 1, index + 3);
     }
 
+    #[inline]
     fn push_rect(&mut self, rect: &Rect<f32>, thickness: f32) {
         let offset = thickness * 0.5;
 
@@ -209,6 +216,7 @@ pub trait Draw {
         self.push_line(left_bottom, left_top, thickness);
     }
 
+    #[inline]
     fn push_rect_vary(&mut self, rect: &Rect<f32>, thickness: Thickness) {
         let left_top = Vector2::new(rect.x() + thickness.left * 0.5, rect.y() + thickness.top);
         let right_top = Vector2::new(
@@ -240,6 +248,7 @@ pub trait Draw {
         self.push_line(left_bottom, left_top, thickness.left);
     }
 
+    #[inline]
     fn push_rect_filled(&mut self, rect: &Rect<f32>, tex_coords: Option<&[Vector2<f32>; 4]>) {
         let index = self.last_vertex_index();
         self.push_vertex(
@@ -263,6 +272,7 @@ pub trait Draw {
         self.push_triangle(index, index + 2, index + 3);
     }
 
+    #[inline]
     fn push_rect_multicolor(&mut self, rect: &Rect<f32>, colors: [Color; 4]) {
         let index = self.last_vertex_index();
         self.push_vertex_raw(Vertex {
@@ -290,6 +300,7 @@ pub trait Draw {
         self.push_triangle(index, index + 2, index + 3);
     }
 
+    #[inline]
     fn push_circle_filled(
         &mut self,
         origin: Vector2<f32>,
@@ -331,6 +342,7 @@ pub trait Draw {
         }
     }
 
+    #[inline]
     fn push_circle(
         &mut self,
         center: Vector2<f32>,
@@ -360,6 +372,7 @@ pub trait Draw {
         self.connect_as_line(start_vertex, last_vertex_index, true)
     }
 
+    #[inline]
     fn connect_as_line(&mut self, from: u32, to: u32, closed: bool) {
         if closed {
             let count = to - from;
@@ -383,6 +396,7 @@ pub trait Draw {
         }
     }
 
+    #[inline]
     fn push_arc(
         &mut self,
         center: Vector2<f32>,
@@ -398,6 +412,7 @@ pub trait Draw {
         self.connect_as_line(start_vertex, last_vertex_index, false)
     }
 
+    #[inline]
     fn push_arc_path_with_thickness(
         &mut self,
         center: Vector2<f32>,
@@ -431,6 +446,7 @@ pub trait Draw {
         }
     }
 
+    #[inline]
     fn push_arc_path(
         &mut self,
         center: Vector2<f32>,
@@ -457,11 +473,13 @@ pub trait Draw {
         }
     }
 
+    #[inline]
     fn push_line_path(&mut self, a: Vector2<f32>, b: Vector2<f32>) {
         self.push_vertex(a, Default::default());
         self.push_vertex(b, Default::default());
     }
 
+    #[inline]
     fn push_line_path_with_thickness(&mut self, a: Vector2<f32>, b: Vector2<f32>, thickness: f32) {
         let perp = get_line_thickness_vector(a, b, thickness);
         self.push_vertex(a - perp, Vector2::new(0.0, 0.0));
@@ -470,6 +488,7 @@ pub trait Draw {
         self.push_vertex(b + perp, Vector2::new(0.0, 1.0));
     }
 
+    #[inline]
     fn push_rounded_rect_filled(
         &mut self,
         rect: &Rect<f32>,
@@ -551,6 +570,7 @@ pub trait Draw {
         self.push_triangle(last_vertex_index, first_index, center_index);
     }
 
+    #[inline]
     fn push_rounded_rect(
         &mut self,
         rect: &Rect<f32>,
@@ -659,6 +679,7 @@ pub trait Draw {
         self.connect_as_line(start_index, last_vertex_index, true);
     }
 
+    #[inline]
     fn push_bezier(
         &mut self,
         p0: Vector2<f32>,
@@ -692,6 +713,7 @@ pub trait Draw {
         }
     }
 
+    #[inline]
     fn push_grid(&mut self, zoom: f32, cell_size: Vector2<f32>, grid_bounds: Rect<f32>) {
         let mut local_left_bottom = grid_bounds.left_top_corner();
         local_left_bottom.x = round_to_step(local_left_bottom.x, cell_size.x);
@@ -762,10 +784,12 @@ impl TransformStack {
         self.stack.len()
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.stack.is_empty()
     }
 
+    #[inline]
     pub fn content(&self) -> Vec<Matrix3<f32>> {
         self.stack.clone()
     }
@@ -828,6 +852,7 @@ impl Draw for DrawingContext {
 }
 
 impl DrawingContext {
+    #[inline]
     pub fn new(style: StyleResource) -> DrawingContext {
         DrawingContext {
             vertex_buffer: Vec::new(),
@@ -866,14 +891,17 @@ impl DrawingContext {
         &self.command_buffer
     }
 
+    #[inline]
     pub fn push_opacity(&mut self, opacity: f32) {
         self.opacity_stack.push(opacity);
     }
 
+    #[inline]
     pub fn pop_opacity(&mut self) {
         self.opacity_stack.pop().unwrap();
     }
 
+    #[inline]
     pub fn triangle_points(
         &self,
         triangle: &TriangleDefinition,
@@ -884,6 +912,7 @@ impl DrawingContext {
         Some((a, b, c))
     }
 
+    #[inline]
     pub fn is_command_contains_point(&self, command: &Command, pos: Vector2<f32>) -> bool {
         for i in command.triangles.clone() {
             if let Some(triangle) = self.triangle_buffer.get(i) {
@@ -898,6 +927,7 @@ impl DrawingContext {
         false
     }
 
+    #[inline]
     fn pending_range(&self) -> Range<usize> {
         if self.triangle_buffer.is_empty() {
             0..self.triangles_to_commit
@@ -906,16 +936,18 @@ impl DrawingContext {
         }
     }
 
+    #[inline]
     fn bounds_of(&self, range: Range<usize>) -> Rect<f32> {
-        let mut bounds = Rect::new(f32::MAX, f32::MAX, 0.0, 0.0);
+        let mut bounds = OptionRect::default();
         for i in range {
             for &k in self.triangle_buffer[i].as_ref() {
                 bounds.push(self.vertex_buffer[k as usize].pos);
             }
         }
-        bounds
+        bounds.unwrap_or_default()
     }
 
+    #[inline]
     pub fn commit(
         &mut self,
         clip_bounds: Rect<f32>,
@@ -943,6 +975,7 @@ impl DrawingContext {
         }
     }
 
+    #[inline]
     pub fn draw_text(
         &mut self,
         clip_bounds: Rect<f32>,

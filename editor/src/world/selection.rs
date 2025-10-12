@@ -18,14 +18,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    asset::core::algebra::Vector3,
-    core::{algebra::UnitQuaternion, math::Matrix4Ext, pool::Handle},
-    scene::{graph::Graph, node::Node},
+use crate::{
+    command::{Command, SetPropertyCommand},
+    fyrox::{
+        asset::core::algebra::Vector3,
+        core::{
+            algebra::UnitQuaternion, math::Matrix4Ext, pool::Handle, reflect::Reflect,
+            some_or_return,
+        },
+        engine::Engine,
+        graph::BaseSceneGraph,
+        gui::inspector::PropertyChanged,
+        scene::{graph::Graph, node::Node, SceneContainer},
+    },
+    message::MessageSender,
+    scene::{
+        commands::GameSceneContext, controller::SceneController, GameScene, SelectionContainer,
+    },
+    utils,
 };
-use crate::scene::SelectionContainer;
-use crate::utils;
-use fyrox::graph::BaseSceneGraph;
 
 #[derive(Debug, Default, Clone, Eq)]
 pub struct GraphSelection {
@@ -35,6 +46,80 @@ pub struct GraphSelection {
 impl SelectionContainer for GraphSelection {
     fn len(&self) -> usize {
         self.nodes.len()
+    }
+
+    fn first_selected_entity(
+        &self,
+        controller: &dyn SceneController,
+        scenes: &SceneContainer,
+        callback: &mut dyn FnMut(&dyn Reflect, bool),
+    ) {
+        let game_scene = some_or_return!(controller.downcast_ref::<GameScene>());
+        let scene = &scenes[game_scene.scene];
+        if let Some(node) = self
+            .nodes
+            .first()
+            .and_then(|handle| scene.graph.try_get_node(*handle))
+        {
+            (callback)(node as &dyn Reflect, node.has_inheritance_parent());
+        }
+    }
+
+    fn on_property_changed(
+        &mut self,
+        controller: &mut dyn SceneController,
+        args: &PropertyChanged,
+        engine: &mut Engine,
+        sender: &MessageSender,
+    ) {
+        let game_scene = some_or_return!(controller.downcast_mut::<GameScene>());
+        let scene = &mut engine.scenes[game_scene.scene];
+
+        let group = self
+            .nodes
+            .iter()
+            .filter_map(|&node_handle| {
+                game_scene.node_property_changed_handler.handle(
+                    args,
+                    node_handle,
+                    scene.graph.try_get_node_mut(node_handle)?,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        sender.do_command_group_with_inheritance(group, args);
+    }
+
+    fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {
+        let group = self
+            .nodes
+            .iter()
+            .filter_map(|&node_handle| {
+                value.try_clone_box().map(|value| {
+                    Command::new(SetPropertyCommand::new(
+                        path.to_string(),
+                        value,
+                        move |ctx| {
+                            ctx.get_mut::<GameSceneContext>()
+                                .scene
+                                .graph
+                                .try_get_node_mut(node_handle)
+                                .map(|n| n as &mut dyn Reflect)
+                        },
+                    ))
+                })
+            })
+            .collect::<Vec<_>>();
+
+        sender.do_command_group(group);
+    }
+
+    fn provide_docs(&self, controller: &dyn SceneController, engine: &Engine) -> Option<String> {
+        let game_scene = controller.downcast_ref::<GameScene>()?;
+        let scene = &engine.scenes[game_scene.scene];
+        self.nodes
+            .first()
+            .map(|h| scene.graph[*h].doc().to_string())
     }
 }
 

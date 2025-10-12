@@ -177,7 +177,7 @@ impl SettingsWindow {
         .add_row(Row::stretch())
         .build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(600.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(700.0).with_height(800.0))
             .open(false)
             .with_title(WindowTitle::text("Settings"))
             .with_tab_label("Settings")
@@ -270,8 +270,9 @@ impl SettingsWindow {
             layer_index: 0,
             generate_property_string_values: true,
             filter: Default::default(),
-            name_column_width: 150.0,
+            name_column_width: 250.0,
             base_path: Default::default(),
+            has_parent_object: false,
         });
         let groups =
             context
@@ -371,7 +372,7 @@ impl SettingsWindow {
                 self.sync_to_model(ui, settings, sender, engine.resource_manager.clone());
             }
 
-            if let Some(node) = ui.try_get(message.destination()) {
+            if let Some(node) = ui.try_get_node(message.destination()) {
                 if let Some(user_data) = node.user_data_cloned::<GroupName>() {
                     let inspector = ui.try_get_of_type::<Inspector>(self.inspector).unwrap();
 

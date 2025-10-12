@@ -24,7 +24,7 @@ use crate::{
             manager::ResourceManager,
             untyped::{ResourceKind, UntypedResource},
         },
-        core::{log::Log, pool::Handle, Uuid},
+        core::{log::Log, make_pretty_type_name, pool::Handle, SafeLock, Uuid},
         engine::Engine,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
@@ -59,14 +59,17 @@ pub struct ResourceCreator {
 impl ResourceCreator {
     pub fn new(ctx: &mut BuildContext, resource_manager: &ResourceManager) -> Self {
         let rm_state = resource_manager.state();
-        let mut constructors = rm_state.constructors_container.map.lock();
+        let mut constructors = rm_state.constructors_container.map.safe_lock();
         let mut items = Vec::new();
         let mut supported_resource_data_uuids = Vec::new();
         for (uuid, constructor) in constructors.iter_mut() {
             let instance = (constructor.callback)();
             if instance.can_be_saved() {
                 supported_resource_data_uuids.push(*uuid);
-                items.push(make_dropdown_list_option(ctx, &constructor.type_name))
+                items.push(make_dropdown_list_option(
+                    ctx,
+                    make_pretty_type_name(&constructor.type_name),
+                ))
             }
         }
 
@@ -193,7 +196,7 @@ impl ResourceCreator {
                     .supported_resource_data_uuids
                     .get(self.selected.unwrap_or_default())
                 {
-                    let loaders = resource_manager_state.loaders.lock();
+                    let loaders = resource_manager_state.loaders.safe_lock();
                     if let Some(loader) = loaders
                         .iter()
                         .find(|loader| &loader.data_type_uuid() == data_type_uuid)
@@ -219,7 +222,10 @@ impl ResourceCreator {
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
                 let resource_manager_state = engine.resource_manager.state();
-                let mut constructors = resource_manager_state.constructors_container.map.lock();
+                let mut constructors = resource_manager_state
+                    .constructors_container
+                    .map
+                    .safe_lock();
 
                 if let Some(mut instance) = self
                     .supported_resource_data_uuids

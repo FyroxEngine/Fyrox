@@ -326,7 +326,7 @@
                 void main()
                 {
                     if (texture(holeMaskTexture, texCoord).r < 0.5) discard;
-                    FragColor = properties.diffuseColor * texture(diffuseTexture, texCoord);
+                    FragColor = properties.diffuseColor * S_SRGBToLinear(texture(diffuseTexture, texCoord));
                 }
                "#,
         ),

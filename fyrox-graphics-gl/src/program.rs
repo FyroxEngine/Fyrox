@@ -22,6 +22,7 @@ use crate::{
     server::{GlGraphicsServer, GlKind},
     ToGlConstant,
 };
+use fyrox_graphics::gpu_program::GpuShader;
 use fyrox_graphics::{
     core::log::{Log, MessageKind},
     error::FrameworkError,
@@ -140,6 +141,13 @@ impl ToGlConstant for ShaderKind {
 impl GpuShaderTrait for GlShader {}
 
 impl GlShader {
+    /// Generate and compile the source code for a shader.
+    /// * `server`: The OpenGL context that is used to compile the shader.
+    /// * `name`: The name of the shader that will be used to log messages about the compilation and report errors.
+    /// * `kind`: Is this a vertex shader or a fragment shader?
+    /// * `source`: The source code for the shader, excluding the uniform declarations that are automatically generated.
+    /// * `resources`: Resource definitions that are used to automatically generate uniform declarations in the source code before compiling.
+    /// * `line_offset`: The position of the first line of source code in whatever file it came from, for error reporting.
     pub fn new(
         server: &GlGraphicsServer,
         name: String,
@@ -364,6 +372,47 @@ pub struct GlProgram {
     thread_mark: PhantomData<*const u8>,
 }
 
+fn bind_resources(
+    server: &GlGraphicsServer,
+    program: &GlProgram,
+    resources: &[ShaderResourceDefinition],
+) {
+    unsafe {
+        server.set_program(Some(program.id));
+        for resource_definition in resources {
+            match resource_definition.kind {
+                ShaderResourceKind::Texture { .. } => {
+                    if let Some(location) = server
+                        .gl
+                        .get_uniform_location(program.id, &resource_definition.name)
+                    {
+                        server
+                            .gl
+                            .uniform_1_i32(Some(&location), resource_definition.binding as i32);
+                    }
+                }
+                ShaderResourceKind::PropertyGroup { .. } => {
+                    if let Some(shader_block_index) = server.gl.get_uniform_block_index(
+                        program.id,
+                        &format!("U{}", resource_definition.name),
+                    ) {
+                        server.gl.uniform_block_binding(
+                            program.id,
+                            shader_block_index,
+                            resource_definition.binding as u32,
+                        )
+                    } else {
+                        Log::warn(format!(
+                            "Couldn't find uniform block U{}",
+                            resource_definition.name
+                        ));
+                    }
+                }
+            }
+        }
+    }
+}
+
 impl GlProgram {
     pub fn from_source_and_resources(
         server: &GlGraphicsServer,
@@ -384,40 +433,33 @@ impl GlProgram {
             resources,
         )?;
 
-        unsafe {
-            server.set_program(Some(program.id));
-            for resource_definition in resources {
-                match resource_definition.kind {
-                    ShaderResourceKind::Texture { .. } => {
-                        if let Some(location) = server
-                            .gl
-                            .get_uniform_location(program.id, &resource_definition.name)
-                        {
-                            server
-                                .gl
-                                .uniform_1_i32(Some(&location), resource_definition.binding as i32);
-                        }
-                    }
-                    ShaderResourceKind::PropertyGroup { .. } => {
-                        if let Some(shader_block_index) = server.gl.get_uniform_block_index(
-                            program.id,
-                            &format!("U{}", resource_definition.name),
-                        ) {
-                            server.gl.uniform_block_binding(
-                                program.id,
-                                shader_block_index,
-                                resource_definition.binding as u32,
-                            )
-                        } else {
-                            Log::warn(format!(
-                                "Couldn't find uniform block U{}",
-                                resource_definition.name
-                            ));
-                        }
-                    }
-                }
-            }
-        }
+        bind_resources(server, &program, resources);
+
+        Ok(program)
+    }
+
+    pub fn from_shaders_and_resources(
+        server: &GlGraphicsServer,
+        program_name: &str,
+        vertex_shader: &GpuShader,
+        fragment_shader: &GpuShader,
+        resources: &[ShaderResourceDefinition],
+    ) -> Result<GlProgram, FrameworkError> {
+        let vertex_shader = vertex_shader
+            .as_any()
+            .downcast_ref::<GlShader>()
+            .ok_or_else(|| {
+                FrameworkError::Custom("Unable to downcast the shader to GlShader!".to_string())
+            })?;
+        let fragment_shader = fragment_shader
+            .as_any()
+            .downcast_ref::<GlShader>()
+            .ok_or_else(|| {
+                FrameworkError::Custom("Unable to downcast the shader to GlShader!".to_string())
+            })?;
+        let program = Self::from_shaders(server, program_name, vertex_shader, fragment_shader)?;
+
+        bind_resources(server, &program, resources);
 
         Ok(program)
     }
@@ -431,23 +473,32 @@ impl GlProgram {
         fragment_source_line_offset: isize,
         resources: &[ShaderResourceDefinition],
     ) -> Result<GlProgram, FrameworkError> {
+        let vertex_shader = GlShader::new(
+            server,
+            format!("{name}_VertexShader"),
+            ShaderKind::Vertex,
+            vertex_source,
+            resources,
+            vertex_source_line_offset,
+        )?;
+        let fragment_shader = GlShader::new(
+            server,
+            format!("{name}_FragmentShader"),
+            ShaderKind::Fragment,
+            fragment_source,
+            resources,
+            fragment_source_line_offset,
+        )?;
+        Self::from_shaders(server, name, &vertex_shader, &fragment_shader)
+    }
+
+    fn from_shaders(
+        server: &GlGraphicsServer,
+        name: &str,
+        vertex_shader: &GlShader,
+        fragment_shader: &GlShader,
+    ) -> Result<GlProgram, FrameworkError> {
         unsafe {
-            let vertex_shader = GlShader::new(
-                server,
-                format!("{name}_VertexShader"),
-                ShaderKind::Vertex,
-                vertex_source,
-                resources,
-                vertex_source_line_offset,
-            )?;
-            let fragment_shader = GlShader::new(
-                server,
-                format!("{name}_FragmentShader"),
-                ShaderKind::Fragment,
-                fragment_source,
-                resources,
-                fragment_source_line_offset,
-            )?;
             let program = server.gl.create_program()?;
             server.gl.attach_shader(program, vertex_shader.id);
             server.gl.attach_shader(program, fragment_shader.id);
@@ -490,9 +541,7 @@ impl GpuProgramTrait for GlProgram {}
 impl Drop for GlProgram {
     fn drop(&mut self) {
         if let Some(state) = self.state.upgrade() {
-            unsafe {
-                state.gl.delete_program(self.id);
-            }
+            state.delete_program(self.id);
         }
     }
 }

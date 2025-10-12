@@ -23,7 +23,9 @@
 use crate::export::utils;
 use fyrox::{
     asset::manager::ResourceManager,
-    core::{futures::executor, futures::future::join_all, log::Log, platform::TargetPlatform},
+    core::{
+        futures::executor, futures::future::join_all, log::Log, platform::TargetPlatform, SafeLock,
+    },
 };
 use std::{fs, io, path::Path};
 
@@ -38,7 +40,7 @@ pub fn copy_and_convert_assets(
     if convert {
         let rm = resource_manager.state();
         let io = rm.resource_io.clone();
-        let loaders = rm.loaders.lock();
+        let loaders = rm.loaders.safe_lock();
         let mut tasks = Vec::new();
 
         // Iterate over the file system and try to convert all the supported resources.

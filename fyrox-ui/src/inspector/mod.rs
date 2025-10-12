@@ -420,7 +420,7 @@ impl InspectorMessage {
 /// [fyroxed_base::inspector::EditorEnvironment](https://docs.rs/fyroxed_base/latest/fyroxed_base/inspector/struct.EditorEnvironment.html).
 /// Instead, when a property editor needs to talk to the application using the Inspector,
 /// it can attempt to cast InspectorEnvironment to whatever type it might be.
-pub trait InspectorEnvironment: Any + Send + Sync {
+pub trait InspectorEnvironment: Any + Send + Sync + ComponentProvider {
     fn name(&self) -> String;
     fn as_any(&self) -> &dyn Any;
 }
@@ -499,6 +499,7 @@ pub trait InspectorEnvironment: Any + Send + Sync {
 ///         filter: Default::default(),
 ///         name_column_width: 150.0,
 ///         base_path: Default::default(),
+///         has_parent_object: false
 ///     });
 ///
 ///     InspectorBuilder::new(WidgetBuilder::new())
@@ -645,6 +646,7 @@ impl Inspector {
                 if pasted {
                     if let Some(inspector) = ui.try_get_of_type::<Inspector>(inspector) {
                         let ctx = inspector.context.clone();
+
                         Log::verify(ctx.sync(
                             object,
                             ui,
@@ -671,7 +673,7 @@ impl Inspector {
     ) -> Option<&ContextEntry> {
         let mut parent_handle = from;
 
-        while let Some(parent) = ui.try_get(parent_handle) {
+        while let Some(parent) = ui.try_get_node(parent_handle) {
             for entry in self.context.entries.iter() {
                 if entry.property_container == parent_handle {
                     return Some(entry);
@@ -685,7 +687,7 @@ impl Inspector {
     }
 }
 
-/// Default margines for editor containers.
+/// Default margins for editor containers.
 pub const HEADER_MARGIN: Thickness = Thickness {
     left: 2.0,
     top: 1.0,
@@ -795,6 +797,11 @@ pub struct InspectorContext {
     pub object_type_id: TypeId,
     /// A width of the property name column.
     pub name_column_width: f32,
+    /// A flag, that defines whether the inspectable object has a parent object from which it can
+    /// obtain initial property values when clicking on "Revert" button. This flag is used only for
+    /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
+    /// when it does nothing (when there's no parent object).
+    pub has_parent_object: bool,
 }
 
 impl PartialEq for InspectorContext {
@@ -822,6 +829,7 @@ impl Default for InspectorContext {
             sync_flag: 0,
             object_type_id: ().type_id(),
             name_column_width: 150.0,
+            has_parent_object: false,
         }
     }
 }
@@ -1009,6 +1017,11 @@ pub struct InspectorContextArgs<'a, 'b, 'c> {
     pub filter: PropertyFilter,
     pub name_column_width: f32,
     pub base_path: String,
+    /// A flag, that defines whether the inspectable object has a parent object from which it can
+    /// obtain initial property values when clicking on "Revert" button. This flag is used only for
+    /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
+    /// when it does nothing (when there's no parent object).
+    pub has_parent_object: bool,
 }
 
 impl InspectorContext {
@@ -1040,6 +1053,7 @@ impl InspectorContext {
             filter,
             name_column_width,
             base_path,
+            has_parent_object,
         } = context;
 
         let mut entries = Vec::new();
@@ -1057,10 +1071,10 @@ impl InspectorContext {
                     continue;
                 }
 
-                let description = if info.description.is_empty() {
-                    info.display_name.to_string()
+                let description = if info.doc.is_empty() {
+                    info.doc.to_string()
                 } else {
-                    format!("{}\n\n{}", info.display_name, info.description)
+                    format!("{}\n\n{}", info.display_name, info.doc)
                 };
 
                 if let Some(definition) = definition_container
@@ -1085,6 +1099,7 @@ impl InspectorContext {
                             filter: filter.clone(),
                             name_column_width,
                             base_path: property_path.clone(),
+                            has_parent_object,
                         },
                     ) {
                         Ok(instance) => {
@@ -1167,30 +1182,32 @@ impl InspectorContext {
         let copy_value;
         let paste_value;
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            copy_value_as_string = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Copy Value as String"))
-                                .build(ctx);
-                            copy_value_as_string
-                        })
-                        .with_child({
-                            copy_value = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Copy Value"))
-                                .build(ctx);
-                            copy_value
-                        })
-                        .with_child({
-                            paste_value = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text("Paste Value"))
-                                .build(ctx);
-                            paste_value
-                        }),
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+                .with_content(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                copy_value_as_string = MenuItemBuilder::new(WidgetBuilder::new())
+                                    .with_content(MenuItemContent::text("Copy Value as String"))
+                                    .build(ctx);
+                                copy_value_as_string
+                            })
+                            .with_child({
+                                copy_value = MenuItemBuilder::new(WidgetBuilder::new())
+                                    .with_content(MenuItemContent::text("Copy Value"))
+                                    .build(ctx);
+                                copy_value
+                            })
+                            .with_child({
+                                paste_value = MenuItemBuilder::new(WidgetBuilder::new())
+                                    .with_content(MenuItemContent::text("Paste Value"))
+                                    .build(ctx);
+                                paste_value
+                            }),
+                    )
+                    .build(ctx),
                 )
-                .build(ctx),
-            ),
+                .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
@@ -1221,10 +1238,11 @@ impl InspectorContext {
             environment,
             object_type_id: object_type_id(object),
             name_column_width,
+            has_parent_object,
         }
     }
 
-    /// Update the widgest to reflect the value of the given object.
+    /// Update the widgets to reflect the value of the given object.
     /// We will iterate through the fields and find the appropriate [PropertyEditorDefinition](editors::PropertyEditorDefinition)
     /// for each field. We call [create_message](editors::PropertyEditorDefinition::create_message) to get each property editor
     /// definition to generate the appropriate message to get the editor widget to update itself, and we set the [flags](UiMessage::flags)
@@ -1274,6 +1292,7 @@ impl InspectorContext {
                             filter: filter.clone(),
                             name_column_width: self.name_column_width,
                             base_path: base_path.clone(),
+                            has_parent_object: self.has_parent_object,
                         };
 
                         match constructor.property_editor.create_message(ctx) {

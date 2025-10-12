@@ -20,17 +20,20 @@
 
 #![allow(missing_docs)] // TODO
 
+use crate::{
+    core::{
+        algebra::{Vector2, Vector3},
+        array_as_u8_slice,
+    },
+    graphics::{
+        error::FrameworkError,
+        gpu_texture::{CubeMapFace, GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
+        server::GraphicsServer,
+    },
+};
 use bytemuck::{Pod, Zeroable};
-use fyrox_core::{
-    algebra::{Vector2, Vector3},
-    array_as_u8_slice,
-};
-use fyrox_graphics::{
-    error::FrameworkError,
-    gpu_texture::{CubeMapFace, GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
-    server::GraphicsServer,
-};
 use half::f16;
+use std::{fs::File, io::Write, path::Path};
 
 pub struct CubeMapFaceDescriptor {
     pub face: CubeMapFace,
@@ -159,18 +162,14 @@ fn integrate_brdf(n_dot_v: f32, roughness: f32, samples: usize) -> Vector2<f32> 
     Vector2::new(a / samples as f32, b / samples as f32)
 }
 
-pub fn make_brdf_lut(
-    server: &dyn GraphicsServer,
-    size: usize,
-    sample_count: usize,
-) -> Result<GpuTexture, FrameworkError> {
-    #[derive(Default, Copy, Clone, Pod, Zeroable)]
-    #[repr(C)]
-    struct Pixel {
-        x: f16,
-        y: f16,
-    }
+#[derive(Default, Copy, Clone, Pod, Zeroable)]
+#[repr(C)]
+pub struct Pixel {
+    pub x: f16,
+    pub y: f16,
+}
 
+pub fn make_brdf_lut_image(size: usize, sample_count: usize) -> Vec<Pixel> {
     let mut pixels = vec![Pixel::default(); size * size];
 
     for y in 0..size {
@@ -184,14 +183,56 @@ pub fn make_brdf_lut(
         }
     }
 
+    pixels
+}
+
+pub fn generate_brdf_lut_texture(
+    server: &dyn GraphicsServer,
+    size: usize,
+    sample_count: usize,
+) -> Result<GpuTexture, FrameworkError> {
+    let pixels = make_brdf_lut_image(size, sample_count);
+    make_brdf_lut(server, size, array_as_u8_slice(&pixels))
+}
+
+pub fn make_brdf_lut(
+    server: &dyn GraphicsServer,
+    size: usize,
+    pixels: &[u8],
+) -> Result<GpuTexture, FrameworkError> {
     server.create_texture(GpuTextureDescriptor {
+        name: "BrdfLut",
         kind: GpuTextureKind::Rectangle {
             width: size,
             height: size,
         },
         pixel_kind: PixelKind::RG16F,
         mip_count: 1,
-        data: Some(array_as_u8_slice(pixels.as_slice())),
+        data: Some(pixels),
         ..Default::default()
     })
+}
+
+pub fn write_brdf_lut(path: &Path, size: usize, sample_count: usize) -> std::io::Result<()> {
+    let pixels = make_brdf_lut_image(size, sample_count);
+    let mut file = File::create(path)?;
+    file.write_all(array_as_u8_slice(&pixels))?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use crate::renderer::utils::write_brdf_lut;
+    use std::path::Path;
+
+    // Use this test to write BRDF use by the lighting module.
+    #[test]
+    fn test_write_brdf_lut() {
+        write_brdf_lut(
+            Path::new("src/renderer/brdf_256x256_256samples.bin"),
+            256,
+            256,
+        )
+        .unwrap();
+    }
 }

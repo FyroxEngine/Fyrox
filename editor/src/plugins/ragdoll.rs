@@ -71,77 +71,65 @@ use std::{ops::Range, sync::Arc};
 
 #[derive(Reflect, Clone, Debug)]
 pub struct RagdollPreset {
-    #[reflect(description = "A handle of a hips (pelvis) bone.")]
+    /// A handle of a hips (pelvis) bone.
     hips: Handle<Node>,
-    #[reflect(description = "A handle of a left upper leg (thigh) bone.")]
+    /// A handle of a left upper leg (thigh) bone.
     left_up_leg: Handle<Node>,
-    #[reflect(description = "A handle of a left leg bone.")]
+    /// A handle of a left leg bone.
     left_leg: Handle<Node>,
-    #[reflect(description = "A handle of a left foot bone.")]
+    /// A handle of a left foot bone.
     left_foot: Handle<Node>,
-    #[reflect(description = "A handle of a right upper leg (thigh) bone.")]
+    /// A handle of a right upper leg (thigh) bone.
     right_up_leg: Handle<Node>,
-    #[reflect(description = "A handle of a right leg bone.")]
+    /// A handle of a right leg bone.
     right_leg: Handle<Node>,
-    #[reflect(description = "A handle of a right foot bone.")]
+    /// A handle of a right foot bone.
     right_foot: Handle<Node>,
-    #[reflect(description = "A handle of a lower spine bone.")]
+    /// A handle of a lower spine bone.
     spine: Handle<Node>,
-    #[reflect(description = "A handle of a middle spine bone.")]
+    /// A handle of a middle spine bone.
     spine1: Handle<Node>,
-    #[reflect(description = "A handle of a upper spine bone.")]
+    /// A handle of a upper spine bone.
     spine2: Handle<Node>,
-    #[reflect(description = "A handle of a left shoulder bone.")]
+    /// A handle of a left shoulder bone.
     left_shoulder: Handle<Node>,
-    #[reflect(description = "A handle of a left arm bone.")]
+    /// A handle of a left arm bone.
     left_arm: Handle<Node>,
-    #[reflect(description = "A handle of a left fore arm bone.")]
+    /// A handle of a left fore arm bone.
     left_fore_arm: Handle<Node>,
-    #[reflect(description = "A handle of a left hand bone.")]
+    /// A handle of a left hand bone.
     left_hand: Handle<Node>,
-    #[reflect(description = "A handle of a right shoulder bone.")]
+    /// A handle of a right shoulder bone.
     right_shoulder: Handle<Node>,
-    #[reflect(description = "A handle of a right arm bone.")]
+    /// A handle of a right arm bone.
     right_arm: Handle<Node>,
-    #[reflect(description = "A handle of a right fore arm bone.")]
+    /// A handle of a right fore arm bone.
     right_fore_arm: Handle<Node>,
-    #[reflect(description = "A handle of a right hand bone.")]
+    /// A handle of a right hand bone.
     right_hand: Handle<Node>,
-    #[reflect(description = "A handle of a neck bone.")]
+    /// A handle of a neck bone.
     neck: Handle<Node>,
-    #[reflect(description = "A handle of a head bone.")]
+    /// A handle of a head bone.
     head: Handle<Node>,
-    #[reflect(
-        description = "Total mass of the rag doll. Masses of each body part will be calculated using average \
-    human body weight proportions."
-    )]
+    /// Total mass of the rag doll. Masses of each body part will be calculated using average human
+    /// body weight proportions.
     total_mass: f32,
-    #[reflect(
-        description = "Friction coefficient of every collider of every body part of the rag doll.",
-        min_value = 0.0,
-        max_value = 1.0
-    )]
+    /// Friction coefficient of every collider of every body part of the rag doll.
+    #[reflect(min_value = 0.0, max_value = 1.0)]
     friction: f32,
-    #[reflect(
-        description = "A flag, that defines whether the rigid bodies of the ragdoll will use continuous \
-    collision detection or not. This should be turned on, if your rag doll relatively small bones since they'll \
-    most likely fall through floor without CCD."
-    )]
+    /// A flag, that defines whether the rigid bodies of the ragdoll will use continuous collision
+    /// detection or not. This should be turned on, if your rag doll relatively small bones since
+    /// they'll most likely fall through floor without CCD.
     use_ccd: bool,
-    #[reflect(
-        description = "A flag, that defines whether the rigid bodies of the rag doll can sleep or not. \
-    Sleeping rigid bodies won't consume any CPU resources while remain static."
-    )]
+    /// A flag, that defines whether the rigid bodies of the rag doll can sleep or not. Sleeping
+    /// rigid bodies won't consume any CPU resources while remain static.
     can_sleep: bool,
-    #[reflect(
-        description = "A pair of bit masks, that defines collision group and filter for every collider in the \
-    rag doll. It could be used to filter out collisions between character capsule and any part of the rag doll."
-    )]
+    /// A pair of bit masks, that defines collision group and filter for every collider in the rag
+    /// doll. It could be used to filter out collisions between character capsule and any part of the
+    /// rag doll.
     collision_groups: InteractionGroups,
-    #[reflect(
-        description = "A pair of bit masks, that defines solver group and filter for every collider in the \
-    rag doll. It could be used to filter out interactions between character capsule and any part of the rag doll."
-    )]
+    /// A pair of bit masks, that defines solver group and filter for every collider in the rag doll.
+    /// It could be used to filter out interactions between character capsule and any part of the rag doll.
     solver_groups: InteractionGroups,
 }
 
@@ -318,7 +306,7 @@ impl RagdollPreset {
         apply_offset: bool,
         graph: &mut Graph,
     ) -> Handle<Node> {
-        if let Some(from_ref) = graph.try_get(from) {
+        if let Some(from_ref) = graph.try_get_node(from) {
             let offset = if apply_offset {
                 from_ref
                     .up_vector()
@@ -376,7 +364,7 @@ impl RagdollPreset {
         ragdoll: Handle<Node>,
         graph: &mut Graph,
     ) -> Handle<Node> {
-        if let (Some(from_ref), Some(to_ref)) = (graph.try_get(from), graph.try_get(to)) {
+        if let (Some(from_ref), Some(to_ref)) = (graph.try_get_node(from), graph.try_get_node(to)) {
             let pos_from = from_ref.global_position();
             let pos_to = to_ref.global_position();
 
@@ -430,7 +418,7 @@ impl RagdollPreset {
         ragdoll: Handle<Node>,
         graph: &mut Graph,
     ) -> Handle<Node> {
-        if let Some(from_ref) = graph.try_get(from) {
+        if let Some(from_ref) = graph.try_get_node(from) {
             let cuboid = RigidBodyBuilder::new(
                 BaseBuilder::new()
                     .with_name(name)
@@ -470,7 +458,8 @@ impl RagdollPreset {
             (self.left_fore_arm, self.left_hand),
             (self.left_fore_arm, self.right_hand),
         ] {
-            if let (Some(upper_ref), Some(lower_ref)) = (graph.try_get(upper), graph.try_get(lower))
+            if let (Some(upper_ref), Some(lower_ref)) =
+                (graph.try_get_node(upper), graph.try_get_node(lower))
             {
                 base_size = (upper_ref.global_position() - lower_ref.global_position()).norm();
                 break;
@@ -1066,6 +1055,7 @@ impl RagdollWizard {
                                 filter: Default::default(),
                                 name_column_width: 150.0,
                                 base_path: Default::default(),
+                                has_parent_object: false,
                             }))
                             .build(ctx);
                             inspector

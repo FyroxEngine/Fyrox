@@ -209,7 +209,7 @@ fn make_project_item(
             }),
     )
     .with_font_size(13.0.into())
-    .with_text(format!("Size: {}", project_size))
+    .with_text(format!("Size: {project_size}"))
     .build(ctx);
 
     let info = StackPanelBuilder::new(
@@ -879,7 +879,7 @@ impl ProjectManager {
         {
             self.settings.projects.push(Project {
                 manifest_path,
-                name: game_package.name.clone(),
+                name: game_package.name.as_str().to_string(),
                 hot_reload: false,
             });
             self.refresh(ui);
@@ -990,6 +990,7 @@ impl ProjectManager {
                 command: "cargo".to_string(),
                 args: vec!["clean".to_string()],
                 environment_variables: vec![],
+                skip_passthrough_marker: false,
             }]
             .into(),
             ui,
@@ -1055,16 +1056,14 @@ impl ProjectManager {
 
         if !has_updated_args {
             Log::warn(format!(
-                "{} and {} variables are not specified!",
-                MANIFEST_PATH_VAR, MANIFEST_DIR_VAR
+                "{MANIFEST_PATH_VAR} and {MANIFEST_DIR_VAR} variables are not specified!"
             ));
         }
 
         let mut command = open_ide_command.make_command();
         if let Err(err) = command.spawn() {
             Log::err(format!(
-                "Unable to open the IDE using {} command. Reason: {:?}",
-                open_ide_command, err
+                "Unable to open the IDE using {open_ide_command} command. Reason: {err:?}"
             ));
 
             self.on_open_settings_click(ui);
@@ -1107,6 +1106,7 @@ impl ProjectManager {
                 command: "cargo".to_string(),
                 args: vec!["update".to_string()],
                 environment_variables: vec![],
+                skip_passthrough_marker: false,
             },
         );
         self.run_selected_project_command(name, build_profile.build_and_run_queue(), ui);

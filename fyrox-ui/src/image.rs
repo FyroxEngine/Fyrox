@@ -196,6 +196,8 @@ pub struct Image {
     pub checkerboard_background: InheritableVariable<bool>,
     /// Defines whether the image should keep its aspect ratio or stretch to the available size.
     pub keep_aspect_ratio: InheritableVariable<bool>,
+    /// Defines whether the image should keep its size in sync with the size of an assigned texture.
+    pub sync_with_texture_size: InheritableVariable<bool>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for Image {
@@ -221,20 +223,22 @@ impl Control for Image {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         let mut size: Vector2<f32> = self.widget.measure_override(ui, available_size);
 
-        if let Some(texture) = self.texture.as_ref() {
-            let state = texture.state();
-            if let Some(data) = state.data_ref() {
-                if let TextureKind::Rectangle { width, height } = data.kind() {
-                    let width = width as f32;
-                    let height = height as f32;
+        if *self.sync_with_texture_size {
+            if let Some(texture) = self.texture.as_ref() {
+                let state = texture.state();
+                if let Some(data) = state.data_ref() {
+                    if let TextureKind::Rectangle { width, height } = data.kind() {
+                        let width = width as f32;
+                        let height = height as f32;
 
-                    if *self.keep_aspect_ratio {
-                        let aspect_ratio = width / height;
-                        size.x = size.x.max(width).min(available_size.x);
-                        size.y = size.x * aspect_ratio;
-                    } else {
-                        size.x = size.x.max(width);
-                        size.y = size.y.max(height);
+                        if *self.keep_aspect_ratio {
+                            let aspect_ratio = width / height;
+                            size.x = size.x.max(width).min(available_size.x);
+                            size.y = size.x * aspect_ratio;
+                        } else {
+                            size.x = size.x.max(width);
+                            size.y = size.y.max(height);
+                        }
                     }
                 }
             }
@@ -338,6 +342,7 @@ pub struct ImageBuilder {
     uv_rect: Rect<f32>,
     checkerboard_background: bool,
     keep_aspect_ratio: bool,
+    sync_with_texture_size: bool,
 }
 
 impl ImageBuilder {
@@ -350,6 +355,7 @@ impl ImageBuilder {
             uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
             checkerboard_background: false,
             keep_aspect_ratio: true,
+            sync_with_texture_size: true,
         }
     }
 
@@ -392,6 +398,12 @@ impl ImageBuilder {
         self
     }
 
+    /// Sets whether the image should keep its size in sync with the size of an assigned texture.
+    pub fn with_sync_with_texture_size(mut self, sync_with_texture_size: bool) -> Self {
+        self.sync_with_texture_size = sync_with_texture_size;
+        self
+    }
+
     /// Builds the [`Image`] widget, but does not add it to the UI.
     pub fn build_node(mut self, ctx: &BuildContext) -> UiNode {
         if self.widget_builder.background.is_none() {
@@ -405,6 +417,7 @@ impl ImageBuilder {
             uv_rect: self.uv_rect.into(),
             checkerboard_background: self.checkerboard_background.into(),
             keep_aspect_ratio: self.keep_aspect_ratio.into(),
+            sync_with_texture_size: self.sync_with_texture_size.into(),
         };
         UiNode::new(image)
     }

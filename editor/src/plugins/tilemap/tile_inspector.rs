@@ -24,8 +24,6 @@
 //! widgets and does its own synchronization and message handling, while
 //! `TileInspector` is just responsible for managing the `TileEditor` objects.
 
-use std::fmt::Debug;
-
 use crate::{
     command::{Command, CommandGroup},
     plugins::material::editor::{MaterialFieldEditorBuilder, MaterialFieldMessage},
@@ -35,7 +33,7 @@ use fyrox::{
     asset::ResourceDataRef,
     core::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
+        visitor::prelude::*, SafeLock,
     },
     gui::{
         button::{Button, ButtonMessage},
@@ -53,8 +51,11 @@ use fyrox::{
     material::{MaterialResource, MaterialResourceExtension},
     scene::tilemap::{brush::*, tileset::*, *},
 };
+use std::fmt::Debug;
+use std::sync::mpsc::Sender;
 
 use super::*;
+use crate::asset::preview::cache::IconRequest;
 use commands::*;
 use palette::*;
 
@@ -596,7 +597,7 @@ impl PropertyEditors {
         let mut editors = Vec::default();
         make_property_editors(state, &mut editors, ctx);
         let content = StackPanelBuilder::new(
-            WidgetBuilder::new().with_children(editors.iter().map(|v| v.1.lock().handle())),
+            WidgetBuilder::new().with_children(editors.iter().map(|v| v.1.safe_lock().handle())),
         )
         .build(ctx);
         Self {
@@ -617,14 +618,14 @@ impl PropertyEditors {
             // The list has changed somehow, so remove the old editors and construct an all new editor for each layer.
             for (_, editor) in self.editors.iter() {
                 ui.send_message(WidgetMessage::remove(
-                    editor.lock().handle(),
+                    editor.safe_lock().handle(),
                     MessageDirection::ToWidget,
                 ));
             }
             make_property_editors(state, &mut self.editors, &mut ui.build_ctx());
             for (_, editor) in self.editors.iter() {
                 ui.send_message(WidgetMessage::link(
-                    editor.lock().handle(),
+                    editor.safe_lock().handle(),
                     MessageDirection::ToWidget,
                     self.content,
                 ));
@@ -632,7 +633,7 @@ impl PropertyEditors {
         } else {
             // The list has not changed, so just sync each editor because one of the layers may have changed.
             for (_, editor) in self.editors.iter() {
-                editor.lock().sync_to_model(state, ui);
+                editor.safe_lock().sync_to_model(state, ui);
             }
         }
     }
@@ -671,7 +672,7 @@ impl ColliderEditors {
         let mut editors = Vec::default();
         make_collider_editors(state, &mut editors, ctx);
         let content = StackPanelBuilder::new(
-            WidgetBuilder::new().with_children(editors.iter().map(|v| v.1.lock().handle())),
+            WidgetBuilder::new().with_children(editors.iter().map(|v| v.1.safe_lock().handle())),
         )
         .build(ctx);
         Self {
@@ -692,14 +693,14 @@ impl ColliderEditors {
             // The list has changed somehow, so remove the old editors and construct an all new editor for each layer.
             for (_, editor) in self.editors.iter() {
                 ui.send_message(WidgetMessage::remove(
-                    editor.lock().handle(),
+                    editor.safe_lock().handle(),
                     MessageDirection::ToWidget,
                 ));
             }
             make_collider_editors(state, &mut self.editors, &mut ui.build_ctx());
             for (_, editor) in self.editors.iter() {
                 ui.send_message(WidgetMessage::link(
-                    editor.lock().handle(),
+                    editor.safe_lock().handle(),
                     MessageDirection::ToWidget,
                     self.content,
                 ));
@@ -707,7 +708,7 @@ impl ColliderEditors {
         } else {
             // The list has not changed, so just sync each editor because one of the layers may have changed.
             for (_, editor) in self.editors.iter() {
-                editor.lock().sync_to_model(state, ui);
+                editor.safe_lock().sync_to_model(state, ui);
             }
         }
     }
@@ -794,6 +795,7 @@ impl TileInspector {
         tiles_palette: Handle<UiNode>,
         tile_book: TileBook,
         sender: MessageSender,
+        icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
         ctx: &mut BuildContext,
     ) -> Self {
@@ -807,6 +809,7 @@ impl TileInspector {
             Arc::new(Mutex::new(TileMaterialEditor::new(
                 ctx,
                 sender.clone(),
+                icon_request_sender.clone(),
                 resource_manager.clone(),
             ))) as TileEditorRef,
             Arc::new(Mutex::new(TileColorEditor::new(ctx))) as TileEditorRef,
@@ -864,6 +867,7 @@ impl TileInspector {
                 ctx,
                 sender.clone(),
                 DEFAULT_TILE_MATERIAL.deep_copy(),
+                icon_request_sender,
                 resource_manager,
             );
         let page_material_inspector = InspectorField::new("Material", page_material_field, ctx);
@@ -903,7 +907,7 @@ impl TileInspector {
                 .with_child(tile_size_inspector.handle)
                 .with_child(animation_speed_inspector.handle)
                 .with_child(create_tile)
-                .with_children(tile_editors.iter().map(|e| e.lock().handle()))
+                .with_children(tile_editors.iter().map(|e| e.safe_lock().handle()))
                 .with_child(property_editors.handle)
                 .with_child(collider_editors.handle)
                 .with_child(macro_inspector.handle()),
@@ -1105,7 +1109,7 @@ impl TileInspector {
             .chain(self.property_editors.iter())
             .chain(self.collider_editors.iter());
         for editor in iter {
-            editor.lock().handle_ui_message(
+            editor.safe_lock().handle_ui_message(
                 &mut tile_editor_state,
                 message,
                 ui,
@@ -1149,7 +1153,7 @@ impl TileInspector {
                     .chain(self.property_editors.iter())
                     .chain(self.collider_editors.iter());
                 for editor_ref in iter {
-                    let draw_button = editor_ref.lock().draw_button();
+                    let draw_button = editor_ref.safe_lock().draw_button();
                     if message.destination() == draw_button {
                         if tile_editor_state.is_active_editor(editor_ref) {
                             tile_editor_state.set_active_editor(None);
