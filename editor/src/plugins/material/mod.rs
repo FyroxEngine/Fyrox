@@ -314,8 +314,10 @@ impl MaterialEditor {
                         .with_child(
                             ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
                                 .with_content({
-                                    properties_panel =
-                                        StackPanelBuilder::new(WidgetBuilder::new()).build(ctx);
+                                    properties_panel = StackPanelBuilder::new(
+                                        WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                                    )
+                                    .build(ctx);
                                     properties_panel
                                 })
                                 .build(ctx),
@@ -521,7 +523,9 @@ impl MaterialEditor {
             .collect::<Vec<_>>();
 
         let panel = StackPanelBuilder::new(
-            WidgetBuilder::new().with_children(property_containers.iter().cloned()),
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(2.0))
+                .with_children(property_containers.iter().cloned()),
         )
         .build(ctx);
 
