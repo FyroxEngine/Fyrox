@@ -29,9 +29,12 @@ use crate::{
     HorizontalAlignment, VerticalAlignment,
 };
 use fyrox_core::log::Log;
-use fyrox_resource::state::LoadError;
+use fyrox_resource::state::{LoadError, ResourceState};
 pub use run::*;
-use std::ops::{Range, RangeBounds};
+use std::{
+    ops::{Range, RangeBounds},
+    path::PathBuf,
+};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 use textwrapper::*;
 
@@ -804,14 +807,56 @@ impl FormattedText {
         true
     }
 
+    pub fn are_fonts_loading(&self) -> bool {
+        if !self.font.is_loading() {
+            return true;
+        }
+        for run in self.runs.iter() {
+            if let Some(font) = run.font() {
+                if !font.is_loading() {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    pub fn font_load_error_list(&self) -> Vec<(PathBuf, LoadError)> {
+        let mut list = vec![];
+        if let ResourceState::LoadError { path, error } = &self.font.header().state {
+            list.push((path.clone(), error.clone()));
+        }
+        for run in self.runs.iter() {
+            if let Some(font) = run.font() {
+                if let ResourceState::LoadError { path, error } = &font.header().state {
+                    list.push((path.clone(), error.clone()));
+                }
+            }
+        }
+        list
+    }
+
+    pub fn font_loading_summary(&self) -> String {
+        use std::fmt::Write;
+        let mut result = String::default();
+        writeln!(result, "Primary font: {:?}", self.font.header().state).unwrap();
+        for run in self.runs.iter() {
+            if let Some(font) = run.font() {
+                writeln!(result, "Run {:?}: {:?}", run.range, font.header().state).unwrap();
+            }
+        }
+        result
+    }
+
     pub fn build(&mut self) -> Vector2<f32> {
         let mut lines = std::mem::take(&mut self.lines);
         lines.clear();
         // Fail early if any font is not available.
         if !self.are_fonts_loaded() {
             Log::err(format!(
-                "Text failed to build due to unloaded fonts. {:?}",
-                self.text()
+                "Text failed to build due to unloaded fonts. {:?}.\n{}",
+                self.text(),
+                self.font_loading_summary(),
             ));
             return Vector2::default();
         }
