@@ -130,7 +130,8 @@ impl Executor {
                 window_attributes,
                 vsync: true,
                 msaa_sample_count: None,
-                graphics_server_constructor: Default::default(),
+                backend: Default::default(),
+                graphics_server_constructor: None,
                 named_objects: false,
             },
         )

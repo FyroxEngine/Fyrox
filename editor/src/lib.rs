@@ -27,7 +27,6 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::inconsistent_struct_constructor)]
 #![allow(clippy::mutable_key_type)]
-#![allow(mismatched_lifetime_syntaxes)]
 
 #[macro_use]
 extern crate lazy_static;
@@ -82,8 +81,8 @@ use crate::{
         },
         dpi::{PhysicalPosition, PhysicalSize},
         engine::{
-            ApplicationLoopController, Engine, EngineInitParams, GraphicsContextParams,
-            SerializationContext,
+            ApplicationLoopController, Engine, EngineInitParams, GraphicsBackend,
+            GraphicsContextParams, SerializationContext,
         },
         event::{Event, WindowEvent},
         event_loop::EventLoop,
@@ -791,11 +790,47 @@ impl Editor {
         );
         window_attributes.resizable = true;
         window_attributes.title = "FyroxEd".to_string();
+
+        // Check for --vulkan command line argument, default to Vulkan if feature is enabled
+        let use_vulkan = std::env::args().any(|arg| arg == "--vulkan");
+
+        let backend = if use_vulkan {
+            #[cfg(feature = "vulkan")]
+            {
+                GraphicsBackend::Vulkan
+            }
+            #[cfg(not(feature = "vulkan"))]
+            {
+                Log::writeln(
+                    MessageKind::Warning,
+                    "Vulkan backend requested but not available, falling back to default",
+                );
+                GraphicsBackend::default()
+            }
+        } else {
+            // When Vulkan feature is enabled, use it by default
+            // Otherwise fall back to the default (OpenGL)
+            #[cfg(feature = "vulkan")]
+            {
+                GraphicsBackend::Vulkan
+            }
+            #[cfg(not(feature = "vulkan"))]
+            {
+                GraphicsBackend::default()
+            }
+        };
+
+        Log::writeln(
+            MessageKind::Information,
+            format!("Using graphics backend: {:?}", backend),
+        );
+
         let graphics_context_params = GraphicsContextParams {
             window_attributes,
             vsync: true,
             msaa_sample_count: Some(4),
-            graphics_server_constructor: Default::default(),
+            backend,
+            graphics_server_constructor: None,
             named_objects: false,
         };
 

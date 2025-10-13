@@ -195,6 +195,10 @@ impl ResourceIo for FsResourceIo {
         data: Vec<u8>,
     ) -> ResourceIoFuture<'a, Result<(), FileError>> {
         Box::pin(async move {
+            // Create parent directory if it doesn't exist
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
             let mut file = File::create(path)?;
             file.write_all(&data)?;
             Ok(())
@@ -202,6 +206,10 @@ impl ResourceIo for FsResourceIo {
     }
 
     fn write_file_sync(&self, path: &Path, data: &[u8]) -> Result<(), FileError> {
+        // Create parent directory if it doesn't exist
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         let mut file = File::create(path)?;
         file.write_all(data)?;
         Ok(())

@@ -25,7 +25,6 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
 #![allow(clippy::doc_lazy_continuation)]
-#![allow(mismatched_lifetime_syntaxes)]
 
 #[macro_use]
 extern crate memoffset;

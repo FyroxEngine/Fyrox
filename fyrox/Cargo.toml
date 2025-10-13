@@ -17,6 +17,8 @@ rust-version = "1.86"
 [features]
 default = ["fyrox-impl"]
 dylib = ["fyrox-dylib"]
+opengl = ["fyrox-impl/opengl"]
+vulkan = ["fyrox-impl/vulkan"]
 mesh_analysis = ["fyrox-impl/mesh_analysis", "fyrox-dylib/mesh_analysis"]
 
 [dependencies]

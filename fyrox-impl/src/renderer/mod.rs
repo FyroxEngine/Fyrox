@@ -361,18 +361,12 @@ impl RenderDataContainer {
 
 /// Creates a view-projection matrix that projects unit quad a screen with the specified viewport.
 pub fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
-    Matrix4::new_orthographic(
-        0.0,
-        viewport.w() as f32,
-        viewport.h() as f32,
-        0.0,
-        -1.0,
-        1.0,
-    ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
-        viewport.w() as f32,
-        viewport.h() as f32,
-        0.0,
-    ))
+    // Prevent division by zero with minimum dimensions of 1x1
+    let width = viewport.w().max(1) as f32;
+    let height = viewport.h().max(1) as f32;
+
+    Matrix4::new_orthographic(0.0, width, height, 0.0, -1.0, 1.0)
+        * Matrix4::new_nonuniform_scaling(&Vector3::new(width, height, 0.0))
 }
 
 /// See module docs.

@@ -470,15 +470,14 @@ impl GameScene {
         ui: &UserInterface,
         name: &str,
     ) -> Handle<Node> {
-        use fyrox::gui::widget::Widget;
-
         let root = PivotBuilder::new(BaseBuilder::new().with_name(name)).build(&mut scene.graph);
         let mut map: FxHashMap<Handle<UiNode>, Handle<Node>> = FxHashMap::default();
         map.insert(ui.root(), root);
 
         for handle in ui.traverse_handle_iter(ui.root()).skip(1) {
-            let widget = &ui[handle];
-            let pivot = PivotBuilder::new(BaseBuilder::new().with_name(widget.name())).build(&mut scene.graph);
+            let widget = ui.nodes().borrow(handle);
+            let pivot = PivotBuilder::new(BaseBuilder::new().with_name(widget.name()))
+                .build(&mut scene.graph);
             let parent = widget.parent();
             let parent_pivot = map.get(&parent).copied().unwrap_or(root);
             scene.graph.link_nodes(pivot, parent_pivot);
@@ -727,23 +726,22 @@ impl SceneController for GameScene {
                     ];
 
                     self.sender.do_command(CommandGroup::from(group));
-                } else if let Some(ui) = engine
+                } else if let Some(ui_resource) = engine
                     .resource_manager
                     .try_request::<UserInterface>(relative_path.clone())
                     .and_then(|m| block_on(m).ok())
                 {
-                    let name = item
-                        .path
-                        .file_stem()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("UiScene");
-                    self.instantiate_ui_as_pivots(
-                        &mut engine.scenes[self.scene],
-                        &ui,
-                        name,
-                    );
+                    let ui_ref = ui_resource.data_ref();
+                    if let Some(ui) = ui_ref.as_loaded_ref() {
+                        let name = item
+                            .path
+                            .file_stem()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("UiScene");
+                        self.instantiate_ui_as_pivots(&mut engine.scenes[self.scene], ui, name);
 
-                    engine.user_interfaces.add(ui);
+                        engine.user_interfaces.add(ui.clone());
+                    }
                 } else if let Some(tex) = engine
                     .resource_manager
                     .try_request::<Texture>(relative_path)

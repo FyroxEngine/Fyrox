@@ -218,7 +218,6 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::doc_lazy_continuation)]
 #![allow(clippy::mutable_key_type)]
-#![allow(mismatched_lifetime_syntaxes)]
 
 pub use copypasta;
 pub use fyrox_core as core;

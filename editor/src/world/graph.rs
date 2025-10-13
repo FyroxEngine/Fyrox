@@ -29,8 +29,8 @@ use crate::{
             pool::{ErasedHandle, Handle},
         },
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
-        resource::model::{Model, ModelResourceExtension},
         gui::UserInterface,
+        resource::model::{Model, ModelResourceExtension},
         scene::{node::Node, Scene},
     },
     load_image,
@@ -243,33 +243,34 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
                 ];
 
                 self.sender.do_command(CommandGroup::from(group));
-            } else if let Some(ui) = self
+            } else if let Some(ui_resource) = self
                 .resource_manager
-                .try_request::<UserInterface>(relative_path)
+                .try_request::<UserInterface>(relative_path.clone())
                 .and_then(|m| block_on(m).ok())
             {
-                let name = Path::new(&relative_path)
-                    .file_stem()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("UiScene");
+                let ui_ref = ui_resource.data_ref();
+                if let Some(ui) = ui_ref.as_loaded_ref() {
+                    let name = Path::new(&relative_path)
+                        .file_stem()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("UiScene");
 
-                let instance = self.game_scene.instantiate_ui_as_pivots(
-                    self.scene,
-                    &ui,
-                    name,
-                );
+                    let instance = self
+                        .game_scene
+                        .instantiate_ui_as_pivots(self.scene, ui, name);
 
-                let sub_graph = self.scene.graph.take_reserve_sub_graph(instance);
+                    let sub_graph = self.scene.graph.take_reserve_sub_graph(instance);
 
-                let group = vec![
-                    Command::new(AddModelCommand::new(sub_graph)),
-                    Command::new(LinkNodesCommand::new(instance, node.into())),
-                    Command::new(ChangeSelectionCommand::new(Selection::new(
-                        GraphSelection::single_or_empty(instance),
-                    ))),
-                ];
+                    let group = vec![
+                        Command::new(AddModelCommand::new(sub_graph)),
+                        Command::new(LinkNodesCommand::new(instance, node.into())),
+                        Command::new(ChangeSelectionCommand::new(Selection::new(
+                            GraphSelection::single_or_empty(instance),
+                        ))),
+                    ];
 
-                self.sender.do_command(CommandGroup::from(group));
+                    self.sender.do_command(CommandGroup::from(group));
+                }
             }
         }
     }

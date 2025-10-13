@@ -13,7 +13,7 @@ readme = "README.md"
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/resources/**/*"]
 
 [dependencies]
-fyrox = { version = "1.0.0-rc.1", path = "../fyrox", default-features = false }
+fyrox = { version = "1.0.0-rc.1", path = "../fyrox", default-features = false, features = ["vulkan"] }
 fyrox-build-tools = { version = "1.0.0-rc.1", path = "../fyrox-build-tools" }
 lazy_static = "1.4.0"
 ron = "0.11"
@@ -35,3 +35,4 @@ bitflags = "2.9.1"
 [features]
 default = ["fyrox/default"]
 dylib_engine = ["fyrox/dylib"]
+vulkan = ["fyrox/vulkan"]

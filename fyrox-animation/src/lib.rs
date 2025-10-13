@@ -23,7 +23,6 @@
 
 #![warn(missing_docs)]
 #![allow(clippy::doc_lazy_continuation)]
-#![allow(mismatched_lifetime_syntaxes)]
 
 use crate::{
     core::{

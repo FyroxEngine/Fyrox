@@ -111,7 +111,10 @@ use fyrox_animation::AnimationTracksData;
 use fyrox_core::visitor::error::VisitError;
 use fyrox_core::warn;
 use fyrox_graphics::server::SharedGraphicsServer;
+#[cfg(feature = "opengl")]
 use fyrox_graphics_gl::server::GlGraphicsServer;
+#[cfg(feature = "vulkan")]
+use fyrox_graphics_vk::server::VkGraphicsServer;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -1090,6 +1093,26 @@ impl ResourceDependencyGraph {
     }
 }
 
+/// Graphics backend selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GraphicsBackend {
+    /// OpenGL backend (default, widely supported)
+    #[cfg(feature = "opengl")]
+    OpenGL,
+    /// Vulkan backend (modern, high-performance)
+    #[cfg(feature = "vulkan")]
+    Vulkan,
+}
+
+impl Default for GraphicsBackend {
+    fn default() -> Self {
+        //#[cfg(feature = "opengl")]
+        //return GraphicsBackend::OpenGL;
+        //#[cfg(all(feature = "vulkan", not(feature = "opengl")))]
+        return GraphicsBackend::Vulkan;
+    }
+}
+
 /// A result returned by a graphics server constructor.
 pub type GraphicsServerConstructorResult = Result<(Window, SharedGraphicsServer), FrameworkError>;
 
@@ -1111,17 +1134,39 @@ pub struct GraphicsServerConstructor(Rc<GraphicsServerConstructorCallback>);
 
 impl Default for GraphicsServerConstructor {
     fn default() -> Self {
-        Self(Rc::new(
-            |params, window_target, window_builder, named_objects| {
-                GlGraphicsServer::new(
-                    params.vsync,
-                    params.msaa_sample_count,
-                    window_target,
-                    window_builder,
-                    named_objects,
-                )
-            },
-        ))
+        Self::from_backend(GraphicsBackend::default())
+    }
+}
+
+impl GraphicsServerConstructor {
+    /// Creates a graphics server constructor for the specified backend.
+    pub fn from_backend(backend: GraphicsBackend) -> Self {
+        match backend {
+            #[cfg(feature = "opengl")]
+            GraphicsBackend::OpenGL => Self(Rc::new(
+                |params, window_target, window_builder, named_objects| {
+                    GlGraphicsServer::new(
+                        params.vsync,
+                        params.msaa_sample_count,
+                        window_target,
+                        window_builder,
+                        named_objects,
+                    )
+                },
+            )),
+            #[cfg(feature = "vulkan")]
+            GraphicsBackend::Vulkan => Self(Rc::new(
+                |params, window_target, window_builder, named_objects| {
+                    VkGraphicsServer::new(
+                        params.vsync,
+                        params.msaa_sample_count,
+                        window_target,
+                        window_builder,
+                        named_objects,
+                    )
+                },
+            )),
+        }
     }
 }
 
@@ -1139,8 +1184,12 @@ pub struct GraphicsContextParams {
     /// MSAA works only for forward rendering and does not work for deferred rendering.
     pub msaa_sample_count: Option<u8>,
 
+    /// Graphics backend to use. See [`GraphicsBackend`] docs for more info.
+    pub backend: GraphicsBackend,
+
     /// Graphic server constructor. See [`GraphicsServerConstructor`] docs for more info.
-    pub graphics_server_constructor: GraphicsServerConstructor,
+    /// If None, the constructor will be created automatically based on the backend field.
+    pub graphics_server_constructor: Option<GraphicsServerConstructor>,
 
     /// A flag, that if raised tells the engine to assign meaningful names for GPU objects. This
     /// option is very useful for debugging. This option is off by default, because if may cause
@@ -1154,7 +1203,8 @@ impl Default for GraphicsContextParams {
             window_attributes: Default::default(),
             vsync: true,
             msaa_sample_count: None,
-            graphics_server_constructor: Default::default(),
+            backend: GraphicsBackend::default(),
+            graphics_server_constructor: None,
             named_objects: false,
         }
     }
@@ -1520,7 +1570,11 @@ impl Engine {
         event_loop: &ActiveEventLoop,
     ) -> Result<(), EngineError> {
         if let GraphicsContext::Uninitialized(params) = &self.graphics_context {
-            let (window, server) = params.graphics_server_constructor.0(
+            let constructor = params
+                .graphics_server_constructor
+                .clone()
+                .unwrap_or_else(|| GraphicsServerConstructor::from_backend(params.backend));
+            let (window, server) = constructor.0(
                 params,
                 event_loop,
                 params.window_attributes.clone(),
@@ -1591,6 +1645,7 @@ impl Engine {
                 window_attributes,
                 vsync: params.vsync,
                 msaa_sample_count: params.msaa_sample_count,
+                backend: params.backend,
                 graphics_server_constructor: params.graphics_server_constructor.clone(),
                 named_objects: params.named_objects,
             });

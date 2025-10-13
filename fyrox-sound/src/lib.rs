@@ -86,7 +86,6 @@
 //! They can be found [here](https://github.com/mrDIMAS/hrir_sphere_builder/tree/master/hrtf_base/IRCAM).
 
 #![warn(missing_docs)]
-#![allow(mismatched_lifetime_syntaxes)]
 
 pub mod buffer;
 pub mod context;

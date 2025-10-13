@@ -13,6 +13,6 @@ readme = "README.md"
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 
 [dependencies]
-fyrox = { version = "1.0.0-rc.1", path = "../fyrox" }
+fyrox = { version = "1.0.0-rc.1", path = "../fyrox", features = ["vulkan"]}
 fyroxed_base = { version = "1.0.0-rc.1", path = "../editor" }
 clap = { version = "4", features = ["derive"] }

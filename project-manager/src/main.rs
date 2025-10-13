@@ -87,6 +87,7 @@ fn main() {
             msaa_sample_count: Some(2),
             graphics_server_constructor: Default::default(),
             named_objects: false,
+            backend: Default::default(),
         },
         resource_manager: ResourceManager::new(Arc::new(FsResourceIo), task_pool.clone()),
         serialization_context,

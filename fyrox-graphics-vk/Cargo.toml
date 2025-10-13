@@ -1,0 +1,36 @@
+[package]
+name = "fyrox-graphics-vk"
+version = "1.0.0-rc.1"
+edition = "2021"
+license = "MIT"
+description = "Vulkan-based graphics server for Fyrox Game Engine"
+keywords = ["graphics", "gapi", "vulkan"]
+categories = ["graphics", "rendering::graphics-api"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
+homepage = "https://fyrox.rs"
+documentation = "https://docs.rs/fyrox-graphics-vk"
+repository = "https://github.com/FyroxEngine/Fyrox"
+rust-version = "1.86"
+
+[dependencies]
+winit = { version = "0.30", features = ["serde"] }
+fyrox-graphics = { version = "1.0.0-rc.1", path = "../fyrox-graphics" }
+fyrox-core = { version = "1.0.0-rc.1", path = "../fyrox-core" }
+fxhash = "0.2.1"
+ash = "0.38"
+gpu-allocator = { version = "0.27", features = ["vulkan"] }
+spirv-reflect = "0.2"
+serde = { version = "1.0.215", features = ["derive"] }
+raw-window-handle = "0.6"
+shaderc = "0.8"
+smallvec = "1.13"
+log = "0.4"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+ash-window = "0.13"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+ash-window = "0.13"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+ash-window = "0.13"

@@ -23,7 +23,8 @@ fyrox-resource = { path = "../fyrox-resource", version = "1.0.0-rc.1" }
 fyrox-animation = { path = "../fyrox-animation", version = "1.0.0-rc.1" }
 fyrox-graph = { path = "../fyrox-graph", version = "1.0.0-rc.1" }
 fyrox-graphics = { path = "../fyrox-graphics", version = "1.0.0-rc.1" }
-fyrox-graphics-gl = { path = "../fyrox-graphics-gl", version = "1.0.0-rc.1" }
+fyrox-graphics-gl = { path = "../fyrox-graphics-gl", version = "1.0.0-rc.1", optional = true }
+fyrox-graphics-vk = { path = "../fyrox-graphics-vk", version = "1.0.0-rc.1", optional = true }
 fyrox-texture = { path = "../fyrox-texture", version = "1.0.0-rc.1" }
 fyrox-autotile = { path = "../fyrox-autotile", version = "1.0.0-rc.1" }
 fyrox-material = { path = "../fyrox-material", version = "1.0.0-rc.1" }
@@ -94,6 +95,9 @@ opener = { version = "0.8", default-features = false, features = ["reveal"] }
 # === end of additional deps ===
 
 [features]
+default = ["opengl"]
+opengl = ["fyrox-graphics-gl"]
+vulkan = ["fyrox-graphics-vk"]
 enable_profiler = ["fyrox-core/enable_profiler"]
 mesh_analysis = []
 

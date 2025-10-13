@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    fyrox::core::{log::Log, reflect::prelude::*},
+    fyrox::core::log::Log,
     settings::{
         build::BuildSettings, camera::CameraSettings, debugging::DebuggingSettings,
         general::GeneralSettings, graphics::GraphicsSettings, keys::KeyBindings,
@@ -28,6 +28,7 @@ use crate::{
         selection::SelectionSettings, windows::WindowsSettings,
     },
 };
+use fyrox::core::reflect::prelude::*;
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use std::{

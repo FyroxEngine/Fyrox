@@ -18,26 +18,37 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::core::reflect::prelude::*;
-use fyrox_build_tools::BuildProfile;
-use serde::{Deserialize, Serialize};
+//! Vulkan-based graphics server implementation for Fyrox Game Engine.
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
-pub struct BuildSettings {
-    #[reflect(hidden)]
-    pub selected_profile: usize,
-    pub profiles: Vec<BuildProfile>,
+pub mod buffer;
+pub mod command;
+pub mod device;
+pub mod framebuffer;
+pub mod geometry_buffer;
+pub mod instance;
+pub mod memory;
+pub mod program;
+pub mod query;
+pub mod read_buffer;
+pub mod sampler;
+pub mod server;
+pub mod swapchain;
+pub mod texture;
+
+/// Trait for converting Fyrox graphics types to Vulkan constants.
+pub trait ToVkType<T> {
+    /// Convert to Vulkan type.
+    fn to_vk(self) -> T;
 }
 
-impl Default for BuildSettings {
-    fn default() -> Self {
-        let debug = BuildProfile::debug();
-        let release = BuildProfile::release();
-        let debug_hot_reloading = BuildProfile::debug_hot_reloading();
-        let release_hot_reloading = BuildProfile::release_hot_reloading();
-        Self {
-            selected_profile: 0,
-            profiles: vec![debug, debug_hot_reloading, release, release_hot_reloading],
-        }
-    }
+/// Utility function to convert C string to Rust string.
+pub unsafe fn cstr_to_string(cstr: *const i8) -> String {
+    std::ffi::CStr::from_ptr(cstr)
+        .to_string_lossy()
+        .into_owned()
+}
+
+/// Utility function to create a null-terminated C string from a Rust string.
+pub fn to_cstring(s: &str) -> std::ffi::CString {
+    std::ffi::CString::new(s).expect("Failed to create CString")
 }
