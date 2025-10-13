@@ -35,9 +35,10 @@ use crate::{
         collider::BitMask,
         node::Node,
         probe::ReflectionProbe,
-        Scene,
+        EnvironmentLightingSource, Scene,
     },
 };
+use fyrox_core::color::Color;
 use fyrox_texture::TextureResource;
 
 /// Observer position contains all the data, that describes an observer position in 3D space. It
@@ -119,7 +120,11 @@ impl ObserversCollection {
                         let view_projection_matrix = projection_matrix * view_matrix;
                         observers.reflection_probes.push(Observer {
                             handle: node.handle(),
-                            cube_map_face: Some(cube_face.face),
+                            reflection_probe_data: Some(ReflectionProbeData {
+                                cube_map_face: cube_face.face,
+                                environment_lighting_source: *probe.environment_lighting_source,
+                                ambient_lighting_color: *probe.ambient_lighting_color,
+                            }),
                             render_target: Some(probe.render_target().clone()),
                             position: ObserverPosition {
                                 translation,
@@ -147,16 +152,26 @@ impl ObserversCollection {
     }
 }
 
+pub struct ReflectionProbeData {
+    /// Cube map face of a cube render target to which to render a scene.
+    pub cube_map_face: CubeMapFace,
+    /// Environment lighting source of the reflection probe. See [`EnvironmentLightingSource`] docs
+    /// for more info.
+    pub environment_lighting_source: EnvironmentLightingSource,
+    /// Ambient lighting color of the reflection probe.
+    pub ambient_lighting_color: Color,
+}
+
 /// An observer holds all the information required to render a scene from a particular point of view.
 /// Contains all information for rendering, effectively decouples rendering entities from scene
 /// entities. Observer can be constructed from an arbitrary set of data or from scene entities,
 /// such as cameras, reflection probes.
 pub struct Observer {
-    /// The handle of the camera that was used to create this Observer.
+    /// The handle of a scene node (camera, reflection probe, etc.) that was used to create this
+    /// Observer.
     pub handle: Handle<Node>,
-    /// Cube map face of a cube render target to which to render a scene. Used for reflection probes
-    /// only.
-    pub cube_map_face: Option<CubeMapFace>,
+    /// Additional data used by reflection probes only.
+    pub reflection_probe_data: Option<ReflectionProbeData>,
     /// Render target to which to render the scene.
     pub render_target: Option<TextureResource>,
     /// Position of the observer. See [`ObserverPosition`] docs for more info.
@@ -205,7 +220,7 @@ impl Observer {
             exposure: camera.exposure(),
             viewport: camera.viewport_pixels(frame_size),
             frustum: camera.frustum(),
-            cube_map_face: None,
+            reflection_probe_data: None,
         }
     }
 }

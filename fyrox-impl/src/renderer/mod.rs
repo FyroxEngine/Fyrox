@@ -49,8 +49,6 @@ mod settings;
 mod shadow;
 mod ssao;
 
-use crate::renderer::cache::texture::convert_pixel_kind;
-use crate::renderer::ui_renderer::UiRenderInfo;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -74,6 +72,7 @@ use crate::{
     renderer::{
         bloom::BloomRenderer,
         bundle::{BundleRenderContext, RenderDataBundleStorage, RenderDataBundleStorageOptions},
+        cache::texture::convert_pixel_kind,
         cache::{
             geometry::GeometryCache,
             shader::{
@@ -89,6 +88,7 @@ use crate::{
         hdr::HighDynamicRangeRenderer,
         light::{DeferredLightRenderer, DeferredRendererContext},
         ssao::ScreenSpaceAmbientOcclusionRenderer,
+        ui_renderer::UiRenderInfo,
         ui_renderer::{UiRenderContext, UiRenderer},
         visibility::VisibilityCache,
     },
@@ -934,7 +934,6 @@ impl Renderer {
         dt: f32,
         resource_manager: &ResourceManager,
         need_recalculate_convolution: bool,
-        is_reflection_probe: bool,
     ) -> Result<&mut RenderDataContainer, FrameworkError> {
         let server = &*self.server;
 
@@ -971,10 +970,12 @@ impl Renderer {
                 }
             };
 
-            if let Some(face) = observer.cube_map_face {
-                observer_render_data
-                    .ldr_scene_framebuffer
-                    .set_cubemap_face(0, face, 0);
+            if let Some(probe_data) = observer.reflection_probe_data.as_ref() {
+                observer_render_data.ldr_scene_framebuffer.set_cubemap_face(
+                    0,
+                    probe_data.cube_map_face,
+                    0,
+                );
             }
 
             self.texture_cache.try_register(
@@ -1005,7 +1006,7 @@ impl Renderer {
             },
             &mut self.dynamic_surface_cache,
         );
-        if is_reflection_probe {
+        if observer.reflection_probe_data.is_some() {
             bundle_storage.environment_map = None;
         }
 
@@ -1054,10 +1055,14 @@ impl Renderer {
                     scene,
                     observer,
                     gbuffer: &mut render_data.gbuffer,
-                    ambient_color: scene.rendering_options.ambient_lighting_color,
-                    environment_lighting_source: scene
-                        .rendering_options
-                        .environment_lighting_source,
+                    ambient_color: match observer.reflection_probe_data.as_ref() {
+                        None => scene.rendering_options.ambient_lighting_color,
+                        Some(probe_data) => probe_data.ambient_lighting_color,
+                    },
+                    environment_lighting_source: match observer.reflection_probe_data.as_ref() {
+                        None => scene.rendering_options.environment_lighting_source,
+                        Some(probe_data) => probe_data.environment_lighting_source,
+                    },
                     render_data_bundle: &bundle_storage,
                     settings: &self.quality_settings,
                     textures: &mut self.texture_cache,
@@ -1318,7 +1323,6 @@ impl Renderer {
                 // There's no need to recalculate convolution for the environment map more than once
                 // when rendering reflection probes, because it does not use a dynamic environment map.
                 false,
-                true,
             )?;
             need_recalculate_convolution = true;
         }
@@ -1333,7 +1337,6 @@ impl Renderer {
                 dt,
                 resource_manager,
                 need_recalculate_convolution,
-                false,
             )?;
         }
 

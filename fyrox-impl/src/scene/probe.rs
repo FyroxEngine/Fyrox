@@ -34,12 +34,14 @@ use crate::{
         visitor::prelude::*,
     },
     graph::{constructor::ConstructorProvider, BaseSceneGraph},
+    scene::EnvironmentLightingSource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{constructor::NodeConstructor, Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_core::color::Color;
 use fyrox_texture::{TextureResource, TextureResourceExtension};
 use std::{
     cell::Cell,
@@ -166,6 +168,13 @@ pub struct ReflectionProbe {
     /// Update mode of the probe. See [`UpdateMode`] docs for more info.
     pub update_mode: InheritableVariable<UpdateMode>,
 
+    /// Ambient lighting of the reflection probe. This value is used only if the `environment` is
+    /// set to [`EnvironmentLightingSource::AmbientColor`].
+    pub ambient_lighting_color: InheritableVariable<Color>,
+
+    /// Environment lighting source of the reflection probe.
+    pub environment_lighting_source: InheritableVariable<EnvironmentLightingSource>,
+
     /// A flag, that defines whether the probe should be updated or not.
     #[reflect(hidden)]
     #[visit(skip)]
@@ -187,6 +196,8 @@ impl Default for ReflectionProbe {
             z_near: 0.001.into(),
             z_far: 128.0.into(),
             update_mode: Default::default(),
+            ambient_lighting_color: Color::repeat_opaque(120).into(),
+            environment_lighting_source: Default::default(),
             need_update: true,
             updated: Cell::new(false),
             render_target: TextureResource::new_cube_render_target(DEFAULT_RESOLUTION as u32),
@@ -297,6 +308,8 @@ pub struct ReflectionProbeBuilder {
     z_far: f32,
     resolution: usize,
     update_mode: UpdateMode,
+    ambient_lighting_color: Color,
+    environment_lighting_source: EnvironmentLightingSource,
 }
 
 impl ReflectionProbeBuilder {
@@ -309,6 +322,8 @@ impl ReflectionProbeBuilder {
             z_far: 32.0,
             resolution: DEFAULT_RESOLUTION,
             update_mode: Default::default(),
+            ambient_lighting_color: Color::repeat_opaque(120),
+            environment_lighting_source: Default::default(),
         }
     }
 
@@ -342,6 +357,21 @@ impl ReflectionProbeBuilder {
         self
     }
 
+    /// Environment lighting source of the reflection probe.
+    pub fn with_environment(
+        mut self,
+        environment_lighting_source: EnvironmentLightingSource,
+    ) -> Self {
+        self.environment_lighting_source = environment_lighting_source;
+        self
+    }
+
+    /// Sets the ambient lighting color of the reflection probe.
+    pub fn with_ambient_lighting_color(mut self, ambient_lighting_color: Color) -> Self {
+        self.ambient_lighting_color = ambient_lighting_color;
+        self
+    }
+
     /// Creates a new reflection probe node.
     pub fn build_node(self) -> Node {
         Node::new(ReflectionProbe {
@@ -351,6 +381,8 @@ impl ReflectionProbeBuilder {
             z_near: self.z_near.into(),
             z_far: self.z_far.into(),
             update_mode: self.update_mode.into(),
+            ambient_lighting_color: self.ambient_lighting_color.into(),
+            environment_lighting_source: self.environment_lighting_source.into(),
             need_update: true,
             updated: Cell::new(false),
             render_target: TextureResource::new_cube_render_target(self.resolution as u32),
