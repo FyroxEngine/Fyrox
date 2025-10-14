@@ -95,7 +95,7 @@ impl GBuffer {
         )?;
         let normal_texture = server.create_2d_render_target(
             "GBufferNormalTexture",
-            PixelKind::RGBA8,
+            PixelKind::RGBA16F,
             width,
             height,
         )?;
