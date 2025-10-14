@@ -152,6 +152,7 @@ impl ObserversCollection {
     }
 }
 
+/// The data used by the renderer when it's rendering a reflection probe.
 pub struct ReflectionProbeData {
     /// Cube map face of a cube render target to which to render a scene.
     pub cube_map_face: CubeMapFace,
