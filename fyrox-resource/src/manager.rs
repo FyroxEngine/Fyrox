@@ -1361,7 +1361,7 @@ impl ResourceManagerState {
         }
     }
 
-    /// Tries to load a resources at a given path.
+    /// Tries to load the resource at the given path.
     pub fn request<P>(&mut self, path: P) -> UntypedResource
     where
         P: AsRef<Path>,
@@ -1375,7 +1375,7 @@ impl ResourceManagerState {
         self.find_or_load(path)
     }
 
-    /// Tries to load a resources at a given path.
+    /// Tries to load the resource for the given UUID.
     pub fn request_uuid(&mut self, uuid: Uuid) -> UntypedResource {
         let mut resource = uuid.into();
         self.request_resource(&mut resource);
