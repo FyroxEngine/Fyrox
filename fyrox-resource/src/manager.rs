@@ -1982,6 +1982,16 @@ mod test {
         ResourceManagerState::new(Arc::new(FsResourceIo), Arc::new(Default::default()))
     }
 
+    fn remove_file_if_exists(path: &Path) -> std::io::Result<()> {
+        match std::fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(e) => match e.kind() {
+                std::io::ErrorKind::NotFound => Ok(()),
+                _ => Err(e),
+            },
+        }
+    }
+
     #[test]
     fn resource_wait_context_is_all_loaded() {
         assert!(ResourceWaitContext::default().is_all_loaded());
@@ -2166,6 +2176,7 @@ mod test {
         let manager = ResourceManager::new(Arc::new(FsResourceIo), Arc::new(Default::default()));
         let path = PathBuf::from("test.txt");
         let metapath = append_extension(&path, ResourceMetadata::EXTENSION);
+        remove_file_if_exists(&metapath).unwrap();
 
         let resource = UntypedResource::new_pending(Default::default(), ResourceKind::External);
         let res = manager.register(resource.clone(), path.clone());
