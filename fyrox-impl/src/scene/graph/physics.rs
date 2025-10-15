@@ -1886,6 +1886,18 @@ impl PhysicsWorld {
                     .try_get(body2_handle)
                     .filter(|b| self.bodies.get(b.native.get()).is_some()),
             ) {
+                let native_body1 = body1.native.get();
+                let native_body2 = body2.native.get();
+
+                if self.bodies.get(native_body1).is_none()
+                    || self.bodies.get(native_body2).is_none()
+                {
+                    // A joint may be synced before the connected bodies, this way the connected
+                    // rigid bodies does not have native rigid bodies, and in this case we should
+                    // simply skip the joint and initialize it on the next frame.
+                    return;
+                }
+
                 // Calculate local frames first (if needed).
                 let mut local_frames = joint.local_frames.borrow_mut();
                 let (local_frame1, local_frame2) = local_frames
@@ -1907,9 +1919,6 @@ impl PhysicsWorld {
                         )
                     })
                     .unwrap_or_else(|| calculate_local_frames(joint, body1, body2));
-
-                let native_body1 = body1.native.get();
-                let native_body2 = body2.native.get();
 
                 let mut native_joint = convert_joint_params(params, local_frame1, local_frame2);
                 native_joint.contacts_enabled = joint.is_contacts_enabled();
