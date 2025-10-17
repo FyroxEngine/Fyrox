@@ -376,6 +376,9 @@ fn run_normal(
             }
             Event::WindowEvent { event, .. } => {
                 match event {
+                    WindowEvent::Focused(true) => {
+                        engine.resource_manager.state().process_filesystem_events();
+                    }
                     WindowEvent::CloseRequested => active_event_loop.exit(),
                     WindowEvent::Resized(size) => {
                         if let Err(e) = engine.set_frame_size(size.into()) {

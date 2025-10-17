@@ -283,7 +283,6 @@ impl ResourceRegistryRefMut<'_> {
             panic!("Registering empty path.");
         }
         use std::collections::btree_map::Entry;
-        //self.registry.paths.insert(uuid, path)
         match self.registry.paths.entry(uuid) {
             Entry::Vacant(entry) => {
                 info!("Registered: {uuid} -> {path:?}");

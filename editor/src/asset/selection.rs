@@ -129,7 +129,10 @@ impl AssetSelection {
     }
 
     pub fn selected_path(&self) -> Option<&Path> {
-        self.resources.first().map(|r| r.path.as_path())
+        self.resources
+            .first()
+            .map(|r| r.path.as_path())
+            .filter(|p| !p.as_os_str().is_empty())
     }
 
     pub fn selected_import_options(&self) -> Option<RefMut<Box<dyn BaseImportOptions>>> {

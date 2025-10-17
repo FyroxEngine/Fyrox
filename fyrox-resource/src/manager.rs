@@ -47,6 +47,7 @@ use crate::{
     untyped::ResourceKind,
     Resource, TypedResourceData, UntypedResource,
 };
+use fxhash::FxHashSet;
 use fyrox_core::{
     futures::executor::block_on, make_relative_path, notify::Event, ok_or_return, some_or_continue,
     some_or_return,
@@ -495,7 +496,6 @@ impl ResourceManager {
     }
 
     /// Find the resource for the given UUID without loading the resource.
-    /// A new unloaded resource is created if one does not already exist.
     /// If the resource is not already loading, then it will be returned in
     /// the [`ResourceState::Unloaded`] state, and [`Self::request_resource`] may
     /// be used to begin the loading process.
@@ -967,19 +967,18 @@ impl ResourceManagerState {
     /// This may involve updating the registry to reflect changes to the resources, and it may
     /// involve creating new meta files for resources that are missing meta files.
     pub fn process_filesystem_events(&mut self) {
-        while let Some(evt) = self.try_get_event() {
+        let mut modified_files = FxHashSet::default();
+        while let Some(mut evt) = self.try_get_event() {
             if evt.need_rescan() {
                 info!("Filesystem watcher has forced a rescan!");
                 self.update_or_load_registry();
+                self.reload_resources();
             } else {
-                use notify::event::{CreateKind, DataChange, ModifyKind, RemoveKind, RenameMode};
+                use notify::event::{CreateKind, ModifyKind, RemoveKind, RenameMode};
                 use notify::EventKind;
                 match evt.kind {
                     EventKind::Create(CreateKind::Any | CreateKind::File) => {
                         self.on_create_event(evt.paths.first())
-                    }
-                    EventKind::Modify(ModifyKind::Data(DataChange::Content)) => {
-                        self.on_file_content_event(evt.paths.first())
                     }
                     EventKind::Modify(ModifyKind::Name(RenameMode::From)) => {
                         self.on_remove_event(evt.paths.first())
@@ -991,12 +990,19 @@ impl ResourceManagerState {
                         self.on_remove_event(evt.paths.first());
                         self.on_create_event(evt.paths.get(1));
                     }
+                    EventKind::Modify(ModifyKind::Any | ModifyKind::Data(_)) => {
+                        let path = evt.paths.get_mut(0).map(std::mem::take);
+                        modified_files.insert(path);
+                    }
                     EventKind::Remove(RemoveKind::Any | RemoveKind::File) => {
                         self.on_remove_event(evt.paths.first())
                     }
                     _ => (),
                 }
             }
+        }
+        for path in modified_files {
+            self.on_file_content_event(path.as_ref())
         }
     }
 
@@ -1043,7 +1049,13 @@ impl ResourceManagerState {
             .safe_lock()
             .is_supported_resource(&relative_path)
         {
-            Self::on_new_resource_file(registry.modify(), relative_path);
+            Self::on_new_resource_file(registry.modify(), relative_path.clone());
+            drop(registry);
+            if self.try_reload_resource_from_path(&relative_path) {
+                info!(
+                    "File {relative_path:?} was created, trying to reload a respective resource...",
+                );
+            }
         }
     }
     /// A new resource file has been discovered through an event. Check if there is a corresponding meta file,
@@ -1314,8 +1326,11 @@ impl ResourceManagerState {
         self.built_in_resources.add(resource)
     }
 
+    /// Find the resource for the given UUID without loading the resource.
     /// Searches the resource manager to find a resource with the given UUID, including built-in resources.
-    /// If no resource is found, a new UUID is generated and an unloaded resource is returned.
+    /// If no resource is found, a new unloaded external resource is returned for the given UUID,
+    /// because it is presumed that this is a real UUID for some resource that is not currently managed
+    /// and therefore it should be added to the manager.
     pub fn find_uuid(&mut self, uuid: Uuid) -> UntypedResource {
         if let Some(built_in_resource) = self.built_in_resources.find_by_uuid(uuid) {
             return built_in_resource.resource.clone();
@@ -1483,11 +1498,21 @@ impl ResourceManagerState {
                         ));
                     }
                     Err(error) => {
-                        Log::info(format!(
-                            "Resource {path:?} failed to load. Reason: {error:?}",
-                        ));
-
-                        resource.commit_error(path.to_path_buf(), error);
+                        if reload {
+                            if resource.is_ok() {
+                                info!("Resource {path:?} failed to reload, keeping the existing version. Reason: {error}");
+                            }
+                            else
+                            {
+                                info!("Resource {path:?} failed to reload. Reason: {error}");
+                                resource.commit_error(path.to_path_buf(), error);
+                            }
+                        }
+                        else
+                        {
+                            info!("Resource {path:?} failed to load. Reason: {error}");
+                            resource.commit_error(path.to_path_buf(), error);
+                        }
                     }
                 }
             } else {
@@ -1628,7 +1653,9 @@ impl ResourceManagerState {
         }
         let mut header = resource.lock();
         if !header.state.is_loading() {
-            header.state.switch_to_pending_state();
+            if !header.state.is_ok() {
+                header.state.switch_to_pending_state();
+            }
             drop(header);
             self.spawn_loading_task(resource, true)
         }

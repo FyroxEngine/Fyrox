@@ -685,6 +685,11 @@ impl AssetBrowser {
             .path
             .clone();
 
+        if asset_path.as_os_str().is_empty() {
+            err!("Selecting AssetItem with empty path: {selected_asset}");
+            return;
+        }
+
         if let Some(selection) = entry.selection.as_ref::<AssetSelection>() {
             if selection.contains(&asset_path) {
                 return;
@@ -830,7 +835,7 @@ impl AssetBrowser {
                     }
                     drop(registry);
 
-                    for path in paths {
+                    for path in paths.into_iter().filter(|p| !p.as_os_str().is_empty()) {
                         self.add_asset(&path, ui, &engine.resource_manager, &sender);
                     }
                 }

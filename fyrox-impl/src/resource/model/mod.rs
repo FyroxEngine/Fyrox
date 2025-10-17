@@ -760,7 +760,7 @@ impl Display for ModelLoadError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ModelLoadError::Visit(v) => {
-                write!(f, "An error occurred while reading a data source {v:?}")
+                write!(f, "An error occurred while reading a data source: {v}")
             }
             ModelLoadError::NotSupported(v) => {
                 write!(f, "Model format is not supported: {v}")

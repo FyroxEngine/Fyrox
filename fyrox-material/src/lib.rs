@@ -9,7 +9,6 @@ use fxhash::FxHashMap;
 use fyrox_core::{
     algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
     color::Color,
-    futures::executor::block_on,
     io::FileError,
     parking_lot::Mutex,
     reflect::prelude::*,
@@ -32,7 +31,7 @@ use std::{
     any::Any,
     error::Error,
     fmt::{Display, Formatter},
-    path::{Path, PathBuf},
+    path::Path,
     sync::Arc,
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
@@ -1143,21 +1142,21 @@ impl MaterialResourceExtension for MaterialResource {
     }
 
     fn deep_copy(&self) -> MaterialResource {
-        if let Err(error) = block_on(self.clone()) {
-            return MaterialResource::new_load_error(
-                ResourceKind::Embedded,
-                PathBuf::default(),
-                error,
-            );
-        }
         let material_state = self.header();
         match material_state.state {
-            ResourceState::Pending { .. }
-            | ResourceState::Unloaded
-            | ResourceState::LoadError { .. } => {
-                unreachable!("The resource should be loaded by now")
+            ResourceState::Unloaded => self.resource_uuid().into(),
+            ResourceState::Pending { .. } => {
+                MaterialResource::new_pending(self.resource_uuid(), ResourceKind::External)
             }
-            ResourceState::Ok { ref data, .. } => MaterialResource::new_ok(
+            ResourceState::LoadError {
+                ref error,
+                ref path,
+            } => MaterialResource::new_load_error(
+                ResourceKind::External,
+                path.clone(),
+                error.clone(),
+            ),
+            ResourceState::Ok { ref data } => MaterialResource::new_ok(
                 Uuid::new_v4(),
                 ResourceKind::Embedded,
                 (&**data as &dyn Any)

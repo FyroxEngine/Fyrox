@@ -459,15 +459,13 @@ impl NodeTrait for Sound {
                     ResourceState::Unloaded => {
                         Err("Sound buffer is unloaded because it was never requested.".to_string())
                     }
-                    ResourceState::LoadError { ref error, .. } => {
-                        match &error.0 {
-                            None => Err("Sound buffer is failed to load, the reason is unknown!"
-                                .to_string()),
-                            Some(err) => {
-                                Err(format!("Sound buffer is failed to load. Reason: {err:?}"))
-                            }
+                    ResourceState::LoadError { ref error, .. } => match &error.0 {
+                        None => {
+                            Err("Sound buffer is failed to load, the reason is unknown!"
+                                .to_string())
                         }
-                    }
+                        Some(err) => Err(format!("Sound buffer is failed to load. Reason: {err}")),
+                    },
                 }
             }
             None => Err("Sound buffer is not set, the sound won't play!".to_string()),
