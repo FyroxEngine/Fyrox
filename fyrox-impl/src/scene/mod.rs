@@ -584,12 +584,16 @@ impl Scene {
         let _ = self.sky_box.visit("SkyBox", &mut region);
 
         // Backward compatibility.
-        let mut navmeshes = NavMeshContainer::default();
-        if navmeshes.visit("NavMeshes", &mut region).is_ok() {
-            for (i, navmesh) in navmeshes.iter().enumerate() {
-                NavigationalMeshBuilder::new(BaseBuilder::new().with_name(format!("Navmesh{i}")))
+        if region.is_reading() {
+            let mut navmeshes = NavMeshContainer::default();
+            if navmeshes.visit("NavMeshes", &mut region).is_ok() {
+                for (i, navmesh) in navmeshes.iter().enumerate() {
+                    NavigationalMeshBuilder::new(
+                        BaseBuilder::new().with_name(format!("Navmesh{i}")),
+                    )
                     .with_navmesh(navmesh.clone())
                     .build(&mut self.graph);
+                }
             }
         }
 
