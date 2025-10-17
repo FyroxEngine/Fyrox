@@ -2967,15 +2967,6 @@ impl Editor {
         self.engine.destroy_graphics_context().unwrap();
     }
 
-    fn on_focus_changed(&mut self) {
-        if self.focused {
-            self.engine
-                .resource_manager
-                .state()
-                .process_filesystem_events();
-        }
-    }
-
     pub fn run(mut self, event_loop: EventLoop<()>) {
         Log::info("Initializing resource registry.");
         self.engine.resource_manager.update_or_load_registry();
@@ -3056,7 +3047,6 @@ impl Editor {
                         }
                         WindowEvent::Focused(focused) => {
                             self.focused = *focused;
-                            self.on_focus_changed();
                         }
                         WindowEvent::Moved(new_position) => {
                             // Allow the window to go outside the screen bounds by a little. This
