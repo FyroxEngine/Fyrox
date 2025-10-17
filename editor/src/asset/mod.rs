@@ -1098,24 +1098,26 @@ impl AssetBrowser {
                     let inspector_addon = self.inspector_addon.as_mut().unwrap();
                     let mut has_preview = false;
                     if let Some(asset_path) = selection.selected_path() {
-                        if let Ok(resource) =
-                            block_on(engine.resource_manager.request_untyped(asset_path))
-                        {
-                            if let Some(preview_generator) =
-                                resource.type_uuid().and_then(|type_uuid| {
-                                    self.preview_generators.map.get_mut(&type_uuid)
-                                })
+                        if asset_path.is_file() {
+                            if let Ok(resource) =
+                                block_on(engine.resource_manager.request_untyped(asset_path))
                             {
-                                let preview_scene =
-                                    &mut engine.scenes[inspector_addon.preview.scene()];
-                                let preview = preview_generator.generate_scene(
-                                    &resource,
-                                    &engine.resource_manager,
-                                    preview_scene,
-                                    inspector_addon.preview.camera,
-                                );
-                                has_preview = preview.is_some();
-                                inspector_addon.preview.set_model(preview, engine);
+                                if let Some(preview_generator) =
+                                    resource.type_uuid().and_then(|type_uuid| {
+                                        self.preview_generators.map.get_mut(&type_uuid)
+                                    })
+                                {
+                                    let preview_scene =
+                                        &mut engine.scenes[inspector_addon.preview.scene()];
+                                    let preview = preview_generator.generate_scene(
+                                        &resource,
+                                        &engine.resource_manager,
+                                        preview_scene,
+                                        inspector_addon.preview.camera,
+                                    );
+                                    has_preview = preview.is_some();
+                                    inspector_addon.preview.set_model(preview, engine);
+                                }
                             }
                         }
                     }

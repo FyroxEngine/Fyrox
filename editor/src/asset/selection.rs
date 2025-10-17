@@ -162,13 +162,15 @@ impl SelectionContainer for AssetSelection {
             if let Some(options) = resource.import_options.as_ref() {
                 let options = options.borrow();
                 callback(&**options as &dyn Reflect, false)
-            } else if let Ok(resource) =
-                block_on(self.resource_manager.request_untyped(&resource.path))
-            {
-                if !self.resource_manager.is_built_in_resource(&resource) {
-                    let guard = resource.lock();
-                    if let Some(data) = guard.state.data_ref() {
-                        callback(&*data.0 as &dyn Reflect, false)
+            } else if resource.path.is_file() {
+                if let Ok(resource) =
+                    block_on(self.resource_manager.request_untyped(&resource.path))
+                {
+                    if !self.resource_manager.is_built_in_resource(&resource) {
+                        let guard = resource.lock();
+                        if let Some(data) = guard.state.data_ref() {
+                            callback(&*data.0 as &dyn Reflect, false)
+                        }
                     }
                 }
             }
