@@ -32,7 +32,7 @@ use crate::{
     state::WakersList,
 };
 use fxhash::FxHashSet;
-use fyrox_core::SafeLock;
+use fyrox_core::{futures::executor::block_on, SafeLock};
 use ron::ser::PrettyConfig;
 use std::{
     collections::BTreeMap,
@@ -77,7 +77,7 @@ impl RegistryContainerExt for RegistryContainer {
         resource_io.load_file(path).await.and_then(|metadata| {
             ron::de::from_bytes::<Self>(&metadata).map_err(|err| {
                 FileError::Custom(format!(
-                    "Unable to deserialize the resource registry. Reason: {err:?}"
+                    "Unable to deserialize the resource registry. Reason: {err}"
                 ))
             })
         })
@@ -221,30 +221,49 @@ async fn make_relative_path_async<P: AsRef<Path>>(
 /// [`std::mem::forget`] after you've finished working with the mutable reference.
 pub struct ResourceRegistryRefMut<'a> {
     registry: &'a mut ResourceRegistry,
+    changed: bool,
+}
+
+/// A value returned from an update operation to a [`ResourceRegistryRefMut`],
+/// including a flag that indicates whether the operation changed the registry.
+pub struct RegistryUpdate<T> {
+    /// True if the registry was changed.
+    pub changed: bool,
+    /// The value produced by the operation.
+    pub value: T,
 }
 
 impl ResourceRegistryRefMut<'_> {
+    /// Read the metadata from the file at the given path.
+    pub fn read_metadata(
+        &mut self,
+        path: PathBuf,
+    ) -> Result<RegistryUpdate<ResourceMetadata>, FileError> {
+        let value = block_on(ResourceMetadata::load_from_file_async(
+            &append_extension(&path, ResourceMetadata::EXTENSION),
+            &*self.registry.io,
+        ))?;
+        let changed = self.register(value.resource_id, path).changed;
+        Ok(RegistryUpdate { changed, value })
+    }
     /// Writes the new metadata file for a resource at the given path and registers the resource
     /// in the registry.
     pub fn write_metadata(
         &mut self,
         uuid: Uuid,
-        path: impl AsRef<Path>,
-    ) -> Result<Option<PathBuf>, FileError> {
+        path: PathBuf,
+    ) -> Result<RegistryUpdate<Option<PathBuf>>, FileError> {
         ResourceMetadata { resource_id: uuid }.save_sync(
-            &append_extension(path.as_ref(), ResourceMetadata::EXTENSION),
+            &append_extension(&path, ResourceMetadata::EXTENSION),
             &*self.registry.io,
         )?;
-
-        Ok(self.register(uuid, path.as_ref().to_path_buf()))
+        Ok(self.register(uuid, path))
     }
 
     /// Unregisters the resource at the given path (if any) from the registry and deletes its
     /// associated metadata file.
     pub fn remove_metadata(&mut self, path: impl AsRef<Path>) -> Result<(), FileError> {
-        if let Some(uuid) = self.registry.path_to_uuid(path.as_ref()) {
-            self.unregister(uuid);
-
+        if self.unregister_path(&path).is_some() {
             let metadata_path = append_extension(path.as_ref(), ResourceMetadata::EXTENSION);
 
             self.registry.io.delete_file_sync(&metadata_path)?;
@@ -252,38 +271,82 @@ impl ResourceRegistryRefMut<'_> {
             Ok(())
         } else {
             Err(FileError::Custom(format!(
-                "The {} resource is not registered in the registry!",
-                path.as_ref().display()
+                "The {:?} resource is not registered in the registry!",
+                path.as_ref()
             )))
         }
     }
 
-    /// Registers a new pair `UUID -> Path`.
-    pub fn register(&mut self, uuid: Uuid, path: PathBuf) -> Option<PathBuf> {
-        self.registry.paths.insert(uuid, path)
+    /// Registers a new pair `UUID -> Path`, and returns the former path for this UUID.
+    pub fn register(&mut self, uuid: Uuid, path: PathBuf) -> RegistryUpdate<Option<PathBuf>> {
+        if path.as_os_str().is_empty() {
+            panic!("Registering empty path.");
+        }
+        use std::collections::btree_map::Entry;
+        match self.registry.paths.entry(uuid) {
+            Entry::Vacant(entry) => {
+                info!("Registered: {uuid} -> {path:?}");
+                self.changed = true;
+                entry.insert(path);
+                RegistryUpdate {
+                    changed: true,
+                    value: None,
+                }
+            }
+            Entry::Occupied(mut entry) => {
+                let changed = entry.get() != &path;
+                if changed {
+                    info!("Registry update: {uuid} -> {path:?}");
+                    self.changed = true;
+                }
+                let value = Some(entry.insert(path));
+                RegistryUpdate { changed, value }
+            }
+        }
     }
 
-    /// Unregisters a resource path with the given UUID.
+    /// Unregisters a resource path with the given UUID, and returns the former path for the Uuid, if it was registered.
     pub fn unregister(&mut self, uuid: Uuid) -> Option<PathBuf> {
-        self.registry.paths.remove(&uuid)
+        let former = self.registry.paths.remove(&uuid);
+        if former.is_some() {
+            info!("Registry remove UUID: {uuid} -> {former:?}");
+            self.changed = true;
+        }
+        former
     }
 
-    /// Unregisters a resource path.
-    pub fn unregister_path(&mut self, path: &Path) -> Option<Uuid> {
+    /// Unregisters a resource path, and returns the UUID if the given path was previously registered.
+    pub fn unregister_path(&mut self, path: impl AsRef<Path>) -> Option<Uuid> {
+        let path = path.as_ref();
         let uuid = self.registry.path_to_uuid(path)?;
+        info!("Registry remove path: {uuid} -> {path:?}");
+        self.changed = true;
         self.registry.paths.remove(&uuid);
         Some(uuid)
     }
 
     /// Completely replaces the internal storage.
     pub fn set_container(&mut self, registry_container: RegistryContainer) {
+        if self.registry.paths == registry_container {
+            return;
+        }
+        // Log the new registrations.
+        let current = &self.registry.paths;
+        for (uuid, path) in &registry_container {
+            if current.get(uuid) != Some(path) {
+                info!("Resource {path:?} was registered with {uuid} UUID.");
+            }
+        }
+        self.changed = true;
         self.registry.paths = registry_container;
     }
 }
 
 impl Drop for ResourceRegistryRefMut<'_> {
     fn drop(&mut self) {
-        self.registry.save_sync();
+        if self.changed {
+            self.registry.save_sync();
+        }
     }
 }
 
@@ -291,8 +354,17 @@ impl Drop for ResourceRegistryRefMut<'_> {
 /// `UUID -> Resource Path`.
 #[derive(Clone)]
 pub struct ResourceRegistry {
+    /// The path to which the resource registry is (or may) be saved.
     path: PathBuf,
+    /// The UUIDs registered for each resource and the corresponding path of the resource.
+    /// These UUIDs should be read from the registry file or from the meta file associated with the resource.
+    /// They may also be randomly generated if a path is requested that does not have a meta file, in which
+    /// case the random UUID is dynamically added to the registry.
     paths: RegistryContainer,
+    /// A shared flag that can be used to fetch the current status of a resource registry. This
+    /// supports the [`Future`] trait, which means that you can `.await` it in an async context to wait
+    /// until the registry is fully loaded (or failed to load). Any access to the registry in an async
+    /// context must be guarded with such `.await` call.
     status: ResourceRegistryStatusFlag,
     io: Arc<dyn ResourceIo>,
     /// A list of folder that should be excluded when scanning the project folder for supported
@@ -387,16 +459,13 @@ impl ResourceRegistry {
         match self.paths.save(&self.path, &*self.io).await {
             Err(error) => {
                 err!(
-                    "Unable to write the resource registry at the {} path! Reason: {:?}",
-                    self.path.display(),
+                    "Unable to write the resource registry at the {:?} path! Reason: {:?}",
+                    self.path,
                     error
                 )
             }
             Ok(_) => {
-                info!(
-                    "The registry was successfully saved to {}!",
-                    self.path.display()
-                )
+                info!("The registry was successfully saved to {:?}!", self.path)
             }
         }
     }
@@ -425,7 +494,10 @@ impl ResourceRegistry {
 
     /// Begins registry modification. See [`ResourceRegistryRefMut`] docs for more info.
     pub fn modify(&mut self) -> ResourceRegistryRefMut<'_> {
-        ResourceRegistryRefMut { registry: self }
+        ResourceRegistryRefMut {
+            changed: false,
+            registry: self,
+        }
     }
 
     /// Tries to get a path associated with the given resource UUID.
@@ -452,7 +524,7 @@ impl ResourceRegistry {
 
     /// Searches for supported resources starting from the given path and builds a mapping `UUID -> Path`.
     /// If a supported resource does not have a metadata file besides it, this method will automatically
-    /// add it with a new UUID and add the resource to the registry.
+    /// create the metadata file with a new UUID and add the resource to the registry.
     ///
     /// This method does **not** load any resource, instead it checks extension of every file in the
     /// given directory, and if there's a loader for it, "remember" the resource.
@@ -486,21 +558,14 @@ impl ResourceRegistry {
                 Ok(path) => path,
                 Err(err) => {
                     warn!(
-                        "Unable to make relative path from {} path! The resource won't be \
-                    included in the registry! Reason: {:?}",
-                        fs_path.display(),
-                        err
+                        "Unable to make relative path from {fs_path:?} path! The resource won't be \
+                    included in the registry! Reason: {err:?}",
                     );
                     continue;
                 }
             };
 
             if excluded_folders.contains(&path) {
-                warn!(
-                    "Skipping {} folder, because it is in the excluded folders list!",
-                    path.display()
-                );
-
                 continue;
             }
 
@@ -514,60 +579,34 @@ impl ResourceRegistry {
             }
 
             if !loaders.safe_lock().is_supported_resource(&path) {
-                if path
-                    .extension()
-                    .is_some_and(|ext| ext != "meta" && ext != "registry")
-                {
-                    info!(
-                        "Skipping {} file, because there's no loader for it.",
-                        path.display()
-                    );
-                }
-
                 continue;
             }
 
             let metadata_path = append_extension(&path, ResourceMetadata::EXTENSION);
-            let metadata =
-                match ResourceMetadata::load_from_file_async(&metadata_path, &*resource_io).await {
-                    Ok(metadata) => metadata,
-                    Err(err) => {
-                        warn!(
-                            "Unable to load metadata for {} resource. Reason: {:?}, The metadata \
+            let metadata = match ResourceMetadata::load_from_file_async(
+                &metadata_path,
+                &*resource_io,
+            )
+            .await
+            {
+                Ok(metadata) => metadata,
+                Err(err) => {
+                    warn!(
+                            "Unable to load metadata for {path:?} resource. Reason: {err}. The metadata \
                             file will be added/recreated, do **NOT** delete it! Add it to the \
                             version control!",
-                            path.display(),
-                            err
                         );
-                        let new_metadata = ResourceMetadata::new_with_random_id();
-                        if let Err(err) =
-                            new_metadata.save_async(&metadata_path, &*resource_io).await
-                        {
-                            warn!(
-                                "Unable to save resource {} metadata. Reason: {:?}",
-                                path.display(),
-                                err
-                            );
-                        }
-                        new_metadata
+                    let new_metadata = ResourceMetadata::new_with_random_id();
+                    if let Err(err) = new_metadata.save_async(&metadata_path, &*resource_io).await {
+                        warn!("Unable to save resource {path:?} metadata. Reason: {err}");
                     }
-                };
+                    new_metadata
+                }
+            };
 
-            if container
-                .insert(metadata.resource_id, path.clone())
-                .is_some()
-            {
-                warn!(
-                    "Resource UUID collision occurred for {} resource!",
-                    path.display()
-                );
+            if let Some(former) = container.insert(metadata.resource_id, path.clone()) {
+                warn!("Resource UUID collision between {path:?} and {former:?}");
             }
-
-            info!(
-                "Resource {} was registered with {} UUID.",
-                path.display(),
-                metadata.resource_id
-            );
         }
 
         container

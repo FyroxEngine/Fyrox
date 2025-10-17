@@ -195,12 +195,13 @@ impl TextureCache {
         resource_manager: &ResourceManager,
         texture: &TextureResource,
     ) -> Result<(), FrameworkError> {
+        let uuid = texture.resource_uuid();
         let texture = texture.state();
-        if let Some((texture, uuid)) = texture.data_ref_with_id() {
+        if let Some(texture) = texture.data_ref() {
             self.cache.get_entry_mut_or_insert_with(
                 &texture.cache_index,
                 Default::default(),
-                || create_gpu_texture(server, resource_manager, uuid, texture),
+                || create_gpu_texture(server, resource_manager, &uuid, texture),
             )?;
             Ok(())
         } else {
@@ -216,12 +217,13 @@ impl TextureCache {
         resource_manager: &ResourceManager,
         texture_resource: &TextureResource,
     ) -> Option<&TextureRenderData> {
+        let uuid = texture_resource.resource_uuid();
         let texture_data_guard = texture_resource.state();
-        if let Some((texture, uuid)) = texture_data_guard.data_ref_with_id() {
+        if let Some(texture) = texture_data_guard.data_ref() {
             match self.cache.get_mut_or_insert_with(
                 &texture.cache_index,
                 Default::default(),
-                || create_gpu_texture(server, resource_manager, uuid, texture),
+                || create_gpu_texture(server, resource_manager, &uuid, texture),
             ) {
                 Ok(entry) => {
                     // Check if some value has changed in resource.

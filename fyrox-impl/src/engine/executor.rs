@@ -207,6 +207,9 @@ impl Executor {
 
     /// Runs the executor - starts your game.
     pub fn run(self) {
+        Log::info("Initializing resource registry.");
+        self.engine.resource_manager.update_or_load_registry();
+
         let engine = self.engine;
         let event_loop = self.event_loop;
         let throttle_threshold = self.throttle_threshold;
@@ -373,6 +376,9 @@ fn run_normal(
             }
             Event::WindowEvent { event, .. } => {
                 match event {
+                    WindowEvent::Focused(true) => {
+                        engine.resource_manager.state().process_filesystem_events();
+                    }
                     WindowEvent::CloseRequested => active_event_loop.exit(),
                     WindowEvent::Resized(size) => {
                         if let Err(e) = engine.set_frame_size(size.into()) {

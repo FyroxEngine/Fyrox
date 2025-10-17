@@ -218,9 +218,10 @@ pub struct MaterialFieldEditorBuilder {
 }
 
 fn make_name(resource_manager: &ResourceManager, material: &MaterialResource) -> String {
+    let resource_uuid = material.resource_uuid();
     let header = material.header();
     match header.state {
-        ResourceState::Ok { resource_uuid, .. } => {
+        ResourceState::Ok { .. } => {
             if let Some(path) = resource_manager
                 .state()
                 .resource_registry
@@ -241,6 +242,7 @@ fn make_name(resource_manager: &ResourceManager, material: &MaterialResource) ->
                 )
             }
         }
+        ResourceState::Unloaded => "Material not loading".into(),
         ResourceState::LoadError { ref error, .. } => {
             format!("Loading failed: {error:?}")
         }

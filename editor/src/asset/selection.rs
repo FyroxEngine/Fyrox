@@ -59,7 +59,7 @@ struct SaveResourceCommand {
 
 impl SaveResourceCommand {
     fn save(&self) {
-        let mut guard = self.resource.0.safe_lock();
+        let mut guard = self.resource.lock();
         if let Some(data) = guard.state.data_mut() {
             Log::verify(data.save(&self.path));
         }
@@ -129,7 +129,10 @@ impl AssetSelection {
     }
 
     pub fn selected_path(&self) -> Option<&Path> {
-        self.resources.first().map(|r| r.path.as_path())
+        self.resources
+            .first()
+            .map(|r| r.path.as_path())
+            .filter(|p| !p.as_os_str().is_empty())
     }
 
     pub fn selected_import_options(&self) -> Option<RefMut<Box<dyn BaseImportOptions>>> {
@@ -163,7 +166,7 @@ impl SelectionContainer for AssetSelection {
                 block_on(self.resource_manager.request_untyped(&resource.path))
             {
                 if !self.resource_manager.is_built_in_resource(&resource) {
-                    let guard = resource.0.safe_lock();
+                    let guard = resource.lock();
                     if let Some(data) = guard.state.data_ref() {
                         callback(&*data.0 as &dyn Reflect, false)
                     }
@@ -205,7 +208,7 @@ impl SelectionContainer for AssetSelection {
                 let resource2 = resource.clone();
                 if !self.resource_manager.is_built_in_resource(&resource) {
                     if let Some(command) = make_command(args, move |_| {
-                        let mut guard = resource.0.safe_lock();
+                        let mut guard = resource.lock();
                         let data = &mut **guard.state.data_mut()?;
                         // SAFETY: This is safe, because the closure owns its own copy of
                         // resource strong ref, and the entity getter is used only once per
@@ -264,7 +267,7 @@ impl SelectionContainer for AssetSelection {
                             path.to_string(),
                             value,
                             move |_| {
-                                let mut guard = resource.0.safe_lock();
+                                let mut guard = resource.lock();
                                 let data = &mut **guard.state.data_mut()?;
                                 // SAFETY: This is safe, because the closure owns its own copy of
                                 // resource strong ref, and the entity getter is used only once per

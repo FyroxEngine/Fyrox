@@ -1143,17 +1143,22 @@ impl MaterialResourceExtension for MaterialResource {
 
     fn deep_copy(&self) -> MaterialResource {
         let material_state = self.header();
-        let kind = material_state.kind;
         match material_state.state {
-            ResourceState::Pending { ref path, .. } => {
-                MaterialResource::new_pending(path.clone(), kind)
+            ResourceState::Unloaded => self.resource_uuid().into(),
+            ResourceState::Pending { .. } => {
+                MaterialResource::new_pending(self.resource_uuid(), ResourceKind::External)
             }
-            ResourceState::LoadError { ref error, .. } => {
-                MaterialResource::new_load_error(kind, error.clone())
-            }
-            ResourceState::Ok { ref data, .. } => MaterialResource::new_ok(
+            ResourceState::LoadError {
+                ref error,
+                ref path,
+            } => MaterialResource::new_load_error(
+                ResourceKind::External,
+                path.clone(),
+                error.clone(),
+            ),
+            ResourceState::Ok { ref data } => MaterialResource::new_ok(
                 Uuid::new_v4(),
-                kind,
+                ResourceKind::Embedded,
                 (&**data as &dyn Any)
                     .downcast_ref::<Material>()
                     .unwrap()

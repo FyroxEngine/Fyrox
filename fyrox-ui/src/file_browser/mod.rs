@@ -27,7 +27,7 @@ use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
         parking_lot::Mutex, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, visitor::prelude::*,
+        uuid_provider, visitor::prelude::*, SafeLock,
     },
     define_constructor,
     file_browser::menu::ItemContextMenu,
@@ -450,7 +450,7 @@ impl Control for FileBrowser {
                     for entry in entries {
                         let path = entry.path();
                         let build = if let Some(filter) = self.filter.as_mut() {
-                            filter.0.borrow_mut().deref_mut().lock()(&path)
+                            filter.0.borrow_mut().deref_mut().safe_lock()(&path)
                         } else {
                             true
                         };
@@ -605,7 +605,7 @@ impl Control for FileBrowser {
         ui.node(widget)
             .user_data
             .as_ref()
-            .is_some_and(|data| data.lock().downcast_ref::<PathBuf>().is_some())
+            .is_some_and(|data| data.safe_lock().downcast_ref::<PathBuf>().is_some())
     }
 }
 
@@ -617,7 +617,7 @@ fn parent_path(path: &Path) -> PathBuf {
 
 fn filtered_out(filter: &mut Option<Filter>, path: &Path) -> bool {
     match filter.as_mut() {
-        Some(filter) => !filter.0.borrow_mut().deref_mut().lock()(path),
+        Some(filter) => !filter.0.borrow_mut().deref_mut().safe_lock()(path),
         None => false,
     }
 }
@@ -935,7 +935,7 @@ fn build_all(
                 #[allow(clippy::blocks_in_conditions)]
                 if filter
                     .as_mut()
-                    .is_none_or(|f| f.0.borrow_mut().deref_mut().lock()(&path))
+                    .is_none_or(|f| f.0.borrow_mut().deref_mut().safe_lock()(&path))
                 {
                     let is_part_of_final_path = next.as_ref().is_some_and(|next| *next == path);
 

@@ -243,6 +243,9 @@ pub struct SubGraph {
     pub parent: Handle<Node>,
 }
 
+/// Perform remapping for every node in the destination graph that is included
+/// in the given `old_new_mapping`. This uses reflection to update every node handle
+/// that is part of the data of each node.
 fn remap_handles(old_new_mapping: &NodeHandleMap<Node>, dest_graph: &mut Graph) {
     // Iterate over instantiated nodes and remap handles.
     for (_, &new_node_handle) in old_new_mapping.inner().iter() {
@@ -611,6 +614,20 @@ impl Graph {
     /// and when you fire from rocket launcher you just need to create a copy of such
     /// "prefab".
     ///
+    /// * `node_handle`: The handle of the node to copy.
+    /// * `dest_graph`: A mutable borrow of the node graph that will contain the newly created copy.
+    /// * `filter`: A function that takes a node handle and a borrow of a node and returns a bool.
+    ///   The is called with the handle and node of each child of `node_handle` to determine if
+    ///   that child should be recursively copied, and then the same filter is applied to each recursive step.
+    /// * `pre_processing_callback`: A function that takes a node handle and a mutable node.
+    ///   The handle belongs to the original node in this graph. The node is a copy of the original
+    ///   node, except that parent handle and child handles have been removed. This is a node
+    ///   that will be inserted into `dest_graph`.
+    /// * `post_processing_callback`: A function much like `pre_processing_callback` except that
+    ///   it is called after the new node and all its children have been inserted into the graph.
+    ///   The function takes (new handle, original handle, node) as parameters. The node has handles
+    ///   for its newly copied children, but no handle for its parent.
+    ///
     /// # Implementation notes
     ///
     /// Returns tuple where first element is handle to copy of node, and second element -
@@ -722,6 +739,21 @@ impl Graph {
         clone
     }
 
+    /// * `node_handle`: The handle of the node to copy.
+    /// * `dest_graph`: A mutable borrow of the node graph that will contain the newly created copy.
+    /// * `old_new_mapping`: A mutable hashmap of node handles which records which original nodes were copied to
+    ///   become which new nodes.
+    /// * `filter`: A function that takes a node handle and a borrow of a node and returns a bool.
+    ///   The is called with the handle and node of each child of `node_handle` to determine if
+    ///   that child should be recursively copied, and then the same filter is applied to each recursive step.
+    /// * `pre_processing_callback`: A function that takes a node handle and a mutable node.
+    ///   The handle belongs to the original node in this graph. The node is a copy of the original
+    ///   node, except that parent handle and child handles have been removed. This is a node
+    ///   that will be inserted into `dest_graph`.
+    /// * `post_processing_callback`: A function much like `pre_processing_callback` except that
+    ///   it is called after the new node and all its children have been inserted into the graph.
+    ///   The function takes (new handle, original handle, node) as parameters. The node has handles
+    ///   for its newly copied children, but no handle for its parent.
     fn copy_node_raw<F, Pre, Post>(
         &self,
         root_handle: Handle<Node>,
@@ -764,6 +796,8 @@ impl Graph {
         dest_copy_handle
     }
 
+    /// Reconnects every node to the graph by calling its [`Base::on_connected_to_graph`](crate::scene::base::Base::on_connected_to_graph)
+    /// method, giving the node its `self_handle` and the graph's `message_sender` and `script_message_sender`.
     fn restore_dynamic_node_data(&mut self) {
         for (handle, node) in self.pool.pair_iter_mut() {
             node.on_connected_to_graph(
@@ -774,8 +808,8 @@ impl Graph {
         }
     }
 
-    // Fix property flags for scenes made before inheritance system was fixed. By default, all inheritable properties
-    // must be marked as modified in nodes without any parent resource.
+    /// Fix property flags for scenes made before inheritance system was fixed. By default, all inheritable properties
+    /// must be marked as modified in nodes without any parent resource.
     pub(crate) fn mark_ancestor_nodes_as_modified(&mut self) {
         for node in self.linear_iter_mut() {
             if node.resource.is_none() {
@@ -784,11 +818,15 @@ impl Graph {
         }
     }
 
+    /// Synchronizes the state of the graph with external resources.
     pub(crate) fn resolve(&mut self) {
         Log::writeln(MessageKind::Information, "Resolving graph...");
 
         self.restore_dynamic_node_data();
         self.mark_ancestor_nodes_as_modified();
+        // Since the parent resources may have changed, iterate through every node and try to find
+        // the corresponding node in its resource, either by name or by handle depending on the resource's
+        // 'NodeMapping`. If a corresponding node cannot be found in the resource, then delete the node.
         self.restore_original_handles_and_inherit_properties(
             &[TypeId::of::<navmesh::Container>()],
             |resource_node, node| {
@@ -796,9 +834,17 @@ impl Graph {
             },
         );
         self.update_hierarchical_data();
+        // Create a list of (handle, resource) pairs where the handle points to a node that is the root of some instance
+        // of the resource within this graph. At the same time, modify each node so that its unmodified values match the
+        // corresponding values from within the instance's resource, so if the resource has changed the nodes will now
+        // reflect that change.
         let instances = self.restore_integrity(|model, model_data, handle, dest_graph| {
             ModelResource::instantiate_from(model, model_data, handle, dest_graph, &mut |_, _| {})
         });
+        // Iterate through the list of (handle, resource) pairs and use reflection to replace each handle within each instance
+        // with the handle that corresponds to the associated copy in this graph. This is necessary because after
+        // `restore_original_handles_and_inherit_properties` the handles will have been reset back to their original values
+        // which refer to nodes *within* the resource instead of nodes in this graph.
         self.remap_handles(&instances);
 
         self.apply_lightmap();

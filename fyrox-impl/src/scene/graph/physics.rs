@@ -36,7 +36,7 @@ use crate::{
         uuid_provider,
         variable::{InheritableVariable, VariableFlags},
         visitor::prelude::*,
-        BiDirHashMap,
+        BiDirHashMap, SafeLock,
     },
     scene::{
         self,
@@ -1228,7 +1228,7 @@ impl PhysicsWorld {
     /// Draws physics world. Very useful for debugging, it allows you to see where are
     /// rigid bodies, which colliders they have and so on.
     pub fn draw(&self, context: &mut SceneDrawingContext) {
-        self.debug_render_pipeline.lock().render(
+        self.debug_render_pipeline.safe_lock().render(
             context,
             &self.bodies,
             &self.colliders,
@@ -1456,7 +1456,7 @@ impl PhysicsWorld {
         // 1) `get_mut` is **very** expensive because it forces physics engine to recalculate contacts
         //    and a lot of other stuff, this is why we need `anything_changed` flag.
         if rigid_body_node.native.get() != RigidBodyHandle::invalid() {
-            let mut actions = rigid_body_node.actions.lock();
+            let mut actions = rigid_body_node.actions.safe_lock();
             if rigid_body_node.need_sync_model() || !actions.is_empty() {
                 if let Some(native) = self.bodies.get_mut(rigid_body_node.native.get()) {
                     // Sync native rigid body's properties with scene node's in case if they

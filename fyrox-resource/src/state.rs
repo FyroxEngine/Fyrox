@@ -20,16 +20,10 @@
 
 //! A module that handles resource states.
 
-use crate::untyped::ResourceKind;
-use crate::{
-    core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
-    manager::ResourceManager,
-    ResourceData, ResourceLoadError, TypedResourceData,
-};
+use crate::{core::reflect::prelude::*, ResourceData, ResourceLoadError, TypedResourceData};
 use fyrox_core::reflect::ReflectHandle;
-use fyrox_core::warn;
 use std::any::{Any, TypeId};
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use std::path::PathBuf;
 use std::{
     ops::{Deref, DerefMut},
@@ -277,18 +271,15 @@ impl Clone for ResourceDataWrapper {
 /// to get the UUID earlier: the UUID is stored in a metadata file which exists only if the resource
 /// is present. It is somewhat possible to get a UUID when a resource is failed to load, but not in
 /// 100% cases.
-#[derive(Debug, Clone, Reflect)]
+#[derive(Clone, Reflect)]
 pub enum ResourceState {
+    /// Resource is not loaded. In some situations, having a handle to a resource
+    /// can be sufficient even without the resource's data.
+    Unloaded,
     /// Resource is loading from external resource or in the queue to load.
     Pending {
         /// List of wakers to wake future when resource is fully loaded.
         wakers: WakersList,
-        /// A resource path (explicit or implicit). It is used at the loading stage to get a
-        /// real path in the file system. Since resource registry loading is async (especially
-        /// on WASM), it is impossible to fetch the uuid by path immediately. Instead, the resource
-        /// system offloads this task to resource loading tasks, which are able to wait until the
-        /// registry is fully loaded.
-        path: PathBuf,
     },
     /// An error has occurred during the load.
     LoadError {
@@ -300,19 +291,45 @@ pub enum ResourceState {
     },
     /// Actual resource data when it is fully loaded.
     Ok {
-        /// Unique id of the resource.
-        resource_uuid: Uuid,
         /// Actual data of the resource.
         data: ResourceDataWrapper,
     },
 }
 
+impl Debug for ResourceState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unloaded => write!(f, "Unloaded"),
+            Self::Pending { .. } => write!(f, "Pending"),
+            Self::LoadError { path, error } => write!(f, "LoadError {:?}: {:?}", error, path),
+            Self::Ok { .. } => write!(f, "Ok"),
+        }
+    }
+}
+
+impl Display for ResourceState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unloaded => write!(f, "Unloaded"),
+            Self::Pending { .. } => write!(f, "Pending"),
+            Self::LoadError { path, error } => {
+                if path.as_os_str().is_empty() {
+                    write!(f, "{} (for unknown path)", error)
+                } else {
+                    write!(f, "{} (for {:?})", error, path)
+                }
+            }
+            Self::Ok { .. } => write!(f, "Ok"),
+        }
+    }
+}
+
 impl Default for ResourceState {
     fn default() -> Self {
-        Self::LoadError {
-            path: Default::default(),
-            error: Default::default(),
-        }
+        ResourceState::new_load_error(
+            Default::default(),
+            LoadError::new("Default resource state of unknown type."),
+        )
     }
 }
 
@@ -325,78 +342,11 @@ impl Drop for ResourceState {
 }
 
 impl ResourceState {
-    pub(crate) fn visit(
-        &mut self,
-        kind: ResourceKind,
-        name: &str,
-        visitor: &mut Visitor,
-    ) -> VisitResult {
-        if visitor.is_reading() {
-            let mut type_uuid = Uuid::default();
-            type_uuid.visit("TypeUuid", visitor)?;
-
-            let mut resource_uuid = Uuid::default();
-            if resource_uuid.visit("ResourceUuid", visitor).is_err() {
-                warn!(
-                    "A resource of type {type_uuid} has no uuid! It looks like a resource in \
-              the old format; trying to read it..."
-                );
-            }
-
-            let resource_manager = visitor.blackboard.get::<ResourceManager>().expect(
-                "Resource data constructor container must be \
-                provided when serializing resources!",
-            );
-            let resource_manager_state = resource_manager.state();
-
-            if let Some(mut instance) = resource_manager_state
-                .constructors_container
-                .try_create(&type_uuid)
-            {
-                drop(resource_manager_state);
-
-                if kind == ResourceKind::Embedded {
-                    instance.visit(name, visitor)?;
-                }
-
-                *self = Self::Ok {
-                    resource_uuid,
-                    data: ResourceDataWrapper(instance),
-                };
-            } else {
-                return Err(VisitError::User(format!(
-                    "There's no constructor registered for type {type_uuid}!"
-                )));
-            }
-
-            Ok(())
-        } else if let Self::Ok {
-            resource_uuid,
-            data,
-        } = self
-        {
-            resource_uuid.visit("ResourceUuid", visitor)?;
-
-            let mut type_uuid = data.type_uuid();
-            type_uuid.visit("TypeUuid", visitor)?;
-
-            if kind == ResourceKind::Embedded {
-                data.visit(name, visitor)?;
-            }
-
-            Ok(())
-        } else {
-            // Do not save other variants, because they're needed only for runtime purposes.
-            Ok(())
-        }
-    }
-
     /// Creates new resource in pending state.
     #[inline]
-    pub fn new_pending(path: PathBuf) -> Self {
+    pub fn new_pending() -> Self {
         Self::Pending {
             wakers: Default::default(),
-            path,
         }
     }
 
@@ -408,29 +358,17 @@ impl ResourceState {
 
     /// Creates new resource in [`ResourceState::Ok`] state.
     #[inline]
-    pub fn new_ok<T: ResourceData>(resource_uuid: Uuid, data: T) -> Self {
+    pub fn new_ok<T: ResourceData>(data: T) -> Self {
         Self::Ok {
-            resource_uuid,
             data: ResourceDataWrapper(Box::new(data)),
         }
     }
 
     /// Creates a new resource in [`ResourceState::Ok`] state using arbitrary data.
     #[inline]
-    pub fn new_ok_untyped(resource_uuid: Uuid, data: Box<dyn ResourceData>) -> Self {
+    pub fn new_ok_untyped(data: Box<dyn ResourceData>) -> Self {
         Self::Ok {
-            resource_uuid,
             data: ResourceDataWrapper(data),
-        }
-    }
-
-    /// Tries to get a resource uuid. The uuid is available only for resource in [`ResourceState::Ok`]
-    /// state.
-    #[inline]
-    pub fn resource_uuid(&self) -> Option<Uuid> {
-        match self {
-            ResourceState::Ok { resource_uuid, .. } => Some(*resource_uuid),
-            _ => None,
         }
     }
 
@@ -439,11 +377,15 @@ impl ResourceState {
         matches!(self, ResourceState::Pending { .. })
     }
 
+    /// Checks whether the resource is loaded without errors.
+    pub fn is_ok(&self) -> bool {
+        matches!(self, ResourceState::Ok { .. })
+    }
+
     /// Switches the internal state of the resource to [`ResourceState::Pending`].
-    pub fn switch_to_pending_state(&mut self, path: PathBuf) {
+    pub fn switch_to_pending_state(&mut self) {
         *self = ResourceState::Pending {
             wakers: Default::default(),
-            path,
         };
     }
 
@@ -456,7 +398,7 @@ impl ResourceState {
         let wakers = if let ResourceState::Pending { ref mut wakers, .. } = self {
             std::mem::take(wakers)
         } else {
-            Default::default()
+            WakersList::default()
         };
 
         *self = state;
@@ -467,9 +409,8 @@ impl ResourceState {
     }
 
     /// Changes internal state to [`ResourceState::Ok`]
-    pub fn commit_ok<T: ResourceData>(&mut self, resource_uuid: Uuid, data: T) {
+    pub fn commit_ok<T: ResourceData>(&mut self, data: T) {
         self.commit(ResourceState::Ok {
-            resource_uuid,
             data: ResourceDataWrapper(Box::new(data)),
         })
     }
@@ -485,7 +426,9 @@ impl ResourceState {
     /// Tries to get the resource data. Will fail if the resource is not in [`ResourceState::Ok`].
     pub fn data_ref(&self) -> Option<&ResourceDataWrapper> {
         match self {
-            ResourceState::Pending { .. } | ResourceState::LoadError { .. } => None,
+            ResourceState::Pending { .. }
+            | ResourceState::LoadError { .. }
+            | ResourceState::Unloaded => None,
             ResourceState::Ok { data, .. } => Some(data),
         }
     }
@@ -493,7 +436,9 @@ impl ResourceState {
     /// Tries to get the resource data. Will fail if the resource is not in [`ResourceState::Ok`].
     pub fn data_mut(&mut self) -> Option<&mut ResourceDataWrapper> {
         match self {
-            ResourceState::Pending { .. } | ResourceState::LoadError { .. } => None,
+            ResourceState::Pending { .. }
+            | ResourceState::LoadError { .. }
+            | ResourceState::Unloaded => None,
             ResourceState::Ok { data, .. } => Some(data),
         }
     }
@@ -502,7 +447,9 @@ impl ResourceState {
     /// [`ResourceState::Ok`].
     pub fn data_ref_of_type<T: TypedResourceData>(&self) -> Option<&T> {
         match self {
-            ResourceState::Pending { .. } | ResourceState::LoadError { .. } => None,
+            ResourceState::Pending { .. }
+            | ResourceState::LoadError { .. }
+            | ResourceState::Unloaded => None,
             ResourceState::Ok { data, .. } => (&**data as &dyn Any).downcast_ref::<T>(),
         }
     }
@@ -511,7 +458,9 @@ impl ResourceState {
     /// [`ResourceState::Ok`].
     pub fn data_mut_of_type<T: TypedResourceData>(&mut self) -> Option<&mut T> {
         match self {
-            ResourceState::Pending { .. } | ResourceState::LoadError { .. } => None,
+            ResourceState::Pending { .. }
+            | ResourceState::LoadError { .. }
+            | ResourceState::Unloaded => None,
             ResourceState::Ok { data, .. } => (&mut **data as &mut dyn Any).downcast_mut::<T>(),
         }
     }
@@ -521,6 +470,8 @@ impl ResourceState {
 mod test {
     use fyrox_core::{
         reflect::{FieldRef, Reflect},
+        uuid::Uuid,
+        visitor::prelude::*,
         TypeUuidProvider,
     };
     use std::error::Error;
@@ -557,7 +508,7 @@ mod test {
 
     #[test]
     fn resource_state_new_pending() {
-        let state = ResourceState::new_pending(Default::default());
+        let state = ResourceState::new_pending();
 
         assert!(matches!(state, ResourceState::Pending { .. }));
         assert!(state.is_loading());
@@ -573,8 +524,7 @@ mod test {
 
     #[test]
     fn resource_state_new_ok() {
-        let uuid = Uuid::new_v4();
-        let state = ResourceState::new_ok(uuid, Stub {});
+        let state = ResourceState::new_ok(Stub {});
         assert!(matches!(state, ResourceState::Ok { .. }));
         assert!(!state.is_loading());
     }
@@ -582,48 +532,21 @@ mod test {
     #[test]
     fn resource_state_switch_to_pending_state() {
         // from Ok
-        let mut state = ResourceState::new_ok(Uuid::new_v4(), Stub {});
-        state.switch_to_pending_state(Default::default());
+        let mut state = ResourceState::new_ok(Stub {});
+        state.switch_to_pending_state();
 
         assert!(matches!(state, ResourceState::Pending { .. }));
 
         // from LoadError
         let mut state = ResourceState::new_load_error(Default::default(), Default::default());
-        state.switch_to_pending_state(Default::default());
+        state.switch_to_pending_state();
 
         assert!(matches!(state, ResourceState::Pending { .. }));
 
         // from Pending
-        let mut state = ResourceState::new_pending(Default::default());
-        state.switch_to_pending_state(Default::default());
+        let mut state = ResourceState::new_pending();
+        state.switch_to_pending_state();
 
         assert!(matches!(state, ResourceState::Pending { .. }));
-    }
-
-    #[test]
-    fn visit_for_resource_state() {
-        // Visit Pending
-        let mut state = ResourceState::new_pending(Default::default());
-        let mut visitor = Visitor::default();
-
-        assert!(state
-            .visit(ResourceKind::External, "name", &mut visitor)
-            .is_ok());
-
-        // Visit LoadError
-        let mut state = ResourceState::new_load_error(Default::default(), Default::default());
-        let mut visitor = Visitor::default();
-
-        assert!(state
-            .visit(ResourceKind::External, "name", &mut visitor)
-            .is_ok());
-
-        // Visit Ok
-        let mut state = ResourceState::new_ok(Uuid::new_v4(), Stub {});
-        let mut visitor = Visitor::default();
-
-        assert!(state
-            .visit(ResourceKind::External, "name", &mut visitor)
-            .is_ok());
     }
 }

@@ -299,12 +299,16 @@ use crate::{
         algebra::{Matrix3, Vector2},
         color::Color,
         math::Rect,
+        parking_lot::Mutex,
+        pool::Ticket,
         pool::{Handle, Pool},
         reflect::prelude::*,
         uuid::uuid,
+        uuid::Uuid,
+        uuid_provider,
         visitor::prelude::*,
+        SafeLock, TypeUuidProvider,
     },
-    core::{parking_lot::Mutex, pool::Ticket, uuid::Uuid, uuid_provider, TypeUuidProvider},
     draw::{CommandTexture, Draw, DrawingContext},
     font::FontResource,
     font::BUILT_IN_FONT,
@@ -411,7 +415,7 @@ pub struct RcUiNodeHandle(Arc<Mutex<RcUiNodeHandleInner>>);
 
 impl Debug for RcUiNodeHandle {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let handle = self.0.lock().handle;
+        let handle = self.0.safe_lock().handle;
 
         writeln!(
             f,
@@ -425,8 +429,8 @@ impl Debug for RcUiNodeHandle {
 
 impl PartialEq for RcUiNodeHandle {
     fn eq(&self, other: &Self) -> bool {
-        let a = self.0.lock().handle;
-        let b = other.0.lock().handle;
+        let a = self.0.safe_lock().handle;
+        let b = other.0.safe_lock().handle;
         a == b
     }
 }
@@ -444,7 +448,7 @@ impl RcUiNodeHandle {
     /// Returns the inner handle.
     #[inline]
     pub fn handle(&self) -> Handle<UiNode> {
-        self.0.lock().handle
+        self.0.safe_lock().handle
     }
 }
 

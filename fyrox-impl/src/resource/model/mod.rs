@@ -353,7 +353,8 @@ pub type ModelResource = Resource<Model>;
 
 /// Extension trait for model resources.
 pub trait ModelResourceExtension: Sized {
-    /// Tries to instantiate model from given resource.
+    /// Tries to instantiate model from given resource. This is for internal use only and does not
+    /// set `is_resource_instance_root`.
     fn instantiate_from<Pre>(
         model: ModelResource,
         model_data: &Model,
@@ -465,6 +466,18 @@ impl AnimationSource for UserInterface {
 }
 
 impl ModelResourceExtension for ModelResource {
+    /// Copy the given model into the given graph.
+    /// * `model`: The resource handle of the model, which put into the created nodes as their
+    ///   [`Base::resource`](crate::scene::base::Base::resource) to indicate which model
+    ///   the node was instantiated from.
+    /// * `model_data`: A borrow of the data contained in `model`.
+    /// * `handle`: The handle of the node within `model` that should be instantiated, typically
+    ///   the root of the model.
+    /// * `dest_graph`: A mutable borrow of the node graph that will contain the newly created copy.
+    /// * `pre_processing_callback`: A function that takes a node handle and a mutable node.
+    ///   The handle belongs to the original node in the model. The node is a copy of the original
+    ///   node, except that parent handle and child handles have been removed. This is a node
+    ///   that will be inserted into `dest_graph`.
     fn instantiate_from<Pre>(
         model: ModelResource,
         model_data: &Model,
@@ -495,7 +508,6 @@ impl ModelResourceExtension for ModelResource {
             Log::err(format!(
                 "Instantiating a model from a resource that is not loaded: {self:?}"
             ));
-            panic!();
         }
         InstantiationContext {
             model: self,
@@ -748,7 +760,7 @@ impl Display for ModelLoadError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ModelLoadError::Visit(v) => {
-                write!(f, "An error occurred while reading a data source {v:?}")
+                write!(f, "An error occurred while reading a data source: {v}")
             }
             ModelLoadError::NotSupported(v) => {
                 write!(f, "Model format is not supported: {v}")

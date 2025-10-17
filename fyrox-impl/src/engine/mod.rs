@@ -40,7 +40,6 @@ use crate::{
         manager::{ResourceManager, ResourceWaitContext},
         state::ResourceState,
         untyped::{ResourceKind, UntypedResource},
-        Resource,
     },
     core::{
         algebra::Vector2,
@@ -51,6 +50,7 @@ use crate::{
         reflect::Reflect,
         task::TaskPool,
         variable::try_inherit_properties,
+        SafeLock,
     },
     engine::{error::EngineError, task::TaskPoolHandler},
     event::Event,
@@ -360,6 +360,7 @@ struct LoadingScene {
 }
 
 struct SceneLoadingResult {
+    uuid: Uuid,
     path: PathBuf,
     result: Result<(Scene, Vec<u8>), VisitError>,
 }
@@ -399,6 +400,7 @@ impl AsyncSceneLoader {
             let sender = self.sender.clone();
             let serialization_context = self.serialization_context.clone();
             let resource_manager = self.resource_manager.clone();
+            let uuid = resource_manager.find::<Model>(&path).resource_uuid();
 
             // Aquire the resource IO from the resource manager
             let io = resource_manager.resource_io();
@@ -415,12 +417,14 @@ impl AsyncSceneLoader {
                     Ok((loader, data)) => {
                         let scene = loader.finish().await;
                         Log::verify(sender.send(SceneLoadingResult {
+                            uuid,
                             path,
                             result: Ok((scene, data)),
                         }));
                     }
                     Err(e) => {
                         Log::verify(sender.send(SceneLoadingResult {
+                            uuid,
                             path,
                             result: Err(e),
                         }));
@@ -1059,7 +1063,7 @@ impl ResourceGraphVertex {
 
     pub fn resolve(&self) {
         Log::info(format!(
-            "Resolving {:?} resource from dependency graph...",
+            "Resolving {} resource from dependency graph...",
             self.resource.resource_uuid()
         ));
 
@@ -1351,7 +1355,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.constructors_container.add::<AnimationTracksData>();
     state.constructors_container.add::<Style>();
 
-    let mut loaders = state.loaders.lock();
+    let mut loaders = state.loaders.safe_lock();
     let gltf_loader = super::resource::gltf::GltfLoader {
         resource_manager: resource_manager.clone(),
         default_import_options: Default::default(),
@@ -1482,8 +1486,6 @@ impl Engine {
 
         let user_interfaces =
             UiContainer::new_with_ui(UserInterface::new(Vector2::new(100.0, 100.0)));
-
-        resource_manager.update_or_load_registry();
 
         Ok(Self {
             graphics_context: GraphicsContext::Uninitialized(graphics_context_params),
@@ -1745,31 +1747,26 @@ impl Engine {
                 match loading_result.result {
                     Ok((mut scene, data)) => {
                         if request.options.derived {
+                            let model = self
+                                .resource_manager
+                                .find_uuid::<Model>(loading_result.uuid);
                             // Create a resource, that will point to the scene we've loaded the
                             // scene from and force scene nodes to inherit data from them.
-                            let model = Resource::new_ok(
-                                Uuid::new_v4(),
-                                ResourceKind::External,
-                                Model {
-                                    mapping: NodeMapping::UseHandles,
-                                    // We have to create a full copy of the scene, because otherwise
-                                    // some methods (`Base::root_resource` in particular) won't work
-                                    // correctly.
-                                    scene: scene
-                                        .clone_ex(
-                                            scene.graph.get_root(),
-                                            &mut |_, _| true,
-                                            &mut |_, _| {},
-                                            &mut |_, _, _| {},
-                                        )
-                                        .0,
-                                },
-                            );
-
-                            Log::verify(
-                                self.resource_manager
-                                    .register(model.clone().into_untyped(), request.path.clone()),
-                            );
+                            let data = Model {
+                                mapping: NodeMapping::UseHandles,
+                                // We have to create a full copy of the scene, because otherwise
+                                // some methods (`Base::root_resource` in particular) won't work
+                                // correctly.
+                                scene: scene
+                                    .clone_ex(
+                                        scene.graph.get_root(),
+                                        &mut |_, _| true,
+                                        &mut |_, _| {},
+                                        &mut |_, _, _| {},
+                                    )
+                                    .0,
+                            };
+                            model.header().state.commit_ok(data);
 
                             for (handle, node) in scene.graph.pair_iter_mut() {
                                 node.set_inheritance_data(handle, model.clone());
@@ -1835,9 +1832,8 @@ impl Engine {
                         // Notify plugins about a scene, that is failed to load.
                         if self.plugins_enabled {
                             Log::err(format!(
-                                "Unable to load scene {}. Reason: {:?}",
-                                loading_result.path.display(),
-                                error
+                                "Unable to load scene {:?}. Reason: {}",
+                                loading_result.path, error
                             ));
 
                             for plugin in self.plugins.iter_mut() {
@@ -2417,7 +2413,7 @@ impl Engine {
             if let ResourceEvent::Reloaded(resource) = event {
                 if let Some(model) = resource.try_cast::<Model>() {
                     Log::info(format!(
-                        "A model resource {:?} was reloaded, propagating changes...",
+                        "A model resource {} was reloaded, propagating changes...",
                         model.resource_uuid()
                     ));
 
@@ -2545,10 +2541,6 @@ impl Engine {
             widget_constructors,
             resource_manager,
         });
-
-        // New plugins may add custom resources and we must re-scan the data folder to include
-        // such resources in the registry.
-        resource_manager.update_or_load_registry();
     }
 
     fn register_plugin(&self, plugin: &dyn Plugin) {
@@ -2717,7 +2709,7 @@ impl Engine {
             let mut resources_to_reload = FxHashSet::default();
             let mut state = self.resource_manager.state();
             for resource in state.resources().iter() {
-                let data = resource.0.lock();
+                let data = resource.lock();
                 if let ResourceState::Ok { ref data, .. } = data.state {
                     data.as_reflect(&mut |reflect| {
                         if reflect.assembly_name() == plugin_assembly_name {
@@ -2784,6 +2776,10 @@ impl Engine {
                 plugin,
             );
 
+            // New plugins may add custom resources and we must re-scan the data folder to include
+            // such resources in the registry.
+            self.resource_manager.update_or_load_registry();
+
             let mut visitor = hotreload::make_reading_visitor(
                 &binary_blob,
                 &self.serialization_context,
@@ -2801,7 +2797,7 @@ impl Engine {
         // Deserialize prefab scene content.
         for (model, scene_state) in prefab_scenes {
             Log::info(format!(
-                "Deserializing {:?} prefab content...",
+                "Deserializing {} prefab content...",
                 model.resource_uuid()
             ));
 

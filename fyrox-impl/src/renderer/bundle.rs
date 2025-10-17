@@ -567,10 +567,10 @@ impl RenderDataBundle {
                 {
                     err_once!(
                         self.data.key() as usize,
-                        "There's no render pass {} in {} shader! \
+                        "There's no render pass {} in {:?} shader! \
                         If it is not needed, add it to disabled passes.",
                         render_context.render_pass_name,
-                        shader_state.kind()
+                        shader_data.definition.name,
                     );
                 }
             }

@@ -65,6 +65,7 @@ use crate::{
         type_traits::prelude::*,
         variable::InheritableVariable,
         visitor::{error::VisitError, Visit, VisitResult, Visitor},
+        SafeLock,
     },
     engine::SerializationContext,
     graph::NodeHandleMap,
@@ -82,7 +83,6 @@ use crate::{
     utils::navmesh::Navmesh,
 };
 use fxhash::FxHashSet;
-use fyrox_core::SafeLock;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
@@ -417,8 +417,8 @@ impl SceneLoader {
                 .filter(|res| {
                     let uuid = res.resource_uuid();
                     let state = self.resource_manager.state();
-                    let registry = state.resource_registry.lock();
-                    uuid.and_then(|uuid| registry.uuid_to_path(uuid)) == Some(&path)
+                    let registry = state.resource_registry.safe_lock();
+                    registry.uuid_to_path(uuid) == Some(&path)
                 })
                 .cloned()
                 .collect::<Vec<_>>();
@@ -577,7 +577,6 @@ impl Scene {
         let mut region = visitor.enter_region(region_name)?;
 
         self.graph.visit("Graph", &mut region)?;
-
         self.enabled.visit("Enabled", &mut region)?;
         let _ = self
             .rendering_options

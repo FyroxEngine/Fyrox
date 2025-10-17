@@ -162,6 +162,9 @@ impl GenericBuffer {
     /// Returns exact time length of the buffer.
     #[inline]
     pub fn duration(&self) -> Duration {
+        if self.sample_rate == 0 {
+            return Duration::ZERO;
+        }
         Duration::from_nanos(
             (self.channel_duration_in_samples as u64 * 1_000_000_000u64) / self.sample_rate as u64,
         )

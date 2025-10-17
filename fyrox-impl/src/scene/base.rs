@@ -486,9 +486,9 @@ pub struct Base {
     #[reflect(setter = "set_frustum_culling")]
     frustum_culling: InheritableVariable<bool>,
 
-    // When `true` it means that this node is instance of `resource`.
-    // More precisely - this node is root of whole descendant nodes
-    // hierarchy which was instantiated from resource.
+    /// When `true` it means that this node is instance of `resource`.
+    /// More precisely - this node is root of whole descendant nodes
+    /// hierarchy which was instantiated from resource.
     #[reflect(read_only)]
     pub(crate) is_resource_instance_root: bool,
 
