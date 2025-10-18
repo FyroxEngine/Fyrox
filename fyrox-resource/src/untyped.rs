@@ -37,6 +37,7 @@ use fyrox_core::io::FileError;
 use fyrox_core::log::Log;
 use fyrox_core::parking_lot::MutexGuard;
 use fyrox_core::SafeLock;
+use serde::{Deserialize, Serialize};
 use std::fmt::Write;
 use std::{
     error::Error,
@@ -451,9 +452,23 @@ impl Visit for ResourceHeader {
 /// that the resource is in default state. This is a trade-off to prevent wrapping internals into
 /// `Option`, that in some cases could lead to convoluted code with lots of `unwrap`s and state
 /// assumptions.
-#[derive(Default, Clone, Reflect, TypeUuidProvider)]
+#[derive(Default, Clone, Reflect, TypeUuidProvider, Deserialize)]
+#[serde(from = "Uuid")]
 #[type_uuid(id = "21613484-7145-4d1c-87d8-62fa767560ab")]
 pub struct UntypedResource(pub Arc<Mutex<ResourceHeader>>);
+
+impl Serialize for UntypedResource {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let header = self.lock();
+        if header.kind == ResourceKind::Embedded {
+            panic!("Embedded resources cannot be serialized.");
+        }
+        header.uuid.serialize(serializer)
+    }
+}
 
 impl Visit for UntypedResource {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
