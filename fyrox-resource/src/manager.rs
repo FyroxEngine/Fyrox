@@ -1297,7 +1297,6 @@ impl ResourceManagerState {
                 true
             }
         });
-        self.process_filesystem_events();
     }
 
     fn add_resource_and_notify(&mut self, resource: UntypedResource) {
