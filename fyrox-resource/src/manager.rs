@@ -859,6 +859,43 @@ impl ResourceManager {
             .try_move_folder(src_dir, dest_dir, overwrite_existing)
             .await
     }
+
+    /// Tries to resave all the native resources registered in the resource registry. This method could
+    /// be useful for assets migration to a newer version.
+    ///
+    /// # Platform-specific
+    ///
+    /// Does nothing on WebAssembly.
+    pub async fn resave_native_resources(&self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let paths = self.state().collect_native_resources();
+            let resources = join_all(paths.iter().map(|path| self.request_untyped(path))).await;
+            for (resource, path) in resources.into_iter().zip(paths) {
+                match resource {
+                    Ok(resource) => match resource.save(&path) {
+                        Ok(_) => {
+                            info!("The {} resource was resaved successfully!", path.display());
+                        }
+                        Err(err) => {
+                            err!(
+                                "Unable to resave the {} resource. Reason: {:?}",
+                                path.display(),
+                                err
+                            )
+                        }
+                    },
+                    Err(err) => {
+                        err!(
+                            "Unable to resave the {} resource. Reason: {:?}",
+                            path.display(),
+                            err
+                        );
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl ResourceManagerState {
@@ -920,6 +957,23 @@ impl ResourceManagerState {
             };
             registry_status.mark_as_loaded();
         });
+    }
+
+    /// Tries to find all the native resources registered in the resource registry, returns a collection
+    /// of paths to such resources.
+    pub fn collect_native_resources(&self) -> Vec<PathBuf> {
+        let loaders = self.loaders.safe_lock();
+        let registry = self.resource_registry.safe_lock();
+        let mut paths = Vec::new();
+        for entry in registry.inner().values() {
+            let ext = some_or_continue!(entry.extension().and_then(|ext| ext.to_str()));
+            for loader in loaders.iter() {
+                if loader.is_native_extension(ext) {
+                    paths.push(entry.clone());
+                }
+            }
+        }
+        paths
     }
 
     /// Returns the task pool used by this resource manager.
