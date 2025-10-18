@@ -171,6 +171,7 @@ pub struct AssetBrowser {
     pub preview_generators: AssetPreviewGeneratorsCollection,
     inspector_addon: Option<InspectorAddon>,
     resource_event_receiver: Receiver<ResourceEvent>,
+    resave_resources: Handle<UiNode>,
 }
 
 fn is_path_in_registry(path: &Path, resource_manager: &ResourceManager) -> bool {
@@ -292,6 +293,17 @@ impl AssetBrowser {
         .with_text("+")
         .build(ctx);
 
+        let resave_resources = make_image_button_with_tooltip(
+            ctx,
+            18.0,
+            18.0,
+            load_image!("../../resources/resave.png"),
+            "Resave All Native Resources\n\
+            Use for assets migration from the previous versions of the engine",
+            None,
+        );
+        ctx[resave_resources].set_column(2);
+
         let refresh = make_image_button_with_tooltip(
             ctx,
             18.0,
@@ -305,7 +317,7 @@ impl AssetBrowser {
         let search_bar = SearchBarBuilder::new(
             WidgetBuilder::new()
                 .with_tab_index(Some(2))
-                .on_column(2)
+                .on_column(3)
                 .with_height(22.0)
                 .with_margin(Thickness::uniform(1.0)),
         )
@@ -315,8 +327,10 @@ impl AssetBrowser {
             WidgetBuilder::new()
                 .with_child(add_resource)
                 .with_child(refresh)
+                .with_child(resave_resources)
                 .with_child(search_bar),
         )
+        .add_column(Column::auto())
         .add_column(Column::auto())
         .add_column(Column::auto())
         .add_column(Column::stretch())
@@ -440,6 +454,7 @@ impl AssetBrowser {
             watcher,
             inspector_addon: None,
             resource_event_receiver: receiver,
+            resave_resources,
         }
     }
 
@@ -885,6 +900,8 @@ impl AssetBrowser {
                 self.resource_creator = Some(resource_creator);
             } else if message.destination() == self.refresh {
                 self.schedule_refresh();
+            } else if message.destination() == self.resave_resources {
+                block_on(engine.resource_manager.resave_native_resources());
             }
 
             if let Some(inspector_buttons) = self.inspector_addon.as_ref() {
