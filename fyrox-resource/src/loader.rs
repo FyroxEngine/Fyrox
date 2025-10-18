@@ -55,6 +55,13 @@ pub trait ResourceLoader: BaseResourceLoader {
     /// to pick the correct resource loader when the user requests a resource.
     fn extensions(&self) -> &[&str];
 
+    /// Returns `true` if the given extension corresponds to a resource in the native file format.
+    /// The default implementation returns `false`, which assumes that the extension corresponds
+    /// to a foreign file format.
+    fn is_native_extension(&self, #[allow(unused_variables)] ext: &str) -> bool {
+        false
+    }
+
     /// Checks if the given extension is supported by this loader. Comparison is case-insensitive.
     fn supports_extension(&self, ext: &str) -> bool {
         self.extensions()

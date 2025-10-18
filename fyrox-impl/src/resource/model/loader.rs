@@ -58,6 +58,10 @@ impl ResourceLoader for ModelLoader {
         &["rgs", "fbx"]
     }
 
+    fn is_native_extension(&self, ext: &str) -> bool {
+        fyrox_core::cmp_strings_case_insensitive("rgs", ext)
+    }
+
     fn data_type_uuid(&self) -> Uuid {
         Model::type_uuid()
     }
