@@ -39,6 +39,7 @@ use crate::{
 };
 use fxhash::FxHashSet;
 pub use fyrox_core as core;
+use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
     error::Error,
@@ -197,7 +198,12 @@ where
 /// ## Default State
 ///
 /// Default state of the resource will be [`ResourceState::Ok`] with `T::default`.
-#[derive(Reflect)]
+#[derive(Reflect, Serialize, Deserialize)]
+#[serde(
+    bound = "T: TypedResourceData",
+    from = "UntypedResource",
+    into = "UntypedResource"
+)]
 pub struct Resource<T: Debug> {
     untyped: UntypedResource,
     #[reflect(hidden)]
@@ -448,10 +454,12 @@ where
 {
     #[inline]
     fn from(untyped: UntypedResource) -> Self {
-        assert_eq!(
-            untyped.type_uuid(),
-            Some(<T as TypeUuidProvider>::type_uuid())
-        );
+        if let Some(type_uuid) = untyped.type_uuid() {
+            let expected = <T as TypeUuidProvider>::type_uuid();
+            if type_uuid != expected {
+                panic!("Resource type mismatch. Expected: {expected}. Found: {type_uuid}");
+            }
+        }
         Self {
             untyped,
             phantom: Default::default(),
@@ -832,6 +840,24 @@ mod tests {
                 .save(&make_file_path(root, i))
                 .unwrap();
         }
+    }
+
+    #[test]
+    fn test_serialize() {
+        let uuid = uuid!("6d1aadb5-42e1-485b-910b-fa4d81b61855");
+        let typed = Resource::<MyData>::from(uuid);
+        let untyped = UntypedResource::from(uuid);
+        let s = ron::ser::to_string(&typed).unwrap();
+        assert_eq!(&ron::ser::to_string(&uuid).unwrap(), &s);
+        assert_eq!(&ron::ser::to_string(&untyped).unwrap(), &s);
+        let output_uuid = ron::de::from_str::<Uuid>(&s).unwrap();
+        assert_eq!(output_uuid, uuid);
+        let untyped = ron::de::from_str::<UntypedResource>(&s).unwrap();
+        assert_eq!(untyped.resource_uuid(), uuid);
+        assert_eq!(untyped.kind(), ResourceKind::External);
+        let output = ron::de::from_str::<Resource<MyData>>(&s).unwrap();
+        assert_eq!(output.resource_uuid(), uuid);
+        assert_eq!(output.kind(), ResourceKind::External);
     }
 
     #[test]
