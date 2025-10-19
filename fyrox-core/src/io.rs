@@ -48,6 +48,18 @@ impl From<std::io::Error> for FileError {
     }
 }
 
+impl From<&str> for FileError {
+    fn from(value: &str) -> Self {
+        Self::Custom(value.to_string())
+    }
+}
+
+impl From<String> for FileError {
+    fn from(value: String) -> Self {
+        Self::Custom(value)
+    }
+}
+
 #[cfg(target_os = "android")]
 pub static ANDROID_APP: once_cell::sync::OnceCell<android_activity::AndroidApp> =
     once_cell::sync::OnceCell::new();

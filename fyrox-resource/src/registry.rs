@@ -23,8 +23,7 @@
 
 use crate::{
     core::{
-        append_extension, err, info, io::FileError, ok_or_return, parking_lot::Mutex,
-        replace_slashes, warn, Uuid,
+        append_extension, err, info, io::FileError, ok_or_return, parking_lot::Mutex, warn, Uuid,
     },
     io::ResourceIo,
     loader::ResourceLoadersContainer,
@@ -37,7 +36,7 @@ use ron::ser::PrettyConfig;
 use std::{
     collections::BTreeMap,
     future::Future,
-    path::{Component, Path, PathBuf},
+    path::{Path, PathBuf},
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
@@ -144,6 +143,7 @@ impl ResourceRegistryStatusFlag {
     /// Marks the registry as loaded.
     pub fn mark_as_loaded(&self) {
         self.mark_as(ResourceRegistryStatus::Loaded);
+        info!("Resource registry finished loading.");
     }
 
     /// Marks the registry as unknown, due to an error.
@@ -172,47 +172,6 @@ impl Future for ResourceRegistryStatusFlag {
                 Poll::Pending
             }
         }
-    }
-}
-
-async fn make_relative_path_async<P: AsRef<Path>>(
-    path: P,
-    io: &dyn ResourceIo,
-) -> Result<PathBuf, FileError> {
-    let path = path.as_ref();
-    // Canonicalization requires the full path to exist, so remove the file name before
-    // calling canonicalize.
-    let file_name = path.file_name().ok_or(std::io::Error::new(
-        std::io::ErrorKind::InvalidData,
-        format!("Invalid path: {}", path.display()),
-    ))?;
-    let dir = path.parent();
-    let dir = if let Some(dir) = dir {
-        if dir.as_os_str().is_empty() {
-            Path::new(".")
-        } else {
-            dir
-        }
-    } else {
-        Path::new(".")
-    };
-    let canon_path = io
-        .canonicalize_path(dir)
-        .await
-        .map_err(|err| {
-            FileError::Custom(format!(
-                "Unable to canonicalize '{}'. Reason: {err:?}",
-                dir.display()
-            ))
-        })?
-        .join(file_name);
-    let current_dir = io.canonicalize_path(&std::env::current_dir()?).await?;
-    match canon_path.strip_prefix(current_dir) {
-        Ok(relative_path) => Ok(replace_slashes(relative_path)),
-        Err(err) => Err(FileError::Custom(format!(
-            "unable to strip prefix from '{}'! Reason: {err}",
-            canon_path.display()
-        ))),
     }
 }
 
@@ -402,36 +361,15 @@ impl ResourceRegistry {
         self.status.clone()
     }
 
-    /// Normalizes the path by resolving all `.` and `..` and removing any prefixes. Also replaces
-    /// `\\` slashes to cross-platform `/` slashes.
-    pub fn normalize_path(path: impl AsRef<Path>) -> PathBuf {
-        let mut components = path.as_ref().components().peekable();
-        let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
-            components.next();
-            PathBuf::from(c.as_os_str())
-        } else {
-            PathBuf::new()
-        };
-
-        for component in components {
-            match component {
-                Component::Prefix(..) => unreachable!(),
-                Component::RootDir => {
-                    ret.push(component.as_os_str());
-                }
-                Component::CurDir => {}
-                Component::ParentDir => {
-                    ret.pop();
-                }
-                Component::Normal(c) => {
-                    ret.push(c);
-                }
-            }
-        }
-
-        // The resource registry uses normalized paths with `/` slashes, and this step is needed
-        // mostly on Windows which uses `\` slashes.
-        replace_slashes(ret)
+    /// Normalizes the path by resolving all `.` and `..` and removing any prefixes.
+    /// Absolute paths are converted to relative paths by removing the project root prefix, if possible.
+    /// Also replaces `\\` slashes to cross-platform `/` slashes.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given path is invalid, such as if it includes a directory that does not exist.
+    pub fn normalize_path(&self, path: impl AsRef<Path>) -> PathBuf {
+        self.io.canonicalize_path(path.as_ref()).unwrap()
     }
 
     /// Returns a reference to the actual container of the resource entries.
@@ -456,16 +394,18 @@ impl ResourceRegistry {
 
     /// Asynchronously saves the registry.
     pub async fn save(&self) {
-        match self.paths.save(&self.path, &*self.io).await {
-            Err(error) => {
-                err!(
-                    "Unable to write the resource registry at the {:?} path! Reason: {:?}",
-                    self.path,
-                    error
-                )
-            }
-            Ok(_) => {
-                info!("The registry was successfully saved to {:?}!", self.path)
+        if self.io.can_write() {
+            match self.paths.save(&self.path, &*self.io).await {
+                Err(error) => {
+                    err!(
+                        "Unable to write the resource registry at the {:?} path! Reason: {:?}",
+                        self.path,
+                        error
+                    )
+                }
+                Ok(_) => {
+                    info!("The registry was successfully saved to {:?}!", self.path)
+                }
             }
         }
     }
@@ -473,7 +413,7 @@ impl ResourceRegistry {
     /// Same as [`Self::save`], but synchronous.
     pub fn save_sync(&self) {
         #[cfg(not(target_arch = "wasm32"))]
-        {
+        if self.io.can_write() {
             match self.paths.save_sync(&self.path, &*self.io) {
                 Err(error) => {
                     err!(
@@ -554,7 +494,7 @@ impl ResourceRegistry {
         .collect::<Vec<_>>();
 
         while let Some(fs_path) = paths_to_visit.pop() {
-            let path = match make_relative_path_async(&fs_path, &*resource_io).await {
+            let path = match resource_io.canonicalize_path(&fs_path) {
                 Ok(path) => path,
                 Err(err) => {
                     warn!(

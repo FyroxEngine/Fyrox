@@ -311,6 +311,9 @@ pub fn hash_combine(lhs: u64, rhs: u64) -> u64 {
 /// The last component of the path is permitted to not exist, so long as the rest of the path exists.
 pub fn make_relative_path<P: AsRef<Path>>(path: P) -> Result<PathBuf, std::io::Error> {
     let path = path.as_ref();
+    if path.as_os_str() == "." {
+        return Ok(path.to_path_buf());
+    }
     // Canonicalization requires the full path to exist, so remove the file name before
     // calling canonicalize.
     let file_name = path.file_name().ok_or(std::io::Error::new(

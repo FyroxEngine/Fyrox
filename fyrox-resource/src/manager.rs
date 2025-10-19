@@ -163,6 +163,7 @@ impl Display for ResourceRegistrationError {
 }
 
 /// All the required and validated data that is needed to move a resource from the path A to the path B.
+#[derive(Debug)]
 pub struct ResourceMoveContext {
     relative_src_path: PathBuf,
     relative_dest_path: PathBuf,
@@ -391,6 +392,19 @@ impl ResourceManager {
     /// to acquire the state lock for the given time and if it fails, returns `None`.
     pub fn try_get_state(&self, timeout: Duration) -> Option<MutexGuard<'_, ResourceManagerState>> {
         self.state.try_lock_for(timeout)
+    }
+
+    /// The resource manager keeps a registry of available resources, and this registry must be loaded
+    /// before any resources may be requested. This async method returns once the registry loading is complete
+    /// and it returns true if the loading was successful. It returns false if loading failed.
+    pub async fn registry_is_loaded(&self) -> bool {
+        let flag = self
+            .state()
+            .resource_registry
+            .safe_lock()
+            .status_flag()
+            .clone();
+        flag.await == ResourceRegistryStatus::Loaded
     }
 
     /// Returns the ResourceIo used by this resource manager
@@ -931,32 +945,41 @@ impl ResourceManagerState {
 
         // Try to update the registry first.
         #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
-        fyrox_core::futures::executor::block_on(async move {
-            let new_data =
-                ResourceRegistry::scan(resource_io.clone(), task_loaders, &path, excluded_folders)
-                    .await;
-            let mut registry_lock = resource_registry.safe_lock();
-            registry_lock.modify().set_container(new_data);
-            registry_status.mark_as_loaded();
-        });
+        if resource_io.can_read_directories() && resource_io.can_write() {
+            fyrox_core::futures::executor::block_on(async move {
+                let new_data = ResourceRegistry::scan(
+                    resource_io.clone(),
+                    task_loaders,
+                    &path,
+                    excluded_folders,
+                )
+                .await;
+                let mut registry_lock = resource_registry.safe_lock();
+                registry_lock.modify().set_container(new_data);
+                registry_status.mark_as_loaded();
+            });
+        }
 
         #[cfg(any(target_arch = "wasm32", target_os = "android"))]
-        self.task_pool.spawn_task(async move {
-            use crate::registry::RegistryContainerExt;
-            // Then load the registry.
-            info!("Trying to load or update the registry at {path:?}...");
-            match crate::registry::RegistryContainer::load_from_file(&path, &*resource_io).await {
-                Ok(registry) => {
-                    let mut registry_lock = resource_registry.safe_lock();
-                    registry_lock.modify().set_container(registry);
-                    info!("Resource registry was loaded from {path:?} successfully!");
-                }
-                Err(error) => {
-                    err!("Unable to load resource registry! Reason: {error}.");
-                }
-            };
-            registry_status.mark_as_loaded();
-        });
+        if !resource_io.can_read_directories() || !resource_io.can_write() {
+            self.task_pool.spawn_task(async move {
+                use crate::registry::RegistryContainerExt;
+                // Then load the registry.
+                info!("Trying to load or update the registry at {path:?}...");
+                match crate::registry::RegistryContainer::load_from_file(&path, &*resource_io).await
+                {
+                    Ok(registry) => {
+                        let mut registry_lock = resource_registry.safe_lock();
+                        registry_lock.modify().set_container(registry);
+                        info!("Resource registry was loaded from {path:?} successfully!");
+                    }
+                    Err(error) => {
+                        err!("Unable to load resource registry! Reason: {error}.");
+                    }
+                };
+                registry_status.mark_as_loaded();
+            });
+        }
     }
 
     /// Tries to find all the native resources registered in the resource registry, returns a collection
@@ -1402,15 +1425,21 @@ impl ResourceManagerState {
     /// Searches the resource manager and the registry to find a resource with the given path,
     /// including built-in resources. If no resource is found, a new UUID is generated and the
     /// path is added to the registry and an unloaded resource is returned.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the path is invalid, such as if it includes a directory that does not exist
+    /// or contains invalid characters.
     pub fn find<P>(&mut self, path: P) -> UntypedResource
     where
         P: AsRef<Path>,
     {
-        if let Some(built_in_resource) = self.built_in_resources.get(path.as_ref()) {
+        let path = path.as_ref();
+        if let Some(built_in_resource) = self.built_in_resources.get(path) {
             return built_in_resource.resource.clone();
         }
 
-        let path = ResourceRegistry::normalize_path(path);
+        let path = self.resource_io.canonicalize_path(path).unwrap();
 
         if let Some(existing) = self.find_by_resource_path(&path) {
             existing.clone()
@@ -1431,15 +1460,21 @@ impl ResourceManagerState {
     }
 
     /// Tries to load the resource at the given path.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the path is invalid, such as if it includes a directory that does not exist
+    /// or contains invalid characters.
     pub fn request<P>(&mut self, path: P) -> UntypedResource
     where
         P: AsRef<Path>,
     {
-        if let Some(built_in_resource) = self.built_in_resources.get(path.as_ref()) {
+        let path = path.as_ref();
+        if let Some(built_in_resource) = self.built_in_resources.get(path) {
             return built_in_resource.resource.clone();
         }
 
-        let path = ResourceRegistry::normalize_path(path);
+        let path = self.resource_io.canonicalize_path(path).unwrap();
 
         self.find_or_load(path)
     }
@@ -1500,6 +1535,7 @@ impl ResourceManagerState {
         self.task_pool.spawn_task(async move {
             // Wait until the registry is fully loaded.
             let registry_status = registry_status.await;
+
             if registry_status == ResourceRegistryStatus::Unknown {
                 resource.commit_error(
                     PathBuf::default(),
@@ -1518,7 +1554,6 @@ impl ResourceManagerState {
                         in the registry!",
                     resource.resource_uuid(),
                 );
-
                 resource.commit_error(PathBuf::default(), error);
                 return;
             };
@@ -1676,6 +1711,11 @@ impl ResourceManagerState {
     /// to the file, otherwise the resource's path should already have been discovered by
     /// [`ResourceManagerState::update_or_load_registry`].
     /// If the manager already has a resource with this resource's UUID, return [`ResourceRegistrationError::AlreadyRegistered`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the path is invalid, such as if it includes a directory that does not exist
+    /// or contains invalid characters.
     pub fn register(
         &mut self,
         resource: UntypedResource,
@@ -1685,7 +1725,7 @@ impl ResourceManagerState {
         if self.find_by_uuid(resource_uuid).is_some() {
             return Err(ResourceRegistrationError::AlreadyRegistered);
         }
-        let path = ResourceRegistry::normalize_path(path);
+        let path = self.resource_io.canonicalize_path(path.as_ref()).unwrap();
         {
             let mut header = resource.lock();
             header.kind.make_external();
@@ -1774,8 +1814,8 @@ impl ResourceManagerState {
         let src_path = src_path.as_ref();
         let dest_path = dest_path.as_ref();
 
-        let relative_src_path = fyrox_core::make_relative_path(src_path)?;
-        let relative_dest_path = fyrox_core::make_relative_path(dest_path)?;
+        let relative_src_path = self.resource_io.canonicalize_path(src_path)?;
+        let relative_dest_path = self.resource_io.canonicalize_path(dest_path)?;
 
         if let Some(file_stem) = relative_dest_path.file_stem() {
             if !self.resource_io.is_valid_file_name(file_stem) {
@@ -1794,8 +1834,8 @@ impl ResourceManagerState {
         }
 
         let registry_lock_guard = self.resource_registry.safe_lock();
-        let absolute_registry_dir = if let Some(directory) = registry_lock_guard.directory() {
-            fyrox_core::replace_slashes(self.resource_io.canonicalize_path(directory).await?)
+        let registry_dir = if let Some(directory) = registry_lock_guard.directory() {
+            self.resource_io.canonicalize_path(directory)?
         } else {
             return Err(ResourceMovementError::ResourceRegistryLocationUnknown {
                 resource_path: relative_src_path.clone(),
@@ -1807,23 +1847,17 @@ impl ResourceManagerState {
                 resource_path: relative_src_path.clone(),
             })?;
 
-        let relative_dest_dir = relative_dest_path.parent().unwrap_or(Path::new("."));
-        let absolute_dest_dir = fyrox_core::replace_slashes(
-            self.resource_io
-                .canonicalize_path(relative_dest_dir)
-                .await?,
-        );
-
-        let absolute_src_path = fyrox_core::replace_slashes(
-            self.resource_io
-                .canonicalize_path(&relative_src_path)
-                .await?,
-        );
-        if !absolute_dest_dir.starts_with(&absolute_registry_dir) {
+        let Some(relative_dest_dir) = relative_dest_path.parent() else {
+            return Err(ResourceMovementError::DestinationPathIsInvalid {
+                src_path: relative_src_path.clone(),
+                dest_path: relative_dest_path.clone(),
+            });
+        };
+        if !relative_dest_dir.starts_with(&registry_dir) {
             return Err(ResourceMovementError::OutsideOfRegistry {
-                absolute_src_path,
-                absolute_dest_dir,
-                absolute_registry_dir,
+                absolute_src_path: relative_src_path,
+                absolute_dest_dir: relative_dest_dir.to_path_buf(),
+                absolute_registry_dir: registry_dir,
             });
         }
 

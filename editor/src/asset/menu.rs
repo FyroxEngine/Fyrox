@@ -461,10 +461,8 @@ impl AssetItemContextMenu {
                                                 .send(Message::ShowInAssetBrowser(final_copy_path));
                                         }
                                         Err(err) => Log::err(format!(
-                                            "Failed to create a file for resource at path {}. \
-                                                Reason: {:?}",
-                                            final_copy_path.display(),
-                                            err
+                                            "Failed to create a file for resource at path {final_copy_path:?}. \
+                                                Reason: {err}",
                                         )),
                                     }
                                 }
