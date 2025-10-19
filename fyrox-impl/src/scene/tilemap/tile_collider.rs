@@ -187,7 +187,7 @@ impl ResourceData for CustomTileCollider {
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
         self.visit("CustomTileCollider", &mut visitor)?;
-        visitor.save_binary_to_file(path)?;
+        visitor.save_ascii_to_file(path)?;
         Ok(())
     }
 
