@@ -29,6 +29,7 @@ use crate::{
 };
 use fyrox_core::io::FileError;
 use fyrox_core::platform::TargetPlatform;
+use fyrox_core::visitor::{Format, Visitor};
 use std::{
     any::Any,
     future::Future,
@@ -48,6 +49,52 @@ impl<T: Any> BaseResourceLoader for T {}
 pub trait BaseResourceLoader: Any + Send {}
 #[cfg(not(target_arch = "wasm32"))]
 impl<T: Any + Send> BaseResourceLoader for T {}
+
+fn convert_ascii_to_binary<F>(
+    src_path: PathBuf,
+    dest_path: PathBuf,
+    is_native_extension: F,
+    _platform: TargetPlatform,
+    io: Arc<dyn ResourceIo>,
+) -> Pin<Box<dyn Future<Output = Result<(), FileError>>>>
+where
+    F: Fn(&str) -> bool,
+{
+    if src_path
+        .extension()
+        .and_then(|src_ext| src_ext.to_str())
+        .is_some_and(is_native_extension)
+    {
+        Box::pin(async move {
+            let data = io.load_file(&src_path).await?;
+            match Visitor::detect_format_from_slice(&data) {
+                Format::Unknown => Err(FileError::Custom("Unknown format!".to_string())),
+                Format::Binary => {
+                    // Copy the binary format as-is.
+                    Ok(io.copy_file(&src_path, &dest_path).await?)
+                }
+                Format::Ascii => {
+                    // Resave the ascii format as binary.
+                    let visitor = Visitor::load_from_memory(&data).map_err(|err| {
+                        FileError::Custom(format!(
+                            "Unable to load {}. Reason: {err}",
+                            src_path.display()
+                        ))
+                    })?;
+                    visitor.save_binary_to_file(dest_path).map_err(|err| {
+                        FileError::Custom(format!(
+                            "Unable to save {}. Reason: {err}",
+                            src_path.display()
+                        ))
+                    })?;
+                    Ok(())
+                }
+            }
+        })
+    } else {
+        Box::pin(async move { io.copy_file(&src_path, &dest_path).await })
+    }
+}
 
 /// Trait for resource loading.
 pub trait ResourceLoader: BaseResourceLoader {
@@ -87,7 +134,13 @@ pub trait ResourceLoader: BaseResourceLoader {
         #[allow(unused_variables)] platform: TargetPlatform,
         io: Arc<dyn ResourceIo>,
     ) -> Pin<Box<dyn Future<Output = Result<(), FileError>>>> {
-        Box::pin(async move { io.copy_file(&src_path, &dest_path).await })
+        convert_ascii_to_binary(
+            src_path,
+            dest_path,
+            |ext| self.is_native_extension(ext),
+            platform,
+            io,
+        )
     }
 
     /// Tries to load import settings for a resource.
