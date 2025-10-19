@@ -585,6 +585,10 @@ impl ResourceLoader for TileMapBrushLoader {
         &["tile_map_brush"]
     }
 
+    fn is_native_extension(&self, ext: &str) -> bool {
+        fyrox_core::cmp_strings_case_insensitive(ext, "tile_map_brush")
+    }
+
     fn data_type_uuid(&self) -> Uuid {
         <TileMapBrush as TypeUuidProvider>::type_uuid()
     }

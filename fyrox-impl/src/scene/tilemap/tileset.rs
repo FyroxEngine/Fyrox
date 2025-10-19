@@ -2138,6 +2138,10 @@ impl ResourceLoader for TileSetLoader {
         &["tileset"]
     }
 
+    fn is_native_extension(&self, ext: &str) -> bool {
+        fyrox_core::cmp_strings_case_insensitive(ext, "tileset")
+    }
+
     fn data_type_uuid(&self) -> Uuid {
         <TileSet as TypeUuidProvider>::type_uuid()
     }

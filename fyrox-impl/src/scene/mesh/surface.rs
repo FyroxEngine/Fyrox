@@ -1467,6 +1467,10 @@ impl ResourceLoader for SurfaceDataLoader {
         &["surface"]
     }
 
+    fn is_native_extension(&self, ext: &str) -> bool {
+        fyrox_core::cmp_strings_case_insensitive(ext, "surface")
+    }
+
     fn data_type_uuid(&self) -> Uuid {
         <SurfaceData as TypeUuidProvider>::type_uuid()
     }

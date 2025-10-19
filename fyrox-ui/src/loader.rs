@@ -48,6 +48,10 @@ impl ResourceLoader for UserInterfaceLoader {
         &["ui"]
     }
 
+    fn is_native_extension(&self, ext: &str) -> bool {
+        fyrox_core::cmp_strings_case_insensitive(ext, "ui")
+    }
+
     fn data_type_uuid(&self) -> Uuid {
         UserInterface::type_uuid()
     }

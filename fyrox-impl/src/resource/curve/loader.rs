@@ -39,6 +39,11 @@ impl ResourceLoader for CurveLoader {
         &["curve", "crv"]
     }
 
+    fn is_native_extension(&self, ext: &str) -> bool {
+        fyrox_core::cmp_strings_case_insensitive(ext, "curve")
+            || fyrox_core::cmp_strings_case_insensitive(ext, "crv")
+    }
+
     fn data_type_uuid(&self) -> Uuid {
         CurveResourceState::type_uuid()
     }

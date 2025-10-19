@@ -41,6 +41,10 @@ impl ResourceLoader for MaterialLoader {
         &["material"]
     }
 
+    fn is_native_extension(&self, ext: &str) -> bool {
+        fyrox_core::cmp_strings_case_insensitive(ext, "material")
+    }
+
     fn data_type_uuid(&self) -> Uuid {
         Material::type_uuid()
     }

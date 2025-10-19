@@ -113,6 +113,10 @@ impl ResourceLoader for StyleLoader {
         &["style"]
     }
 
+    fn is_native_extension(&self, ext: &str) -> bool {
+        fyrox_core::cmp_strings_case_insensitive(ext, "style")
+    }
+
     fn data_type_uuid(&self) -> Uuid {
         <Style as TypeUuidProvider>::type_uuid()
     }
