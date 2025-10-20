@@ -56,6 +56,7 @@ use fyrox::{
     },
 };
 use fyrox_build_tools::{build::BuildWindow, BuildProfile, CommandDescriptor};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},
@@ -112,6 +113,11 @@ impl UpdateLoopState {
     }
 }
 
+pub struct ProjectSize {
+    widget_handle: Handle<UiNode>,
+    size: u64,
+}
+
 pub struct ProjectManager {
     pub root_grid: Handle<UiNode>,
     create: Handle<UiNode>,
@@ -145,6 +151,8 @@ pub struct ProjectManager {
     no_projects_warning: Handle<UiNode>,
     exclude_project: Handle<UiNode>,
     clean_project: Handle<UiNode>,
+    project_size_receiver: Receiver<ProjectSize>,
+    project_size_sender: Sender<ProjectSize>,
     pub focused: bool,
     pub update_loop_state: UpdateLoopState,
 }
@@ -155,6 +163,7 @@ fn make_project_item(
     hot_reload: bool,
     visible: bool,
     engine_version: &str,
+    project_size_sender: Sender<ProjectSize>,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     let icon = ImageBuilder::new(
@@ -191,13 +200,6 @@ fn make_project_item(
     .with_text(engine_version)
     .build(ctx);
 
-    let project_size = if let Some(project_dir) = Path::new(path).parent() {
-        let size = utils::calculate_directory_size(project_dir);
-        utils::format_size(size)
-    } else {
-        String::from("N/A")
-    };
-
     let size_text = TextBuilder::new(
         WidgetBuilder::new()
             .with_foreground(ctx.style.property(Style::BRUSH_BRIGHTEST))
@@ -209,8 +211,18 @@ fn make_project_item(
             }),
     )
     .with_font_size(13.0.into())
-    .with_text(format!("Size: {project_size}"))
+    .with_text("Size: N/A")
     .build(ctx);
+
+    if let Some(project_dir) = Path::new(path).parent().map(|p| p.to_path_buf()) {
+        std::thread::spawn(move || {
+            let size = utils::calculate_directory_size(&project_dir);
+            project_size_sender.send(ProjectSize {
+                widget_handle: size_text,
+                size,
+            })
+        });
+    }
 
     let info = StackPanelBuilder::new(
         WidgetBuilder::new()
@@ -278,6 +290,7 @@ fn make_project_item(
 fn make_project_items(
     settings: &Settings,
     search_text: &str,
+    project_size_sender: &Sender<ProjectSize>,
     ctx: &mut BuildContext,
 ) -> Vec<Handle<UiNode>> {
     settings
@@ -301,6 +314,7 @@ fn make_project_items(
                 project.hot_reload,
                 visible,
                 &engine_version,
+                project_size_sender.clone(),
                 ctx,
             )
         })
@@ -608,6 +622,8 @@ impl ProjectManager {
         )
         .build(ctx);
 
+        let (project_size_sender, project_size_receiver) = channel();
+
         let project_controls = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_enabled(false)
@@ -630,7 +646,7 @@ impl ProjectManager {
                 .with_tab_index(Some(3))
                 .with_margin(Thickness::uniform(1.0)),
         )
-        .with_items(make_project_items(&settings, "", ctx))
+        .with_items(make_project_items(&settings, "", &project_size_sender, ctx))
         .build(ctx);
 
         let no_projects_warning =
@@ -725,7 +741,9 @@ impl ProjectManager {
             exclude_project,
             clean_project,
             focused: true,
+            project_size_receiver,
             update_loop_state: Default::default(),
+            project_size_sender,
         }
     }
 
@@ -736,7 +754,12 @@ impl ProjectManager {
     }
 
     fn refresh(&mut self, ui: &mut UserInterface) {
-        let items = make_project_items(&self.settings, &self.search_text, &mut ui.build_ctx());
+        let items = make_project_items(
+            &self.settings,
+            &self.search_text,
+            &self.project_size_sender,
+            &mut ui.build_ctx(),
+        );
         ui.send_message(WidgetMessage::visibility(
             self.no_projects_warning,
             MessageDirection::ToWidget,
@@ -824,6 +847,15 @@ impl ProjectManager {
 
     pub fn update(&mut self, ui: &mut UserInterface, dt: f32) {
         self.handle_modes(ui);
+
+        for project_size in self.project_size_receiver.try_iter() {
+            let size_str = utils::format_size(project_size.size);
+            ui.send_message(TextMessage::text(
+                project_size.widget_handle,
+                MessageDirection::ToWidget,
+                size_str,
+            ));
+        }
 
         if self.log.update(65536, ui) {
             ui.send_message(TextMessage::text(
