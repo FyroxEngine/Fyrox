@@ -154,28 +154,39 @@ fn main() {
 
                     let elapsed = previous.elapsed();
 
-                    if project_manager.is_active(ui) && elapsed.as_secs_f32() >= time_step {
+                    if project_manager.is_active(ui) {
                         previous = Instant::now();
 
-                        let mut processed = 0;
-                        while let Some(message) = ui.poll_message() {
-                            project_manager.handle_ui_message(&message, ui);
-                            processed += 1;
-                        }
-                        if processed > 0 {
-                            project_manager
-                                .update_loop_state
-                                .request_update_in_next_frame();
+                        if let Some(active_tooltip) = ui.active_tooltip() {
+                            if !active_tooltip.shown {
+                                // Keep the manager running until the current tooltip is not shown.
+                                project_manager
+                                    .update_loop_state
+                                    .request_update_in_next_frame();
+                            }
                         }
 
-                        engine.update(
-                            time_step,
-                            ApplicationLoopController::ActiveEventLoop(active_event_loop),
-                            &mut 0.0,
-                            Default::default(),
-                        );
+                        if elapsed.as_secs_f32() >= time_step {
+                            let mut processed = 0;
+                            while let Some(message) = ui.poll_message() {
+                                project_manager.handle_ui_message(&message, ui);
+                                processed += 1;
+                            }
+                            if processed > 0 {
+                                project_manager
+                                    .update_loop_state
+                                    .request_update_in_next_frame();
+                            }
 
-                        project_manager.update(engine.user_interfaces.first_mut(), time_step);
+                            engine.update(
+                                time_step,
+                                ApplicationLoopController::ActiveEventLoop(active_event_loop),
+                                &mut 0.0,
+                                Default::default(),
+                            );
+
+                            project_manager.update(engine.user_interfaces.first_mut(), time_step);
+                        }
 
                         if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
                             let window = &ctx.window;

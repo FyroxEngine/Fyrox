@@ -89,7 +89,7 @@ impl Default for UpdateLoopState {
 impl UpdateLoopState {
     pub fn request_update_in_next_frame(&mut self) {
         if !self.is_warming_up() {
-            self.0 = 2;
+            self.0 = 3;
         }
     }
 
@@ -824,13 +824,6 @@ impl ProjectManager {
 
     pub fn update(&mut self, ui: &mut UserInterface, dt: f32) {
         self.handle_modes(ui);
-
-        if let Some(active_tooltip) = ui.active_tooltip() {
-            if !active_tooltip.shown {
-                // Keep the manager running until the current tooltip is not shown.
-                self.update_loop_state.request_update_in_next_frame();
-            }
-        }
 
         if self.log.update(65536, ui) {
             ui.send_message(TextMessage::text(
