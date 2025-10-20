@@ -328,23 +328,26 @@ impl VkImage {
         base_array_layer: u32,
         layer_count: u32,
     ) -> Result<vk::ImageView, vk::Result> {
-        let create_info = vk::ImageViewCreateInfo::default()
+        let components = vk::ComponentMapping {
+            r: vk::ComponentSwizzle::IDENTITY,
+            g: vk::ComponentSwizzle::IDENTITY,
+            b: vk::ComponentSwizzle::IDENTITY,
+            a: vk::ComponentSwizzle::IDENTITY,
+        };
+        let subresource_range = vk::ImageSubresourceRange {
+            aspect_mask,
+            base_mip_level,
+            level_count,
+            base_array_layer,
+            layer_count,
+        };
+        let create_info = vk::ImageViewCreateInfo::builder()
             .image(self.image)
             .view_type(view_type)
             .format(self.format)
-            .components(vk::ComponentMapping {
-                r: vk::ComponentSwizzle::IDENTITY,
-                g: vk::ComponentSwizzle::IDENTITY,
-                b: vk::ComponentSwizzle::IDENTITY,
-                a: vk::ComponentSwizzle::IDENTITY,
-            })
-            .subresource_range(vk::ImageSubresourceRange {
-                aspect_mask,
-                base_mip_level,
-                level_count,
-                base_array_layer,
-                layer_count,
-            });
+            .components(components)
+            .subresource_range(subresource_range)
+            .build();
 
         unsafe { self.device.device.create_image_view(&create_info, None) }
     }
@@ -375,21 +378,23 @@ impl VkImage {
             _ => (vk::AccessFlags::empty(), vk::AccessFlags::empty()),
         };
 
-        let barrier = vk::ImageMemoryBarrier::default()
+        let subresource_range = vk::ImageSubresourceRange {
+            aspect_mask,
+            base_mip_level: 0,
+            level_count: self.mip_levels,
+            base_array_layer: 0,
+            layer_count: self.array_layers,
+        };
+        let barrier = vk::ImageMemoryBarrier::builder()
+            .src_access_mask(src_access_mask)
+            .dst_access_mask(dst_access_mask)
             .old_layout(old_layout)
             .new_layout(new_layout)
             .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
             .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
             .image(self.image)
-            .subresource_range(vk::ImageSubresourceRange {
-                aspect_mask,
-                base_mip_level: 0,
-                level_count: self.mip_levels,
-                base_array_layer: 0,
-                layer_count: self.array_layers,
-            })
-            .src_access_mask(src_access_mask)
-            .dst_access_mask(dst_access_mask);
+            .subresource_range(subresource_range)
+            .build();
 
         unsafe {
             self.device.device.cmd_pipeline_barrier(

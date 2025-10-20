@@ -1106,9 +1106,9 @@ pub enum GraphicsBackend {
 
 impl Default for GraphicsBackend {
     fn default() -> Self {
-        //#[cfg(feature = "opengl")]
-        //return GraphicsBackend::OpenGL;
-        //#[cfg(all(feature = "vulkan", not(feature = "opengl")))]
+        #[cfg(feature = "opengl")]
+        return GraphicsBackend::OpenGL;
+        #[cfg(all(feature = "vulkan", not(feature = "opengl")))]
         return GraphicsBackend::Vulkan;
     }
 }
@@ -1580,7 +1580,12 @@ impl Engine {
                 params.window_attributes.clone(),
                 params.named_objects,
             )?;
-            let frame_size = (window.inner_size().width, window.inner_size().height);
+            // Ensure minimum frame size to avoid division by zero
+            // Some platforms/backends may report 0x0 during initialization
+            let frame_size = (
+                window.inner_size().width.max(1),
+                window.inner_size().height.max(1),
+            );
 
             let renderer = Renderer::new(server, frame_size, &self.resource_manager)?;
 

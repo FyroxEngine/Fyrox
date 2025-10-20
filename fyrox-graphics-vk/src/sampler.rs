@@ -20,6 +20,7 @@
 
 use crate::device::VkDevice;
 use crate::ToVkType;
+// DeviceV1_0 is no longer needed in ash 0.38
 use ash::vk;
 use fyrox_graphics::{
     error::FrameworkError,
@@ -70,22 +71,22 @@ impl VkGpuSampler {
         device: Arc<VkDevice>,
         descriptor: GpuSamplerDescriptor,
     ) -> Result<Self, FrameworkError> {
-        let sampler_info = vk::SamplerCreateInfo::default()
-            .mag_filter(vk::Filter::LINEAR)
-            .min_filter(vk::Filter::LINEAR)
-            .address_mode_u(vk::SamplerAddressMode::REPEAT)
-            .address_mode_v(vk::SamplerAddressMode::REPEAT)
-            .address_mode_w(vk::SamplerAddressMode::REPEAT)
-            .anisotropy_enable(false)
-            .max_anisotropy(1.0)
-            .border_color(vk::BorderColor::INT_OPAQUE_BLACK)
-            .unnormalized_coordinates(false)
-            .compare_enable(false)
-            .compare_op(vk::CompareOp::ALWAYS)
-            .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
-            .mip_lod_bias(0.0)
-            .min_lod(0.0)
-            .max_lod(descriptor.max_lod);
+        let mut sampler_info = vk::SamplerCreateInfo::default();
+        sampler_info.mag_filter = vk::Filter::LINEAR;
+        sampler_info.min_filter = vk::Filter::LINEAR;
+        sampler_info.mipmap_mode = vk::SamplerMipmapMode::LINEAR;
+        sampler_info.address_mode_u = vk::SamplerAddressMode::REPEAT;
+        sampler_info.address_mode_v = vk::SamplerAddressMode::REPEAT;
+        sampler_info.address_mode_w = vk::SamplerAddressMode::REPEAT;
+        sampler_info.anisotropy_enable = vk::FALSE;
+        sampler_info.max_anisotropy = 1.0;
+        sampler_info.border_color = vk::BorderColor::INT_OPAQUE_BLACK;
+        sampler_info.unnormalized_coordinates = vk::FALSE;
+        sampler_info.compare_enable = vk::FALSE;
+        sampler_info.compare_op = vk::CompareOp::ALWAYS;
+        sampler_info.mip_lod_bias = 0.0;
+        sampler_info.min_lod = 0.0;
+        sampler_info.max_lod = descriptor.max_lod;
 
         let sampler = unsafe {
             device

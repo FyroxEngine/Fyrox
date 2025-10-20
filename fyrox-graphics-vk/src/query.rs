@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::device::VkDevice;
+// DeviceV1_0 is no longer needed in ash 0.38
 use ash::vk;
 use fyrox_graphics::{
     error::FrameworkError,
@@ -50,9 +51,9 @@ impl VkGpuQuery {
     /// Creates a new Vulkan query.
     pub fn new(device: Arc<VkDevice>) -> Result<Self, FrameworkError> {
         // Create an occlusion query pool with 1 query
-        let query_pool_info = vk::QueryPoolCreateInfo::default()
-            .query_type(vk::QueryType::OCCLUSION)
-            .query_count(1);
+        let mut query_pool_info = vk::QueryPoolCreateInfo::default();
+        query_pool_info.query_type = vk::QueryType::OCCLUSION;
+        query_pool_info.query_count = 1;
 
         let query_pool = unsafe {
             device

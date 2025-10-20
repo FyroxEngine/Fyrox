@@ -17,12 +17,12 @@ winit = { version = "0.30", features = ["serde"] }
 fyrox-graphics = { version = "1.0.0-rc.1", path = "../fyrox-graphics" }
 fyrox-core = { version = "1.0.0-rc.1", path = "../fyrox-core" }
 fxhash = "0.2.1"
-ash = "0.38"
-gpu-allocator = { version = "0.27", features = ["vulkan"] }
+ash = "0.38.0"
+gpu-allocator = { version = "0.28.0", features = ["vulkan"] }
 spirv-reflect = "0.2"
 serde = { version = "1.0.215", features = ["derive"] }
 raw-window-handle = "0.6"
-shaderc = "0.8"
+shaderc = "0.10.1"
 smallvec = "1.13"
 log = "0.4"
 

@@ -75,32 +75,33 @@ impl VkSwapchain {
             device.queue_families.present_family.unwrap(),
         ];
 
-        let (image_sharing_mode, queue_family_index_count, _p_queue_family_indices) =
+        let (image_sharing_mode, queue_family_index_count) =
             if device.queue_families.graphics_family != device.queue_families.present_family {
-                (
-                    vk::SharingMode::CONCURRENT,
-                    2,
-                    queue_family_indices.as_ptr(),
-                )
+                (vk::SharingMode::CONCURRENT, 2)
             } else {
-                (vk::SharingMode::EXCLUSIVE, 0, std::ptr::null())
+                (vk::SharingMode::EXCLUSIVE, 0)
             };
 
-        let create_info = vk::SwapchainCreateInfoKHR::default()
-            .surface(surface)
-            .min_image_count(image_count)
-            .image_format(surface_format.format)
-            .image_color_space(surface_format.color_space)
-            .image_extent(extent)
-            .image_array_layers(1)
-            .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
-            .image_sharing_mode(image_sharing_mode)
-            .queue_family_indices(&queue_family_indices[..queue_family_index_count as usize])
-            .pre_transform(support.capabilities.current_transform)
-            .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-            .present_mode(present_mode)
-            .clipped(true)
-            .old_swapchain(old_swapchain.unwrap_or(vk::SwapchainKHR::null()));
+        let mut create_info = vk::SwapchainCreateInfoKHR::default();
+        create_info.surface = surface;
+        create_info.min_image_count = image_count;
+        create_info.image_format = surface_format.format;
+        create_info.image_color_space = surface_format.color_space;
+        create_info.image_extent = extent;
+        create_info.image_array_layers = 1;
+        create_info.image_usage = vk::ImageUsageFlags::COLOR_ATTACHMENT;
+        create_info.image_sharing_mode = image_sharing_mode;
+        create_info.queue_family_index_count = queue_family_index_count;
+        create_info.p_queue_family_indices = if queue_family_index_count > 0 {
+            queue_family_indices.as_ptr()
+        } else {
+            std::ptr::null()
+        };
+        create_info.pre_transform = support.capabilities.current_transform;
+        create_info.composite_alpha = vk::CompositeAlphaFlagsKHR::OPAQUE;
+        create_info.present_mode = present_mode;
+        create_info.clipped = vk::TRUE;
+        create_info.old_swapchain = old_swapchain.unwrap_or(vk::SwapchainKHR::null());
 
         let swapchain_loader = ash::khr::swapchain::Device::new(instance, &device.device);
         let swapchain = unsafe { swapchain_loader.create_swapchain(&create_info, None)? };
@@ -131,23 +132,26 @@ impl VkSwapchain {
         let mut image_views = Vec::with_capacity(images.len());
 
         for &image in images {
-            let create_info = vk::ImageViewCreateInfo::default()
+            let components = vk::ComponentMapping {
+                r: vk::ComponentSwizzle::IDENTITY,
+                g: vk::ComponentSwizzle::IDENTITY,
+                b: vk::ComponentSwizzle::IDENTITY,
+                a: vk::ComponentSwizzle::IDENTITY,
+            };
+            let subresource_range = vk::ImageSubresourceRange {
+                aspect_mask: vk::ImageAspectFlags::COLOR,
+                base_mip_level: 0,
+                level_count: 1,
+                base_array_layer: 0,
+                layer_count: 1,
+            };
+            let create_info = vk::ImageViewCreateInfo::builder()
                 .image(image)
                 .view_type(vk::ImageViewType::TYPE_2D)
                 .format(format)
-                .components(vk::ComponentMapping {
-                    r: vk::ComponentSwizzle::IDENTITY,
-                    g: vk::ComponentSwizzle::IDENTITY,
-                    b: vk::ComponentSwizzle::IDENTITY,
-                    a: vk::ComponentSwizzle::IDENTITY,
-                })
-                .subresource_range(vk::ImageSubresourceRange {
-                    aspect_mask: vk::ImageAspectFlags::COLOR,
-                    base_mip_level: 0,
-                    level_count: 1,
-                    base_array_layer: 0,
-                    layer_count: 1,
-                });
+                .components(components)
+                .subresource_range(subresource_range)
+                .build();
 
             let image_view = unsafe { device.create_image_view(&create_info, None)? };
             image_views.push(image_view);
@@ -237,10 +241,17 @@ impl VkSwapchain {
         let swapchains = [self.swapchain];
         let image_indices = [image_index];
 
-        let present_info = vk::PresentInfoKHR::default()
-            .wait_semaphores(wait_semaphores)
-            .swapchains(&swapchains)
-            .image_indices(&image_indices);
+        let mut present_info = vk::PresentInfoKHR::default();
+        present_info.wait_semaphore_count = wait_semaphores.len() as u32;
+        present_info.p_wait_semaphores = if wait_semaphores.is_empty() {
+            std::ptr::null()
+        } else {
+            wait_semaphores.as_ptr()
+        };
+        present_info.swapchain_count = 1;
+        present_info.p_swapchains = swapchains.as_ptr();
+        present_info.p_image_indices = image_indices.as_ptr();
+        present_info.p_results = std::ptr::null_mut();
 
         unsafe { self.loader.queue_present(present_queue, &present_info) }
     }

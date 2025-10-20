@@ -23,9 +23,7 @@ use crate::texture::VkGpuTexture;
 use ash::vk;
 use fyrox_graphics::{
     error::FrameworkError,
-    framebuffer::{
-        Attachment, AttachmentKind, GpuFrameBufferTrait,
-    },
+    framebuffer::{Attachment, AttachmentKind, GpuFrameBufferTrait},
     gpu_texture::GpuTextureKind,
 };
 use std::rc::Rc;

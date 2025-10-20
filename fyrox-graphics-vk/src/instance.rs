@@ -46,12 +46,13 @@ impl VkInstance {
         let app_name = CString::new("Fyrox Engine")?;
         let engine_name = CString::new("Fyrox")?;
 
-        let app_info = vk::ApplicationInfo::default()
+        let app_info = vk::ApplicationInfo::builder()
             .application_name(&app_name)
             .application_version(vk::make_api_version(0, 1, 0, 0))
             .engine_name(&engine_name)
             .engine_version(vk::make_api_version(0, 1, 0, 0))
-            .api_version(vk::API_VERSION_1_2);
+            .api_version(vk::API_VERSION_1_2)
+            .build();
 
         // Get required extensions
         let display_handle = display
@@ -78,10 +79,11 @@ impl VkInstance {
         let layer_names_raw: Vec<*const i8> =
             layer_names.iter().map(|name| name.as_ptr()).collect();
 
-        let create_info = vk::InstanceCreateInfo::default()
+        let create_info = vk::InstanceCreateInfo::builder()
             .application_info(&app_info)
             .enabled_layer_names(&layer_names_raw)
-            .enabled_extension_names(&extensions);
+            .enabled_extension_names(&extensions)
+            .build();
 
         let instance = unsafe { entry.create_instance(&create_info, None)? };
 
@@ -89,18 +91,17 @@ impl VkInstance {
         let (debug_utils, debug_messenger) = if enable_validation {
             let debug_utils = ash::ext::debug_utils::Instance::new(&entry, &instance);
 
-            let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::default()
-                .message_severity(
-                    vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-                        | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-                        | vk::DebugUtilsMessageSeverityFlagsEXT::INFO,
-                )
+            let mut debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
                 .message_type(
                     vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
                         | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
                         | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
                 )
-                .pfn_user_callback(Some(vulkan_debug_callback));
+                .pfn_user_callback(Some(vulkan_debug_callback))
+                .build();
+            debug_info.message_severity = vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+                | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
+                | vk::DebugUtilsMessageSeverityFlagsEXT::INFO;
 
             let debug_messenger =
                 unsafe { debug_utils.create_debug_utils_messenger(&debug_info, None)? };

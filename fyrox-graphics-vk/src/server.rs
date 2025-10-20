@@ -19,6 +19,18 @@
 // SOFTWARE.
 
 use ash::vk;
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+use winit::{
+    event_loop::ActiveEventLoop,
+    window::{Window, WindowAttributes},
+};
+
+use crate::{
+    buffer::VkGpuBuffer, command::CommandManager, device::VkDevice, framebuffer::VkGpuFrameBuffer,
+    geometry_buffer::VkGpuGeometryBuffer, instance::VkInstance, memory::VkMemoryManager,
+    program::VkGpuProgram, query::VkGpuQuery, read_buffer::VkGpuAsyncReadBuffer,
+    sampler::VkGpuSampler, swapchain::VkSwapchain, texture::VkGpuTexture,
+};
 use fyrox_graphics::{
     buffer::{GpuBuffer, GpuBufferDescriptor},
     error::FrameworkError,
@@ -31,48 +43,23 @@ use fyrox_graphics::{
     sampler::{GpuSampler, GpuSamplerDescriptor},
     server::{GraphicsServer, ServerCapabilities, ServerMemoryUsage, SharedGraphicsServer},
     stats::PipelineStatistics,
-    PolygonFace, PolygonFillMode,
 };
-use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
+use std::rc::Weak;
 use std::sync::{Arc, Mutex};
-use winit::{
-    event_loop::ActiveEventLoop,
-    window::{Window, WindowAttributes},
-};
 
-use crate::{
-    buffer::create_buffer,
-    command::CommandManager,
-    device::VkDevice,
-    framebuffer::{create_framebuffer, VkGpuFrameBuffer},
-    geometry_buffer::create_geometry_buffer,
-    instance::VkInstance,
-    memory::VkMemoryManager,
-    program::{create_program_from_shaders, create_shader},
-    query::create_query,
-    read_buffer::create_async_read_buffer,
-    sampler::create_sampler,
-    swapchain::VkSwapchain,
-    texture::create_texture,
-};
-
-/// Vulkan graphics server implementation.
-///
-/// IMPORTANT: Uses ManuallyDrop to ensure proper Vulkan cleanup order!
-/// The Drop implementation manually drops fields in the correct sequence.
+/// Vulkan graphics server implementation
 pub struct VkGraphicsServer {
-    /// Vulkan instance (must be dropped last!)
+    /// Vulkan instance wrapper
     instance: std::mem::ManuallyDrop<VkInstance>,
-    /// Surface loader
-    surface_loader: Option<ash::khr::surface::Instance>,
-    /// Vulkan surface
+    /// Surface and loader (None when headless)
     surface: Option<vk::SurfaceKHR>,
-    /// Vulkan device (must be dropped before instance)
+    surface_loader: Option<ash::khr::surface::Instance>,
+    /// Logical device wrapper
     device: std::mem::ManuallyDrop<Arc<VkDevice>>,
-    /// Memory manager (must be dropped before device)
+    /// Memory manager (must be dropped after swapchain and before device)
     memory_manager: std::mem::ManuallyDrop<Arc<VkMemoryManager>>,
-    /// Command manager (must be dropped before device)
+    /// Command manager
     command_manager: std::mem::ManuallyDrop<Arc<CommandManager>>,
     /// Swapchain (must be dropped before managers)
     swapchain: Option<Arc<Mutex<VkSwapchain>>>,
@@ -114,27 +101,44 @@ impl VkGraphicsServer {
                 FrameworkError::Custom(format!("Failed to create Vulkan instance: {:?}", e))
             })?;
 
-        // Create surface
+        // Create surface (Windows-only to avoid ash-window/ash version clash)
         let surface_loader = ash::khr::surface::Instance::new(&instance.entry, &instance.instance);
+        let window_handle = window
+            .window_handle()
+            .map_err(|e| FrameworkError::Custom(format!("Failed to get window handle: {:?}", e)))?
+            .as_raw();
+
+        #[cfg(target_os = "windows")]
         let surface = unsafe {
-            ash_window::create_surface(
-                &instance.entry,
-                &instance.instance,
-                window
-                    .display_handle()
-                    .map_err(|e| {
-                        FrameworkError::Custom(format!("Failed to get display handle: {:?}", e))
+            match window_handle {
+                RawWindowHandle::Win32(win) => {
+                    use ash::khr::win32_surface;
+                    let win32 = win32_surface::Instance::new(&instance.entry, &instance.instance);
+                    let hinstance = win
+                        .hinstance
+                        .map_or(std::ptr::null_mut(), |h| h.get() as *mut _)
+                        as *const _;
+                    let hwnd = win.hwnd.get() as *mut _ as *const _;
+                    let mut ci = vk::Win32SurfaceCreateInfoKHR::default();
+                    ci.hinstance = hinstance;
+                    ci.hwnd = hwnd;
+                    win32.create_win32_surface(&ci, None).map_err(|e| {
+                        FrameworkError::Custom(format!("Failed to create Win32 surface: {:?}", e))
                     })?
-                    .as_raw(),
-                window
-                    .window_handle()
-                    .map_err(|e| {
-                        FrameworkError::Custom(format!("Failed to get window handle: {:?}", e))
-                    })?
-                    .as_raw(),
-                None,
-            )
-            .map_err(|e| FrameworkError::Custom(format!("Failed to create surface: {:?}", e)))?
+                }
+                _ => {
+                    return Err(FrameworkError::Custom(
+                        "Unsupported window handle for Windows".to_string(),
+                    ))
+                }
+            }
+        };
+
+        #[cfg(not(target_os = "windows"))]
+        let surface = {
+            return Err(FrameworkError::Custom(
+                "Vulkan surface creation is implemented for Windows only in this build".to_string(),
+            ));
         };
 
         // Create device
@@ -157,9 +161,10 @@ impl VkGraphicsServer {
         })?);
 
         // Create swapchain
+        // Ensure minimum size to prevent issues with 0x0 windows during initialization
         let inner_size = window.inner_size();
-        let width = inner_size.width;
-        let height = inner_size.height;
+        let width = inner_size.width.max(1);
+        let height = inner_size.height.max(1);
         let swapchain = Arc::new(Mutex::new(
             VkSwapchain::new(
                 &instance.instance,
@@ -399,8 +404,8 @@ impl GraphicsServer for VkGraphicsServer {
 
     fn set_polygon_fill_mode(
         &self,
-        _polygon_face: PolygonFace,
-        _polygon_fill_mode: PolygonFillMode,
+        _polygon_face: fyrox_graphics::PolygonFace,
+        _polygon_fill_mode: fyrox_graphics::PolygonFillMode,
     ) {
         // This would need to be handled during pipeline creation in Vulkan
         // For now, this is a no-op
@@ -414,6 +419,96 @@ impl GraphicsServer for VkGraphicsServer {
     fn memory_usage(&self) -> ServerMemoryUsage {
         self.memory_usage.clone()
     }
+}
+
+// Stub functions for creating Vulkan resources
+// These delegate to the actual implementation types
+
+fn create_buffer(
+    memory_manager: Arc<VkMemoryManager>,
+    desc: GpuBufferDescriptor,
+) -> Result<Rc<dyn fyrox_graphics::buffer::GpuBufferTrait>, FrameworkError> {
+    Ok(Rc::new(VkGpuBuffer::new(memory_manager, desc)?))
+}
+
+fn create_texture(
+    memory_manager: Arc<VkMemoryManager>,
+    desc: GpuTextureDescriptor,
+) -> Result<Rc<dyn fyrox_graphics::gpu_texture::GpuTextureTrait>, FrameworkError> {
+    Ok(Rc::new(VkGpuTexture::new(memory_manager, desc)?))
+}
+
+fn create_sampler(
+    device: Arc<VkDevice>,
+    desc: GpuSamplerDescriptor,
+) -> Result<Rc<dyn fyrox_graphics::sampler::GpuSamplerTrait>, FrameworkError> {
+    Ok(Rc::new(VkGpuSampler::new(device, desc)?))
+}
+
+fn create_framebuffer(
+    device: Arc<VkDevice>,
+    depth_attachment: Option<Attachment>,
+    color_attachments: Vec<Attachment>,
+) -> Result<Rc<dyn fyrox_graphics::framebuffer::GpuFrameBufferTrait>, FrameworkError> {
+    Ok(Rc::new(VkGpuFrameBuffer::new(
+        device,
+        depth_attachment,
+        color_attachments,
+    )?))
+}
+
+fn create_query(
+    device: Arc<VkDevice>,
+) -> Result<Rc<dyn fyrox_graphics::query::GpuQueryTrait>, FrameworkError> {
+    Ok(Rc::new(VkGpuQuery::new(device)?))
+}
+
+fn create_shader(
+    _device: Arc<VkDevice>,
+    name: String,
+    _kind: ShaderKind,
+    _source: String,
+    _resources: &[ShaderResourceDefinition],
+    _line_offset: isize,
+) -> Result<Rc<dyn fyrox_graphics::gpu_program::GpuShaderTrait>, FrameworkError> {
+    // Stub implementation - needs actual shader compilation
+    Err(FrameworkError::Custom(format!(
+        "Shader creation not yet fully implemented for: {}",
+        name
+    )))
+}
+
+fn create_program_from_shaders(
+    device: Arc<VkDevice>,
+    name: &str,
+    vertex_shader: &dyn fyrox_graphics::gpu_program::GpuShaderTrait,
+    fragment_shader: &dyn fyrox_graphics::gpu_program::GpuShaderTrait,
+    _resources: &[ShaderResourceDefinition],
+) -> Result<Rc<dyn fyrox_graphics::gpu_program::GpuProgramTrait>, FrameworkError> {
+    // Downcast to VkGpuShader to access Vulkan-specific shader modules
+    // For now, create a stub program
+    Ok(Rc::new(VkGpuProgram::new_stub(device, name)?))
+}
+
+fn create_async_read_buffer(
+    memory_manager: Arc<VkMemoryManager>,
+    name: &str,
+    pixel_size: usize,
+    pixel_count: usize,
+) -> Result<Rc<dyn fyrox_graphics::read_buffer::GpuAsyncReadBufferTrait>, FrameworkError> {
+    Ok(Rc::new(VkGpuAsyncReadBuffer::new(
+        memory_manager,
+        name,
+        pixel_size,
+        pixel_count,
+    )?))
+}
+
+fn create_geometry_buffer(
+    device: Arc<VkDevice>,
+    desc: GpuGeometryBufferDescriptor,
+) -> Result<Rc<dyn fyrox_graphics::geometry_buffer::GpuGeometryBufferTrait>, FrameworkError> {
+    Ok(Rc::new(VkGpuGeometryBuffer::new(device, desc)?))
 }
 
 impl Drop for VkGraphicsServer {

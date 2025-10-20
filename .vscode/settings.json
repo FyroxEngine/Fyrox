@@ -3,8 +3,8 @@
         "mismatched-arg-count"
     ],
     "editor.codeActionsOnSave": {
-        "source.fixAll": "explicit",
-        "source.organizeImports": "explicit"
+        "source.fixAll": "always",
+        "source.organizeImports": "always"
     },
     "files.trimTrailingWhitespace": true,
     "files.trimFinalNewlines": true,
@@ -15,5 +15,8 @@
     "[rust]": {
         "editor.formatOnSave": true,
         "files.insertFinalNewline": true,
-    }
+    },
+    "chat.commandCenter.enabled": false,
+    "github.copilot.chat.useProjectTemplates": false,
+    "github.copilot.editor.enableAutoCompletions": true
 }

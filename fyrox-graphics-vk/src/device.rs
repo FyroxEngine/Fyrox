@@ -115,28 +115,31 @@ impl VkDevice {
         }
 
         let unique_queue_families = queue_families.unique_families();
+        let queue_priorities = [1.0f32];
         let queue_create_infos: Vec<vk::DeviceQueueCreateInfo> = unique_queue_families
             .iter()
             .map(|&queue_family| {
-                vk::DeviceQueueCreateInfo::default()
+                vk::DeviceQueueCreateInfo::builder()
                     .queue_family_index(queue_family)
-                    .queue_priorities(&[1.0])
+                    .queue_priorities(&queue_priorities)
+                    .build()
             })
             .collect();
 
         // Required device extensions
         let device_extensions = [ash::khr::swapchain::NAME.as_ptr()];
 
-        let device_features = vk::PhysicalDeviceFeatures::default()
-            .sampler_anisotropy(true)
-            .fill_mode_non_solid(true)
-            .geometry_shader(true)
-            .tessellation_shader(true);
+        let mut device_features = vk::PhysicalDeviceFeatures::default();
+        device_features.sampler_anisotropy = vk::TRUE;
+        device_features.fill_mode_non_solid = vk::TRUE;
+        device_features.geometry_shader = vk::TRUE;
+        device_features.tessellation_shader = vk::TRUE;
 
-        let create_info = vk::DeviceCreateInfo::default()
+        let create_info = vk::DeviceCreateInfo::builder()
             .queue_create_infos(&queue_create_infos)
             .enabled_extension_names(&device_extensions)
-            .enabled_features(&device_features);
+            .enabled_features(&device_features)
+            .build();
 
         let device = unsafe {
             vk_instance
@@ -247,7 +250,7 @@ impl VkDevice {
         score += properties.limits.max_image_dimension2_d;
 
         // Check if device supports required features
-        if features.geometry_shader == 0 {
+        if features.geometry_shader != vk::TRUE {
             return 0; // Must support geometry shaders
         }
 
@@ -390,7 +393,7 @@ impl VkDevice {
 impl Drop for VkDevice {
     fn drop(&mut self) {
         unsafe {
-            self.device.device_wait_idle().unwrap();
+            let _ = self.device.device_wait_idle();
             self.device.destroy_device(None);
         }
     }
