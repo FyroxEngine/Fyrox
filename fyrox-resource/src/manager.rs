@@ -1086,6 +1086,11 @@ impl ResourceManagerState {
     fn on_create_event(&mut self, path: Option<&PathBuf>) {
         let path = some_or_return!(path);
         let mut relative_path = ok_or_return!(fyrox_core::make_relative_path(path));
+        if relative_path.is_dir() {
+            info!("Reloading registry due to new directory.");
+            self.update_or_load_registry();
+            return;
+        }
         let ext = some_or_return!(relative_path.extension());
         let mut registry = self.resource_registry.safe_lock();
         if registry
