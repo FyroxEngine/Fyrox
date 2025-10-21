@@ -152,11 +152,7 @@ fn main() {
                 Event::AboutToWait => {
                     let ui = engine.user_interfaces.first_mut();
 
-                    let elapsed = previous.elapsed();
-
                     if project_manager.is_active(ui) {
-                        previous = Instant::now();
-
                         if let Some(active_tooltip) = ui.active_tooltip() {
                             if !active_tooltip.shown {
                                 // Keep the manager running until the current tooltip is not shown.
@@ -166,6 +162,7 @@ fn main() {
                             }
                         }
 
+                        let elapsed = previous.elapsed();
                         if elapsed.as_secs_f32() >= time_step {
                             let mut processed = 0;
                             while let Some(message) = ui.poll_message() {
@@ -186,6 +183,8 @@ fn main() {
                             );
 
                             project_manager.update(engine.user_interfaces.first_mut(), time_step);
+
+                            previous = Instant::now();
                         }
 
                         if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
