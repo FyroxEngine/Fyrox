@@ -102,7 +102,7 @@ impl BuildProfile {
     }
 
     pub fn debug() -> Self {
-        BuildProfile {
+        Self {
             name: "Debug".to_string(),
             build_commands: vec![CommandDescriptor {
                 command: "cargo".to_string(),
@@ -135,7 +135,7 @@ impl BuildProfile {
     }
 
     pub fn debug_hot_reloading() -> Self {
-        BuildProfile {
+        Self {
             name: "Debug (HR)".to_string(),
             build_commands: vec![
                 Self::build_game(), // Build the executor.
@@ -214,7 +214,7 @@ impl BuildProfile {
     }
 
     pub fn debug_editor_hot_reloading() -> Self {
-        BuildProfile {
+        Self {
             name: "Debug Editor (HR)".to_string(),
             build_commands: vec![Self::build_game()],
             run_command: Self::run_hot_reload("editor"),
@@ -229,7 +229,7 @@ impl BuildProfile {
     }
 
     pub fn debug_editor() -> Self {
-        BuildProfile {
+        Self {
             name: "Debug Editor".to_string(),
             build_commands: vec![CommandDescriptor {
                 command: "cargo".to_string(),

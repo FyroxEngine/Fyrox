@@ -129,16 +129,16 @@ pub struct SignalView {
 impl SignalView {
     fn screen_bounds(&self, ruler: &Ruler) -> Rect<f32> {
         let view_x = ruler.local_to_view(self.time);
-        let view_y = ruler.bounding_rect().size.y - SignalView::SIZE;
+        let view_y = ruler.bounding_rect().size.y - Self::SIZE;
 
         let min = ruler
             .visual_transform()
-            .transform_point(&Point2::new(view_x - SignalView::SIZE * 0.5, view_y))
+            .transform_point(&Point2::new(view_x - Self::SIZE * 0.5, view_y))
             .coords;
         let max = ruler
             .visual_transform()
             .transform_point(&Point2::new(
-                view_x + SignalView::SIZE * 0.5,
+                view_x + Self::SIZE * 0.5,
                 ruler.bounding_rect().size.y,
             ))
             .coords;

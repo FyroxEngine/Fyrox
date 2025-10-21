@@ -379,7 +379,7 @@ impl Default for Mesh {
             local_bounding_box_dirty: Cell::new(true),
             render_path: InheritableVariable::new_modified(RenderPath::Deferred),
             batching_mode: Default::default(),
-            blend_shapes_property_name: Mesh::DEFAULT_BLEND_SHAPES_PROPERTY_NAME.to_string(),
+            blend_shapes_property_name: Self::DEFAULT_BLEND_SHAPES_PROPERTY_NAME.to_string(),
             blend_shapes: Default::default(),
             batch_container: Default::default(),
         }

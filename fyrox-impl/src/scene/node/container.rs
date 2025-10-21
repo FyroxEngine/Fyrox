@@ -79,7 +79,7 @@ impl Visit for NodeContainer {
 
         if is_some != 0 {
             if region.is_reading() {
-                *self = NodeContainer(Some(read_node("Data", &mut region)?));
+                *self = Self(Some(read_node("Data", &mut region)?));
             } else {
                 write_node("Data", self.0.as_mut().unwrap(), &mut region)?;
             }

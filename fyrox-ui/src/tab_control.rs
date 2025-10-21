@@ -690,7 +690,7 @@ impl Header {
             )
             .build(ctx);
 
-        Header {
+        Self {
             button,
             close_button,
             decorator,

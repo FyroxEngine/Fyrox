@@ -107,8 +107,8 @@ impl HotKey {
 impl Display for HotKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            HotKey::NotSet => f.write_str("Not Set"),
-            HotKey::Some { code, modifiers } => {
+            Self::NotSet => f.write_str("Not Set"),
+            Self::Some { code, modifiers } => {
                 if modifiers.control {
                     f.write_str("Ctrl+")?;
                 }
@@ -348,8 +348,8 @@ pub enum KeyBinding {
 impl PartialEq<KeyCode> for KeyBinding {
     fn eq(&self, other: &KeyCode) -> bool {
         match self {
-            KeyBinding::NotSet => false,
-            KeyBinding::Some(code) => code == other,
+            Self::NotSet => false,
+            Self::Some(code) => code == other,
         }
     }
 }

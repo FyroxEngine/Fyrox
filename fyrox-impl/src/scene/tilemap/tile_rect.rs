@@ -277,7 +277,7 @@ impl TileRect {
     #[must_use = "this method creates new instance of OptionTileRect"]
     pub fn deflate(&self, dw: i32, dh: i32) -> OptionTileRect {
         if self.size.x > dw + dw && self.size.y > dh + dh {
-            OptionTileRect(Some(TileRect {
+            OptionTileRect(Some(Self {
                 position: Vector2::new(self.position.x + dw, self.position.y + dh),
                 size: Vector2::new(self.size.x - (dw + dw), self.size.y - (dh + dh)),
             }))
@@ -314,7 +314,7 @@ impl TileRect {
     /// returns none.
     #[inline]
     #[must_use = "this method creates new instance of OptionTileRect"]
-    pub fn clip_by(&self, other: TileRect) -> OptionTileRect {
+    pub fn clip_by(&self, other: Self) -> OptionTileRect {
         let mut clipped = *self;
 
         if other.x() + other.w() <= self.x()
@@ -350,7 +350,7 @@ impl TileRect {
 
     /// Checks if the rectangle intersects with some other rectangle.
     #[inline]
-    pub fn intersects(&self, other: TileRect) -> bool {
+    pub fn intersects(&self, other: Self) -> bool {
         if other.position.x < self.position.x + self.size.x
             && self.position.x < other.position.x + other.size.x
             && other.position.y < self.position.y + self.size.y
@@ -376,7 +376,7 @@ impl TileRect {
 
     /// Extends the rectangle so it will contain the other rectangle.
     #[inline]
-    pub fn extend_to_contain(&mut self, other: TileRect) {
+    pub fn extend_to_contain(&mut self, other: Self) {
         let p0 = self.left_bottom_corner();
         let p1 = self.right_top_corner();
         let o0 = other.left_bottom_corner();

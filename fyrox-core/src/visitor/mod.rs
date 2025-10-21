@@ -223,7 +223,7 @@ pub struct VisitorNode {
 }
 
 impl VisitorNode {
-    fn new(name: &str, parent: Handle<VisitorNode>) -> Self {
+    fn new(name: &str, parent: Handle<Self>) -> Self {
         Self {
             name: name.to_owned(),
             fields: Vec::new(),
@@ -509,12 +509,12 @@ impl Visitor {
     pub fn detect_format(src: &mut dyn Read) -> Format {
         let mut magic: [u8; 4] = Default::default();
         if src.read_exact(&mut magic).is_ok() {
-            if magic.eq(Visitor::MAGIC_BINARY_OLD.as_bytes())
-                || magic.eq(Visitor::MAGIC_BINARY_CURRENT.as_bytes())
+            if magic.eq(Self::MAGIC_BINARY_OLD.as_bytes())
+                || magic.eq(Self::MAGIC_BINARY_CURRENT.as_bytes())
             {
                 return Format::Binary;
-            } else if magic.eq(Visitor::MAGIC_ASCII_OLD.as_bytes())
-                || magic.eq(Visitor::MAGIC_ASCII_CURRENT.as_bytes())
+            } else if magic.eq(Self::MAGIC_ASCII_OLD.as_bytes())
+                || magic.eq(Self::MAGIC_ASCII_CURRENT.as_bytes())
             {
                 return Format::Ascii;
             }

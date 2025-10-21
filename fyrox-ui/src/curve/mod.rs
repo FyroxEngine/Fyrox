@@ -281,7 +281,7 @@ impl CurveTransform {
         curve_to_screen.append_translation_mut(&bounds.position);
         // Find the screen-to-curve matrix automatically from the curve-to-screen matrix.
         let screen_to_curve = curve_to_screen.try_inverse().unwrap_or_default();
-        *self = CurveTransform {
+        *self = Self {
             curve_to_local,
             local_to_curve,
             screen_to_curve,
@@ -526,7 +526,7 @@ impl OperationContext {
     fn is_dragging(&self) -> bool {
         matches!(
             self,
-            OperationContext::DragKeys { .. } | OperationContext::DragTangent { .. }
+            Self::DragKeys { .. } | Self::DragTangent { .. }
         )
     }
 }

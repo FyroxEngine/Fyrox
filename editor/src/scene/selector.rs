@@ -89,7 +89,7 @@ impl HierarchyNode {
                     if *c == ignored_node {
                         None
                     } else {
-                        Some(HierarchyNode::from_scene_node(*c, ignored_node, graph))
+                        Some(Self::from_scene_node(*c, ignored_node, graph))
                     }
                 })
                 .collect(),
@@ -99,7 +99,7 @@ impl HierarchyNode {
     }
 
     #[allow(dead_code)]
-    pub fn find_node(&mut self, node_handle: ErasedHandle) -> Option<&mut HierarchyNode> {
+    pub fn find_node(&mut self, node_handle: ErasedHandle) -> Option<&mut Self> {
         if self.handle == node_handle {
             return Some(self);
         }

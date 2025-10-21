@@ -482,7 +482,7 @@ uuid_provider!(Orientation = "1c6ad1b0-3f4c-48be-87dd-6929cb3577bf");
 pub struct NodeStatistics(pub FxHashMap<&'static str, isize>);
 
 impl NodeStatistics {
-    pub fn new(ui: &UserInterface) -> NodeStatistics {
+    pub fn new(ui: &UserInterface) -> Self {
         let mut statistics = Self::default();
         for node in ui.nodes.iter() {
             statistics
@@ -494,7 +494,7 @@ impl NodeStatistics {
         statistics
     }
 
-    fn unite_type_names(&self, prev_stats: &NodeStatistics) -> BTreeSet<&'static str> {
+    fn unite_type_names(&self, prev_stats: &Self) -> BTreeSet<&'static str> {
         let mut union = BTreeSet::default();
         for stats in [self, prev_stats] {
             for &type_name in stats.0.keys() {
@@ -508,7 +508,7 @@ impl NodeStatistics {
         self.0.get(type_name).cloned().unwrap_or_default()
     }
 
-    pub fn print_diff(&self, prev_stats: &NodeStatistics, show_unchanged: bool) {
+    pub fn print_diff(&self, prev_stats: &Self, show_unchanged: bool) {
         println!("**** Diff UI Node Statistics ****");
         for type_name in self.unite_type_names(prev_stats) {
             let count = self.count_of(type_name);
@@ -520,7 +520,7 @@ impl NodeStatistics {
         }
     }
 
-    pub fn print_changed(&self, prev_stats: &NodeStatistics) {
+    pub fn print_changed(&self, prev_stats: &Self) {
         println!("**** Changed UI Node Statistics ****");
         for type_name in self.unite_type_names(prev_stats) {
             let count = self.count_of(type_name);
@@ -599,7 +599,7 @@ pub struct TooltipEntry {
 }
 
 impl TooltipEntry {
-    fn new(tooltip: RcUiNodeHandle, appear_timeout: f32, disappear_timeout: f32) -> TooltipEntry {
+    fn new(tooltip: RcUiNodeHandle, appear_timeout: f32, disappear_timeout: f32) -> Self {
         Self {
             tooltip,
             appear_timer: appear_timeout,
@@ -1144,7 +1144,7 @@ struct VisualTransformUpdateData {
 }
 
 impl UserInterface {
-    pub fn new(screen_size: Vector2<f32>) -> UserInterface {
+    pub fn new(screen_size: Vector2<f32>) -> Self {
         let (sender, receiver) = mpsc::channel();
         Self::new_with_channel(sender, receiver, screen_size)
     }
@@ -1153,11 +1153,11 @@ impl UserInterface {
         sender: Sender<UiMessage>,
         receiver: Receiver<UiMessage>,
         screen_size: Vector2<f32>,
-    ) -> UserInterface {
+    ) -> Self {
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
         let style =
             StyleResource::new_ok(Uuid::new_v4(), ResourceKind::Embedded, Style::dark_style());
-        let mut ui = UserInterface {
+        let mut ui = Self {
             screen_size,
             sender,
             receiver,
@@ -3102,7 +3102,7 @@ impl UserInterface {
     pub fn copy_node_to<Post>(
         &self,
         node: Handle<UiNode>,
-        dest: &mut UserInterface,
+        dest: &mut Self,
         post_process_callback: &mut Post,
     ) -> (Handle<UiNode>, NodeHandleMap<UiNode>)
     where
@@ -3121,7 +3121,7 @@ impl UserInterface {
     fn copy_node_to_recursive<Post>(
         &self,
         node_handle: Handle<UiNode>,
-        dest: &mut UserInterface,
+        dest: &mut Self,
         old_new_mapping: &mut NodeHandleMap<UiNode>,
         post_process_callback: &mut Post,
     ) -> Handle<UiNode>
@@ -3277,7 +3277,7 @@ impl UserInterface {
             visitor.blackboard.register(Arc::new(sender.clone()));
             visitor.blackboard.register(Arc::new(resource_manager));
             let mut ui =
-                UserInterface::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
+                Self::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
             ui.visit("Ui", &mut visitor)?;
             ui
         };

@@ -239,7 +239,7 @@ pub struct SurfaceData {
 
 impl ResourceData for SurfaceData {
     fn type_uuid(&self) -> Uuid {
-        <SurfaceData as fyrox_core::TypeUuidProvider>::type_uuid()
+        <Self as fyrox_core::TypeUuidProvider>::type_uuid()
     }
 
     fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {

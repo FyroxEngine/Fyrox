@@ -111,11 +111,11 @@ pub struct TerrainRect {
 impl TerrainRect {
     /// Calculate the cell which contains the given local 2D coordinates when cells have the given size.
     /// It is assumed that the (0,0) cell has its origin at local 2D point (0.0, 0.0).
-    pub fn from_local(position: Vector2<f32>, cell_size: Vector2<f32>) -> TerrainRect {
+    pub fn from_local(position: Vector2<f32>, cell_size: Vector2<f32>) -> Self {
         let cell_pos = Vector2::new(position.x / cell_size.x, position.y / cell_size.y);
         let cell_pos = cell_pos.map(f32::floor);
         let min = Vector2::new(cell_pos.x * cell_size.x, cell_pos.y * cell_size.y);
-        TerrainRect {
+        Self {
             grid_position: cell_pos.map(|x| x as i32),
             bounds: Rect::new(min.x, min.y, cell_size.x, cell_size.y),
         }

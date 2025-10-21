@@ -163,7 +163,7 @@ impl PropertyAction {
         result_callback: &mut dyn FnMut(Result<Option<Box<dyn Reflect>>, Self>),
     ) {
         match self {
-            PropertyAction::Modify { value } => {
+            Self::Modify { value } => {
                 let mut value = Some(value);
                 target.resolve_path_mut(path, &mut |result| {
                     if let Ok(field) = result {
@@ -179,7 +179,7 @@ impl PropertyAction {
                     }
                 });
             }
-            PropertyAction::AddItem { value } => {
+            Self::AddItem { value } => {
                 let mut value = Some(value);
                 target.resolve_path_mut(path, &mut |result| {
                     if let Ok(field) = result {
@@ -203,7 +203,7 @@ impl PropertyAction {
                     }
                 })
             }
-            PropertyAction::RemoveItem { index } => target.resolve_path_mut(path, &mut |result| {
+            Self::RemoveItem { index } => target.resolve_path_mut(path, &mut |result| {
                 if let Ok(field) = result {
                     field.as_list_mut(&mut |result| {
                         if let Some(list) = result {
@@ -220,7 +220,7 @@ impl PropertyAction {
                     result_callback(Err(Self::RemoveItem { index }))
                 }
             }),
-            PropertyAction::Revert => {
+            Self::Revert => {
                 // Unsupported due to lack of context (a reference to parent entity).
                 result_callback(Err(Self::Revert))
             }
@@ -301,9 +301,9 @@ impl ObjectValue {
 impl PartialEq for FieldKind {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (FieldKind::Collection(l), FieldKind::Collection(r)) => std::ptr::eq(&**l, &**r),
-            (FieldKind::Inspectable(l), FieldKind::Inspectable(r)) => std::ptr::eq(&**l, &**r),
-            (FieldKind::Object(l), FieldKind::Object(r)) => l == r,
+            (Self::Collection(l), Self::Collection(r)) => std::ptr::eq(&**l, &**r),
+            (Self::Inspectable(l), Self::Inspectable(r)) => std::ptr::eq(&**l, &**r),
+            (Self::Object(l), Self::Object(r)) => l == r,
             _ => false,
         }
     }
@@ -538,7 +538,7 @@ impl Inspector {
     ) {
         if let Some(inspector_message) = message.data::<InspectorMessage>() {
             if ui.has_descendant_or_equal(message.destination(), inspector) {
-                Inspector::handle_context_menu_message_ex(
+                Self::handle_context_menu_message_ex(
                     inspector,
                     inspector_message,
                     ui,
@@ -644,7 +644,7 @@ impl Inspector {
                 }
 
                 if pasted {
-                    if let Some(inspector) = ui.try_get_of_type::<Inspector>(inspector) {
+                    if let Some(inspector) = ui.try_get_of_type::<Self>(inspector) {
                         let ctx = inspector.context.clone();
 
                         Log::verify(ctx.sync(

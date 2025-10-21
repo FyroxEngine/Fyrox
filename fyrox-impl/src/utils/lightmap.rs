@@ -218,16 +218,16 @@ pub enum ProgressStage {
 impl Display for ProgressStage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ProgressStage::LightsCaching => {
+            Self::LightsCaching => {
                 write!(f, "Caching Lights")
             }
-            ProgressStage::UvGeneration => {
+            Self::UvGeneration => {
                 write!(f, "Generating UVs")
             }
-            ProgressStage::GeometryCaching => {
+            Self::GeometryCaching => {
                 write!(f, "Caching Geometry")
             }
-            ProgressStage::CalculatingLight => {
+            Self::CalculatingLight => {
                 write!(f, "Calculating Light")
             }
         }
@@ -312,13 +312,13 @@ pub enum LightmapGenerationError {
 impl Display for LightmapGenerationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            LightmapGenerationError::Cancelled => {
+            Self::Cancelled => {
                 write!(f, "Lightmap generation was cancelled by the user.")
             }
-            LightmapGenerationError::InvalidIndex => {
+            Self::InvalidIndex => {
                 write!(f, "An index of a vertex in a triangle is out of bounds.")
             }
-            LightmapGenerationError::InvalidData(v) => {
+            Self::InvalidData(v) => {
                 write!(f, "Vertex buffer of a mesh lacks required data {v}.")
             }
         }
@@ -490,10 +490,10 @@ impl Lightmap {
     pub async fn load<P: AsRef<Path>>(
         path: P,
         resource_manager: ResourceManager,
-    ) -> Result<Lightmap, VisitError> {
+    ) -> Result<Self, VisitError> {
         let mut visitor = Visitor::load_from_file(path).await?;
         visitor.blackboard.register(Arc::new(resource_manager));
-        let mut lightmap = Lightmap::default();
+        let mut lightmap = Self::default();
         lightmap.visit("Lightmap", &mut visitor)?;
         Ok(lightmap)
     }

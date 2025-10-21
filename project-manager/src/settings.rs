@@ -121,7 +121,7 @@ impl SettingsData {
     pub fn load() -> Self {
         match File::open(Self::actual_path()) {
             Ok(file) => {
-                let mut settings: SettingsData = ron::de::from_reader(file).unwrap_or_default();
+                let mut settings: Self = ron::de::from_reader(file).unwrap_or_default();
                 settings.remove_non_existent_projects();
                 settings.remove_duplicates();
                 settings

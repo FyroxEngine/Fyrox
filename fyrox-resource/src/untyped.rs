@@ -273,13 +273,13 @@ impl ResourceKind {
     /// Switches the resource kind to [`Self::External`].
     #[inline]
     pub fn make_external(&mut self) {
-        *self = ResourceKind::External;
+        *self = Self::External;
     }
 
     /// Switches the resource kind to [`Self::Embedded`]
     #[inline]
     pub fn make_embedded(&mut self) {
-        *self = ResourceKind::Embedded;
+        *self = Self::Embedded;
     }
 
     /// Checks, if the resource kind is [`Self::Embedded`]
@@ -298,10 +298,10 @@ impl ResourceKind {
 impl Display for ResourceKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ResourceKind::Embedded => {
+            Self::Embedded => {
                 write!(f, "Embedded")
             }
-            ResourceKind::External => {
+            Self::External => {
                 write!(f, "External")
             }
         }
@@ -613,7 +613,7 @@ impl UntypedResource {
             LegacyHeader::Data(_) => {
                 let uuid = Uuid::new_v4();
                 let data = header.take_data(uuid).unwrap();
-                *self = UntypedResource::new_ok_untyped(uuid, ResourceKind::Embedded, data);
+                *self = Self::new_ok_untyped(uuid, ResourceKind::Embedded, data);
             }
         }
         Ok(())

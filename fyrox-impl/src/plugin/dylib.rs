@@ -185,7 +185,7 @@ impl DyLibDynamicPlugin {
                 "Watching for changes in plugin {source_lib_path:?}..."
             ));
 
-            DyLibDynamicPlugin {
+            Self {
                 state: PluginState::Loaded(DyLibHandle::load(lib_path.as_os_str())?),
                 lib_path,
                 source_lib_path: source_lib_path.clone(),
@@ -193,7 +193,7 @@ impl DyLibDynamicPlugin {
                 need_reload,
             }
         } else {
-            DyLibDynamicPlugin {
+            Self {
                 state: PluginState::Loaded(DyLibHandle::load(source_lib_path.as_os_str())?),
                 lib_path: source_lib_path.clone(),
                 source_lib_path: source_lib_path.clone(),
@@ -281,20 +281,20 @@ impl PluginState {
     /// Tries to interpret the state as [`Self::Loaded`], panics if the plugin is unloaded.
     pub fn as_loaded_ref(&self) -> &DyLibHandle {
         match self {
-            PluginState::Unloaded => {
+            Self::Unloaded => {
                 panic!("Cannot obtain a reference to the plugin, because it is unloaded!")
             }
-            PluginState::Loaded(dynamic) => dynamic,
+            Self::Loaded(dynamic) => dynamic,
         }
     }
 
     /// Tries to interpret the state as [`Self::Loaded`], panics if the plugin is unloaded.
     pub fn as_loaded_mut(&mut self) -> &mut DyLibHandle {
         match self {
-            PluginState::Unloaded => {
+            Self::Unloaded => {
                 panic!("Cannot obtain a reference to the plugin, because it is unloaded!")
             }
-            PluginState::Loaded(dynamic) => dynamic,
+            Self::Loaded(dynamic) => dynamic,
         }
     }
 }

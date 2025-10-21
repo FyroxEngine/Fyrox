@@ -119,7 +119,7 @@ impl BrushRaster for RectRaster {
         }
     }
     fn bounds(&self) -> Rect<f32> {
-        let RectRaster(x, y) = self;
+        let Self(x, y) = self;
         Rect::from_points(Vector2::new(-x, -y), Vector2::new(*x, *y))
     }
 }

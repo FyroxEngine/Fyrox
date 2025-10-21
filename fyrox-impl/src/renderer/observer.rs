@@ -209,7 +209,7 @@ impl Observer {
                 frame_size = size;
             }
         }
-        Observer {
+        Self {
             handle: camera.handle(),
             environment_map: camera.environment_map(),
             render_mask: *camera.render_mask,

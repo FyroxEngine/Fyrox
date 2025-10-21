@@ -79,7 +79,7 @@ impl Visit for WidgetContainer {
 
         if is_some != 0 {
             if region.is_reading() {
-                *self = WidgetContainer(Some(read_widget("Data", &mut region)?));
+                *self = Self(Some(read_widget("Data", &mut region)?));
             } else {
                 write_widget("Data", self.0.as_mut().unwrap(), &mut region)?;
             }

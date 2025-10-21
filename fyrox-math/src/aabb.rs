@@ -75,7 +75,7 @@ impl AxisAlignedBoundingBox {
 
     #[inline]
     pub fn from_points(points: &[Vector3<f32>]) -> Self {
-        let mut aabb = AxisAlignedBoundingBox::default();
+        let mut aabb = Self::default();
         for pt in points {
             aabb.add_point(*pt);
         }
@@ -261,7 +261,7 @@ impl AxisAlignedBoundingBox {
     /// Transforming Axis-Aligned Bounding Boxes by Jim Arvo, "Graphics Gems", Academic Press, 1990
     #[inline]
     #[must_use]
-    pub fn transform(&self, m: &Matrix4<f32>) -> AxisAlignedBoundingBox {
+    pub fn transform(&self, m: &Matrix4<f32>) -> Self {
         let basis = m.basis();
 
         let mut transformed = Self {
@@ -287,40 +287,40 @@ impl AxisAlignedBoundingBox {
     }
 
     #[inline]
-    pub fn split(&self) -> [AxisAlignedBoundingBox; 8] {
+    pub fn split(&self) -> [Self; 8] {
         let center = self.center();
         let min = &self.min;
         let max = &self.max;
         [
-            AxisAlignedBoundingBox::from_min_max(
+            Self::from_min_max(
                 Vector3::new(min.x, min.y, min.z),
                 Vector3::new(center.x, center.y, center.z),
             ),
-            AxisAlignedBoundingBox::from_min_max(
+            Self::from_min_max(
                 Vector3::new(center.x, min.y, min.z),
                 Vector3::new(max.x, center.y, center.z),
             ),
-            AxisAlignedBoundingBox::from_min_max(
+            Self::from_min_max(
                 Vector3::new(min.x, min.y, center.z),
                 Vector3::new(center.x, center.y, max.z),
             ),
-            AxisAlignedBoundingBox::from_min_max(
+            Self::from_min_max(
                 Vector3::new(center.x, min.y, center.z),
                 Vector3::new(max.x, center.y, max.z),
             ),
-            AxisAlignedBoundingBox::from_min_max(
+            Self::from_min_max(
                 Vector3::new(min.x, center.y, min.z),
                 Vector3::new(center.x, max.y, center.z),
             ),
-            AxisAlignedBoundingBox::from_min_max(
+            Self::from_min_max(
                 Vector3::new(center.x, center.y, min.z),
                 Vector3::new(max.x, max.y, center.z),
             ),
-            AxisAlignedBoundingBox::from_min_max(
+            Self::from_min_max(
                 Vector3::new(min.x, center.y, center.z),
                 Vector3::new(center.x, max.y, max.z),
             ),
-            AxisAlignedBoundingBox::from_min_max(
+            Self::from_min_max(
                 Vector3::new(center.x, center.y, center.z),
                 Vector3::new(max.x, max.y, max.z),
             ),

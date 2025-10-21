@@ -453,7 +453,7 @@ impl Stamp {
         self.elements.values().map(|s| s.handle)
     }
     /// Create a repeating tile source from this stamp to repeat from `start` to `end.`
-    pub fn repeat(&self, start: Vector2<i32>, end: Vector2<i32>) -> RepeatTileSource<Stamp> {
+    pub fn repeat(&self, start: Vector2<i32>, end: Vector2<i32>) -> RepeatTileSource<Self> {
         let bounds = self.bounding_rect();
         RepeatTileSource {
             source: self,
@@ -462,7 +462,7 @@ impl Stamp {
     }
 
     /// Create a repeating tile source from the stamp with no specified direction for the repeat.
-    pub fn repeat_anywhere(&self) -> RepeatTileSource<Stamp> {
+    pub fn repeat_anywhere(&self) -> RepeatTileSource<Self> {
         let bounds = self.bounding_rect();
         RepeatTileSource {
             source: self,

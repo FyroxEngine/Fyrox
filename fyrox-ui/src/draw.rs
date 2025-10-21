@@ -48,8 +48,8 @@ pub struct Vertex {
 }
 
 impl Vertex {
-    fn new(pos: Vector2<f32>, tex_coord: Vector2<f32>) -> Vertex {
-        Vertex {
+    fn new(pos: Vector2<f32>, tex_coord: Vector2<f32>) -> Self {
+        Self {
             pos,
             tex_coord,
             color: Color::WHITE,
@@ -853,8 +853,8 @@ impl Draw for DrawingContext {
 
 impl DrawingContext {
     #[inline]
-    pub fn new(style: StyleResource) -> DrawingContext {
-        DrawingContext {
+    pub fn new(style: StyleResource) -> Self {
+        Self {
             vertex_buffer: Vec::new(),
             triangle_buffer: Vec::new(),
             command_buffer: Vec::new(),

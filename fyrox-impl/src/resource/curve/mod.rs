@@ -48,10 +48,10 @@ pub enum CurveResourceError {
 impl Display for CurveResourceError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            CurveResourceError::Io(v) => {
+            Self::Io(v) => {
                 write!(f, "A file load error has occurred {v:?}")
             }
-            CurveResourceError::Visit(v) => {
+            Self::Visit(v) => {
                 write!(
                     f,
                     "An error that may occur due to version incompatibilities. {v:?}"

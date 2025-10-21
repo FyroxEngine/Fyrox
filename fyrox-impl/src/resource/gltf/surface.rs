@@ -89,40 +89,40 @@ impl std::error::Error for SurfaceDataError {}
 impl Display for SurfaceDataError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SurfaceDataError::CountMismatch => f.write_str("Count mismatch"),
-            SurfaceDataError::MissingPosition => f.write_str("Missing position"),
-            SurfaceDataError::MissingNormal => f.write_str("Missing normal"),
-            SurfaceDataError::MissingTexCoords => f.write_str("Missing texcoords"),
-            SurfaceDataError::MissingBoneWeight => f.write_str("Missing bone weight"),
-            SurfaceDataError::MissingBoneIndex => f.write_str("Missing bone index"),
-            SurfaceDataError::InvalidBoneIndex => f.write_str("Invalid bone index"),
-            SurfaceDataError::InvalidMode => f.write_str("Invalid mode"),
-            SurfaceDataError::InvalidIndex => f.write_str("Invalid index"),
-            SurfaceDataError::Int(error) => Display::fmt(error, f),
-            SurfaceDataError::InvalidVertexCount(geometry_type, count) => {
+            Self::CountMismatch => f.write_str("Count mismatch"),
+            Self::MissingPosition => f.write_str("Missing position"),
+            Self::MissingNormal => f.write_str("Missing normal"),
+            Self::MissingTexCoords => f.write_str("Missing texcoords"),
+            Self::MissingBoneWeight => f.write_str("Missing bone weight"),
+            Self::MissingBoneIndex => f.write_str("Missing bone index"),
+            Self::InvalidBoneIndex => f.write_str("Invalid bone index"),
+            Self::InvalidMode => f.write_str("Invalid mode"),
+            Self::InvalidIndex => f.write_str("Invalid index"),
+            Self::Int(error) => Display::fmt(error, f),
+            Self::InvalidVertexCount(geometry_type, count) => {
                 write!(f, "Cannot have {count} vertices {geometry_type}.")
             }
-            SurfaceDataError::Validation(error) => Display::fmt(error, f),
-            SurfaceDataError::Fetch(error) => Display::fmt(error, f),
+            Self::Validation(error) => Display::fmt(error, f),
+            Self::Fetch(error) => Display::fmt(error, f),
         }
     }
 }
 
 impl From<ValidationError> for SurfaceDataError {
     fn from(error: ValidationError) -> Self {
-        SurfaceDataError::Validation(error)
+        Self::Validation(error)
     }
 }
 
 impl From<TryFromIntError> for SurfaceDataError {
     fn from(error: TryFromIntError) -> Self {
-        SurfaceDataError::Int(error)
+        Self::Int(error)
     }
 }
 
 impl From<buffer::VertexFetchError> for SurfaceDataError {
     fn from(error: buffer::VertexFetchError) -> Self {
-        SurfaceDataError::Fetch(error)
+        Self::Fetch(error)
     }
 }
 
@@ -136,9 +136,9 @@ pub enum GeometryType {
 impl Display for GeometryType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GeometryType::Triangles => f.write_str("triangles"),
-            GeometryType::TriangleStrip => f.write_str("triangle strip"),
-            GeometryType::TriangleFan => f.write_str("triangle fan"),
+            Self::Triangles => f.write_str("triangles"),
+            Self::TriangleStrip => f.write_str("triangle strip"),
+            Self::TriangleFan => f.write_str("triangle fan"),
         }
     }
 }
@@ -157,7 +157,7 @@ pub struct BlendShapeInfoContainer {
 
 impl BlendShapeInfoContainer {
     pub fn new(names: Vec<String>, weights: Vec<f32>) -> Self {
-        BlendShapeInfoContainer { names, weights }
+        Self { names, weights }
     }
     pub fn get(&self, index: usize) -> BlendShapeInfo {
         BlendShapeInfo {
@@ -191,7 +191,7 @@ impl GeometryStatistics {
 
 impl Default for GeometryStatistics {
     fn default() -> Self {
-        GeometryStatistics {
+        Self {
             min_edge_length_squared: f32::INFINITY,
             repeated_index_count: 0,
         }
@@ -213,17 +213,17 @@ impl IndexData {
     }
     fn get(&self, source_index: u32) -> Result<u32> {
         match self {
-            IndexData::Buffer(data) => Ok(*data
+            Self::Buffer(data) => Ok(*data
                 .get(usize::try_from(source_index)?)
                 .ok_or(SurfaceDataError::InvalidIndex)?),
-            IndexData::Direct(size) if source_index < *size => Ok(source_index),
+            Self::Direct(size) if source_index < *size => Ok(source_index),
             _ => Err(SurfaceDataError::InvalidIndex),
         }
     }
     fn len(&self) -> Result<u32> {
         match self {
-            IndexData::Buffer(data) => Ok(u32::try_from(data.len())?),
-            IndexData::Direct(size) => Ok(*size),
+            Self::Buffer(data) => Ok(u32::try_from(data.len())?),
+            Self::Direct(size) => Ok(*size),
         }
     }
 }
@@ -480,7 +480,7 @@ impl GltfVertexConvert for SimpleVertex {
         if let Some(iter) = reader.read_positions() {
             Ok(iter
                 .map(Vector3::from)
-                .map(|v| SimpleVertex { position: v })
+                .map(|v| Self { position: v })
                 .collect())
         } else {
             Err(SurfaceDataError::MissingPosition)
@@ -505,7 +505,7 @@ impl GltfVertexConvert for StaticVertex {
             .read_tex_coords(0)
             .ok_or(SurfaceDataError::MissingTexCoords)?
             .into_f32();
-        let mut result: Vec<StaticVertex> = Vec::with_capacity(pos_iter.len());
+        let mut result: Vec<Self> = Vec::with_capacity(pos_iter.len());
         for pos in pos_iter {
             let pos: Vector3<f32> = Vector3::from(pos);
             let norm: Option<Vector3<f32>> = norm_iter.next().map(Vector3::from);
@@ -516,7 +516,7 @@ impl GltfVertexConvert for StaticVertex {
                 Some(DEFAULT_TANGENT)
             };
             if let (Some(normal), Some(tex_coord), Some(tangent)) = (norm, uv, tang) {
-                result.push(StaticVertex {
+                result.push(Self {
                     position: pos,
                     normal,
                     tex_coord,
@@ -554,7 +554,7 @@ impl GltfVertexConvert for AnimatedVertex {
         let mut jnt_iter = reader
             .read_joints(0)
             .ok_or(SurfaceDataError::MissingBoneIndex)?;
-        let mut result: Vec<AnimatedVertex> = Vec::with_capacity(pos_iter.len());
+        let mut result: Vec<Self> = Vec::with_capacity(pos_iter.len());
         for pos in pos_iter {
             let pos: Vector3<f32> = Vector3::from(pos);
             let norm: Option<Vector3<f32>> = norm_iter.next().map(Vector3::from);
@@ -574,7 +574,7 @@ impl GltfVertexConvert for AnimatedVertex {
                 Some(bone_indices),
             ) = (norm, uv, tang, bone_weights, bone_indices)
             {
-                result.push(AnimatedVertex {
+                result.push(Self {
                     position: pos,
                     normal,
                     tex_coord,

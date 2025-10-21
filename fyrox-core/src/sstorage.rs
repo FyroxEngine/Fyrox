@@ -108,7 +108,7 @@ impl<'de> Deserialize<'de> for ImmutableString {
     where
         D: serde::Deserializer<'de>,
     {
-        Ok(ImmutableString::new(
+        Ok(Self::new(
             deserializer.deserialize_string(ImmutableStringVisitor {})?,
         ))
     }
@@ -159,7 +159,7 @@ impl ImmutableString {
     /// in backing storage) it allocates memory which could lead to complexity defined by current
     /// memory allocator.
     #[inline]
-    pub fn new<S: AsRef<str>>(string: S) -> ImmutableString {
+    pub fn new<S: AsRef<str>>(string: S) -> Self {
         SSTORAGE.safe_lock().insert(string)
     }
 

@@ -76,7 +76,7 @@ impl Brush {
 
 impl From<Color> for Brush {
     fn from(color: Color) -> Self {
-        Brush::Solid(color)
+        Self::Solid(color)
     }
 }
 

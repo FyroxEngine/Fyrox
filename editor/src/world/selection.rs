@@ -164,7 +164,7 @@ impl GraphSelection {
         &self.nodes
     }
 
-    pub fn extend(&mut self, other: &GraphSelection) {
+    pub fn extend(&mut self, other: &Self) {
         self.nodes.extend_from_slice(&other.nodes)
     }
 

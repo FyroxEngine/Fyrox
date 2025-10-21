@@ -413,30 +413,30 @@ impl<T: EntityId> LogicNode<T> {
         animations: &AnimationContainer<T>,
     ) -> bool {
         match self {
-            LogicNode::Parameter(rule_name) => parameters.get(rule_name).is_some_and(|p| {
+            Self::Parameter(rule_name) => parameters.get(rule_name).is_some_and(|p| {
                 if let Parameter::Rule(rule_value) = p {
                     *rule_value
                 } else {
                     false
                 }
             }),
-            LogicNode::And(and) => {
+            Self::And(and) => {
                 let lhs_value = and.lhs.calculate_value(parameters, animations);
                 let rhs_value = and.rhs.calculate_value(parameters, animations);
                 lhs_value & rhs_value
             }
-            LogicNode::Or(or) => {
+            Self::Or(or) => {
                 let lhs_value = or.lhs.calculate_value(parameters, animations);
                 let rhs_value = or.rhs.calculate_value(parameters, animations);
                 lhs_value | rhs_value
             }
-            LogicNode::Xor(or) => {
+            Self::Xor(or) => {
                 let lhs_value = or.lhs.calculate_value(parameters, animations);
                 let rhs_value = or.rhs.calculate_value(parameters, animations);
                 lhs_value ^ rhs_value
             }
-            LogicNode::Not(node) => !node.lhs.calculate_value(parameters, animations),
-            LogicNode::IsAnimationEnded(animation) => {
+            Self::Not(node) => !node.lhs.calculate_value(parameters, animations),
+            Self::IsAnimationEnded(animation) => {
                 animations.try_get(*animation).is_none_or(|a| a.has_ended())
             }
         }
@@ -517,7 +517,7 @@ impl<T: EntityId> Transition<T> {
         dest: Handle<State<T>>,
         time: f32,
         rule: &str,
-    ) -> Transition<T> {
+    ) -> Self {
         Self {
             name: name.to_owned(),
             transition_time: time,

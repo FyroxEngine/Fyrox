@@ -90,7 +90,7 @@ pub enum TileContent {
 
 impl TileContent {
     pub fn is_empty(&self) -> bool {
-        matches!(self, TileContent::Empty)
+        matches!(self, Self::Empty)
     }
     /// True if a window can be docked in a tile that currently has this content.
     pub fn can_dock(&self) -> bool {
@@ -645,7 +645,7 @@ impl Control for Tile {
                         | TileContent::HorizontalTiles { tiles, .. } => {
                             let mut has_empty_sub_tile = false;
                             for &tile in &tiles {
-                                if let Some(sub_tile) = ui.node(tile).cast::<Tile>() {
+                                if let Some(sub_tile) = ui.node(tile).cast::<Self>() {
                                     if let TileContent::Empty = sub_tile.content {
                                         has_empty_sub_tile = true;
                                         break;
@@ -654,7 +654,7 @@ impl Control for Tile {
                             }
                             if has_empty_sub_tile {
                                 for &tile in &tiles {
-                                    if let Some(sub_tile) = ui.node(tile).cast::<Tile>() {
+                                    if let Some(sub_tile) = ui.node(tile).cast::<Self>() {
                                         match sub_tile.content {
                                             TileContent::Window(sub_tile_wnd) => {
                                                 // If we have only a tile with a window, then detach window and schedule
@@ -827,7 +827,7 @@ impl Control for Tile {
                             let tile_a = tiles[tile_a_index];
                             let tile_b = tiles[tile_b_index];
                             if tile_has_window(tile_a, ui, closed_window) {
-                                if let Some(tile_a_ref) = ui.node(tile_a).query_component::<Tile>()
+                                if let Some(tile_a_ref) = ui.node(tile_a).query_component::<Self>()
                                 {
                                     let window = ui
                                         .node(closed_window)
@@ -835,7 +835,7 @@ impl Control for Tile {
                                         .expect("must be window");
                                     tile_a_ref.undock(window, ui);
                                 }
-                                if let Some(tile_b_ref) = ui.node(tile_b).query_component::<Tile>()
+                                if let Some(tile_b_ref) = ui.node(tile_b).query_component::<Self>()
                                 {
                                     ui.send_message(WidgetMessage::unlink(
                                         closed_window,

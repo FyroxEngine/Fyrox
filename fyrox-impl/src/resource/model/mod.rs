@@ -446,7 +446,7 @@ pub trait ModelResourceExtension: Sized {
 }
 
 impl AnimationSource for Model {
-    type Prefab = Model;
+    type Prefab = Self;
     type SceneGraph = Graph;
     type Node = Node;
 
@@ -456,8 +456,8 @@ impl AnimationSource for Model {
 }
 
 impl AnimationSource for UserInterface {
-    type Prefab = UserInterface;
-    type SceneGraph = UserInterface;
+    type Prefab = Self;
+    type SceneGraph = Self;
     type Node = UiNode;
 
     fn inner_graph(&self) -> &Self::SceneGraph {
@@ -759,26 +759,26 @@ pub enum ModelLoadError {
 impl Display for ModelLoadError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ModelLoadError::Visit(v) => {
+            Self::Visit(v) => {
                 write!(f, "An error occurred while reading a data source: {v}")
             }
-            ModelLoadError::NotSupported(v) => {
+            Self::NotSupported(v) => {
                 write!(f, "Model format is not supported: {v}")
             }
-            ModelLoadError::Fbx(v) => v.fmt(f),
+            Self::Fbx(v) => v.fmt(f),
         }
     }
 }
 
 impl From<FbxError> for ModelLoadError {
     fn from(fbx: FbxError) -> Self {
-        ModelLoadError::Fbx(fbx)
+        Self::Fbx(fbx)
     }
 }
 
 impl From<VisitError> for ModelLoadError {
     fn from(e: VisitError) -> Self {
-        ModelLoadError::Visit(e)
+        Self::Visit(e)
     }
 }
 

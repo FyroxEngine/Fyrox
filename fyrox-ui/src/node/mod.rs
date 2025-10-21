@@ -248,7 +248,7 @@ impl UiNode {
 
     pub(crate) fn set_inheritance_data(
         &mut self,
-        original_handle: Handle<UiNode>,
+        original_handle: Handle<Self>,
         model: Resource<UserInterface>,
     ) {
         // Notify instantiated node about resource it was created from.

@@ -43,7 +43,7 @@ pub struct NoWrap<S> {
 
 impl<S> NoWrap<S> {
     pub fn new(sink: S) -> Self {
-        NoWrap {
+        Self {
             sink,
             start: 0,
             position: 0,
@@ -78,7 +78,7 @@ pub struct LetterWrap<S> {
 
 impl<S> LetterWrap<S> {
     pub fn new(sink: S) -> Self {
-        LetterWrap {
+        Self {
             sink,
             start: 0,
             position: 0,
@@ -126,7 +126,7 @@ pub struct WordWrap<S> {
 
 impl<S> WordWrap<S> {
     pub fn new(sink: S) -> Self {
-        WordWrap {
+        Self {
             sink,
             start: 0,
             position: 0,

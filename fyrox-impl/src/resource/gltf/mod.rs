@@ -93,67 +93,67 @@ impl std::error::Error for GltfLoadError {}
 impl Display for GltfLoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GltfLoadError::InvalidIndex => f.write_str("Invalid index"),
-            GltfLoadError::InvalidPath => f.write_str("Invalid path"),
-            GltfLoadError::UnsupportedURI(uri) => write!(f, "Unsupported URL {uri:?}"),
-            GltfLoadError::MissingEmbeddedBin => f.write_str("Missing embedded bin"),
-            GltfLoadError::Gltf(error) => Display::fmt(error, f),
-            GltfLoadError::Texture(error) => Display::fmt(error, f),
-            GltfLoadError::File(error) => Display::fmt(error, f),
-            GltfLoadError::Base64(error) => Display::fmt(error, f),
-            GltfLoadError::Load(error) => Display::fmt(error, f),
-            GltfLoadError::Material(error) => Display::fmt(error, f),
-            GltfLoadError::Surface(error) => Display::fmt(error, f),
-            GltfLoadError::JSON(error) => Display::fmt(error, f),
+            Self::InvalidIndex => f.write_str("Invalid index"),
+            Self::InvalidPath => f.write_str("Invalid path"),
+            Self::UnsupportedURI(uri) => write!(f, "Unsupported URL {uri:?}"),
+            Self::MissingEmbeddedBin => f.write_str("Missing embedded bin"),
+            Self::Gltf(error) => Display::fmt(error, f),
+            Self::Texture(error) => Display::fmt(error, f),
+            Self::File(error) => Display::fmt(error, f),
+            Self::Base64(error) => Display::fmt(error, f),
+            Self::Load(error) => Display::fmt(error, f),
+            Self::Material(error) => Display::fmt(error, f),
+            Self::Surface(error) => Display::fmt(error, f),
+            Self::JSON(error) => Display::fmt(error, f),
         }
     }
 }
 
 impl From<json::Error> for GltfLoadError {
     fn from(error: json::Error) -> Self {
-        GltfLoadError::JSON(error)
+        Self::JSON(error)
     }
 }
 
 impl From<gltf::Error> for GltfLoadError {
     fn from(error: gltf::Error) -> Self {
-        GltfLoadError::Gltf(error)
+        Self::Gltf(error)
     }
 }
 
 impl From<TextureError> for GltfLoadError {
     fn from(error: TextureError) -> Self {
-        GltfLoadError::Texture(error)
+        Self::Texture(error)
     }
 }
 
 impl From<FileError> for GltfLoadError {
     fn from(error: FileError) -> Self {
-        GltfLoadError::File(error)
+        Self::File(error)
     }
 }
 
 impl From<LoadError> for GltfLoadError {
     fn from(error: LoadError) -> Self {
-        GltfLoadError::Load(error)
+        Self::Load(error)
     }
 }
 
 impl From<base64::DecodeError> for GltfLoadError {
     fn from(error: base64::DecodeError) -> Self {
-        GltfLoadError::Base64(error)
+        Self::Base64(error)
     }
 }
 
 impl From<GltfMaterialError> for GltfLoadError {
     fn from(error: GltfMaterialError) -> Self {
-        GltfLoadError::Material(error)
+        Self::Material(error)
     }
 }
 
 impl From<SurfaceDataError> for GltfLoadError {
     fn from(error: SurfaceDataError) -> Self {
-        GltfLoadError::Surface(error)
+        Self::Surface(error)
     }
 }
 
@@ -187,7 +187,7 @@ struct SkinBone {
 impl From<(usize, Matrix4<f32>)> for SkinBone {
     fn from(pair: (usize, Matrix4<f32>)) -> Self {
         let (node_index, inv_bind_pose) = pair;
-        SkinBone {
+        Self {
             node_index,
             inv_bind_pose,
         }
@@ -207,7 +207,7 @@ struct SkinBoneIter<'a> {
 }
 
 impl<'a> SkinBoneIter<'a> {
-    fn new(skin_list: &'a [SkinData]) -> SkinBoneIter<'a> {
+    fn new(skin_list: &'a [SkinData]) -> Self {
         SkinBoneIter {
             skin_index: 0,
             bone_index: 0,

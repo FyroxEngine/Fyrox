@@ -1178,7 +1178,7 @@ pub enum WindowTitle {
 impl WindowTitle {
     /// A shortcut to create [`WindowTitle::Text`]
     pub fn text<P: AsRef<str>>(text: P) -> Self {
-        WindowTitle::Text {
+        Self::Text {
             text: text.as_ref().to_owned(),
             font: None,
             font_size: None,
@@ -1187,7 +1187,7 @@ impl WindowTitle {
 
     /// A shortcut to create [`WindowTitle::Text`] with custom font.
     pub fn text_with_font<P: AsRef<str>>(text: P, font: FontResource) -> Self {
-        WindowTitle::Text {
+        Self::Text {
             text: text.as_ref().to_owned(),
             font: Some(font),
             font_size: None,
@@ -1200,7 +1200,7 @@ impl WindowTitle {
         font: FontResource,
         size: StyledProperty<f32>,
     ) -> Self {
-        WindowTitle::Text {
+        Self::Text {
             text: text.as_ref().to_owned(),
             font: Some(font),
             font_size: Some(size),

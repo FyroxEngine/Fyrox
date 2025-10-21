@@ -227,8 +227,8 @@ impl<T: TypedResourceData> AsRef<UntypedResource> for Resource<T> {
     }
 }
 
-impl AsRef<UntypedResource> for UntypedResource {
-    fn as_ref(&self) -> &UntypedResource {
+impl AsRef<Self> for UntypedResource {
+    fn as_ref(&self) -> &Self {
         self
     }
 }

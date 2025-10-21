@@ -246,7 +246,7 @@ impl<N: Reflect> CommandTrait for AddAnimationCommand<N> {
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
         match std::mem::replace(self, Self::Unknown) {
-            AddAnimationCommand::NonExecuted {
+            Self::NonExecuted {
                 animation_player,
                 animation,
             } => {
@@ -268,7 +268,7 @@ impl<N: Reflect> CommandTrait for AddAnimationCommand<N> {
                     selection: old_selection,
                 };
             }
-            AddAnimationCommand::Reverted {
+            Self::Reverted {
                 animation_player,
                 animation,
                 ticket,
@@ -292,7 +292,7 @@ impl<N: Reflect> CommandTrait for AddAnimationCommand<N> {
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
         match std::mem::replace(self, Self::Unknown) {
-            AddAnimationCommand::Executed {
+            Self::Executed {
                 animation_player,
                 animation,
                 selection,
@@ -315,7 +315,7 @@ impl<N: Reflect> CommandTrait for AddAnimationCommand<N> {
     }
 
     fn finalize(&mut self, context: &mut dyn CommandContext) {
-        if let AddAnimationCommand::Reverted {
+        if let Self::Reverted {
             animation_player,
             ticket,
             ..
@@ -360,11 +360,11 @@ impl<N: Reflect> CommandTrait for RemoveAnimationCommand<N> {
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
         match std::mem::replace(self, Self::Unknown) {
-            RemoveAnimationCommand::NonExecuted {
+            Self::NonExecuted {
                 animation_player,
                 animation,
             }
-            | RemoveAnimationCommand::Reverted {
+            | Self::Reverted {
                 animation_player,
                 animation,
             } => {
@@ -383,7 +383,7 @@ impl<N: Reflect> CommandTrait for RemoveAnimationCommand<N> {
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
         match std::mem::replace(self, Self::Unknown) {
-            RemoveAnimationCommand::Executed {
+            Self::Executed {
                 animation_player,
                 animation,
                 ticket,
@@ -401,7 +401,7 @@ impl<N: Reflect> CommandTrait for RemoveAnimationCommand<N> {
     }
 
     fn finalize(&mut self, context: &mut dyn CommandContext) {
-        if let RemoveAnimationCommand::Executed {
+        if let Self::Executed {
             animation_player,
             ticket,
             ..

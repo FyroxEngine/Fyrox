@@ -295,7 +295,7 @@ impl StyledPropertySelectorBuilder {
         style_property_name: ImmutableString,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
-        let window = StyledPropertySelectorBuilder::new(
+        let window = Self::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(200.0))
                 .with_title(WindowTitle::text("Select A Style Property"))
                 .with_remove_on_close(true)

@@ -815,8 +815,8 @@ impl Control for MenuItem {
                             *self.panel,
                             MessageDirection::ToWidget,
                             widget::SortingPredicate::new(move |a, b, ui| {
-                                let item_a = ui.try_get_of_type::<MenuItem>(a).unwrap();
-                                let item_b = ui.try_get_of_type::<MenuItem>(b).unwrap();
+                                let item_a = ui.try_get_of_type::<Self>(a).unwrap();
+                                let item_b = ui.try_get_of_type::<Self>(b).unwrap();
 
                                 if let (Some(a_content), Some(b_content)) =
                                     (item_a.content.as_ref(), item_b.content.as_ref())
@@ -1018,7 +1018,7 @@ impl Default for MenuItemContent {
 impl MenuItemContent {
     /// Creates a menu item content with a text, a shortcut and an arrow (with no icon).
     pub fn text_with_shortcut(text: impl AsRef<str>, shortcut: impl AsRef<str>) -> Self {
-        MenuItemContent::Text {
+        Self::Text {
             text: text.as_ref().to_owned(),
             shortcut: shortcut.as_ref().to_owned(),
             icon: Default::default(),
@@ -1028,7 +1028,7 @@ impl MenuItemContent {
 
     /// Creates a menu item content with a text and an arrow (with no icon or shortcut).
     pub fn text(text: impl AsRef<str>) -> Self {
-        MenuItemContent::Text {
+        Self::Text {
             text: text.as_ref().to_owned(),
             shortcut: Default::default(),
             icon: Default::default(),
@@ -1038,7 +1038,7 @@ impl MenuItemContent {
 
     /// Creates a menu item content with a text only (with no icon, shortcut, arrow).
     pub fn text_no_arrow(text: impl AsRef<str>) -> Self {
-        MenuItemContent::Text {
+        Self::Text {
             text: text.as_ref().to_owned(),
             shortcut: Default::default(),
             icon: Default::default(),
@@ -1048,7 +1048,7 @@ impl MenuItemContent {
 
     /// Creates a menu item content with only horizontally and vertically centered text.
     pub fn text_centered(text: impl AsRef<str>) -> Self {
-        MenuItemContent::TextCentered(text.as_ref().to_owned())
+        Self::TextCentered(text.as_ref().to_owned())
     }
 }
 

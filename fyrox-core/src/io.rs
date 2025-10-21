@@ -32,10 +32,10 @@ impl std::error::Error for FileError {}
 impl Display for FileError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            FileError::Io(err) => {
+            Self::Io(err) => {
                 write!(f, "Io error: {err}")
             }
-            FileError::Custom(err) => {
+            Self::Custom(err) => {
                 write!(f, "{err}")
             }
         }

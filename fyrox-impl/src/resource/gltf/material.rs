@@ -106,34 +106,34 @@ impl std::error::Error for GltfMaterialError {}
 impl Display for GltfMaterialError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GltfMaterialError::ShaderLoadFailed => f.write_str("Shader load failed"),
-            GltfMaterialError::InvalidIndex => f.write_str("Invalid material index"),
-            GltfMaterialError::UnsupportedURI(uri) => {
+            Self::ShaderLoadFailed => f.write_str("Shader load failed"),
+            Self::InvalidIndex => f.write_str("Invalid material index"),
+            Self::UnsupportedURI(uri) => {
                 write!(f, "Unsupported material URI {uri:?}")
             }
-            GltfMaterialError::TextureNotFound(uri) => write!(f, "Texture not found: {uri:?}"),
-            GltfMaterialError::Load(error) => Display::fmt(error, f),
-            GltfMaterialError::Base64(error) => Display::fmt(error, f),
-            GltfMaterialError::Texture(error) => Display::fmt(error, f),
+            Self::TextureNotFound(uri) => write!(f, "Texture not found: {uri:?}"),
+            Self::Load(error) => Display::fmt(error, f),
+            Self::Base64(error) => Display::fmt(error, f),
+            Self::Texture(error) => Display::fmt(error, f),
         }
     }
 }
 
 impl From<LoadError> for GltfMaterialError {
     fn from(error: LoadError) -> Self {
-        GltfMaterialError::Load(error)
+        Self::Load(error)
     }
 }
 
 impl From<base64::DecodeError> for GltfMaterialError {
     fn from(error: base64::DecodeError) -> Self {
-        GltfMaterialError::Base64(error)
+        Self::Base64(error)
     }
 }
 
 impl From<TextureError> for GltfMaterialError {
     fn from(error: TextureError) -> Self {
-        GltfMaterialError::Texture(error)
+        Self::Texture(error)
     }
 }
 

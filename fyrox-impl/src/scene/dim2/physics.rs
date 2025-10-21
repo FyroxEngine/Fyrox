@@ -241,7 +241,7 @@ impl ContactPair {
     }
 
     fn from_native(c: &rapier2d::geometry::ContactPair, physics: &PhysicsWorld) -> Option<Self> {
-        Some(ContactPair {
+        Some(Self {
             collider1: Handle::decode_from_u128(physics.colliders.get(c.collider1)?.user_data),
             collider2: Handle::decode_from_u128(physics.colliders.get(c.collider2)?.user_data),
             manifolds: c
@@ -511,7 +511,7 @@ pub struct PhysicsWorld {
 
 impl Clone for PhysicsWorld {
     fn clone(&self) -> Self {
-        PhysicsWorld {
+        Self {
             enabled: self.enabled.clone(),
             integration_parameters: self.integration_parameters.clone(),
             gravity: self.gravity.clone(),

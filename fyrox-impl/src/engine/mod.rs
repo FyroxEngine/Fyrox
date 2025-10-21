@@ -257,7 +257,7 @@ impl GraphicsContext {
     /// Attempts to cast a graphics context to its initialized version. The method will panic if the context
     /// is not initialized.
     pub fn as_initialized_ref(&self) -> &InitializedGraphicsContext {
-        if let GraphicsContext::Initialized(ctx) = self {
+        if let Self::Initialized(ctx) = self {
             ctx
         } else {
             panic!("Graphics context is uninitialized!")
@@ -267,7 +267,7 @@ impl GraphicsContext {
     /// Attempts to cast a graphics context to its initialized version. The method will panic if the context
     /// is not initialized.
     pub fn as_initialized_mut(&mut self) -> &mut InitializedGraphicsContext {
-        if let GraphicsContext::Initialized(ctx) = self {
+        if let Self::Initialized(ctx) = self {
             ctx
         } else {
             panic!("Graphics context is uninitialized!")
@@ -1052,7 +1052,7 @@ impl ResourceGraphVertex {
         children.extend(
             dependent_resources
                 .into_iter()
-                .map(|r| ResourceGraphVertex::new(r, resource_manager.clone())),
+                .map(|r| Self::new(r, resource_manager.clone())),
         );
 
         Self {

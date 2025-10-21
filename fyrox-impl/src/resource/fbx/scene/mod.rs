@@ -361,7 +361,7 @@ impl FbxCluster {
             }
         }
 
-        Ok(FbxCluster {
+        Ok(Self {
             model: Handle::NONE,
             weights,
             transform,
@@ -378,7 +378,7 @@ impl FbxMaterial {
     fn read(
         material_node_handle: Handle<FbxNode>,
         nodes: &FbxNodeContainer,
-    ) -> Result<FbxMaterial, FbxError> {
+    ) -> Result<Self, FbxError> {
         let mut diffuse_color = Color::WHITE;
 
         let props = nodes.get_by_name(material_node_handle, "Properties70")?;
@@ -392,7 +392,7 @@ impl FbxMaterial {
             }
         }
 
-        Ok(FbxMaterial {
+        Ok(Self {
             textures: Default::default(),
             diffuse_color,
         })
@@ -405,7 +405,7 @@ pub struct FbxDeformer {
 
 impl FbxDeformer {
     fn read(_sub_deformer_handle: Handle<FbxNode>, _nodes: &FbxNodeContainer) -> Self {
-        FbxDeformer {
+        Self {
             sub_deformers: Vec::new(),
         }
     }
@@ -423,11 +423,11 @@ pub enum FbxMapping {
 impl FbxMapping {
     pub fn from_string<P: AsRef<str>>(value: P) -> Result<Self, FbxError> {
         match value.as_ref() {
-            "ByPolygon" => Ok(FbxMapping::ByPolygon),
-            "ByPolygonVertex" => Ok(FbxMapping::ByPolygonVertex),
-            "ByVertex" | "ByVertice" => Ok(FbxMapping::ByVertex),
-            "ByEdge" => Ok(FbxMapping::ByEdge),
-            "AllSame" => Ok(FbxMapping::AllSame),
+            "ByPolygon" => Ok(Self::ByPolygon),
+            "ByPolygonVertex" => Ok(Self::ByPolygonVertex),
+            "ByVertex" | "ByVertice" => Ok(Self::ByVertex),
+            "ByEdge" => Ok(Self::ByEdge),
+            "AllSame" => Ok(Self::AllSame),
             _ => Err(FbxError::InvalidMapping),
         }
     }
@@ -442,9 +442,9 @@ pub enum FbxReference {
 impl FbxReference {
     pub fn from_string<P: AsRef<str>>(value: P) -> Result<Self, FbxError> {
         match value.as_ref() {
-            "Direct" => Ok(FbxReference::Direct),
-            "IndexToDirect" => Ok(FbxReference::IndexToDirect),
-            "Index" => Ok(FbxReference::IndexToDirect),
+            "Direct" => Ok(Self::Direct),
+            "IndexToDirect" => Ok(Self::IndexToDirect),
+            "Index" => Ok(Self::IndexToDirect),
             _ => Err(FbxError::InvalidReference),
         }
     }

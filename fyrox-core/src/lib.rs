@@ -440,7 +440,7 @@ impl<T: ?Sized> Hash for PhantomDataSendSync<T> {
 }
 
 impl<T: ?Sized> PartialEq for PhantomDataSendSync<T> {
-    fn eq(&self, _other: &PhantomDataSendSync<T>) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         true
     }
 }
@@ -448,13 +448,13 @@ impl<T: ?Sized> PartialEq for PhantomDataSendSync<T> {
 impl<T: ?Sized> Eq for PhantomDataSendSync<T> {}
 
 impl<T: ?Sized> PartialOrd for PhantomDataSendSync<T> {
-    fn partial_cmp(&self, _other: &PhantomDataSendSync<T>) -> Option<cmp::Ordering> {
+    fn partial_cmp(&self, _other: &Self) -> Option<cmp::Ordering> {
         Some(self.cmp(_other))
     }
 }
 
 impl<T: ?Sized> Ord for PhantomDataSendSync<T> {
-    fn cmp(&self, _other: &PhantomDataSendSync<T>) -> cmp::Ordering {
+    fn cmp(&self, _other: &Self) -> cmp::Ordering {
         cmp::Ordering::Equal
     }
 }

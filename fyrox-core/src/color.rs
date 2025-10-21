@@ -261,7 +261,7 @@ impl From<Hsl> for Color {
             (0.0, 0.0, 0.0)
         };
 
-        Color::from(Vector4::new(r + m, g + m, b + m, 1.0))
+        Self::from(Vector4::new(r + m, g + m, b + m, 1.0))
     }
 }
 
@@ -302,7 +302,7 @@ impl From<Color> for Hsl {
             d / (1.0 - (2.0 * l - 1.0).abs())
         };
 
-        Hsl {
+        Self {
             hue: h,
             saturation: s,
             lightness: l,

@@ -103,42 +103,42 @@ impl StreamingSource {
     #[inline]
     fn sample_rate(&self) -> usize {
         match self {
-            StreamingSource::Decoder(decoder) => decoder.get_sample_rate(),
-            StreamingSource::Raw(raw) => raw.sample_rate(),
-            StreamingSource::Null => 0,
+            Self::Decoder(decoder) => decoder.get_sample_rate(),
+            Self::Raw(raw) => raw.sample_rate(),
+            Self::Null => 0,
         }
     }
 
     #[inline]
     fn channel_count(&self) -> usize {
         match self {
-            StreamingSource::Decoder(decoder) => decoder.get_channel_count(),
-            StreamingSource::Raw(raw) => raw.channel_count(),
-            StreamingSource::Null => 0,
+            Self::Decoder(decoder) => decoder.get_channel_count(),
+            Self::Raw(raw) => raw.channel_count(),
+            Self::Null => 0,
         }
     }
 
     fn channel_duration_in_samples(&self) -> usize {
         match self {
-            StreamingSource::Null => 0,
-            StreamingSource::Decoder(decoder) => decoder.channel_duration_in_samples(),
-            StreamingSource::Raw(raw) => raw.channel_duration_in_samples(),
+            Self::Null => 0,
+            Self::Decoder(decoder) => decoder.channel_duration_in_samples(),
+            Self::Raw(raw) => raw.channel_duration_in_samples(),
         }
     }
 
     fn rewind(&mut self) -> Result<(), SoundError> {
         match self {
-            StreamingSource::Null => Ok(()),
-            StreamingSource::Decoder(decoder) => decoder.rewind(),
-            StreamingSource::Raw(raw) => raw.rewind(),
+            Self::Null => Ok(()),
+            Self::Decoder(decoder) => decoder.rewind(),
+            Self::Raw(raw) => raw.rewind(),
         }
     }
 
     fn time_seek(&mut self, location: Duration) -> Result<(), SoundError> {
         match self {
-            StreamingSource::Null => Ok(()),
-            StreamingSource::Decoder(decoder) => decoder.time_seek(location),
-            StreamingSource::Raw(raw) => raw.time_seek(location),
+            Self::Null => Ok(()),
+            Self::Decoder(decoder) => decoder.time_seek(location),
+            Self::Raw(raw) => raw.time_seek(location),
         }
     }
 
@@ -147,7 +147,7 @@ impl StreamingSource {
         buffer.clear();
         let count = StreamingBuffer::STREAM_SAMPLE_COUNT * self.channel_count();
         match self {
-            StreamingSource::Decoder(decoder) => {
+            Self::Decoder(decoder) => {
                 for _ in 0..count {
                     if let Some(sample) = decoder.next() {
                         buffer.push(sample)
@@ -156,7 +156,7 @@ impl StreamingSource {
                     }
                 }
             }
-            StreamingSource::Raw(raw_streaming) => {
+            Self::Raw(raw_streaming) => {
                 for _ in 0..count {
                     if let Some(sample) = raw_streaming.next() {
                         buffer.push(sample)
@@ -165,7 +165,7 @@ impl StreamingSource {
                     }
                 }
             }
-            StreamingSource::Null => (),
+            Self::Null => (),
         }
 
         buffer.len()

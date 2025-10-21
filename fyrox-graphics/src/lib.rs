@@ -502,7 +502,7 @@ pub struct StencilOp {
 impl StencilOp {
     /// Compare the actions of this `StencilOp` with the actions of another `StencilOp`. True if all actions match.
     /// This comparison ignores the `write_mask`.
-    pub fn eq_actions(&self, other: &StencilOp) -> bool {
+    pub fn eq_actions(&self, other: &Self) -> bool {
         self.fail == other.fail && self.zfail == other.zfail && self.zpass == other.zpass
     }
 }
@@ -631,9 +631,9 @@ impl ElementKind {
     /// The number of indices that are required to represent the element.
     pub fn index_per_element(self) -> usize {
         match self {
-            ElementKind::Triangle => 3,
-            ElementKind::Line => 2,
-            ElementKind::Point => 1,
+            Self::Triangle => 3,
+            Self::Line => 2,
+            Self::Point => 1,
         }
     }
 }

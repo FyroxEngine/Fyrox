@@ -231,7 +231,7 @@ impl AssetItem {
         ));
     }
 
-    fn can_be_dropped_to(&self, dest: &AssetItem) -> bool {
+    fn can_be_dropped_to(&self, dest: &Self) -> bool {
         if self.path.is_file() && dest.path.is_dir() {
             self.resource_manager.as_ref().is_some_and(|rm| {
                 block_on(rm.can_resource_be_moved(self.path.as_path(), dest.path.as_path(), true))
@@ -290,7 +290,7 @@ impl Control for AssetItem {
                 }
                 WidgetMessage::DragOver(dropped) => {
                     if ui
-                        .try_get_of_type::<AssetItem>(*dropped)
+                        .try_get_of_type::<Self>(*dropped)
                         .is_some_and(|dropped| dropped.can_be_dropped_to(self))
                     {
                         ui.send_message(WidgetMessage::foreground(

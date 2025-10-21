@@ -53,7 +53,7 @@ impl std::ops::AddAssign for PipelineStatistics {
 }
 
 impl std::ops::Sub for PipelineStatistics {
-    type Output = PipelineStatistics;
+    type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
         Self {

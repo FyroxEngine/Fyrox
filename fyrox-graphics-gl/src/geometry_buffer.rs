@@ -34,10 +34,10 @@ use std::{cell::Cell, marker::PhantomData, rc::Weak};
 impl ToGlConstant for AttributeKind {
     fn into_gl(self) -> u32 {
         match self {
-            AttributeKind::Float => glow::FLOAT,
-            AttributeKind::UnsignedByte => glow::UNSIGNED_BYTE,
-            AttributeKind::UnsignedShort => glow::UNSIGNED_SHORT,
-            AttributeKind::UnsignedInt => glow::UNSIGNED_INT,
+            Self::Float => glow::FLOAT,
+            Self::UnsignedByte => glow::UNSIGNED_BYTE,
+            Self::UnsignedShort => glow::UNSIGNED_SHORT,
+            Self::UnsignedInt => glow::UNSIGNED_INT,
         }
     }
 }
@@ -140,7 +140,7 @@ impl GlGeometryBuffer {
 
         server.set_vertex_array_object(None);
 
-        Ok(GlGeometryBuffer {
+        Ok(Self {
             state: server.weak(),
             vertex_array_object: vao,
             buffers,

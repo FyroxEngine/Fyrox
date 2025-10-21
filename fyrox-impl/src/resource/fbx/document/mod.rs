@@ -77,7 +77,7 @@ impl FbxNode {
         &self.attributes
     }
 
-    pub fn children(&self) -> &[Handle<FbxNode>] {
+    pub fn children(&self) -> &[Handle<Self>] {
         &self.children
     }
 
@@ -144,7 +144,7 @@ impl FbxDocument {
     pub async fn new<P: AsRef<Path>>(
         path: P,
         io: &dyn ResourceIo,
-    ) -> Result<FbxDocument, FbxError> {
+    ) -> Result<Self, FbxError> {
         let data = io.load_file(path.as_ref()).await?;
         let is_bin = is_binary(&data);
         let mut reader = Cursor::new(data);

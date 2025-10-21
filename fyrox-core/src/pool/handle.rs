@@ -219,7 +219,7 @@ impl<T> Eq for Handle<T> {}
 
 impl<T> PartialEq for Handle<T> {
     #[inline]
-    fn eq(&self, other: &Handle<T>) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.generation == other.generation && self.index == other.index
     }
 }
@@ -236,7 +236,7 @@ impl<T> Hash for Handle<T> {
 }
 
 impl<T> Handle<T> {
-    pub const NONE: Handle<T> = Handle {
+    pub const NONE: Self = Self {
         index: 0,
         generation: INVALID_GENERATION,
         type_marker: PhantomData,
@@ -264,7 +264,7 @@ impl<T> Handle<T> {
 
     #[inline(always)]
     pub fn new(index: u32, generation: u32) -> Self {
-        Handle {
+        Self {
             index,
             generation,
             type_marker: PhantomData,
@@ -444,7 +444,7 @@ impl Default for ErasedHandle {
 impl<T> From<ErasedHandle> for Handle<T> {
     #[inline]
     fn from(erased_handle: ErasedHandle) -> Self {
-        Handle {
+        Self {
             index: erased_handle.index,
             generation: erased_handle.generation,
             type_marker: PhantomData,
@@ -455,7 +455,7 @@ impl<T> From<ErasedHandle> for Handle<T> {
 impl<T> From<AtomicHandle> for Handle<T> {
     #[inline]
     fn from(atomic_handle: AtomicHandle) -> Self {
-        Handle {
+        Self {
             index: atomic_handle.index(),
             generation: atomic_handle.generation(),
             type_marker: PhantomData,

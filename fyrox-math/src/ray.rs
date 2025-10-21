@@ -34,7 +34,7 @@ pub struct Ray {
 impl Default for Ray {
     #[inline]
     fn default() -> Self {
-        Ray {
+        Self {
             origin: Vector3::new(0.0, 0.0, 0.0),
             dir: Vector3::new(0.0, 0.0, 1.0),
         }
@@ -61,7 +61,7 @@ impl IntersectionResult {
     }
 
     #[inline]
-    pub fn from_set(results: &[Option<IntersectionResult>]) -> Option<Self> {
+    pub fn from_set(results: &[Option<Self>]) -> Option<Self> {
         let mut result = None;
         for v in results {
             match result {
@@ -107,7 +107,7 @@ impl Ray {
     /// Creates ray from two points. May fail if begin == end.
     #[inline]
     pub fn from_two_points(begin: Vector3<f32>, end: Vector3<f32>) -> Self {
-        Ray {
+        Self {
             origin: begin,
             dir: end - begin,
         }

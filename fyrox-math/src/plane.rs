@@ -29,7 +29,7 @@ pub struct Plane {
 impl Default for Plane {
     #[inline]
     fn default() -> Self {
-        Plane {
+        Self {
             normal: Vector3::new(0.0, 1.0, 0.0),
             d: 0.0,
         }
@@ -91,7 +91,7 @@ impl Plane {
     }
 
     /// <http://geomalgorithms.com/a05-_intersect-1.html>
-    pub fn intersection_point(&self, b: &Plane, c: &Plane) -> Vector3<f32> {
+    pub fn intersection_point(&self, b: &Self, c: &Self) -> Vector3<f32> {
         let f = -1.0 / self.normal.dot(&b.normal.cross(&c.normal));
 
         let v1 = b.normal.cross(&c.normal).scale(self.d);

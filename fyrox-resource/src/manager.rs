@@ -143,16 +143,16 @@ pub enum ResourceRegistrationError {
 impl Display for ResourceRegistrationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ResourceRegistrationError::UnableToRegister => {
+            Self::UnableToRegister => {
                 write!(f, "Unable to register the resource!")
             }
-            ResourceRegistrationError::InvalidState => {
+            Self::InvalidState => {
                 write!(f, "A resource was in invalid state!")
             }
-            ResourceRegistrationError::AlreadyRegistered => {
+            Self::AlreadyRegistered => {
                 write!(f, "A resource is already registered!")
             }
-            ResourceRegistrationError::UnableToCreateMetadata => {
+            Self::UnableToCreateMetadata => {
                 write!(
                     f,
                     "An error occurred on an attempt to write resource metadata!"
@@ -229,13 +229,13 @@ impl From<std::io::Error> for ResourceMovementError {
 impl Display for ResourceMovementError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ResourceMovementError::Io(err) => {
+            Self::Io(err) => {
                 write!(f, "Io error: {err}")
             }
-            ResourceMovementError::FileError(err) => {
+            Self::FileError(err) => {
                 write!(f, "File error: {err}")
             }
-            ResourceMovementError::AlreadyExist {
+            Self::AlreadyExist {
                 src_path,
                 dest_path,
             } => {
@@ -247,7 +247,7 @@ impl Display for ResourceMovementError {
                     dest_path.display()
                 )
             }
-            ResourceMovementError::DestinationPathIsInvalid {
+            Self::DestinationPathIsInvalid {
                 src_path,
                 dest_path,
             } => {
@@ -259,21 +259,21 @@ impl Display for ResourceMovementError {
                     dest_path.display()
                 )
             }
-            ResourceMovementError::ResourceRegistryLocationUnknown { resource_path } => {
+            Self::ResourceRegistryLocationUnknown { resource_path } => {
                 write!(
                     f,
                     "Unable to move the {} resource, because the registry location is unknown!",
                     resource_path.display()
                 )
             }
-            ResourceMovementError::NotInRegistry { resource_path } => {
+            Self::NotInRegistry { resource_path } => {
                 write!(
                     f,
                     "Unable to move the {} resource, because it is not in the registry!",
                     resource_path.display()
                 )
             }
-            ResourceMovementError::OutsideOfRegistry {
+            Self::OutsideOfRegistry {
                 absolute_src_path,
                 absolute_dest_dir,
                 absolute_registry_dir,
@@ -287,7 +287,7 @@ impl Display for ResourceMovementError {
                     absolute_registry_dir.display()
                 )
             }
-            ResourceMovementError::NoPath(resource) => {
+            Self::NoPath(resource) => {
                 write!(
                     f,
                     "Unable to move {} resource, because it does not have a \
@@ -343,23 +343,23 @@ impl From<ResourceMovementError> for FolderMovementError {
 impl Display for FolderMovementError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            FolderMovementError::Io(err) => {
+            Self::Io(err) => {
                 write!(f, "Io error: {err}")
             }
-            FolderMovementError::FileError(err) => {
+            Self::FileError(err) => {
                 write!(f, "File error: {err}")
             }
-            FolderMovementError::ResourceMovementError(err) => {
+            Self::ResourceMovementError(err) => {
                 write!(f, "{err}")
             }
-            FolderMovementError::NotInRegistry { dest_dir } => {
+            Self::NotInRegistry { dest_dir } => {
                 write!(
                     f,
                     "Unable to move the {} folder, because it is not in the registry!",
                     dest_dir.display()
                 )
             }
-            FolderMovementError::HierarchyError { src_dir, dest_dir } => {
+            Self::HierarchyError { src_dir, dest_dir } => {
                 write!(
                     f,
                     "Trying to move a folder into one of its own sub-folders. \

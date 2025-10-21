@@ -96,8 +96,8 @@ impl Deref for PluginContainer {
 
     fn deref(&self) -> &Self::Target {
         match self {
-            PluginContainer::Static(plugin) => &**plugin,
-            PluginContainer::Dynamic(plugin) => plugin.as_loaded_ref(),
+            Self::Static(plugin) => &**plugin,
+            Self::Dynamic(plugin) => plugin.as_loaded_ref(),
         }
     }
 }
@@ -105,8 +105,8 @@ impl Deref for PluginContainer {
 impl DerefMut for PluginContainer {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
-            PluginContainer::Static(plugin) => &mut **plugin,
-            PluginContainer::Dynamic(plugin) => plugin.as_loaded_mut(),
+            Self::Static(plugin) => &mut **plugin,
+            Self::Dynamic(plugin) => plugin.as_loaded_mut(),
         }
     }
 }

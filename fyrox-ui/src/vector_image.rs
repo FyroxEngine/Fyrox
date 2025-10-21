@@ -118,7 +118,7 @@ impl Primitive {
     /// Returns current bounds of the primitive as `min, max` tuple.
     pub fn bounds(&self) -> (Vector2<f32>, Vector2<f32>) {
         match self {
-            Primitive::Triangle { points } => {
+            Self::Triangle { points } => {
                 let min = points[0]
                     .per_component_min(&points[1])
                     .per_component_min(&points[2]);
@@ -127,7 +127,7 @@ impl Primitive {
                     .per_component_max(&points[2]);
                 (min, max)
             }
-            Primitive::Line {
+            Self::Line {
                 begin,
                 end,
                 thickness,
@@ -141,12 +141,12 @@ impl Primitive {
                 }
                 (min, max)
             }
-            Primitive::Circle { radius, center, .. }
-            | Primitive::WireCircle { radius, center, .. } => {
+            Self::Circle { radius, center, .. }
+            | Self::WireCircle { radius, center, .. } => {
                 let radius = Vector2::new(*radius, *radius);
                 (center - radius, center + radius)
             }
-            Primitive::Rectangle { rect, .. } | Primitive::RectangleFilled { rect } => {
+            Self::Rectangle { rect, .. } | Self::RectangleFilled { rect } => {
                 (rect.left_top_corner(), rect.right_bottom_corner())
             }
         }

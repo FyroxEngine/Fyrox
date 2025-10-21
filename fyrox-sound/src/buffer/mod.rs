@@ -132,7 +132,7 @@ impl DataSource {
     where
         P: AsRef<Path>,
     {
-        Ok(DataSource::File {
+        Ok(Self::File {
             path: path.as_ref().to_path_buf(),
             data: io.file_reader(path.as_ref()).await?,
         })
@@ -141,13 +141,13 @@ impl DataSource {
     /// Creates new data source from given memory block. This function does not checks if this is valid source or
     /// not. Data source validity will be checked on first use.
     pub fn from_memory(data: Vec<u8>) -> Self {
-        DataSource::Memory(Cursor::new(data))
+        Self::Memory(Cursor::new(data))
     }
 
     /// Tries to get a path to external data source.
     pub fn path(&self) -> Option<&Path> {
         match self {
-            DataSource::File { path, .. } => Some(path),
+            Self::File { path, .. } => Some(path),
             _ => None,
         }
     }
@@ -155,7 +155,7 @@ impl DataSource {
     /// Tries to get a path to external data source.
     pub fn path_owned(&self) -> Option<PathBuf> {
         match self {
-            DataSource::File { path, .. } => Some(path.clone()),
+            Self::File { path, .. } => Some(path.clone()),
             _ => None,
         }
     }
@@ -164,10 +164,10 @@ impl DataSource {
 impl Read for DataSource {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
         match self {
-            DataSource::File { data, .. } => data.read(buf),
-            DataSource::Memory(b) => b.read(buf),
-            DataSource::Raw { .. } => unreachable!("Raw data source does not supports Read trait!"),
-            DataSource::RawStreaming { .. } => {
+            Self::File { data, .. } => data.read(buf),
+            Self::Memory(b) => b.read(buf),
+            Self::Raw { .. } => unreachable!("Raw data source does not supports Read trait!"),
+            Self::RawStreaming { .. } => {
                 unreachable!("Raw data source does not supports Read trait!")
             }
         }
@@ -177,10 +177,10 @@ impl Read for DataSource {
 impl Seek for DataSource {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, std::io::Error> {
         match self {
-            DataSource::File { data, .. } => data.seek(pos),
-            DataSource::Memory(b) => b.seek(pos),
-            DataSource::Raw { .. } => unreachable!("Raw data source does not supports Seek trait!"),
-            DataSource::RawStreaming { .. } => {
+            Self::File { data, .. } => data.seek(pos),
+            Self::Memory(b) => b.seek(pos),
+            Self::Raw { .. } => unreachable!("Raw data source does not supports Seek trait!"),
+            Self::RawStreaming { .. } => {
                 unreachable!("Raw data source does not supports Seek trait!")
             }
         }
@@ -190,16 +190,16 @@ impl Seek for DataSource {
 impl MediaSource for DataSource {
     fn is_seekable(&self) -> bool {
         match self {
-            DataSource::File { .. } | DataSource::Memory(_) => true,
-            DataSource::Raw { .. } | DataSource::RawStreaming(_) => false,
+            Self::File { .. } | Self::Memory(_) => true,
+            Self::Raw { .. } | Self::RawStreaming(_) => false,
         }
     }
 
     fn byte_len(&self) -> Option<u64> {
         match self {
-            DataSource::File { path: _, data } => data.byte_len(),
-            DataSource::Memory(cursor) => MediaSource::byte_len(cursor),
-            DataSource::Raw { .. } | DataSource::RawStreaming(_) => None,
+            Self::File { path: _, data } => data.byte_len(),
+            Self::Memory(cursor) => MediaSource::byte_len(cursor),
+            Self::Raw { .. } | Self::RawStreaming(_) => None,
         }
     }
 }
@@ -223,14 +223,14 @@ pub enum SoundBufferResourceLoadError {
 impl std::fmt::Display for SoundBufferResourceLoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SoundBufferResourceLoadError::UnsupportedFormat => {
+            Self::UnsupportedFormat => {
                 write!(f, "unsupported file format")
             }
-            SoundBufferResourceLoadError::Io(e) => write!(f, "{e:?}"),
-            SoundBufferResourceLoadError::DataSourceError => {
+            Self::Io(e) => write!(f, "{e:?}"),
+            Self::DataSourceError => {
                 write!(f, "error in underlying data source")
             }
-            SoundBufferResourceLoadError::SoundError(e) => write!(f, "{e:?}"),
+            Self::SoundError(e) => write!(f, "{e:?}"),
         }
     }
 }
@@ -278,7 +278,7 @@ impl SoundBufferResourceExtension for SoundBufferResource {
     fn new_streaming(
         data_source: DataSource,
     ) -> Result<Resource<SoundBuffer>, SoundBufferResourceLoadError> {
-        Ok(Resource::new_ok(
+        Ok(Self::new_ok(
             Uuid::new_v4(),
             ResourceKind::External,
             SoundBuffer::Streaming(StreamingBuffer::new(data_source)?),
@@ -288,7 +288,7 @@ impl SoundBufferResourceExtension for SoundBufferResource {
     fn new_generic(
         data_source: DataSource,
     ) -> Result<Resource<SoundBuffer>, SoundBufferResourceLoadError> {
-        Ok(Resource::new_ok(
+        Ok(Self::new_ok(
             Uuid::new_v4(),
             ResourceKind::External,
             SoundBuffer::Generic(GenericBuffer::new(data_source)?),
@@ -318,7 +318,7 @@ impl SoundBuffer {
 
 impl Default for SoundBuffer {
     fn default() -> Self {
-        SoundBuffer::Generic(Default::default())
+        Self::Generic(Default::default())
     }
 }
 
@@ -329,8 +329,8 @@ impl Deref for SoundBuffer {
     /// streaming sound buffers are built on top of generic buffers.
     fn deref(&self) -> &Self::Target {
         match self {
-            SoundBuffer::Generic(v) => v,
-            SoundBuffer::Streaming(v) => v,
+            Self::Generic(v) => v,
+            Self::Streaming(v) => v,
         }
     }
 }
@@ -340,8 +340,8 @@ impl DerefMut for SoundBuffer {
     /// streaming sound buffers are built on top of generic buffers.
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
-            SoundBuffer::Generic(v) => v,
-            SoundBuffer::Streaming(v) => v,
+            Self::Generic(v) => v,
+            Self::Streaming(v) => v,
         }
     }
 }

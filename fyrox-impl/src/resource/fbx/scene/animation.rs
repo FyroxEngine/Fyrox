@@ -53,7 +53,7 @@ impl FbxAnimationCurve {
             ));
         }
 
-        let mut curve = FbxAnimationCurve { keys: Vec::new() };
+        let mut curve = Self { keys: Vec::new() };
 
         for i in 0..key_value_array.attrib_count() {
             curve.keys.push(FbxTimeValuePair {
@@ -84,7 +84,7 @@ pub struct FbxAnimationCurveNode {
 impl FbxAnimationCurveNode {
     pub fn read(node_handle: Handle<FbxNode>, nodes: &FbxNodeContainer) -> Result<Self, String> {
         let node = nodes.get(node_handle);
-        Ok(FbxAnimationCurveNode {
+        Ok(Self {
             actual_type: match node.get_attrib(1)?.as_string().as_str() {
                 "T" | "AnimCurveNode::T" => FbxAnimationCurveNodeType::Translation,
                 "R" | "AnimCurveNode::R" => FbxAnimationCurveNodeType::Rotation,

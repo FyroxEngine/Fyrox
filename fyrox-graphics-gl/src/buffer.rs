@@ -31,11 +31,11 @@ use std::{cell::Cell, rc::Weak};
 impl ToGlConstant for BufferKind {
     fn into_gl(self) -> u32 {
         match self {
-            BufferKind::Vertex => glow::ARRAY_BUFFER,
-            BufferKind::Index => glow::ELEMENT_ARRAY_BUFFER,
-            BufferKind::Uniform => glow::UNIFORM_BUFFER,
-            BufferKind::PixelRead => glow::PIXEL_PACK_BUFFER,
-            BufferKind::PixelWrite => glow::PIXEL_UNPACK_BUFFER,
+            Self::Vertex => glow::ARRAY_BUFFER,
+            Self::Index => glow::ELEMENT_ARRAY_BUFFER,
+            Self::Uniform => glow::UNIFORM_BUFFER,
+            Self::PixelRead => glow::PIXEL_PACK_BUFFER,
+            Self::PixelWrite => glow::PIXEL_UNPACK_BUFFER,
         }
     }
 }
@@ -43,15 +43,15 @@ impl ToGlConstant for BufferKind {
 impl ToGlConstant for BufferUsage {
     fn into_gl(self) -> u32 {
         match self {
-            BufferUsage::StaticDraw => glow::STATIC_DRAW,
-            BufferUsage::StaticCopy => glow::STATIC_COPY,
-            BufferUsage::DynamicDraw => glow::DYNAMIC_DRAW,
-            BufferUsage::DynamicCopy => glow::DYNAMIC_COPY,
-            BufferUsage::StreamDraw => glow::STREAM_DRAW,
-            BufferUsage::StreamRead => glow::STREAM_READ,
-            BufferUsage::StreamCopy => glow::STREAM_COPY,
-            BufferUsage::StaticRead => glow::STATIC_READ,
-            BufferUsage::DynamicRead => glow::DYNAMIC_READ,
+            Self::StaticDraw => glow::STATIC_DRAW,
+            Self::StaticCopy => glow::STATIC_COPY,
+            Self::DynamicDraw => glow::DYNAMIC_DRAW,
+            Self::DynamicCopy => glow::DYNAMIC_COPY,
+            Self::StreamDraw => glow::STREAM_DRAW,
+            Self::StreamRead => glow::STREAM_READ,
+            Self::StreamCopy => glow::STREAM_COPY,
+            Self::StaticRead => glow::STATIC_READ,
+            Self::DynamicRead => glow::DYNAMIC_READ,
         }
     }
 }

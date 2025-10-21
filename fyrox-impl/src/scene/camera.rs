@@ -207,8 +207,8 @@ impl Projection {
     #[must_use]
     pub fn with_z_near(mut self, z_near: f32) -> Self {
         match self {
-            Projection::Perspective(ref mut v) => v.z_near = z_near,
-            Projection::Orthographic(ref mut v) => v.z_near = z_near,
+            Self::Perspective(ref mut v) => v.z_near = z_near,
+            Self::Orthographic(ref mut v) => v.z_near = z_near,
         }
         self
     }
@@ -218,8 +218,8 @@ impl Projection {
     #[must_use]
     pub fn with_z_far(mut self, z_far: f32) -> Self {
         match self {
-            Projection::Perspective(ref mut v) => v.z_far = z_far,
-            Projection::Orthographic(ref mut v) => v.z_far = z_far,
+            Self::Perspective(ref mut v) => v.z_far = z_far,
+            Self::Orthographic(ref mut v) => v.z_far = z_far,
         }
         self
     }
@@ -228,8 +228,8 @@ impl Projection {
     #[inline]
     pub fn set_z_near(&mut self, z_near: f32) {
         match self {
-            Projection::Perspective(v) => v.z_near = z_near,
-            Projection::Orthographic(v) => v.z_near = z_near,
+            Self::Perspective(v) => v.z_near = z_near,
+            Self::Orthographic(v) => v.z_near = z_near,
         }
     }
 
@@ -237,8 +237,8 @@ impl Projection {
     #[inline]
     pub fn set_z_far(&mut self, z_far: f32) {
         match self {
-            Projection::Perspective(v) => v.z_far = z_far,
-            Projection::Orthographic(v) => v.z_far = z_far,
+            Self::Perspective(v) => v.z_far = z_far,
+            Self::Orthographic(v) => v.z_far = z_far,
         }
     }
 
@@ -246,8 +246,8 @@ impl Projection {
     #[inline]
     pub fn z_near(&self) -> f32 {
         match self {
-            Projection::Perspective(v) => v.z_near,
-            Projection::Orthographic(v) => v.z_near,
+            Self::Perspective(v) => v.z_near,
+            Self::Orthographic(v) => v.z_near,
         }
     }
 
@@ -255,8 +255,8 @@ impl Projection {
     #[inline]
     pub fn z_far(&self) -> f32 {
         match self {
-            Projection::Perspective(v) => v.z_far,
-            Projection::Orthographic(v) => v.z_far,
+            Self::Perspective(v) => v.z_far,
+            Self::Orthographic(v) => v.z_far,
         }
     }
 
@@ -264,21 +264,21 @@ impl Projection {
     #[inline]
     pub fn matrix(&self, frame_size: Vector2<f32>) -> Matrix4<f32> {
         match self {
-            Projection::Perspective(v) => v.matrix(frame_size),
-            Projection::Orthographic(v) => v.matrix(frame_size),
+            Self::Perspective(v) => v.matrix(frame_size),
+            Self::Orthographic(v) => v.matrix(frame_size),
         }
     }
 
     /// Returns `true` if the current projection is perspective.
     #[inline]
     pub fn is_perspective(&self) -> bool {
-        matches!(self, Projection::Perspective(_))
+        matches!(self, Self::Perspective(_))
     }
 
     /// Returns `true` if the current projection is orthographic.
     #[inline]
     pub fn is_orthographic(&self) -> bool {
-        matches!(self, Projection::Orthographic(_))
+        matches!(self, Self::Orthographic(_))
     }
 }
 
@@ -845,21 +845,21 @@ pub enum ColorGradingLutCreationError {
 impl Display for ColorGradingLutCreationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ColorGradingLutCreationError::NotEnoughData { required, current } => {
+            Self::NotEnoughData { required, current } => {
                 write!(
                     f,
                     "There is not enough data in provided \
                 texture to build LUT. Required: {required}, current: {current}.",
                 )
             }
-            ColorGradingLutCreationError::InvalidPixelFormat(v) => {
+            Self::InvalidPixelFormat(v) => {
                 write!(
                     f,
                     "Pixel format is not supported. It must be either RGB8 \
                 or RGBA8, but texture has {v:?} pixel format"
                 )
             }
-            ColorGradingLutCreationError::Texture(v) => {
+            Self::Texture(v) => {
                 write!(f, "Texture load error: {v}")
             }
         }

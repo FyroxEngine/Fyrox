@@ -212,7 +212,7 @@ enum DragContext {
 
 impl DragContext {
     pub fn is_edge_duplication(&self) -> bool {
-        matches!(self, DragContext::EdgeDuplication { .. })
+        matches!(self, Self::EdgeDuplication { .. })
     }
 }
 

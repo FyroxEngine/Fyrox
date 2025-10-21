@@ -115,7 +115,7 @@ impl EditorSceneEntry {
         ));
         interaction_modes.sender = Some(message_sender.clone());
 
-        let mut entry = EditorSceneEntry {
+        let mut entry = Self {
             has_unsaved_changes: false,
             interaction_modes,
             controller: Box::new(game_scene),
@@ -151,7 +151,7 @@ impl EditorSceneEntry {
         interaction_modes.add(MoveWidgetsInteractionMode::new(message_sender.clone()));
         interaction_modes.sender = Some(message_sender.clone());
 
-        let mut entry = EditorSceneEntry {
+        let mut entry = Self {
             has_unsaved_changes: false,
             interaction_modes,
             controller: Box::new(UiScene::new(ui, message_sender.clone())),

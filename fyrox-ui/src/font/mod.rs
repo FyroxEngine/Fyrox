@@ -289,7 +289,7 @@ impl Font {
         page_size: usize,
     ) -> Result<Self, &'static str> {
         let fontdue_font = fontdue::Font::from_bytes(data, fontdue::FontSettings::default())?;
-        Ok(Font {
+        Ok(Self {
             inner: Some(fontdue_font),
             atlases: Default::default(),
             page_size,

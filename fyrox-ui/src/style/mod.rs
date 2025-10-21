@@ -81,11 +81,11 @@ impl StyleProperty {
     /// finite (see [`StyleProperty`] declaration).
     pub fn value_type_id(&self) -> TypeId {
         match self {
-            StyleProperty::Number(v) => v.type_id(),
-            StyleProperty::Thickness(v) => v.type_id(),
-            StyleProperty::Color(v) => v.type_id(),
-            StyleProperty::Brush(v) => v.type_id(),
-            StyleProperty::Texture(v) => v.type_id(),
+            Self::Number(v) => v.type_id(),
+            Self::Thickness(v) => v.type_id(),
+            Self::Color(v) => v.type_id(),
+            Self::Brush(v) => v.type_id(),
+            Self::Texture(v) => v.type_id(),
         }
     }
 }
@@ -317,7 +317,7 @@ impl Style {
     /// The name of the font size property.
     pub const FONT_SIZE: &'static str = "Global.Font.Size";
 
-    fn base_style() -> Style {
+    fn base_style() -> Self {
         let mut style = Self::default();
 
         style
@@ -331,7 +331,7 @@ impl Style {
     }
 
     /// Creates a new dark style.
-    pub fn dark_style() -> Style {
+    pub fn dark_style() -> Self {
         let mut style = Self::base_style();
         style
             .set(Self::BRUSH_DARKEST, Brush::Solid(Color::repeat_opaque(20)))
@@ -375,7 +375,7 @@ impl Style {
     }
 
     /// Creates a new light style.
-    pub fn light_style() -> Style {
+    pub fn light_style() -> Self {
         let mut style = Self::base_style();
         style
             .set(Self::BRUSH_DARKEST, Brush::Solid(Color::repeat_opaque(140)))
@@ -549,7 +549,7 @@ impl Style {
         let bytes = io.load_file(path).await?;
         let mut visitor = Visitor::load_from_memory(&bytes)?;
         visitor.blackboard.register(Arc::new(resource_manager));
-        let mut style = Style::default();
+        let mut style = Self::default();
         style.visit("Style", &mut visitor)?;
         Ok(style)
     }

@@ -180,7 +180,7 @@ impl From<PixelKind> for PixelDescriptor {
             ),
         };
 
-        PixelDescriptor {
+        Self {
             data_type,
             format,
             internal_format,

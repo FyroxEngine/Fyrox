@@ -308,8 +308,8 @@ enum ShapeHandleValue {
 impl ShapeHandleValue {
     fn into_scalar(self) -> f32 {
         match self {
-            ShapeHandleValue::Scalar(scalar) => scalar,
-            ShapeHandleValue::Vector(_) => {
+            Self::Scalar(scalar) => scalar,
+            Self::Vector(_) => {
                 unreachable!()
             }
         }
@@ -317,8 +317,8 @@ impl ShapeHandleValue {
 
     fn into_vector(self) -> Vector3<f32> {
         match self {
-            ShapeHandleValue::Scalar(_) => unreachable!(),
-            ShapeHandleValue::Vector(vector) => vector,
+            Self::Scalar(_) => unreachable!(),
+            Self::Vector(vector) => vector,
         }
     }
 }

@@ -99,7 +99,7 @@ where
 {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (ResourceFieldMessage::Value(left), ResourceFieldMessage::Value(right)) => {
+            (Self::Value(left), Self::Value(right)) => {
                 left == right
             }
         }

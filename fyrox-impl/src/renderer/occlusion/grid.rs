@@ -34,8 +34,8 @@ pub enum Visibility {
 impl From<bool> for Visibility {
     fn from(value: bool) -> Self {
         match value {
-            true => Visibility::Visible,
-            false => Visibility::Invisible,
+            true => Self::Visible,
+            false => Self::Invisible,
         }
     }
 }
@@ -43,8 +43,8 @@ impl From<bool> for Visibility {
 impl Visibility {
     pub fn should_be_rendered(self) -> bool {
         match self {
-            Visibility::Visible => true,
-            Visibility::Invisible => false,
+            Self::Visible => true,
+            Self::Invisible => false,
         }
     }
 }

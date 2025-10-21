@@ -586,7 +586,7 @@ impl Control for Tree {
                                 // up on visual tree and don't care about search bounds, ideally we should
                                 // stop search if we're found TreeRoot.
                                 let parent_tree =
-                                    self.find_by_criteria_up(ui, |n| n.cast::<Tree>().is_some());
+                                    self.find_by_criteria_up(ui, |n| n.cast::<Self>().is_some());
                                 if parent_tree.is_some() {
                                     ui.send_message(TreeMessage::expand(
                                         parent_tree,
@@ -665,7 +665,7 @@ impl Tree {
     /// Adds new item to given tree. This method is meant to be used only on widget build stage,
     /// any runtime actions should be done via messages.
     pub fn add_item(tree: Handle<UiNode>, item: Handle<UiNode>, ctx: &mut BuildContext) {
-        if let Some(tree) = ctx[tree].cast_mut::<Tree>() {
+        if let Some(tree) = ctx[tree].cast_mut::<Self>() {
             tree.items.push(item);
             let panel = tree.panel;
             ctx.link(item, panel);

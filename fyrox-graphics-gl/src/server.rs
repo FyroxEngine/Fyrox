@@ -93,14 +93,14 @@ impl ToGlConstant for PolygonFillMode {
 impl ToGlConstant for StencilAction {
     fn into_gl(self) -> u32 {
         match self {
-            StencilAction::Keep => glow::KEEP,
-            StencilAction::Zero => glow::ZERO,
-            StencilAction::Replace => glow::REPLACE,
-            StencilAction::Incr => glow::INCR,
-            StencilAction::IncrWrap => glow::INCR_WRAP,
-            StencilAction::Decr => glow::DECR,
-            StencilAction::DecrWrap => glow::DECR_WRAP,
-            StencilAction::Invert => glow::INVERT,
+            Self::Keep => glow::KEEP,
+            Self::Zero => glow::ZERO,
+            Self::Replace => glow::REPLACE,
+            Self::Incr => glow::INCR,
+            Self::IncrWrap => glow::INCR_WRAP,
+            Self::Decr => glow::DECR,
+            Self::DecrWrap => glow::DECR_WRAP,
+            Self::Invert => glow::INVERT,
         }
     }
 }

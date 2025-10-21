@@ -62,7 +62,7 @@ impl<T: Num + PartialOrd + SampleUniform + Copy> RangeExt<T> for Range<T> {
         if start == end {
             start
         } else {
-            rng.gen_range(Range { start, end })
+            rng.gen_range(Self { start, end })
         }
     }
 

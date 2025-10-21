@@ -281,7 +281,7 @@ impl Visit for PathBuf {
         proxy.visit("Data", &mut region)?;
 
         if region.reading {
-            *self = PathBuf::from(String::from_utf8(data)?);
+            *self = Self::from(String::from_utf8(data)?);
         }
 
         Ok(())
@@ -492,7 +492,7 @@ where
                     *self = Rc::downgrade(&rc);
                 }
             }
-        } else if let Some(rc) = std::rc::Weak::upgrade(self) {
+        } else if let Some(rc) = Self::upgrade(self) {
             let (mut id, serialize_data) = region.rc_id(&rc);
             id.visit("Id", &mut region)?;
             if serialize_data {
@@ -544,7 +544,7 @@ where
                     *self = Arc::downgrade(&arc);
                 }
             }
-        } else if let Some(arc) = std::sync::Weak::upgrade(self) {
+        } else if let Some(arc) = Self::upgrade(self) {
             let (mut id, serialize_data) = region.arc_id(&arc);
             id.visit("Id", &mut region)?;
             if serialize_data {
@@ -684,7 +684,7 @@ impl Visit for Duration {
         nanos.visit("Nanos", &mut region)?;
 
         if region.is_reading() {
-            *self = Duration::new(secs, nanos);
+            *self = Self::new(secs, nanos);
         }
 
         Ok(())
@@ -696,7 +696,7 @@ impl Visit for char {
         let mut bytes = *self as u32;
         bytes.visit(name, visitor)?;
         if visitor.is_reading() {
-            *self = char::from_u32(bytes).unwrap();
+            *self = Self::from_u32(bytes).unwrap();
         }
         Ok(())
     }
@@ -718,7 +718,7 @@ impl Visit for usize {
         let mut this = *self as u64;
         this.visit(name, visitor)?;
         if visitor.is_reading() {
-            *self = this as usize;
+            *self = this as Self;
         }
         Ok(())
     }
@@ -729,7 +729,7 @@ impl Visit for isize {
         let mut this = *self as i64;
         this.visit(name, visitor)?;
         if visitor.is_reading() {
-            *self = this as isize;
+            *self = this as Self;
         }
         Ok(())
     }

@@ -76,8 +76,8 @@ pub struct TextLine {
 }
 
 impl TextLine {
-    fn new() -> TextLine {
-        TextLine {
+    fn new() -> Self {
+        Self {
             begin: 0,
             end: 0,
             width: 0.0,
@@ -1092,8 +1092,8 @@ pub struct FormattedTextBuilder {
 
 impl FormattedTextBuilder {
     /// Creates new formatted text builder with default parameters.
-    pub fn new(font: FontResource) -> FormattedTextBuilder {
-        FormattedTextBuilder {
+    pub fn new(font: FontResource) -> Self {
+        Self {
             font,
             text: Vec::default(),
             horizontal_alignment: HorizontalAlignment::Left,

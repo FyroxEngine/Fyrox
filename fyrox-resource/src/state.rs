@@ -326,7 +326,7 @@ impl Display for ResourceState {
 
 impl Default for ResourceState {
     fn default() -> Self {
-        ResourceState::new_load_error(
+        Self::new_load_error(
             Default::default(),
             LoadError::new("Default resource state of unknown type."),
         )
@@ -335,7 +335,7 @@ impl Default for ResourceState {
 
 impl Drop for ResourceState {
     fn drop(&mut self) {
-        if let ResourceState::Pending { wakers, .. } = self {
+        if let Self::Pending { wakers, .. } = self {
             assert_eq!(wakers.len(), 0);
         }
     }
@@ -374,17 +374,17 @@ impl ResourceState {
 
     /// Checks whether the resource is still loading or not.
     pub fn is_loading(&self) -> bool {
-        matches!(self, ResourceState::Pending { .. })
+        matches!(self, Self::Pending { .. })
     }
 
     /// Checks whether the resource is loaded without errors.
     pub fn is_ok(&self) -> bool {
-        matches!(self, ResourceState::Ok { .. })
+        matches!(self, Self::Ok { .. })
     }
 
     /// Switches the internal state of the resource to [`ResourceState::Pending`].
     pub fn switch_to_pending_state(&mut self) {
-        *self = ResourceState::Pending {
+        *self = Self::Pending {
             wakers: Default::default(),
         };
     }
@@ -392,10 +392,10 @@ impl ResourceState {
     /// Changes ResourceState::Pending state to ResourceState::Ok(data) with given `data`.
     /// Additionally it wakes all futures.
     #[inline]
-    pub fn commit(&mut self, state: ResourceState) {
-        assert!(!matches!(state, ResourceState::Pending { .. }));
+    pub fn commit(&mut self, state: Self) {
+        assert!(!matches!(state, Self::Pending { .. }));
 
-        let wakers = if let ResourceState::Pending { ref mut wakers, .. } = self {
+        let wakers = if let Self::Pending { ref mut wakers, .. } = self {
             std::mem::take(wakers)
         } else {
             WakersList::default()
@@ -410,14 +410,14 @@ impl ResourceState {
 
     /// Changes internal state to [`ResourceState::Ok`]
     pub fn commit_ok<T: ResourceData>(&mut self, data: T) {
-        self.commit(ResourceState::Ok {
+        self.commit(Self::Ok {
             data: ResourceDataWrapper(Box::new(data)),
         })
     }
 
     /// Changes internal state to [`ResourceState::LoadError`].
     pub fn commit_error<E: ResourceLoadError>(&mut self, path: PathBuf, error: E) {
-        self.commit(ResourceState::LoadError {
+        self.commit(Self::LoadError {
             path,
             error: LoadError::new(error),
         })
@@ -426,20 +426,20 @@ impl ResourceState {
     /// Tries to get the resource data. Will fail if the resource is not in [`ResourceState::Ok`].
     pub fn data_ref(&self) -> Option<&ResourceDataWrapper> {
         match self {
-            ResourceState::Pending { .. }
-            | ResourceState::LoadError { .. }
-            | ResourceState::Unloaded => None,
-            ResourceState::Ok { data, .. } => Some(data),
+            Self::Pending { .. }
+            | Self::LoadError { .. }
+            | Self::Unloaded => None,
+            Self::Ok { data, .. } => Some(data),
         }
     }
 
     /// Tries to get the resource data. Will fail if the resource is not in [`ResourceState::Ok`].
     pub fn data_mut(&mut self) -> Option<&mut ResourceDataWrapper> {
         match self {
-            ResourceState::Pending { .. }
-            | ResourceState::LoadError { .. }
-            | ResourceState::Unloaded => None,
-            ResourceState::Ok { data, .. } => Some(data),
+            Self::Pending { .. }
+            | Self::LoadError { .. }
+            | Self::Unloaded => None,
+            Self::Ok { data, .. } => Some(data),
         }
     }
 
@@ -447,10 +447,10 @@ impl ResourceState {
     /// [`ResourceState::Ok`].
     pub fn data_ref_of_type<T: TypedResourceData>(&self) -> Option<&T> {
         match self {
-            ResourceState::Pending { .. }
-            | ResourceState::LoadError { .. }
-            | ResourceState::Unloaded => None,
-            ResourceState::Ok { data, .. } => (&**data as &dyn Any).downcast_ref::<T>(),
+            Self::Pending { .. }
+            | Self::LoadError { .. }
+            | Self::Unloaded => None,
+            Self::Ok { data, .. } => (&**data as &dyn Any).downcast_ref::<T>(),
         }
     }
 
@@ -458,10 +458,10 @@ impl ResourceState {
     /// [`ResourceState::Ok`].
     pub fn data_mut_of_type<T: TypedResourceData>(&mut self) -> Option<&mut T> {
         match self {
-            ResourceState::Pending { .. }
-            | ResourceState::LoadError { .. }
-            | ResourceState::Unloaded => None,
-            ResourceState::Ok { data, .. } => (&mut **data as &mut dyn Any).downcast_mut::<T>(),
+            Self::Pending { .. }
+            | Self::LoadError { .. }
+            | Self::Unloaded => None,
+            Self::Ok { data, .. } => (&mut **data as &mut dyn Any).downcast_mut::<T>(),
         }
     }
 }

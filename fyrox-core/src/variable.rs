@@ -53,7 +53,7 @@ bitflags! {
 
 impl Debug for VariableFlags {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if *self == VariableFlags::NONE {
+        if *self == Self::NONE {
             write!(f, "NONE")
         } else {
             for (i, flag) in self.iter().enumerate() {
@@ -61,8 +61,8 @@ impl Debug for VariableFlags {
                     write!(f, "|")?
                 }
                 match flag {
-                    VariableFlags::MODIFIED => write!(f, "MOD")?,
-                    VariableFlags::NEED_SYNC => write!(f, "SYNC")?,
+                    Self::MODIFIED => write!(f, "MOD")?,
+                    Self::NEED_SYNC => write!(f, "SYNC")?,
                     _ => {}
                 }
             }
@@ -125,7 +125,7 @@ impl<T: Clone> Clone for InheritableVariable<T> {
 impl<T> From<T> for InheritableVariable<T> {
     #[inline]
     fn from(v: T) -> Self {
-        InheritableVariable::new_modified(v)
+        Self::new_modified(v)
     }
 }
 

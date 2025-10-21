@@ -319,7 +319,7 @@ impl ListView {
                 while let Some(handle) = stack.pop() {
                     let node = ui.node(handle);
 
-                    if node.cast::<ListView>().is_some() {
+                    if node.cast::<Self>().is_some() {
                         // Do nothing.
                     } else if node.cast::<Decorator>().is_some() {
                         ui.send_message(DecoratorMessage::select(
@@ -348,7 +348,7 @@ impl ConstructorProvider<UiNode, UserInterface> for ListViewItem {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
             .with_variant("List View Item", |ui: &mut UserInterface| {
-                let node = UiNode::new(ListViewItem {
+                let node = UiNode::new(Self {
                     widget: WidgetBuilder::new()
                         .with_name("List View Item")
                         .build(&ui.build_ctx()),

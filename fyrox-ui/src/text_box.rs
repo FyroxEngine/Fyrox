@@ -183,8 +183,8 @@ impl SelectionRange {
     /// Creates a new range, that have its begin always before end. It could be useful in case if user
     /// selects a range right-to-left.
     #[must_use = "method creates new value which must be used"]
-    pub fn normalized(&self) -> SelectionRange {
-        SelectionRange {
+    pub fn normalized(&self) -> Self {
+        Self {
             begin: self.left(),
             end: self.right(),
         }

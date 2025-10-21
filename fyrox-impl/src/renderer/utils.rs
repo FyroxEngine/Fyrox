@@ -44,32 +44,32 @@ pub struct CubeMapFaceDescriptor {
 impl CubeMapFaceDescriptor {
     pub fn cube_faces() -> [Self; 6] {
         [
-            CubeMapFaceDescriptor {
+            Self {
                 face: CubeMapFace::PositiveX,
                 look: Vector3::new(1.0, 0.0, 0.0),
                 up: Vector3::new(0.0, -1.0, 0.0),
             },
-            CubeMapFaceDescriptor {
+            Self {
                 face: CubeMapFace::NegativeX,
                 look: Vector3::new(-1.0, 0.0, 0.0),
                 up: Vector3::new(0.0, -1.0, 0.0),
             },
-            CubeMapFaceDescriptor {
+            Self {
                 face: CubeMapFace::PositiveY,
                 look: Vector3::new(0.0, 1.0, 0.0),
                 up: Vector3::new(0.0, 0.0, 1.0),
             },
-            CubeMapFaceDescriptor {
+            Self {
                 face: CubeMapFace::NegativeY,
                 look: Vector3::new(0.0, -1.0, 0.0),
                 up: Vector3::new(0.0, 0.0, -1.0),
             },
-            CubeMapFaceDescriptor {
+            Self {
                 face: CubeMapFace::PositiveZ,
                 look: Vector3::new(0.0, 0.0, 1.0),
                 up: Vector3::new(0.0, -1.0, 0.0),
             },
-            CubeMapFaceDescriptor {
+            Self {
                 face: CubeMapFace::NegativeZ,
                 look: Vector3::new(0.0, 0.0, -1.0),
                 up: Vector3::new(0.0, -1.0, 0.0),
