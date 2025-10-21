@@ -184,6 +184,8 @@ fn main() {
 
                             project_manager.update(engine.user_interfaces.first_mut(), time_step);
 
+                            project_manager.update_loop_state.decrease_counter();
+
                             previous = Instant::now();
                         }
 
@@ -195,8 +197,6 @@ fn main() {
 
                             ctx.window.request_redraw();
                         }
-
-                        project_manager.update_loop_state.decrease_counter();
                     }
                 }
                 Event::WindowEvent { event, .. } => {
