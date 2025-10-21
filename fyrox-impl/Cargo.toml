@@ -18,7 +18,7 @@ rust-version = "1.86"
 fyrox-core-derive = { path = "../fyrox-core-derive", version = "1.0.0-rc.1" }
 fyrox-core = { path = "../fyrox-core", version = "1.0.0-rc.1", features = ["serde"] }
 fyrox-sound = { path = "../fyrox-sound", version = "1.0.0-rc.1" }
-fyrox-ui = { path = "../fyrox-ui", version = "1.0.0-rc.1" }
+fyrox-ui = { path = "../fyrox-ui", version = "1.0.0-rc.2" }
 fyrox-resource = { path = "../fyrox-resource", version = "1.0.0-rc.1" }
 fyrox-animation = { path = "../fyrox-animation", version = "1.0.0-rc.1" }
 fyrox-graph = { path = "../fyrox-graph", version = "1.0.0-rc.1" }
