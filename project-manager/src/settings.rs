@@ -302,14 +302,18 @@ impl SettingsWindow {
                     .context()
                     .clone();
 
-                Log::verify(ctx.sync(
+                if let Err(errs) = ctx.sync(
                     &**settings,
                     ui,
                     0,
                     true,
                     Default::default(),
                     Default::default(),
-                ));
+                ) {
+                    for err in errs {
+                        Log::err(err.to_string());
+                    }
+                }
             }
         }
 

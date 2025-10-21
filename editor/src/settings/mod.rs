@@ -32,6 +32,7 @@ use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
+    fmt::Display,
     fs::File,
     io::Write,
     ops::{Deref, DerefMut},
@@ -149,6 +150,18 @@ pub enum SettingsError {
     Io(std::io::Error),
     RonSpanned(ron::error::SpannedError),
     Ron(ron::Error),
+}
+
+impl std::error::Error for SettingsError {}
+
+impl Display for SettingsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SettingsError::Io(error) => Display::fmt(error, f),
+            SettingsError::RonSpanned(error) => Display::fmt(error, f),
+            SettingsError::Ron(error) => Display::fmt(error, f),
+        }
+    }
 }
 
 impl From<std::io::Error> for SettingsError {

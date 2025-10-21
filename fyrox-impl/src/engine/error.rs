@@ -35,6 +35,8 @@ pub enum EngineError {
     Custom(String),
 }
 
+impl std::error::Error for EngineError {}
+
 impl Display for EngineError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -69,6 +69,8 @@ pub enum FbxError {
     FileLoadError(FileError),
 }
 
+impl std::error::Error for FbxError {}
+
 impl Display for FbxError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {

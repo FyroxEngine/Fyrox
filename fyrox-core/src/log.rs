@@ -315,13 +315,10 @@ impl Log {
     /// be in the log.
     pub fn verify<T, E>(result: Result<T, E>)
     where
-        E: Debug,
+        E: Display,
     {
         if let Err(e) = result {
-            Self::writeln(
-                MessageKind::Error,
-                format!("Operation failed! Reason: {e:?}"),
-            );
+            Self::writeln(MessageKind::Error, format!("Operation failed! Reason: {e}"));
         }
     }
 
