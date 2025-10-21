@@ -909,7 +909,8 @@ impl ShaderResourceExtension for ShaderResource {
 }
 
 lazy_static! {
-    static ref STANDARD: BuiltInResource<Shader> = BuiltInResource::new(
+    /// Standard shader.
+    pub static ref STANDARD: BuiltInResource<Shader> = BuiltInResource::new(
         STANDARD_SHADER_NAME,
         embedded_data_source!("standard/standard.shader"),
         |data| {
@@ -920,7 +921,8 @@ lazy_static! {
             )
         }
     );
-    static ref STANDARD_2D: BuiltInResource<Shader> = BuiltInResource::new(
+    /// Standard 2D shader.
+    pub static ref STANDARD_2D: BuiltInResource<Shader> = BuiltInResource::new(
         STANDARD_2D_SHADER_NAME,
         embedded_data_source!("standard/standard2d.shader"),
         |data| ShaderResource::new_ok(
@@ -929,7 +931,8 @@ lazy_static! {
             Shader::from_string_bytes(data).unwrap(),
         )
     );
-    static ref STANDARD_PARTICLE_SYSTEM: BuiltInResource<Shader> = BuiltInResource::new(
+    /// Standard particle system shader.
+    pub static ref STANDARD_PARTICLE_SYSTEM: BuiltInResource<Shader> = BuiltInResource::new(
         STANDARD_PARTICLE_SYSTEM_SHADER_NAME,
         embedded_data_source!("standard/standard_particle_system.shader"),
         |data| ShaderResource::new_ok(
@@ -938,7 +941,8 @@ lazy_static! {
             Shader::from_string_bytes(data).unwrap(),
         )
     );
-    static ref STANDARD_SPRITE: BuiltInResource<Shader> = BuiltInResource::new(
+    /// Standard sprite shader.
+    pub static ref STANDARD_SPRITE: BuiltInResource<Shader> = BuiltInResource::new(
         STANDARD_SPRITE_SHADER_NAME,
         embedded_data_source!("standard/standard_sprite.shader"),
         |data| ShaderResource::new_ok(
@@ -947,7 +951,8 @@ lazy_static! {
             Shader::from_string_bytes(data).unwrap(),
         )
     );
-    static ref STANDARD_TERRAIN: BuiltInResource<Shader> = BuiltInResource::new(
+    /// Standard terrain shader.
+    pub static ref STANDARD_TERRAIN: BuiltInResource<Shader> = BuiltInResource::new(
         STANDARD_TERRAIN_SHADER_NAME,
         embedded_data_source!("standard/terrain.shader"),
         |data| {
@@ -958,7 +963,8 @@ lazy_static! {
             )
         }
     );
-    static ref STANDARD_TILE: BuiltInResource<Shader> = BuiltInResource::new(
+    /// Standard tile shader.
+    pub static ref STANDARD_TILE: BuiltInResource<Shader> = BuiltInResource::new(
         STANDARD_TILE_SHADER_NAME,
         embedded_data_source!("standard/tile.shader"),
         |data| {
@@ -969,7 +975,8 @@ lazy_static! {
             )
         }
     );
-    static ref STANDARD_TWOSIDES: BuiltInResource<Shader> = BuiltInResource::new(
+    /// Standard two-sides shader.
+    pub static ref STANDARD_TWOSIDES: BuiltInResource<Shader> = BuiltInResource::new(
         STANDARD_TWOSIDES_SHADER_NAME,
         embedded_data_source!("standard/standard-two-sides.shader"),
         |data| ShaderResource::new_ok(
@@ -978,7 +985,8 @@ lazy_static! {
             Shader::from_string_bytes(data).unwrap(),
         )
     );
-    static ref STANDARD_WIDGET: BuiltInResource<Shader> = BuiltInResource::new(
+    /// Standard widget shader.
+    pub static ref STANDARD_WIDGET: BuiltInResource<Shader> = BuiltInResource::new(
         STANDARD_WIDGET_SHADER_NAME,
         embedded_data_source!("standard/widget.shader"),
         |data| ShaderResource::new_ok(

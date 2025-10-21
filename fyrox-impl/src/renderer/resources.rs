@@ -173,7 +173,15 @@ impl ShadersContainer {
             box_blur: RenderPassContainer::from_str(server, include_str!("shaders/blur.shader"))?,
             ui: RenderPassContainer::from_str(
                 server,
-                include_str!("../../../fyrox-material/src/shader/standard/widget.shader"),
+                str::from_utf8(
+                    fyrox_material::shader::STANDARD_WIDGET
+                        .data_source
+                        .as_ref()
+                        .unwrap()
+                        .bytes
+                        .as_ref(),
+                )
+                .unwrap(),
             )?,
             environment_map_specular_convolution: RenderPassContainer::from_str(
                 server,
