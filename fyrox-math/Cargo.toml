@@ -11,7 +11,7 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE"]
 homepage = "https://fyrox.rs"
 documentation = "https://docs.rs/fyrox-math"
 repository = "https://github.com/FyroxEngine/Fyrox"
-rust-version = "1.86"
+rust-version = "1.87"
 
 [dependencies]
 rectutils = "0.5.0"

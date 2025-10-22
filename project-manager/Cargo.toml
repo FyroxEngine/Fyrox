@@ -10,7 +10,7 @@ categories = ["game-development"]
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/resources/**/*"]
 homepage = "https://fyrox.rs"
 repository = "https://github.com/FyroxEngine/Fyrox"
-rust-version = "1.86"
+rust-version = "1.87"
 
 [dependencies]
 fyrox = { version = "1.0.0-rc.1", path = "../fyrox" }
