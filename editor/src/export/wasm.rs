@@ -62,18 +62,18 @@ pub fn copy_binaries(package_dir_path: &Path, destination_folder: &Path) -> Resu
     .map_err(|e| e.to_string())
 }
 
-pub fn run_build(destination_folder: &Path) {
+pub fn run_build(destination_folder: &Path) -> std::io::Result<std::process::Child> {
     if !utils::is_installed("basic-http-server") {
         Log::verify(utils::cargo_install("basic-http-server"));
     }
 
-    Log::verify(
-        utils::make_command("basic-http-server")
-            .arg("--addr")
-            .arg("127.0.0.1:4000")
-            .current_dir(destination_folder)
-            .spawn(),
-    );
+    let child = utils::make_command("basic-http-server")
+        .arg("--addr")
+        .arg("127.0.0.1:4000")
+        .current_dir(destination_folder)
+        .spawn()?;
 
     Log::verify(open::that_detached("http://127.0.0.1:4000"));
+
+    Ok(child)
 }

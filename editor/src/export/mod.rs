@@ -26,7 +26,9 @@ mod wasm;
 
 use crate::{
     fyrox::{
+        asset::manager::ResourceManager,
         core::{
+            err,
             log::{Log, LogMessage, MessageKind},
             platform::TargetPlatform,
             pool::Handle,
@@ -42,7 +44,7 @@ use crate::{
             grid::{Column, GridBuilder, Row},
             inspector::{
                 editors::PropertyEditorDefinitionContainer, Inspector, InspectorBuilder,
-                InspectorContext, InspectorMessage, PropertyAction,
+                InspectorContext, InspectorContextArgs, InspectorMessage, PropertyAction,
             },
             list_view::{ListViewBuilder, ListViewMessage},
             message::{MessageDirection, UiMessage},
@@ -62,8 +64,6 @@ use crate::{
     Message,
 };
 use cargo_metadata::camino::Utf8Path;
-use fyrox::asset::manager::ResourceManager;
-use fyrox::gui::inspector::InspectorContextArgs;
 use std::{
     io::{BufRead, BufReader},
     path::PathBuf,
@@ -112,6 +112,12 @@ impl Default for ExportOptions {
     }
 }
 
+pub struct BuildOutput {
+    child_processes: Vec<std::process::Child>,
+}
+
+pub type BuildResult = Result<BuildOutput, String>;
+
 pub struct ExportWindow {
     pub window: Handle<UiNode>,
     log: Handle<UiNode>,
@@ -120,11 +126,12 @@ pub struct ExportWindow {
     log_scroll_viewer: Handle<UiNode>,
     cancel_flag: Arc<AtomicBool>,
     log_message_receiver: Option<Receiver<LogMessage>>,
-    build_result_receiver: Option<Receiver<Result<(), String>>>,
+    build_result_receiver: Option<Receiver<BuildResult>>,
     target_platform_list: Handle<UiNode>,
     export_options: ExportOptions,
     inspector: Handle<UiNode>,
     build_targets_selector: Handle<UiNode>,
+    child_processes: Vec<std::process::Child>,
 }
 
 fn build_package(
@@ -193,7 +200,7 @@ fn export(
     export_options: ExportOptions,
     cancel_flag: Arc<AtomicBool>,
     resource_manager: ResourceManager,
-) -> Result<(), String> {
+) -> BuildResult {
     Log::info("Building the game...");
 
     utils::prepare_build_dir(&export_options.destination_folder)?;
@@ -278,11 +285,20 @@ fn export(
         Log::verify(std::fs::remove_dir_all(temp_folder));
     }
 
+    let mut child_processes = Vec::new();
+
     if let Ok(destination_folder) = export_options.destination_folder.canonicalize() {
         if export_options.run_after_build {
             match export_options.target_platform {
                 TargetPlatform::PC => pc::run_build(&destination_folder, package_name),
-                TargetPlatform::WebAssembly => wasm::run_build(&destination_folder),
+                TargetPlatform::WebAssembly => match wasm::run_build(&destination_folder) {
+                    Ok(child_process) => {
+                        child_processes.push(child_process);
+                    }
+                    Err(err) => {
+                        err!("Unable to run build. Reason: {:?}", err);
+                    }
+                },
                 TargetPlatform::Android => android::run_build(package_name, &destination_folder),
             }
         }
@@ -292,7 +308,7 @@ fn export(
         }
     }
 
-    Ok(())
+    Ok(BuildOutput { child_processes })
 }
 
 fn make_title_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<UiNode> {
@@ -541,6 +557,7 @@ impl ExportWindow {
             export_options,
             inspector,
             build_targets_selector,
+            child_processes: Default::default(),
         }
     }
 
@@ -551,6 +568,12 @@ impl ExportWindow {
             true,
             true,
         ));
+    }
+
+    fn kill_child_processes(&mut self) {
+        for mut child_process in self.child_processes.drain(..) {
+            let _ = child_process.kill();
+        }
     }
 
     pub fn close_and_destroy(&mut self, ui: &UserInterface) {
@@ -564,6 +587,7 @@ impl ExportWindow {
         ));
         self.log_message_receiver = None;
         self.build_result_receiver = None;
+        self.kill_child_processes();
     }
 
     fn clear_log(&self, ui: &UserInterface) {
@@ -581,6 +605,8 @@ impl ExportWindow {
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.export {
+                self.kill_child_processes();
+
                 let (tx, rx) = mpsc::channel();
                 Log::add_listener(tx);
                 self.log_message_receiver = Some(rx);
@@ -724,8 +750,9 @@ impl ExportWindow {
         if let Some(receiver) = self.build_result_receiver.as_ref() {
             if let Ok(result) = receiver.try_recv() {
                 match result {
-                    Ok(_) => {
+                    Ok(mut output) => {
                         Log::info("Build finished!");
+                        self.child_processes.append(&mut output.child_processes);
                     }
                     Err(err) => Log::err(format!("Build failed! Reason: {err}")),
                 }
