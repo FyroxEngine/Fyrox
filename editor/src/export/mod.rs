@@ -91,6 +91,7 @@ struct ExportOptions {
     run_after_build: bool,
     open_destination_folder: bool,
     convert_assets: bool,
+    enable_optimization: bool,
 }
 
 impl Default for ExportOptions {
@@ -106,6 +107,7 @@ impl Default for ExportOptions {
             run_after_build: false,
             open_destination_folder: true,
             convert_assets: true,
+            enable_optimization: true,
         }
     }
 }
@@ -131,13 +133,16 @@ fn build_package(
     package_dir_path: &Utf8Path,
     target_platform: TargetPlatform,
     cancel_flag: Arc<AtomicBool>,
+    enable_optimization: bool,
 ) -> Result<(), String> {
     utils::configure_build_environment(target_platform, build_target)?;
 
     let mut process = match target_platform {
-        TargetPlatform::PC => pc::build_package(package_name),
-        TargetPlatform::WebAssembly => wasm::build_package(package_dir_path),
-        TargetPlatform::Android => android::build_package(package_name, build_target),
+        TargetPlatform::PC => pc::build_package(package_name, enable_optimization),
+        TargetPlatform::WebAssembly => wasm::build_package(package_dir_path, enable_optimization),
+        TargetPlatform::Android => {
+            android::build_package(package_name, build_target, enable_optimization)
+        }
     };
 
     let mut handle = match process.spawn() {
@@ -252,6 +257,7 @@ fn export(
         package_dir_path,
         export_options.target_platform,
         cancel_flag,
+        export_options.enable_optimization,
     )?;
 
     match export_options.target_platform {

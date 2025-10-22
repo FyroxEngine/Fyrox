@@ -23,7 +23,10 @@ use cargo_metadata::camino::Utf8Path;
 use fyrox::core::log::Log;
 use std::{ffi::OsStr, path::Path, process::Stdio};
 
-pub fn build_package(package_dir_path: &Utf8Path) -> std::process::Command {
+pub fn build_package(
+    package_dir_path: &Utf8Path,
+    enable_optimization: bool,
+) -> std::process::Command {
     let mut process = utils::make_command("wasm-pack");
     process
         .stderr(Stdio::piped())
@@ -31,6 +34,11 @@ pub fn build_package(package_dir_path: &Utf8Path) -> std::process::Command {
         .arg(package_dir_path)
         .arg("--target")
         .arg("web");
+    if enable_optimization {
+        process.arg("--release");
+    } else {
+        process.arg("--dev");
+    }
     process
 }
 

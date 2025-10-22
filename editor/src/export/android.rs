@@ -30,7 +30,11 @@ use std::{
     process::Stdio,
 };
 
-pub fn build_package(package_name: &str, build_target: &str) -> std::process::Command {
+pub fn build_package(
+    package_name: &str,
+    build_target: &str,
+    enable_optimization: bool,
+) -> std::process::Command {
     let mut process = utils::make_command("cargo-apk");
     process
         .stderr(Stdio::piped())
@@ -39,8 +43,10 @@ pub fn build_package(package_name: &str, build_target: &str) -> std::process::Co
         .arg("--package")
         .arg(package_name)
         .arg("--target")
-        .arg(build_target)
-        .arg("--release");
+        .arg(build_target);
+    if enable_optimization {
+        process.arg("--release");
+    }
     process
 }
 

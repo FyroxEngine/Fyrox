@@ -23,14 +23,16 @@ use cargo_metadata::Metadata;
 use fyrox::core::log::Log;
 use std::{ffi::OsStr, fs, path::Path, process::Stdio};
 
-pub fn build_package(package_name: &str) -> std::process::Command {
+pub fn build_package(package_name: &str, enable_optimization: bool) -> std::process::Command {
     let mut process = utils::make_command("cargo");
     process
         .stderr(Stdio::piped())
         .arg("build")
         .arg("--package")
-        .arg(package_name)
-        .arg("--release");
+        .arg(package_name);
+    if enable_optimization {
+        process.arg("--release");
+    }
     process
 }
 
