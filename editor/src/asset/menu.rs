@@ -449,16 +449,20 @@ impl AssetItemContextMenu {
 
                                     match File::create(&final_copy_path) {
                                         Ok(mut file) => {
-                                            Log::verify(file.write_all(&data_source.bytes));
-
+                                            let result = file.write_all(&data_source.bytes);
+                                            drop(file);
+                                            if result.is_ok() {
+                                                engine
+                                                    .resource_manager
+                                                    .request_untyped(&final_copy_path);
+                                            }
+                                            Log::verify(result);
                                             sender
                                                 .send(Message::ShowInAssetBrowser(final_copy_path));
                                         }
                                         Err(err) => Log::err(format!(
-                                            "Failed to create a file for resource at path {}. \
-                                                Reason: {:?}",
-                                            final_copy_path.display(),
-                                            err
+                                            "Failed to create a file for resource at path {final_copy_path:?}. \
+                                                Reason: {err}",
                                         )),
                                     }
                                 }
@@ -472,7 +476,11 @@ impl AssetItemContextMenu {
                                     let ext = ext.to_string_lossy().to_string();
                                     let final_copy_path =
                                         asset::make_unique_path(parent, &stem, &ext);
-                                    Log::verify(std::fs::copy(canonical_path, final_copy_path));
+                                    let result = std::fs::copy(canonical_path, &final_copy_path);
+                                    if result.is_ok() {
+                                        engine.resource_manager.request_untyped(final_copy_path);
+                                    }
+                                    Log::verify(result);
                                 }
                             }
                         }

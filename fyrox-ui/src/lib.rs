@@ -322,8 +322,10 @@ use crate::{
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_resource::{
-    io::FsResourceIo, io::ResourceIo, manager::ResourceManager, untyped::UntypedResource, Resource,
-    ResourceData,
+    io::{FsResourceIo, ResourceIo},
+    manager::ResourceManager,
+    untyped::UntypedResource,
+    Resource, ResourceData,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -3270,6 +3272,9 @@ impl UserInterface {
         resource_manager: ResourceManager,
         io: &dyn ResourceIo,
     ) -> Result<Self, VisitError> {
+        if !resource_manager.registry_is_loaded().await {
+            return Err("The resource registry is unavailable!".to_string().into());
+        }
         let mut ui = {
             let mut visitor = Visitor::load_from_memory(&io.load_file(path.as_ref()).await?)?;
             let (sender, receiver) = mpsc::channel();

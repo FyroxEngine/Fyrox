@@ -51,10 +51,7 @@ pub mod tilemap;
 pub mod transform;
 
 use crate::{
-    asset::{
-        self, io::ResourceIo, manager::ResourceManager, registry::ResourceRegistryStatus,
-        untyped::UntypedResource,
-    },
+    asset::{self, io::ResourceIo, manager::ResourceManager, untyped::UntypedResource},
     core::{
         algebra::Vector2,
         color::Color,
@@ -346,14 +343,8 @@ impl SceneLoader {
         serialization_context: Arc<SerializationContext>,
         resource_manager: ResourceManager,
     ) -> Result<(Self, Vec<u8>), VisitError> {
-        let registry_status = resource_manager
-            .state()
-            .resource_registry
-            .safe_lock()
-            .status_flag();
         // Wait until the registry is fully loaded.
-        let registry_status = registry_status.await;
-        if registry_status == ResourceRegistryStatus::Unknown {
+        if !resource_manager.registry_is_loaded().await {
             return Err(VisitError::User(format!(
                 "Unable to load a scene from {} path, because the \
             resource registry isn't loaded!",

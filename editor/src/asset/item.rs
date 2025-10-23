@@ -233,8 +233,12 @@ impl AssetItem {
 
     fn can_be_dropped_to(&self, dest: &AssetItem) -> bool {
         if self.path.is_file() && dest.path.is_dir() {
+            let Some(name) = self.path.file_name() else {
+                return false;
+            };
+            let dest_path = dest.path.join(name);
             self.resource_manager.as_ref().is_some_and(|rm| {
-                block_on(rm.can_resource_be_moved(self.path.as_path(), dest.path.as_path(), true))
+                block_on(rm.can_resource_be_moved(self.path.as_path(), dest_path, true))
             })
         } else {
             self.path.is_dir() && dest.path.is_dir()
