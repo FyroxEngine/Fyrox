@@ -701,6 +701,10 @@ impl GlGraphicsServer {
             // that also handles HiDPI monitors. It has one issue - if user changes DPI, it won't be handled
             // correctly.
             if let Some(inner_size) = inner_size {
+                fn value_to_err(value: fyrox_core::wasm_bindgen::JsValue) -> String {
+                    format!("{:?}", value)
+                }
+
                 let physical_inner_size: PhysicalSize<u32> = inner_size.to_physical(scale_factor);
 
                 canvas.set_width(physical_inner_size.width);
@@ -710,12 +714,14 @@ impl GlGraphicsServer {
                 Log::verify(
                     canvas
                         .style()
-                        .set_property("width", &format!("{}px", logical_inner_size.width)),
+                        .set_property("width", &format!("{}px", logical_inner_size.width))
+                        .map_err(value_to_err),
                 );
                 Log::verify(
                     canvas
                         .style()
-                        .set_property("height", &format!("{}px", logical_inner_size.height)),
+                        .set_property("height", &format!("{}px", logical_inner_size.height))
+                        .map_err(value_to_err),
                 );
             }
 
