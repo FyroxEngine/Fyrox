@@ -64,6 +64,7 @@ static LOG: LazyLock<Mutex<Log>> = LazyLock::new(|| {
         listeners: Default::default(),
         time_origin: Instant::now(),
         one_shot_sources: Default::default(),
+        write_to_stdout: true,
     })
 });
 
@@ -98,6 +99,7 @@ pub struct Log {
     listeners: Vec<Sender<LogMessage>>,
     time_origin: Instant,
     one_shot_sources: FxHashMap<usize, String>,
+    write_to_stdout: bool,
 }
 
 impl Log {
@@ -165,7 +167,9 @@ impl Log {
 
             #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
             {
-                let _ = io::stdout().write_all(msg.as_bytes());
+                if self.write_to_stdout {
+                    let _ = io::stdout().write_all(msg.as_bytes());
+                }
 
                 if let Some(log_file) = self.file.as_mut() {
                     let _ = log_file.write_all(msg.as_bytes());
@@ -175,7 +179,9 @@ impl Log {
 
             #[cfg(target_os = "android")]
             {
-                let _ = io::stdout().write_all(msg.as_bytes());
+                if self.write_to_stdout {
+                    let _ = io::stdout().write_all(msg.as_bytes());
+                }
             }
         }
 
@@ -276,9 +282,24 @@ impl Log {
         Self::writeln_once(id, MessageKind::Error, msg)
     }
 
+    /// Enables or disables writing the messages to stdout stream.
+    pub fn enable_writing_to_stdout(enabled: bool) {
+        LOG.lock().write_to_stdout = enabled;
+    }
+
+    /// Returns `true` if the logger allowed writing to stdout stream, `false` - otherwise.
+    pub fn is_writing_to_stdout() -> bool {
+        LOG.lock().write_to_stdout
+    }
+
     /// Sets verbosity level.
     pub fn set_verbosity(kind: MessageKind) {
         LOG.lock().verbosity = kind;
+    }
+
+    /// Returns current verbosity level of the logger.
+    pub fn verbosity() -> MessageKind {
+        LOG.lock().verbosity
     }
 
     /// Adds a listener that will receive a copy of every message passed into the log.
