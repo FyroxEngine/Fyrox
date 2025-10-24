@@ -976,10 +976,10 @@ impl PhysicsWorld {
                         .try_sync_model(|v| native.set_body_type(v.into(), false));
                     rigid_body_node
                         .lin_vel
-                        .try_sync_model(|v| native.set_linvel(v, false));
+                        .try_sync_model(|v| native.set_linvel(v, true));
                     rigid_body_node
                         .ang_vel
-                        .try_sync_model(|v| native.set_angvel(v, false));
+                        .try_sync_model(|v| native.set_angvel(v, true));
                     rigid_body_node.mass.try_sync_model(|v| {
                         native.set_additional_mass(v, true);
                     });
@@ -993,16 +993,10 @@ impl PhysicsWorld {
                         .ccd_enabled
                         .try_sync_model(|v| native.enable_ccd(v));
                     rigid_body_node.can_sleep.try_sync_model(|v| {
-                        let activation = native.activation_mut();
                         if v {
-                            activation.normalized_linear_threshold =
-                                RigidBodyActivation::default_normalized_linear_threshold();
-                            activation.angular_threshold =
-                                RigidBodyActivation::default_angular_threshold();
+                            *native.activation_mut() = RigidBodyActivation::active();
                         } else {
-                            activation.sleeping = false;
-                            activation.normalized_linear_threshold = -1.0;
-                            activation.angular_threshold = -1.0;
+                            *native.activation_mut() = RigidBodyActivation::cannot_sleep();
                         };
                     });
                     rigid_body_node
@@ -1072,7 +1066,6 @@ impl PhysicsWorld {
                 .linear_damping(*rigid_body_node.lin_damping)
                 .angular_damping(*rigid_body_node.ang_damping)
                 .can_sleep(rigid_body_node.is_can_sleep())
-                .sleeping(rigid_body_node.is_sleeping())
                 .dominance_group(rigid_body_node.dominance())
                 .gravity_scale(rigid_body_node.gravity_scale());
 

@@ -27,8 +27,8 @@ fyrox-graphics-gl = { path = "../fyrox-graphics-gl", version = "1.0.0-rc.1" }
 fyrox-texture = { path = "../fyrox-texture", version = "1.0.0-rc.1" }
 fyrox-autotile = { path = "../fyrox-autotile", version = "1.0.0-rc.1" }
 fyrox-material = { path = "../fyrox-material", version = "1.0.0-rc.2" }
-rapier2d = { version = "0.29", features = ["debug-render"] }
-rapier3d = { version = "0.29", features = ["debug-render"] }
+rapier2d = { version = "0.30", features = ["debug-render"] }
+rapier3d = { version = "0.30", features = ["debug-render"] }
 image = { version = "0.25.1", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
 inflate = "0.4.5"
 serde = { version = "1", features = ["derive"] }
