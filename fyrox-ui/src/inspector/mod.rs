@@ -58,7 +58,7 @@ use fyrox_graph::{
 };
 use std::{
     any::{Any, TypeId},
-    fmt::{Debug, Formatter},
+    fmt::{Debug, Display, Formatter},
     ops::{Deref, DerefMut},
     sync::Arc,
 };
@@ -129,6 +129,26 @@ pub enum PropertyAction {
     },
     /// Revert value to parent.
     Revert,
+}
+
+impl Display for PropertyAction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PropertyAction::Modify { value } => write!(
+                f,
+                "A property needs to be modified with given value: {value:?}"
+            ),
+            PropertyAction::AddItem { value } => write!(
+                f,
+                "An item needs to be added to a collection property: {value:?}"
+            ),
+            PropertyAction::RemoveItem { index } => write!(
+                f,
+                "An item needs to be removed from a collection property. Index: {index}"
+            ),
+            PropertyAction::Revert => f.write_str("Revert value to parent"),
+        }
+    }
 }
 
 impl PropertyAction {
@@ -647,14 +667,13 @@ impl Inspector {
                     if let Some(inspector) = ui.try_get_of_type::<Inspector>(inspector) {
                         let ctx = inspector.context.clone();
 
-                        Log::verify(ctx.sync(
-                            object,
-                            ui,
-                            0,
-                            true,
-                            Default::default(),
-                            Default::default(),
-                        ));
+                        if let Err(errs) =
+                            ctx.sync(object, ui, 0, true, Default::default(), Default::default())
+                        {
+                            for err in errs {
+                                Log::err(err.to_string());
+                            }
+                        }
                     }
                 }
             }
@@ -708,6 +727,27 @@ pub enum InspectorError {
     Custom(String),
     /// As an inspector contains multiple editors, it can potentially produce multiple errors.
     Group(Vec<InspectorError>),
+}
+
+impl std::error::Error for InspectorError {}
+
+impl Display for InspectorError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InspectorError::CastError(cast_error) => Display::fmt(cast_error, f),
+            InspectorError::OutOfSync => f.write_str(
+                "The object type has changed and the inspector context is no longer valid.",
+            ),
+            InspectorError::Custom(message) => f.write_str(message),
+            InspectorError::Group(inspector_errors) => {
+                f.write_str("Multiple errors:\n")?;
+                for err in inspector_errors {
+                    writeln!(f, "  {err}")?;
+                }
+                Ok(())
+            }
+        }
+    }
 }
 
 impl From<CastError> for InspectorError {

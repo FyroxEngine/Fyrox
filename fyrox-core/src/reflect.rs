@@ -90,6 +90,21 @@ pub enum CastError {
     },
 }
 
+impl std::error::Error for CastError {}
+
+impl Display for CastError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            CastError::TypeMismatch { property_name, .. } => {
+                write!(
+                    f,
+                    "Given type does not match expected for property {property_name:?}"
+                )
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct FieldMetadata<'s> {
     /// A name of the property.
@@ -529,6 +544,8 @@ pub enum ReflectPathError<'a> {
     NotAnArray,
 }
 
+impl std::error::Error for ReflectPathError<'_> {}
+
 impl Display for ReflectPathError<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
@@ -870,6 +887,7 @@ impl ResolvePath for dyn Reflect {
     }
 }
 
+#[derive(Debug)]
 pub enum SetFieldError {
     NoSuchField {
         name: String,
@@ -881,6 +899,26 @@ pub enum SetFieldError {
     },
 }
 
+impl std::error::Error for SetFieldError {}
+
+impl Display for SetFieldError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            SetFieldError::NoSuchField { name, value } => {
+                write!(f, "No such field as {name:?} for value {value:?}")
+            }
+            SetFieldError::InvalidValue {
+                field_type_name,
+                value,
+            } => write!(
+                f,
+                "Invalid value for field type {field_type_name}: {value:?}"
+            ),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum SetFieldByPathError<'p> {
     InvalidPath {
         value: Box<dyn Reflect>,
@@ -891,6 +929,25 @@ pub enum SetFieldByPathError<'p> {
         value: Box<dyn Reflect>,
     },
     SetFieldError(SetFieldError),
+}
+
+impl std::error::Error for SetFieldByPathError<'_> {}
+
+impl Display for SetFieldByPathError<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            SetFieldByPathError::InvalidPath { value, reason } => {
+                write!(f, "Invalid path: {value:?}. Reason: {reason}")
+            }
+            SetFieldByPathError::InvalidValue {
+                field_type_name,
+                value,
+            } => {
+                write!(f, "Invalid value: {value:?}. Type: {field_type_name}")
+            }
+            SetFieldByPathError::SetFieldError(set_field_error) => Display::fmt(set_field_error, f),
+        }
+    }
 }
 
 /// Type-erased API

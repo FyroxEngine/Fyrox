@@ -20,6 +20,8 @@
 
 //! Skybox is a huge box around a camera. See [`SkyBox`] docs for more info.
 
+use std::fmt::Display;
+
 use crate::{
     asset::{builtin::BuiltInResource, embedded_data_source, untyped::ResourceKind},
     core::{log::Log, reflect::prelude::*, uuid_provider, visitor::prelude::*},
@@ -375,6 +377,39 @@ pub enum SkyBoxError {
         /// Index of the faulty input texture.
         index: usize,
     },
+}
+
+impl std::error::Error for SkyBoxError {}
+
+impl Display for SkyBoxError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SkyBoxError::UnsupportedTextureKind(texture_kind) => {
+                write!(f, "Unsupported texture kind: {texture_kind:?}")
+            }
+            SkyBoxError::UnableToBuildCubeMap => f.write_str("Cube map was failed to build."),
+            SkyBoxError::NonSquareTexture {
+                index,
+                width,
+                height,
+            } => write!(
+                f,
+                "Input texture is not square. Index: {index}, width: {width}, height: {height}"
+            ),
+            SkyBoxError::DifferentTexture {
+                expected_width,
+                expected_height,
+                expected_pixel_kind,
+                index,
+                actual_width,
+                actual_height,
+                actual_pixel_kind,
+            } => write!(f, "Some input texture differs in size or pixel kind. Index: {index}. \
+            Expected width: {expected_width}, height: {expected_height}, kind: {expected_pixel_kind:?}. \
+            Actual width: {actual_width}, height: {actual_height}, kind: {actual_pixel_kind:?}."),
+            SkyBoxError::TextureIsNotReady { index } => write!(f, "Input texture is not loaded. Index: {index}"),
+        }
+    }
 }
 
 /// SkyBox builder is used to create new skybox in declarative manner.

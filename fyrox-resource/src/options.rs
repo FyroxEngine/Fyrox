@@ -47,13 +47,17 @@ pub trait ImportOptions:
 {
     /// Saves import options into a specified file.
     fn save_internal(&self, path: &Path) -> bool {
-        if let Ok(mut file) = File::create(path) {
-            if let Ok(string) = ron::ser::to_string_pretty(self, PrettyConfig::default()) {
-                Log::verify(file.write_all(string.as_bytes()));
-                return true;
-            }
+        fn write<T: Serialize>(this: &T, path: &Path) -> std::io::Result<()> {
+            let mut file = File::create(path)?;
+            let string = ron::ser::to_string_pretty(this, PrettyConfig::default())
+                .map_err(|e| std::io::Error::new(ErrorKind::InvalidData, e))?;
+            file.write_all(string.as_bytes())?;
+            Ok(())
         }
-        false
+        let result = write(self, path);
+        let is_ok = result.is_ok();
+        Log::verify(result);
+        is_ok
     }
 }
 
@@ -79,10 +83,8 @@ where
             Ok(options) => Some(options),
             Err(e) => {
                 Log::warn(format!(
-                    "Malformed options file {} for {} resource, fallback to defaults! Reason: {:?}",
-                    settings_path.display(),
-                    resource_path.display(),
-                    e
+                    "Malformed options file {:?}, fallback to defaults! Reason: {}",
+                    settings_path, e
                 ));
 
                 None
@@ -99,10 +101,8 @@ where
             }
 
             Log::warn(format!(
-                "Unable to load options file {} for {} resource, fallback to defaults! Reason: {:?}",
-                settings_path.display(),
-                resource_path.display(),
-                e
+                "Unable to load options file {:?}, fallback to defaults! Reason: {}",
+                settings_path, e
             ));
 
             None

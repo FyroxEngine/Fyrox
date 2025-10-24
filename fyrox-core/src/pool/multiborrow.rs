@@ -143,6 +143,8 @@ pub enum MultiBorrowError<T> {
     InvalidHandleGeneration(Handle<T>),
 }
 
+impl<T> std::error::Error for MultiBorrowError<T> {}
+
 impl<T> Debug for MultiBorrowError<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Display::fmt(self, f)

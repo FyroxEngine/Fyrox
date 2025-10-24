@@ -30,7 +30,7 @@ use bitflags::bitflags;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
-    fmt::Debug,
+    fmt::{Debug, Display},
     ops::{Deref, DerefMut},
 };
 
@@ -81,6 +81,24 @@ pub enum InheritError {
         /// Type of right property.
         right_type: &'static str,
     },
+}
+
+impl std::error::Error for InheritError {}
+
+impl Display for InheritError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InheritError::TypesMismatch {
+                left_type,
+                right_type,
+            } => {
+                write!(
+                    f,
+                    "Child type ({left_type}) does not match parent type ({right_type})"
+                )
+            }
+        }
+    }
 }
 
 /// A wrapper for a variable that hold additional flag that tells that initial value was changed in runtime.

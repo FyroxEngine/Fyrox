@@ -67,6 +67,8 @@ pub enum NameError {
     InvalidCharacter(char),
 }
 
+impl std::error::Error for NameError {}
+
 impl Display for NameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
