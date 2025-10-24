@@ -52,10 +52,6 @@ pub enum SurfaceDataError {
     CountMismatch,
     /// The mesh vertex data in the glTF files does not include position vectors.
     MissingPosition,
-    /// The mesh vertex data in the glTF files does not include normal vectors.
-    MissingNormal,
-    /// The mesh vertex data in the glTF files does not include UV coordinates.
-    MissingTexCoords,
     /// The mesh vertex data in the glTF files does not include bone weight values.
     MissingBoneWeight,
     /// The mesh vertex data in the glTF files does not include bone index values.
@@ -91,8 +87,6 @@ impl Display for SurfaceDataError {
         match self {
             SurfaceDataError::CountMismatch => f.write_str("Count mismatch"),
             SurfaceDataError::MissingPosition => f.write_str("Missing position"),
-            SurfaceDataError::MissingNormal => f.write_str("Missing normal"),
-            SurfaceDataError::MissingTexCoords => f.write_str("Missing texcoords"),
             SurfaceDataError::MissingBoneWeight => f.write_str("Missing bone weight"),
             SurfaceDataError::MissingBoneIndex => f.write_str("Missing bone index"),
             SurfaceDataError::InvalidBoneIndex => f.write_str("Invalid bone index"),
@@ -497,19 +491,22 @@ impl GltfVertexConvert for StaticVertex {
         let pos_iter = reader
             .read_positions()
             .ok_or(SurfaceDataError::MissingPosition)?;
-        let mut norm_iter = reader
-            .read_normals()
-            .ok_or(SurfaceDataError::MissingNormal)?;
+        let mut norm_iter = reader.read_normals();
         let mut tang_iter = reader.read_tangents();
-        let mut uv_iter = reader
-            .read_tex_coords(0)
-            .ok_or(SurfaceDataError::MissingTexCoords)?
-            .into_f32();
+        let mut uv_iter = reader.read_tex_coords(0).map(|i| i.into_f32());
         let mut result: Vec<StaticVertex> = Vec::with_capacity(pos_iter.len());
         for pos in pos_iter {
             let pos: Vector3<f32> = Vector3::from(pos);
-            let norm: Option<Vector3<f32>> = norm_iter.next().map(Vector3::from);
-            let uv: Option<Vector2<f32>> = uv_iter.next().map(Vector2::from);
+            let norm: Option<Vector3<f32>> = if let Some(iter) = norm_iter.as_mut() {
+                iter.next().map(Vector3::from)
+            } else {
+                Some(Vector3::new(0.0, 1.0, 0.0))
+            };
+            let uv: Option<Vector2<f32>> = if let Some(iter) = uv_iter.as_mut() {
+                iter.next().map(Vector2::from)
+            } else {
+                Some(Vector2::repeat(0.0))
+            };
             let tang: Option<Vector4<f32>> = if let Some(iter) = tang_iter.as_mut() {
                 iter.next().map(Vector4::from)
             } else {
@@ -539,14 +536,9 @@ impl GltfVertexConvert for AnimatedVertex {
         let pos_iter = reader
             .read_positions()
             .ok_or(SurfaceDataError::MissingPosition)?;
-        let mut norm_iter = reader
-            .read_normals()
-            .ok_or(SurfaceDataError::MissingNormal)?;
+        let mut norm_iter = reader.read_normals();
         let mut tang_iter = reader.read_tangents();
-        let mut uv_iter = reader
-            .read_tex_coords(0)
-            .ok_or(SurfaceDataError::MissingTexCoords)?
-            .into_f32();
+        let mut uv_iter = reader.read_tex_coords(0).map(|i| i.into_f32());
         let mut wgt_iter = reader
             .read_weights(0)
             .ok_or(SurfaceDataError::MissingBoneWeight)?
@@ -557,8 +549,16 @@ impl GltfVertexConvert for AnimatedVertex {
         let mut result: Vec<AnimatedVertex> = Vec::with_capacity(pos_iter.len());
         for pos in pos_iter {
             let pos: Vector3<f32> = Vector3::from(pos);
-            let norm: Option<Vector3<f32>> = norm_iter.next().map(Vector3::from);
-            let uv: Option<Vector2<f32>> = uv_iter.next().map(Vector2::from);
+            let norm: Option<Vector3<f32>> = if let Some(iter) = norm_iter.as_mut() {
+                iter.next().map(Vector3::from)
+            } else {
+                Some(Vector3::new(0.0, 1.0, 0.0))
+            };
+            let uv: Option<Vector2<f32>> = if let Some(iter) = uv_iter.as_mut() {
+                iter.next().map(Vector2::from)
+            } else {
+                Some(Vector2::repeat(0.0))
+            };
             let bone_weights: Option<[f32; 4]> = wgt_iter.next();
             let bone_indices: Option<[u8; 4]> = read_valid_index(&mut jnt_iter)?;
             let tang: Option<Vector4<f32>> = if let Some(iter) = tang_iter.as_mut() {
