@@ -162,10 +162,10 @@ impl ImportedTrack {
         }
     }
     fn fixed_value(&self) -> Option<Box<[f32]>> {
-        let mut result: Box<[f32]> = if let ImportedBinding::Weight(_) = self.target.binding {
-            <[f32; 1]>::default().into()
-        } else {
-            <[f32; 3]>::default().into()
+        let mut result: Box<[f32]> = match self.target.binding {
+            ImportedBinding::Weight(_) => <[f32; 1]>::default().into(),
+            ImportedBinding::Rotation => <[f32; 4]>::default().into(),
+            _ => <[f32; 3]>::default().into(),
         };
         for (i, curve) in self.curves.iter().enumerate() {
             if curve.len() != 1 {
