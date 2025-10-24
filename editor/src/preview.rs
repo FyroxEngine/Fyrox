@@ -287,63 +287,56 @@ impl PreviewPanel {
     pub fn handle_message(&mut self, message: &UiMessage, engine: &mut Engine) {
         let scene = &mut engine.scenes[self.scene];
 
-        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == self.fit {
-                self.fit_to_model(scene);
-            }
+        if let Some(ButtonMessage::Click) = message.data_from(self.fit) {
+            self.fit_to_model(scene);
         }
 
-        if message.destination() == self.frame
-            && message.direction() == MessageDirection::FromWidget
-        {
-            if let Some(msg) = message.data::<WidgetMessage>() {
-                match *msg {
-                    WidgetMessage::MouseMove { pos, .. } => {
-                        let delta = pos - self.prev_mouse_pos;
-                        match self.mode {
-                            Mode::None => {}
-                            Mode::Move => {
-                                let pivot = &scene.graph[self.camera_pivot];
+        if let Some(msg) = message.data_from::<WidgetMessage>(self.frame) {
+            match *msg {
+                WidgetMessage::MouseMove { pos, .. } => {
+                    let delta = pos - self.prev_mouse_pos;
+                    match self.mode {
+                        Mode::None => {}
+                        Mode::Move => {
+                            let pivot = &scene.graph[self.camera_pivot];
 
-                                let side_vector = pivot.side_vector().normalize();
-                                let up_vector = pivot.up_vector().normalize();
+                            let side_vector = pivot.side_vector().normalize();
+                            let up_vector = pivot.up_vector().normalize();
 
-                                self.position +=
-                                    side_vector.scale(-delta.x) + up_vector.scale(delta.y);
-                            }
-                            Mode::Rotate => {
-                                self.yaw -= delta.x;
-                                self.pitch = (self.pitch - delta.y).clamp(-90.0, 90.0);
-                            }
+                            self.position += side_vector.scale(-delta.x) + up_vector.scale(delta.y);
                         }
-                        self.prev_mouse_pos = pos;
-                    }
-                    WidgetMessage::MouseDown { button, pos } => {
-                        self.prev_mouse_pos = pos;
-                        engine.user_interfaces.first_mut().capture_mouse(self.frame);
-                        if button == MouseButton::Left {
-                            self.mode = Mode::Rotate;
-                        } else if button == MouseButton::Middle {
-                            self.mode = Mode::Move;
+                        Mode::Rotate => {
+                            self.yaw -= delta.x;
+                            self.pitch = (self.pitch - delta.y).clamp(-90.0, 90.0);
                         }
                     }
-                    WidgetMessage::MouseUp { button, .. } => {
-                        if (button == MouseButton::Left || button == MouseButton::Middle)
-                            && self.mode != Mode::None
-                            && !message.handled()
-                        {
-                            engine.user_interfaces.first_mut().release_mouse_capture();
-                            self.mode = Mode::None;
-                        }
-                    }
-                    WidgetMessage::MouseWheel { amount, .. } => {
-                        let step = 0.1;
-                        let k = 1.0 - amount.signum() * step;
-
-                        self.distance = (self.distance * k).max(0.0);
-                    }
-                    _ => {}
+                    self.prev_mouse_pos = pos;
                 }
+                WidgetMessage::MouseDown { button, pos } => {
+                    self.prev_mouse_pos = pos;
+                    engine.user_interfaces.first_mut().capture_mouse(self.frame);
+                    if button == MouseButton::Left {
+                        self.mode = Mode::Rotate;
+                    } else if button == MouseButton::Middle {
+                        self.mode = Mode::Move;
+                    }
+                }
+                WidgetMessage::MouseUp { button, .. } => {
+                    if (button == MouseButton::Left || button == MouseButton::Middle)
+                        && self.mode != Mode::None
+                        && !message.handled()
+                    {
+                        engine.user_interfaces.first_mut().release_mouse_capture();
+                        self.mode = Mode::None;
+                    }
+                }
+                WidgetMessage::MouseWheel { amount, .. } => {
+                    let step = 0.1;
+                    let k = 1.0 - amount.signum() * step;
+
+                    self.distance = (self.distance * k).max(0.0);
+                }
+                _ => {}
             }
         }
 

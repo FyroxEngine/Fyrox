@@ -287,26 +287,22 @@ impl Configurator {
                 visitor.save_binary_to_file(HISTORY_PATH).unwrap();
             }
         } else if let Some(ListViewMessage::SelectionChanged(selected_indices)) =
-            message.data::<ListViewMessage>()
+            message.data_from(self.lv_history)
         {
             if let Some(index) = selected_indices.first().cloned() {
-                if message.destination() == self.lv_history
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    let entry = &self.history[index];
-                    self.work_dir.clone_from(&entry.work_dir);
+                let entry = &self.history[index];
+                self.work_dir.clone_from(&entry.work_dir);
 
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(TextMessage::text(
-                            self.tb_work_dir,
-                            MessageDirection::ToWidget,
-                            self.work_dir.to_string_lossy().to_string(),
-                        ));
+                engine
+                    .user_interfaces
+                    .first_mut()
+                    .send_message(TextMessage::text(
+                        self.tb_work_dir,
+                        MessageDirection::ToWidget,
+                        self.work_dir.to_string_lossy().to_string(),
+                    ));
 
-                    self.validate(engine);
-                }
+                self.validate(engine);
             }
         } else if let Some(FileSelectorMessage::Commit(path)) =
             message.data::<FileSelectorMessage>()

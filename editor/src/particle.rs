@@ -323,23 +323,18 @@ impl ParticleSystemPreviewControlPanel {
                         }
                     }
                 }
-            } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
-                if message.destination() == self.preview
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    if *value {
-                        self.enter_preview_mode(editor_selection, game_scene, engine);
-                    } else {
-                        self.leave_preview_mode(game_scene, engine);
-                    }
-                }
-            } else if let Some(NumericUpDownMessage::Value(desired_playback_time)) = message.data()
+            } else if let Some(CheckBoxMessage::Check(Some(value))) =
+                message.data_from(self.preview)
             {
-                if message.destination() == self.time
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    self.desired_playback_time = *desired_playback_time;
+                if *value {
+                    self.enter_preview_mode(editor_selection, game_scene, engine);
+                } else {
+                    self.leave_preview_mode(game_scene, engine);
                 }
+            } else if let Some(NumericUpDownMessage::Value(desired_playback_time)) =
+                message.data_from(self.time)
+            {
+                self.desired_playback_time = *desired_playback_time;
             }
         }
     }

@@ -460,6 +460,48 @@ impl UiMessage {
         }
     }
 
+    /// Checks if the destination node handle of the message matches the given handle as well
+    /// as the actual type of the message matches the given type and returns a reference to
+    /// the data.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// # use fyrox_core::pool::Handle;
+    /// # use fyrox_ui::message::{MessageDirection, UiMessage};
+    /// # let message = UiMessage::with_data(123);
+    /// # let widget_handle = Handle::NONE;
+    /// if let Some(data) = message.data_from::<u32>(widget_handle) {
+    ///     println!("{}", data);
+    /// }
+    /// ```
+    ///
+    /// This method call is essentially a shortcut for:
+    ///
+    /// ```rust
+    /// # use fyrox_core::pool::Handle;
+    /// # use fyrox_ui::message::{MessageDirection, UiMessage};
+    /// # let message = UiMessage::with_data(123);
+    /// # let widget_handle = Handle::NONE;
+    /// if message.destination() == widget_handle && message.direction() == MessageDirection::FromWidget {
+    ///     if let Some(data) = message.data::<u32>() {
+    ///         println!("{}", data);
+    ///     }
+    /// }
+    /// ```
+    pub fn data_from<T: MessageData>(&self, handle: Handle<UiNode>) -> Option<&T> {
+        if self.comes_from(handle) {
+            self.data()
+        } else {
+            None
+        }
+    }
+
+    /// Checks whether the message destination node handle matches the given one.
+    pub fn comes_from(&self, handle: Handle<UiNode>) -> bool {
+        self.destination == handle && self.direction == MessageDirection::FromWidget
+    }
+
     /// Returns destination widget handle of the message.
     pub fn destination(&self) -> Handle<UiNode> {
         self.destination

@@ -131,24 +131,20 @@ impl Control for AssetRenameDialog {
                     MessageDirection::ToWidget,
                 ));
             }
-        } else if let Some(TextMessage::Text(name)) = message.data() {
-            if message.destination() == self.name_field
-                && message.direction() == MessageDirection::FromWidget
-            {
-                name.clone_into(&mut self.new_file_name);
+        } else if let Some(TextMessage::Text(name)) = message.data_from(self.name_field) {
+            name.clone_into(&mut self.new_file_name);
 
-                let can_be_moved = block_on(self.resource_manager.can_resource_be_moved(
-                    &self.old_path,
-                    format!("{}/{}.{}", self.folder, self.new_file_name, self.extension),
-                    false,
-                ));
+            let can_be_moved = block_on(self.resource_manager.can_resource_be_moved(
+                &self.old_path,
+                format!("{}/{}.{}", self.folder, self.new_file_name, self.extension),
+                false,
+            ));
 
-                ui.send_message(WidgetMessage::enabled(
-                    self.rename,
-                    MessageDirection::ToWidget,
-                    can_be_moved,
-                ));
-            }
+            ui.send_message(WidgetMessage::enabled(
+                self.rename,
+                MessageDirection::ToWidget,
+                can_be_moved,
+            ));
         } else if let Some(WindowMessage::OpenModal { .. }) = message.data() {
             if message.destination() == self.handle {
                 ui.send_message(WidgetMessage::focus(
