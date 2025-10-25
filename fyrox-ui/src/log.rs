@@ -305,7 +305,7 @@ impl LogPanel {
             let ctx = &mut ui.build_ctx();
             let item = BorderBuilder::new(
                 WidgetBuilder::new()
-                    .with_background(if count % 2 == 0 {
+                    .with_background(if count.is_multiple_of(2) {
                         ctx.style.property(Style::BRUSH_LIGHT)
                     } else {
                         ctx.style.property(Style::BRUSH_DARK)

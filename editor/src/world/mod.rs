@@ -177,7 +177,7 @@ fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
 
     if let Some(decorator) = node.cast::<Decorator>() {
         if node.parent().is_some() {
-            let new_brush = if *index % 2 == 0 {
+            let new_brush = if (*index).is_multiple_of(2) {
                 ui.style.property(Style::BRUSH_PRIMARY)
             } else {
                 ui.style.property(Style::BRUSH_LIGHTER_PRIMARY)

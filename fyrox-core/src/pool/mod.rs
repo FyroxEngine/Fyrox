@@ -1355,7 +1355,7 @@ where
         if val >= begin && val < end {
             let record_size = std::mem::size_of::<PoolRecord<T>>();
             let record_location = (val - offset_of!(PoolRecord<T>, payload)) - begin;
-            if record_location % record_size == 0 {
+            if record_location.is_multiple_of(record_size) {
                 let index = record_location / record_size;
                 let index = u32::try_from(index).expect("Index overflowed u32");
                 return self.handle_from_index(index);
