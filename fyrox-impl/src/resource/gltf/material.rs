@@ -47,13 +47,17 @@ use crate::resource::texture::TextureMinificationFilter as FyroxMinFilter;
 use gltf::texture::MagFilter as GltfMagFilter;
 use gltf::texture::MinFilter as GltfMinFilter;
 
-pub const SHADER_SRC: &str = include_str!("gltf_standard.shader");
-
 lazy_static! {
-    static ref GLTF_SHADER: ShaderResource = ShaderResource::new_ok(
-        uuid!("33ee0142-f345-4c0a-9aca-d1f684a3485b"),
-        ResourceKind::External,
-        Shader::from_string(SHADER_SRC).unwrap()
+    pub static ref GLTF_SHADER: BuiltInResource<Shader> = BuiltInResource::new(
+        "__GLTF_StandardShader",
+        embedded_data_source!("gltf_standard.shader"),
+        |data| {
+            ShaderResource::new_ok(
+                uuid!("33ee0142-f345-4c0a-9aca-d1f684a3485b"),
+                ResourceKind::External,
+                Shader::from_string_bytes(data).unwrap(),
+            )
+        }
     );
 }
 
@@ -78,6 +82,8 @@ fn convert_mag(filter: GltfMagFilter) -> FyroxMagFilter {
 use crate::material::{MaterialResourceBinding, MaterialTextureBinding};
 use crate::resource::texture::TextureWrapMode as FyroxWrapMode;
 use fyrox_core::Uuid;
+use fyrox_resource::builtin::BuiltInResource;
+use fyrox_resource::embedded_data_source;
 use gltf::texture::WrappingMode as GltfWrapMode;
 use uuid::uuid;
 
@@ -189,7 +195,7 @@ async fn import_material(
     mat: gltf::Material<'_>,
     textures: &[TextureResource],
 ) -> Result<MaterialResource> {
-    let shader: ShaderResource = GLTF_SHADER.clone(); //resource_manager.request(SHADER_PATH).await?;
+    let shader: ShaderResource = GLTF_SHADER.resource.clone();
     if !shader.is_ok() {
         return Err(GltfMaterialError::ShaderLoadFailed);
     }

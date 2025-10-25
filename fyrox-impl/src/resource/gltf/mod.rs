@@ -54,7 +54,7 @@ use uuid::Uuid;
 
 mod animation;
 mod iter;
-mod material;
+pub mod material;
 mod node_names;
 mod simplify;
 mod surface;

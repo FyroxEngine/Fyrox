@@ -33,6 +33,7 @@ mod wasm_utils;
 
 use crate::engine::input::InputState;
 use crate::renderer::ui_renderer::UiRenderInfo;
+use crate::resource::gltf::material::GLTF_SHADER;
 use crate::scene::skybox::SkyBoxKind;
 use crate::{
     asset::{
@@ -1304,6 +1305,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     for shader in ShaderResource::standard_shaders() {
         state.built_in_resources.add((*shader).clone());
     }
+    state.built_in_resources.add(GLTF_SHADER.clone());
 
     for texture in SkyBoxKind::built_in_skybox_textures() {
         state.built_in_resources.add(texture.clone());
