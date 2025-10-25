@@ -72,12 +72,6 @@ pub type DynamicTypeId = i64;
 ///     }
 /// ```
 pub trait ScriptMessagePayload: Any + Send + Debug {
-    /// Returns `self` as `&dyn Any`
-    fn as_any_ref(&self) -> &dyn Any;
-
-    /// Returns `self` as `&dyn Any`
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-
     /// By default messages are dispatched by [`TypeId::of`]`::<Self>()`.
     ///
     /// If this method returns [`Some`], then the message become dynamically typed.
@@ -93,12 +87,12 @@ pub trait ScriptMessagePayload: Any + Send + Debug {
 impl dyn ScriptMessagePayload {
     /// Tries to cast the payload to a particular type.
     pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
-        self.as_any_ref().downcast_ref::<T>()
+        (self as &dyn Any).downcast_ref::<T>()
     }
 
     /// Tries to cast the payload to a particular type.
     pub fn downcast_mut<T: 'static>(&mut self) -> Option<&mut T> {
-        self.as_any_mut().downcast_mut::<T>()
+        (self as &mut dyn Any).downcast_mut::<T>()
     }
 }
 
