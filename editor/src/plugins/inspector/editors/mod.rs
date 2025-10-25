@@ -169,6 +169,7 @@ use crate::{
         },
     },
 };
+use fyrox::gui::font::Font;
 use fyrox::gui::style::resource::StyleResource;
 use fyrox::gui::style::Style;
 use fyrox::scene::base::SceneNodeId;
@@ -294,6 +295,7 @@ pub fn make_property_editors_container(
     container.insert(InheritablePropertyEditorDefinition::<FontResource>::new());
     container.insert(InheritablePropertyEditorDefinition::<Option<TextureResource>>::new());
     container.insert(InheritablePropertyEditorDefinition::<Option<UntypedResource>>::new());
+    container.register_inheritable_vec_collection::<Option<FontResource>>();
     container.register_inheritable_vec_collection::<Option<TextureResource>>();
     container.register_inheritable_vec_collection::<Option<UntypedResource>>();
 
@@ -337,6 +339,9 @@ pub fn make_property_editors_container(
         container.register_inheritable_vec_collection::<Signal>();
     }
 
+    container.insert(ResourceFieldPropertyEditorDefinition::<Font>::new(
+        sender.clone(),
+    ));
     container.insert(ResourceFieldPropertyEditorDefinition::<Model>::new(
         sender.clone(),
     ));

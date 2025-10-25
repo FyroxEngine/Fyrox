@@ -1376,7 +1376,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     loaders.set(MaterialLoader {
         resource_manager: resource_manager.clone(),
     });
-    loaders.set(FontLoader::default());
+    loaders.set(FontLoader::new(resource_manager.clone()));
     loaders.set(UserInterfaceLoader {
         resource_manager: resource_manager.clone(),
     });
