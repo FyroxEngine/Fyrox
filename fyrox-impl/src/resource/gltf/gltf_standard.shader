@@ -24,7 +24,7 @@
         ),
         (
             name: "emissionTexture",
-            kind: Texture(kind: Sampler2D, fallback: Black),
+            kind: Texture(kind: Sampler2D, fallback: White),
             binding: 4
         ),
         (

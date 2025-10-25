@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#![allow(missing_docs)]
+
 use std::{
     fmt::Display,
     path::{Path, PathBuf},
@@ -241,7 +243,12 @@ async fn import_material(
         "diffuseColor",
         Vector4::<f32>::from(pbr.base_color_factor()).into(),
     );
-    set_material_vector3(&mut result, "emissionStrength", mat.emissive_factor());
+    let mut emission_strength = mat.emissive_factor();
+    let emission_factor = mat.emissive_strength().unwrap_or(1.0);
+    for c in emission_strength.iter_mut() {
+        *c *= emission_factor;
+    }
+    set_material_vector3(&mut result, "emissionStrength", emission_strength);
     set_material_scalar(&mut result, "metallicFactor", pbr.metallic_factor());
     set_material_scalar(&mut result, "roughnessFactor", pbr.roughness_factor());
     Ok(Resource::new_ok(
