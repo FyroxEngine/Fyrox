@@ -112,9 +112,7 @@ impl Control for Thumb {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data::<ThumbMessage>() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle) {
                 match msg {
                     ThumbMessage::Zoom(zoom) => {
                         self.transform.set_scale(Vector2::new(*zoom, 1.0));

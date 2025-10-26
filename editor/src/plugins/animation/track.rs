@@ -354,9 +354,7 @@ impl Control for TrackView {
                 ));
             }
         } else if let Some(msg) = message.data::<TrackViewMessage>() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle) {
                 match msg {
                     TrackViewMessage::TrackEnabled(enabled) => {
                         if self.track_enabled != *enabled {

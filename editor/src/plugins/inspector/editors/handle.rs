@@ -177,9 +177,7 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
 
         if let Some(msg) = message.data::<HandlePropertyEditorNameMessage>() {
             let value = &msg.0;
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle()) {
                 // Handle messages from the editor, it will respond to requests and provide
                 // node names in efficient way.
                 let value = if let Some(value) = value {
@@ -225,9 +223,7 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
 
         if let Some(msg) = message.data::<HandlePropertyEditorHierarchyMessage>() {
             let value = &msg.0;
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle()) {
                 ui.send_message(NodeSelectorMessage::hierarchy(
                     self.selector,
                     MessageDirection::ToWidget,
@@ -247,9 +243,7 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
         }
 
         if let Some(msg) = message.data::<HandlePropertyEditorMessage<T>>() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle()) {
                 match msg {
                     HandlePropertyEditorMessage::Value(handle) => {
                         if self.value != *handle {

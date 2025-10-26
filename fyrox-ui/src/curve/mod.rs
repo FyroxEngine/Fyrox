@@ -867,9 +867,7 @@ impl Control for CurveEditor {
                     _ => {}
                 }
             } else if let Some(msg) = message.data::<CurveEditorMessage>() {
-                if message.destination() == self.handle
-                    && message.direction() == MessageDirection::ToWidget
-                {
+                if message.is_for(self.handle) {
                     match msg {
                         CurveEditorMessage::SyncBackground(curves) => {
                             self.background_curves =

@@ -32,7 +32,7 @@ use crate::{
     },
     decorator::DecoratorBuilder,
     font::FontResource,
-    message::{KeyCode, MessageDirection, UiMessage},
+    message::{KeyCode, UiMessage},
     style::{resource::StyleResourceExt, Style},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -208,7 +208,7 @@ impl Control for Button {
                 }
             }
         } else if let Some(msg) = message.data::<ButtonMessage>() {
-            if message.destination() == self.handle() {
+            if message.is_for(self.handle()) {
                 match msg {
                     ButtonMessage::Click => (),
                     ButtonMessage::Content(content) => {
@@ -220,17 +220,13 @@ impl Control for Button {
                         ui.send(*self.content, WidgetMessage::LinkWith(*self.decorator));
                     }
                     ButtonMessage::RepeatInterval(interval) => {
-                        if *self.repeat_interval != *interval
-                            && message.direction() == MessageDirection::ToWidget
-                        {
+                        if *self.repeat_interval != *interval {
                             *self.repeat_interval = *interval;
                             ui.send_message(message.reverse());
                         }
                     }
                     ButtonMessage::RepeatClicksOnHold(repeat_clicks) => {
-                        if *self.repeat_clicks_on_hold != *repeat_clicks
-                            && message.direction() == MessageDirection::ToWidget
-                        {
+                        if *self.repeat_clicks_on_hold != *repeat_clicks {
                             *self.repeat_clicks_on_hold = *repeat_clicks;
                             ui.send_message(message.reverse());
                         }

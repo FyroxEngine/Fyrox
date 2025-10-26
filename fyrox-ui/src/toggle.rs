@@ -118,9 +118,7 @@ impl Control for ToggleButton {
                 }
             }
         } else if let Some(msg) = message.data::<ToggleButtonMessage>() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle()) {
                 match msg {
                     ToggleButtonMessage::Toggled(value) => {
                         if self.is_toggled != *value {

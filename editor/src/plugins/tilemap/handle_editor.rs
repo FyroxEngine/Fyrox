@@ -120,9 +120,7 @@ impl Control for TileDefinitionHandleEditor {
             return;
         }
         if let Some(&TileDefinitionHandleEditorMessage::Value(handle)) = message.data() {
-            if message.direction() == MessageDirection::ToWidget
-                && message.destination() == self.handle()
-            {
+            if message.is_for(self.handle()) {
                 self.value = handle;
                 send_sync_message(
                     ui,

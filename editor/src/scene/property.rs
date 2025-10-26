@@ -382,9 +382,7 @@ impl Control for PropertySelector {
                 ));
             }
         } else if let Some(msg) = message.data::<PropertySelectorMessage>() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle) {
                 match msg {
                     PropertySelectorMessage::Selection(selection) => {
                         if &self.selected_property_paths != selection {

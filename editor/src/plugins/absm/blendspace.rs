@@ -366,7 +366,7 @@ impl Control for BlendSpaceField {
                         self.snap_step = *snap_step;
                     }
                     BlendSpaceFieldMessage::SamplingPoint(sampling_point) => {
-                        if message.direction == MessageDirection::ToWidget {
+                        if message.is_for(self.handle) {
                             self.sampling_point = *sampling_point;
                             ui.send_message(message.reverse());
                         }

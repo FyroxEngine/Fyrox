@@ -189,10 +189,7 @@ uuid_provider!(Expander = "24976179-b338-4c55-84c3-72d21663efd2");
 impl Control for Expander {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         if let Some(&ExpanderMessage::Expand(expand)) = message.data::<ExpanderMessage>() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-                && *self.is_expanded != expand
-            {
+            if message.is_for(self.handle()) && *self.is_expanded != expand {
                 // Switch state of expander.
                 ui.send_message(CheckBoxMessage::checked(
                     *self.expander,

@@ -397,10 +397,7 @@ impl Control for FileSelectorField {
                 ));
             }
         } else if let Some(FileSelectorFieldMessage::Path(new_path)) = message.data() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-                && &self.path != new_path
-            {
+            if message.is_for(self.handle) && &self.path != new_path {
                 self.path.clone_from(new_path);
                 ui.send_message(TextMessage::text(
                     self.path_field,

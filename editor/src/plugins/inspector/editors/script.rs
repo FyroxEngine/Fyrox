@@ -109,10 +109,7 @@ impl Control for ScriptPropertyEditor {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(ScriptPropertyEditorMessage::Value(id)) = message.data() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-                && self.selected_script_uuid != *id
-            {
+            if message.is_for(self.handle()) && self.selected_script_uuid != *id {
                 self.selected_script_uuid = *id;
                 self.need_context_update.set(true);
                 ui.send_message(message.reverse());

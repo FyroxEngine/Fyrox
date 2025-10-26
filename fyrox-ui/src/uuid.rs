@@ -101,8 +101,7 @@ impl Control for UuidEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
-        {
+        if message.is_for(self.handle) {
             if let Some(UuidEditorMessage::Value(value)) = message.data() {
                 if self.value != *value {
                     self.value = *value;

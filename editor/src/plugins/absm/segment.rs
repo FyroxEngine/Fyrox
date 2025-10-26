@@ -51,9 +51,7 @@ pub struct Segment {
 impl Segment {
     pub fn handle_routed_message(&mut self, self_handle: Handle<UiNode>, message: &mut UiMessage) {
         if let Some(msg) = message.data::<SegmentMessage>() {
-            if message.destination() == self_handle
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self_handle) {
                 match msg {
                     SegmentMessage::SourcePosition(pos) => {
                         self.source_pos = *pos;

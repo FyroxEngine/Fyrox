@@ -252,9 +252,7 @@ impl Control for NodeSelector {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data::<NodeSelectorMessage>() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle) {
                 match msg {
                     NodeSelectorMessage::Hierarchy(hierarchy) => {
                         let items =
@@ -537,9 +535,7 @@ impl Control for NodeSelectorWindow {
                 ));
             }
         } else if let Some(msg) = message.data::<NodeSelectorMessage>() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle) {
                 // Dispatch to inner selector.
                 let mut msg = message.clone();
                 msg.destination = self.selector;

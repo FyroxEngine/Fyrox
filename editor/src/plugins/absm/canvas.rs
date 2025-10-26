@@ -582,9 +582,7 @@ impl Control for AbsmCanvas {
 
             self.update_transform(ui);
         } else if let Some(msg) = message.data::<AbsmCanvasMessage>() {
-            if message.direction() == MessageDirection::ToWidget
-                && message.destination() == self.handle()
-            {
+            if message.is_for(self.handle()) {
                 match msg {
                     AbsmCanvasMessage::SwitchMode(mode) => {
                         // TODO: Check if other mode is active.

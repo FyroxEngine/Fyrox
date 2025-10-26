@@ -149,10 +149,7 @@ impl Control for PathEditor {
                 ));
             }
         } else if let Some(PathEditorMessage::Path(path)) = message.data() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-                && &*self.path != path
-            {
+            if message.is_for(self.handle) && &*self.path != path {
                 self.path.set_value_and_mark_modified(path.clone());
 
                 ui.send_message(TextMessage::text(

@@ -481,9 +481,16 @@ impl UiMessage {
         }
     }
 
-    /// Checks whether the message destination node handle matches the given one.
+    /// Checks whether the message destination node handle matches the given one and the message
+    /// direction is [`MessageDirection::FromWidget`].
     pub fn comes_from(&self, handle: Handle<UiNode>) -> bool {
         self.destination == handle && self.direction == MessageDirection::FromWidget
+    }
+
+    /// Checks whether the message destination node handle matches the given one and the message
+    /// direction is [`MessageDirection::ToWidget`].
+    pub fn is_for(&self, handle: Handle<UiNode>) -> bool {
+        self.destination == handle && self.direction == MessageDirection::ToWidget
     }
 
     /// Returns destination widget handle of the message.

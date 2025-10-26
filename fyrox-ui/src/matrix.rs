@@ -181,7 +181,7 @@ where
         } else if let Some(&MatrixEditorMessage::Value(new_value)) =
             message.data::<MatrixEditorMessage<R, C, T>>()
         {
-            if message.direction() == MessageDirection::ToWidget {
+            if message.is_for(self.handle) {
                 let mut changed = false;
 
                 for i in 0..self.fields.len() {

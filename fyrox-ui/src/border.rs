@@ -33,7 +33,7 @@ use crate::{
     message::UiMessage,
     style::{resource::StyleResourceExt, Style, StyledProperty},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface,
+    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
@@ -268,9 +268,7 @@ impl Control for Border {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination() == self.handle()
-            && message.direction() == MessageDirection::ToWidget
-        {
+        if message.is_for(self.handle()) {
             if let Some(msg) = message.data::<BorderMessage>() {
                 match msg {
                     BorderMessage::StrokeThickness(thickness) => {

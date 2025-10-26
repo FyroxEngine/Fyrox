@@ -520,9 +520,7 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                 _ => {}
             }
         } else if let Some(msg) = message.data::<NumericUpDownMessage<T>>() {
-            if message.direction() == MessageDirection::ToWidget
-                && message.destination() == self.handle()
-            {
+            if message.is_for(self.handle()) {
                 match msg {
                     NumericUpDownMessage::Value(value) => {
                         let clamped = self.clamp_value(*value);

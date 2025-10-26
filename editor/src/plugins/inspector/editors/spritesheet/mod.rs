@@ -97,9 +97,7 @@ impl Control for SpriteSheetFramesPropertyEditor {
                 ));
             }
         } else if let Some(SpriteSheetFramesPropertyEditorMessage::Value(value)) = message.data() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle) {
                 self.container = value.clone();
             }
         }

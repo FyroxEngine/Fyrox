@@ -176,9 +176,7 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
         if let Some(EnumPropertyEditorMessage::Variant(variant)) =
             message.data::<EnumPropertyEditorMessage>()
         {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle) {
                 let variant = (self.definition.variant_generator)(*variant);
 
                 let ctx = InspectorContext::from_object(InspectorContextArgs {

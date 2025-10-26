@@ -274,9 +274,7 @@ impl Control for DropdownList {
                 _ => (),
             }
         } else if let Some(msg) = message.data::<DropdownListMessage>() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle()) {
                 match msg {
                     DropdownListMessage::Open => {
                         ui.send_message(WidgetMessage::width(
@@ -361,9 +359,7 @@ impl Control for DropdownList {
                 ));
             }
         } else if let Some(msg) = message.data::<PopupMessage>() {
-            if message.destination() == *self.popup
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(*self.popup) {
                 match msg {
                     PopupMessage::Open => {
                         ui.send_message(DropdownListMessage::open(

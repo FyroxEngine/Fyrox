@@ -128,7 +128,7 @@ impl Control for FontField {
                 }
             }
         } else if let Some(FontFieldMessage::Font(font)) = message.data::<FontFieldMessage>() {
-            if &self.font != font && message.direction() == MessageDirection::ToWidget {
+            if &self.font != font && message.is_for(self.handle) {
                 self.font = font.clone();
 
                 ui.send_message(TextMessage::font(

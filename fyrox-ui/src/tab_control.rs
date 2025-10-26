@@ -490,9 +490,7 @@ impl Control for TabControl {
                 self.do_drag(*pos, ui);
             }
         } else if let Some(msg) = message.data::<TabControlMessage>() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle()) {
                 match msg {
                     TabControlMessage::ActiveTab(active_tab) => {
                         if self.active_tab != *active_tab {

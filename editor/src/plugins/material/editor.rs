@@ -143,10 +143,7 @@ impl Control for MaterialFieldEditor {
                 ));
             }
         } else if let Some(MaterialFieldMessage::Material(material)) = message.data() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-                && &self.material != material
-            {
+            if message.is_for(self.handle) && &self.material != material {
                 self.material = material.clone();
 
                 ui.send_message(TextMessage::text(
@@ -176,9 +173,7 @@ impl Control for MaterialFieldEditor {
             color,
         }) = message.data()
         {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle) {
                 for widget in [self.image, self.image_preview] {
                     ui.send_message(ImageMessage::texture(
                         widget,

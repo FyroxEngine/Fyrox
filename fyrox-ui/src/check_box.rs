@@ -249,10 +249,7 @@ impl Control for CheckBox {
                 _ => (),
             }
         } else if let Some(&CheckBoxMessage::Check(value)) = message.data::<CheckBoxMessage>() {
-            if message.direction() == MessageDirection::ToWidget
-                && message.destination() == self.handle()
-                && *self.checked != value
-            {
+            if message.is_for(self.handle()) && *self.checked != value {
                 self.checked.set_value_and_mark_modified(value);
 
                 ui.send_message(message.reverse());

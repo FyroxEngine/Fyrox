@@ -707,9 +707,7 @@ impl Control for Grid {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data::<GridMessage>() {
-            if message.direction() == MessageDirection::ToWidget
-                && message.destination() == self.handle
-            {
+            if message.is_for(self.handle) {
                 match msg {
                     GridMessage::Rows(rows) => {
                         if &*self.rows.borrow() != rows {

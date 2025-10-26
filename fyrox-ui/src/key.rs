@@ -279,8 +279,7 @@ impl Control for HotKeyEditor {
             }
         }
 
-        if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
-        {
+        if message.is_for(self.handle) {
             if let Some(HotKeyEditorMessage::Value(value)) = message.data() {
                 if value != &*self.value {
                     self.value.set_value_and_mark_modified(value.clone());
@@ -496,8 +495,7 @@ impl Control for KeyBindingEditor {
             }
         }
 
-        if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
-        {
+        if message.is_for(self.handle) {
             if let Some(KeyBindingEditorMessage::Value(value)) = message.data() {
                 if value != &*self.value {
                     self.value.set_value_and_mark_modified(value.clone());

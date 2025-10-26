@@ -945,9 +945,7 @@ impl Control for TreeRoot {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data::<TreeRootMessage>() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle()) {
                 match msg {
                     &TreeRootMessage::AddItem(item) => {
                         ui.send_message(WidgetMessage::link(

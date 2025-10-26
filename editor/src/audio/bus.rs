@@ -81,8 +81,7 @@ impl Control for AudioBusView {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
-        {
+        if message.is_for(self.handle) {
             if let Some(msg) = message.data::<AudioBusViewMessage>() {
                 match msg {
                     AudioBusViewMessage::ChangeParent(_) => {

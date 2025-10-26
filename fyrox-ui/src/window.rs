@@ -629,9 +629,7 @@ impl Control for Window {
                 ui.send(self.handle(), WindowMessage::Close);
             }
         } else if let Some(msg) = message.data::<WindowMessage>() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle()) {
                 match msg {
                     &WindowMessage::Open {
                         center,

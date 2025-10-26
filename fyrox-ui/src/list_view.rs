@@ -425,9 +425,7 @@ impl Control for ListView {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data::<ListViewMessage>() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle()) {
                 match msg {
                     ListViewMessage::Items(items) => {
                         // Generate new items.

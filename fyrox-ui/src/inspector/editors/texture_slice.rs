@@ -346,9 +346,7 @@ impl Control for TextureSliceEditor {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(TextureSliceEditorMessage::Slice(slice)) = message.data() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle()) {
                 self.slice = slice.clone();
                 self.sync_thumbs(ui);
             }
@@ -588,10 +586,7 @@ impl Control for TextureSliceEditorWindow {
                 self.on_slice_changed(ui);
             }
 
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-                && &self.texture_slice != slice
-            {
+            if message.is_for(self.handle()) && &self.texture_slice != slice {
                 self.texture_slice = slice.clone();
 
                 ui.send_message(TextureSliceEditorMessage::slice(
@@ -808,10 +803,7 @@ impl Control for TextureSliceFieldEditor {
                 ));
             }
         } else if let Some(TextureSliceEditorMessage::Slice(slice)) = message.data() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-                && &self.texture_slice != slice
-            {
+            if message.is_for(self.handle) && &self.texture_slice != slice {
                 self.texture_slice = slice.clone();
                 ui.send_message(message.reverse());
                 ui.send_message(TextureSliceEditorMessage::slice(

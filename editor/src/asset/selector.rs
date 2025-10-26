@@ -265,9 +265,7 @@ impl Control for AssetSelector {
                 }
             }
         } else if let Some(WidgetMessage::Focus) = message.data() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle) {
                 ui.send_message(WidgetMessage::focus(
                     self.list_view,
                     MessageDirection::ToWidget,

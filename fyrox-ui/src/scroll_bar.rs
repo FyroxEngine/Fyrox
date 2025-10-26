@@ -290,9 +290,7 @@ impl Control for ScrollBar {
                 ));
             }
         } else if let Some(msg) = message.data::<ScrollBarMessage>() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle()) {
                 match *msg {
                     ScrollBarMessage::Value(value) => {
                         let old_value = *self.value;

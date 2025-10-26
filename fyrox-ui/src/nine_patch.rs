@@ -557,9 +557,7 @@ impl Control for NinePatch {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data::<NinePatchMessage>() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle()) {
                 let slice = &mut self.texture_slice;
                 match msg {
                     NinePatchMessage::LeftMargin(margin) => {

@@ -198,10 +198,7 @@ where
         self.widget.handle_routed_message(ui, message);
 
         if let Some(RectEditorMessage::Value(value)) = message.data::<RectEditorMessage<T>>() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-                && *value != *self.value
-            {
+            if message.is_for(self.handle) && *value != *self.value {
                 self.value.set_value_and_mark_modified(*value);
 
                 ui.send_message(message.reverse());

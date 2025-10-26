@@ -295,9 +295,7 @@ impl Control for Ruler {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data::<RulerMessage>() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle) {
                 match msg {
                     RulerMessage::Zoom(zoom) => {
                         self.transform.set_scale(Vector2::new(*zoom, 1.0));

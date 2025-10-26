@@ -133,8 +133,7 @@ impl Control for SearchBar {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
-        {
+        if message.is_for(self.handle) {
             if let Some(SearchBarMessage::Text(text)) = message.data() {
                 ui.send_message(TextMessage::text(
                     *self.text_box,

@@ -152,8 +152,7 @@ impl Control for ColorGradientField {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
-        {
+        if message.is_for(self.handle) {
             if let Some(ColorGradientEditorMessage::Value(value)) = message.data() {
                 self.color_gradient = value.clone();
             }
@@ -225,8 +224,7 @@ impl Control for ColorGradientEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
-        {
+        if message.is_for(self.handle) {
             if let Some(ColorGradientEditorMessage::Value(value)) = message.data() {
                 // Re-cast to inner field.
                 ui.send_message(ColorGradientEditorMessage::value(

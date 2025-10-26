@@ -1475,7 +1475,7 @@ impl Widget {
     /// Handles incoming [`WidgetMessage`]s. This method **must** be called in [`crate::control::Control::handle_routed_message`]
     /// of any derived widgets!
     pub fn handle_routed_message(&mut self, ui: &mut UserInterface, msg: &mut UiMessage) {
-        if msg.destination() == self.handle() && msg.direction() == MessageDirection::ToWidget {
+        if msg.is_for(self.handle()) {
             if let Some(msg) = msg.data::<WidgetMessage>() {
                 match msg {
                     &WidgetMessage::Opacity(opacity) => {

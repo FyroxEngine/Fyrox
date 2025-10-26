@@ -684,9 +684,7 @@ impl Control for MenuItem {
                 _ => {}
             }
         } else if let Some(msg) = message.data::<MenuItemMessage>() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle) {
                 match msg {
                     MenuItemMessage::Select(selected) => {
                         if *self.is_selected != *selected {

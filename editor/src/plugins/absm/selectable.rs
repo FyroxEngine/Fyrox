@@ -74,10 +74,7 @@ impl Selectable {
                 _ => {}
             }
         } else if let Some(SelectableMessage::Select(selected)) = message.data() {
-            if message.destination() == self_handle
-                && message.direction() == MessageDirection::ToWidget
-                && self.selected != *selected
-            {
+            if message.is_for(self_handle) && self.selected != *selected {
                 self.selected = *selected;
                 ui.send_message(message.reverse());
             }

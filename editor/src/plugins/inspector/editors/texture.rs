@@ -182,7 +182,7 @@ impl Control for TextureEditor {
                 }
             }
         } else if let Some(TextureEditorMessage::Texture(texture)) = message.data() {
-            if &self.texture != texture && message.direction() == MessageDirection::ToWidget {
+            if &self.texture != texture && message.is_for(self.handle) {
                 self.texture.clone_from(texture);
 
                 ui.send_message(ImageMessage::texture(

@@ -212,9 +212,7 @@ where
                 ));
             }
         } else if let Some(msg) = message.data::<AbsmNodeMessage>() {
-            if message.destination == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-            {
+            if message.is_for(self.handle()) {
                 match msg {
                     AbsmNodeMessage::InputSockets(input_sockets) => {
                         if input_sockets != &self.base.input_sockets {

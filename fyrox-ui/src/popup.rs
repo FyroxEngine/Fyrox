@@ -406,10 +406,10 @@ impl Control for Popup {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data::<PopupMessage>() {
-            if message.destination() == self.handle() {
+            if message.is_for(self.handle()) {
                 match msg {
                     PopupMessage::Open => {
-                        if !*self.is_open && message.direction() == MessageDirection::ToWidget {
+                        if !*self.is_open {
                             self.is_open.set_value_and_mark_modified(true);
                             ui.send_message(WidgetMessage::visibility(
                                 self.handle(),
@@ -463,7 +463,7 @@ impl Control for Popup {
                         }
                     }
                     PopupMessage::Close => {
-                        if *self.is_open && message.direction() == MessageDirection::ToWidget {
+                        if *self.is_open {
                             self.is_open.set_value_and_mark_modified(false);
                             ui.send_message(WidgetMessage::visibility(
                                 self.handle(),
@@ -490,9 +490,7 @@ impl Control for Popup {
                         }
                     }
                     PopupMessage::Content(content) => {
-                        if *self.content != *content
-                            && message.direction() == MessageDirection::ToWidget
-                        {
+                        if *self.content != *content {
                             if self.content.is_some() {
                                 ui.send_message(WidgetMessage::remove(
                                     *self.content,
@@ -511,9 +509,7 @@ impl Control for Popup {
                         }
                     }
                     PopupMessage::Placement(placement) => {
-                        if *self.placement != *placement
-                            && message.direction() == MessageDirection::ToWidget
-                        {
+                        if *self.placement != *placement {
                             self.placement.set_value_and_mark_modified(*placement);
                             self.invalidate_layout();
 
@@ -521,23 +517,19 @@ impl Control for Popup {
                         }
                     }
                     PopupMessage::AdjustPosition => {
-                        if message.direction() == MessageDirection::ToWidget {
-                            let new_position =
-                                adjust_placement_position(self.screen_bounds(), ui.screen_size());
+                        let new_position =
+                            adjust_placement_position(self.screen_bounds(), ui.screen_size());
 
-                            if new_position != self.screen_position() {
-                                ui.send_message(WidgetMessage::desired_position(
-                                    self.handle,
-                                    MessageDirection::ToWidget,
-                                    ui.screen_to_root_canvas_space(new_position),
-                                ));
-                            }
+                        if new_position != self.screen_position() {
+                            ui.send_message(WidgetMessage::desired_position(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                                ui.screen_to_root_canvas_space(new_position),
+                            ));
                         }
                     }
                     PopupMessage::Owner(owner) => {
-                        if message.direction() == MessageDirection::ToWidget {
-                            self.owner = *owner;
-                        }
+                        self.owner = *owner;
                     }
                     PopupMessage::RelayedMessage(_) => (),
                 }

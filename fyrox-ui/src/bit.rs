@@ -420,10 +420,7 @@ where
                 self.bit_state = BitState::Normal;
             }
         } else if let Some(BitFieldMessage::Value(value)) = message.data() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-                && *value != self.value
-            {
+            if message.is_for(self.handle) && *value != self.value {
                 self.value = *value;
                 ui.send_message(message.reverse());
             }
