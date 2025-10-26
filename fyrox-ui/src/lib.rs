@@ -1946,37 +1946,49 @@ impl UserInterface {
         self.sender.send(message).unwrap()
     }
 
-    pub fn send_to<T: MessageData>(&self, handle: Handle<UiNode>, data: T) {
+    pub fn send_messages<const N: usize>(&self, messages: [UiMessage; N]) {
+        for message in messages {
+            self.send_message(message)
+        }
+    }
+
+    pub fn send<T: MessageData>(&self, handle: Handle<UiNode>, data: T) {
         self.sender
-            .send(UiMessage::with_data(data).with_destination(handle))
+            .send(
+                UiMessage::with_data(data)
+                    .with_destination(handle)
+                    .with_direction(MessageDirection::ToWidget),
+            )
             .unwrap()
     }
 
-    pub fn send_many_to<const N: usize, T: MessageData>(
+    pub fn send_many<const N: usize, T: MessageData>(
         &self,
         handle: Handle<UiNode>,
         payload: [T; N],
     ) {
         for data in payload {
-            self.send_to(handle, data)
+            self.send(handle, data)
         }
     }
 
-    pub fn send_many_to_if<const N: usize, T: MessageData>(
+    pub fn post<T: MessageData>(&self, handle: Handle<UiNode>, data: T) {
+        self.sender
+            .send(
+                UiMessage::with_data(data)
+                    .with_destination(handle)
+                    .with_direction(MessageDirection::FromWidget),
+            )
+            .unwrap()
+    }
+
+    pub fn post_many<const N: usize, T: MessageData>(
         &self,
         handle: Handle<UiNode>,
-        payload: [(bool, T); N],
+        payload: [T; N],
     ) {
-        for (condition, data) in payload {
-            if condition {
-                self.send_to(handle, data)
-            }
-        }
-    }
-
-    pub fn send_messages<const N: usize>(&self, messages: [UiMessage; N]) {
-        for message in messages {
-            self.send_message(message)
+        for data in payload {
+            self.post(handle, data)
         }
     }
 

@@ -126,10 +126,7 @@ impl Control for AssetRenameDialog {
             }
 
             if message.destination() == self.cancel || message.destination() == self.rename {
-                ui.send_message(WindowMessage::close(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.handle, WindowMessage::Close);
             }
         } else if let Some(TextMessage::Text(name)) = message.data_from(self.name_field) {
             name.clone_into(&mut self.new_file_name);
@@ -140,17 +137,10 @@ impl Control for AssetRenameDialog {
                 false,
             ));
 
-            ui.send_message(WidgetMessage::enabled(
-                self.rename,
-                MessageDirection::ToWidget,
-                can_be_moved,
-            ));
+            ui.send(self.rename, WidgetMessage::Enabled(can_be_moved));
         } else if let Some(WindowMessage::OpenModal { .. }) = message.data() {
             if message.destination() == self.handle {
-                ui.send_message(WidgetMessage::focus(
-                    self.name_field,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.name_field, WidgetMessage::Focus);
             }
         }
     }
@@ -364,18 +354,18 @@ impl AssetItemContextMenu {
                             .built_in_resources
                             .get(&item.path)
                             .is_some();
-                        ui.send_message(WidgetMessage::enabled(
+                        ui.send(
                             handle,
-                            MessageDirection::ToWidget,
-                            item.path.is_file() || is_built_in,
-                        ));
+                            WidgetMessage::Enabled(item.path.is_file() || is_built_in),
+                        );
                     }
                     if let Some(resource) = item.untyped_resource() {
-                        ui.send_message(WidgetMessage::enabled(
+                        ui.send(
                             self.delete,
-                            MessageDirection::ToWidget,
-                            !engine.resource_manager.is_built_in_resource(&resource),
-                        ));
+                            WidgetMessage::Enabled(
+                                !engine.resource_manager.is_built_in_resource(&resource),
+                            ),
+                        );
                     }
                 }
             }
@@ -402,12 +392,13 @@ impl AssetItemContextMenu {
                     .with_buttons(MessageBoxButtons::YesNo)
                     .build(&mut ui.build_ctx());
 
-                    ui.send_message(WindowMessage::open_modal(
+                    ui.send(
                         self.delete_confirmation_dialog,
-                        MessageDirection::ToWidget,
-                        true,
-                        true,
-                    ));
+                        WindowMessage::OpenModal {
+                            center: true,
+                            focus_content: true,
+                        },
+                    );
 
                     return true;
                 } else if message.destination() == self.show_in_explorer {
@@ -511,12 +502,13 @@ impl AssetItemContextMenu {
                             engine.resource_manager.clone(),
                             &mut ui.build_ctx(),
                         );
-                        ui.send_message(WindowMessage::open_modal(
+                        ui.send(
                             dialog,
-                            MessageDirection::ToWidget,
-                            true,
-                            true,
-                        ));
+                            WindowMessage::OpenModal {
+                                center: true,
+                                focus_content: true,
+                            },
+                        );
                     }
                 } else if message.destination() == self.reload {
                     if let Ok(resource) =

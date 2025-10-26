@@ -193,12 +193,13 @@ impl AssetItem {
             return;
         }
 
-        ui.send_message(AssetItemMessage::move_to(
+        ui.post(
             dropped,
-            MessageDirection::FromWidget,
-            dropped_item.path.clone(),
-            self.path.clone(),
-        ));
+            AssetItemMessage::MoveTo {
+                src_item_path: dropped_item.path.clone(),
+                dest_dir: self.path.clone(),
+            },
+        );
     }
 
     fn set_selected(&mut self, selected: bool, ui: &UserInterface) {
@@ -219,16 +220,11 @@ impl AssetItem {
             )
         };
 
-        ui.send_message(WidgetMessage::background(
-            self.preview,
-            MessageDirection::ToWidget,
-            preview_brush,
-        ));
-        ui.send_message(WidgetMessage::background(
+        ui.send(self.preview, WidgetMessage::Background(preview_brush));
+        ui.send(
             self.text_border,
-            MessageDirection::ToWidget,
-            text_border_brush,
-        ));
+            WidgetMessage::Background(text_border_brush),
+        );
     }
 
     fn can_be_dropped_to(&self, dest: &AssetItem) -> bool {
@@ -283,12 +279,7 @@ impl Control for AssetItem {
                     if !message.handled() && !ui.keyboard_modifiers().alt {
                         if let MouseButton::Left | MouseButton::Right = *button {
                             message.set_handled(true);
-
-                            ui.send_message(AssetItemMessage::select(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
+                            ui.send(self.handle(), AssetItemMessage::Select(true));
                         }
                     }
                 }
@@ -297,19 +288,21 @@ impl Control for AssetItem {
                         .try_get_of_type::<AssetItem>(*dropped)
                         .is_some_and(|dropped| dropped.can_be_dropped_to(self))
                     {
-                        ui.send_message(WidgetMessage::foreground(
+                        ui.send(
                             self.text_border,
-                            MessageDirection::ToWidget,
-                            ui.style.property(Self::TEXT_BORDER_DROP_BRUSH),
-                        ));
+                            WidgetMessage::Foreground(
+                                ui.style.property(Self::TEXT_BORDER_DROP_BRUSH),
+                            ),
+                        );
                     }
                 }
                 WidgetMessage::MouseLeave => {
-                    ui.send_message(WidgetMessage::foreground(
+                    ui.send(
                         self.text_border,
-                        MessageDirection::ToWidget,
-                        ui.style.property(Self::DESELECTED_TEXT_BORDER_BACKGROUND),
-                    ));
+                        WidgetMessage::Foreground(
+                            ui.style.property(Self::DESELECTED_TEXT_BORDER_BACKGROUND),
+                        ),
+                    );
                 }
                 WidgetMessage::Drop(dropped) => {
                     self.try_post_move_to_message(ui, *dropped);
@@ -333,21 +326,12 @@ impl Control for AssetItem {
                     flip_y,
                     color,
                 } => {
-                    ui.send_message(ImageMessage::texture(
+                    ui.send(self.preview, ImageMessage::Texture(texture.clone()));
+                    ui.send(self.preview, ImageMessage::Flip(*flip_y));
+                    ui.send(
                         self.preview,
-                        MessageDirection::ToWidget,
-                        texture.clone(),
-                    ));
-                    ui.send_message(ImageMessage::flip(
-                        self.preview,
-                        MessageDirection::ToWidget,
-                        *flip_y,
-                    ));
-                    ui.send_message(WidgetMessage::background(
-                        self.preview,
-                        MessageDirection::ToWidget,
-                        Brush::Solid(*color).into(),
-                    ))
+                        WidgetMessage::Background(Brush::Solid(*color).into()),
+                    )
                 }
                 _ => (),
             }

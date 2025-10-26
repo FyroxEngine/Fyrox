@@ -82,11 +82,7 @@ impl StatisticsWindow {
     ) -> StatisticsWindowAction {
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
-                ui.send_message(WidgetMessage::remove(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
-
+                ui.send(self.window, WidgetMessage::Remove);
                 return StatisticsWindowAction::Remove;
             }
         }
@@ -107,11 +103,7 @@ impl StatisticsWindow {
                 engine
                     .user_interfaces
                     .first()
-                    .send_message(TextMessage::text(
-                        self.text,
-                        MessageDirection::ToWidget,
-                        statistics,
-                    ));
+                    .send(self.text, TextMessage::Text(statistics));
             }
         }
     }

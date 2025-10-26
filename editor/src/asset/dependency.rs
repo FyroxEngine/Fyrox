@@ -157,27 +157,21 @@ impl DependencyViewer {
         let resource_graph = ResourceDependencyGraph::new(resource);
         let root =
             build_tree_recursively(&resource_graph.root, resource_manager, &mut ui.build_ctx());
-        ui.send_message(TreeRootMessage::items(
-            self.tree_root,
-            MessageDirection::ToWidget,
-            vec![root],
-        ));
-        ui.send_message(WindowMessage::open(
+        ui.send(self.tree_root, TreeRootMessage::Items(vec![root]));
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::Open {
+                center: true,
+                focus_content: true,
+            },
+        );
         self.resource_graph = Some(resource_graph);
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.close {
-                ui.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.window, WindowMessage::Close);
             } else if message.destination() == self.copy_to_clipboard {
                 if let Some(mut clipboard) = ui.clipboard_mut() {
                     if let Some(resource_graph) = self.resource_graph.as_ref() {

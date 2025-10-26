@@ -158,12 +158,13 @@ impl ResourceCreator {
     }
 
     pub fn open(&self, ui: &UserInterface) {
-        ui.send_message(WindowMessage::open_modal(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
     }
 
     #[must_use]
@@ -183,12 +184,8 @@ impl ResourceCreator {
                 self.selected = selection.first().cloned();
                 engine
                     .user_interfaces
-                    .first_mut()
-                    .send_message(WidgetMessage::enabled(
-                        self.ok,
-                        MessageDirection::ToWidget,
-                        true,
-                    ));
+                    .first()
+                    .send(self.ok, WidgetMessage::Enabled(true));
 
                 // Propose extension for the resource.
                 let resource_manager_state = engine.resource_manager.state();
@@ -209,12 +206,8 @@ impl ResourceCreator {
 
                             engine
                                 .user_interfaces
-                                .first_mut()
-                                .send_message(TextMessage::text(
-                                    self.name,
-                                    MessageDirection::ToWidget,
-                                    self.name_str.clone(),
-                                ));
+                                .first()
+                                .send(self.name, TextMessage::Text(self.name_str.clone()));
                         }
                     };
                 }
@@ -259,11 +252,8 @@ impl ResourceCreator {
             if message.destination() == self.ok || message.destination() == self.cancel {
                 engine
                     .user_interfaces
-                    .first_mut()
-                    .send_message(WindowMessage::close(
-                        self.window,
-                        MessageDirection::ToWidget,
-                    ));
+                    .first()
+                    .send(self.window, WindowMessage::Close);
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
             if message.destination() == self.name

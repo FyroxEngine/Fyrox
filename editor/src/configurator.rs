@@ -33,7 +33,7 @@ use crate::fyrox::{
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         list_view::{ListViewBuilder, ListViewMessage},
-        message::{MessageDirection, UiMessage},
+        message::UiMessage,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         text_box::TextBoxBuilder,
@@ -271,11 +271,7 @@ impl Configurator {
         engine
             .user_interfaces
             .first_mut()
-            .send_message(WidgetMessage::enabled(
-                self.ok,
-                MessageDirection::ToWidget,
-                is_valid_scene_path,
-            ));
+            .send(self.ok, WidgetMessage::Enabled(is_valid_scene_path));
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
@@ -293,14 +289,10 @@ impl Configurator {
                 let entry = &self.history[index];
                 self.work_dir.clone_from(&entry.work_dir);
 
-                engine
-                    .user_interfaces
-                    .first_mut()
-                    .send_message(TextMessage::text(
-                        self.tb_work_dir,
-                        MessageDirection::ToWidget,
-                        self.work_dir.to_string_lossy().to_string(),
-                    ));
+                engine.user_interfaces.first().send(
+                    self.tb_work_dir,
+                    TextMessage::Text(self.work_dir.to_string_lossy().to_string()),
+                );
 
                 self.validate(engine);
             }
@@ -310,14 +302,10 @@ impl Configurator {
             if message.destination() == self.work_dir_browser {
                 if let Ok(work_dir) = path.clone().canonicalize() {
                     self.work_dir = work_dir;
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(TextMessage::text(
-                            self.tb_work_dir,
-                            MessageDirection::ToWidget,
-                            self.work_dir.to_string_lossy().to_string(),
-                        ));
+                    engine.user_interfaces.first().send(
+                        self.tb_work_dir,
+                        TextMessage::Text(self.work_dir.to_string_lossy().to_string()),
+                    );
 
                     self.validate(engine);
                 }
@@ -341,31 +329,22 @@ impl Configurator {
 
                     engine
                         .user_interfaces
-                        .first_mut()
-                        .send_message(ListViewMessage::add_item(
-                            self.lv_history,
-                            MessageDirection::ToWidget,
-                            widget,
-                        ));
+                        .first()
+                        .send(self.lv_history, ListViewMessage::AddItem(widget));
                 }
 
                 engine
                     .user_interfaces
-                    .first_mut()
-                    .send_message(WindowMessage::close(
-                        self.window,
-                        MessageDirection::ToWidget,
-                    ));
+                    .first()
+                    .send(self.window, WindowMessage::Close);
             } else if message.destination() == self.select_work_dir {
-                engine
-                    .user_interfaces
-                    .first_mut()
-                    .send_message(WindowMessage::open_modal(
-                        self.work_dir_browser,
-                        MessageDirection::ToWidget,
-                        true,
-                        true,
-                    ));
+                engine.user_interfaces.first().send(
+                    self.work_dir_browser,
+                    WindowMessage::OpenModal {
+                        center: true,
+                        focus_content: true,
+                    },
+                );
             }
         }
     }

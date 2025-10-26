@@ -415,16 +415,17 @@ impl SaveSceneConfirmationDialog {
         self.action = action;
 
         if let Some(entry) = scenes.entry_by_scene_id(self.id) {
-            ui.send_message(MessageBoxMessage::open(
+            ui.send(
                 self.save_message_box,
-                MessageDirection::ToWidget,
-                None,
-                Some(format!(
-                    "There are unsaved changes in the {} scene. \
+                MessageBoxMessage::Open {
+                    title: None,
+                    text: Some(format!(
+                        "There are unsaved changes in the {} scene. \
                 Do you wish to save them before continue?",
-                    entry.name(),
-                )),
-            ));
+                        entry.name(),
+                    )),
+                },
+            );
         }
     }
 
@@ -594,10 +595,7 @@ impl SceneLoadingWindow {
 
     pub fn update(self, set: &FxHashSet<PathBuf>, ui: &UserInterface) -> Option<Self> {
         if set.is_empty() {
-            ui.send_message(WindowMessage::close(
-                self.window,
-                MessageDirection::ToWidget,
-            ));
+            ui.send(self.window, WindowMessage::Close);
             return None;
         }
 
@@ -606,11 +604,7 @@ impl SceneLoadingWindow {
             str.push('\n');
             str
         });
-        ui.send_message(TextMessage::text(
-            self.scene_list_text,
-            MessageDirection::ToWidget,
-            list,
-        ));
+        ui.send(self.scene_list_text, TextMessage::Text(list));
 
         Some(self)
     }
@@ -1038,11 +1032,10 @@ impl Editor {
             .layout(ui);
 
         if let Some(layout) = settings.windows.layout.as_ref() {
-            ui.send_message(DockingManagerMessage::layout(
+            ui.send(
                 docking_manager,
-                MessageDirection::ToWidget,
-                layout.clone(),
-            ));
+                DockingManagerMessage::Layout(layout.clone()),
+            );
         }
 
         let editor = Self {
@@ -1132,16 +1125,13 @@ impl Editor {
             }
         } else {
             // Open configurator as usual.
-            editor
-                .engine
-                .user_interfaces
-                .first()
-                .send_message(WindowMessage::open_modal(
-                    editor.configurator.window,
-                    MessageDirection::ToWidget,
-                    true,
-                    true,
-                ));
+            editor.engine.user_interfaces.first().send(
+                editor.configurator.window,
+                WindowMessage::OpenModal {
+                    center: true,
+                    focus_content: true,
+                },
+            );
         }
 
         editor
@@ -2063,15 +2053,13 @@ impl Editor {
                 }
                 Err(message) => {
                     Log::err(message.clone());
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(MessageBoxMessage::open(
-                            self.validation_message_box,
-                            MessageDirection::ToWidget,
-                            None,
-                            Some(message),
-                        ));
+                    engine.user_interfaces.first_mut().send(
+                        self.validation_message_box,
+                        MessageBoxMessage::Open {
+                            title: None,
+                            text: Some(message),
+                        },
+                    );
                 }
             }
         }
@@ -2172,19 +2160,17 @@ impl Editor {
         if force {
             self.exit = true;
         } else if let Some(first_unsaved) = self.scenes.first_unsaved_scene() {
-            engine
-                .user_interfaces
-                .first_mut()
-                .send_message(MessageBoxMessage::open(
-                    self.exit_message_box,
-                    MessageDirection::ToWidget,
-                    None,
-                    Some(format!(
+            engine.user_interfaces.first_mut().send(
+                self.exit_message_box,
+                MessageBoxMessage::Open {
+                    title: None,
+                    text: Some(format!(
                         "There are unsaved changes in the {} scene. \
                     Do you wish to save them before exit?",
                         first_unsaved.name()
                     )),
-                ));
+                },
+            );
         } else {
             self.exit = true;
         }
@@ -2819,26 +2805,18 @@ impl Editor {
 
     fn load_layout(&mut self) {
         if let Some(layout) = self.settings.windows.layout.as_ref() {
-            self.engine
-                .user_interfaces
-                .first_mut()
-                .send_message(DockingManagerMessage::layout(
-                    self.docking_manager,
-                    MessageDirection::ToWidget,
-                    layout.clone(),
-                ));
+            self.engine.user_interfaces.first().send(
+                self.docking_manager,
+                DockingManagerMessage::Layout(layout.clone()),
+            );
         }
     }
 
     fn reset_layout(&self) {
-        self.engine
-            .user_interfaces
-            .first()
-            .send_message(DockingManagerMessage::layout(
-                self.docking_manager,
-                MessageDirection::ToWidget,
-                self.default_layout.clone(),
-            ));
+        self.engine.user_interfaces.first().send(
+            self.docking_manager,
+            DockingManagerMessage::Layout(self.default_layout.clone()),
+        );
     }
 
     pub fn add_game_plugin<P>(&mut self, plugin: P)
@@ -3032,19 +3010,12 @@ impl Editor {
                             let window = &self.engine.graphics_context.as_initialized_ref().window;
 
                             let logical_size = size.to_logical(window.scale_factor());
-                            self.engine.user_interfaces.first_mut().send_message(
-                                WidgetMessage::width(
-                                    self.root_grid,
-                                    MessageDirection::ToWidget,
-                                    logical_size.width,
-                                ),
-                            );
-                            self.engine.user_interfaces.first_mut().send_message(
-                                WidgetMessage::height(
-                                    self.root_grid,
-                                    MessageDirection::ToWidget,
-                                    logical_size.height,
-                                ),
+                            self.engine.user_interfaces.first().send_many(
+                                self.root_grid,
+                                [
+                                    WidgetMessage::Width(logical_size.width),
+                                    WidgetMessage::Height(logical_size.height),
+                                ],
                             );
 
                             if size.width > 0 && size.height > 0 {
@@ -3132,11 +3103,10 @@ impl Editor {
 
 fn set_ui_scaling(ui: &UserInterface, scale: f32) {
     // High-DPI screen support
-    ui.send_message(WidgetMessage::render_transform(
+    ui.send(
         ui.root(),
-        MessageDirection::ToWidget,
-        Matrix3::new_scaling(scale),
-    ));
+        WidgetMessage::RenderTransform(Matrix3::new_scaling(scale)),
+    );
 }
 
 fn update(editor: &mut Editor, event_loop: &ActiveEventLoop) {

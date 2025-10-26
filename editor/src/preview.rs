@@ -30,7 +30,7 @@ use crate::{
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
             image::{Image, ImageBuilder, ImageMessage},
-            message::{CursorIcon, MessageDirection, MouseButton, UiMessage},
+            message::{CursorIcon, MouseButton, UiMessage},
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
@@ -407,12 +407,8 @@ impl PreviewPanel {
                 scene.rendering_options.render_target = Some(rt.clone());
                 engine
                     .user_interfaces
-                    .first_mut()
-                    .send_message(ImageMessage::texture(
-                        self.frame,
-                        MessageDirection::ToWidget,
-                        Some(rt),
-                    ));
+                    .first()
+                    .send(self.frame, ImageMessage::Texture(Some(rt)));
             }
         }
     }
@@ -434,8 +430,8 @@ impl PreviewPanel {
     pub fn destroy(self, engine: &mut Engine) {
         engine
             .user_interfaces
-            .first_mut()
-            .send_message(WidgetMessage::remove(self.root, MessageDirection::ToWidget));
+            .first()
+            .send(self.root, WidgetMessage::Remove);
         engine.scenes.remove(self.scene);
     }
 }

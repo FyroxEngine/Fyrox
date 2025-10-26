@@ -509,18 +509,14 @@ impl AssetBrowser {
 
         self.items.push(asset_item);
 
-        ui.send_message(WidgetMessage::link(
-            asset_item,
-            MessageDirection::ToWidget,
-            self.content_panel,
-        ));
+        ui.send(asset_item, WidgetMessage::LinkWith(self.content_panel));
 
         asset_item
     }
 
     fn clear_assets(&mut self, ui: &UserInterface) {
         for child in self.items.drain(..) {
-            ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
+            ui.send(child, WidgetMessage::Remove);
         }
     }
 
@@ -528,12 +524,7 @@ impl AssetBrowser {
         if !path.is_dir() {
             return;
         }
-
-        ui.send_message(FileBrowserMessage::path(
-            self.folder_browser,
-            MessageDirection::ToWidget,
-            path,
-        ));
+        ui.send(self.folder_browser, FileBrowserMessage::Path(path));
     }
 
     fn is_current_path_in_registry(&self, resource_manager: &ResourceManager) -> bool {
@@ -559,16 +550,17 @@ impl AssetBrowser {
         }
 
         self.current_path = path.to_path_buf();
-        ui.send_message(WindowMessage::title(
+        ui.send(
             self.main_window,
-            MessageDirection::ToWidget,
-            WindowTitle::text(format!("Folder Content - {}", self.current_path.display())),
-        ));
-        ui.send_message(WidgetMessage::enabled(
+            WindowMessage::Title(WindowTitle::text(format!(
+                "Folder Content - {}",
+                self.current_path.display()
+            ))),
+        );
+        ui.send(
             self.add_resource,
-            MessageDirection::ToWidget,
-            self.is_current_path_in_registry(resource_manager),
-        ));
+            WidgetMessage::Enabled(self.is_current_path_in_registry(resource_manager)),
+        );
         self.schedule_refresh();
     }
 
@@ -611,12 +603,7 @@ impl AssetBrowser {
             );
 
             self.items.push(asset_item);
-
-            ui.send_message(WidgetMessage::link(
-                asset_item,
-                MessageDirection::ToWidget,
-                self.content_panel,
-            ));
+            ui.send(asset_item, WidgetMessage::LinkWith(self.content_panel));
         }
 
         let mut folders = Vec::new();
@@ -670,17 +657,11 @@ impl AssetBrowser {
         }
 
         if handle_to_select.is_some() {
-            ui.send_message(AssetItemMessage::select(
-                handle_to_select,
-                MessageDirection::ToWidget,
-                true,
-            ));
-
-            ui.send_message(ScrollViewerMessage::bring_into_view(
+            ui.send(handle_to_select, AssetItemMessage::Select(true));
+            ui.send(
                 self.scroll_panel,
-                MessageDirection::ToWidget,
-                handle_to_select,
-            ));
+                ScrollViewerMessage::BringIntoView(handle_to_select),
+            );
         }
     }
 
@@ -785,11 +766,7 @@ impl AssetBrowser {
             {
                 match msg {
                     FileBrowserMessage::Path(path) => {
-                        ui.send_message(SearchBarMessage::text(
-                            self.search_bar,
-                            MessageDirection::ToWidget,
-                            Default::default(),
-                        ));
+                        ui.send(self.search_bar, SearchBarMessage::Text(Default::default()));
                         self.set_path(path, ui, &engine.resource_manager);
                     }
                     FileBrowserMessage::Drop {

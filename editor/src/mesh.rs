@@ -281,12 +281,8 @@ impl MeshControlPanel {
         });
         engine
             .user_interfaces
-            .first_mut()
-            .send_message(WidgetMessage::visibility(
-                self.root_widget,
-                MessageDirection::ToWidget,
-                any_mesh,
-            ));
+            .first()
+            .send(self.root_widget, WidgetMessage::Visibility(any_mesh));
     }
 }
 
@@ -313,25 +309,22 @@ impl SurfaceDataViewer {
     }
 
     pub fn open(&mut self, surface_data: SurfaceResource, engine: &mut Engine) {
-        let ui = engine.user_interfaces.first();
-        ui.send_message(WindowMessage::open_modal(
-            self.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
-
         let guard = surface_data.data_ref();
         let title = WindowTitle::text(format!(
             "Surface Data - Vertices: {} Triangles: {}",
             guard.vertex_buffer.vertex_count(),
             guard.geometry_buffer.len(),
         ));
-        ui.send_message(WindowMessage::title(
+        engine.user_interfaces.first().send_many(
             self.window,
-            MessageDirection::ToWidget,
-            title,
-        ));
+            [
+                WindowMessage::OpenModal {
+                    center: true,
+                    focus_content: true,
+                },
+                WindowMessage::Title(title),
+            ],
+        );
         drop(guard);
 
         let graph = &mut engine.scenes[self.preview_panel.scene()].graph;

@@ -162,38 +162,34 @@ impl ProgressWindow {
     }
 
     pub fn show_progress(&self, ui: &UserInterface) {
-        ui.send_message(ProgressBarMessage::progress(
+        ui.send(
             self.progress_bar,
-            MessageDirection::ToWidget,
-            self.progress_indicator.progress_percent() as f32 / 100.0,
-        ));
+            ProgressBarMessage::Progress(self.progress_indicator.progress_percent() as f32 / 100.0),
+        );
 
         let stage = self.progress_indicator.stage();
-        ui.send_message(TextMessage::text(
+        ui.send(
             self.text,
-            MessageDirection::ToWidget,
-            format!(
+            TextMessage::Text(format!(
                 "Stage {} out of 4: {}",
                 stage as u32,
                 self.progress_indicator.stage()
-            ),
-        ));
+            )),
+        );
     }
 
     pub fn open(&self, ui: &UserInterface) {
-        ui.send_message(WindowMessage::open_modal(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
     }
 
     pub fn close(&self, ui: &UserInterface) {
-        ui.send_message(WidgetMessage::remove(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.window, WidgetMessage::Remove);
     }
 }
 
