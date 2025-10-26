@@ -356,7 +356,7 @@ pub use node::*;
 pub use thickness::*;
 
 use crate::constructor::new_widget_constructor_container;
-use crate::message::RoutingStrategy;
+use crate::message::{MessageData, RoutingStrategy};
 use crate::style::resource::{StyleResource, StyleResourceExt};
 use crate::style::{Style, DEFAULT_STYLE};
 use crate::widget::WidgetMaterial;
@@ -1944,6 +1944,34 @@ impl UserInterface {
 
     pub fn send_message(&self, message: UiMessage) {
         self.sender.send(message).unwrap()
+    }
+
+    pub fn send_to<T: MessageData>(&self, handle: Handle<UiNode>, data: T) {
+        self.sender
+            .send(UiMessage::with_data(data).with_destination(handle))
+            .unwrap()
+    }
+
+    pub fn send_many_to<const N: usize, T: MessageData>(
+        &self,
+        handle: Handle<UiNode>,
+        payload: [T; N],
+    ) {
+        for data in payload {
+            self.send_to(handle, data)
+        }
+    }
+
+    pub fn send_many_to_if<const N: usize, T: MessageData>(
+        &self,
+        handle: Handle<UiNode>,
+        payload: [(bool, T); N],
+    ) {
+        for (condition, data) in payload {
+            if condition {
+                self.send_to(handle, data)
+            }
+        }
     }
 
     pub fn send_messages<const N: usize>(&self, messages: [UiMessage; N]) {
