@@ -31,7 +31,6 @@ use crate::{
         visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
-    define_constructor,
     font::FontResource,
     message::{KeyCode, MessageDirection, UiMessage},
     style::{resource::StyleResourceExt, Style},
@@ -62,25 +61,6 @@ pub enum ButtonMessage {
     RepeatClicksOnHold(bool),
 }
 impl MessageData for ButtonMessage {}
-
-impl ButtonMessage {
-    define_constructor!(
-        /// A shortcut method to create [`ButtonMessage::Click`] message.
-        ButtonMessage:Click => fn click()
-    );
-    define_constructor!(
-        /// A shortcut method to create [`ButtonMessage::Content`] message.
-        ButtonMessage:Content => fn content(ButtonContent)
-    );
-    define_constructor!(
-        /// A shortcut method to create [`ButtonMessage::RepeatInterval`] message.
-        ButtonMessage:RepeatInterval => fn repeat_interval(f32)
-    );
-    define_constructor!(
-        /// A shortcut method to create [`ButtonMessage::RepeatClicksOnHold`] message.
-        ButtonMessage:RepeatClicksOnHold => fn repeat_clicks_on_hold(bool)
-    );
-}
 
 /// Defines a clickable widget with arbitrary content. The content could be any kind of widget, usually it
 /// is just a text or an image.
@@ -178,10 +158,7 @@ impl Control for Button {
         if let Some(repeat_timer) = &mut *repeat_timer {
             *repeat_timer -= dt;
             if *repeat_timer <= 0.0 {
-                ui.send_message(ButtonMessage::click(
-                    self.handle(),
-                    MessageDirection::FromWidget,
-                ));
+                ui.post(self.handle(), ButtonMessage::Click);
                 *repeat_timer = *self.repeat_interval;
             }
         }
@@ -213,10 +190,7 @@ impl Control for Button {
                         // close button on a tab.
                         if self.screen_bounds().contains(ui.cursor_position()) && !message.handled()
                         {
-                            ui.send_message(ButtonMessage::click(
-                                self.handle(),
-                                MessageDirection::FromWidget,
-                            ));
+                            ui.post(self.handle(), ButtonMessage::Click);
                         }
                         ui.release_mouse_capture();
                         message.set_handled(true);
@@ -226,10 +200,7 @@ impl Control for Button {
                         if !message.handled()
                             && (*key_code == KeyCode::Enter || *key_code == KeyCode::Space)
                         {
-                            ui.send_message(ButtonMessage::click(
-                                self.handle,
-                                MessageDirection::FromWidget,
-                            ));
+                            ui.post(self.handle, ButtonMessage::Click);
                             message.set_handled(true);
                         }
                     }
@@ -242,18 +213,11 @@ impl Control for Button {
                     ButtonMessage::Click => (),
                     ButtonMessage::Content(content) => {
                         if self.content.is_some() {
-                            ui.send_message(WidgetMessage::remove(
-                                *self.content,
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(*self.content, WidgetMessage::Remove);
                         }
                         self.content
                             .set_value_and_mark_modified(content.build(&mut ui.build_ctx()));
-                        ui.send_message(WidgetMessage::link(
-                            *self.content,
-                            MessageDirection::ToWidget,
-                            *self.decorator,
-                        ));
+                        ui.send(*self.content, WidgetMessage::LinkWith(*self.decorator));
                     }
                     ButtonMessage::RepeatInterval(interval) => {
                         if *self.repeat_interval != *interval

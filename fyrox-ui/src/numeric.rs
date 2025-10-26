@@ -510,16 +510,10 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                 }
                 WidgetMessage::KeyDown(key_code) => match *key_code {
                     KeyCode::ArrowUp => {
-                        ui.send_message(ButtonMessage::click(
-                            *self.increase,
-                            MessageDirection::FromWidget,
-                        ));
+                        ui.post(*self.increase, ButtonMessage::Click);
                     }
                     KeyCode::ArrowDown => {
-                        ui.send_message(ButtonMessage::click(
-                            *self.decrease,
-                            MessageDirection::FromWidget,
-                        ));
+                        ui.post(*self.decrease, ButtonMessage::Click);
                     }
                     _ => (),
                 },

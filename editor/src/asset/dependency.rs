@@ -28,7 +28,7 @@ use crate::fyrox::{
         button::{ButtonBuilder, ButtonMessage},
         copypasta::ClipboardProvider,
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessage},
+        message::UiMessage,
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,

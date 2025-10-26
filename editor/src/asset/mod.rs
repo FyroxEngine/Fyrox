@@ -856,11 +856,8 @@ impl AssetBrowser {
                 if message.destination() == resource_creator.window {
                     engine
                         .user_interfaces
-                        .first_mut()
-                        .send_message(WidgetMessage::remove(
-                            resource_creator.window,
-                            MessageDirection::ToWidget,
-                        ));
+                        .first()
+                        .send(resource_creator.window, WidgetMessage::Remove);
 
                     self.resource_creator = None;
                 }

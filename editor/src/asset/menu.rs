@@ -34,7 +34,7 @@ use crate::{
             draw::DrawingContext,
             grid::{Column, GridBuilder, Row},
             menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
-            message::{MessageDirection, OsEvent, UiMessage},
+            message::{OsEvent, UiMessage},
             messagebox::{
                 MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult,
             },

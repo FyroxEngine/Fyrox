@@ -207,7 +207,10 @@ where
     }
 }
 
+/// A trait for any message that can be put to the UI message queue.
 pub trait MessageData: BaseMessageData {
+    /// Returns `true` when the message starts a new layout pass before being passed to its
+    /// destination.
     fn need_perform_layout(&self) -> bool {
         false
     }
