@@ -21,13 +21,12 @@
 //! The Window widget provides a standard window that can contain another widget. See [`Window`] docs
 //! for more info and usage examples.
 
-use crate::style::StyledProperty;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
+        algebra::Vector2, color::Color, log::Log, math::Rect, pool::Handle, reflect::prelude::*,
         type_traits::prelude::*, uuid_provider, visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
@@ -36,18 +35,17 @@ use crate::{
     grid::{Column, GridBuilder, Row},
     message::{CursorIcon, KeyCode, MessageDirection, UiMessage},
     navigation::NavigationLayerBuilder,
-    style::resource::StyleResourceExt,
-    style::Style,
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     text::{Text, TextBuilder, TextMessage},
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, RestrictionEntry, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-
-use fyrox_core::log::Log;
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::{BaseSceneGraph, SceneGraph};
+use fyrox_graph::{
+    constructor::{ConstructorProvider, GraphNodeConstructor},
+    BaseSceneGraph, SceneGraph,
+};
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
@@ -476,10 +474,7 @@ impl Control for Window {
             if self.can_resize && !self.is_dragging {
                 match msg {
                     &WidgetMessage::MouseDown { pos, .. } => {
-                        ui.send_message(WidgetMessage::topmost(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send_to(self.handle(), WidgetMessage::Topmost);
 
                         if !self.maximized() {
                             // Check grips.
@@ -542,22 +537,20 @@ impl Control for Window {
                                         && new_size.y > self.min_height()
                                         && new_size.y < self.max_height()
                                     {
-                                        ui.send_message(WidgetMessage::desired_position(
+                                        ui.send_many_to(
                                             self.handle(),
-                                            MessageDirection::ToWidget,
-                                            ui.screen_to_root_canvas_space(new_pos),
-                                        ));
-                                        ui.send_message(WidgetMessage::width(
-                                            self.handle(),
-                                            MessageDirection::ToWidget,
-                                            new_size.x,
-                                        ));
+                                            [
+                                                WidgetMessage::DesiredPosition(
+                                                    ui.screen_to_root_canvas_space(new_pos),
+                                                ),
+                                                WidgetMessage::Width(new_size.x),
+                                            ],
+                                        );
                                         if !self.minimized() {
-                                            ui.send_message(WidgetMessage::height(
+                                            ui.send_to(
                                                 self.handle(),
-                                                MessageDirection::ToWidget,
-                                                new_size.y,
-                                            ));
+                                                WidgetMessage::Height(new_size.y),
+                                            );
                                         }
                                     }
 
@@ -586,28 +579,21 @@ impl Control for Window {
                 match msg {
                     WidgetMessage::MouseDown { pos, .. } => {
                         self.mouse_click_pos = *pos;
-                        ui.send_message(WindowMessage::move_start(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send_to(self.handle, WindowMessage::MoveStart);
                         message.set_handled(true);
                     }
                     WidgetMessage::MouseUp { .. } => {
-                        ui.send_message(WindowMessage::move_end(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send_to(self.handle, WindowMessage::MoveEnd);
                         message.set_handled(true);
                     }
                     WidgetMessage::MouseMove { pos, .. } => {
                         if self.is_dragging {
                             self.drag_delta = *pos - self.mouse_click_pos;
                             let new_pos = self.initial_position + self.drag_delta;
-                            ui.send_message(WindowMessage::move_to(
+                            ui.send_to(
                                 self.handle(),
-                                MessageDirection::ToWidget,
-                                ui.screen_to_root_canvas_space(new_pos),
-                            ));
+                                WindowMessage::Move(ui.screen_to_root_canvas_space(new_pos)),
+                            );
                         }
                         message.set_handled(true);
                     }
@@ -627,32 +613,18 @@ impl Control for Window {
                         && *key_code == KeyCode::Escape
                         && !message.handled() =>
                 {
-                    ui.send_message(WindowMessage::close(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                    ));
+                    ui.send_to(self.handle, WindowMessage::Close);
                     message.set_handled(true);
                 }
                 _ => {}
             }
         } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.minimize_button {
-                ui.send_message(WindowMessage::minimize(
-                    self.handle(),
-                    MessageDirection::ToWidget,
-                    !self.minimized(),
-                ));
+                ui.send_to(self.handle(), WindowMessage::Minimize(!self.minimized()));
             } else if message.destination() == self.maximize_button {
-                ui.send_message(WindowMessage::maximize(
-                    self.handle(),
-                    MessageDirection::ToWidget,
-                    !self.maximized(),
-                ));
+                ui.send_to(self.handle(), WindowMessage::Maximize(!self.maximized()));
             } else if message.destination() == self.close_button {
-                ui.send_message(WindowMessage::close(
-                    self.handle(),
-                    MessageDirection::ToWidget,
-                ));
+                ui.send_to(self.handle(), WindowMessage::Close);
             }
         } else if let Some(msg) = message.data::<WindowMessage>() {
             if message.destination() == self.handle()
@@ -667,11 +639,7 @@ impl Control for Window {
                         // Otherwise it is part of something like a tile, and that parent should decide
                         // whether the window is visible.
                         if !self.visibility() && self.parent() == ui.root() {
-                            ui.send_message(WidgetMessage::visibility(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
+                            ui.send_to(self.handle(), WidgetMessage::Visibility(true));
                             // If we are opening the window with non-finite width and height, something
                             // has gone wrong, so correct it.
                             if !self.width().is_finite() {
@@ -683,21 +651,12 @@ impl Control for Window {
                                 self.set_height(200.0);
                             }
                         }
-                        ui.send_message(WidgetMessage::topmost(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send_to(self.handle(), WidgetMessage::Topmost);
                         if focus_content {
-                            ui.send_message(WidgetMessage::focus(
-                                self.content_to_focus(),
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send_to(self.content_to_focus(), WidgetMessage::Focus);
                         }
                         if center && self.parent() == ui.root() {
-                            ui.send_message(WidgetMessage::center(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send_to(self.handle(), WidgetMessage::Center);
                         }
                     }
                     &WindowMessage::OpenAt {
@@ -705,25 +664,16 @@ impl Control for Window {
                         focus_content,
                     } => {
                         if !self.visibility() {
-                            ui.send_message(WidgetMessage::visibility(
+                            ui.send_many_to(
                                 self.handle(),
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
-                            ui.send_message(WidgetMessage::topmost(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                            ));
-                            ui.send_message(WidgetMessage::desired_position(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                position,
-                            ));
+                                [
+                                    WidgetMessage::Visibility(true),
+                                    WidgetMessage::Topmost,
+                                    WidgetMessage::DesiredPosition(position),
+                                ],
+                            );
                             if focus_content {
-                                ui.send_message(WidgetMessage::focus(
-                                    self.content_to_focus(),
-                                    MessageDirection::ToWidget,
-                                ));
+                                ui.send_to(self.content_to_focus(), WidgetMessage::Focus);
                             }
                         }
                     }
@@ -736,23 +686,19 @@ impl Control for Window {
                         focus_content,
                     } => {
                         if !self.visibility() {
-                            ui.send_message(WidgetMessage::visibility(
+                            ui.send_many_to(
                                 self.handle(),
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
-                            ui.send_message(WidgetMessage::topmost(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                            ));
-                            ui.send_message(WidgetMessage::align(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                relative_to,
-                                horizontal_alignment,
-                                vertical_alignment,
-                                margin,
-                            ));
+                                [
+                                    WidgetMessage::Visibility(true),
+                                    WidgetMessage::Topmost,
+                                    WidgetMessage::Align {
+                                        relative_to,
+                                        horizontal_alignment,
+                                        vertical_alignment,
+                                        margin,
+                                    },
+                                ],
+                            );
                             if modal {
                                 ui.push_picking_restriction(RestrictionEntry {
                                     handle: self.handle(),
@@ -760,10 +706,7 @@ impl Control for Window {
                                 });
                             }
                             if focus_content {
-                                ui.send_message(WidgetMessage::focus(
-                                    self.content_to_focus(),
-                                    MessageDirection::ToWidget,
-                                ));
+                                ui.send_to(self.content_to_focus(), WidgetMessage::Focus);
                             }
                         }
                     }
@@ -772,46 +715,28 @@ impl Control for Window {
                         focus_content,
                     } => {
                         if !self.visibility() {
-                            ui.send_message(WidgetMessage::visibility(
+                            ui.send_many_to(
                                 self.handle(),
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
-                            ui.send_message(WidgetMessage::topmost(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                            ));
+                                [WidgetMessage::Visibility(true), WidgetMessage::Topmost],
+                            );
                             if center {
-                                ui.send_message(WidgetMessage::center(
-                                    self.handle(),
-                                    MessageDirection::ToWidget,
-                                ));
+                                ui.send_to(self.handle(), WidgetMessage::Center);
                             }
                             ui.push_picking_restriction(RestrictionEntry {
                                 handle: self.handle(),
                                 stop: true,
                             });
                             if focus_content {
-                                ui.send_message(WidgetMessage::focus(
-                                    self.content_to_focus(),
-                                    MessageDirection::ToWidget,
-                                ));
+                                ui.send_to(self.content_to_focus(), WidgetMessage::Focus);
                             }
                         }
                     }
                     WindowMessage::Close => {
                         if self.visibility() {
-                            ui.send_message(WidgetMessage::visibility(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                false,
-                            ));
+                            ui.send_to(self.handle(), WidgetMessage::Visibility(false));
                             ui.remove_picking_restriction(self.handle());
                             if self.remove_on_close {
-                                ui.send_message(WidgetMessage::remove(
-                                    self.handle,
-                                    MessageDirection::ToWidget,
-                                ));
+                                ui.send_to(self.handle(), WidgetMessage::Remove);
                             }
                         }
                     }
@@ -833,11 +758,7 @@ impl Control for Window {
                         if self.can_minimize != value {
                             self.can_minimize = value;
                             if self.minimize_button.is_some() {
-                                ui.send_message(WidgetMessage::visibility(
-                                    self.minimize_button,
-                                    MessageDirection::ToWidget,
-                                    value,
-                                ));
+                                ui.send_to(self.minimize_button, WidgetMessage::Visibility(value));
                             }
                         }
                     }
@@ -845,11 +766,7 @@ impl Control for Window {
                         if self.can_close != value {
                             self.can_close = value;
                             if self.close_button.is_some() {
-                                ui.send_message(WidgetMessage::visibility(
-                                    self.close_button,
-                                    MessageDirection::ToWidget,
-                                    value,
-                                ));
+                                ui.send_to(self.close_button, WidgetMessage::Visibility(value));
                             }
                         }
                     }
@@ -873,12 +790,7 @@ impl Control for Window {
                         }
 
                         if self.is_dragging && self.desired_local_position() != new_pos {
-                            ui.send_message(WidgetMessage::desired_position(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                new_pos,
-                            ));
-
+                            ui.send_to(self.handle(), WidgetMessage::DesiredPosition(new_pos));
                             ui.send_message(message.reverse());
                         }
                     }
@@ -892,16 +804,13 @@ impl Control for Window {
                             if self.size_state == WindowSizeState::Maximized {
                                 self.size_state = WindowSizeState::Normal;
                                 if let Some(prev_bounds) = self.prev_bounds.take() {
-                                    ui.send_message(WidgetMessage::width(
+                                    ui.send_many_to(
                                         self.handle,
-                                        MessageDirection::ToWidget,
-                                        prev_bounds.w(),
-                                    ));
-                                    ui.send_message(WidgetMessage::height(
-                                        self.handle,
-                                        MessageDirection::ToWidget,
-                                        prev_bounds.h(),
-                                    ));
+                                        [
+                                            WidgetMessage::Width(prev_bounds.w()),
+                                            WidgetMessage::Height(prev_bounds.h()),
+                                        ],
+                                    );
                                 }
                             }
 
@@ -926,30 +835,18 @@ impl Control for Window {
                                 if ui.try_get_of_type::<Text>(self.title).is_some() {
                                     // Just modify existing text, this is much faster than
                                     // re-create text everytime.
-                                    ui.send_message(TextMessage::text(
-                                        self.title,
-                                        MessageDirection::ToWidget,
-                                        text.clone(),
-                                    ));
+                                    ui.send_to(self.title, TextMessage::Text(text.clone()));
                                     if let Some(font) = font {
-                                        ui.send_message(TextMessage::font(
-                                            self.title,
-                                            MessageDirection::ToWidget,
-                                            font.clone(),
-                                        ))
+                                        ui.send_to(self.title, TextMessage::Font(font.clone()))
                                     }
                                     if let Some(font_size) = font_size {
-                                        ui.send_message(TextMessage::font_size(
+                                        ui.send_to(
                                             self.title,
-                                            MessageDirection::ToWidget,
-                                            font_size.clone(),
-                                        ));
+                                            TextMessage::FontSize(font_size.clone()),
+                                        );
                                     }
                                 } else {
-                                    ui.send_message(WidgetMessage::remove(
-                                        self.title,
-                                        MessageDirection::ToWidget,
-                                    ));
+                                    ui.send_to(self.title, WidgetMessage::Remove);
                                     let font =
                                         font.clone().unwrap_or_else(|| ui.default_font.clone());
                                     let ctx = &mut ui.build_ctx();
@@ -961,31 +858,26 @@ impl Control for Window {
                                             ctx.style.property(Style::FONT_SIZE)
                                         }),
                                     );
-                                    ui.send_message(WidgetMessage::link(
+                                    ui.send_to(
                                         self.title,
-                                        MessageDirection::ToWidget,
-                                        self.title_grid,
-                                    ));
+                                        WidgetMessage::LinkWith(self.title_grid),
+                                    );
                                 }
                             }
                             WindowTitle::Node(node) => {
                                 if self.title.is_some() {
                                     // Remove old title.
-                                    ui.send_message(WidgetMessage::remove(
-                                        self.title,
-                                        MessageDirection::ToWidget,
-                                    ));
+                                    ui.send_to(self.title, WidgetMessage::Remove);
                                 }
 
                                 if node.is_some() {
                                     self.title = *node;
 
                                     // Attach new one.
-                                    ui.send_message(WidgetMessage::link(
+                                    ui.send_to(
                                         self.title,
-                                        MessageDirection::ToWidget,
-                                        self.title_grid,
-                                    ));
+                                        WidgetMessage::LinkWith(self.title_grid),
+                                    );
                                 }
                             }
                         }
@@ -1058,11 +950,10 @@ impl Window {
         };
 
         if self.content.is_some() {
-            ui.send_message(WidgetMessage::visibility(
+            ui.send_to(
                 self.content,
-                MessageDirection::ToWidget,
-                new_state != WindowSizeState::Minimized,
-            ));
+                WidgetMessage::Visibility(new_state != WindowSizeState::Minimized),
+            );
         }
 
         if new_state == WindowSizeState::Minimized {
@@ -1073,22 +964,18 @@ impl Window {
             self.set_height(f32::NAN);
             self.invalidate_layout();
         } else {
-            ui.send_message(WidgetMessage::desired_position(
+            ui.send_to(
                 self.handle,
-                MessageDirection::ToWidget,
-                new_bounds.position,
-            ));
+                WidgetMessage::DesiredPosition(new_bounds.position),
+            );
             if self.can_resize {
-                ui.send_message(WidgetMessage::width(
+                ui.send_many_to(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    new_bounds.w(),
-                ));
-                ui.send_message(WidgetMessage::height(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                    new_bounds.h(),
-                ));
+                    [
+                        WidgetMessage::Width(new_bounds.w()),
+                        WidgetMessage::Height(new_bounds.h()),
+                    ],
+                );
             }
         }
         self.size_state = new_state;
