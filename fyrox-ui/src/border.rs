@@ -29,7 +29,6 @@ use crate::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         variable::InheritableVariable, visitor::prelude::*,
     },
-    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     style::{resource::StyleResourceExt, Style, StyledProperty},
@@ -144,21 +143,6 @@ pub enum BorderMessage {
     PadByCornerRadius(bool),
 }
 impl MessageData for BorderMessage {}
-
-impl BorderMessage {
-    define_constructor!(
-        /// Creates a new [Self::StrokeThickness] message.
-        BorderMessage:StrokeThickness => fn stroke_thickness(StyledProperty<Thickness>)
-    );
-    define_constructor!(
-        /// Creates a new [Self::CornerRadius] message.
-        BorderMessage:CornerRadius => fn corner_radius(StyledProperty<f32>)
-    );
-    define_constructor!(
-        /// Creates a new [Self::PadByCornerRadius] message.
-        BorderMessage:PadByCornerRadius => fn pad_by_corner_radius(bool)
-    );
-}
 
 fn corner_offset(radius: f32) -> f32 {
     radius * 0.5 * (std::f32::consts::SQRT_2 - 1.0)

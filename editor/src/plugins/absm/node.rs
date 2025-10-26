@@ -272,16 +272,11 @@ where
                             )
                         };
 
-                        ui.send_message(BorderMessage::stroke_thickness(
+                        ui.send(
                             self.background,
-                            MessageDirection::ToWidget,
-                            thickness.into(),
-                        ));
-                        ui.send_message(WidgetMessage::foreground(
-                            self.background,
-                            MessageDirection::ToWidget,
-                            brush,
-                        ));
+                            BorderMessage::StrokeThickness(thickness.into()),
+                        );
+                        ui.send(self.background, WidgetMessage::Foreground(brush));
                     }
                     _ => (),
                 }
