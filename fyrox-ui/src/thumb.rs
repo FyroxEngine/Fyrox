@@ -29,6 +29,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -38,11 +39,12 @@ pub enum ThumbMessage {
     DragDelta { offset: Vector2<f32> },
     DragCompleted { position: Vector2<f32> },
 }
+impl MessageData for ThumbMessage {}
 
 impl ThumbMessage {
-    define_constructor!(ThumbMessage:DragStarted => fn drag_started(position: Vector2<f32>), layout: false);
-    define_constructor!(ThumbMessage:DragDelta => fn drag_delta(offset: Vector2<f32>), layout: false);
-    define_constructor!(ThumbMessage:DragCompleted => fn drag_completed(position: Vector2<f32>), layout: false);
+    define_constructor!(ThumbMessage:DragStarted => fn drag_started(position: Vector2<f32>));
+    define_constructor!(ThumbMessage:DragDelta => fn drag_delta(offset: Vector2<f32>));
+    define_constructor!(ThumbMessage:DragCompleted => fn drag_completed(position: Vector2<f32>));
 }
 
 /// A helper widget that is used to provide basic dragging interaction. The widget itself does not

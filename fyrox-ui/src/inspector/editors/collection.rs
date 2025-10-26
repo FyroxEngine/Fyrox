@@ -42,6 +42,7 @@ use crate::{
     VerticalAlignment,
 };
 
+use crate::message::MessageData;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     any::TypeId,
@@ -108,10 +109,11 @@ pub enum CollectionEditorMessage {
     Items(Vec<Item>),
     ItemChanged { index: usize, message: UiMessage },
 }
+impl MessageData for CollectionEditorMessage {}
 
 impl CollectionEditorMessage {
-    define_constructor!(CollectionEditorMessage:Items => fn items(Vec<Item>), layout: false);
-    define_constructor!(CollectionEditorMessage:ItemChanged => fn item_changed(index: usize, message: UiMessage), layout: false);
+    define_constructor!(CollectionEditorMessage:Items => fn items(Vec<Item>));
+    define_constructor!(CollectionEditorMessage:ItemChanged => fn item_changed(index: usize, message: UiMessage));
 }
 
 impl<T: CollectionItem> TypeUuidProvider for CollectionEditor<T> {

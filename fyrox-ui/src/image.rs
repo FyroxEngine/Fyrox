@@ -37,6 +37,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_texture::{TextureKind, TextureResource};
 use std::ops::{Deref, DerefMut};
@@ -56,26 +57,27 @@ pub enum ImageMessage {
     /// docs for more info.
     CheckerboardBackground(bool),
 }
+impl MessageData for ImageMessage {}
 
 impl ImageMessage {
     define_constructor!(
         /// Creates [`ImageMessage::Texture`] message.
-        ImageMessage:Texture => fn texture(Option<TextureResource>), layout: false
+        ImageMessage:Texture => fn texture(Option<TextureResource>)
     );
 
     define_constructor!(
         /// Creates [`ImageMessage::Flip`] message.
-        ImageMessage:Flip => fn flip(bool), layout: false
+        ImageMessage:Flip => fn flip(bool)
     );
 
     define_constructor!(
         /// Creates [`ImageMessage::UvRect`] message.
-        ImageMessage:UvRect => fn uv_rect(Rect<f32>), layout: false
+        ImageMessage:UvRect => fn uv_rect(Rect<f32>)
     );
 
     define_constructor!(
         /// Creates [`ImageMessage::CheckerboardBackground`] message.
-        ImageMessage:CheckerboardBackground => fn checkerboard_background(bool), layout: false
+        ImageMessage:CheckerboardBackground => fn checkerboard_background(bool)
     );
 }
 

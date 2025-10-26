@@ -56,6 +56,7 @@ use crate::{
 use fyrox::asset::Resource;
 use fyrox::core::PhantomDataSendSync;
 use fyrox::gui::brush::Brush;
+use fyrox::gui::message::MessageData;
 use rust_fuzzy_search::fuzzy_compare;
 use std::borrow::Cow;
 use std::path::Path;
@@ -70,9 +71,10 @@ use std::{
 pub enum AssetSelectorMessage {
     Select(UntypedResource),
 }
+impl MessageData for AssetSelectorMessage {}
 
 impl AssetSelectorMessage {
-    define_constructor!(AssetSelectorMessage:Select => fn select(UntypedResource), layout: false);
+    define_constructor!(AssetSelectorMessage:Select => fn select(UntypedResource));
 }
 
 #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]

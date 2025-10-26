@@ -22,6 +22,7 @@
 
 #![warn(missing_docs)]
 
+use crate::message::MessageData;
 use crate::style::StyledProperty;
 use crate::{
     border::BorderBuilder,
@@ -60,23 +61,24 @@ pub enum ButtonMessage {
     /// A flag, that defines whether the button should repeat click message when being hold or not.
     RepeatClicksOnHold(bool),
 }
+impl MessageData for ButtonMessage {}
 
 impl ButtonMessage {
     define_constructor!(
         /// A shortcut method to create [`ButtonMessage::Click`] message.
-        ButtonMessage:Click => fn click(), layout: false
+        ButtonMessage:Click => fn click()
     );
     define_constructor!(
         /// A shortcut method to create [`ButtonMessage::Content`] message.
-        ButtonMessage:Content => fn content(ButtonContent), layout: false
+        ButtonMessage:Content => fn content(ButtonContent)
     );
     define_constructor!(
         /// A shortcut method to create [`ButtonMessage::RepeatInterval`] message.
-        ButtonMessage:RepeatInterval => fn repeat_interval(f32), layout: false
+        ButtonMessage:RepeatInterval => fn repeat_interval(f32)
     );
     define_constructor!(
         /// A shortcut method to create [`ButtonMessage::RepeatClicksOnHold`] message.
-        ButtonMessage:RepeatClicksOnHold => fn repeat_clicks_on_hold(bool), layout: false
+        ButtonMessage:RepeatClicksOnHold => fn repeat_clicks_on_hold(bool)
     );
 }
 

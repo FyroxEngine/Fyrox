@@ -67,6 +67,7 @@ use sysinfo::{DiskExt, RefreshKind, SystemExt};
 mod menu;
 mod selector;
 
+use crate::message::MessageData;
 use crate::resources::FOLDER_ICON;
 pub use selector::*;
 
@@ -87,21 +88,21 @@ pub enum FileBrowserMessage {
         dropped_path: PathBuf,
     },
 }
+impl MessageData for FileBrowserMessage {}
 
 impl FileBrowserMessage {
-    define_constructor!(FileBrowserMessage:Root => fn root(Option<PathBuf>), layout: false);
-    define_constructor!(FileBrowserMessage:Path => fn path(PathBuf), layout: false);
-    define_constructor!(FileBrowserMessage:Filter => fn filter(Option<Filter>), layout: false);
-    define_constructor!(FileBrowserMessage:Add => fn add(PathBuf), layout: false);
-    define_constructor!(FileBrowserMessage:Remove => fn remove(PathBuf), layout: false);
-    define_constructor!(FileBrowserMessage:Rescan => fn rescan(), layout: false);
-    define_constructor!(FileBrowserMessage:FocusCurrentPath => fn focus_current_path(), layout: false);
+    define_constructor!(FileBrowserMessage:Root => fn root(Option<PathBuf>));
+    define_constructor!(FileBrowserMessage:Path => fn path(PathBuf));
+    define_constructor!(FileBrowserMessage:Filter => fn filter(Option<Filter>));
+    define_constructor!(FileBrowserMessage:Add => fn add(PathBuf));
+    define_constructor!(FileBrowserMessage:Remove => fn remove(PathBuf));
+    define_constructor!(FileBrowserMessage:Rescan => fn rescan());
+    define_constructor!(FileBrowserMessage:FocusCurrentPath => fn focus_current_path());
     define_constructor!(FileBrowserMessage:Drop => fn drop(
         dropped: Handle<UiNode>,
         path_item: Handle<UiNode>,
         path: PathBuf,
-        dropped_path: PathBuf),
-        layout: false
+        dropped_path: PathBuf)
     );
 }
 

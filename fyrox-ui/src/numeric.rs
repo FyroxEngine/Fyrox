@@ -46,6 +46,7 @@ use crate::{
     VerticalAlignment,
 };
 
+use crate::message::MessageData;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
@@ -120,23 +121,24 @@ pub enum NumericUpDownMessage<T: NumericType> {
     /// automatically when the new precision is set (with [`MessageDirection::FromWidget`]).
     Precision(usize),
 }
+impl<T: NumericType> MessageData for NumericUpDownMessage<T> {}
 
 impl<T: NumericType> NumericUpDownMessage<T> {
     define_constructor!(
         /// Creates [`NumericUpDownMessage::Value`] message.
-        NumericUpDownMessage:Value => fn value(T), layout: false
+        NumericUpDownMessage:Value => fn value(T)
     );
     define_constructor!(
         /// Creates [`NumericUpDownMessage::MinValue`] message.
-        NumericUpDownMessage:MinValue => fn min_value(T), layout: false
+        NumericUpDownMessage:MinValue => fn min_value(T)
     );
     define_constructor!(
         /// Creates [`NumericUpDownMessage::MaxValue`] message.
-        NumericUpDownMessage:MaxValue => fn max_value(T), layout: false
+        NumericUpDownMessage:MaxValue => fn max_value(T)
     );
     define_constructor!(
         /// Creates [`NumericUpDownMessage::Step`] message.
-        NumericUpDownMessage:Step => fn step(T), layout: false
+        NumericUpDownMessage:Step => fn step(T)
     );
 
     /// Creates [`NumericUpDownMessage::Precision`] message.
@@ -147,11 +149,10 @@ impl<T: NumericType> NumericUpDownMessage<T> {
     ) -> UiMessage {
         UiMessage {
             handled: Default::default(),
-            data: Box::new(precision),
+            data: Box::new(Self::Precision(precision)),
             destination,
             direction,
             routing_strategy: Default::default(),
-            perform_layout: Default::default(),
             flags: 0,
         }
     }

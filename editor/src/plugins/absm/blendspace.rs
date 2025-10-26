@@ -59,6 +59,7 @@ use crate::plugins::absm::{
 use crate::{menu::create_menu_item, message::MessageSender, send_sync_message};
 
 use fyrox::gui::menu::ContextMenuBuilder;
+use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::{
@@ -84,15 +85,21 @@ pub enum BlendSpaceFieldMessage {
 }
 
 impl BlendSpaceFieldMessage {
-    define_constructor!(BlendSpaceFieldMessage:Points => fn points(Vec<Vector2<f32>>), layout: true);
-    define_constructor!(BlendSpaceFieldMessage:Triangles => fn triangles(Vec<TriangleDefinition>), layout: false);
-    define_constructor!(BlendSpaceFieldMessage:MinValues => fn min_values(Vector2<f32>), layout: false);
-    define_constructor!(BlendSpaceFieldMessage:MaxValues => fn max_values(Vector2<f32>), layout: false);
-    define_constructor!(BlendSpaceFieldMessage:SnapStep => fn snap_step(Vector2<f32>), layout: false);
-    define_constructor!(BlendSpaceFieldMessage:SamplingPoint => fn sampling_point(Vector2<f32>), layout: false);
-    define_constructor!(BlendSpaceFieldMessage:MovePoint  => fn move_point(index: usize, position: Vector2<f32>), layout: false);
-    define_constructor!(BlendSpaceFieldMessage:AddPoint  => fn add_point(Vector2<f32>), layout: false);
-    define_constructor!(BlendSpaceFieldMessage:RemovePoint  => fn remove_point(usize), layout: false);
+    define_constructor!(BlendSpaceFieldMessage:Points => fn points(Vec<Vector2<f32>>));
+    define_constructor!(BlendSpaceFieldMessage:Triangles => fn triangles(Vec<TriangleDefinition>));
+    define_constructor!(BlendSpaceFieldMessage:MinValues => fn min_values(Vector2<f32>));
+    define_constructor!(BlendSpaceFieldMessage:MaxValues => fn max_values(Vector2<f32>));
+    define_constructor!(BlendSpaceFieldMessage:SnapStep => fn snap_step(Vector2<f32>));
+    define_constructor!(BlendSpaceFieldMessage:SamplingPoint => fn sampling_point(Vector2<f32>));
+    define_constructor!(BlendSpaceFieldMessage:MovePoint  => fn move_point(index: usize, position: Vector2<f32>));
+    define_constructor!(BlendSpaceFieldMessage:AddPoint  => fn add_point(Vector2<f32>));
+    define_constructor!(BlendSpaceFieldMessage:RemovePoint  => fn remove_point(usize));
+}
+
+impl MessageData for BlendSpaceFieldMessage {
+    fn need_perform_layout(&self) -> bool {
+        matches!(self, Self::Points(_))
+    }
 }
 
 #[derive(Clone, Visit, Reflect, Debug)]
@@ -564,9 +571,10 @@ impl BlendSpaceFieldBuilder {
 pub enum BlendSpaceFieldPointMessage {
     Select,
 }
+impl MessageData for BlendSpaceFieldPointMessage {}
 
 impl BlendSpaceFieldPointMessage {
-    define_constructor!(BlendSpaceFieldPointMessage:Select => fn select(), layout: false);
+    define_constructor!(BlendSpaceFieldPointMessage:Select => fn select());
 }
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]

@@ -22,6 +22,7 @@
 //! structure or enumeration recursively. It's primary usage is provide unified and simple way of introspection.
 //! See [`Inspector`] docs for more info and usage examples.
 
+use crate::message::MessageData;
 use crate::{
     border::BorderBuilder,
     check_box::CheckBoxBuilder,
@@ -81,11 +82,12 @@ pub enum CollectionChanged {
         property: FieldKind,
     },
 }
+impl MessageData for CollectionChanged {}
 
 impl CollectionChanged {
-    define_constructor!(CollectionChanged:Add => fn add(ObjectValue), layout: false);
-    define_constructor!(CollectionChanged:Remove => fn remove(usize), layout: false);
-    define_constructor!(CollectionChanged:ItemChanged => fn item_changed(index: usize, property: FieldKind), layout: false);
+    define_constructor!(CollectionChanged:Add => fn add(ObjectValue));
+    define_constructor!(CollectionChanged:Remove => fn remove(usize));
+    define_constructor!(CollectionChanged:ItemChanged => fn item_changed(index: usize, property: FieldKind));
 }
 
 /// Changes that can happen to inheritable variables.
@@ -423,14 +425,15 @@ pub enum InspectorMessage {
         dest: String,
     },
 }
+impl MessageData for InspectorMessage {}
 
 impl InspectorMessage {
-    define_constructor!(InspectorMessage:Context => fn context(InspectorContext), layout: false);
-    define_constructor!(InspectorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
-    define_constructor!(InspectorMessage:CopyValue => fn copy_value(path: String), layout: false);
-    define_constructor!(InspectorMessage:PasteValue => fn paste_value(dest: String), layout: false);
-    define_constructor!(InspectorMessage:PropertyContextMenuOpened => fn property_context_menu_opened(path: String), layout: false);
-    define_constructor!(InspectorMessage:PropertyContextMenuStatus => fn property_context_menu_status(can_clone: bool, can_paste: bool), layout: false);
+    define_constructor!(InspectorMessage:Context => fn context(InspectorContext));
+    define_constructor!(InspectorMessage:PropertyChanged => fn property_changed(PropertyChanged));
+    define_constructor!(InspectorMessage:CopyValue => fn copy_value(path: String));
+    define_constructor!(InspectorMessage:PasteValue => fn paste_value(dest: String));
+    define_constructor!(InspectorMessage:PropertyContextMenuOpened => fn property_context_menu_opened(path: String));
+    define_constructor!(InspectorMessage:PropertyContextMenuStatus => fn property_context_menu_status(can_clone: bool, can_paste: bool));
 }
 
 /// This trait allows dynamically typed context information to be

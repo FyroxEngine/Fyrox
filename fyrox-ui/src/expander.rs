@@ -35,6 +35,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
 
+use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -48,11 +49,12 @@ pub enum ExpanderMessage {
     /// to get its new state [`MessageDirection::FromWidget`].
     Expand(bool),
 }
+impl MessageData for ExpanderMessage {}
 
 impl ExpanderMessage {
     define_constructor!(
         /// Creates [`ExpanderMessage::Expand`] message.
-        ExpanderMessage:Expand => fn expand(bool), layout: false
+        ExpanderMessage:Expand => fn expand(bool)
     );
 }
 

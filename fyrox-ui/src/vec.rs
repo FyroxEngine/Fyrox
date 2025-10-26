@@ -33,6 +33,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, Widget,
 };
 
+use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -87,12 +88,13 @@ where
 {
     Value(SVector<T, D>),
 }
+impl<T: NumericType, const D: usize> MessageData for VecEditorMessage<T, D> {}
 
 impl<T, const D: usize> VecEditorMessage<T, D>
 where
     T: NumericType,
 {
-    define_constructor!(VecEditorMessage:Value => fn value(SVector<T, D>), layout: false);
+    define_constructor!(VecEditorMessage:Value => fn value(SVector<T, D>));
 }
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]

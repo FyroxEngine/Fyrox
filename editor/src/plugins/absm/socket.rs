@@ -36,6 +36,7 @@ use crate::fyrox::{
     },
 };
 
+use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::ops::{Deref, DerefMut};
@@ -45,9 +46,10 @@ pub enum SocketMessage {
     // Occurs when user clicks on socket and starts dragging it.
     StartDragging,
 }
+impl MessageData for SocketMessage {}
 
 impl SocketMessage {
-    define_constructor!(SocketMessage:StartDragging => fn start_dragging(), layout: false);
+    define_constructor!(SocketMessage:StartDragging => fn start_dragging());
 }
 
 #[derive(Copy, Clone, PartialEq, Hash, Debug, Eq, Visit, Reflect, Default)]

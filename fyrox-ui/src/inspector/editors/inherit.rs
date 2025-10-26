@@ -21,6 +21,7 @@
 //! Property editor for [`InheritableVariable`]. It acts like a proxy to inner property, but also
 //! adds special "revert" button that is used to revert value to its parent's value.
 
+use crate::message::MessageData;
 use crate::resources::REVERT_ICON;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
@@ -57,10 +58,11 @@ pub enum InheritablePropertyEditorMessage {
     Revert,
     Modified(bool),
 }
+impl MessageData for InheritablePropertyEditorMessage {}
 
 impl InheritablePropertyEditorMessage {
-    define_constructor!(InheritablePropertyEditorMessage:Revert => fn revert(), layout: false);
-    define_constructor!(InheritablePropertyEditorMessage:Modified => fn modified(bool), layout: false);
+    define_constructor!(InheritablePropertyEditorMessage:Revert => fn revert());
+    define_constructor!(InheritablePropertyEditorMessage:Modified => fn modified(bool));
 }
 
 #[derive(Debug, Clone, Visit, Reflect, ComponentProvider)]

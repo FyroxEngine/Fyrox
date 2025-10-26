@@ -43,12 +43,13 @@ pub enum TileBoundsMessage {
     FlipX,
     FlipY,
 }
+impl MessageData for TileBoundsMessage {}
 
 impl TileBoundsMessage {
-    define_constructor!(TileBoundsMessage:Value => fn value(Option<TileBounds>), layout: false);
-    define_constructor!(TileBoundsMessage:Turn => fn turn(i8), layout: false);
-    define_constructor!(TileBoundsMessage:FlipX => fn flip_x(), layout: false);
-    define_constructor!(TileBoundsMessage:FlipY => fn flip_y(), layout: false);
+    define_constructor!(TileBoundsMessage:Value => fn value(Option<TileBounds>));
+    define_constructor!(TileBoundsMessage:Turn => fn turn(i8));
+    define_constructor!(TileBoundsMessage:FlipX => fn flip_x());
+    define_constructor!(TileBoundsMessage:FlipY => fn flip_y());
 }
 
 #[derive(Clone, Default, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]

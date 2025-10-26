@@ -36,6 +36,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use core::f32;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -55,12 +56,13 @@ pub enum TileMessage {
         first: bool,
     },
 }
+impl MessageData for TileMessage {}
 
 impl TileMessage {
-    define_constructor!(TileMessage:Content => fn content(TileContent), layout: false);
+    define_constructor!(TileMessage:Content => fn content(TileContent));
     define_constructor!(TileMessage:Split => fn split(window: Handle<UiNode>,
         direction: SplitDirection,
-        first: bool), layout: false);
+        first: bool));
 }
 
 #[derive(Default, Debug, PartialEq, Clone, Visit, Reflect)]

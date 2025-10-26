@@ -46,6 +46,7 @@ use crate::{
     VerticalAlignment,
 };
 
+use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -68,23 +69,24 @@ pub enum ScrollBarMessage {
     /// content in it (with [`MessageDirection::ToWidget`].
     SizeRatio(f32),
 }
+impl MessageData for ScrollBarMessage {}
 
 impl ScrollBarMessage {
     define_constructor!(
         /// Creates [`ScrollBarMessage::Value`] message.
-        ScrollBarMessage:Value => fn value(f32), layout: false
+        ScrollBarMessage:Value => fn value(f32)
     );
     define_constructor!(
         /// Creates [`ScrollBarMessage::MaxValue`] message.
-        ScrollBarMessage:MaxValue => fn max_value(f32), layout: false
+        ScrollBarMessage:MaxValue => fn max_value(f32)
     );
     define_constructor!(
         /// Creates [`ScrollBarMessage::MinValue`] message.
-        ScrollBarMessage:MinValue => fn min_value(f32), layout: false
+        ScrollBarMessage:MinValue => fn min_value(f32)
     );
     define_constructor!(
         /// Creates [`ScrollBarMessage::SizeRatio`] message.
-        ScrollBarMessage:SizeRatio => fn size_ratio(f32), layout: false
+        ScrollBarMessage:SizeRatio => fn size_ratio(f32)
     );
 }
 

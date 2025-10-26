@@ -35,6 +35,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
@@ -56,20 +57,29 @@ pub enum ScrollPanelMessage {
 impl ScrollPanelMessage {
     define_constructor!(
         /// Creates [`ScrollPanelMessage::VerticalScroll`] message.
-        ScrollPanelMessage:VerticalScroll => fn vertical_scroll(f32), layout: false
+        ScrollPanelMessage:VerticalScroll => fn vertical_scroll(f32)
     );
     define_constructor!(
         /// Creates [`ScrollPanelMessage::HorizontalScroll`] message.
-        ScrollPanelMessage:HorizontalScroll => fn horizontal_scroll(f32), layout: false
+        ScrollPanelMessage:HorizontalScroll => fn horizontal_scroll(f32)
     );
     define_constructor!(
         /// Creates [`ScrollPanelMessage::BringIntoView`] message.
-        ScrollPanelMessage:BringIntoView => fn bring_into_view(Handle<UiNode>), layout: true
+        ScrollPanelMessage:BringIntoView => fn bring_into_view(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates [`ScrollPanelMessage::ScrollToEnd`] message.
-        ScrollPanelMessage:ScrollToEnd => fn scroll_to_end(), layout: true
+        ScrollPanelMessage:ScrollToEnd => fn scroll_to_end()
     );
+}
+
+impl MessageData for ScrollPanelMessage {
+    fn need_perform_layout(&self) -> bool {
+        matches!(
+            self,
+            ScrollPanelMessage::BringIntoView(_) | ScrollPanelMessage::ScrollToEnd
+        )
+    }
 }
 
 /// Scroll panel widget is used to arrange its children widgets, so they can be offset by a certain amount of units

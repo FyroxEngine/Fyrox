@@ -47,6 +47,7 @@ use crate::{
     Message,
 };
 
+use fyrox::gui::message::MessageData;
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
@@ -57,10 +58,11 @@ pub enum SceneItemMessage {
     Name(String),
     Validate(Result<(), String>),
 }
+impl MessageData for SceneItemMessage {}
 
 impl SceneItemMessage {
-    define_constructor!(SceneItemMessage:Name => fn name(String), layout: false);
-    define_constructor!(SceneItemMessage:Validate => fn validate(Result<(), String>), layout: false);
+    define_constructor!(SceneItemMessage:Name => fn name(String));
+    define_constructor!(SceneItemMessage:Validate => fn validate(Result<(), String>));
 }
 
 #[derive(Copy, Clone)]

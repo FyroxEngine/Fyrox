@@ -57,6 +57,7 @@ use crate::{
     Message,
 };
 use fyrox::gui::brush::Brush;
+use fyrox::gui::message::MessageData;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -67,9 +68,10 @@ use std::{
 pub enum SurfaceDataPropertyEditorMessage {
     Value(SurfaceResource),
 }
+impl MessageData for SurfaceDataPropertyEditorMessage {}
 
 impl SurfaceDataPropertyEditorMessage {
-    define_constructor!(SurfaceDataPropertyEditorMessage:Value => fn value(SurfaceResource), layout: false);
+    define_constructor!(SurfaceDataPropertyEditorMessage:Value => fn value(SurfaceResource));
 }
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]

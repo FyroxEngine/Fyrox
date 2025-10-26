@@ -45,6 +45,7 @@ use crate::plugins::absm::{
 };
 use crate::utils::fetch_node_center;
 
+use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::material::MaterialResource;
@@ -54,9 +55,10 @@ use std::ops::{Deref, DerefMut};
 pub enum TransitionMessage {
     Activate,
 }
+impl MessageData for TransitionMessage {}
 
 impl TransitionMessage {
-    define_constructor!(TransitionMessage:Activate => fn activate(), layout: false);
+    define_constructor!(TransitionMessage:Activate => fn activate());
 }
 
 #[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]

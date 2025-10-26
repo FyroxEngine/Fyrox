@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::message::MessageData;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -66,15 +67,16 @@ pub enum MenuMessage {
     /// Deactivates the menu.
     Deactivate,
 }
+impl MessageData for MenuMessage {}
 
 impl MenuMessage {
     define_constructor!(
         /// Creates [`MenuMessage::Activate`] message.
-        MenuMessage:Activate => fn activate(), layout: false
+        MenuMessage:Activate => fn activate()
     );
     define_constructor!(
         /// Creates [`MenuMessage::Deactivate`] message.
-        MenuMessage:Deactivate => fn deactivate(), layout: false
+        MenuMessage:Deactivate => fn deactivate()
     );
 }
 
@@ -152,39 +154,40 @@ pub enum MenuItemMessage {
     /// Sorts menu items by the given predicate.
     Sort(SortingPredicate),
 }
+impl MessageData for MenuItemMessage {}
 
 impl MenuItemMessage {
     define_constructor!(
         /// Creates [`MenuItemMessage::Open`] message.
-        MenuItemMessage:Open => fn open(), layout: false
+        MenuItemMessage:Open => fn open()
     );
     define_constructor!(
           /// Creates [`MenuItemMessage::Close`] message.
-        MenuItemMessage:Close => fn close(deselect: bool), layout: false
+        MenuItemMessage:Close => fn close(deselect: bool)
     );
     define_constructor!(
           /// Creates [`MenuItemMessage::Click`] message.
-        MenuItemMessage:Click => fn click(), layout: false
+        MenuItemMessage:Click => fn click()
     );
     define_constructor!(
           /// Creates [`MenuItemMessage::AddItem`] message.
-        MenuItemMessage:AddItem => fn add_item(Handle<UiNode>), layout: false
+        MenuItemMessage:AddItem => fn add_item(Handle<UiNode>)
     );
     define_constructor!(
           /// Creates [`MenuItemMessage::RemoveItem`] message.
-        MenuItemMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false
+        MenuItemMessage:RemoveItem => fn remove_item(Handle<UiNode>)
     );
     define_constructor!(
           /// Creates [`MenuItemMessage::Items`] message.
-        MenuItemMessage:Items => fn items(Vec<Handle<UiNode>>), layout: false
+        MenuItemMessage:Items => fn items(Vec<Handle<UiNode>>)
     );
     define_constructor!(
           /// Creates [`MenuItemMessage::Select`] message.
-        MenuItemMessage:Select => fn select(bool), layout: false
+        MenuItemMessage:Select => fn select(bool)
     );
     define_constructor!(
           /// Creates [`MenuItemMessage::Sort`] message.
-        MenuItemMessage:Sort => fn sort(SortingPredicate), layout: false
+        MenuItemMessage:Sort => fn sort(SortingPredicate)
     );
 }
 

@@ -21,6 +21,7 @@
 //! The Window widget provides a standard window that can contain another widget. See [`Window`] docs
 //! for more info and usage examples.
 
+use crate::message::MessageData;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -136,15 +137,16 @@ pub enum WindowMessage {
     /// be able to drag it.
     SafeBorderSize(Option<Vector2<f32>>),
 }
+impl MessageData for WindowMessage {}
 
 impl WindowMessage {
     define_constructor!(
         /// Creates [`WindowMessage::Open`] message.
-        WindowMessage:Open => fn open(center: bool, focus_content: bool), layout: false
+        WindowMessage:Open => fn open(center: bool, focus_content: bool)
     );
     define_constructor!(
         /// Creates [`WindowMessage::OpenAt`] message.
-        WindowMessage:OpenAt => fn open_at(position: Vector2<f32>, focus_content: bool), layout: false
+        WindowMessage:OpenAt => fn open_at(position: Vector2<f32>, focus_content: bool)
     );
     define_constructor!(
         /// Creates [`WindowMessage::OpenAndAlign`] message.
@@ -155,55 +157,55 @@ impl WindowMessage {
             margin: Thickness,
             modal: bool,
             focus_content: bool
-        ), layout: false
+        )
     );
     define_constructor!(
         /// Creates [`WindowMessage::OpenModal`] message.
-        WindowMessage:OpenModal => fn open_modal(center: bool, focus_content: bool), layout: false
+        WindowMessage:OpenModal => fn open_modal(center: bool, focus_content: bool)
     );
     define_constructor!(
         /// Creates [`WindowMessage::Close`] message.
-        WindowMessage:Close => fn close(), layout: false
+        WindowMessage:Close => fn close()
     );
     define_constructor!(
         /// Creates [`WindowMessage::Minimize`] message.
-        WindowMessage:Minimize => fn minimize(bool), layout: false
+        WindowMessage:Minimize => fn minimize(bool)
     );
     define_constructor!(
         /// Creates [`WindowMessage::Maximize`] message.
-        WindowMessage:Maximize => fn maximize(bool), layout: false
+        WindowMessage:Maximize => fn maximize(bool)
     );
     define_constructor!(
         /// Creates [`WindowMessage::CanMinimize`] message.
-        WindowMessage:CanMinimize => fn can_minimize(bool), layout: false
+        WindowMessage:CanMinimize => fn can_minimize(bool)
     );
     define_constructor!(
         /// Creates [`WindowMessage::CanClose`] message.
-        WindowMessage:CanClose => fn can_close(bool), layout: false
+        WindowMessage:CanClose => fn can_close(bool)
     );
     define_constructor!(
         /// Creates [`WindowMessage::CanResize`] message.
-        WindowMessage:CanResize => fn can_resize(bool), layout: false
+        WindowMessage:CanResize => fn can_resize(bool)
     );
     define_constructor!(
         /// Creates [`WindowMessage::MoveStart`] message.
-        WindowMessage:MoveStart => fn move_start(), layout: false
+        WindowMessage:MoveStart => fn move_start()
     );
     define_constructor!(
         /// Creates [`WindowMessage::Move`] message.
-        WindowMessage:Move => fn move_to(Vector2<f32>), layout: false
+        WindowMessage:Move => fn move_to(Vector2<f32>)
     );
     define_constructor!(
         /// Creates [`WindowMessage::MoveEnd`] message.
-        WindowMessage:MoveEnd => fn move_end(), layout: false
+        WindowMessage:MoveEnd => fn move_end()
     );
     define_constructor!(
         /// Creates [`WindowMessage::Title`] message.
-        WindowMessage:Title => fn title(WindowTitle), layout: false
+        WindowMessage:Title => fn title(WindowTitle)
     );
     define_constructor!(
         /// Creates [`WindowMessage::SafeBorderSize`] message.
-        WindowMessage:SafeBorderSize => fn safe_border_size(Option<Vector2<f32>>), layout: false
+        WindowMessage:SafeBorderSize => fn safe_border_size(Option<Vector2<f32>>)
     );
 }
 

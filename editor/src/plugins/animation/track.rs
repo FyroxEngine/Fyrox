@@ -96,6 +96,7 @@ use crate::{
     },
     send_sync_message, utils,
 };
+use fyrox::gui::message::MessageData;
 use std::{
     any::TypeId,
     cmp::Ordering,
@@ -281,11 +282,12 @@ pub enum TrackViewMessage {
     TrackName(String),
     TrackTargetIsValid(Result<(), String>),
 }
+impl MessageData for TrackViewMessage {}
 
 impl TrackViewMessage {
-    define_constructor!(TrackViewMessage:TrackEnabled => fn track_enabled(bool), layout: false);
-    define_constructor!(TrackViewMessage:TrackName => fn track_name(String), layout: false);
-    define_constructor!(TrackViewMessage:TrackTargetIsValid => fn track_target_is_valid(Result<(), String>), layout: false);
+    define_constructor!(TrackViewMessage:TrackEnabled => fn track_enabled(bool));
+    define_constructor!(TrackViewMessage:TrackName => fn track_name(String));
+    define_constructor!(TrackViewMessage:TrackTargetIsValid => fn track_target_is_valid(Result<(), String>));
 }
 
 #[derive(Clone, Debug, Reflect, Visit, ComponentProvider)]

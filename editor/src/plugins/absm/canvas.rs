@@ -49,6 +49,7 @@ use crate::plugins::absm::{
 };
 use crate::utils::fetch_node_screen_center_ui;
 
+use fyrox::gui::message::MessageData;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -109,13 +110,19 @@ pub(crate) enum AbsmCanvasMessage {
 }
 
 impl AbsmCanvasMessage {
-    define_constructor!(AbsmCanvasMessage:SwitchMode => fn switch_mode(Mode), layout: false);
-    define_constructor!(AbsmCanvasMessage:CommitTransition => fn commit_transition(source_node: Handle<UiNode>, dest_node: Handle<UiNode>), layout: false);
-    define_constructor!(AbsmCanvasMessage:CommitConnection => fn commit_connection(source_socket: Handle<UiNode>, dest_socket: Handle<UiNode>), layout: false);
-    define_constructor!(AbsmCanvasMessage:CommitDrag => fn commit_drag(entries: Vec<Entry>), layout: false);
-    define_constructor!(AbsmCanvasMessage:CommitTransitionToAllNodes => fn commit_transition_to_all_nodes(source_node: Handle<UiNode>, dest_nodes: Vec<Handle<UiNode>>), layout: false);
-    define_constructor!(AbsmCanvasMessage:SelectionChanged => fn selection_changed(Vec<Handle<UiNode>>), layout: false);
-    define_constructor!(AbsmCanvasMessage:ForceSyncDependentObjects => fn force_sync_dependent_objects(), layout: true);
+    define_constructor!(AbsmCanvasMessage:SwitchMode => fn switch_mode(Mode));
+    define_constructor!(AbsmCanvasMessage:CommitTransition => fn commit_transition(source_node: Handle<UiNode>, dest_node: Handle<UiNode>));
+    define_constructor!(AbsmCanvasMessage:CommitConnection => fn commit_connection(source_socket: Handle<UiNode>, dest_socket: Handle<UiNode>));
+    define_constructor!(AbsmCanvasMessage:CommitDrag => fn commit_drag(entries: Vec<Entry>));
+    define_constructor!(AbsmCanvasMessage:CommitTransitionToAllNodes => fn commit_transition_to_all_nodes(source_node: Handle<UiNode>, dest_nodes: Vec<Handle<UiNode>>));
+    define_constructor!(AbsmCanvasMessage:SelectionChanged => fn selection_changed(Vec<Handle<UiNode>>));
+    define_constructor!(AbsmCanvasMessage:ForceSyncDependentObjects => fn force_sync_dependent_objects());
+}
+
+impl MessageData for AbsmCanvasMessage {
+    fn need_perform_layout(&self) -> bool {
+        matches!(self, Self::ForceSyncDependentObjects)
+    }
 }
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]

@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::message::MessageData;
 use crate::{
     border::BorderBuilder,
     core::{
@@ -64,32 +65,38 @@ pub enum PopupMessage {
 impl PopupMessage {
     define_constructor!(
         /// Creates [`PopupMessage::Open`] message.
-        PopupMessage:Open => fn open(), layout: false
+        PopupMessage:Open => fn open()
     );
     define_constructor!(
         /// Creates [`PopupMessage::Close`] message.
-        PopupMessage:Close => fn close(), layout: false
+        PopupMessage:Close => fn close()
     );
     define_constructor!(
         /// Creates [`PopupMessage::Content`] message.
-        PopupMessage:Content => fn content(Handle<UiNode>), layout: false
+        PopupMessage:Content => fn content(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates [`PopupMessage::Placement`] message.
-        PopupMessage:Placement => fn placement(Placement), layout: false
+        PopupMessage:Placement => fn placement(Placement)
     );
     define_constructor!(
         /// Creates [`PopupMessage::AdjustPosition`] message.
-        PopupMessage:AdjustPosition => fn adjust_position(), layout: true
+        PopupMessage:AdjustPosition => fn adjust_position()
     );
     define_constructor!(
         /// Creates [`PopupMessage::Owner`] message.
-        PopupMessage:Owner => fn owner(Handle<UiNode>), layout: false
+        PopupMessage:Owner => fn owner(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates [`PopupMessage::RelayedMessage`] message.
-        PopupMessage:RelayedMessage => fn relayed_message(UiMessage), layout: false
+        PopupMessage:RelayedMessage => fn relayed_message(UiMessage)
     );
+}
+
+impl MessageData for PopupMessage {
+    fn need_perform_layout(&self) -> bool {
+        matches!(self, Self::AdjustPosition)
+    }
 }
 
 /// Defines a method of popup placement.

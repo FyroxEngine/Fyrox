@@ -34,6 +34,7 @@ use crate::{
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -46,11 +47,12 @@ pub enum StackPanelMessage {
     /// The message is used to change orientation of the stack panel.
     Orientation(Orientation),
 }
+impl MessageData for StackPanelMessage {}
 
 impl StackPanelMessage {
     define_constructor!(
         /// Creates [`StackPanelMessage::Orientation`] message.
-        StackPanelMessage:Orientation => fn orientation(Orientation), layout: false
+        StackPanelMessage:Orientation => fn orientation(Orientation)
     );
 }
 

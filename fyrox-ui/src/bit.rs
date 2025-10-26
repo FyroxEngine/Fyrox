@@ -20,6 +20,7 @@
 
 //! A widget that shows numeric value as a set of individual bits allowing switching separate bits.
 
+use crate::message::MessageData;
 use crate::resources::BITS_ICON;
 use crate::{
     brush::Brush,
@@ -101,9 +102,10 @@ impl<T> BitContainer for T where
 pub enum BitFieldMessage<T: BitContainer> {
     Value(T),
 }
+impl<T: BitContainer> MessageData for BitFieldMessage<T> {}
 
 impl<T: BitContainer> BitFieldMessage<T> {
-    define_constructor!(BitFieldMessage:Value => fn value(T), layout: false);
+    define_constructor!(BitFieldMessage:Value => fn value(T));
 }
 
 impl<T: BitContainer> ConstructorProvider<UiNode, UserInterface> for BitField<T> {

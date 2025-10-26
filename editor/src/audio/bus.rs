@@ -40,6 +40,7 @@ use crate::fyrox::{
     scene::sound::{AudioBus, AudioBusGraph},
 };
 
+use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::utils::make_dropdown_list_option;
@@ -52,12 +53,13 @@ pub enum AudioBusViewMessage {
     EffectNames(Vec<String>),
     Name(String),
 }
+impl MessageData for AudioBusViewMessage {}
 
 impl AudioBusViewMessage {
-    define_constructor!(AudioBusViewMessage:ChangeParent => fn change_parent(Handle<AudioBus>), layout: false);
-    define_constructor!(AudioBusViewMessage:PossibleParentBuses => fn possible_parent_buses(Vec<(Handle<AudioBus>, String)>), layout: false);
-    define_constructor!(AudioBusViewMessage:EffectNames => fn effect_names(Vec<String>), layout: false);
-    define_constructor!(AudioBusViewMessage:Name => fn name(String), layout: false);
+    define_constructor!(AudioBusViewMessage:ChangeParent => fn change_parent(Handle<AudioBus>));
+    define_constructor!(AudioBusViewMessage:PossibleParentBuses => fn possible_parent_buses(Vec<(Handle<AudioBus>, String)>));
+    define_constructor!(AudioBusViewMessage:EffectNames => fn effect_names(Vec<String>));
+    define_constructor!(AudioBusViewMessage:Name => fn name(String));
 }
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]

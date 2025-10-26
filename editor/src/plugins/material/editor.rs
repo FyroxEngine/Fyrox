@@ -58,6 +58,7 @@ use crate::{
     utils::make_pick_button,
     Message, MessageDirection,
 };
+use fyrox::gui::message::MessageData;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -69,9 +70,10 @@ use std::{
 pub enum MaterialFieldMessage {
     Material(MaterialResource),
 }
+impl MessageData for MaterialFieldMessage {}
 
 impl MaterialFieldMessage {
-    define_constructor!(MaterialFieldMessage:Material => fn material(MaterialResource), layout: false);
+    define_constructor!(MaterialFieldMessage:Material => fn material(MaterialResource));
 }
 
 #[derive(Clone, Visit, Reflect, ComponentProvider)]

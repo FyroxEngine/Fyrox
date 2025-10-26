@@ -40,6 +40,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -59,27 +60,28 @@ pub enum DecoratorMessage {
     /// Sets a new brush for `Selected` state.
     SelectedBrush(StyledProperty<Brush>),
 }
+impl MessageData for DecoratorMessage {}
 
 impl DecoratorMessage {
     define_constructor!(
         /// Creates a [`DecoratorMessage::Select`] message.
-        DecoratorMessage:Select => fn select(bool), layout: false
+        DecoratorMessage:Select => fn select(bool)
     );
     define_constructor!(
         /// Creates a [`DecoratorMessage::HoverBrush`] message.
-        DecoratorMessage:HoverBrush => fn hover_brush(StyledProperty<Brush>), layout: false
+        DecoratorMessage:HoverBrush => fn hover_brush(StyledProperty<Brush>)
     );
     define_constructor!(
         /// Creates a [`DecoratorMessage::NormalBrush`] message.
-        DecoratorMessage:NormalBrush => fn normal_brush(StyledProperty<Brush>), layout: false
+        DecoratorMessage:NormalBrush => fn normal_brush(StyledProperty<Brush>)
     );
     define_constructor!(
         /// Creates a [`DecoratorMessage::PressedBrush`] message.
-        DecoratorMessage:PressedBrush => fn pressed_brush(StyledProperty<Brush>), layout: false
+        DecoratorMessage:PressedBrush => fn pressed_brush(StyledProperty<Brush>)
     );
     define_constructor!(
         /// Creates a [`DecoratorMessage::SelectedBrush`] message.
-        DecoratorMessage:SelectedBrush => fn selected_brush(StyledProperty<Brush>), layout: false
+        DecoratorMessage:SelectedBrush => fn selected_brush(StyledProperty<Brush>)
     );
 }
 

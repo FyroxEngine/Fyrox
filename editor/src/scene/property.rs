@@ -44,6 +44,7 @@ use crate::fyrox::{
     },
 };
 
+use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::{
@@ -57,10 +58,11 @@ pub enum PropertySelectorMessage {
     Selection(Vec<PropertyDescriptorData>),
     ChooseFocus,
 }
+impl MessageData for PropertySelectorMessage {}
 
 impl PropertySelectorMessage {
-    define_constructor!(PropertySelectorMessage:Selection => fn selection(Vec<PropertyDescriptorData>), layout: false);
-    define_constructor!(PropertySelectorMessage:ChooseFocus => fn choose_focus(), layout: false);
+    define_constructor!(PropertySelectorMessage:Selection => fn selection(Vec<PropertyDescriptorData>));
+    define_constructor!(PropertySelectorMessage:ChooseFocus => fn choose_focus());
 }
 
 pub struct PropertyDescriptor {

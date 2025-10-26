@@ -40,6 +40,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_graph::BaseSceneGraph;
 use std::sync::Arc;
 use std::{
@@ -57,9 +58,10 @@ pub struct Item {
 pub enum ArrayEditorMessage {
     ItemChanged { index: usize, message: UiMessage },
 }
+impl MessageData for ArrayEditorMessage {}
 
 impl ArrayEditorMessage {
-    define_constructor!(ArrayEditorMessage:ItemChanged => fn item_changed(index: usize, message: UiMessage), layout: false);
+    define_constructor!(ArrayEditorMessage:ItemChanged => fn item_changed(index: usize, message: UiMessage));
 }
 
 #[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]

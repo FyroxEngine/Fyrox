@@ -56,6 +56,7 @@ use crate::{
     Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox::core::PhantomDataSendSync;
+use fyrox::gui::message::MessageData;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -66,6 +67,7 @@ use std::{
 pub enum HandlePropertyEditorMessage<T: Reflect> {
     Value(Handle<T>),
 }
+impl<T: Reflect> MessageData for HandlePropertyEditorMessage<T> {}
 
 impl<T: Reflect> Clone for HandlePropertyEditorMessage<T> {
     fn clone(&self) -> Self {
@@ -92,14 +94,16 @@ impl<T: Reflect> PartialEq for HandlePropertyEditorMessage<T> {
 }
 
 impl<T: Reflect> HandlePropertyEditorMessage<T> {
-    define_constructor!(HandlePropertyEditorMessage:Value => fn value(Handle<T>), layout: false);
+    define_constructor!(HandlePropertyEditorMessage:Value => fn value(Handle<T>));
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HandlePropertyEditorNameMessage(pub Option<String>);
+impl MessageData for HandlePropertyEditorNameMessage {}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HandlePropertyEditorHierarchyMessage(pub HierarchyNode);
+impl MessageData for HandlePropertyEditorHierarchyMessage {}
 
 #[derive(Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "3ceca8c1-c365-4f03-a413-062f8f3cd685")]

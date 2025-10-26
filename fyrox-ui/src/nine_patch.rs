@@ -32,6 +32,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
@@ -77,35 +78,36 @@ pub enum NinePatchMessage {
     Texture(Option<TextureResource>),
     DrawCenter(bool),
 }
+impl MessageData for NinePatchMessage {}
 
 impl NinePatchMessage {
     define_constructor!(
         /// Creates [`NinePatchMessage::LeftMargin`] message.
-        NinePatchMessage:LeftMargin => fn left_margin(u32), layout: false
+        NinePatchMessage:LeftMargin => fn left_margin(u32)
     );
     define_constructor!(
         /// Creates [`NinePatchMessage::RightMargin`] message.
-        NinePatchMessage:RightMargin => fn right_margin(u32), layout: false
+        NinePatchMessage:RightMargin => fn right_margin(u32)
     );
     define_constructor!(
         /// Creates [`NinePatchMessage::TopMargin`] message.
-        NinePatchMessage:TopMargin => fn top_margin(u32), layout: false
+        NinePatchMessage:TopMargin => fn top_margin(u32)
     );
     define_constructor!(
         /// Creates [`NinePatchMessage::BottomMargin`] message.
-        NinePatchMessage:BottomMargin => fn bottom_margin(u32), layout: false
+        NinePatchMessage:BottomMargin => fn bottom_margin(u32)
     );
     define_constructor!(
         /// Creates [`NinePatchMessage::TextureRegion`] message.
-        NinePatchMessage:TextureRegion => fn texture_region(Rect<u32>), layout: false
+        NinePatchMessage:TextureRegion => fn texture_region(Rect<u32>)
     );
     define_constructor!(
         /// Creates [`NinePatchMessage::Texture`] message.
-        NinePatchMessage:Texture => fn texture(Option<TextureResource>), layout: false
+        NinePatchMessage:Texture => fn texture(Option<TextureResource>)
     );
     define_constructor!(
         /// Creates [`NinePatchMessage::DrawCenter`] message.
-        NinePatchMessage:DrawCenter => fn draw_center(bool), layout: false
+        NinePatchMessage:DrawCenter => fn draw_center(bool)
     );
 }
 

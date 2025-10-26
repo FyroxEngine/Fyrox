@@ -25,7 +25,9 @@ use std::ops::{Deref, DerefMut};
 
 use crate::{send_sync_message, MSG_SYNC_FLAG};
 
+use super::*;
 use fyrox::gui::inspector::FieldKind;
+use fyrox::gui::message::MessageData;
 use fyrox::{
     core::{
         color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
@@ -53,8 +55,6 @@ use fyrox::{
     scene::tilemap::TileDefinitionHandle,
 };
 
-use super::*;
-
 /// A message for events related to [`TileDefinitionHandleEditor`].
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TileDefinitionHandleEditorMessage {
@@ -63,14 +63,15 @@ pub enum TileDefinitionHandleEditorMessage {
     /// The user has clicked the go-to button beside the handle.
     Goto(TileDefinitionHandle),
 }
+impl MessageData for TileDefinitionHandleEditorMessage {}
 
 impl TileDefinitionHandleEditorMessage {
     define_constructor!(
         /// The value of the handle has changed.
-        TileDefinitionHandleEditorMessage:Value => fn value(Option<TileDefinitionHandle>), layout: false);
+        TileDefinitionHandleEditorMessage:Value => fn value(Option<TileDefinitionHandle>));
     define_constructor!(
         /// The user has clicked the go-to button beside the handle.
-        TileDefinitionHandleEditorMessage:Goto => fn goto(TileDefinitionHandle), layout: false);
+        TileDefinitionHandleEditorMessage:Goto => fn goto(TileDefinitionHandle));
 }
 
 /// The widget for editing a [`TileDefinitionHandle`].

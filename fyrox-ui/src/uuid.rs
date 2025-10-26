@@ -34,6 +34,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
+use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
@@ -44,11 +45,12 @@ pub enum UuidEditorMessage {
     /// Fetches or modifies a value of a [`UuidEditor`] widget.
     Value(Uuid),
 }
+impl MessageData for UuidEditorMessage {}
 
 impl UuidEditorMessage {
     define_constructor!(
         /// Creates [`UuidEditorMessage::Value`] message.
-        UuidEditorMessage:Value => fn value(Uuid), layout: false
+        UuidEditorMessage:Value => fn value(Uuid)
     );
 }
 

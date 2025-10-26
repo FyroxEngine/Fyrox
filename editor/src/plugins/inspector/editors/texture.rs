@@ -54,6 +54,7 @@ use crate::{
     plugins::inspector::EditorEnvironment,
     utils, Message,
 };
+use fyrox::gui::message::MessageData;
 use fyrox::gui::text::TextMessage;
 use std::{
     any::TypeId,
@@ -147,9 +148,10 @@ impl DerefMut for TextureEditor {
 pub enum TextureEditorMessage {
     Texture(Option<TextureResource>),
 }
+impl MessageData for TextureEditorMessage {}
 
 impl TextureEditorMessage {
-    define_constructor!(TextureEditorMessage:Texture => fn texture(Option<TextureResource>), layout: false);
+    define_constructor!(TextureEditorMessage:Texture => fn texture(Option<TextureResource>));
 }
 
 uuid_provider!(TextureEditor = "5db49479-ff89-49b8-a038-0766253d6493");

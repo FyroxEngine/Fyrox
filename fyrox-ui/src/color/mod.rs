@@ -41,6 +41,7 @@ use crate::{
     BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
+use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
@@ -60,10 +61,11 @@ pub enum HueBarMessage {
     /// Sets new orientation
     Orientation(Orientation),
 }
+impl MessageData for HueBarMessage {}
 
 impl HueBarMessage {
-    define_constructor!(HueBarMessage:Hue => fn hue(f32), layout: false);
-    define_constructor!(HueBarMessage:Orientation => fn orientation(Orientation), layout: false);
+    define_constructor!(HueBarMessage:Hue => fn hue(f32));
+    define_constructor!(HueBarMessage:Orientation => fn orientation(Orientation));
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -74,10 +76,11 @@ pub enum AlphaBarMessage {
     /// Sets new orientation
     Orientation(Orientation),
 }
+impl MessageData for AlphaBarMessage {}
 
 impl AlphaBarMessage {
-    define_constructor!(AlphaBarMessage:Alpha => fn alpha(f32), layout: false);
-    define_constructor!(AlphaBarMessage:Orientation => fn orientation(Orientation), layout: false);
+    define_constructor!(AlphaBarMessage:Alpha => fn alpha(f32));
+    define_constructor!(AlphaBarMessage:Orientation => fn orientation(Orientation));
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -91,11 +94,12 @@ pub enum SaturationBrightnessFieldMessage {
     /// Sets new brightness value on the field.
     Brightness(f32),
 }
+impl MessageData for SaturationBrightnessFieldMessage {}
 
 impl SaturationBrightnessFieldMessage {
-    define_constructor!(SaturationBrightnessFieldMessage:Hue => fn hue(f32), layout: false);
-    define_constructor!(SaturationBrightnessFieldMessage:Saturation => fn saturation(f32), layout: false);
-    define_constructor!(SaturationBrightnessFieldMessage:Brightness => fn brightness(f32), layout: false);
+    define_constructor!(SaturationBrightnessFieldMessage:Hue => fn hue(f32));
+    define_constructor!(SaturationBrightnessFieldMessage:Saturation => fn saturation(f32));
+    define_constructor!(SaturationBrightnessFieldMessage:Brightness => fn brightness(f32));
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -110,19 +114,21 @@ pub enum ColorPickerMessage {
     /// Direction: **To Widget**.
     Hsv(Hsv),
 }
+impl MessageData for ColorPickerMessage {}
 
 impl ColorPickerMessage {
-    define_constructor!(ColorPickerMessage:Color => fn color(Color), layout: false);
-    define_constructor!(ColorPickerMessage:Hsv => fn hsv(Hsv), layout: false);
+    define_constructor!(ColorPickerMessage:Color => fn color(Color));
+    define_constructor!(ColorPickerMessage:Hsv => fn hsv(Hsv));
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ColorFieldMessage {
     Color(Color),
 }
+impl MessageData for ColorFieldMessage {}
 
 impl ColorFieldMessage {
-    define_constructor!(ColorFieldMessage:Color => fn color(Color), layout: false);
+    define_constructor!(ColorFieldMessage:Color => fn color(Color));
 }
 
 #[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]

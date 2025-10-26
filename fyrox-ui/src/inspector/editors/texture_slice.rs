@@ -56,6 +56,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
+use crate::message::MessageData;
 use fyrox_texture::TextureKind;
 use std::{
     any::TypeId,
@@ -67,9 +68,10 @@ use std::{
 pub enum TextureSliceEditorMessage {
     Slice(TextureSlice),
 }
+impl MessageData for TextureSliceEditorMessage {}
 
 impl TextureSliceEditorMessage {
-    define_constructor!(TextureSliceEditorMessage:Slice => fn slice(TextureSlice), layout: false);
+    define_constructor!(TextureSliceEditorMessage:Slice => fn slice(TextureSlice));
 }
 
 #[derive(Debug, Clone, PartialEq)]

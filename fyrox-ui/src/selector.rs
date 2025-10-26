@@ -33,6 +33,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -46,23 +47,24 @@ pub enum SelectorMessage {
     },
     Current(Option<usize>),
 }
+impl MessageData for SelectorMessage {}
 
 impl SelectorMessage {
     define_constructor!(
         /// Creates [`SelectorMessage::AddItem`] message.
-        SelectorMessage:AddItem => fn add_item(Handle<UiNode>), layout: false
+        SelectorMessage:AddItem => fn add_item(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates [`SelectorMessage::RemoveItem`] message.
-        SelectorMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false
+        SelectorMessage:RemoveItem => fn remove_item(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates [`SelectorMessage::SetItems`] message.
-        SelectorMessage:SetItems => fn set_items(items: Vec<Handle<UiNode>>, remove_previous: bool), layout: false
+        SelectorMessage:SetItems => fn set_items(items: Vec<Handle<UiNode>>, remove_previous: bool)
     );
     define_constructor!(
         /// Creates [`SelectorMessage::Current`] message.
-        SelectorMessage:Current => fn current(Option<usize>), layout: false
+        SelectorMessage:Current => fn current(Option<usize>)
     );
 }
 

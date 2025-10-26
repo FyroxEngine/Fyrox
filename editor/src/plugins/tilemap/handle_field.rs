@@ -33,6 +33,7 @@ use crate::{
     },
     send_sync_message,
 };
+use fyrox::gui::message::MessageData;
 
 use super::*;
 
@@ -44,11 +45,12 @@ pub enum TileHandleEditorMessage {
     OpenPalette(TileDefinitionHandle),
     Value(Option<TileDefinitionHandle>),
 }
+impl MessageData for TileHandleEditorMessage {}
 
 impl TileHandleEditorMessage {
-    define_constructor!(TileHandleEditorMessage:Goto => fn goto(TileDefinitionHandle), layout: false);
-    define_constructor!(TileHandleEditorMessage:OpenPalette => fn open_palette(TileDefinitionHandle), layout: false);
-    define_constructor!(TileHandleEditorMessage:Value => fn value(Option<TileDefinitionHandle>), layout: false);
+    define_constructor!(TileHandleEditorMessage:Goto => fn goto(TileDefinitionHandle));
+    define_constructor!(TileHandleEditorMessage:OpenPalette => fn open_palette(TileDefinitionHandle));
+    define_constructor!(TileHandleEditorMessage:Value => fn value(Option<TileDefinitionHandle>));
 }
 
 /// The widget for editing a [`TileDefinitionHandle`].

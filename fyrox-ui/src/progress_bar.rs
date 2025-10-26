@@ -38,6 +38,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -49,11 +50,12 @@ pub enum ProgressBarMessage {
     /// A message, that is used to set progress of the progress bar.
     Progress(f32),
 }
+impl MessageData for ProgressBarMessage {}
 
 impl ProgressBarMessage {
     define_constructor!(
         /// Creates [`ProgressBarMessage::Progress`].
-        ProgressBarMessage:Progress => fn progress(f32), layout: false
+        ProgressBarMessage:Progress => fn progress(f32)
     );
 }
 

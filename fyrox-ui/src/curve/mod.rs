@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::message::CursorIcon;
+use crate::message::{CursorIcon, MessageData};
 use crate::style::resource::StyleResourceExt;
 use crate::style::Style;
 use crate::{
@@ -93,21 +93,27 @@ pub enum CurveEditorMessage {
 }
 
 impl CurveEditorMessage {
-    define_constructor!(CurveEditorMessage:SyncBackground => fn sync_background(Vec<Curve>), layout: false);
-    define_constructor!(CurveEditorMessage:Sync => fn sync(Vec<Curve>), layout: false);
-    define_constructor!(CurveEditorMessage:Colorize => fn colorize(Vec<(Uuid, Brush)>), layout: false);
-    define_constructor!(CurveEditorMessage:ViewPosition => fn view_position(Vector2<f32>), layout: false);
-    define_constructor!(CurveEditorMessage:Zoom => fn zoom(Vector2<f32>), layout: false);
-    define_constructor!(CurveEditorMessage:ZoomToFit => fn zoom_to_fit(after_layout: bool), layout: true);
-    define_constructor!(CurveEditorMessage:HighlightZones => fn hightlight_zones(Vec<HighlightZone>), layout: false);
+    define_constructor!(CurveEditorMessage:SyncBackground => fn sync_background(Vec<Curve>));
+    define_constructor!(CurveEditorMessage:Sync => fn sync(Vec<Curve>));
+    define_constructor!(CurveEditorMessage:Colorize => fn colorize(Vec<(Uuid, Brush)>));
+    define_constructor!(CurveEditorMessage:ViewPosition => fn view_position(Vector2<f32>));
+    define_constructor!(CurveEditorMessage:Zoom => fn zoom(Vector2<f32>));
+    define_constructor!(CurveEditorMessage:ZoomToFit => fn zoom_to_fit(after_layout: bool));
+    define_constructor!(CurveEditorMessage:HighlightZones => fn hightlight_zones(Vec<HighlightZone>));
     // Internal. Use only when you know what you're doing.
-    define_constructor!(CurveEditorMessage:RemoveSelection => fn remove_selection(), layout: false);
-    define_constructor!(CurveEditorMessage:ChangeSelectedKeysKind => fn change_selected_keys_kind(CurveKeyKind), layout: false);
-    define_constructor!(CurveEditorMessage:ChangeSelectedKeysValue => fn change_selected_keys_value(f32), layout: false);
-    define_constructor!(CurveEditorMessage:ChangeSelectedKeysLocation => fn change_selected_keys_location(f32), layout: false);
-    define_constructor!(CurveEditorMessage:AddKey => fn add_key(Vector2<f32>), layout: false);
-    define_constructor!(CurveEditorMessage:CopySelection => fn copy_selection(), layout: false);
-    define_constructor!(CurveEditorMessage:PasteSelection => fn paste_selection(), layout: false);
+    define_constructor!(CurveEditorMessage:RemoveSelection => fn remove_selection());
+    define_constructor!(CurveEditorMessage:ChangeSelectedKeysKind => fn change_selected_keys_kind(CurveKeyKind));
+    define_constructor!(CurveEditorMessage:ChangeSelectedKeysValue => fn change_selected_keys_value(f32));
+    define_constructor!(CurveEditorMessage:ChangeSelectedKeysLocation => fn change_selected_keys_location(f32));
+    define_constructor!(CurveEditorMessage:AddKey => fn add_key(Vector2<f32>));
+    define_constructor!(CurveEditorMessage:CopySelection => fn copy_selection());
+    define_constructor!(CurveEditorMessage:PasteSelection => fn paste_selection());
+}
+
+impl MessageData for CurveEditorMessage {
+    fn need_perform_layout(&self) -> bool {
+        matches!(self, Self::ZoomToFit { .. })
+    }
 }
 
 /// Highlight zone in values space.

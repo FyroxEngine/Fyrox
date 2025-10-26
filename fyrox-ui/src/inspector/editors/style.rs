@@ -21,6 +21,7 @@
 //! Property editor for [`StyledProperty`]. It acts like a proxy to inner property, but also
 //! adds a special "bind" button used to change style binding of the property.
 
+use crate::message::MessageData;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
@@ -65,18 +66,20 @@ use std::{
 pub enum StyledPropertySelectorMessage {
     PropertyName(ImmutableString),
 }
+impl MessageData for StyledPropertySelectorMessage {}
 
 impl StyledPropertySelectorMessage {
-    define_constructor!(StyledPropertySelectorMessage:PropertyName => fn property_name(ImmutableString), layout: false);
+    define_constructor!(StyledPropertySelectorMessage:PropertyName => fn property_name(ImmutableString));
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum StyledPropertyEditorMessage {
     BindProperty(ImmutableString),
 }
+impl MessageData for StyledPropertyEditorMessage {}
 
 impl StyledPropertyEditorMessage {
-    define_constructor!(StyledPropertyEditorMessage:BindProperty => fn bind_property(ImmutableString), layout: false);
+    define_constructor!(StyledPropertyEditorMessage:BindProperty => fn bind_property(ImmutableString));
 }
 
 #[derive(Debug, Clone, Visit, Reflect, ComponentProvider, TypeUuidProvider)]

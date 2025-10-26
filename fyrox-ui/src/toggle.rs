@@ -29,6 +29,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -48,13 +49,14 @@ pub enum ToggleButtonMessage {
     Toggled(bool),
     Content(Handle<UiNode>),
 }
+impl MessageData for ToggleButtonMessage {}
 
 impl ToggleButtonMessage {
     define_constructor!(
-        ToggleButtonMessage:Toggled => fn toggled(bool), layout: false
+        ToggleButtonMessage:Toggled => fn toggled(bool)
     );
     define_constructor!(
-        ToggleButtonMessage:Content => fn content(Handle<UiNode>), layout: false
+        ToggleButtonMessage:Content => fn content(Handle<UiNode>)
     );
 }
 

@@ -45,6 +45,7 @@ use crate::{
     VerticalAlignment,
 };
 
+use crate::message::MessageData;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
@@ -86,35 +87,36 @@ pub enum TabControlMessage {
         definition: TabDefinition,
     },
 }
+impl MessageData for TabControlMessage {}
 
 impl TabControlMessage {
     define_constructor!(
         /// Creates [`TabControlMessage::ActiveTab`] message.
-        TabControlMessage:ActiveTab => fn active_tab(Option<usize>), layout: false
+        TabControlMessage:ActiveTab => fn active_tab(Option<usize>)
     );
     define_constructor!(
         /// Creates [`TabControlMessage::ActiveTabUuid`] message.
-        TabControlMessage:ActiveTabUuid => fn active_tab_uuid(Option<Uuid>), layout: false
+        TabControlMessage:ActiveTabUuid => fn active_tab_uuid(Option<Uuid>)
     );
     define_constructor!(
         /// Creates [`TabControlMessage::CloseTab`] message.
-        TabControlMessage:CloseTab => fn close_tab(usize), layout: false
+        TabControlMessage:CloseTab => fn close_tab(usize)
     );
     define_constructor!(
         /// Creates [`TabControlMessage::CloseTabByUuid`] message.
-        TabControlMessage:CloseTabByUuid => fn close_tab_by_uuid(Uuid), layout: false
+        TabControlMessage:CloseTabByUuid => fn close_tab_by_uuid(Uuid)
     );
     define_constructor!(
         /// Creates [`TabControlMessage::RemoveTab`] message.
-        TabControlMessage:RemoveTab => fn remove_tab(usize), layout: false
+        TabControlMessage:RemoveTab => fn remove_tab(usize)
     );
     define_constructor!(
         /// Creates [`TabControlMessage::RemoveTabByUuid`] message.
-        TabControlMessage:RemoveTabByUuid => fn remove_tab_by_uuid(Uuid), layout: false
+        TabControlMessage:RemoveTabByUuid => fn remove_tab_by_uuid(Uuid)
     );
     define_constructor!(
         /// Creates [`TabControlMessage::AddTab`] message.
-        TabControlMessage:AddTab => fn add_tab_with_uuid(uuid: Uuid, definition: TabDefinition), layout: false
+        TabControlMessage:AddTab => fn add_tab_with_uuid(uuid: Uuid, definition: TabDefinition)
     );
     /// Creates [`TabControlMessage::AddTab`] message with a random UUID.
     pub fn add_tab(
@@ -131,7 +133,6 @@ impl TabControlMessage {
             destination,
             direction,
             routing_strategy: Default::default(),
-            perform_layout: std::cell::Cell::new(false),
             flags: 0,
         }
     }

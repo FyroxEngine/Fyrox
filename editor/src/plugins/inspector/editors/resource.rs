@@ -54,6 +54,7 @@ use crate::{
     plugins::inspector::EditorEnvironment,
     utils, Message,
 };
+use fyrox::gui::message::MessageData;
 use fyrox::gui::utils::make_asset_preview_tooltip;
 use std::{
     any::TypeId,
@@ -84,6 +85,7 @@ where
 {
     Value(Option<Resource<T>>),
 }
+impl<T: TypedResourceData> MessageData for ResourceFieldMessage<T> {}
 
 impl<T: TypedResourceData> Clone for ResourceFieldMessage<T> {
     fn clone(&self) -> Self {
@@ -110,7 +112,7 @@ impl<T> ResourceFieldMessage<T>
 where
     T: TypedResourceData,
 {
-    define_constructor!(ResourceFieldMessage:Value => fn value(Option<Resource<T>>), layout: false);
+    define_constructor!(ResourceFieldMessage:Value => fn value(Option<Resource<T>>));
 }
 
 pub type ResourceLoaderCallback<T> = Arc<

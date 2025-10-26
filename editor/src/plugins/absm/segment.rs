@@ -26,16 +26,18 @@ use crate::fyrox::{
         UiNode,
     },
 };
+use fyrox::gui::message::MessageData;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SegmentMessage {
     SourcePosition(Vector2<f32>),
     DestPosition(Vector2<f32>),
 }
+impl MessageData for SegmentMessage {}
 
 impl SegmentMessage {
-    define_constructor!(SegmentMessage:SourcePosition => fn source_position(Vector2<f32>), layout: false);
-    define_constructor!(SegmentMessage:DestPosition => fn dest_position(Vector2<f32>), layout: false);
+    define_constructor!(SegmentMessage:SourcePosition => fn source_position(Vector2<f32>));
+    define_constructor!(SegmentMessage:DestPosition => fn dest_position(Vector2<f32>));
 }
 
 #[derive(Debug, Clone, Reflect, Visit)]

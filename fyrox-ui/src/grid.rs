@@ -36,6 +36,7 @@ use crate::{
 };
 use core::f32;
 
+use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -56,26 +57,27 @@ pub enum GridMessage {
     /// Sets new border thickness for the grid.
     BorderThickness(f32),
 }
+impl MessageData for GridMessage {}
 
 impl GridMessage {
     define_constructor!(
         /// Creates a new [`Self::Rows`] message.
-        GridMessage:Rows => fn rows(Vec<Row>), layout: false
+        GridMessage:Rows => fn rows(Vec<Row>)
     );
 
     define_constructor!(
         /// Creates a new [`Self::Columns`] message.
-        GridMessage:Columns => fn columns(Vec<Column>), layout: false
+        GridMessage:Columns => fn columns(Vec<Column>)
     );
 
     define_constructor!(
         /// Creates a new [`Self::DrawBorder`] message.
-        GridMessage:DrawBorder => fn draw_border(bool), layout: false
+        GridMessage:DrawBorder => fn draw_border(bool)
     );
 
     define_constructor!(
         /// Creates a new [`Self::BorderThickness`] message.
-        GridMessage:BorderThickness => fn border_thickness(f32), layout: false
+        GridMessage:BorderThickness => fn border_thickness(f32)
     );
 }
 

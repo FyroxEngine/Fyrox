@@ -41,6 +41,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
@@ -61,27 +62,28 @@ pub enum ListViewMessage {
     /// A message, that is used to bring an item into view.
     BringItemIntoView(Handle<UiNode>),
 }
+impl MessageData for ListViewMessage {}
 
 impl ListViewMessage {
     define_constructor!(
         /// Creates [`ListViewMessage::SelectionChanged`] message.
-        ListViewMessage:SelectionChanged => fn selection(Vec<usize>), layout: false
+        ListViewMessage:SelectionChanged => fn selection(Vec<usize>)
     );
     define_constructor!(
         /// Creates [`ListViewMessage::Items`] message.
-        ListViewMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false
+        ListViewMessage:Items => fn items(Vec<Handle<UiNode >>)
     );
     define_constructor!(
         /// Creates [`ListViewMessage::AddItem`] message.
-        ListViewMessage:AddItem => fn add_item(Handle<UiNode>), layout: false
+        ListViewMessage:AddItem => fn add_item(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates [`ListViewMessage::RemoveItem`] message.
-        ListViewMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false
+        ListViewMessage:RemoveItem => fn remove_item(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates [`ListViewMessage::BringItemIntoView`] message.
-        ListViewMessage:BringItemIntoView => fn bring_item_into_view(Handle<UiNode>), layout: false
+        ListViewMessage:BringItemIntoView => fn bring_item_into_view(Handle<UiNode>)
     );
 }
 

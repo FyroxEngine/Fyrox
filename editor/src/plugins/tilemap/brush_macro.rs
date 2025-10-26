@@ -18,6 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::{
+    command::{Command, CommandContext, CommandTrait},
+    send_sync_message,
+};
+use fyrox::gui::message::MessageData;
 use fyrox::{
     asset::{untyped::UntypedResource, Resource, ResourceData, ResourceDataRef},
     core::{
@@ -39,11 +44,6 @@ use fyrox::{
         },
         MacroTilesUpdate,
     },
-};
-
-use crate::{
-    command::{Command, CommandContext, CommandTrait},
-    send_sync_message,
 };
 
 use super::*;
@@ -618,6 +618,7 @@ impl CommandTrait for SetMacroNameCommand {
 /// Message sent from a [`MacroPropertyValueField`] when the value changes.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TileSetPropertyValueMessage(pub TileSetPropertyValueElement);
+impl MessageData for TileSetPropertyValueMessage {}
 
 impl TileSetPropertyValueMessage {
     /// Construct a message to indicate a change in the value of a [`MacroPropertyValueField`].
@@ -635,6 +636,7 @@ impl TileSetPropertyValueMessage {
 /// Message sent from a [`MacroPropertyField`] when the value changes.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TileSetPropertyMessage(pub Option<Uuid>);
+impl MessageData for TileSetPropertyMessage {}
 
 impl TileSetPropertyMessage {
     /// Construct a message to indicate a change in the value of a [`MacroPropertyField`].

@@ -41,6 +41,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
 
+use crate::message::MessageData;
 use fyrox_core::algebra::Matrix3;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
@@ -77,61 +78,62 @@ pub enum TextMessage {
     /// Used to set the new set of runs in the text.
     Runs(RunSet),
 }
+impl MessageData for TextMessage {}
 
 impl TextMessage {
     define_constructor!(
         /// Creates new [`TextMessage::Text`] message.
-        TextMessage:Text => fn text(String), layout: false
+        TextMessage:Text => fn text(String)
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::Wrap`] message.
-        TextMessage:Wrap => fn wrap(WrapMode), layout: false
+        TextMessage:Wrap => fn wrap(WrapMode)
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::Font`] message.
-        TextMessage:Font => fn font(FontResource), layout: false
+        TextMessage:Font => fn font(FontResource)
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::VerticalAlignment`] message.
-        TextMessage:VerticalAlignment => fn vertical_alignment(VerticalAlignment), layout: false
+        TextMessage:VerticalAlignment => fn vertical_alignment(VerticalAlignment)
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::HorizontalAlignment`] message.
-        TextMessage:HorizontalAlignment => fn horizontal_alignment(HorizontalAlignment), layout: false
+        TextMessage:HorizontalAlignment => fn horizontal_alignment(HorizontalAlignment)
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::Shadow`] message.
-        TextMessage:Shadow => fn shadow(bool), layout: false
+        TextMessage:Shadow => fn shadow(bool)
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::ShadowDilation`] message.
-        TextMessage:ShadowDilation => fn shadow_dilation(f32), layout: false
+        TextMessage:ShadowDilation => fn shadow_dilation(f32)
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::ShadowBrush`] message.
-        TextMessage:ShadowBrush => fn shadow_brush(Brush), layout: false
+        TextMessage:ShadowBrush => fn shadow_brush(Brush)
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::ShadowOffset`] message.
-        TextMessage:ShadowOffset => fn shadow_offset(Vector2<f32>), layout: false
+        TextMessage:ShadowOffset => fn shadow_offset(Vector2<f32>)
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::FontSize`] message.
-        TextMessage:FontSize => fn font_size(StyledProperty<f32>), layout: false
+        TextMessage:FontSize => fn font_size(StyledProperty<f32>)
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::Runs`] message.
-        TextMessage:Runs => fn runs(RunSet), layout: false
+        TextMessage:Runs => fn runs(RunSet)
     );
 }
 

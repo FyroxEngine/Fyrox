@@ -41,6 +41,7 @@ use crate::fyrox::{
 };
 
 use fyrox::gui::curve::CurveTransformCell;
+use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::ops::{Deref, DerefMut};
@@ -51,11 +52,12 @@ pub enum ThumbMessage {
     ViewPosition(f32),
     Position(f32),
 }
+impl MessageData for ThumbMessage {}
 
 impl ThumbMessage {
-    define_constructor!(ThumbMessage:Zoom => fn zoom(f32), layout: false);
-    define_constructor!(ThumbMessage:ViewPosition => fn view_position(f32), layout: false);
-    define_constructor!(ThumbMessage:Position => fn position(f32), layout: false);
+    define_constructor!(ThumbMessage:Zoom => fn zoom(f32));
+    define_constructor!(ThumbMessage:ViewPosition => fn view_position(f32));
+    define_constructor!(ThumbMessage:Position => fn position(f32));
 }
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]

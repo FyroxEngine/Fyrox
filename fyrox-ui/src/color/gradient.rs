@@ -43,6 +43,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -55,9 +56,10 @@ pub enum ColorGradientEditorMessage {
     /// Sets new color gradient.
     Value(ColorGradient),
 }
+impl MessageData for ColorGradientEditorMessage {}
 
 impl ColorGradientEditorMessage {
-    define_constructor!(ColorGradientEditorMessage:Value => fn value(ColorGradient), layout: false);
+    define_constructor!(ColorGradientEditorMessage:Value => fn value(ColorGradient));
 }
 
 #[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
@@ -513,9 +515,10 @@ impl ColorGradientEditorBuilder {
 pub enum ColorPointMessage {
     Location(f32),
 }
+impl MessageData for ColorPointMessage {}
 
 impl ColorPointMessage {
-    define_constructor!(ColorPointMessage:Location => fn location(f32), layout: false);
+    define_constructor!(ColorPointMessage:Location => fn location(f32));
 }
 
 #[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]

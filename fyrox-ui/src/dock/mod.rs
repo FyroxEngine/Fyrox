@@ -48,6 +48,7 @@ use std::{
 pub mod config;
 mod tile;
 
+use crate::message::MessageData;
 pub use tile::*;
 
 /// Supported docking manager-specific messages.
@@ -57,19 +58,20 @@ pub enum DockingManagerMessage {
     AddFloatingWindow(Handle<UiNode>),
     RemoveFloatingWindow(Handle<UiNode>),
 }
+impl MessageData for DockingManagerMessage {}
 
 impl DockingManagerMessage {
     define_constructor!(
         /// Creates a new [Self::Layout] message.
-        DockingManagerMessage:Layout => fn layout(DockingManagerLayoutDescriptor), layout: false
+        DockingManagerMessage:Layout => fn layout(DockingManagerLayoutDescriptor)
     );
     define_constructor!(
         /// Creates a new [Self::AddFloatingWindow] message.
-        DockingManagerMessage:AddFloatingWindow => fn add_floating_window(Handle<UiNode>), layout: false
+        DockingManagerMessage:AddFloatingWindow => fn add_floating_window(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates a new [Self::RemoveFloatingWindow] message.
-        DockingManagerMessage:RemoveFloatingWindow => fn remove_floating_window(Handle<UiNode>), layout: false
+        DockingManagerMessage:RemoveFloatingWindow => fn remove_floating_window(Handle<UiNode>)
     );
 }
 

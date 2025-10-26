@@ -108,35 +108,36 @@ pub enum PaletteMessage {
     /// when de-focusing whatever was previously in focus.
     BeginMotion(Vector2<f32>),
 }
+impl MessageData for PaletteMessage {}
 
 impl PaletteMessage {
     define_constructor!(
         /// Display the given page of the given resource.
-        PaletteMessage:SetPage => fn set_page(source: TileBook, page: Option<Vector2<i32>>), layout: false);
+        PaletteMessage:SetPage => fn set_page(source: TileBook, page: Option<Vector2<i32>>));
     define_constructor!(
         /// Center the view on the given grid position.
-        PaletteMessage:Center => fn center(Vector2<i32>), layout: false);
+        PaletteMessage:Center => fn center(Vector2<i32>));
     define_constructor!(
         /// Select all tiles/pages in this view.
-        PaletteMessage:SelectAll => fn select_all(), layout: false);
+        PaletteMessage:SelectAll => fn select_all());
     define_constructor!(
         /// Select the given position.
-        PaletteMessage:SelectOne => fn select_one(Vector2<i32>), layout: false);
+        PaletteMessage:SelectOne => fn select_one(Vector2<i32>));
     define_constructor!(
         /// Delete the selected tiles/pages in this view.
-        PaletteMessage:Delete => fn delete(), layout: false);
+        PaletteMessage:Delete => fn delete());
     define_constructor!(
         /// Set the tint of the background material.
-        PaletteMessage:MaterialColor => fn material_color(Color), layout: false);
+        PaletteMessage:MaterialColor => fn material_color(Color));
     define_constructor!(
         /// Notify this widget that the editor state has changed.
-        PaletteMessage:SyncToState => fn sync_to_state(), layout: false);
+        PaletteMessage:SyncToState => fn sync_to_state());
     define_constructor!(
         /// Notify that the user has pressed a mouse button.
         /// This is needed in order to delay the start of mouse operations
         /// by one frame so that they do not clash with operations that happen
         /// when de-focusing whatever was previously in focus.
-        PaletteMessage:BeginMotion => fn begin_motion(Vector2<f32>), layout: false);
+        PaletteMessage:BeginMotion => fn begin_motion(Vector2<f32>));
 }
 
 /// The operation of the current mouse motion.

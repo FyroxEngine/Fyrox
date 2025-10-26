@@ -34,6 +34,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
+use crate::message::MessageData;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut, Range};
@@ -47,11 +48,12 @@ where
     /// A message, that is used to either modifying or fetching the value of a [`RangeEditor`] widget instance.
     Value(Range<T>),
 }
+impl<T: NumericType> MessageData for RangeEditorMessage<T> {}
 
 impl<T: NumericType> RangeEditorMessage<T> {
     define_constructor!(
         /// Creates [`RangeEditorMessage::Value`] message.
-        RangeEditorMessage:Value => fn value(Range<T>), layout: false
+        RangeEditorMessage:Value => fn value(Range<T>)
     );
 }
 

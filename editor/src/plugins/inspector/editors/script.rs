@@ -56,6 +56,7 @@ use crate::{
 };
 
 use fyrox::gui::inspector::InspectorContextArgs;
+use fyrox::gui::message::MessageData;
 use fyrox::gui::utils::make_dropdown_list_option;
 use std::{
     any::TypeId,
@@ -69,10 +70,11 @@ pub enum ScriptPropertyEditorMessage {
     Value(Option<Uuid>),
     PropertyChanged(PropertyChanged),
 }
+impl MessageData for ScriptPropertyEditorMessage {}
 
 impl ScriptPropertyEditorMessage {
-    define_constructor!(ScriptPropertyEditorMessage:Value => fn value(Option<Uuid>), layout: false);
-    define_constructor!(ScriptPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
+    define_constructor!(ScriptPropertyEditorMessage:Value => fn value(Option<Uuid>));
+    define_constructor!(ScriptPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged));
 }
 
 #[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]

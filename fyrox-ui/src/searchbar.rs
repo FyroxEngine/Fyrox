@@ -48,6 +48,7 @@ use crate::{
     VerticalAlignment,
 };
 
+use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -57,11 +58,12 @@ pub enum SearchBarMessage {
     /// Emitted when a user types something in the search bar.
     Text(String),
 }
+impl MessageData for SearchBarMessage {}
 
 impl SearchBarMessage {
     define_constructor!(
         /// Creates [`SearchBarMessage::Text`] message.
-        SearchBarMessage:Text => fn text(String), layout: false
+        SearchBarMessage:Text => fn text(String)
     );
 }
 

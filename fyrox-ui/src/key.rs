@@ -37,6 +37,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -134,11 +135,12 @@ pub enum HotKeyEditorMessage {
     /// or to listen to its changes (with [`MessageDirection::FromWidget`]).
     Value(HotKey),
 }
+impl MessageData for HotKeyEditorMessage {}
 
 impl HotKeyEditorMessage {
     define_constructor!(
         /// Creates [`HotKeyEditorMessage::Value`] message.
-        HotKeyEditorMessage:Value => fn value(HotKey), layout: false
+        HotKeyEditorMessage:Value => fn value(HotKey)
     );
 }
 
@@ -376,11 +378,12 @@ pub enum KeyBindingEditorMessage {
     /// A message, that is used to fetch a new value of a key binding, or to set new one.
     Value(KeyBinding),
 }
+impl MessageData for KeyBindingEditorMessage {}
 
 impl KeyBindingEditorMessage {
     define_constructor!(
         /// Creates [`KeyBindingEditorMessage::Value`] message.
-        KeyBindingEditorMessage:Value => fn value(KeyBinding), layout: false);
+        KeyBindingEditorMessage:Value => fn value(KeyBinding));
 }
 
 /// Key binding editor is used to provide a unified way of setting a key binding.

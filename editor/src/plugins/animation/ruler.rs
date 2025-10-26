@@ -46,6 +46,7 @@ use crate::menu::create_menu_item;
 
 use fyrox::gui::curve::{CurveTransformCell, STANDARD_GRID_SIZE};
 use fyrox::gui::menu::ContextMenuBuilder;
+use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::{
@@ -65,16 +66,17 @@ pub enum RulerMessage {
     MoveSignal { id: Uuid, new_position: f32 },
     SelectSignal(Uuid),
 }
+impl MessageData for RulerMessage {}
 
 impl RulerMessage {
-    define_constructor!(RulerMessage:Zoom => fn zoom(f32), layout: false);
-    define_constructor!(RulerMessage:ViewPosition => fn view_position(f32), layout: false);
-    define_constructor!(RulerMessage:Value => fn value(f32), layout: false);
-    define_constructor!(RulerMessage:AddSignal => fn add_signal(f32), layout: false);
-    define_constructor!(RulerMessage:RemoveSignal => fn remove_signal(Uuid), layout: false);
-    define_constructor!(RulerMessage:SyncSignals => fn sync_signals(Vec<SignalView>), layout: false);
-    define_constructor!(RulerMessage:MoveSignal => fn move_signal(id: Uuid, new_position: f32), layout: false);
-    define_constructor!(RulerMessage:SelectSignal => fn select_signal(Uuid), layout: false);
+    define_constructor!(RulerMessage:Zoom => fn zoom(f32));
+    define_constructor!(RulerMessage:ViewPosition => fn view_position(f32));
+    define_constructor!(RulerMessage:Value => fn value(f32));
+    define_constructor!(RulerMessage:AddSignal => fn add_signal(f32));
+    define_constructor!(RulerMessage:RemoveSignal => fn remove_signal(Uuid));
+    define_constructor!(RulerMessage:SyncSignals => fn sync_signals(Vec<SignalView>));
+    define_constructor!(RulerMessage:MoveSignal => fn move_signal(id: Uuid, new_position: f32));
+    define_constructor!(RulerMessage:SelectSignal => fn select_signal(Uuid));
 }
 
 #[derive(Clone)]

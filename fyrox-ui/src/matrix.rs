@@ -31,6 +31,7 @@ use crate::{
 };
 use fyrox_core::algebra::SMatrix;
 
+use crate::message::MessageData;
 use std::ops::{Deref, DerefMut};
 
 fn make_numeric_input<T: NumericType>(
@@ -71,12 +72,13 @@ where
 {
     Value(SMatrix<T, R, C>),
 }
+impl<const R: usize, const C: usize, T: NumericType> MessageData for MatrixEditorMessage<R, C, T> {}
 
 impl<const R: usize, const C: usize, T> MatrixEditorMessage<R, C, T>
 where
     T: NumericType,
 {
-    define_constructor!(MatrixEditorMessage:Value => fn value(SMatrix<T, R, C>), layout: false);
+    define_constructor!(MatrixEditorMessage:Value => fn value(SMatrix<T, R, C>));
 }
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]

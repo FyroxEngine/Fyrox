@@ -43,6 +43,7 @@ use crate::{
     UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -62,15 +63,16 @@ pub enum MessageBoxMessage {
     /// from the UI. See [`MessageBox`] docs for examples.
     Close(MessageBoxResult),
 }
+impl MessageData for MessageBoxMessage {}
 
 impl MessageBoxMessage {
     define_constructor!(
         /// Creates [`MessageBoxMessage::Open`] message.
-        MessageBoxMessage:Open => fn open(title: Option<String>, text: Option<String>), layout: false
+        MessageBoxMessage:Open => fn open(title: Option<String>, text: Option<String>)
     );
     define_constructor!(
         /// Creates [`MessageBoxMessage::Close`] message.
-        MessageBoxMessage:Close => fn close(MessageBoxResult), layout: false
+        MessageBoxMessage:Close => fn close(MessageBoxResult)
     );
 }
 

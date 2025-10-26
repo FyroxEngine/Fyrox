@@ -21,6 +21,7 @@
 //! Animation player is a node that contains multiple animations. It updates and plays all the animations.
 //! See [`AnimationPlayer`] docs for more info.
 
+use crate::message::MessageData;
 use crate::MessageDirection;
 use crate::{
     core::{
@@ -46,19 +47,20 @@ pub enum AnimationPlayerMessage {
     RewindAnimation { animation: String },
     TimePosition { animation: String, time: f32 },
 }
+impl MessageData for AnimationPlayerMessage {}
 
 impl AnimationPlayerMessage {
     define_constructor!(
         /// Creates a new [Self::EnableAnimation] message.
-        AnimationPlayerMessage:EnableAnimation => fn enable_animation(animation: String, enabled: bool), layout: false
+        AnimationPlayerMessage:EnableAnimation => fn enable_animation(animation: String, enabled: bool)
     );
     define_constructor!(
         /// Creates a new [Self::RewindAnimation] message.
-        AnimationPlayerMessage:RewindAnimation => fn rewind_animation(animation: String), layout: false
+        AnimationPlayerMessage:RewindAnimation => fn rewind_animation(animation: String)
     );
     define_constructor!(
         /// Creates a new [Self::TimePosition] message.
-        AnimationPlayerMessage:TimePosition => fn time_position(animation: String, time: f32), layout: false
+        AnimationPlayerMessage:TimePosition => fn time_position(animation: String, time: f32)
     );
 }
 

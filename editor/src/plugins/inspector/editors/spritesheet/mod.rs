@@ -44,6 +44,7 @@ use crate::fyrox::{
 };
 use crate::plugins::inspector::editors::spritesheet::window::SpriteSheetFramesEditorWindow;
 
+use fyrox::gui::message::MessageData;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -58,9 +59,10 @@ pub struct SpriteSheetFramesContainerEditorDefinition;
 pub enum SpriteSheetFramesPropertyEditorMessage {
     Value(SpriteSheetFramesContainer),
 }
+impl MessageData for SpriteSheetFramesPropertyEditorMessage {}
 
 impl SpriteSheetFramesPropertyEditorMessage {
-    define_constructor!(SpriteSheetFramesPropertyEditorMessage:Value => fn value(SpriteSheetFramesContainer), layout: false);
+    define_constructor!(SpriteSheetFramesPropertyEditorMessage:Value => fn value(SpriteSheetFramesContainer));
 }
 
 #[derive(Clone, Debug, Reflect, Visit, ComponentProvider)]

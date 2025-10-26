@@ -38,6 +38,7 @@ use crate::{
     VerticalAlignment,
 };
 
+use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
@@ -55,14 +56,15 @@ pub enum FileSelectorMessage {
     Cancel,
     Filter(Option<Filter>),
 }
+impl MessageData for FileSelectorMessage {}
 
 impl FileSelectorMessage {
-    define_constructor!(FileSelectorMessage:Commit => fn commit(PathBuf), layout: false);
-    define_constructor!(FileSelectorMessage:Root => fn root(Option<PathBuf>), layout: false);
-    define_constructor!(FileSelectorMessage:Path => fn path(PathBuf), layout: false);
-    define_constructor!(FileSelectorMessage:Cancel => fn cancel(), layout: false);
-    define_constructor!(FileSelectorMessage:FocusCurrentPath => fn focus_current_path(), layout: false);
-    define_constructor!(FileSelectorMessage:Filter => fn filter(Option<Filter>), layout: false);
+    define_constructor!(FileSelectorMessage:Commit => fn commit(PathBuf));
+    define_constructor!(FileSelectorMessage:Root => fn root(Option<PathBuf>));
+    define_constructor!(FileSelectorMessage:Path => fn path(PathBuf));
+    define_constructor!(FileSelectorMessage:Cancel => fn cancel());
+    define_constructor!(FileSelectorMessage:FocusCurrentPath => fn focus_current_path());
+    define_constructor!(FileSelectorMessage:Filter => fn filter(Option<Filter>));
 }
 
 /// File selector is a modal window that allows you to select a file (or directory) and commit or
@@ -326,9 +328,10 @@ impl FileSelectorBuilder {
 pub enum FileSelectorFieldMessage {
     Path(PathBuf),
 }
+impl MessageData for FileSelectorFieldMessage {}
 
 impl FileSelectorFieldMessage {
-    define_constructor!(FileSelectorFieldMessage:Path => fn path(PathBuf), layout: false);
+    define_constructor!(FileSelectorFieldMessage:Path => fn path(PathBuf));
 }
 
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]

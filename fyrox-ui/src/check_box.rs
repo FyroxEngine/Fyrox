@@ -24,6 +24,7 @@
 
 #![warn(missing_docs)]
 
+use crate::message::MessageData;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -49,11 +50,12 @@ pub enum CheckBoxMessage {
     /// Emitted when the check box changed its state. Could also be used to modify check box state.
     Check(Option<bool>),
 }
+impl MessageData for CheckBoxMessage {}
 
 impl CheckBoxMessage {
     define_constructor!(
         /// Creates [`CheckBoxMessage::checked`] message.
-        CheckBoxMessage:Check => fn checked(Option<bool>), layout: false
+        CheckBoxMessage:Check => fn checked(Option<bool>)
     );
 }
 

@@ -38,6 +38,7 @@ use crate::{
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
@@ -66,32 +67,44 @@ pub enum ScrollViewerMessage {
 impl ScrollViewerMessage {
     define_constructor!(
         /// Creates [`ScrollViewerMessage::Content`] message.
-        ScrollViewerMessage:Content => fn content(Handle<UiNode>), layout: false
+        ScrollViewerMessage:Content => fn content(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates [`ScrollViewerMessage::BringIntoView`] message.
-        ScrollViewerMessage:BringIntoView => fn bring_into_view(Handle<UiNode>), layout: true
+        ScrollViewerMessage:BringIntoView => fn bring_into_view(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates [`ScrollViewerMessage::VScrollSpeed`] message.
-        ScrollViewerMessage:VScrollSpeed => fn v_scroll_speed(f32), layout: true
+        ScrollViewerMessage:VScrollSpeed => fn v_scroll_speed(f32)
     );
     define_constructor!(
         /// Creates [`ScrollViewerMessage::HScrollSpeed`] message.
-        ScrollViewerMessage:HScrollSpeed => fn h_scroll_speed(f32), layout: true
+        ScrollViewerMessage:HScrollSpeed => fn h_scroll_speed(f32)
     );
     define_constructor!(
         /// Creates [`ScrollViewerMessage::ScrollToEnd`] message.
-        ScrollViewerMessage:ScrollToEnd => fn scroll_to_end(), layout: true
+        ScrollViewerMessage:ScrollToEnd => fn scroll_to_end()
     );
     define_constructor!(
         /// Creates [`ScrollViewerMessage::HorizontalScroll`] message.
-        ScrollViewerMessage:HorizontalScroll => fn horizontal_scroll(f32), layout: false
+        ScrollViewerMessage:HorizontalScroll => fn horizontal_scroll(f32)
     );
     define_constructor!(
         /// Creates [`ScrollViewerMessage::VerticalScroll`] message.
-        ScrollViewerMessage:VerticalScroll => fn vertical_scroll(f32), layout: false
+        ScrollViewerMessage:VerticalScroll => fn vertical_scroll(f32)
     );
+}
+
+impl MessageData for ScrollViewerMessage {
+    fn need_perform_layout(&self) -> bool {
+        matches!(
+            self,
+            Self::BringIntoView(_)
+                | Self::VScrollSpeed(_)
+                | Self::HScrollSpeed(_)
+                | Self::ScrollToEnd
+        )
+    }
 }
 
 /// Scroll viewer is a scrollable region with two scroll bars for each axis. It is used to wrap a content of unknown

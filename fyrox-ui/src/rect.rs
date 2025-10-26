@@ -38,6 +38,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
+use crate::message::MessageData;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
@@ -54,11 +55,12 @@ where
     /// A message, that can be used to either modify or fetch the current value of a [`RectEditor`] widget.
     Value(Rect<T>),
 }
+impl<T: NumericType> MessageData for RectEditorMessage<T> {}
 
 impl<T: NumericType> RectEditorMessage<T> {
     define_constructor!(
         /// Creates [`RectEditorMessage::Value`] message.
-        RectEditorMessage:Value => fn value(Rect<T>), layout: false
+        RectEditorMessage:Value => fn value(Rect<T>)
     );
 }
 

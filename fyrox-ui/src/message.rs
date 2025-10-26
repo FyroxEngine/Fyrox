@@ -58,19 +58,19 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 ///     //
 ///     //                  enum name       variant            name          perform layout?
 ///     //                      v              v                 v                  v
-///     define_constructor!(MyWidgetMessage:DoSomething => fn do_something(), layout: false);
+///     define_constructor!(MyWidgetMessage:DoSomething => fn do_something());
 ///
 ///     // The second option is used to create constructors for single-arg tuple enum variants:
 ///     //
 ///     //                  enum name     variant    name arg    perform layout?
 ///     //                      v            v         v   v           v
-///     define_constructor!(MyWidgetMessage:Foo => fn foo(u32), layout: false);
+///     define_constructor!(MyWidgetMessage:Foo => fn foo(u32));
 ///
 ///     // The third option is used to create constructors for enum variants with fields:
 ///     //
 ///     //                  enum name     variant    name arg  type arg type  perform layout?
 ///     //                      v            v         v   v     v   v    v          v
-///     define_constructor!(MyWidgetMessage:Bar => fn bar(foo: u32, baz: u8), layout: false);
+///     define_constructor!(MyWidgetMessage:Bar => fn bar(foo: u32, baz: u8));
 /// }
 ///
 /// fn using_messages(my_widget: Handle<UiNode>, ui: &UserInterface) {
@@ -98,7 +98,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// ```
 #[macro_export]
 macro_rules! define_constructor {
-    ($(#[$meta:meta])* $inner:ident : $inner_var:tt => fn $name:ident(), layout: $perform_layout:expr) => {
+    ($(#[$meta:meta])* $inner:ident : $inner_var:tt => fn $name:ident()) => {
         $(#[$meta])*
         #[must_use = "message does nothing until sent to ui"]
         pub fn $name(destination: Handle<UiNode>, direction: MessageDirection) -> UiMessage {
@@ -108,13 +108,12 @@ macro_rules! define_constructor {
                 destination,
                 direction,
                 routing_strategy: Default::default(),
-                perform_layout: std::cell::Cell::new($perform_layout),
                 flags: 0
             }
         }
     };
 
-    ($(#[$meta:meta])* $inner:ident : $inner_var:tt => fn $name:ident($typ:ty), layout: $perform_layout:expr) => {
+    ($(#[$meta:meta])* $inner:ident : $inner_var:tt => fn $name:ident($typ:ty)) => {
         $(#[$meta])*
         #[must_use = "message does nothing until sent to ui"]
         pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, value:$typ) -> UiMessage {
@@ -124,13 +123,12 @@ macro_rules! define_constructor {
                 destination,
                 direction,
                 routing_strategy: Default::default(),
-                perform_layout: std::cell::Cell::new($perform_layout),
                 flags: 0
             }
         }
     };
 
-    ($(#[$meta:meta])* $inner:ident : $inner_var:tt => fn $name:ident( $($params:ident : $types:ty),+ ), layout: $perform_layout:expr) => {
+    ($(#[$meta:meta])* $inner:ident : $inner_var:tt => fn $name:ident( $($params:ident : $types:ty),+ )) => {
         $(#[$meta])*
         #[must_use = "message does nothing until sent to ui"]
         pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, $($params : $types),+) -> UiMessage {
@@ -140,7 +138,6 @@ macro_rules! define_constructor {
                 destination,
                 direction,
                 routing_strategy: Default::default(),
-                perform_layout: std::cell::Cell::new($perform_layout),
                 flags: 0
             }
         }
@@ -178,26 +175,26 @@ impl MessageDirection {
 
 /// A trait, that is used by every messages used in the user interface. It contains utility methods, that are used
 /// for downcasting and equality comparison.
-pub trait MessageData: 'static + Debug + Any + Send {
+pub trait BaseMessageData: 'static + Debug + Any + Send {
     /// Casts `self` as [`Any`] reference.
     fn as_any(&self) -> &dyn Any;
 
     /// Compares this message data with some other.
-    fn compare(&self, other: &dyn MessageData) -> bool;
+    fn compare(&self, other: &dyn BaseMessageData) -> bool;
 
     /// Clones self as boxed value.
     fn clone_box(&self) -> Box<dyn MessageData>;
 }
 
-impl<T> MessageData for T
+impl<T> BaseMessageData for T
 where
-    T: 'static + Debug + PartialEq + Any + Send + Clone,
+    T: 'static + Debug + PartialEq + Any + Send + Clone + MessageData,
 {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
-    fn compare(&self, other: &dyn MessageData) -> bool {
+    fn compare(&self, other: &dyn BaseMessageData) -> bool {
         other
             .as_any()
             .downcast_ref::<T>()
@@ -207,6 +204,12 @@ where
 
     fn clone_box(&self) -> Box<dyn MessageData> {
         Box::new(self.clone())
+    }
+}
+
+pub trait MessageData: BaseMessageData {
+    fn need_perform_layout(&self) -> bool {
+        false
     }
 }
 
@@ -258,9 +261,9 @@ pub enum RoutingStrategy {
 /// }
 ///
 /// impl MyWidgetMessage {
-///     define_constructor!(MyWidgetMessage:DoSomething => fn do_something(), layout: false);
-///     define_constructor!(MyWidgetMessage:Foo => fn foo(u32), layout: false);
-///     define_constructor!(MyWidgetMessage:Bar => fn bar(foo: u32, baz: u8), layout: false);
+///     define_constructor!(MyWidgetMessage:DoSomething => fn do_something());
+///     define_constructor!(MyWidgetMessage:Foo => fn foo(u32));
+///     define_constructor!(MyWidgetMessage:Bar => fn bar(foo: u32, baz: u8));
 /// }
 ///
 /// fn using_messages(my_widget: Handle<UiNode>, ui: &UserInterface) {
@@ -308,15 +311,6 @@ pub struct UiMessage {
     /// the destination node. Default is bubble routing. See [`RoutingStrategy`] for more info.
     pub routing_strategy: RoutingStrategy,
 
-    /// Whether or not message requires layout to be calculated first.
-    ///
-    /// ## Motivation
-    ///
-    /// Some of message handling routines uses layout info, but message loop performed right after layout pass, but some of messages
-    /// may change layout and this flag tells UI to perform layout before passing message further. In ideal case we'd perform layout
-    /// after **each** message, but since layout pass is super heavy we should do it **only** when it is actually needed.
-    pub perform_layout: Cell<bool>,
-
     /// A custom user flags. Use it if `handled` flag is not enough.
     pub flags: u64,
 }
@@ -356,9 +350,6 @@ impl Debug for UiMessage {
         if self.handled.get() {
             write!(f, ",handled")?;
         }
-        if self.perform_layout.get() {
-            write!(f, ",layout")?;
-        }
         if self.flags != 0 {
             write!(f, ",flags:{}", self.flags)?;
         }
@@ -374,7 +365,6 @@ impl Clone for UiMessage {
             destination: self.destination,
             direction: self.direction,
             routing_strategy: self.routing_strategy,
-            perform_layout: self.perform_layout.clone(),
             flags: self.flags,
         }
     }
@@ -387,7 +377,6 @@ impl PartialEq for UiMessage {
             && self.destination == other.destination
             && self.routing_strategy == other.routing_strategy
             && self.direction == other.direction
-            && self.perform_layout == other.perform_layout
             && self.flags == other.flags
     }
 }
@@ -401,7 +390,6 @@ impl UiMessage {
             destination: Default::default(),
             direction: MessageDirection::ToWidget,
             routing_strategy: Default::default(),
-            perform_layout: Cell::new(false),
             flags: 0,
         }
     }
@@ -421,12 +409,6 @@ impl UiMessage {
     /// Sets the desired handled flag of the message.
     pub fn with_handled(self, handled: bool) -> Self {
         self.handled.set(handled);
-        self
-    }
-
-    /// Sets the desired perform layout flag of the message.
-    pub fn with_perform_layout(self, perform_layout: bool) -> Self {
-        self.perform_layout.set(perform_layout);
         self
     }
 
@@ -455,7 +437,6 @@ impl UiMessage {
             destination: self.destination,
             direction: self.direction.reverse(),
             routing_strategy: self.routing_strategy,
-            perform_layout: self.perform_layout.clone(),
             flags: self.flags,
         }
     }
@@ -527,14 +508,9 @@ impl UiMessage {
         self.direction
     }
 
-    /// Sets perform layout flag.
-    pub fn set_perform_layout(&self, value: bool) {
-        self.perform_layout.set(value);
-    }
-
     /// Returns perform layout flag.
     pub fn need_perform_layout(&self) -> bool {
-        self.perform_layout.get()
+        self.data.need_perform_layout()
     }
 
     /// Checks if the message has particular flags.

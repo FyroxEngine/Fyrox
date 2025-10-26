@@ -52,6 +52,7 @@ use crate::{
     message::MessageSender,
     Message,
 };
+use fyrox::gui::message::MessageData;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -74,11 +75,12 @@ pub enum AssetItemMessage {
         dest_dir: PathBuf,
     },
 }
+impl MessageData for AssetItemMessage {}
 
 impl AssetItemMessage {
-    define_constructor!(AssetItemMessage:Select => fn select(bool), layout: false);
-    define_constructor!(AssetItemMessage:Icon => fn icon(texture: Option<TextureResource>, flip_y: bool, color: Color), layout: false);
-    define_constructor!(AssetItemMessage:MoveTo => fn move_to(src_item_path: PathBuf, dest_dir: PathBuf), layout: false);
+    define_constructor!(AssetItemMessage:Select => fn select(bool));
+    define_constructor!(AssetItemMessage:Icon => fn icon(texture: Option<TextureResource>, flip_y: bool, color: Color));
+    define_constructor!(AssetItemMessage:MoveTo => fn move_to(src_item_path: PathBuf, dest_dir: PathBuf));
 }
 
 #[allow(dead_code)]

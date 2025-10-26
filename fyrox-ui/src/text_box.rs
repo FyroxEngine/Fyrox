@@ -78,27 +78,28 @@ pub enum TextBoxMessage {
     /// Used to enable or disable an ability to edit text box content. Use [TextBoxMessage::editable`] to create the message.
     Editable(bool),
 }
+impl MessageData for TextBoxMessage {}
 
 impl TextBoxMessage {
     define_constructor!(
         /// Creates [`TextBoxMessage::SelectionBrush`].
-        TextBoxMessage:SelectionBrush => fn selection_brush(Brush), layout: false
+        TextBoxMessage:SelectionBrush => fn selection_brush(Brush)
     );
     define_constructor!(
         /// Creates [`TextBoxMessage::CaretBrush`].
-        TextBoxMessage:CaretBrush => fn caret_brush(Brush), layout: false
+        TextBoxMessage:CaretBrush => fn caret_brush(Brush)
     );
     define_constructor!(
         /// Creates [`TextBoxMessage::TextCommitMode`].
-        TextBoxMessage:TextCommitMode => fn text_commit_mode(TextCommitMode), layout: false
+        TextBoxMessage:TextCommitMode => fn text_commit_mode(TextCommitMode)
     );
     define_constructor!(
         /// Creates [`TextBoxMessage::Multiline`].
-        TextBoxMessage:Multiline => fn multiline(bool), layout: false
+        TextBoxMessage:Multiline => fn multiline(bool)
     );
     define_constructor!(
         /// Creates [`TextBoxMessage::Editable`].
-        TextBoxMessage:Editable => fn editable(bool), layout: false
+        TextBoxMessage:Editable => fn editable(bool)
     );
 }
 
@@ -121,6 +122,7 @@ pub enum VerticalDirection {
 }
 
 pub use crate::formatted_text::Position;
+use crate::message::MessageData;
 use crate::style::resource::StyleResourceExt;
 use crate::style::{Style, StyledProperty};
 

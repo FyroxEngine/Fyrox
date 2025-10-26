@@ -23,6 +23,7 @@
 //! The Border widget provides a stylized, static border around its child widget. See [`Border`] docs for more info and
 //! usage examples.
 
+use crate::message::MessageData;
 use crate::{
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
@@ -142,19 +143,20 @@ pub enum BorderMessage {
     /// [`Self::pad_by_corner_radius`] docs for more.
     PadByCornerRadius(bool),
 }
+impl MessageData for BorderMessage {}
 
 impl BorderMessage {
     define_constructor!(
         /// Creates a new [Self::StrokeThickness] message.
-        BorderMessage:StrokeThickness => fn stroke_thickness(StyledProperty<Thickness>), layout: false
+        BorderMessage:StrokeThickness => fn stroke_thickness(StyledProperty<Thickness>)
     );
     define_constructor!(
         /// Creates a new [Self::CornerRadius] message.
-        BorderMessage:CornerRadius => fn corner_radius(StyledProperty<f32>), layout: false
+        BorderMessage:CornerRadius => fn corner_radius(StyledProperty<f32>)
     );
     define_constructor!(
         /// Creates a new [Self::PadByCornerRadius] message.
-        BorderMessage:PadByCornerRadius => fn pad_by_corner_radius(bool), layout: false
+        BorderMessage:PadByCornerRadius => fn pad_by_corner_radius(bool)
     );
 }
 

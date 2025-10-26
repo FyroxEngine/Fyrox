@@ -37,6 +37,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -52,11 +53,12 @@ pub enum PathEditorMessage {
     /// A message, that is used to set new value of the editor or to receive changes from the editor.
     Path(PathBuf),
 }
+impl MessageData for PathEditorMessage {}
 
 impl PathEditorMessage {
     define_constructor!(
         /// Creates [`PathEditorMessage::Path`] message.
-        PathEditorMessage:Path => fn path(PathBuf), layout: false
+        PathEditorMessage:Path => fn path(PathBuf)
     );
 }
 

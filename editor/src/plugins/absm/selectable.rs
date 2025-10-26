@@ -27,14 +27,16 @@ use crate::fyrox::{
     gui::widget::WidgetMessage,
     gui::{define_constructor, UiNode, UserInterface},
 };
+use fyrox::gui::message::MessageData;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SelectableMessage {
     Select(bool),
 }
+impl MessageData for SelectableMessage {}
 
 impl SelectableMessage {
-    define_constructor!(SelectableMessage:Select => fn select(bool), layout: false);
+    define_constructor!(SelectableMessage:Select => fn select(bool));
 }
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, Visit, Reflect)]

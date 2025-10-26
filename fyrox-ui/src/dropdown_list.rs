@@ -41,6 +41,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
@@ -64,27 +65,28 @@ pub enum DropdownListMessage {
     /// A message, that is used to close a dropdown list.
     Close,
 }
+impl MessageData for DropdownListMessage {}
 
 impl DropdownListMessage {
     define_constructor!(
         /// Creates [`DropdownListMessage::SelectionChanged`] message.
-        DropdownListMessage:SelectionChanged => fn selection(Option<usize>), layout: false
+        DropdownListMessage:SelectionChanged => fn selection(Option<usize>)
     );
     define_constructor!(
            /// Creates [`DropdownListMessage::Items`] message.
-        DropdownListMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false
+        DropdownListMessage:Items => fn items(Vec<Handle<UiNode >>)
     );
     define_constructor!(
         /// Creates [`DropdownListMessage::AddItem`] message.
-        DropdownListMessage:AddItem => fn add_item(Handle<UiNode>), layout: false
+        DropdownListMessage:AddItem => fn add_item(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates [`DropdownListMessage::Open`] message.
-        DropdownListMessage:Open => fn open(), layout: false
+        DropdownListMessage:Open => fn open()
     );
     define_constructor!(
         /// Creates [`DropdownListMessage::Close`] message.
-        DropdownListMessage:Close => fn close(), layout: false
+        DropdownListMessage:Close => fn close()
     );
 }
 

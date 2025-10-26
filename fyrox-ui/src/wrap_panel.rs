@@ -35,6 +35,7 @@ use crate::{
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
 
+use crate::message::MessageData;
 use core::f32;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
@@ -51,11 +52,12 @@ pub enum WrapPanelMessage {
     /// The message is used to change orientation of the wrap panel.
     Orientation(Orientation),
 }
+impl MessageData for WrapPanelMessage {}
 
 impl WrapPanelMessage {
     define_constructor!(
         /// Creates [`WrapPanelMessage::Orientation`] message.
-        WrapPanelMessage:Orientation => fn orientation(Orientation), layout: false
+        WrapPanelMessage:Orientation => fn orientation(Orientation)
     );
 }
 

@@ -49,6 +49,7 @@ use crate::{
 };
 
 use crate::inspector::InspectorContextArgs;
+use crate::message::MessageData;
 use fyrox_core::ComponentProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -71,10 +72,11 @@ pub enum EnumPropertyEditorMessage {
     Variant(usize),
     PropertyChanged(PropertyChanged),
 }
+impl MessageData for EnumPropertyEditorMessage {}
 
 impl EnumPropertyEditorMessage {
-    define_constructor!(EnumPropertyEditorMessage:Variant => fn variant(usize), layout: false);
-    define_constructor!(EnumPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
+    define_constructor!(EnumPropertyEditorMessage:Variant => fn variant(usize));
+    define_constructor!(EnumPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged));
 }
 
 #[derive(Visit, Reflect, ComponentProvider)]

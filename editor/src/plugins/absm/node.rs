@@ -40,6 +40,7 @@ use crate::fyrox::{
 };
 use crate::plugins::absm::selectable::{Selectable, SelectableMessage};
 
+use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::{Style, StyledProperty};
 use std::{
@@ -151,16 +152,17 @@ pub enum AbsmNodeMessage {
     SetActive(bool),
     Edit,
 }
+impl MessageData for AbsmNodeMessage {}
 
 impl AbsmNodeMessage {
-    define_constructor!(AbsmNodeMessage:Name => fn name(String), layout: false);
-    define_constructor!(AbsmNodeMessage:Enter => fn enter(), layout: false);
-    define_constructor!(AbsmNodeMessage:AddInput => fn add_input(), layout: false);
-    define_constructor!(AbsmNodeMessage:InputSockets => fn input_sockets(Vec<Handle<UiNode>>), layout: false);
-    define_constructor!(AbsmNodeMessage:NormalBrush => fn normal_color(StyledProperty<Brush>), layout: false);
-    define_constructor!(AbsmNodeMessage:SelectedBrush => fn selected_color(StyledProperty<Brush>), layout: false);
-    define_constructor!(AbsmNodeMessage:SetActive => fn set_active(bool), layout: false);
-    define_constructor!(AbsmNodeMessage:Edit => fn edit(), layout: false);
+    define_constructor!(AbsmNodeMessage:Name => fn name(String));
+    define_constructor!(AbsmNodeMessage:Enter => fn enter());
+    define_constructor!(AbsmNodeMessage:AddInput => fn add_input());
+    define_constructor!(AbsmNodeMessage:InputSockets => fn input_sockets(Vec<Handle<UiNode>>));
+    define_constructor!(AbsmNodeMessage:NormalBrush => fn normal_color(StyledProperty<Brush>));
+    define_constructor!(AbsmNodeMessage:SelectedBrush => fn selected_color(StyledProperty<Brush>));
+    define_constructor!(AbsmNodeMessage:SetActive => fn set_active(bool));
+    define_constructor!(AbsmNodeMessage:Edit => fn edit());
 }
 
 impl<T: Reflect> TypeUuidProvider for AbsmNode<T> {

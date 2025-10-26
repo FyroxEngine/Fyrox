@@ -44,6 +44,7 @@ use crate::{
     BuildContext, Control, MouseButton, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
+use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
@@ -95,31 +96,32 @@ pub enum TreeMessage {
     #[doc(hidden)]
     Select(SelectionState),
 }
+impl MessageData for TreeMessage {}
 
 impl TreeMessage {
     define_constructor!(
         /// Creates [`TreeMessage::Expand`] message.
-        TreeMessage:Expand => fn expand(expand: bool, expansion_strategy: TreeExpansionStrategy), layout: false
+        TreeMessage:Expand => fn expand(expand: bool, expansion_strategy: TreeExpansionStrategy)
     );
     define_constructor!(
         /// Creates [`TreeMessage::AddItem`] message.
-        TreeMessage:AddItem => fn add_item(Handle<UiNode>), layout: false
+        TreeMessage:AddItem => fn add_item(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates [`TreeMessage::RemoveItem`] message.
-        TreeMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false
+        TreeMessage:RemoveItem => fn remove_item(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates [`TreeMessage::SetExpanderShown`] message.
-        TreeMessage:SetExpanderShown => fn set_expander_shown(bool), layout: false
+        TreeMessage:SetExpanderShown => fn set_expander_shown(bool)
     );
     define_constructor!(
         /// Creates [`TreeMessage::SetItems`] message.
-        TreeMessage:SetItems => fn set_items(items: Vec<Handle<UiNode>>, remove_previous: bool), layout: false
+        TreeMessage:SetItems => fn set_items(items: Vec<Handle<UiNode>>, remove_previous: bool)
     );
     define_constructor!(
         /// Creates [`TreeMessage::Select`] message.
-        TreeMessage:Select => fn select(SelectionState), layout: false
+        TreeMessage:Select => fn select(SelectionState)
     );
 }
 
@@ -141,35 +143,36 @@ pub enum TreeRootMessage {
     /// A message, that is used as a notification when tree root's items has changed.
     ItemsChanged,
 }
+impl MessageData for TreeRootMessage {}
 
 impl TreeRootMessage {
     define_constructor!(
         /// Creates [`TreeRootMessage::AddItem`] message.
-        TreeRootMessage:AddItem => fn add_item(Handle<UiNode>), layout: false
+        TreeRootMessage:AddItem => fn add_item(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates [`TreeRootMessage::RemoveItem`] message.
-        TreeRootMessage:RemoveItem=> fn remove_item(Handle<UiNode>), layout: false
+        TreeRootMessage:RemoveItem=> fn remove_item(Handle<UiNode>)
     );
     define_constructor!(
         /// Creates [`TreeRootMessage::Items`] message.
-        TreeRootMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false
+        TreeRootMessage:Items => fn items(Vec<Handle<UiNode >>)
     );
     define_constructor!(
         /// Creates [`TreeRootMessage::Selected`] message.
-        TreeRootMessage:Selected => fn select(Vec<Handle<UiNode >>), layout: false
+        TreeRootMessage:Selected => fn select(Vec<Handle<UiNode >>)
     );
     define_constructor!(
         /// Creates [`TreeRootMessage::ExpandAll`] message.
-        TreeRootMessage:ExpandAll => fn expand_all(), layout: false
+        TreeRootMessage:ExpandAll => fn expand_all()
     );
     define_constructor!(
         /// Creates [`TreeRootMessage::CollapseAll`] message.
-        TreeRootMessage:CollapseAll => fn collapse_all(), layout: false
+        TreeRootMessage:CollapseAll => fn collapse_all()
     );
     define_constructor!(
         /// Creates [`TreeRootMessage::ItemsChanged`] message.
-        TreeRootMessage:ItemsChanged => fn items_changed(), layout: false
+        TreeRootMessage:ItemsChanged => fn items_changed()
     );
 }
 

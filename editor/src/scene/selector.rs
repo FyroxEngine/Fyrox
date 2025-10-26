@@ -49,6 +49,7 @@ use crate::{
     utils::make_node_name,
 };
 use fyrox::gui::formatted_text::WrapMode;
+use fyrox::gui::message::MessageData;
 use std::hash::{Hash, Hasher};
 use std::{
     any::{Any, TypeId},
@@ -190,11 +191,12 @@ pub enum NodeSelectorMessage {
     Selection(Vec<SelectedHandle>),
     ChooseFocus,
 }
+impl MessageData for NodeSelectorMessage {}
 
 impl NodeSelectorMessage {
-    define_constructor!(NodeSelectorMessage:Hierarchy => fn hierarchy(HierarchyNode), layout: false);
-    define_constructor!(NodeSelectorMessage:Selection => fn selection(Vec<SelectedHandle>), layout: false);
-    define_constructor!(NodeSelectorMessage:ChooseFocus => fn choose_focus(), layout: false);
+    define_constructor!(NodeSelectorMessage:Hierarchy => fn hierarchy(HierarchyNode));
+    define_constructor!(NodeSelectorMessage:Selection => fn selection(Vec<SelectedHandle>));
+    define_constructor!(NodeSelectorMessage:ChooseFocus => fn choose_focus());
 }
 
 #[derive(Clone)]

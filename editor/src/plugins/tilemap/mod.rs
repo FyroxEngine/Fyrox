@@ -123,6 +123,7 @@ use crate::{
     Editor, Message,
 };
 use fyrox::asset::manager::ResourceManager;
+use fyrox::gui::message::MessageData;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -290,6 +291,7 @@ struct OpenTilePanelMessage {
     resource: TileBook,
     center: Option<TileDefinitionHandle>,
 }
+impl MessageData for OpenTilePanelMessage {}
 
 impl OpenTilePanelMessage {
     fn message(resource: TileBook, center: Option<TileDefinitionHandle>) -> UiMessage {
@@ -303,6 +305,7 @@ struct DelayedMessage {
     delay_frames: usize,
     content: UiMessage,
 }
+impl MessageData for DelayedMessage {}
 
 impl DelayedMessage {
     fn message(delay_frames: usize, content: UiMessage) -> UiMessage {

@@ -48,6 +48,7 @@ use crate::{
 };
 
 use fyrox::asset::manager::ResourceManager;
+use fyrox::gui::message::MessageData;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -89,9 +90,10 @@ impl DerefMut for FontField {
 pub enum FontFieldMessage {
     Font(FontResource),
 }
+impl MessageData for FontFieldMessage {}
 
 impl FontFieldMessage {
-    define_constructor!(FontFieldMessage:Font => fn font(FontResource), layout: false);
+    define_constructor!(FontFieldMessage:Font => fn font(FontResource));
 }
 
 uuid_provider!(FontField = "5db49479-ff89-49b8-a038-0766253d6493");
