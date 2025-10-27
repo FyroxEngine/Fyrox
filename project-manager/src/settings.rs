@@ -283,34 +283,34 @@ impl SettingsWindow {
             if message.destination() == self.window {
                 return None;
             }
-        } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
-            if message.is_from(self.inspector) {
-                PropertyAction::from_field_kind(&args.value).apply(
-                    &args.path(),
-                    settings.deref_mut(),
-                    &mut |result| {
-                        Log::verify(result);
-                    },
-                );
+        } else if let Some(InspectorMessage::PropertyChanged(args)) =
+            message.data_from(self.inspector)
+        {
+            PropertyAction::from_field_kind(&args.value).apply(
+                &args.path(),
+                settings.deref_mut(),
+                &mut |result| {
+                    Log::verify(result);
+                },
+            );
 
-                let ctx = ui
-                    .node(self.inspector)
-                    .cast::<Inspector>()
-                    .unwrap()
-                    .context()
-                    .clone();
+            let ctx = ui
+                .node(self.inspector)
+                .cast::<Inspector>()
+                .unwrap()
+                .context()
+                .clone();
 
-                if let Err(errs) = ctx.sync(
-                    &**settings,
-                    ui,
-                    0,
-                    true,
-                    Default::default(),
-                    Default::default(),
-                ) {
-                    for err in errs {
-                        Log::err(err.to_string());
-                    }
+            if let Err(errs) = ctx.sync(
+                &**settings,
+                ui,
+                0,
+                true,
+                Default::default(),
+                Default::default(),
+            ) {
+                for err in errs {
+                    Log::err(err.to_string());
                 }
             }
         }

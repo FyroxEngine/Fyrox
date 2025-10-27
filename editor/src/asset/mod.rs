@@ -760,72 +760,69 @@ impl AssetBrowser {
                 }
                 _ => {}
             }
-        } else if let Some(msg) = message.data::<FileBrowserMessage>() {
-            if message.is_from(self.folder_browser) {
-                match msg {
-                    FileBrowserMessage::Path(path) => {
-                        ui.send(self.search_bar, SearchBarMessage::Text(Default::default()));
-                        self.set_path(path, ui, &engine.resource_manager);
-                    }
-                    FileBrowserMessage::Drop {
-                        dropped,
+        } else if let Some(msg) = message.data_from::<FileBrowserMessage>(self.folder_browser) {
+            match msg {
+                FileBrowserMessage::Path(path) => {
+                    ui.send(self.search_bar, SearchBarMessage::Text(Default::default()));
+                    self.set_path(path, ui, &engine.resource_manager);
+                }
+                FileBrowserMessage::Drop {
+                    dropped,
+                    path,
+                    dropped_path,
+                    ..
+                } => {
+                    self.on_file_browser_drop(
+                        *dropped,
                         path,
                         dropped_path,
-                        ..
-                    } => {
-                        self.on_file_browser_drop(
-                            *dropped,
-                            path,
-                            dropped_path,
-                            ui,
-                            &engine.resource_manager,
-                        );
-                    }
-                    _ => (),
+                        ui,
+                        &engine.resource_manager,
+                    );
                 }
+                _ => (),
             }
-        } else if let Some(SearchBarMessage::Text(search_text)) = message.data() {
-            if message.is_from(self.search_bar) {
-                if search_text.is_empty() {
-                    if let Some(selected_item_path) = entry
-                        .selection
-                        .as_ref::<AssetSelection>()
-                        .and_then(|s| s.selected_path())
+        } else if let Some(SearchBarMessage::Text(search_text)) = message.data_from(self.search_bar)
+        {
+            if search_text.is_empty() {
+                if let Some(selected_item_path) = entry
+                    .selection
+                    .as_ref::<AssetSelection>()
+                    .and_then(|s| s.selected_path())
+                {
+                    let path = if selected_item_path != PathBuf::default() {
+                        selected_item_path
+                            .parent()
+                            .map(|p| p.to_path_buf())
+                            .unwrap_or_else(|| PathBuf::from("./"))
+                    } else {
+                        PathBuf::from("./")
+                    };
+                    self.item_to_select = Some(selected_item_path.to_path_buf());
+                    self.set_path(&path, ui, &engine.resource_manager);
+                }
+            } else {
+                self.clear_assets(ui);
+                let search_text = search_text.to_lowercase();
+
+                let registry = engine.resource_manager.state().resource_registry.clone();
+                let registry = registry.safe_lock();
+                let mut paths = Vec::new();
+                for resource_path in registry.inner().values() {
+                    let file_stem = some_or_continue!(resource_path
+                        .file_stem()
+                        .map(|stem| stem.to_string_lossy().to_lowercase()));
+
+                    if file_stem.contains(&search_text)
+                        || rust_fuzzy_search::fuzzy_compare(&search_text, &file_stem) >= 0.33
                     {
-                        let path = if selected_item_path != PathBuf::default() {
-                            selected_item_path
-                                .parent()
-                                .map(|p| p.to_path_buf())
-                                .unwrap_or_else(|| PathBuf::from("./"))
-                        } else {
-                            PathBuf::from("./")
-                        };
-                        self.item_to_select = Some(selected_item_path.to_path_buf());
-                        self.set_path(&path, ui, &engine.resource_manager);
+                        paths.push(resource_path.clone());
                     }
-                } else {
-                    self.clear_assets(ui);
-                    let search_text = search_text.to_lowercase();
+                }
+                drop(registry);
 
-                    let registry = engine.resource_manager.state().resource_registry.clone();
-                    let registry = registry.safe_lock();
-                    let mut paths = Vec::new();
-                    for resource_path in registry.inner().values() {
-                        let file_stem = some_or_continue!(resource_path
-                            .file_stem()
-                            .map(|stem| stem.to_string_lossy().to_lowercase()));
-
-                        if file_stem.contains(&search_text)
-                            || rust_fuzzy_search::fuzzy_compare(&search_text, &file_stem) >= 0.33
-                        {
-                            paths.push(resource_path.clone());
-                        }
-                    }
-                    drop(registry);
-
-                    for path in paths.into_iter().filter(|p| !p.as_os_str().is_empty()) {
-                        self.add_asset(&path, ui, &engine.resource_manager, &sender);
-                    }
+                for path in paths.into_iter().filter(|p| !p.as_os_str().is_empty()) {
+                    self.add_asset(&path, ui, &engine.resource_manager, &sender);
                 }
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {

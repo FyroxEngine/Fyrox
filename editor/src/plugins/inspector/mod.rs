@@ -522,17 +522,15 @@ impl EditorPlugin for InspectorPlugin {
             }
         }
 
-        if message.is_from(self.inspector) {
-            if let Some(InspectorMessage::PropertyChanged(args)) =
-                message.data::<InspectorMessage>()
-            {
-                entry.selection.on_property_changed(
-                    &mut *entry.controller,
-                    args,
-                    &mut editor.engine,
-                    &editor.message_sender,
-                );
-            }
+        if let Some(InspectorMessage::PropertyChanged(args)) =
+            message.data_from::<InspectorMessage>(self.inspector)
+        {
+            entry.selection.on_property_changed(
+                &mut *entry.controller,
+                args,
+                &mut editor.engine,
+                &editor.message_sender,
+            );
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.docs_button {
                 if let Some(doc) = entry

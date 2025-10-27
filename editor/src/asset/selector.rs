@@ -250,16 +250,15 @@ impl Control for AssetSelector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(ListViewMessage::SelectionChanged(selected)) = message.data() {
-            if message.is_from(self.list_view) {
-                if let Some(first) = selected.first().cloned() {
-                    if let Some(resource) = self.resources.get(first) {
-                        ui.send_message(AssetSelectorMessage::select(
-                            self.handle(),
-                            MessageDirection::FromWidget,
-                            self.resource_manager.request_untyped(resource),
-                        ));
-                    }
+        if let Some(ListViewMessage::SelectionChanged(selected)) = message.data_from(self.list_view)
+        {
+            if let Some(first) = selected.first().cloned() {
+                if let Some(resource) = self.resources.get(first) {
+                    ui.send_message(AssetSelectorMessage::select(
+                        self.handle(),
+                        MessageDirection::FromWidget,
+                        self.resource_manager.request_untyped(resource),
+                    ));
                 }
             }
         } else if let Some(WidgetMessage::Focus) = message.data() {

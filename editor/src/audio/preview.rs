@@ -336,22 +336,22 @@ impl AudioPreviewPanel {
                         }
                     }
                 }
-            } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
-                if message.is_from(self.preview) {
-                    if *value {
-                        self.enter_preview_mode(editor_selection, game_scene, engine);
-                    } else {
-                        self.leave_preview_mode(game_scene, engine);
-                    }
+            } else if let Some(CheckBoxMessage::Check(Some(value))) =
+                message.data_from(self.preview)
+            {
+                if *value {
+                    self.enter_preview_mode(editor_selection, game_scene, engine);
+                } else {
+                    self.leave_preview_mode(game_scene, engine);
                 }
-            } else if let Some(ScrollBarMessage::Value(playback_position)) = message.data() {
-                if message.is_from(self.time) {
-                    let scene = &mut engine.scenes[game_scene.scene];
+            } else if let Some(ScrollBarMessage::Value(playback_position)) =
+                message.data_from(self.time)
+            {
+                let scene = &mut engine.scenes[game_scene.scene];
 
-                    for &node in &selection.nodes {
-                        if let Some(sound) = scene.graph.try_get_mut_of_type::<Sound>(node) {
-                            sound.set_playback_time(*playback_position);
-                        }
+                for &node in &selection.nodes {
+                    if let Some(sound) = scene.graph.try_get_mut_of_type::<Sound>(node) {
+                        sound.set_playback_time(*playback_position);
                     }
                 }
             }

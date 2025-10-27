@@ -180,15 +180,13 @@ where
         self.selectable
             .handle_routed_message(self.handle(), ui, message);
 
-        if let Some(SelectableMessage::Select(selected)) = message.data() {
-            if message.is_from(self.handle()) {
-                self.update_colors(ui);
-                if *selected {
-                    ui.send_message(WidgetMessage::topmost(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                    ));
-                }
+        if let Some(SelectableMessage::Select(selected)) = message.data_from(self.handle()) {
+            self.update_colors(ui);
+            if *selected {
+                ui.send_message(WidgetMessage::topmost(
+                    self.handle(),
+                    MessageDirection::ToWidget,
+                ));
             }
         } else if let Some(WidgetMessage::DoubleClick { button }) = message.data() {
             if !message.handled() && *button == MouseButton::Left {

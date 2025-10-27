@@ -407,11 +407,10 @@ impl SettingsWindow {
                 ));
                 return None;
             }
-        } else if let Some(SearchBarMessage::Text(search_text)) = message.data() {
-            if message.is_from(self.search_bar) {
-                let filter = search_text.to_lowercase();
-                self.apply_filter(&filter, ui);
-            }
+        } else if let Some(SearchBarMessage::Text(search_text)) = message.data_from(self.search_bar)
+        {
+            let filter = search_text.to_lowercase();
+            self.apply_filter(&filter, ui);
         }
 
         let graphics_context = engine.graphics_context.as_initialized_mut();

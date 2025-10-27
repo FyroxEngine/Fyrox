@@ -398,28 +398,28 @@ impl AudioPanel {
                     sender.do_command(CommandGroup::from(commands));
                 }
             }
-        } else if let Some(ListViewMessage::SelectionChanged(selected_indices)) = message.data() {
-            if message.is_from(self.audio_buses) {
-                let ui = &engine.user_interfaces.first();
+        } else if let Some(ListViewMessage::SelectionChanged(selected_indices)) =
+            message.data_from(self.audio_buses)
+        {
+            let ui = &engine.user_interfaces.first();
 
-                let mut selection = Vec::new();
+            let mut selection = Vec::new();
 
-                for bus_index in selected_indices {
-                    let bus = item_bus(
-                        ui.node(self.audio_buses)
-                            .cast::<ListView>()
-                            .expect("Must be ListView")
-                            .items()[*bus_index],
-                        ui,
-                    );
+            for bus_index in selected_indices {
+                let bus = item_bus(
+                    ui.node(self.audio_buses)
+                        .cast::<ListView>()
+                        .expect("Must be ListView")
+                        .items()[*bus_index],
+                    ui,
+                );
 
-                    selection.push(bus);
-                }
-
-                sender.do_command(ChangeSelectionCommand::new(Selection::new(
-                    AudioBusSelection { buses: selection },
-                )))
+                selection.push(bus);
             }
+
+            sender.do_command(ChangeSelectionCommand::new(Selection::new(
+                AudioBusSelection { buses: selection },
+            )))
         } else if let Some(AudioBusViewMessage::ChangeParent(new_parent)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
                 let audio_bus_view_ref = engine
@@ -459,11 +459,9 @@ impl AudioPanel {
                 }
             }
         } else if let Some(ResourceFieldMessage::Value(resource)) =
-            message.data::<ResourceFieldMessage<HrirSphereResourceData>>()
+            message.data_from::<ResourceFieldMessage<HrirSphereResourceData>>(self.hrir_resource)
         {
-            if message.is_from(self.hrir_resource) {
-                sender.do_command(SetHrtfRendererHrirSphereResource::new(resource.clone()));
-            }
+            sender.do_command(SetHrtfRendererHrirSphereResource::new(resource.clone()));
         }
     }
 

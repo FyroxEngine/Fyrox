@@ -1152,16 +1152,14 @@ impl RagdollWizard {
             &mut self.clipboard,
         );
 
-        if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
-            if message.is_from(self.inspector) {
-                PropertyAction::from_field_kind(&args.value).apply(
-                    &args.path(),
-                    &mut self.preset,
-                    &mut |result| {
-                        Log::verify(result);
-                    },
-                );
-            }
+        if let Some(InspectorMessage::PropertyChanged(args)) = message.data_from(self.inspector) {
+            PropertyAction::from_field_kind(&args.value).apply(
+                &args.path(),
+                &mut self.preset,
+                &mut |result| {
+                    Log::verify(result);
+                },
+            );
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
                 self.preset

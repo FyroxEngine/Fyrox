@@ -636,59 +636,59 @@ impl ExportWindow {
             } else if message.destination() == self.cancel {
                 self.close_and_destroy(ui);
             }
-        } else if let Some(ListViewMessage::SelectionChanged(selection)) = message.data() {
-            if message.is_from(self.target_platform_list) {
-                if let Some(index) = selection.first().cloned() {
-                    match index {
-                        0 => self.export_options.target_platform = TargetPlatform::PC,
-                        1 => self.export_options.target_platform = TargetPlatform::WebAssembly,
-                        2 => self.export_options.target_platform = TargetPlatform::Android,
-                        _ => Log::err("Unhandled platform index!"),
-                    }
-
-                    // TODO: move this to settings.
-                    let build_targets = match self.export_options.target_platform {
-                        TargetPlatform::PC => vec!["default".to_string()],
-                        TargetPlatform::WebAssembly => vec!["wasm32-unknown-unknown".to_string()],
-                        TargetPlatform::Android => {
-                            vec![
-                                "armv7-linux-androideabi".to_string(),
-                                "aarch64-linux-android".to_string(),
-                            ]
-                        }
-                    };
-
-                    self.export_options.build_targets = build_targets;
-
-                    let ui_items = self
-                        .export_options
-                        .build_targets
-                        .iter()
-                        .map(|name| make_dropdown_list_option(&mut ui.build_ctx(), name))
-                        .collect::<Vec<_>>();
-
-                    ui.send_message(DropdownListMessage::items(
-                        self.build_targets_selector,
-                        MessageDirection::ToWidget,
-                        ui_items,
-                    ));
+        } else if let Some(ListViewMessage::SelectionChanged(selection)) =
+            message.data_from(self.target_platform_list)
+        {
+            if let Some(index) = selection.first().cloned() {
+                match index {
+                    0 => self.export_options.target_platform = TargetPlatform::PC,
+                    1 => self.export_options.target_platform = TargetPlatform::WebAssembly,
+                    2 => self.export_options.target_platform = TargetPlatform::Android,
+                    _ => Log::err("Unhandled platform index!"),
                 }
+
+                // TODO: move this to settings.
+                let build_targets = match self.export_options.target_platform {
+                    TargetPlatform::PC => vec!["default".to_string()],
+                    TargetPlatform::WebAssembly => vec!["wasm32-unknown-unknown".to_string()],
+                    TargetPlatform::Android => {
+                        vec![
+                            "armv7-linux-androideabi".to_string(),
+                            "aarch64-linux-android".to_string(),
+                        ]
+                    }
+                };
+
+                self.export_options.build_targets = build_targets;
+
+                let ui_items = self
+                    .export_options
+                    .build_targets
+                    .iter()
+                    .map(|name| make_dropdown_list_option(&mut ui.build_ctx(), name))
+                    .collect::<Vec<_>>();
+
+                ui.send_message(DropdownListMessage::items(
+                    self.build_targets_selector,
+                    MessageDirection::ToWidget,
+                    ui_items,
+                ));
             }
-        } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
-            if message.is_from(self.inspector) {
-                PropertyAction::from_field_kind(&args.value).apply(
-                    &args.path(),
-                    &mut self.export_options,
-                    &mut |result| {
-                        Log::verify(result);
-                    },
-                );
-                sender.send(Message::ForceSync);
-            }
-        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
-            if message.is_from(self.build_targets_selector) {
-                self.export_options.selected_build_target = *index;
-            }
+        } else if let Some(InspectorMessage::PropertyChanged(args)) =
+            message.data_from(self.inspector)
+        {
+            PropertyAction::from_field_kind(&args.value).apply(
+                &args.path(),
+                &mut self.export_options,
+                &mut |result| {
+                    Log::verify(result);
+                },
+            );
+            sender.send(Message::ForceSync);
+        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) =
+            message.data_from(self.build_targets_selector)
+        {
+            self.export_options.selected_build_target = *index;
         }
     }
 

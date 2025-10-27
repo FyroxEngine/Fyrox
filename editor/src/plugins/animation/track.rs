@@ -342,8 +342,10 @@ impl Control for TrackView {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.tree.handle_routed_message(ui, message);
 
-        if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
-            if message.is_from(self.track_enabled_switch) && self.track_enabled != *value {
+        if let Some(CheckBoxMessage::Check(Some(value))) =
+            message.data_from(self.track_enabled_switch)
+        {
+            if self.track_enabled != *value {
                 ui.send_message(TrackViewMessage::track_enabled(
                     self.handle,
                     MessageDirection::ToWidget,
@@ -832,38 +834,36 @@ impl TrackList {
                     Default::default(),
                 ));
             }
-        } else if let Some(TextMessage::Text(text)) = message.data() {
-            if message.is_from(self.toolbar.search_text) {
-                let filter_text = text.to_lowercase();
-                utils::apply_visibility_filter(self.tree_root, ui, |node| {
-                    if let Some(tree) = node.query_component::<Tree>() {
-                        if let Some(tree_text) = ui.node(tree.content).query_component::<Text>() {
-                            return Some(tree_text.text().to_lowercase().contains(&filter_text));
-                        }
+        } else if let Some(TextMessage::Text(text)) = message.data_from(self.toolbar.search_text) {
+            let filter_text = text.to_lowercase();
+            utils::apply_visibility_filter(self.tree_root, ui, |node| {
+                if let Some(tree) = node.query_component::<Tree>() {
+                    if let Some(tree_text) = ui.node(tree.content).query_component::<Text>() {
+                        return Some(tree_text.text().to_lowercase().contains(&filter_text));
                     }
+                }
 
-                    None
-                });
+                None
+            });
 
-                if filter_text.is_empty() {
-                    // Focus currently selected entity when clearing the filter.
-                    if let Some(first) = selection.entities.first() {
-                        let ui_node = match first {
-                            SelectedEntity::Track(id) => {
-                                self.track_views.get(id).cloned().unwrap_or_default()
-                            }
-                            SelectedEntity::Curve(id) => {
-                                self.curve_views.get(id).cloned().unwrap_or_default()
-                            }
-                            _ => Default::default(),
-                        };
-                        if ui_node.is_some() {
-                            ui.send_message(ScrollViewerMessage::bring_into_view(
-                                self.scroll_viewer,
-                                MessageDirection::ToWidget,
-                                ui_node,
-                            ));
+            if filter_text.is_empty() {
+                // Focus currently selected entity when clearing the filter.
+                if let Some(first) = selection.entities.first() {
+                    let ui_node = match first {
+                        SelectedEntity::Track(id) => {
+                            self.track_views.get(id).cloned().unwrap_or_default()
                         }
+                        SelectedEntity::Curve(id) => {
+                            self.curve_views.get(id).cloned().unwrap_or_default()
+                        }
+                        _ => Default::default(),
+                    };
+                    if ui_node.is_some() {
+                        ui.send_message(ScrollViewerMessage::bring_into_view(
+                            self.scroll_viewer,
+                            MessageDirection::ToWidget,
+                            ui_node,
+                        ));
                     }
                 }
             }
@@ -978,31 +978,30 @@ impl TrackList {
                     }
                 }
             }
-        } else if let Some(TreeRootMessage::Selected(tree_selection)) = message.data() {
-            if message.is_from(self.tree_root) {
-                let new_selection = Selection::new(AnimationSelection {
-                    animation_player: selection.animation_player,
-                    animation: selection.animation,
-                    entities: tree_selection
-                        .iter()
-                        .filter_map(|s| {
-                            let selected_widget = ui.node(*s);
-                            if let Some(track_data) = selected_widget.query_component::<TrackView>()
-                            {
-                                Some(SelectedEntity::Track(track_data.id))
-                            } else if let Some(curve_data) =
-                                selected_widget.user_data_cloned::<CurveViewData>()
-                            {
-                                Some(SelectedEntity::Curve(curve_data.id))
-                            } else {
-                                None
-                            }
-                        })
-                        .collect(),
-                });
+        } else if let Some(TreeRootMessage::Selected(tree_selection)) =
+            message.data_from(self.tree_root)
+        {
+            let new_selection = Selection::new(AnimationSelection {
+                animation_player: selection.animation_player,
+                animation: selection.animation,
+                entities: tree_selection
+                    .iter()
+                    .filter_map(|s| {
+                        let selected_widget = ui.node(*s);
+                        if let Some(track_data) = selected_widget.query_component::<TrackView>() {
+                            Some(SelectedEntity::Track(track_data.id))
+                        } else if let Some(curve_data) =
+                            selected_widget.user_data_cloned::<CurveViewData>()
+                        {
+                            Some(SelectedEntity::Curve(curve_data.id))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect(),
+            });
 
-                sender.do_command(ChangeSelectionCommand::new(new_selection));
-            }
+            sender.do_command(ChangeSelectionCommand::new(new_selection));
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.context_menu.remove_track {
                 if selected_animation.is_some() {

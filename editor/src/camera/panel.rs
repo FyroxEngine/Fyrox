@@ -237,13 +237,11 @@ impl CameraPreviewControlPanel {
         game_scene: &mut GameScene,
         engine: &mut Engine,
     ) {
-        if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
-            if message.is_from(self.preview) {
-                if *value {
-                    self.enter_preview_mode(editor_selection, game_scene, engine);
-                } else {
-                    self.leave_preview_mode(game_scene, engine);
-                }
+        if let Some(CheckBoxMessage::Check(Some(value))) = message.data_from(self.preview) {
+            if *value {
+                self.enter_preview_mode(editor_selection, game_scene, engine);
+            } else {
+                self.leave_preview_mode(game_scene, engine);
             }
         }
     }

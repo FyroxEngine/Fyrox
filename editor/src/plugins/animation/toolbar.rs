@@ -311,22 +311,22 @@ impl RootMotionDropdownArea {
                     ));
                 }
             }
-        } else if let Some(NodeSelectorMessage::Selection(node_selection)) = message.data() {
-            if message.is_from(self.node_selector) {
-                if let Some(settings) = animation.root_motion_settings_ref() {
-                    sender.do_command(SetAnimationRootMotionSettingsCommand {
-                        node_handle: selection.animation_player,
-                        animation_handle: selection.animation,
-                        value: Some(RootMotionSettings {
-                            node: node_selection
-                                .first()
-                                .cloned()
-                                .map(|selected| selected.handle.into())
-                                .unwrap_or_default(),
-                            ..*settings
-                        }),
-                    });
-                }
+        } else if let Some(NodeSelectorMessage::Selection(node_selection)) =
+            message.data_from(self.node_selector)
+        {
+            if let Some(settings) = animation.root_motion_settings_ref() {
+                sender.do_command(SetAnimationRootMotionSettingsCommand {
+                    node_handle: selection.animation_player,
+                    animation_handle: selection.animation,
+                    value: Some(RootMotionSettings {
+                        node: node_selection
+                            .first()
+                            .cloned()
+                            .map(|selected| selected.handle.into())
+                            .unwrap_or_default(),
+                        ..*settings
+                    }),
+                });
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.node_selector {
@@ -898,26 +898,26 @@ impl Toolbar {
                 .handle_ui_message(message, graph, sender, ui, animation, root, selection);
         }
 
-        if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
-            if message.is_from(self.animations) {
-                let item = ui
-                    .node(self.animations)
-                    .query_component::<DropdownList>()
-                    .unwrap()
-                    .items[*index];
-                let animation = ui
-                    .node(item)
-                    .user_data_cloned::<Handle<Animation<Handle<N>>>>()
-                    .unwrap();
-                sender.do_command(ChangeSelectionCommand::new(Selection::new(
-                    AnimationSelection {
-                        animation_player: animation_player_handle,
-                        animation,
-                        entities: vec![],
-                    },
-                )));
-                return ToolbarAction::SelectAnimation(animation.into());
-            }
+        if let Some(DropdownListMessage::SelectionChanged(Some(index))) =
+            message.data_from(self.animations)
+        {
+            let item = ui
+                .node(self.animations)
+                .query_component::<DropdownList>()
+                .unwrap()
+                .items[*index];
+            let animation = ui
+                .node(item)
+                .user_data_cloned::<Handle<Animation<Handle<N>>>>()
+                .unwrap();
+            sender.do_command(ChangeSelectionCommand::new(Selection::new(
+                AnimationSelection {
+                    animation_player: animation_player_handle,
+                    animation,
+                    entities: vec![],
+                },
+            )));
+            return ToolbarAction::SelectAnimation(animation.into());
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.play_pause {
                 return ToolbarAction::PlayPause;
@@ -1086,23 +1086,23 @@ impl Toolbar {
                     self.import_mode = ImportMode::Import;
                 }
             }
-        } else if let Some(NodeSelectorMessage::Selection(selected_nodes)) = message.data() {
-            if message.is_from(self.node_selector) {
-                if let Some(first) = selected_nodes.first() {
-                    self.selected_import_root = first.handle;
+        } else if let Some(NodeSelectorMessage::Selection(selected_nodes)) =
+            message.data_from(self.node_selector)
+        {
+            if let Some(first) = selected_nodes.first() {
+                self.selected_import_root = first.handle;
 
-                    ui.send_message(WindowMessage::open_modal(
-                        self.import_file_selector,
-                        MessageDirection::ToWidget,
-                        true,
-                        true,
-                    ));
-                    ui.send_message(FileSelectorMessage::root(
-                        self.import_file_selector,
-                        MessageDirection::ToWidget,
-                        Some(std::env::current_dir().unwrap()),
-                    ));
-                }
+                ui.send_message(WindowMessage::open_modal(
+                    self.import_file_selector,
+                    MessageDirection::ToWidget,
+                    true,
+                    true,
+                ));
+                ui.send_message(FileSelectorMessage::root(
+                    self.import_file_selector,
+                    MessageDirection::ToWidget,
+                    Some(std::env::current_dir().unwrap()),
+                ));
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.import_file_selector {

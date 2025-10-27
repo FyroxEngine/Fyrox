@@ -340,56 +340,53 @@ impl AnimationEditor {
 
             let animations = animation_container(graph, selection.animation_player).unwrap();
 
-            if let Some(msg) = message.data::<CurveEditorMessage>() {
-                if message.is_from(self.curve_editor) {
-                    match msg {
-                        CurveEditorMessage::Sync(curves) => {
-                            let group = CommandGroup::from(
-                                curves
-                                    .iter()
-                                    .cloned()
-                                    .map(|curve| {
-                                        Command::new(ReplaceTrackCurveCommand {
-                                            animation_player: selection.animation_player,
-                                            animation: selection.animation,
-                                            curve,
-                                        })
+            if let Some(msg) = message.data_from::<CurveEditorMessage>(self.curve_editor) {
+                match msg {
+                    CurveEditorMessage::Sync(curves) => {
+                        let group = CommandGroup::from(
+                            curves
+                                .iter()
+                                .cloned()
+                                .map(|curve| {
+                                    Command::new(ReplaceTrackCurveCommand {
+                                        animation_player: selection.animation_player,
+                                        animation: selection.animation,
+                                        curve,
                                     })
-                                    .collect::<Vec<_>>(),
-                            );
+                                })
+                                .collect::<Vec<_>>(),
+                        );
 
-                            sender.do_command(group);
-                        }
-                        CurveEditorMessage::ViewPosition(position) => {
-                            ui.send_message(RulerMessage::view_position(
-                                self.ruler,
-                                MessageDirection::ToWidget,
-                                position.x,
-                            ));
-                            ui.send_message(ThumbMessage::view_position(
-                                self.thumb,
-                                MessageDirection::ToWidget,
-                                position.x,
-                            ));
-                        }
-                        CurveEditorMessage::Zoom(zoom) => {
-                            ui.send_message(RulerMessage::zoom(
-                                self.ruler,
-                                MessageDirection::ToWidget,
-                                zoom.x,
-                            ));
-                            ui.send_message(ThumbMessage::zoom(
-                                self.thumb,
-                                MessageDirection::ToWidget,
-                                zoom.x,
-                            ))
-                        }
-                        _ => (),
+                        sender.do_command(group);
                     }
+                    CurveEditorMessage::ViewPosition(position) => {
+                        ui.send_message(RulerMessage::view_position(
+                            self.ruler,
+                            MessageDirection::ToWidget,
+                            position.x,
+                        ));
+                        ui.send_message(ThumbMessage::view_position(
+                            self.thumb,
+                            MessageDirection::ToWidget,
+                            position.x,
+                        ));
+                    }
+                    CurveEditorMessage::Zoom(zoom) => {
+                        ui.send_message(RulerMessage::zoom(
+                            self.ruler,
+                            MessageDirection::ToWidget,
+                            zoom.x,
+                        ));
+                        ui.send_message(ThumbMessage::zoom(
+                            self.thumb,
+                            MessageDirection::ToWidget,
+                            zoom.x,
+                        ))
+                    }
+                    _ => (),
                 }
-            } else if let Some(msg) = message.data::<RulerMessage>() {
-                if message.is_from(self.ruler) && animations.try_get(selection.animation).is_some()
-                {
+            } else if let Some(msg) = message.data_from::<RulerMessage>(self.ruler) {
+                if animations.try_get(selection.animation).is_some() {
                     match msg {
                         RulerMessage::Value(value) => {
                             if let Some(animation) = animations.try_get_mut(selection.animation) {

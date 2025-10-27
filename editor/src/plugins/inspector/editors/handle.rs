@@ -314,18 +314,16 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if let Some(NodeSelectorMessage::Selection(selection)) = message.data() {
-            if message.is_from(self.selector) {
-                if let Some(suitable) = selection.iter().find(|selected| {
-                    selected.inner_type_id == TypeId::of::<T>()
-                        || selected.derived_type_ids.contains(&TypeId::of::<T>())
-                }) {
-                    ui.send_message(HandlePropertyEditorMessage::<T>::value(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        suitable.handle.into(),
-                    ));
-                }
+        if let Some(NodeSelectorMessage::Selection(selection)) = message.data_from(self.selector) {
+            if let Some(suitable) = selection.iter().find(|selected| {
+                selected.inner_type_id == TypeId::of::<T>()
+                    || selected.derived_type_ids.contains(&TypeId::of::<T>())
+            }) {
+                ui.send_message(HandlePropertyEditorMessage::<T>::value(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    suitable.handle.into(),
+                ));
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.selector {

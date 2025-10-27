@@ -160,26 +160,24 @@ impl ParameterPanel {
         G: SceneGraph<Node = N, Prefab = P>,
         N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
     {
-        if message.is_from(self.inspector) {
-            if let Some(InspectorMessage::PropertyChanged(args)) =
-                message.data::<InspectorMessage>()
-            {
-                if is_in_preview_mode {
-                    PropertyAction::from_field_kind(&args.value).apply(
-                        &args.path(),
-                        parameters,
-                        &mut |result| {
-                            Log::verify(result);
-                        },
-                    );
-                } else {
-                    sender.send(Message::DoCommand(
-                        make_command(args, move |ctx| {
-                            Some(fetch_machine(ctx, absm_node_handle).parameters_mut())
-                        })
-                        .unwrap(),
-                    ));
-                }
+        if let Some(InspectorMessage::PropertyChanged(args)) =
+            message.data_from::<InspectorMessage>(self.inspector)
+        {
+            if is_in_preview_mode {
+                PropertyAction::from_field_kind(&args.value).apply(
+                    &args.path(),
+                    parameters,
+                    &mut |result| {
+                        Log::verify(result);
+                    },
+                );
+            } else {
+                sender.send(Message::DoCommand(
+                    make_command(args, move |ctx| {
+                        Some(fetch_machine(ctx, absm_node_handle).parameters_mut())
+                    })
+                    .unwrap(),
+                ));
             }
         }
     }

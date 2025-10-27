@@ -115,76 +115,72 @@ impl Control for ScriptPropertyEditor {
                 ui.send_message(message.reverse());
             }
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) =
-            message.data::<InspectorMessage>()
+            message.data_from::<InspectorMessage>(self.inspector)
         {
-            if message.is_from(self.inspector) {
-                ui.send_message(ScriptPropertyEditorMessage::property_changed(
-                    self.handle(),
-                    MessageDirection::FromWidget,
-                    property_changed.clone(),
-                ))
-            }
+            ui.send_message(ScriptPropertyEditorMessage::property_changed(
+                self.handle(),
+                MessageDirection::FromWidget,
+                property_changed.clone(),
+            ))
         }
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if let Some(ButtonMessage::Click) = message.data() {
-            if message.is_from(self.open_in_ide_button) {
-                if let Some(uuid) = self.selected_script_uuid {
-                    if let Some(selected_item) = ui
-                        .node(self.variant_selector)
-                        .cast::<DropdownList>()
-                        .expect("Must be DropdownList")
-                        .items
-                        .iter()
-                        .map(|el| {
-                            ui.node(*el)
-                                .user_data_cloned::<(Uuid, Option<String>)>()
-                                .expect("Must be script (UUID, Option<String>)")
-                        })
-                        .find(|el| el.0 == uuid)
-                    {
-                        let (_, script_path) = selected_item;
+        if let Some(ButtonMessage::Click) = message.data_from(self.open_in_ide_button) {
+            if let Some(uuid) = self.selected_script_uuid {
+                if let Some(selected_item) = ui
+                    .node(self.variant_selector)
+                    .cast::<DropdownList>()
+                    .expect("Must be DropdownList")
+                    .items
+                    .iter()
+                    .map(|el| {
+                        ui.node(*el)
+                            .user_data_cloned::<(Uuid, Option<String>)>()
+                            .expect("Must be script (UUID, Option<String>)")
+                    })
+                    .find(|el| el.0 == uuid)
+                {
+                    let (_, script_path) = selected_item;
 
-                        let cd = std::env::current_dir().expect("Must be current directory");
+                    let cd = std::env::current_dir().expect("Must be current directory");
 
-                        if let (cd, Some(script_path)) = (cd, script_path) {
-                            if let Some(cd) = cd.to_str() {
-                                let script_full_path = format!("{cd}/{script_path}");
+                    if let (cd, Some(script_path)) = (cd, script_path) {
+                        if let Some(cd) = cd.to_str() {
+                            let script_full_path = format!("{cd}/{script_path}");
 
-                                let settings = SettingsData::load();
+                            let settings = SettingsData::load();
 
-                                let script_editor = settings
-                                    .expect("Must be editor settings data")
-                                    .general
-                                    .script_editor;
+                            let script_editor = settings
+                                .expect("Must be editor settings data")
+                                .general
+                                .script_editor;
 
-                                let script_editor = match &script_editor {
-                                    ScriptEditor::VSCode => {
-                                        #[cfg(target_os = "macos")]
-                                        let app_name = "Visual Studio Code";
-                                        #[cfg(not(target_os = "macos"))]
-                                        let app_name = "code";
+                            let script_editor = match &script_editor {
+                                ScriptEditor::VSCode => {
+                                    #[cfg(target_os = "macos")]
+                                    let app_name = "Visual Studio Code";
+                                    #[cfg(not(target_os = "macos"))]
+                                    let app_name = "code";
 
-                                        Some(app_name)
-                                    }
-                                    ScriptEditor::XCode => Some("xcode"),
-                                    ScriptEditor::Emacs => Some("emacs"),
-                                    ScriptEditor::Zed => Some("zed"),
-                                    ScriptEditor::SystemDefault => None,
-                                };
+                                    Some(app_name)
+                                }
+                                ScriptEditor::XCode => Some("xcode"),
+                                ScriptEditor::Emacs => Some("emacs"),
+                                ScriptEditor::Zed => Some("zed"),
+                                ScriptEditor::SystemDefault => None,
+                            };
 
-                                let open_result = if let Some(editor) = script_editor {
-                                    open::with(&script_full_path, editor)
-                                } else {
-                                    open::that(&script_full_path)
-                                };
+                            let open_result = if let Some(editor) = script_editor {
+                                open::with(&script_full_path, editor)
+                            } else {
+                                open::that(&script_full_path)
+                            };
 
-                                if let Err(e) = open_result {
-                                    Log::err(format!(
+                            if let Err(e) = open_result {
+                                Log::err(format!(
                                         "Error opening script {script_full_path} in external editor: {e}"
                                     ))
-                                }
                             }
                         }
                     }
@@ -192,25 +188,25 @@ impl Control for ScriptPropertyEditor {
             }
         }
 
-        if let Some(DropdownListMessage::SelectionChanged(Some(i))) = message.data() {
-            if message.is_from(self.variant_selector) {
-                let selected_item = ui
-                    .node(self.variant_selector)
-                    .cast::<DropdownList>()
-                    .expect("Must be DropdownList")
-                    .items[*i];
+        if let Some(DropdownListMessage::SelectionChanged(Some(i))) =
+            message.data_from(self.variant_selector)
+        {
+            let selected_item = ui
+                .node(self.variant_selector)
+                .cast::<DropdownList>()
+                .expect("Must be DropdownList")
+                .items[*i];
 
-                let new_selected_script_data = ui
-                    .node(selected_item)
-                    .user_data_cloned::<(Uuid, Option<String>)>()
-                    .expect("Must be script (UUID, Option<String>)");
+            let new_selected_script_data = ui
+                .node(selected_item)
+                .user_data_cloned::<(Uuid, Option<String>)>()
+                .expect("Must be script (UUID, Option<String>)");
 
-                ui.send_message(ScriptPropertyEditorMessage::value(
-                    self.handle(),
-                    MessageDirection::ToWidget,
-                    Some(new_selected_script_data.0),
-                ));
-            }
+            ui.send_message(ScriptPropertyEditorMessage::value(
+                self.handle(),
+                MessageDirection::ToWidget,
+                Some(new_selected_script_data.0),
+            ));
         }
     }
 }

@@ -622,17 +622,15 @@ impl Control for TextureSliceEditorWindow {
                 }
             }
         } else if let Some(RectEditorMessage::Value(value)) =
-            message.data::<RectEditorMessage<u32>>()
+            message.data_from::<RectEditorMessage<u32>>(self.region)
         {
-            if message.is_from(self.region) {
-                let mut slice = self.texture_slice.clone();
-                slice.texture_region.set_value_and_mark_modified(*value);
-                ui.send_message(TextureSliceEditorMessage::slice(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                    slice,
-                ));
-            }
+            let mut slice = self.texture_slice.clone();
+            slice.texture_region.set_value_and_mark_modified(*value);
+            ui.send_message(TextureSliceEditorMessage::slice(
+                self.handle,
+                MessageDirection::ToWidget,
+                slice,
+            ));
         }
     }
 

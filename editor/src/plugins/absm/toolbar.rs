@@ -198,30 +198,26 @@ impl Toolbar {
     {
         let selection = fetch_selection(editor_selection);
 
-        if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
-            if message.is_from(self.preview) {
-                return if *value {
-                    ToolbarAction::EnterPreviewMode
-                } else {
-                    ToolbarAction::LeavePreviewMode
-                };
-            }
-        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
-            if message.is_from(self.layers) {
-                let mut new_selection = selection;
-                new_selection.layer = Some(*index);
-                new_selection.entities.clear();
-                sender.do_command(ChangeSelectionCommand::new(Selection::new(new_selection)));
-            }
-        } else if let Some(TextMessage::Text(text)) = message.data() {
-            if message.is_from(self.layer_name) {
-                if let Some(layer_index) = selection.layer {
-                    sender.do_command(SetLayerNameCommand {
-                        absm_node_handle: selection.absm_node_handle,
-                        layer_index,
-                        name: text.clone(),
-                    });
-                }
+        if let Some(CheckBoxMessage::Check(Some(value))) = message.data_from(self.preview) {
+            return if *value {
+                ToolbarAction::EnterPreviewMode
+            } else {
+                ToolbarAction::LeavePreviewMode
+            };
+        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) =
+            message.data_from(self.layers)
+        {
+            let mut new_selection = selection;
+            new_selection.layer = Some(*index);
+            new_selection.entities.clear();
+            sender.do_command(ChangeSelectionCommand::new(Selection::new(new_selection)));
+        } else if let Some(TextMessage::Text(text)) = message.data_from(self.layer_name) {
+            if let Some(layer_index) = selection.layer {
+                sender.do_command(SetLayerNameCommand {
+                    absm_node_handle: selection.absm_node_handle,
+                    layer_index,
+                    name: text.clone(),
+                });
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_layer {
@@ -348,28 +344,28 @@ impl Toolbar {
                     }
                 }
             }
-        } else if let Some(NodeSelectorMessage::Selection(mask_selection)) = message.data() {
-            if message.is_from(self.node_selector) {
-                if let Some(layer_index) = selection.layer {
-                    let new_mask = LayerMask::from(
-                        mask_selection
-                            .iter()
-                            .map(|h| Handle::<N>::from(h.handle))
-                            .collect::<Vec<_>>(),
-                    );
-                    sender.do_command(SetLayerMaskCommand {
-                        absm_node_handle: selection.absm_node_handle,
-                        layer_index,
-                        mask: new_mask,
-                    });
+        } else if let Some(NodeSelectorMessage::Selection(mask_selection)) =
+            message.data_from(self.node_selector)
+        {
+            if let Some(layer_index) = selection.layer {
+                let new_mask = LayerMask::from(
+                    mask_selection
+                        .iter()
+                        .map(|h| Handle::<N>::from(h.handle))
+                        .collect::<Vec<_>>(),
+                );
+                sender.do_command(SetLayerMaskCommand {
+                    absm_node_handle: selection.absm_node_handle,
+                    layer_index,
+                    mask: new_mask,
+                });
 
-                    ui.send_message(WidgetMessage::remove(
-                        self.node_selector,
-                        MessageDirection::ToWidget,
-                    ));
+                ui.send_message(WidgetMessage::remove(
+                    self.node_selector,
+                    MessageDirection::ToWidget,
+                ));
 
-                    self.node_selector = Handle::NONE;
-                }
+                self.node_selector = Handle::NONE;
             }
         }
 

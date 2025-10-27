@@ -364,14 +364,14 @@ impl Control for StyledPropertyEditor {
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if message.is_from(self.selector) {
-            if let Some(StyledPropertySelectorMessage::PropertyName(name)) = message.data() {
-                ui.send_message(StyledPropertyEditorMessage::bind_property(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    name.clone(),
-                ))
-            }
+        if let Some(StyledPropertySelectorMessage::PropertyName(name)) =
+            message.data_from(self.selector)
+        {
+            ui.send_message(StyledPropertyEditorMessage::bind_property(
+                self.handle,
+                MessageDirection::FromWidget,
+                name.clone(),
+            ))
         }
     }
 }

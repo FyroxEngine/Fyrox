@@ -365,16 +365,16 @@ impl LightPanel {
                     progress_window.cancellation_token.cancel();
                 }
             }
-        } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
-            if message.is_from(self.inspector) {
-                PropertyAction::from_field_kind(&args.value).apply(
-                    &args.path(),
-                    &mut self.settings,
-                    &mut |result| {
-                        Log::verify(result);
-                    },
-                );
-            }
+        } else if let Some(InspectorMessage::PropertyChanged(args)) =
+            message.data_from(self.inspector)
+        {
+            PropertyAction::from_field_kind(&args.value).apply(
+                &args.path(),
+                &mut self.settings,
+                &mut |result| {
+                    Log::verify(result);
+                },
+            );
         }
     }
 

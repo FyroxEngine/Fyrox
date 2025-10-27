@@ -118,14 +118,14 @@ impl Control for AudioBusView {
             }
         }
 
-        if message.is_from(self.parent_bus_selector) {
-            if let Some(DropdownListMessage::SelectionChanged(Some(selection))) = message.data() {
-                ui.send_message(AudioBusViewMessage::change_parent(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    self.possible_parent_buses[*selection],
-                ));
-            }
+        if let Some(DropdownListMessage::SelectionChanged(Some(selection))) =
+            message.data_from(self.parent_bus_selector)
+        {
+            ui.send_message(AudioBusViewMessage::change_parent(
+                self.handle,
+                MessageDirection::FromWidget,
+                self.possible_parent_buses[*selection],
+            ));
         }
     }
 }

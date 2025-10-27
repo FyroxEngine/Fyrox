@@ -177,38 +177,38 @@ impl ResourceCreator {
     ) -> bool {
         let mut asset_added = false;
 
-        if let Some(ListViewMessage::SelectionChanged(selection)) = message.data() {
-            if message.is_from(self.resource_constructors_list) {
-                self.selected = selection.first().cloned();
-                engine
-                    .user_interfaces
-                    .first()
-                    .send(self.ok, WidgetMessage::Enabled(true));
+        if let Some(ListViewMessage::SelectionChanged(selection)) =
+            message.data_from(self.resource_constructors_list)
+        {
+            self.selected = selection.first().cloned();
+            engine
+                .user_interfaces
+                .first()
+                .send(self.ok, WidgetMessage::Enabled(true));
 
-                // Propose extension for the resource.
-                let resource_manager_state = engine.resource_manager.state();
-                if let Some(data_type_uuid) = self
-                    .supported_resource_data_uuids
-                    .get(self.selected.unwrap_or_default())
+            // Propose extension for the resource.
+            let resource_manager_state = engine.resource_manager.state();
+            if let Some(data_type_uuid) = self
+                .supported_resource_data_uuids
+                .get(self.selected.unwrap_or_default())
+            {
+                let loaders = resource_manager_state.loaders.safe_lock();
+                if let Some(loader) = loaders
+                    .iter()
+                    .find(|loader| &loader.data_type_uuid() == data_type_uuid)
                 {
-                    let loaders = resource_manager_state.loaders.safe_lock();
-                    if let Some(loader) = loaders
-                        .iter()
-                        .find(|loader| &loader.data_type_uuid() == data_type_uuid)
-                    {
-                        if let Some(first) = loader.extensions().first() {
-                            let mut path = PathBuf::from(&self.name_str);
-                            path.set_extension(first);
+                    if let Some(first) = loader.extensions().first() {
+                        let mut path = PathBuf::from(&self.name_str);
+                        path.set_extension(first);
 
-                            self.name_str = path.to_string_lossy().to_string();
+                        self.name_str = path.to_string_lossy().to_string();
 
-                            engine
-                                .user_interfaces
-                                .first()
-                                .send(self.name, TextMessage::Text(self.name_str.clone()));
-                        }
-                    };
-                }
+                        engine
+                            .user_interfaces
+                            .first()
+                            .send(self.name, TextMessage::Text(self.name_str.clone()));
+                    }
+                };
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
@@ -253,10 +253,8 @@ impl ResourceCreator {
                     .first()
                     .send(self.window, WindowMessage::Close);
             }
-        } else if let Some(TextMessage::Text(text)) = message.data() {
-            if message.is_from(self.name) {
-                self.name_str.clone_from(text);
-            }
+        } else if let Some(TextMessage::Text(text)) = message.data_from(self.name) {
+            self.name_str.clone_from(text);
         }
 
         asset_added

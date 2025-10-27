@@ -461,8 +461,8 @@ impl CurveEditorWindow {
                     return None;
                 }
             }
-        } else if let Some(CurveEditorMessage::Sync(curve)) = message.data() {
-            if message.is_from(self.curve_editor) && message.flags != MSG_SYNC_FLAG {
+        } else if let Some(CurveEditorMessage::Sync(curve)) = message.data_from(self.curve_editor) {
+            if message.flags != MSG_SYNC_FLAG {
                 if let Some(curve_resource) = self.curve_resource.as_ref() {
                     self.command_stack.do_command(
                         Command::new(ModifyCurveCommand {

@@ -1205,33 +1205,30 @@ impl ProjectManager {
 
         if let Some(ButtonMessage::Click) = message.data() {
             self.on_button_click(message.destination, ui);
-        } else if let Some(ListViewMessage::SelectionChanged(selection)) = message.data() {
-            if message.is_from(self.projects) {
-                self.selection.clone_from(&selection.first().cloned());
+        } else if let Some(ListViewMessage::SelectionChanged(selection)) =
+            message.data_from(self.projects)
+        {
+            self.selection.clone_from(&selection.first().cloned());
 
-                ui.send_message(WidgetMessage::enabled(
-                    self.project_controls,
+            ui.send_message(WidgetMessage::enabled(
+                self.project_controls,
+                MessageDirection::ToWidget,
+                !selection.is_empty(),
+            ));
+
+            if let Some(project) = self.selection.and_then(|i| self.settings.projects.get(i)) {
+                ui.send_message(CheckBoxMessage::checked(
+                    self.hot_reload,
                     MessageDirection::ToWidget,
-                    !selection.is_empty(),
+                    Some(project.hot_reload),
                 ));
-
-                if let Some(project) = self.selection.and_then(|i| self.settings.projects.get(i)) {
-                    ui.send_message(CheckBoxMessage::checked(
-                        self.hot_reload,
-                        MessageDirection::ToWidget,
-                        Some(project.hot_reload),
-                    ));
-                }
             }
-        } else if let Some(SearchBarMessage::Text(filter)) = message.data() {
-            if message.is_from(self.search_bar) {
-                self.search_text = filter.clone();
-                self.refresh(ui);
-            }
-        } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
-            if message.is_from(self.hot_reload) {
-                self.on_hot_reload_changed(*value, ui);
-            }
+        } else if let Some(SearchBarMessage::Text(filter)) = message.data_from(self.search_bar) {
+            self.search_text = filter.clone();
+            self.refresh(ui);
+        } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data_from(self.hot_reload)
+        {
+            self.on_hot_reload_changed(*value, ui);
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.import_project_dialog {
                 self.try_import(path, ui);

@@ -328,11 +328,9 @@ impl ProjectWizard {
             } else if message.destination() == self.cancel {
                 self.close_and_remove(ui);
             }
-        } else if let Some(TextMessage::Text(text)) = message.data() {
-            if message.is_from(self.name_field) {
-                self.name.clone_from(text);
-                self.validate(ui);
-            }
+        } else if let Some(TextMessage::Text(text)) = message.data_from(self.name_field) {
+            self.name.clone_from(text);
+            self.validate(ui);
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.style_field {
@@ -341,10 +339,8 @@ impl ProjectWizard {
                     self.vcs = Vcs::from_index(*index);
                 }
             }
-        } else if let Some(PathEditorMessage::Path(path)) = message.data() {
-            if message.is_from(self.path_field) {
-                self.path.clone_from(path);
-            }
+        } else if let Some(PathEditorMessage::Path(path)) = message.data_from(self.path_field) {
+            self.path.clone_from(path);
         }
         false
     }
