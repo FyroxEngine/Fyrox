@@ -356,9 +356,7 @@ impl Control for StyledPropertyEditor {
         // editor as if they were coming from this editor, but *do not* re-cast messages to the inner editor
         // to this editor. Particularly, when the inner editor is made invisible, that does not mean that
         // this editor should be invisible.
-        if message.destination() == self.inner_editor
-            && message.direction == MessageDirection::FromWidget
-        {
+        if message.is_from(self.inner_editor) {
             let mut clone = message.clone();
             clone.destination = self.handle;
             ui.send_message(clone);
@@ -366,9 +364,7 @@ impl Control for StyledPropertyEditor {
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if message.destination() == self.selector
-            && message.direction() == MessageDirection::FromWidget
-        {
+        if message.is_from(self.selector) {
             if let Some(StyledPropertySelectorMessage::PropertyName(name)) = message.data() {
                 ui.send_message(StyledPropertyEditorMessage::bind_property(
                     self.handle,

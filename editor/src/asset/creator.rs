@@ -30,7 +30,7 @@ use crate::{
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
             list_view::{ListViewBuilder, ListViewMessage},
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             stack_panel::StackPanelBuilder,
             text::TextMessage,
             text_box::TextBoxBuilder,
@@ -178,9 +178,7 @@ impl ResourceCreator {
         let mut asset_added = false;
 
         if let Some(ListViewMessage::SelectionChanged(selection)) = message.data() {
-            if message.destination() == self.resource_constructors_list
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.resource_constructors_list) {
                 self.selected = selection.first().cloned();
                 engine
                     .user_interfaces
@@ -256,9 +254,7 @@ impl ResourceCreator {
                     .send(self.window, WindowMessage::Close);
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
-            if message.destination() == self.name
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.name) {
                 self.name_str.clone_from(text);
             }
         }

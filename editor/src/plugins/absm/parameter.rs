@@ -160,9 +160,7 @@ impl ParameterPanel {
         G: SceneGraph<Node = N, Prefab = P>,
         N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
     {
-        if message.destination() == self.inspector
-            && message.direction() == MessageDirection::FromWidget
-        {
+        if message.is_from(self.inspector) {
             if let Some(InspectorMessage::PropertyChanged(args)) =
                 message.data::<InspectorMessage>()
             {

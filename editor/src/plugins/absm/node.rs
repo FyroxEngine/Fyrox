@@ -181,9 +181,7 @@ where
             .handle_routed_message(self.handle(), ui, message);
 
         if let Some(SelectableMessage::Select(selected)) = message.data() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.handle()) {
                 self.update_colors(ui);
                 if *selected {
                     ui.send_message(WidgetMessage::topmost(

@@ -579,9 +579,7 @@ impl Control for TextureSliceEditorWindow {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
         if let Some(TextureSliceEditorMessage::Slice(slice)) = message.data() {
-            if message.direction() == MessageDirection::FromWidget
-                && message.destination() == self.slice_editor
-            {
+            if message.is_from(self.slice_editor) {
                 self.texture_slice = slice.clone();
                 self.on_slice_changed(ui);
             }
@@ -626,9 +624,7 @@ impl Control for TextureSliceEditorWindow {
         } else if let Some(RectEditorMessage::Value(value)) =
             message.data::<RectEditorMessage<u32>>()
         {
-            if message.direction() == MessageDirection::FromWidget
-                && message.destination() == self.region
-            {
+            if message.is_from(self.region) {
                 let mut slice = self.texture_slice.clone();
                 slice.texture_region.set_value_and_mark_modified(*value);
                 ui.send_message(TextureSliceEditorMessage::slice(

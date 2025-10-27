@@ -337,9 +337,7 @@ impl AudioPreviewPanel {
                     }
                 }
             } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
-                if message.destination() == self.preview
-                    && message.direction() == MessageDirection::FromWidget
-                {
+                if message.is_from(self.preview) {
                     if *value {
                         self.enter_preview_mode(editor_selection, game_scene, engine);
                     } else {
@@ -347,9 +345,7 @@ impl AudioPreviewPanel {
                     }
                 }
             } else if let Some(ScrollBarMessage::Value(playback_position)) = message.data() {
-                if message.destination() == self.time
-                    && message.direction() == MessageDirection::FromWidget
-                {
+                if message.is_from(self.time) {
                     let scene = &mut engine.scenes[game_scene.scene];
 
                     for &node in &selection.nodes {

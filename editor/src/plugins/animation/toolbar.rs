@@ -312,9 +312,7 @@ impl RootMotionDropdownArea {
                 }
             }
         } else if let Some(NodeSelectorMessage::Selection(node_selection)) = message.data() {
-            if message.destination() == self.node_selector
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.node_selector) {
                 if let Some(settings) = animation.root_motion_settings_ref() {
                     sender.do_command(SetAnimationRootMotionSettingsCommand {
                         node_handle: selection.animation_player,
@@ -901,9 +899,7 @@ impl Toolbar {
         }
 
         if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
-            if message.destination() == self.animations
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.animations) {
                 let item = ui
                     .node(self.animations)
                     .query_component::<DropdownList>()
@@ -1091,9 +1087,7 @@ impl Toolbar {
                 }
             }
         } else if let Some(NodeSelectorMessage::Selection(selected_nodes)) = message.data() {
-            if message.destination() == self.node_selector
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.node_selector) {
                 if let Some(first) = selected_nodes.first() {
                     self.selected_import_root = first.handle;
 

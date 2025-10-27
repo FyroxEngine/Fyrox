@@ -474,7 +474,7 @@ impl UiMessage {
     /// }
     /// ```
     pub fn data_from<T: MessageData>(&self, handle: Handle<UiNode>) -> Option<&T> {
-        if self.comes_from(handle) {
+        if self.is_from(handle) {
             self.data()
         } else {
             None
@@ -483,7 +483,7 @@ impl UiMessage {
 
     /// Checks whether the message destination node handle matches the given one and the message
     /// direction is [`MessageDirection::FromWidget`].
-    pub fn comes_from(&self, handle: Handle<UiNode>) -> bool {
+    pub fn is_from(&self, handle: Handle<UiNode>) -> bool {
         self.destination == handle && self.direction == MessageDirection::FromWidget
     }
 

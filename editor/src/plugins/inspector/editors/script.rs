@@ -117,9 +117,7 @@ impl Control for ScriptPropertyEditor {
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) =
             message.data::<InspectorMessage>()
         {
-            if message.destination() == self.inspector
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.inspector) {
                 ui.send_message(ScriptPropertyEditorMessage::property_changed(
                     self.handle(),
                     MessageDirection::FromWidget,
@@ -131,9 +129,7 @@ impl Control for ScriptPropertyEditor {
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.open_in_ide_button
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.open_in_ide_button) {
                 if let Some(uuid) = self.selected_script_uuid {
                     if let Some(selected_item) = ui
                         .node(self.variant_selector)
@@ -197,9 +193,7 @@ impl Control for ScriptPropertyEditor {
         }
 
         if let Some(DropdownListMessage::SelectionChanged(Some(i))) = message.data() {
-            if message.destination() == self.variant_selector
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.variant_selector) {
                 let selected_item = ui
                     .node(self.variant_selector)
                     .cast::<DropdownList>()

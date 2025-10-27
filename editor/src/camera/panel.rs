@@ -238,9 +238,7 @@ impl CameraPreviewControlPanel {
         engine: &mut Engine,
     ) {
         if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
-            if message.destination() == self.preview
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.preview) {
                 if *value {
                     self.enter_preview_mode(editor_selection, game_scene, engine);
                 } else {

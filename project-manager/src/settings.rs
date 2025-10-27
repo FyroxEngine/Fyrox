@@ -284,9 +284,7 @@ impl SettingsWindow {
                 return None;
             }
         } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
-            if message.destination() == self.inspector
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.inspector) {
                 PropertyAction::from_field_kind(&args.value).apply(
                     &args.path(),
                     settings.deref_mut(),

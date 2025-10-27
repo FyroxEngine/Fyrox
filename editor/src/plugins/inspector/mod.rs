@@ -522,9 +522,7 @@ impl EditorPlugin for InspectorPlugin {
             }
         }
 
-        if message.destination() == self.inspector
-            && message.direction() == MessageDirection::FromWidget
-        {
+        if message.is_from(self.inspector) {
             if let Some(InspectorMessage::PropertyChanged(args)) =
                 message.data::<InspectorMessage>()
             {

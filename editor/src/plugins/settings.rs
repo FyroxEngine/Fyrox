@@ -408,9 +408,7 @@ impl SettingsWindow {
                 return None;
             }
         } else if let Some(SearchBarMessage::Text(search_text)) = message.data() {
-            if message.destination() == self.search_bar
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.search_bar) {
                 let filter = search_text.to_lowercase();
                 self.apply_filter(&filter, ui);
             }

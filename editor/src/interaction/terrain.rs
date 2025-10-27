@@ -688,9 +688,7 @@ impl BrushPanel {
     }
 
     fn handle_ui_message(&self, message: &UiMessage, brush: &mut Brush) -> Option<()> {
-        if message.destination() == self.inspector
-            && message.direction() == MessageDirection::FromWidget
-        {
+        if message.is_from(self.inspector) {
             if let Some(InspectorMessage::PropertyChanged(msg)) = message.data::<InspectorMessage>()
             {
                 PropertyAction::from_field_kind(&msg.value).apply(

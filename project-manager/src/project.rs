@@ -329,9 +329,7 @@ impl ProjectWizard {
                 self.close_and_remove(ui);
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
-            if message.direction() == MessageDirection::FromWidget
-                && message.destination() == self.name_field
-            {
+            if message.is_from(self.name_field) {
                 self.name.clone_from(text);
                 self.validate(ui);
             }
@@ -344,9 +342,7 @@ impl ProjectWizard {
                 }
             }
         } else if let Some(PathEditorMessage::Path(path)) = message.data() {
-            if message.destination() == self.path_field
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.path_field) {
                 self.path.clone_from(path);
             }
         }

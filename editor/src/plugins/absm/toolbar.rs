@@ -199,9 +199,7 @@ impl Toolbar {
         let selection = fetch_selection(editor_selection);
 
         if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
-            if message.destination() == self.preview
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.preview) {
                 return if *value {
                     ToolbarAction::EnterPreviewMode
                 } else {
@@ -209,18 +207,14 @@ impl Toolbar {
                 };
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
-            if message.destination() == self.layers
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.layers) {
                 let mut new_selection = selection;
                 new_selection.layer = Some(*index);
                 new_selection.entities.clear();
                 sender.do_command(ChangeSelectionCommand::new(Selection::new(new_selection)));
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
-            if message.destination() == self.layer_name
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.layer_name) {
                 if let Some(layer_index) = selection.layer {
                     sender.do_command(SetLayerNameCommand {
                         absm_node_handle: selection.absm_node_handle,
@@ -355,9 +349,7 @@ impl Toolbar {
                 }
             }
         } else if let Some(NodeSelectorMessage::Selection(mask_selection)) = message.data() {
-            if message.destination() == self.node_selector
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.node_selector) {
                 if let Some(layer_index) = selection.layer {
                     let new_mask = LayerMask::from(
                         mask_selection

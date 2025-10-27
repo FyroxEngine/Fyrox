@@ -315,9 +315,7 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if let Some(NodeSelectorMessage::Selection(selection)) = message.data() {
-            if message.destination() == self.selector
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.selector) {
                 if let Some(suitable) = selection.iter().find(|selected| {
                     selected.inner_type_id == TypeId::of::<T>()
                         || selected.derived_type_ids.contains(&TypeId::of::<T>())

@@ -637,9 +637,7 @@ impl ExportWindow {
                 self.close_and_destroy(ui);
             }
         } else if let Some(ListViewMessage::SelectionChanged(selection)) = message.data() {
-            if message.destination() == self.target_platform_list
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.target_platform_list) {
                 if let Some(index) = selection.first().cloned() {
                     match index {
                         0 => self.export_options.target_platform = TargetPlatform::PC,
@@ -677,9 +675,7 @@ impl ExportWindow {
                 }
             }
         } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
-            if message.destination() == self.inspector
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.inspector) {
                 PropertyAction::from_field_kind(&args.value).apply(
                     &args.path(),
                     &mut self.export_options,
@@ -690,9 +686,7 @@ impl ExportWindow {
                 sender.send(Message::ForceSync);
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
-            if message.destination() == self.build_targets_selector
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.build_targets_selector) {
                 self.export_options.selected_build_target = *index;
             }
         }

@@ -343,10 +343,7 @@ impl Control for TrackView {
         self.tree.handle_routed_message(ui, message);
 
         if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
-            if message.destination() == self.track_enabled_switch
-                && message.direction() == MessageDirection::FromWidget
-                && self.track_enabled != *value
-            {
+            if message.is_from(self.track_enabled_switch) && self.track_enabled != *value {
                 ui.send_message(TrackViewMessage::track_enabled(
                     self.handle,
                     MessageDirection::ToWidget,
@@ -836,9 +833,7 @@ impl TrackList {
                 ));
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
-            if message.destination() == self.toolbar.search_text
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.toolbar.search_text) {
                 let filter_text = text.to_lowercase();
                 utils::apply_visibility_filter(self.tree_root, ui, |node| {
                     if let Some(tree) = node.query_component::<Tree>() {
@@ -939,9 +934,7 @@ impl TrackList {
             }
         } else if let Some(PropertySelectorMessage::Selection(selected_properties)) = message.data()
         {
-            if message.destination() == self.property_selector
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.property_selector) {
                 if let Some(node) = graph.try_get_node(self.selected_node.into()) {
                     for property_path in selected_properties {
                         node.resolve_path(&property_path.path, &mut |result| match result {
@@ -978,9 +971,7 @@ impl TrackList {
                 } else {
                     Log::err("Invalid node handle!");
                 }
-            } else if message.destination() == self.context_menu.property_rebinding_selector
-                && message.direction() == MessageDirection::FromWidget
-            {
+            } else if message.is_from(self.context_menu.property_rebinding_selector) {
                 if let Some(entry) = selected_properties.first() {
                     if let Some(animation) = selected_animation {
                         self.rebind_property(entry, graph, selection, animation, sender);
@@ -988,9 +979,7 @@ impl TrackList {
                 }
             }
         } else if let Some(TreeRootMessage::Selected(tree_selection)) = message.data() {
-            if message.destination() == self.tree_root
-                && message.direction == MessageDirection::FromWidget
-            {
+            if message.is_from(self.tree_root) {
                 let new_selection = Selection::new(AnimationSelection {
                     animation_player: selection.animation_player,
                     animation: selection.animation,

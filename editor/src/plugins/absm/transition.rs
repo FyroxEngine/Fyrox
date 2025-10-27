@@ -154,9 +154,7 @@ impl Control for TransitionView {
                 _ => (),
             }
         } else if let Some(SelectableMessage::Select(_)) = message.data() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.handle()) {
                 self.handle_selection_change(ui);
             }
         } else if let Some(TransitionMessage::Activate) = message.data() {

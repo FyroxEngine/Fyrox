@@ -341,9 +341,7 @@ impl AnimationEditor {
             let animations = animation_container(graph, selection.animation_player).unwrap();
 
             if let Some(msg) = message.data::<CurveEditorMessage>() {
-                if message.destination() == self.curve_editor
-                    && message.direction() == MessageDirection::FromWidget
-                {
+                if message.is_from(self.curve_editor) {
                     match msg {
                         CurveEditorMessage::Sync(curves) => {
                             let group = CommandGroup::from(
@@ -390,9 +388,7 @@ impl AnimationEditor {
                     }
                 }
             } else if let Some(msg) = message.data::<RulerMessage>() {
-                if message.destination() == self.ruler
-                    && message.direction() == MessageDirection::FromWidget
-                    && animations.try_get(selection.animation).is_some()
+                if message.is_from(self.ruler) && animations.try_get(selection.animation).is_some()
                 {
                     match msg {
                         RulerMessage::Value(value) => {

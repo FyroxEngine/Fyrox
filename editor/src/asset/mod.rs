@@ -761,9 +761,7 @@ impl AssetBrowser {
                 _ => {}
             }
         } else if let Some(msg) = message.data::<FileBrowserMessage>() {
-            if message.destination() == self.folder_browser
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.folder_browser) {
                 match msg {
                     FileBrowserMessage::Path(path) => {
                         ui.send(self.search_bar, SearchBarMessage::Text(Default::default()));
@@ -787,9 +785,7 @@ impl AssetBrowser {
                 }
             }
         } else if let Some(SearchBarMessage::Text(search_text)) = message.data() {
-            if message.destination() == self.search_bar
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.search_bar) {
                 if search_text.is_empty() {
                     if let Some(selected_item_path) = entry
                         .selection

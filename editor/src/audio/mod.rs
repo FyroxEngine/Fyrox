@@ -399,9 +399,7 @@ impl AudioPanel {
                 }
             }
         } else if let Some(ListViewMessage::SelectionChanged(selected_indices)) = message.data() {
-            if message.destination() == self.audio_buses
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.audio_buses) {
                 let ui = &engine.user_interfaces.first();
 
                 let mut selection = Vec::new();
@@ -463,9 +461,7 @@ impl AudioPanel {
         } else if let Some(ResourceFieldMessage::Value(resource)) =
             message.data::<ResourceFieldMessage<HrirSphereResourceData>>()
         {
-            if message.destination() == self.hrir_resource
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.hrir_resource) {
                 sender.do_command(SetHrtfRendererHrirSphereResource::new(resource.clone()));
             }
         }

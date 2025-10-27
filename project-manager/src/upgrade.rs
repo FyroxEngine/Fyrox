@@ -246,9 +246,7 @@ impl UpgradeTool {
                 ))
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
-            if message.destination() == self.version_input_field
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.version_input_field) {
                 if let Version::Specific(ref mut version) = self.selected_version {
                     *version = text.clone();
                 }

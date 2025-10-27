@@ -25,7 +25,7 @@ use crate::fyrox::{
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         inspector::{InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction},
-        message::{MessageDirection, UiMessage},
+        message::UiMessage,
         progress_bar::{ProgressBarBuilder, ProgressBarMessage},
         scroll_viewer::ScrollViewerBuilder,
         text::TextBuilder,
@@ -366,9 +366,7 @@ impl LightPanel {
                 }
             }
         } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
-            if message.destination() == self.inspector
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.inspector) {
                 PropertyAction::from_field_kind(&args.value).apply(
                     &args.path(),
                     &mut self.settings,

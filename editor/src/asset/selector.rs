@@ -251,9 +251,7 @@ impl Control for AssetSelector {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(ListViewMessage::SelectionChanged(selected)) = message.data() {
-            if message.destination() == self.list_view
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.list_view) {
                 if let Some(first) = selected.first().cloned() {
                     if let Some(resource) = self.resources.get(first) {
                         ui.send_message(AssetSelectorMessage::select(
@@ -452,9 +450,7 @@ impl Control for AssetSelectorWindow {
         self.window.handle_routed_message(ui, message);
 
         if let Some(AssetSelectorMessage::Select(resource)) = message.data() {
-            if message.destination() == self.selector
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.selector) {
                 self.selected_resource = Some(resource.clone());
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
@@ -484,9 +480,7 @@ impl Control for AssetSelectorWindow {
                 ));
             }
         } else if let Some(SearchBarMessage::Text(text)) = message.data() {
-            if message.destination() == self.search_bar
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.is_from(self.search_bar) {
                 let selector = ui.try_get_of_type::<AssetSelector>(self.selector).unwrap();
                 let items = &*ui
                     .try_get_of_type::<ListView>(selector.list_view)
