@@ -1962,6 +1962,17 @@ impl UserInterface {
             .unwrap()
     }
 
+    pub fn send_with_flags<T: MessageData>(&self, handle: Handle<UiNode>, flags: u64, data: T) {
+        self.sender
+            .send(
+                UiMessage::with_data(data)
+                    .with_destination(handle)
+                    .with_direction(MessageDirection::ToWidget)
+                    .with_flags(flags),
+            )
+            .unwrap()
+    }
+
     pub fn send_many<const N: usize, T: MessageData>(
         &self,
         handle: Handle<UiNode>,

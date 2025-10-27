@@ -194,7 +194,7 @@ macro_rules! vec_ui_view {
     ($($ty:ty),*) => {
         $(impl UiView for $ty {
             fn into_message(self, item: Handle<UiNode>) -> UiMessage {
-                VecEditorMessage::value(item, MessageDirection::ToWidget, self)
+                UiMessage::with_data(VecEditorMessage::Value(self)).with_destination(item)
             }
             fn make_view(self, ctx: &mut BuildContext) -> Handle<UiNode> {
                 VecEditorBuilder::new(WidgetBuilder::new().with_height(24.0))

@@ -44,6 +44,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// #     core::pool::Handle, define_constructor, message::MessageDirection, message::UiMessage, UiNode,
 /// #     UserInterface,
 /// # };
+/// use fyrox_ui::message::MessageData;
 /// #
 /// // Message must be debuggable, comparable, cloneable.
 /// #[derive(Debug, PartialEq, Clone)]
@@ -52,6 +53,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 ///     Foo(u32),
 ///     Bar { foo: u32, baz: u8 },
 /// }
+/// impl MessageData for MyWidgetMessage{}
 ///
 /// impl MyWidgetMessage {
 ///     // The first option is used to create constructors plain enum variants:
@@ -252,7 +254,7 @@ pub enum RoutingStrategy {
 /// ```rust
 /// use fyrox_ui::{
 ///     core::pool::Handle, define_constructor, message::MessageDirection, message::UiMessage, UiNode,
-///     UserInterface,
+///     UserInterface, message::MessageData,
 /// };
 ///
 /// // Message must be debuggable and comparable.
@@ -262,32 +264,15 @@ pub enum RoutingStrategy {
 ///     Foo(u32),
 ///     Bar { foo: u32, baz: u8 },
 /// }
-///
-/// impl MyWidgetMessage {
-///     define_constructor!(MyWidgetMessage:DoSomething => fn do_something());
-///     define_constructor!(MyWidgetMessage:Foo => fn foo(u32));
-///     define_constructor!(MyWidgetMessage:Bar => fn bar(foo: u32, baz: u8));
-/// }
+/// impl MessageData for MyWidgetMessage{}
 ///
 /// fn using_messages(my_widget: Handle<UiNode>, ui: &UserInterface) {
 ///     // Send MyWidgetMessage::DoSomething
-///     ui.send_message(MyWidgetMessage::do_something(
-///         my_widget,
-///         MessageDirection::ToWidget,
-///     ));
+///     ui.send(my_widget, MyWidgetMessage::DoSomething);
 ///     // Send MyWidgetMessage::Foo
-///     ui.send_message(MyWidgetMessage::foo(
-///         my_widget,
-///         MessageDirection::ToWidget,
-///         5,
-///     ));
+///     ui.send(my_widget, MyWidgetMessage::Foo(5));
 ///     // Send MyWidgetMessage::Bar
-///     ui.send_message(MyWidgetMessage::bar(
-///         my_widget,
-///         MessageDirection::ToWidget,
-///         1,
-///         2,
-///     ));
+///     ui.send(my_widget, MyWidgetMessage::Bar {foo: 1, baz: 2});
 /// }
 /// ```
 ///
@@ -452,11 +437,14 @@ impl UiMessage {
     ///
     /// ```rust
     /// # use fyrox_core::pool::Handle;
-    /// # use fyrox_ui::message::{MessageDirection, UiMessage};
-    /// # let message = UiMessage::with_data(123);
+    /// # use fyrox_ui::message::{MessageDirection, MessageData, UiMessage};
     /// # let widget_handle = Handle::NONE;
-    /// if let Some(data) = message.data_from::<u32>(widget_handle) {
-    ///     println!("{}", data);
+    /// # #[derive(Debug, Clone, PartialEq)]
+    /// # struct MyMessage;
+    /// # impl MessageData for MyMessage {}
+    /// # let message = UiMessage::with_data(MyMessage);
+    /// if let Some(data) = message.data_from::<MyMessage>(widget_handle) {
+    ///     // Do something
     /// }
     /// ```
     ///
@@ -464,12 +452,15 @@ impl UiMessage {
     ///
     /// ```rust
     /// # use fyrox_core::pool::Handle;
-    /// # use fyrox_ui::message::{MessageDirection, UiMessage};
-    /// # let message = UiMessage::with_data(123);
+    /// # use fyrox_ui::message::{MessageData, MessageDirection, UiMessage};
     /// # let widget_handle = Handle::NONE;
+    /// # #[derive(Debug, Clone, PartialEq)]
+    /// # struct MyMessage;
+    /// # impl MessageData for MyMessage {}
+    /// # let message = UiMessage::with_data(MyMessage);
     /// if message.destination() == widget_handle && message.direction() == MessageDirection::FromWidget {
-    ///     if let Some(data) = message.data::<u32>() {
-    ///         println!("{}", data);
+    ///     if let Some(data) = message.data::<MyMessage>() {
+    ///         // Do something
     ///     }
     /// }
     /// ```

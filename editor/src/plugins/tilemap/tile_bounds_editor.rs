@@ -83,45 +83,23 @@ impl TileBoundsEditor {
     }
     fn turn(&mut self, amount: i8, ui: &mut UserInterface) {
         if let Some(value) = self.value.clone().map(|v| v.rotated(amount)) {
-            ui.send_message(TileBoundsMessage::value(
-                self.handle,
-                MessageDirection::ToWidget,
-                Some(value),
-            ));
+            ui.send(self.handle, TileBoundsMessage::Value(Some(value)));
         } else {
-            ui.send_message(TileBoundsMessage::turn(
-                self.handle,
-                MessageDirection::FromWidget,
-                amount,
-            ));
+            ui.send(self.handle, TileBoundsMessage::Turn(amount));
         }
     }
     fn flip_x(&mut self, ui: &mut UserInterface) {
         if let Some(value) = self.value.clone().map(|v| v.x_flipped()) {
-            ui.send_message(TileBoundsMessage::value(
-                self.handle,
-                MessageDirection::ToWidget,
-                Some(value),
-            ));
+            ui.send(self.handle, TileBoundsMessage::Value(Some(value)));
         } else {
-            ui.send_message(TileBoundsMessage::flip_x(
-                self.handle,
-                MessageDirection::FromWidget,
-            ));
+            ui.send(self.handle, TileBoundsMessage::FlipX);
         }
     }
     fn flip_y(&mut self, ui: &mut UserInterface) {
         if let Some(value) = self.value.clone().map(|v| v.y_flipped()) {
-            ui.send_message(TileBoundsMessage::value(
-                self.handle,
-                MessageDirection::ToWidget,
-                Some(value),
-            ));
+            ui.send(self.handle, TileBoundsMessage::Value(Some(value)));
         } else {
-            ui.send_message(TileBoundsMessage::flip_y(
-                self.handle,
-                MessageDirection::FromWidget,
-            ));
+            ui.send(self.handle, TileBoundsMessage::FlipY);
         }
     }
     fn set_value(
@@ -133,27 +111,15 @@ impl TileBoundsEditor {
         match (&self.value, new_value) {
             (None, None) => (),
             (Some(_), None) => {
-                ui.send_message(WidgetMessage::visibility(
-                    self.value_area,
-                    MessageDirection::ToWidget,
-                    false,
-                ));
+                ui.send(self.value_area, WidgetMessage::Visibility(false));
                 self.value = None;
                 ui.send_message(message.reverse());
             }
             (None, Some(v)) => {
-                ui.send_message(WidgetMessage::visibility(
-                    self.value_area,
-                    MessageDirection::ToWidget,
-                    true,
-                ));
+                ui.send(self.value_area, WidgetMessage::Visibility(true));
                 self.value = Some(v.clone());
                 for i in 0..4 {
-                    ui.send_message(Vec2EditorMessage::value(
-                        self.get_field(i),
-                        MessageDirection::ToWidget,
-                        v.get(i),
-                    ));
+                    ui.send(self.get_field(i), Vec2EditorMessage::Value(v.get(i)));
                 }
                 ui.send_message(message.reverse());
             }
@@ -162,11 +128,7 @@ impl TileBoundsEditor {
                 for i in 0..4 {
                     if v0.get(i) != v1.get(i) {
                         has_changed = true;
-                        ui.send_message(Vec2EditorMessage::value(
-                            self.get_field(i),
-                            MessageDirection::ToWidget,
-                            v1.get(i),
-                        ));
+                        ui.send(self.get_field(i), Vec2EditorMessage::Value(v1.get(i)));
                     }
                 }
                 self.value = Some(v1.clone());
@@ -189,11 +151,7 @@ impl Control for TileBoundsEditor {
                         *value.get_mut(i) = *v;
                         // This does not trigger a Value FromWidget message from the VecEditor
                         // because the values of the fields have not changed.
-                        ui.send_message(TileBoundsMessage::value(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                            Some(value),
-                        ));
+                        ui.send(self.handle, TileBoundsMessage::Value(Some(value)));
                     }
                 }
             }

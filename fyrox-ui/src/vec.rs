@@ -25,7 +25,6 @@ use crate::{
         algebra::SVector, color::Color, num_traits, pool::Handle, reflect::prelude::*,
         type_traits::prelude::*, visitor::prelude::*,
     },
-    define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     numeric::{NumericType, NumericUpDownBuilder, NumericUpDownMessage},
@@ -89,13 +88,6 @@ where
     Value(SVector<T, D>),
 }
 impl<T: NumericType, const D: usize> MessageData for VecEditorMessage<T, D> {}
-
-impl<T, const D: usize> VecEditorMessage<T, D>
-where
-    T: NumericType,
-{
-    define_constructor!(VecEditorMessage:Value => fn value(SVector<T, D>));
-}
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -218,11 +210,7 @@ where
                     if message.destination() == *field {
                         let mut new_value = self.value;
                         new_value[i] = value;
-                        ui.send_message(VecEditorMessage::value(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            new_value,
-                        ));
+                        ui.send(self.handle(), VecEditorMessage::Value(new_value));
                     }
                 }
             }
@@ -241,11 +229,7 @@ where
 
                     if *current != new {
                         *current = new;
-                        ui.send_message(NumericUpDownMessage::value(
-                            editor,
-                            MessageDirection::ToWidget,
-                            new,
-                        ));
+                        ui.send(editor, NumericUpDownMessage::Value(new));
                         changed = true;
                     }
                 }

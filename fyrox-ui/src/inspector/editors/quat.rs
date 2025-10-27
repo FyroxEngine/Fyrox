@@ -99,11 +99,10 @@ where
             euler.1.to_degrees(),
             euler.2.to_degrees(),
         );
-        Ok(Some(VecEditorMessage::value(
-            ctx.instance,
-            MessageDirection::ToWidget,
-            euler_degrees,
-        )))
+        Ok(Some(
+            UiMessage::with_data(VecEditorMessage::Value(euler_degrees))
+                .with_destination(ctx.instance),
+        ))
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {

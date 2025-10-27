@@ -29,8 +29,7 @@ use crate::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
     },
-    define_constructor,
-    message::{MessageDirection, UiMessage},
+    message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
@@ -53,13 +52,6 @@ pub enum WrapPanelMessage {
     Orientation(Orientation),
 }
 impl MessageData for WrapPanelMessage {}
-
-impl WrapPanelMessage {
-    define_constructor!(
-        /// Creates [`WrapPanelMessage::Orientation`] message.
-        WrapPanelMessage:Orientation => fn orientation(Orientation)
-    );
-}
 
 /// Wrap panel is used to stack children widgets either in vertical or horizontal direction with overflow - every widget
 /// that does not have enough space on current line, will automatically be placed on the next line (either vertical or

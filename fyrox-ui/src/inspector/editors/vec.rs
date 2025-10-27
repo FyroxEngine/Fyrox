@@ -92,11 +92,9 @@ impl<T: NumericType, const D: usize> PropertyEditorDefinition
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<SVector<T, D>>()?;
-        Ok(Some(VecEditorMessage::value(
-            ctx.instance,
-            MessageDirection::ToWidget,
-            *value,
-        )))
+        Ok(Some(
+            UiMessage::with_data(VecEditorMessage::Value(*value)).with_destination(ctx.instance),
+        ))
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {

@@ -1057,13 +1057,10 @@ impl TileInspector {
     }
     fn sync_to_page(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
         if let Some((_, mat)) = state.material_page() {
-            send_sync_message(
-                ui,
-                Vec2EditorMessage::value(
-                    self.tile_size_inspector.field,
-                    MessageDirection::ToWidget,
-                    mat.tile_size,
-                ),
+            ui.send_with_flags(
+                self.tile_size_inspector.field,
+                MSG_SYNC_FLAG,
+                Vec2EditorMessage::Value(mat.tile_size),
             );
             send_sync_message(
                 ui,
