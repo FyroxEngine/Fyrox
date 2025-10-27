@@ -267,40 +267,21 @@ impl ProjectWizard {
     }
 
     fn close_and_remove(&self, ui: &UserInterface) {
-        ui.send_message(WindowMessage::close(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
-        ui.send_message(WidgetMessage::remove(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.window, WindowMessage::Close);
+        ui.send(self.window, WidgetMessage::Remove);
     }
 
     fn validate(&self, ui: &UserInterface) {
         let is_valid = match fyrox_template_core::check_name(&self.name) {
             Ok(_) => true,
             Err(err) => {
-                ui.send_message(TextMessage::text(
-                    self.validation_text,
-                    MessageDirection::ToWidget,
-                    err.to_string(),
-                ));
+                ui.send(self.validation_text, TextMessage::Text(err.to_string()));
                 false
             }
         };
 
-        ui.send_message(WidgetMessage::visibility(
-            self.validation_text,
-            MessageDirection::ToWidget,
-            !is_valid,
-        ));
-
-        ui.send_message(WidgetMessage::enabled(
-            self.create,
-            MessageDirection::ToWidget,
-            is_valid,
-        ));
+        ui.send(self.validation_text, WidgetMessage::Visibility(!is_valid));
+        ui.send(self.create, WidgetMessage::Enabled(is_valid));
     }
 
     pub fn handle_ui_message(

@@ -208,15 +208,9 @@ impl UpgradeTool {
                     ));
                 }
                 *need_refresh = true;
-                ui.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.window, WindowMessage::Close);
             } else if message.destination() == self.cancel {
-                ui.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.window, WindowMessage::Close);
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
@@ -239,11 +233,11 @@ impl UpgradeTool {
                     _ => (),
                 }
 
-                ui.send_message(WidgetMessage::visibility(
+                let is_visible = matches!(self.selected_version, Version::Specific(_));
+                ui.send(
                     self.version_input_field,
-                    MessageDirection::ToWidget,
-                    matches!(self.selected_version, Version::Specific(_)),
-                ))
+                    WidgetMessage::Visibility(is_visible),
+                )
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
             if message.is_from(self.version_input_field) {

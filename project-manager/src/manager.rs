@@ -760,16 +760,11 @@ impl ProjectManager {
             &self.project_size_sender,
             &mut ui.build_ctx(),
         );
-        ui.send_message(WidgetMessage::visibility(
+        ui.send(
             self.no_projects_warning,
-            MessageDirection::ToWidget,
-            items.is_empty(),
-        ));
-        ui.send_message(ListViewMessage::items(
-            self.projects,
-            MessageDirection::ToWidget,
-            items,
-        ));
+            WidgetMessage::Visibility(items.is_empty()),
+        );
+        ui.send(self.projects, ListViewMessage::Items(items));
     }
 
     fn handle_modes(&mut self, ui: &mut UserInterface) {
@@ -850,24 +845,15 @@ impl ProjectManager {
 
         for project_size in self.project_size_receiver.try_iter() {
             let size_str = utils::format_size(project_size.size);
-            ui.send_message(TextMessage::text(
-                project_size.widget_handle,
-                MessageDirection::ToWidget,
-                size_str,
-            ));
+            ui.send(project_size.widget_handle, TextMessage::Text(size_str));
         }
 
         if self.log.update(65536, ui) {
-            ui.send_message(TextMessage::text(
+            ui.send(
                 self.message_count,
-                MessageDirection::ToWidget,
-                self.log.message_count.to_string(),
-            ));
-            ui.send_message(WidgetMessage::visibility(
-                self.open_log,
-                MessageDirection::ToWidget,
-                true,
-            ));
+                TextMessage::Text(self.log.message_count.to_string()),
+            );
+            ui.send(self.open_log, WidgetMessage::Visibility(true));
         }
 
         if let Some(build_window) = self.build_window.as_mut() {
@@ -954,12 +940,13 @@ impl ProjectManager {
         ))
         .with_buttons(MessageBoxButtons::YesNo)
         .build(ctx);
-        ui.send_message(WindowMessage::open_modal(
+        ui.send(
             self.deletion_confirmation_dialog,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
     }
 
     fn on_open_help_clicked(&mut self) {
@@ -984,16 +971,17 @@ impl ProjectManager {
         .with_filter(Filter::new(|path| path.is_dir()))
         .with_mode(FileBrowserMode::Open)
         .build(ctx);
-        ui.send_message(WindowMessage::open_modal(
+        ui.send(
             self.import_project_dialog,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
-        ui.send_message(FileSelectorMessage::focus_current_path(
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
+        ui.send(
             self.import_project_dialog,
-            MessageDirection::ToWidget,
-        ));
+            FileSelectorMessage::FocusCurrentPath,
+        );
     }
 
     fn on_create_clicked(&mut self, ui: &mut UserInterface) {
@@ -1210,18 +1198,16 @@ impl ProjectManager {
         {
             self.selection.clone_from(&selection.first().cloned());
 
-            ui.send_message(WidgetMessage::enabled(
+            ui.send(
                 self.project_controls,
-                MessageDirection::ToWidget,
-                !selection.is_empty(),
-            ));
+                WidgetMessage::Enabled(!selection.is_empty()),
+            );
 
             if let Some(project) = self.selection.and_then(|i| self.settings.projects.get(i)) {
-                ui.send_message(CheckBoxMessage::checked(
+                ui.send(
                     self.hot_reload,
-                    MessageDirection::ToWidget,
-                    Some(project.hot_reload),
-                ));
+                    CheckBoxMessage::Check(Some(project.hot_reload)),
+                );
             }
         } else if let Some(SearchBarMessage::Text(filter)) = message.data_from(self.search_bar) {
             self.search_text = filter.clone();
