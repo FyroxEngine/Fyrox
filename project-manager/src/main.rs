@@ -103,6 +103,9 @@ fn main() {
         Font::from_memory(
             include_bytes!("../resources/Roboto-Regular.ttf").to_vec(),
             1024,
+            None,
+            None,
+            Vec::default(),
         )
         .unwrap(),
     );
