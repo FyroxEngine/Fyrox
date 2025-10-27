@@ -44,7 +44,7 @@ Common rules for code contributions:
 When you're writing something for the editor, you can run its standalone version using `fyroxed` package like so:
 
 ```shell
-cargo run --package fyroxed
+cargo run --package fyroxed --profile=editor-standalone
 ```
 
 This way the editor will run without any plugins, and you can test your changes quickly without a need to create a

@@ -22,10 +22,11 @@ members = [
     "fyrox-texture",
     "fyrox-autotile",
     "fyrox-material"
-, "fyrox-graphics-gl"]
+    , "fyrox-graphics-gl"]
 resolver = "2"
 
-[profile.dev]
+[profile.editor-standalone]
+inherits = "dev"
 opt-level = 1
 
 [profile.release]
