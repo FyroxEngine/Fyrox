@@ -1012,6 +1012,24 @@ impl UiContainer {
     }
 }
 
+impl<T: ObjectOrVariant<UiNode>> Index<Handle<T>> for UserInterface {
+    type Output = T;
+
+    #[inline]
+    fn index(&self, index: Handle<T>) -> &Self::Output {
+        self.try_get(index)
+            .expect("The widget handle is invalid or the object it points to has different type.")
+    }
+}
+
+impl<T: ObjectOrVariant<UiNode>> IndexMut<Handle<T>> for UserInterface {
+    #[inline]
+    fn index_mut(&mut self, index: Handle<T>) -> &mut Self::Output {
+        self.try_get_mut(index)
+            .expect("The widget handle is invalid or the object it points to has different type.")
+    }
+}
+
 impl Index<Handle<UserInterface>> for UiContainer {
     type Output = UserInterface;
 
