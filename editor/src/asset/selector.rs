@@ -34,7 +34,7 @@ use crate::{
         gui::{
             border::BorderBuilder,
             brush::Brush,
-            button::{ButtonBuilder, ButtonMessage},
+            button::{Button, ButtonBuilder, ButtonMessage},
             decorator::DecoratorBuilder,
             define_constructor, define_widget_deref,
             draw::DrawingContext,
@@ -43,7 +43,7 @@ use crate::{
             image::{ImageBuilder, ImageMessage},
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::{MessageData, MessageDirection, OsEvent, UiMessage},
-            searchbar::{SearchBarBuilder, SearchBarMessage},
+            searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
             text::{Text, TextBuilder},
             widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -224,7 +224,7 @@ impl ItemBuilder {
 #[type_uuid(id = "970bb83b-51e8-48e7-8050-f97bf0ac470b")]
 pub struct AssetSelector {
     pub widget: Widget,
-    list_view: Handle<UiNode>,
+    list_view: Handle<ListView>,
     resources: Vec<PathBuf>,
     #[visit(skip)]
     #[reflect(hidden)]
@@ -368,7 +368,7 @@ impl<'a> AssetSelectorBuilder<'a> {
 
         let selector = AssetSelector {
             widget: self.widget_builder.with_child(list_view).build(ctx),
-            list_view,
+            list_view: list_view.transmute(),
             resources: supported_resource_paths,
             resource_manager: resource_manager.clone(),
         };
@@ -380,11 +380,11 @@ impl<'a> AssetSelectorBuilder<'a> {
 #[type_uuid(id = "c348ad3d-52a6-40ad-a5e4-bf63fefe1906")]
 pub struct AssetSelectorWindow {
     pub window: Window,
-    selector: Handle<UiNode>,
-    ok: Handle<UiNode>,
-    cancel: Handle<UiNode>,
+    selector: Handle<AssetSelector>,
+    ok: Handle<Button>,
+    cancel: Handle<Button>,
     selected_resource: Option<UntypedResource>,
-    search_bar: Handle<UiNode>,
+    search_bar: Handle<SearchBar>,
 }
 
 impl Deref for AssetSelectorWindow {
@@ -435,17 +435,12 @@ impl Control for AssetSelectorWindow {
         } else if let Some(ButtonMessage::Click) = message.data_from(self.cancel) {
             ui.send(self.handle, WindowMessage::Close);
         } else if let Some(WindowMessage::Open { .. } | WindowMessage::OpenModal { .. }) =
-            message.data()
+            message.data_for(self.handle)
         {
-            if message.destination() == self.handle {
-                ui.send(self.search_bar, WidgetMessage::Focus);
-            }
+            ui.send(self.search_bar, WidgetMessage::Focus);
         } else if let Some(SearchBarMessage::Text(text)) = message.data_from(self.search_bar) {
-            let selector = ui.try_get_of_type::<AssetSelector>(self.selector).unwrap();
-            let items = &*ui
-                .try_get_of_type::<ListView>(selector.list_view)
-                .unwrap()
-                .items;
+            let selector = &ui[self.selector];
+            let items = &*ui[selector.list_view].items;
 
             let filter_text = text.to_lowercase();
 
@@ -572,11 +567,11 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
 
         let window = AssetSelectorWindow {
             window: self.window_builder.with_content(content).build_window(ctx),
-            selector,
-            ok,
-            cancel,
+            selector: selector.transmute(),
+            ok: ok.transmute(),
+            cancel: cancel.transmute(),
             selected_resource: None,
-            search_bar,
+            search_bar: search_bar.transmute(),
         };
 
         ctx.add_node(UiNode::new(window))
