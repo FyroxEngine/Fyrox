@@ -230,24 +230,25 @@ pub enum RoutingStrategy {
     Direct,
 }
 
-/// Message is basic communication element that is used to deliver information to widget or to user code.
+/// Message is a basic communication element that is used to deliver information to widget or to user code.
 ///
 /// ## Motivation
 ///
-/// This UI library uses message passing mechanism to communicate with widgets. This is very simple and reliable mechanism that
-/// effectively decouples widgets from each other. There is no direct way of modify something during runtime, you have to use
-/// messages to change state of ui elements.
+/// This UI library uses message passing mechanism to communicate with widgets. This is a very simple
+/// and reliable mechanism that effectively decouples widgets from each other. There is no direct
+/// way of modifying something during runtime, you have to use messages to change the state of ui elements.
 ///
 /// ## Direction
 ///
-/// Each message marked with "Direction" field, which means supported routes for message. For example [`crate::button::ButtonMessage::Click`]
-/// has "Direction: To/From UI" which means that it can be sent either from internals of library or from user code. However
-/// [`crate::widget::WidgetMessage::Focus`] has "Direction: From UI" which means that only internal library code can send such messages without
+/// Each message marked with "Direction" field, which means supported routes for message. For example
+/// [`crate::button::ButtonMessage::Click`] has "Direction: To/From UI" which means that it can be
+/// sent either from internals of library or from user code. However [`crate::widget::WidgetMessage::Focus`]
+/// has "Direction: From UI" which means that only internal library code can send such messages without
 /// a risk of breaking anything.
 ///
 /// ## Threading
 ///
-/// UiMessage is nor Send or Sync. User interface is a single-thread thing, as well as its messages.
+/// UiMessage is [`Send`], it can be sent from another thread to a user interface.
 ///
 /// ## Examples
 ///
@@ -289,7 +290,7 @@ pub struct UiMessage {
     pub data: Box<dyn MessageData>,
 
     /// Handle of node that will receive message. Please note that **all** nodes in hierarchy will also receive this message,
-    /// order is "up-on-tree" (so called "bubble" message routing). T
+    /// order is "up-on-tree" (so called "bubble" message routing).
     pub destination: Handle<UiNode>,
 
     /// Indicates the direction of the message. See [`MessageDirection`] docs for more info.
