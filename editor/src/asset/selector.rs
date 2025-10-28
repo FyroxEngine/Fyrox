@@ -25,14 +25,15 @@
 use crate::{
     asset::{item::AssetItemMessage, preview::cache::IconRequest},
     fyrox::{
-        asset::{manager::ResourceManager, untyped::UntypedResource, TypedResourceData},
+        asset::{manager::ResourceManager, untyped::UntypedResource, Resource, TypedResourceData},
         core::{
-            algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-            visitor::prelude::*, SafeLock,
+            algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, some_or_continue,
+            type_traits::prelude::*, visitor::prelude::*, PhantomDataSendSync, SafeLock,
         },
         graph::SceneGraph,
         gui::{
             border::BorderBuilder,
+            brush::Brush,
             button::{ButtonBuilder, ButtonMessage},
             decorator::DecoratorBuilder,
             define_constructor, define_widget_deref,
@@ -41,7 +42,7 @@ use crate::{
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
             list_view::{ListView, ListViewBuilder, ListViewMessage},
-            message::{MessageDirection, OsEvent, UiMessage},
+            message::{MessageData, MessageDirection, OsEvent, UiMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
             text::{Text, TextBuilder},
@@ -53,17 +54,12 @@ use crate::{
         },
     },
 };
-use fyrox::asset::Resource;
-use fyrox::core::PhantomDataSendSync;
-use fyrox::gui::brush::Brush;
-use fyrox::gui::message::MessageData;
 use rust_fuzzy_search::fuzzy_compare;
-use std::borrow::Cow;
-use std::path::Path;
 use std::{
+    borrow::Cow,
     cell::Cell,
     ops::{Deref, DerefMut},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::mpsc::Sender,
 };
 
@@ -243,20 +239,12 @@ impl Control for AssetSelector {
 
         if let Some(ListViewMessage::SelectionChanged(selected)) = message.data_from(self.list_view)
         {
-            if let Some(first) = selected.first().cloned() {
-                if let Some(resource) = self.resources.get(first) {
-                    ui.post(
-                        self.handle(),
-                        AssetSelectorMessage::Select(
-                            self.resource_manager.request_untyped(resource),
-                        ),
-                    );
-                }
+            if let Some(path) = selected.first().and_then(|i| self.resources.get(*i)) {
+                let resource = self.resource_manager.request_untyped(path);
+                ui.post(self.handle(), AssetSelectorMessage::Select(resource));
             }
-        } else if let Some(WidgetMessage::Focus) = message.data() {
-            if message.is_for(self.handle) {
-                ui.send(self.list_view, WidgetMessage::Focus);
-            }
+        } else if let Some(WidgetMessage::Focus) = message.data_for(self.handle) {
+            ui.send(self.list_view, WidgetMessage::Focus);
         }
     }
 }
@@ -437,50 +425,40 @@ impl Control for AssetSelectorWindow {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
 
-        if let Some(AssetSelectorMessage::Select(resource)) = message.data() {
-            if message.is_from(self.selector) {
-                self.selected_resource = Some(resource.clone());
+        if let Some(AssetSelectorMessage::Select(resource)) = message.data_from(self.selector) {
+            self.selected_resource = Some(resource.clone());
+        } else if let Some(ButtonMessage::Click) = message.data_from(self.ok) {
+            if let Some(resource) = self.selected_resource.as_ref().cloned() {
+                ui.post(self.handle, AssetSelectorMessage::Select(resource));
             }
-        } else if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.ok {
-                if let Some(resource) = self.selected_resource.as_ref().cloned() {
-                    ui.post(self.handle, AssetSelectorMessage::Select(resource));
-                }
-            }
-
-            if message.destination() == self.cancel || message.destination() == self.ok {
-                ui.send(self.handle, WindowMessage::Close);
-            }
+            ui.send(self.handle, WindowMessage::Close);
+        } else if let Some(ButtonMessage::Click) = message.data_from(self.cancel) {
+            ui.send(self.handle, WindowMessage::Close);
         } else if let Some(WindowMessage::Open { .. } | WindowMessage::OpenModal { .. }) =
             message.data()
         {
             if message.destination() == self.handle {
                 ui.send(self.search_bar, WidgetMessage::Focus);
             }
-        } else if let Some(SearchBarMessage::Text(text)) = message.data() {
-            if message.is_from(self.search_bar) {
-                let selector = ui.try_get_of_type::<AssetSelector>(self.selector).unwrap();
-                let items = &*ui
-                    .try_get_of_type::<ListView>(selector.list_view)
-                    .unwrap()
-                    .items;
+        } else if let Some(SearchBarMessage::Text(text)) = message.data_from(self.search_bar) {
+            let selector = ui.try_get_of_type::<AssetSelector>(self.selector).unwrap();
+            let items = &*ui
+                .try_get_of_type::<ListView>(selector.list_view)
+                .unwrap()
+                .items;
 
-                let filter_text = text.to_lowercase();
+            let filter_text = text.to_lowercase();
 
-                for item in items {
-                    let mut matches = false;
-                    for (_, widget) in ui.traverse_iter(*item) {
-                        if let Some(text) = widget.cast::<Text>() {
-                            let text = text.text().to_lowercase();
-                            matches |= text.contains(&filter_text)
-                                || fuzzy_compare(&filter_text, text.as_str()) >= 0.5;
-                        }
-                    }
-                    ui.send(
-                        *item,
-                        WidgetMessage::Visibility(matches || filter_text.is_empty()),
-                    );
+            for item in items {
+                let mut matches = false;
+                for (_, widget) in ui.traverse_iter(*item) {
+                    let text_widget = some_or_continue!(widget.cast::<Text>());
+                    let text = text_widget.text().to_lowercase();
+                    matches |= text.contains(&filter_text)
+                        || fuzzy_compare(&filter_text, text.as_str()) >= 0.5;
                 }
+                let is_visible = matches || filter_text.is_empty();
+                ui.send(*item, WidgetMessage::Visibility(is_visible));
             }
         }
     }
