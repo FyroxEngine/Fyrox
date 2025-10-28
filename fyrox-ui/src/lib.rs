@@ -1970,21 +1970,26 @@ impl UserInterface {
         }
     }
 
-    pub fn send<T: MessageData>(&self, handle: Handle<UiNode>, data: T) {
+    pub fn send<T: MessageData>(&self, handle: Handle<impl ObjectOrVariant<UiNode>>, data: T) {
         self.sender
             .send(
                 UiMessage::with_data(data)
-                    .with_destination(handle)
+                    .with_destination(handle.transmute())
                     .with_direction(MessageDirection::ToWidget),
             )
             .unwrap()
     }
 
-    pub fn send_with_flags<T: MessageData>(&self, handle: Handle<UiNode>, flags: u64, data: T) {
+    pub fn send_with_flags<T: MessageData>(
+        &self,
+        handle: Handle<impl ObjectOrVariant<UiNode>>,
+        flags: u64,
+        data: T,
+    ) {
         self.sender
             .send(
                 UiMessage::with_data(data)
-                    .with_destination(handle)
+                    .with_destination(handle.transmute())
                     .with_direction(MessageDirection::ToWidget)
                     .with_flags(flags),
             )
@@ -1993,7 +1998,7 @@ impl UserInterface {
 
     pub fn send_many<const N: usize, T: MessageData>(
         &self,
-        handle: Handle<UiNode>,
+        handle: Handle<impl ObjectOrVariant<UiNode>>,
         payload: [T; N],
     ) {
         for data in payload {
@@ -2001,11 +2006,11 @@ impl UserInterface {
         }
     }
 
-    pub fn post<T: MessageData>(&self, handle: Handle<UiNode>, data: T) {
+    pub fn post<T: MessageData>(&self, handle: Handle<impl ObjectOrVariant<UiNode>>, data: T) {
         self.sender
             .send(
                 UiMessage::with_data(data)
-                    .with_destination(handle)
+                    .with_destination(handle.transmute())
                     .with_direction(MessageDirection::FromWidget),
             )
             .unwrap()
@@ -2013,7 +2018,7 @@ impl UserInterface {
 
     pub fn post_many<const N: usize, T: MessageData>(
         &self,
-        handle: Handle<UiNode>,
+        handle: Handle<impl ObjectOrVariant<UiNode>>,
         payload: [T; N],
     ) {
         for data in payload {

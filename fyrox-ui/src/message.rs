@@ -27,6 +27,7 @@ use crate::{
     core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     UiNode, UserInterface,
 };
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_core::uuid_provider;
 use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, fmt::Debug};
@@ -464,7 +465,10 @@ impl UiMessage {
     ///     }
     /// }
     /// ```
-    pub fn data_from<T: MessageData>(&self, handle: Handle<UiNode>) -> Option<&T> {
+    pub fn data_from<T: MessageData>(
+        &self,
+        handle: Handle<impl ObjectOrVariant<UiNode>>,
+    ) -> Option<&T> {
         if self.is_from(handle) {
             self.data()
         } else {
@@ -506,7 +510,10 @@ impl UiMessage {
     ///     }
     /// }
     /// ```
-    pub fn data_for<T: MessageData>(&self, handle: Handle<UiNode>) -> Option<&T> {
+    pub fn data_for<T: MessageData>(
+        &self,
+        handle: Handle<impl ObjectOrVariant<UiNode>>,
+    ) -> Option<&T> {
         if self.is_for(handle) {
             self.data()
         } else {
@@ -516,14 +523,14 @@ impl UiMessage {
 
     /// Checks whether the message destination node handle matches the given one and the message
     /// direction is [`MessageDirection::FromWidget`].
-    pub fn is_from(&self, handle: Handle<UiNode>) -> bool {
-        self.destination == handle && self.direction == MessageDirection::FromWidget
+    pub fn is_from(&self, handle: Handle<impl ObjectOrVariant<UiNode>>) -> bool {
+        self.destination == handle.transmute() && self.direction == MessageDirection::FromWidget
     }
 
     /// Checks whether the message destination node handle matches the given one and the message
     /// direction is [`MessageDirection::ToWidget`].
-    pub fn is_for(&self, handle: Handle<UiNode>) -> bool {
-        self.destination == handle && self.direction == MessageDirection::ToWidget
+    pub fn is_for(&self, handle: Handle<impl ObjectOrVariant<UiNode>>) -> bool {
+        self.destination == handle.transmute() && self.direction == MessageDirection::ToWidget
     }
 
     /// Returns destination widget handle of the message.
