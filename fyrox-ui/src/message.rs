@@ -430,9 +430,8 @@ impl UiMessage {
         }
     }
 
-    /// Checks if the destination node handle of the message matches the given handle as well
-    /// as the actual type of the message matches the given type and returns a reference to
-    /// the data.
+    /// Checks if the message comes from the specified widget (via [`Self::is_from`]) and the data
+    /// type matches the given type and returns a reference to the data.
     ///
     /// ## Example
     ///
@@ -467,6 +466,48 @@ impl UiMessage {
     /// ```
     pub fn data_from<T: MessageData>(&self, handle: Handle<UiNode>) -> Option<&T> {
         if self.is_from(handle) {
+            self.data()
+        } else {
+            None
+        }
+    }
+
+    /// Checks if the message was sent to the specified widget (via [`Self::is_for`]) and the data
+    /// type matches the given type and returns a reference to the data.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// # use fyrox_core::pool::Handle;
+    /// # use fyrox_ui::message::{MessageDirection, MessageData, UiMessage};
+    /// # let widget_handle = Handle::NONE;
+    /// # #[derive(Debug, Clone, PartialEq)]
+    /// # struct MyMessage;
+    /// # impl MessageData for MyMessage {}
+    /// # let message = UiMessage::with_data(MyMessage);
+    /// if let Some(data) = message.data_for::<MyMessage>(widget_handle) {
+    ///     // Do something
+    /// }
+    /// ```
+    ///
+    /// This method call is essentially a shortcut for:
+    ///
+    /// ```rust
+    /// # use fyrox_core::pool::Handle;
+    /// # use fyrox_ui::message::{MessageData, MessageDirection, UiMessage};
+    /// # let widget_handle = Handle::NONE;
+    /// # #[derive(Debug, Clone, PartialEq)]
+    /// # struct MyMessage;
+    /// # impl MessageData for MyMessage {}
+    /// # let message = UiMessage::with_data(MyMessage);
+    /// if message.destination() == widget_handle && message.direction() == MessageDirection::ToWidget {
+    ///     if let Some(data) = message.data::<MyMessage>() {
+    ///         // Do something
+    ///     }
+    /// }
+    /// ```
+    pub fn data_for<T: MessageData>(&self, handle: Handle<UiNode>) -> Option<&T> {
+        if self.is_for(handle) {
             self.data()
         } else {
             None
