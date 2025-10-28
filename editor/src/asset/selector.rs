@@ -107,21 +107,12 @@ impl Control for Item {
                 color,
             }) = message.data()
             {
-                ui.send_message(ImageMessage::texture(
+                ui.send(self.image, ImageMessage::Texture(texture.clone()));
+                ui.send(self.image, ImageMessage::Flip(*flip_y));
+                ui.send(
                     self.image,
-                    MessageDirection::ToWidget,
-                    texture.clone(),
-                ));
-                ui.send_message(ImageMessage::flip(
-                    self.image,
-                    MessageDirection::ToWidget,
-                    *flip_y,
-                ));
-                ui.send_message(WidgetMessage::background(
-                    self.image,
-                    MessageDirection::ToWidget,
-                    Brush::Solid(*color).into(),
-                ))
+                    WidgetMessage::Background(Brush::Solid(*color).into()),
+                )
             }
         }
     }
@@ -254,19 +245,17 @@ impl Control for AssetSelector {
         {
             if let Some(first) = selected.first().cloned() {
                 if let Some(resource) = self.resources.get(first) {
-                    ui.send_message(AssetSelectorMessage::select(
+                    ui.post(
                         self.handle(),
-                        MessageDirection::FromWidget,
-                        self.resource_manager.request_untyped(resource),
-                    ));
+                        AssetSelectorMessage::Select(
+                            self.resource_manager.request_untyped(resource),
+                        ),
+                    );
                 }
             }
         } else if let Some(WidgetMessage::Focus) = message.data() {
             if message.is_for(self.handle) {
-                ui.send_message(WidgetMessage::focus(
-                    self.list_view,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.list_view, WidgetMessage::Focus);
             }
         }
     }
@@ -455,28 +444,18 @@ impl Control for AssetSelectorWindow {
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
                 if let Some(resource) = self.selected_resource.as_ref().cloned() {
-                    ui.send_message(AssetSelectorMessage::select(
-                        self.handle,
-                        MessageDirection::FromWidget,
-                        resource,
-                    ));
+                    ui.post(self.handle, AssetSelectorMessage::Select(resource));
                 }
             }
 
             if message.destination() == self.cancel || message.destination() == self.ok {
-                ui.send_message(WindowMessage::close(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.handle, WindowMessage::Close);
             }
         } else if let Some(WindowMessage::Open { .. } | WindowMessage::OpenModal { .. }) =
             message.data()
         {
             if message.destination() == self.handle {
-                ui.send_message(WidgetMessage::focus(
-                    self.search_bar,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.search_bar, WidgetMessage::Focus);
             }
         } else if let Some(SearchBarMessage::Text(text)) = message.data() {
             if message.is_from(self.search_bar) {
@@ -497,11 +476,10 @@ impl Control for AssetSelectorWindow {
                                 || fuzzy_compare(&filter_text, text.as_str()) >= 0.5;
                         }
                     }
-                    ui.send_message(WidgetMessage::visibility(
+                    ui.send(
                         *item,
-                        MessageDirection::ToWidget,
-                        matches || filter_text.is_empty(),
-                    ));
+                        WidgetMessage::Visibility(matches || filter_text.is_empty()),
+                    );
                 }
             }
         }
@@ -647,12 +625,13 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
         .with_asset_types(vec![<T as TypeUuidProvider>::type_uuid()])
         .build(icon_request_sender, resource_manager, &mut ui.build_ctx());
 
-        ui.send_message(WindowMessage::open_modal(
+        ui.send(
             selector,
-            MessageDirection::ToWidget,
-            true,
-            false,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: false,
+            },
+        );
 
         selector
     }
