@@ -25,6 +25,7 @@
 
 use crate::formatted_text::{Run, RunSet};
 use crate::style::StyledProperty;
+use crate::BBCode;
 use crate::{
     brush::Brush,
     core::{
@@ -43,6 +44,7 @@ use crate::{
 
 use crate::message::MessageData;
 use fyrox_core::algebra::Matrix3;
+use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::RefCell,
@@ -52,6 +54,8 @@ use std::{
 /// Possible messages that can be used to alternate [`Text`] widget state at runtime.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TextMessage {
+    /// Used to set a new text and runs with BBCode tags.
+    BBCode(String),
     /// Used to set a new text or to receive the changed text.
     Text(String),
     /// Used to set new text wrapping mode of the widget. See [Text](Text#text-alignment-and-word-wrapping) for usage
@@ -81,6 +85,11 @@ pub enum TextMessage {
 impl MessageData for TextMessage {}
 
 impl TextMessage {
+    define_constructor!(
+        /// Creates new [`TextMessage::BBCode`] message.
+        TextMessage:BBCode => fn bbcode(String)
+    );
+
     define_constructor!(
         /// Creates new [`TextMessage::Text`] message.
         TextMessage:Text => fn text(String)
@@ -302,11 +311,57 @@ impl TextMessage {
 /// }
 /// ```
 ///
+/// ## Runs
+///
+/// Formatting options such as fonts, shadows, sizes, and brushes can be independently controlled
+/// for each character in text by adding formatting runs to the text with [`Run`].
+/// Each run has a range of `char` positions within the text and fields to control formatting.
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::{algebra::Vector2, color::Color, pool::Handle},
+/// #     brush::Brush, text::TextBuilder, widget::WidgetBuilder, UiNode, UserInterface,
+/// #     formatted_text::Run,
+/// # };
+/// #
+/// fn create_text_with_red_run(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+///     TextBuilder::new(WidgetBuilder::new())
+///         .with_text(text)
+///         .with_run(Run::new(5..22).with_brush(Brush::Solid(Color::RED)).with_shadow(true))
+///         .build(&mut ui.build_ctx())
+/// }
+/// ```
+///
+/// ## BBCode
+///
+/// Text widget supports BBCode to add runs of various formatting to text.
+/// The available tags are:
+/// * `[b]` **bold text** `[/b]`
+/// * `[i]` *italic text* `[/i]`
+/// * `[color=red]` red text `[/color]` (can be shortened to `[c=red]`... `[/c]`, and can use hex color as in `[color=#FF0000]`)
+/// * `[size=24]` large text `[/size]` (can be shortened to `[s=24]` ... `[/s]`)
+/// * `[shadow]` shadowed text `[/shadow]` (can be shortened to `[sh]` ... `[/sh]` and can change shadow color with `[shadow=blue]`)
+/// * `[br]` for a line break.
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::{algebra::Vector2, color::Color, pool::Handle},
+/// #     brush::Brush, text::TextBuilder, widget::WidgetBuilder, UiNode, UserInterface
+/// # };
+/// #
+/// fn create_text_with_bbcode(ui: &mut UserInterface) -> Handle<UiNode> {
+///     TextBuilder::new(WidgetBuilder::new())
+///         .with_bbcode("BBCode example: [b][c=blue]bold and blue[/c][/b]")
+///         .build(&mut ui.build_ctx())
+/// }
+/// ```
+///
 /// ## Messages
 ///
 /// Text widget can accept the following list of messages at runtime (respective constructors are name with small letter -
 /// `TextMessage::Text -> TextMessage::text(widget_handle, direction, text)`):
 ///
+/// - [`TextMessage::BBCode`] - sets the text and formatting runs using BBCode.
 /// - [`TextMessage::Text`] - sets new text for a `Text` widget.
 /// - [`TextMessage::Wrap`] - sets new [wrapping mode](Text#text-alignment-and-word-wrapping).
 /// - [`TextMessage::Font`] - sets new [font](Text#fonts-and-colors)
@@ -316,6 +371,7 @@ impl TextMessage {
 /// - [`TextMessage::ShadowDilation`] - sets "thickness" of the shadows under the tex.
 /// - [`TextMessage::ShadowBrush`] - sets shadow brush (allows you to change color and even make shadow with color gradients).
 /// - [`TextMessage::ShadowOffset`] - sets offset of the shadows.
+/// - [`TextMessage::Runs`] - sets the formatting runs for the text.
 ///
 /// An example of changing text at runtime could be something like this:
 ///
@@ -342,6 +398,17 @@ impl TextMessage {
 pub struct Text {
     /// Base widget of the Text widget.
     pub widget: Widget,
+    /// Text that may have BBCode tags to automatically generate formatting runs.
+    /// The available tags are:
+    /// * `[b]` **bold text** `[/b]`
+    /// * `[i]` *italic text* `[/i]`
+    /// * `[color=red]` red text `[/color]` (can be shortened to `[c=red]`... `[/c]`, and can use hex color as in `[color=#FF0000]`)
+    /// * `[size=24]` large text `[/size]` (can be shortened to `[s=24]` ... `[/s]`)
+    /// * `[shadow]` shadowed text `[/shadow]` (can be shortened to `[sh]` ... `[/sh]` and can change shadow color with `[shadow=blue]`)
+    /// * `[br]` for a line break.
+    #[visit(optional)]
+    #[reflect(hidden)]
+    pub bbcode: InheritableVariable<String>,
     /// [`FormattedText`] instance that is used to layout text and generate drawing commands.
     pub formatted_text: RefCell<FormattedText>,
 }
@@ -405,6 +472,10 @@ impl Control for Text {
             if let Some(msg) = message.data::<TextMessage>() {
                 let mut text_ref = self.formatted_text.borrow_mut();
                 match msg {
+                    TextMessage::BBCode(text) => {
+                        drop(text_ref);
+                        self.set_bbcode(text.clone());
+                    }
                     TextMessage::Text(text) => {
                         text_ref.set_text(text);
                         drop(text_ref);
@@ -485,6 +556,23 @@ impl Control for Text {
 }
 
 impl Text {
+    /// Modifies the content of the text, with BBCode tags used to set the formatting runs.
+    /// The available tags are:
+    /// * `[b]` **bold text** `[/b]`
+    /// * `[i]` *italic text* `[/i]`
+    /// * `[color=red]` red text `[/color]` (can be shortened to `[c=red]`... `[/c]`, and can use hex color as in `[color=#FF0000]`)
+    /// * `[size=24]` large text `[/size]` (can be shortened to `[s=24]` ... `[/s]`)
+    /// * `[shadow]` shadowed text `[/shadow]` (can be shortened to `[sh]` ... `[/sh]` and can change shadow color with `[shadow=blue]`)
+    /// * `[br]` for a line break.
+    pub fn set_bbcode(&mut self, code: String) {
+        self.bbcode.set_value_and_mark_modified(code);
+        let code: BBCode = self.bbcode.parse().unwrap();
+        let mut formatted = self.formatted_text.borrow_mut();
+        let font = formatted.get_font();
+        formatted.set_runs(code.build_runs(&font));
+        formatted.set_text(code.text);
+        self.invalidate_layout();
+    }
     /// Returns current text wrapping mode of the widget.
     pub fn wrap_mode(&self) -> WrapMode {
         self.formatted_text.borrow().wrap_mode()
@@ -514,6 +602,7 @@ impl Text {
 /// TextBuilder is used to create instances of [`Text`] widget and register them in the user interface.
 pub struct TextBuilder {
     widget_builder: WidgetBuilder,
+    bbcode: Option<String>,
     text: Option<String>,
     font: Option<FontResource>,
     vertical_text_alignment: VerticalAlignment,
@@ -532,6 +621,7 @@ impl TextBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
+            bbcode: None,
             text: None,
             font: None,
             vertical_text_alignment: VerticalAlignment::Top,
@@ -544,6 +634,14 @@ impl TextBuilder {
             font_size: None,
             runs: Vec::default(),
         }
+    }
+
+    /// Sets the desired text of the widget, with BBcode tags that will
+    /// automatically generate the formatting runs and replace any other
+    /// runs set through this builder.
+    pub fn with_bbcode<P: Into<String>>(mut self, text: P) -> Self {
+        self.bbcode = Some(text.into());
+        self
     }
 
     /// Sets the desired text of the widget.
@@ -641,25 +739,32 @@ impl TextBuilder {
             self.widget_builder.foreground = Some(ctx.style.property(Style::BRUSH_TEXT));
         }
 
+        let text_builder = if let Some(bbcode) = &self.bbcode {
+            let code: BBCode = bbcode.parse().unwrap();
+            code.build_formatted_text(font)
+        } else {
+            FormattedTextBuilder::new(font)
+                .with_text(self.text.unwrap_or_default())
+                .with_runs(self.runs)
+        };
+        let formatted_text = text_builder
+            .with_vertical_alignment(self.vertical_text_alignment)
+            .with_horizontal_alignment(self.horizontal_text_alignment)
+            .with_wrap(self.wrap)
+            .with_shadow(self.shadow)
+            .with_shadow_brush(self.shadow_brush)
+            .with_shadow_dilation(self.shadow_dilation)
+            .with_shadow_offset(self.shadow_offset)
+            .with_font_size(
+                self.font_size
+                    .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+            )
+            .build();
+
         let text = Text {
             widget: self.widget_builder.build(ctx),
-            formatted_text: RefCell::new(
-                FormattedTextBuilder::new(font)
-                    .with_text(self.text.unwrap_or_default())
-                    .with_vertical_alignment(self.vertical_text_alignment)
-                    .with_horizontal_alignment(self.horizontal_text_alignment)
-                    .with_wrap(self.wrap)
-                    .with_shadow(self.shadow)
-                    .with_shadow_brush(self.shadow_brush)
-                    .with_shadow_dilation(self.shadow_dilation)
-                    .with_shadow_offset(self.shadow_offset)
-                    .with_font_size(
-                        self.font_size
-                            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
-                    )
-                    .with_runs(self.runs)
-                    .build(),
-            ),
+            bbcode: self.bbcode.unwrap_or_default().into(),
+            formatted_text: RefCell::new(formatted_text),
         };
         ctx.add_node(UiNode::new(text))
     }

@@ -352,6 +352,9 @@ pub struct Font {
     /// A font representing the italic version of this font.
     #[visit(skip)]
     pub italic: Option<FontResource>,
+    /// A font representing the bold italic version of this font.
+    #[visit(skip)]
+    pub bold_italic: Option<FontResource>,
     /// Fallback fonts are used for rendering special characters that do not have glyphs in this
     /// font.
     #[visit(skip)]
@@ -410,15 +413,60 @@ impl Hash for FontHeight {
 pub type FontResource = Resource<Font>;
 
 lazy_static! {
+    /// Fyrox's default build-in font for rendering bold italic text when no other font is specified.
+    pub static ref BOLD_ITALIC: BuiltInResource<Font> = BuiltInResource::new(
+        "__BOLD_ITALIC__",
+        embedded_data_source!("./bold_italic.ttf"),
+        |data| {
+            FontResource::new_ok(
+                uuid!("f5b02124-9601-452a-9368-3fa2a9703ecd"),
+                ResourceKind::External,
+                Font::from_memory(data.to_vec(), 1024, FontStyles::default(), Vec::default()).unwrap(),
+            )
+        }
+    );
+    /// Fyrox's default build-in font for rendering italic text when no other font is specified.
+    pub static ref BUILT_IN_ITALIC: BuiltInResource<Font> = BuiltInResource::new(
+        "__BUILT_IN_ITALIC__",
+        embedded_data_source!("./built_in_italic.ttf"),
+        |data| {
+            let bold = Some(BOLD_ITALIC.resource());
+            let styles = FontStyles{bold, ..FontStyles::default()};
+            FontResource::new_ok(
+                uuid!("1cd79487-6c76-4370-91c2-e6e1e728950a"),
+                ResourceKind::External,
+                Font::from_memory(data.to_vec(), 1024, styles, Vec::default()).unwrap(),
+            )
+        }
+    );
+    /// Fyrox's default build-in font for rendering bold text when no other font is specified.
+    pub static ref BUILT_IN_BOLD: BuiltInResource<Font> = BuiltInResource::new(
+        "__BUILT_IN_BOLD__",
+        embedded_data_source!("./built_in_bold.ttf"),
+        |data| {
+            let italic = Some(BOLD_ITALIC.resource());
+            let styles = FontStyles{italic, ..FontStyles::default()};
+            FontResource::new_ok(
+                uuid!("8a471243-2466-4241-a4cb-c341ce8e844a"),
+                ResourceKind::External,
+                Font::from_memory(data.to_vec(), 1024, styles, Vec::default()).unwrap(),
+            )
+        }
+    );
     /// Fyrox's default build-in font for rendering text when no other font is specified.
     pub static ref BUILT_IN_FONT: BuiltInResource<Font> = BuiltInResource::new(
         "__BUILT_IN_FONT__",
         embedded_data_source!("./built_in_font.ttf"),
         |data| {
+            let styles = FontStyles{
+                bold: Some(BUILT_IN_BOLD.resource()),
+                italic: Some(BUILT_IN_ITALIC.resource()),
+                bold_italic: Some(BOLD_ITALIC.resource()),
+            };
             FontResource::new_ok(
                 uuid!("77260e8e-f6fa-429c-8009-13dda2673925"),
                 ResourceKind::External,
-                Font::from_memory(data.to_vec(), 1024, None, None, Vec::default()).unwrap(),
+                Font::from_memory(data.to_vec(), 1024, styles, Vec::default()).unwrap(),
             )
         }
     );
@@ -439,6 +487,11 @@ pub async fn wait_for_subfonts(font: FontResource) -> Result<FontResource, LoadE
     let italic = font.data_ref().italic.clone();
     if let Some(italic) = italic {
         wait_for_fallbacks(italic, &mut stack).await?;
+        stack.clear();
+    }
+    let bold_italic = font.data_ref().bold_italic.clone();
+    if let Some(bold_italic) = bold_italic {
+        wait_for_fallbacks(bold_italic, &mut stack).await?;
         stack.clear();
     }
     wait_for_fallbacks(font, &mut stack).await
@@ -491,6 +544,13 @@ async fn wait_for_fallbacks(
     Ok(font)
 }
 
+#[derive(Default, Debug, Clone)]
+pub struct FontStyles {
+    pub bold: Option<FontResource>,
+    pub italic: Option<FontResource>,
+    pub bold_italic: Option<FontResource>,
+}
+
 impl Font {
     /// The name of the font, if available.
     pub fn name(&self) -> Option<&str> {
@@ -501,8 +561,7 @@ impl Font {
     pub fn from_memory(
         data: impl Deref<Target = [u8]>,
         page_size: usize,
-        bold: Option<FontResource>,
-        italic: Option<FontResource>,
+        styles: FontStyles,
         fallbacks: Vec<Option<FontResource>>,
     ) -> Result<Self, &'static str> {
         let fontdue_font = fontdue::Font::from_bytes(data, fontdue::FontSettings::default())?;
@@ -510,8 +569,9 @@ impl Font {
             inner: Some(fontdue_font),
             atlases: Default::default(),
             page_size,
-            bold,
-            italic,
+            bold: styles.bold,
+            italic: styles.italic,
+            bold_italic: styles.bold_italic,
             fallbacks,
         })
     }
@@ -527,18 +587,26 @@ impl Font {
             let page_size = options.page_size;
             let mut bold = options.bold;
             let mut italic = options.italic;
+            let mut bold_italic = options.bold_italic;
             if let Some(bold) = &mut bold {
                 resource_manager.request_resource(bold);
             }
             if let Some(italic) = &mut italic {
                 resource_manager.request_resource(italic);
             }
+            if let Some(bold_italic) = &mut bold_italic {
+                resource_manager.request_resource(bold_italic);
+            }
             let mut fallbacks = options.fallbacks;
             for font in fallbacks.iter_mut().flatten() {
                 resource_manager.request_resource(font);
             }
-            Self::from_memory(file_content, page_size, bold, italic, fallbacks)
-                .map_err(LoadError::new)
+            let styles = FontStyles {
+                bold,
+                italic,
+                bold_italic,
+            };
+            Self::from_memory(file_content, page_size, styles, fallbacks).map_err(LoadError::new)
         } else {
             Err(LoadError::new("Unable to read file"))
         }
@@ -625,6 +693,7 @@ pub struct FontBuilder {
     page_size: usize,
     bold: Option<FontResource>,
     italic: Option<FontResource>,
+    bold_italic: Option<FontResource>,
     fallbacks: Vec<Option<FontResource>>,
 }
 
@@ -635,6 +704,7 @@ impl FontBuilder {
             page_size: 1024,
             bold: None,
             italic: None,
+            bold_italic: None,
             fallbacks: Vec::default(),
         }
     }
@@ -654,6 +724,11 @@ impl FontBuilder {
     /// The italic version of this font.
     pub fn with_italic(mut self, font: FontResource) -> Self {
         self.italic = Some(font);
+        self
+    }
+
+    pub fn with_bold_italic(mut self, font: FontResource) -> Self {
+        self.bold_italic = Some(font);
         self
     }
 
@@ -677,6 +752,7 @@ impl FontBuilder {
             page_size: self.page_size,
             bold: self.bold,
             italic: self.italic,
+            bold_italic: self.bold_italic,
             fallbacks: self.fallbacks,
         }
     }
@@ -700,6 +776,11 @@ impl FontBuilder {
         for font in self.fallbacks.iter_mut().flatten() {
             resource_manager.request_resource(font);
         }
-        Font::from_memory(data, self.page_size, self.bold, self.italic, self.fallbacks)
+        let styles = FontStyles {
+            bold: self.bold,
+            italic: self.italic,
+            bold_italic: self.bold_italic,
+        };
+        Font::from_memory(data, self.page_size, styles, self.fallbacks)
     }
 }

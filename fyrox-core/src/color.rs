@@ -26,7 +26,11 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use num_traits::Zero;
-use std::ops::{Add, AddAssign, Sub, SubAssign};
+use std::{
+    fmt::Display,
+    ops::{Add, AddAssign, Range, Sub, SubAssign},
+    str::FromStr,
+};
 
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Eq, Visit, Reflect, Pod, Zeroable)]
 #[repr(C)]
@@ -306,6 +310,59 @@ impl From<Color> for Hsl {
             hue: h,
             saturation: s,
             lightness: l,
+        }
+    }
+}
+
+/// An error indicating that a string could not be parsed into a color.
+#[derive(Debug, Clone)]
+pub struct ColorParseError {
+    /// The string that was given to be parsed, but could not be parsed.
+    pub input: String,
+}
+
+impl ColorParseError {
+    pub fn new(input: String) -> Self {
+        Self { input }
+    }
+}
+
+impl std::error::Error for ColorParseError {}
+
+impl Display for ColorParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Could not parse color: {:?}", self.input)
+    }
+}
+
+impl FromStr for Color {
+    type Err = ColorParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.is_empty() {
+            return Err(ColorParseError::new(s.to_string()));
+        }
+        if s.starts_with('#') {
+            Color::from_hex_str(s)
+        } else {
+            let mut bytes = s.as_bytes().to_vec();
+            for c in &mut bytes {
+                c.make_ascii_uppercase();
+                if *c == b' ' {
+                    *c = b'_';
+                }
+            }
+            Color::from_name(std::str::from_utf8(&bytes).unwrap())
+                .ok_or_else(|| ColorParseError::new(s.to_string()))
+        }
+    }
+}
+
+macro_rules! name_to_color {
+    ($source:expr =>[$($name:ident,)*])=> {
+        match $source {
+            $(stringify!($name) => Some(Color::$name),)*
+            _ => None
         }
     }
 }
@@ -595,6 +652,177 @@ impl Color {
         Self::WHITE_SMOKE,
     ];
 
+    pub fn from_name(name: &str) -> Option<Self> {
+        name_to_color! {
+            name => [
+                TRANSPARENT,
+                WHITE,
+                BLACK,
+                RED,
+                GREEN,
+                BLUE,
+                MAROON,
+                DARK_RED,
+                BROWN,
+                FIREBRICK,
+                CRIMSON,
+                TOMATO,
+                CORAL,
+                INDIAN_RED,
+                LIGHT_CORAL,
+                DARK_SALMON,
+                SALMON,
+                LIGHT_SALMON,
+                ORANGE_RED,
+                DARK_ORANGE,
+                ORANGE,
+                GOLD,
+                DARK_GOLDEN_ROD,
+                GOLDEN_ROD,
+                PALE_GOLDEN_ROD,
+                DARK_KHAKI,
+                KHAKI,
+                OLIVE,
+                YELLOW,
+                YELLOW_GREEN,
+                DARK_OLIVE_GREEN,
+                OLIVE_DRAB,
+                LAWN_GREEN,
+                CHARTREUSE,
+                GREEN_YELLOW,
+                DARK_GREEN,
+                FOREST_GREEN,
+                LIME,
+                LIME_GREEN,
+                LIGHT_GREEN,
+                PALE_GREEN,
+                DARK_SEA_GREEN,
+                MEDIUM_SPRING_GREEN,
+                SPRING_GREEN,
+                SEA_GREEN,
+                MEDIUM_AQUA_MARINE,
+                MEDIUM_SEA_GREEN,
+                LIGHT_SEA_GREEN,
+                DARK_SLATE_GRAY,
+                TEAL,
+                DARK_CYAN,
+                AQUA,
+                CYAN,
+                LIGHT_CYAN,
+                DARK_TURQUOISE,
+                TURQUOISE,
+                MEDIUM_TURQUOISE,
+                PALE_TURQUOISE,
+                AQUA_MARINE,
+                POWDER_BLUE,
+                CADET_BLUE,
+                STEEL_BLUE,
+                CORN_FLOWER_BLUE,
+                DEEP_SKY_BLUE,
+                DODGER_BLUE,
+                LIGHT_BLUE,
+                SKY_BLUE,
+                LIGHT_SKY_BLUE,
+                MIDNIGHT_BLUE,
+                NAVY,
+                DARK_BLUE,
+                MEDIUM_BLUE,
+                ROYAL_BLUE,
+                BLUE_VIOLET,
+                INDIGO,
+                DARK_SLATE_BLUE,
+                SLATE_BLUE,
+                MEDIUM_SLATE_BLUE,
+                MEDIUM_PURPLE,
+                DARK_MAGENTA,
+                DARK_VIOLET,
+                DARK_ORCHID,
+                MEDIUM_ORCHID,
+                PURPLE,
+                THISTLE,
+                PLUM,
+                VIOLET,
+                MAGENTA,
+                ORCHID,
+                MEDIUM_VIOLET_RED,
+                PALE_VIOLET_RED,
+                DEEP_PINK,
+                HOT_PINK,
+                LIGHT_PINK,
+                PINK,
+                ANTIQUE_WHITE,
+                BEIGE,
+                BISQUE,
+                BLANCHED_ALMOND,
+                WHEAT,
+                CORN_SILK,
+                LEMON_CHIFFON,
+                LIGHT_GOLDEN_ROD_YELLOW,
+                LIGHT_YELLOW,
+                SADDLE_BROWN,
+                SIENNA,
+                CHOCOLATE,
+                PERU,
+                SANDY_BROWN,
+                BURLY_WOOD,
+                TAN,
+                ROSY_BROWN,
+                MOCCASIN,
+                NAVAJO_WHITE,
+                PEACH_PUFF,
+                MISTY_ROSE,
+                LAVENDER_BLUSH,
+                LINEN,
+                OLD_LACE,
+                PAPAYA_WHIP,
+                SEA_SHELL,
+                MINT_CREAM,
+                SLATE_GRAY,
+                LIGHT_SLATE_GRAY,
+                LIGHT_STEEL_BLUE,
+                LAVENDER,
+                FLORAL_WHITE,
+                ALICE_BLUE,
+                GHOST_WHITE,
+                HONEYDEW,
+                IVORY,
+                AZURE,
+                SNOW,
+                DIM_GRAY,
+                GRAY,
+                DARK_GRAY,
+                SILVER,
+                LIGHT_GRAY,
+                GAINSBORO,
+                WHITE_SMOKE,
+            ]
+        }
+    }
+
+    /// Constructs a color from a hex string of the form "#FF237A", where
+    /// the first two digits are the amount of red (FF), then green (23), then the final two digits are blue (7A).
+    /// An alpha value can be included using an optional fourth pair of digits, as in:
+    /// "#FF237A50", where the alpha is 50. If alpha is not included, then it is assumed to be FF.
+    pub fn from_hex_str(source: &str) -> Result<Self, ColorParseError> {
+        fn hex_to_u8(source: &str, range: Range<usize>) -> Result<u8, ColorParseError> {
+            source
+                .get(range)
+                .and_then(|s| u8::from_str_radix(s, 16).ok())
+                .ok_or_else(|| ColorParseError::new(source.into()))
+        }
+        let r = hex_to_u8(source, 1..3)?;
+        let g = hex_to_u8(source, 3..5)?;
+        let b = hex_to_u8(source, 5..7)?;
+        match source.len() {
+            7 => Ok(Self::opaque(r, g, b)),
+            9 => {
+                let a = hex_to_u8(source, 7..9)?;
+                Ok(Self::from_rgba(r, g, b, a))
+            }
+            _ => Err(ColorParseError::new(source.into())),
+        }
+    }
+
     #[inline]
     pub const fn opaque(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b, a: 255 }
@@ -754,6 +982,56 @@ impl SubAssign for Color {
 mod test {
     use crate::algebra::{Vector3, Vector4};
     use crate::color::{Color, Hsl, Hsv};
+
+    #[test]
+    fn test_parse() {
+        assert_eq!("red".parse::<Color>().unwrap(), Color::RED);
+        assert_eq!("green".parse::<Color>().unwrap(), Color::GREEN);
+        assert_eq!("blue".parse::<Color>().unwrap(), Color::BLUE);
+        assert_eq!("olive drab".parse::<Color>().unwrap(), Color::OLIVE_DRAB);
+        assert_eq!(
+            "#FF0000".parse::<Color>().unwrap(),
+            Color::opaque(255, 0, 0)
+        );
+        assert_eq!(
+            "#00FF00".parse::<Color>().unwrap(),
+            Color::opaque(0, 255, 0)
+        );
+        assert_eq!(
+            "#0000FF".parse::<Color>().unwrap(),
+            Color::opaque(0, 0, 255)
+        );
+        assert_eq!(
+            "#251607".parse::<Color>().unwrap(),
+            Color::opaque(37, 22, 7)
+        );
+        assert_eq!(
+            "#25160700".parse::<Color>().unwrap(),
+            Color::from_rgba(37, 22, 7, 0)
+        );
+        assert_eq!(
+            "#251607FF".parse::<Color>().unwrap(),
+            Color::from_rgba(37, 22, 7, 255)
+        );
+    }
+
+    #[test]
+    fn test_parse_fail() {
+        // Confirm that we return an error instead of panicking when given an empty string.
+        assert_eq!("".parse::<Color>().err().unwrap().input, "");
+        assert_eq!("#".parse::<Color>().err().unwrap().input, "#");
+        // Not the real name of a color
+        assert_eq!("blah".parse::<Color>().err().unwrap().input, "blah");
+        // Invalid hex digits
+        assert_eq!("#XYZF00".parse::<Color>().err().unwrap().input, "#XYZF00");
+        // Too short
+        assert_eq!("#FF109".parse::<Color>().err().unwrap().input, "#FF109");
+        // Too long
+        assert_eq!(
+            "#FF10FF001".parse::<Color>().err().unwrap().input,
+            "#FF10FF001"
+        );
+    }
 
     #[test]
     fn test_hsl() {

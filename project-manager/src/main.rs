@@ -32,6 +32,7 @@ use crate::{manager::ProjectManager, settings::DATA_DIR, utils::make_button};
 use fyrox::asset::io::FsResourceIo;
 use fyrox::core::Uuid;
 use fyrox::engine::ApplicationLoopController;
+use fyrox::gui::font::FontStyles;
 use fyrox::{
     asset::{manager::ResourceManager, untyped::ResourceKind},
     core::{
@@ -103,8 +104,7 @@ fn main() {
         Font::from_memory(
             include_bytes!("../resources/Roboto-Regular.ttf").to_vec(),
             1024,
-            None,
-            None,
+            FontStyles::default(),
             Vec::default(),
         )
         .unwrap(),

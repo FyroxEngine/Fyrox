@@ -293,6 +293,7 @@ pub fn make_property_editors_container(
     container.insert(TexturePropertyEditorDefinition { untyped: true });
     container.insert(FontPropertyEditorDefinition { resource_manager });
     container.insert(InheritablePropertyEditorDefinition::<FontResource>::new());
+    container.insert(InheritablePropertyEditorDefinition::<Option<FontResource>>::new());
     container.insert(InheritablePropertyEditorDefinition::<Option<TextureResource>>::new());
     container.insert(InheritablePropertyEditorDefinition::<Option<UntypedResource>>::new());
     container.register_inheritable_vec_collection::<Option<FontResource>>();

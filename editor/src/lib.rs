@@ -99,7 +99,6 @@ use crate::{
             },
             dropdown_list::DropdownListBuilder,
             file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
-            font::Font,
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             key::HotKey,
@@ -169,7 +168,7 @@ use crate::{
     settings::{general::EditorStyle, Settings},
     stats::{StatisticsWindow, StatisticsWindowAction},
     ui_scene::{
-        commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
+        bbcode::BBCodePanel, commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
         utils::UiSceneWorldViewerDataProvider, UiScene,
     },
     utils::doc::DocWindow,
@@ -634,6 +633,7 @@ pub struct Editor {
     pub mode: Mode,
     pub build_window: Option<BuildWindow>,
     pub scene_settings: SceneSettingsWindow,
+    pub bbcode_panel: BBCodePanel,
     pub particle_system_control_panel: ParticleSystemPreviewControlPanel,
     pub camera_control_panel: CameraPreviewControlPanel,
     pub mesh_control_panel: MeshControlPanel,
@@ -807,19 +807,6 @@ impl Editor {
         let (message_sender, message_receiver) = mpsc::channel();
         let message_sender = MessageSender(message_sender);
 
-        {
-            let mut font_state = engine.user_interfaces.first_mut().default_font.state();
-            let font_state_data = font_state.data().unwrap();
-            *font_state_data = Font::from_memory(
-                include_bytes!("../resources/Roboto-Regular.ttf").as_slice(),
-                1024,
-                None,
-                None,
-                Vec::default(),
-            )
-            .unwrap();
-        }
-
         let ui = engine.user_interfaces.first_mut();
         if let Some(style) = styles.get(&settings.general.style) {
             ui.set_style(style.clone());
@@ -857,6 +844,7 @@ impl Editor {
         );
         let inspector_plugin =
             InspectorPlugin::new(ctx, message_sender.clone(), engine.resource_manager.clone());
+        let bbcode_panel = BBCodePanel::new(inspector_plugin.head, ctx);
         let particle_system_control_panel =
             ParticleSystemPreviewControlPanel::new(inspector_plugin.head, ctx);
         let camera_control_panel = CameraPreviewControlPanel::new(scene_viewer.frame(), ctx);
@@ -1070,6 +1058,7 @@ impl Editor {
             },
             build_window: None,
             scene_settings,
+            bbcode_panel,
             particle_system_control_panel,
             camera_control_panel,
             mesh_control_panel,
@@ -1568,6 +1557,13 @@ impl Editor {
                     .handle_ui_message(message, game_scene, engine);
             } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>()
             {
+                self.bbcode_panel.handle_ui_message(
+                    message,
+                    &current_scene_entry.selection,
+                    ui_scene,
+                    engine,
+                    &self.message_sender,
+                );
                 self.world_viewer.handle_ui_message(
                     message,
                     &mut UiSceneWorldViewerDataProvider {
@@ -1842,6 +1838,11 @@ impl Editor {
                 );
             } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>()
             {
+                self.bbcode_panel.sync_to_model(
+                    &current_scene_entry.selection,
+                    ui_scene,
+                    engine.user_interfaces.first_mut(),
+                );
                 self.world_viewer.sync_to_model(
                     &UiSceneWorldViewerDataProvider {
                         ui: &mut ui_scene.ui,
@@ -2569,6 +2570,13 @@ impl Editor {
                             &message,
                             &entry.selection,
                             game_scene,
+                            &mut self.engine,
+                        );
+                    } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+                        self.bbcode_panel.handle_message(
+                            &message,
+                            &entry.selection,
+                            ui_scene,
                             &mut self.engine,
                         );
                     }

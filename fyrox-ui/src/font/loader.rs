@@ -53,6 +53,8 @@ pub struct FontImportOptions {
     pub bold: Option<FontResource>,
     /// The italic version of this font.
     pub italic: Option<FontResource>,
+    /// The bold italic version of this font.
+    pub bold_italic: Option<FontResource>,
     /// Fallback fonts are used for rendering special characters that do not have glyphs in this
     /// font.
     pub fallbacks: Vec<Option<FontResource>>,
@@ -64,6 +66,7 @@ impl Default for FontImportOptions {
             page_size: default_page_size(),
             bold: None,
             italic: None,
+            bold_italic: None,
             fallbacks: Vec::default(),
         }
     }

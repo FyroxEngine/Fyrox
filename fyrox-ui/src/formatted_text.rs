@@ -24,7 +24,7 @@ use crate::{
         algebra::Vector2, color::Color, math::Rect, reflect::prelude::*, uuid_provider,
         variable::InheritableVariable, visitor::prelude::*,
     },
-    font::{Font, FontGlyph, FontHeight, FontResource},
+    font::{Font, FontGlyph, FontHeight, FontResource, BUILT_IN_FONT},
     style::StyledProperty,
     HorizontalAlignment, VerticalAlignment,
 };
@@ -244,8 +244,8 @@ impl LineSink for WrapSink<'_> {
 
 #[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct FormattedText {
-    font: InheritableVariable<FontResource>,
-    text: InheritableVariable<Vec<char>>,
+    font: InheritableVariable<Option<FontResource>>,
+    pub text: InheritableVariable<Vec<char>>,
     // Temporary buffer used to split text on lines. We need it to reduce memory allocations
     // when we changing text too frequently, here we sacrifice some memory in order to get
     // more performance.
@@ -454,7 +454,7 @@ impl FormattedText {
     }
 
     pub fn position_to_local(&self, position: Position) -> Vector2<f32> {
-        if self.font.state().data().is_none() {
+        if self.get_font().state().data().is_none() {
             return Default::default();
         }
         let position = self.nearest_valid_position(position);
@@ -529,11 +529,11 @@ impl FormattedText {
     }
 
     pub fn get_font(&self) -> FontResource {
-        (*self.font).clone()
+        (*self.font).clone().unwrap_or(BUILT_IN_FONT.resource())
     }
 
     pub fn set_font(&mut self, font: FontResource) -> &mut Self {
-        self.font.set_value_and_mark_modified(font);
+        self.font.set_value_and_mark_modified(Some(font));
         self
     }
 
@@ -782,7 +782,9 @@ impl FormattedText {
 
     /// Returns once all fonts used by this FormattedText are finished loading.
     pub async fn wait_for_fonts(&mut self) -> Result<(), LoadError> {
-        (*self.font).clone().await?;
+        if let Some(font) = self.font.clone_inner() {
+            font.await?;
+        }
         for run in self.runs.iter() {
             if let Some(font) = run.font() {
                 font.clone().await?;
@@ -794,7 +796,7 @@ impl FormattedText {
     /// Returns true if all fonts used by this resource are Ok.
     /// This `FormattedText` will not build successfully unless this returns true.
     pub fn are_fonts_loaded(&self) -> bool {
-        if !self.font.is_ok() {
+        if !self.get_font().is_ok() {
             return false;
         }
         for run in self.runs.iter() {
@@ -808,7 +810,7 @@ impl FormattedText {
     }
 
     pub fn are_fonts_loading(&self) -> bool {
-        if !self.font.is_loading() {
+        if !self.get_font().is_loading() {
             return true;
         }
         for run in self.runs.iter() {
@@ -823,7 +825,7 @@ impl FormattedText {
 
     pub fn font_load_error_list(&self) -> Vec<(PathBuf, LoadError)> {
         let mut list = vec![];
-        if let ResourceState::LoadError { path, error } = &self.font.header().state {
+        if let ResourceState::LoadError { path, error } = &self.get_font().header().state {
             list.push((path.clone(), error.clone()));
         }
         for run in self.runs.iter() {
@@ -839,7 +841,7 @@ impl FormattedText {
     pub fn font_loading_summary(&self) -> String {
         use std::fmt::Write;
         let mut result = String::default();
-        write!(result, "Primary font: {}", self.font.header().state).unwrap();
+        write!(result, "Primary font: {}", self.get_font().header().state).unwrap();
         for run in self.runs.iter() {
             if let Some(font) = run.font() {
                 write!(result, "\nRun {:?}: {}", run.range, font.header().state).unwrap();
@@ -869,7 +871,7 @@ impl FormattedText {
         };
         if let Some(mask) = *self.mask_char {
             let advance = GlyphMetrics {
-                font: &mut self.font.data_ref(),
+                font: &mut self.get_font().data_ref(),
                 size: **self.font_size,
             }
             .advance(mask);
@@ -926,7 +928,7 @@ impl FormattedText {
         for line in lines.iter_mut() {
             if self.mask_char.is_some() || self.runs.is_empty() {
                 line.height = GlyphMetrics {
-                    font: &mut self.font.data_ref(),
+                    font: &mut self.get_font().data_ref(),
                     size: **self.font_size,
                 }
                 .ascender();
@@ -970,8 +972,9 @@ impl FormattedText {
             let mut x = line.x_offset.floor();
             if let Some(mask) = *self.mask_char {
                 let mut prev = None;
+                let font = self.get_font();
                 let mut metrics = GlyphMetrics {
-                    font: &mut self.font.data_ref(),
+                    font: &mut font.data_ref(),
                     size: **self.font_size,
                 };
                 for c in std::iter::repeat_n(mask, line.len()) {
@@ -1024,7 +1027,7 @@ impl FormattedText {
         } else {
             let descender = if self.mask_char.is_some() || self.runs.is_empty() {
                 GlyphMetrics {
-                    font: &mut self.font.data_ref(),
+                    font: &mut self.get_font().data_ref(),
                     size: **self.font_size,
                 }
                 .descender()
@@ -1083,7 +1086,7 @@ pub struct FormattedTextBuilder {
     shadow_offset: Vector2<f32>,
     font_size: StyledProperty<f32>,
     super_sampling_scaling: f32,
-    runs: Vec<Run>,
+    runs: RunSet,
     /// The amount of indentation on the first line of the text.
     line_indent: f32,
     /// The space between lines.
@@ -1108,7 +1111,7 @@ impl FormattedTextBuilder {
             shadow_offset: Vector2::new(1.0, 1.0),
             font_size: 14.0f32.into(),
             super_sampling_scaling: 1.0,
-            runs: Vec::default(),
+            runs: RunSet::default(),
             line_indent: 0.0,
             line_space: 0.0,
         }
@@ -1202,7 +1205,9 @@ impl FormattedTextBuilder {
     /// Later runs potentially overriding earlier runs if the ranges of the runs overlap and the later run
     /// sets a property that conflicts with an earlier run.
     pub fn with_runs<I: IntoIterator<Item = Run>>(mut self, runs: I) -> Self {
-        self.runs.extend(runs);
+        for run in runs {
+            self.runs.push(run);
+        }
         self
     }
 
@@ -1237,10 +1242,10 @@ impl FormattedTextBuilder {
             font_size: self.font_size.into(),
             shadow: self.shadow.into(),
             shadow_brush: self.shadow_brush.into(),
-            font: self.font.into(),
+            font: Some(self.font).into(),
             shadow_dilation: self.shadow_dilation.into(),
             shadow_offset: self.shadow_offset.into(),
-            runs: self.runs.into(),
+            runs: self.runs,
             line_indent: self.line_indent.into(),
             line_space: self.line_space.into(),
         }
