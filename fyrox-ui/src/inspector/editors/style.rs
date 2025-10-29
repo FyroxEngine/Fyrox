@@ -151,23 +151,14 @@ impl Control for StyledPropertySelector {
                     self.style_property_name = self.property_list[*selected_index].clone();
                 }
             }
-        } else if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.ok {
-                ui.send_message(StyledPropertySelectorMessage::property_name(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    self.style_property_name.clone(),
-                ));
-                ui.send_message(WindowMessage::close(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
-            } else if message.destination() == self.cancel {
-                ui.send_message(WindowMessage::close(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
-            }
+        } else if let Some(ButtonMessage::Click) = message.data_from(self.ok) {
+            ui.post(
+                self.handle,
+                StyledPropertySelectorMessage::PropertyName(self.style_property_name.clone()),
+            );
+            ui.send(self.handle, WindowMessage::Close);
+        } else if let Some(ButtonMessage::Click) = message.data_from(self.cancel) {
+            ui.send(self.handle, WindowMessage::Close);
         }
     }
 
@@ -367,11 +358,10 @@ impl Control for StyledPropertyEditor {
         if let Some(StyledPropertySelectorMessage::PropertyName(name)) =
             message.data_from(self.selector)
         {
-            ui.send_message(StyledPropertyEditorMessage::bind_property(
+            ui.post(
                 self.handle,
-                MessageDirection::FromWidget,
-                name.clone(),
-            ))
+                StyledPropertyEditorMessage::BindProperty(name.clone()),
+            )
         }
     }
 }
