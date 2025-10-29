@@ -16,9 +16,8 @@ use crate::{
     command::{CommandContext, CommandTrait},
     message::MessageSender,
     scene::Selection,
-    send_sync_message,
     ui_scene::{commands::UiSceneContext, UiScene},
-    Message,
+    Message, MSG_SYNC_FLAG,
 };
 
 pub struct BBCodePanel {
@@ -72,10 +71,7 @@ impl BBCodePanel {
                 break;
             }
         }
-        send_sync_message(
-            ui,
-            TextMessage::text(self.text_box, MessageDirection::ToWidget, bbcode),
-        );
+        ui.send_with_flags(self.text_box, MSG_SYNC_FLAG, TextMessage::Text(bbcode));
     }
     pub fn handle_message(
         &mut self,
@@ -97,11 +93,7 @@ impl BBCodePanel {
             engine
                 .user_interfaces
                 .first_mut()
-                .send_message(WidgetMessage::visibility(
-                    self.root_widget,
-                    MessageDirection::ToWidget,
-                    text_selected,
-                ));
+                .send(self.root_widget, WidgetMessage::Visibility(text_selected));
         }
     }
 
@@ -113,13 +105,8 @@ impl BBCodePanel {
         _engine: &mut Engine,
         _sender: &MessageSender,
     ) {
-        if message.destination() != self.text_box {
-            return;
-        }
-        if message.direction() != MessageDirection::FromWidget {
-            return;
-        }
-        let Some(TextMessage::Text(bbcode)) = message.data::<TextMessage>() else {
+        let Some(TextMessage::Text(bbcode)) = message.data_from::<TextMessage>(self.text_box)
+        else {
             return;
         };
         let Some(selection) = editor_selection.as_ui() else {
