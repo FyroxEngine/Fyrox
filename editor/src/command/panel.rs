@@ -186,10 +186,9 @@ impl CommandStackViewer {
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
-        ui.send_message(WidgetMessage::enabled(
+        ui.send(
             window_content(self.window, ui),
-            MessageDirection::ToWidget,
-            mode.is_edit(),
-        ));
+            WidgetMessage::Enabled(mode.is_edit()),
+        );
     }
 }

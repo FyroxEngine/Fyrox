@@ -448,11 +448,8 @@ impl InteractionMode for TerrainInteractionMode {
 
         engine
             .user_interfaces
-            .first_mut()
-            .send_message(WindowMessage::close(
-                self.brush_panel.window,
-                MessageDirection::ToWidget,
-            ));
+            .first()
+            .send(self.brush_panel.window, WindowMessage::Close);
     }
 
     fn handle_ui_message(
@@ -472,11 +469,8 @@ impl InteractionMode for TerrainInteractionMode {
     fn on_drop(&mut self, engine: &mut Engine) {
         engine
             .user_interfaces
-            .first_mut()
-            .send_message(WidgetMessage::remove(
-                self.brush_panel.window,
-                MessageDirection::ToWidget,
-            ));
+            .first()
+            .send(self.brush_panel.window, WidgetMessage::Remove);
     }
 
     fn on_hot_key_pressed(

@@ -205,14 +205,10 @@ impl AudioPreviewPanel {
                     .nodes
                     .iter()
                     .any(|n| scene.graph.try_get_of_type::<Sound>(*n).is_some());
-                engine
-                    .user_interfaces
-                    .first_mut()
-                    .send_message(WidgetMessage::visibility(
-                        self.root_widget,
-                        MessageDirection::ToWidget,
-                        any_sound_selected,
-                    ));
+                engine.user_interfaces.first_mut().send(
+                    self.root_widget,
+                    WidgetMessage::Visibility(any_sound_selected),
+                );
             }
         }
     }

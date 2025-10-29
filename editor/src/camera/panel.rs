@@ -126,27 +126,22 @@ impl CameraPreviewControlPanel {
                     .any(|n| scene.graph.try_get_of_type::<Camera>(*n).is_some())
             });
             if any_camera {
-                engine
-                    .user_interfaces
-                    .first_mut()
-                    .send_message(WindowMessage::open_and_align(
-                        self.window,
-                        MessageDirection::ToWidget,
-                        self.scene_viewer_frame,
-                        HorizontalAlignment::Right,
-                        VerticalAlignment::Top,
-                        Thickness::top_right(5.0),
-                        false,
-                        false,
-                    ));
+                engine.user_interfaces.first_mut().send(
+                    self.window,
+                    WindowMessage::OpenAndAlign {
+                        relative_to: self.scene_viewer_frame,
+                        horizontal_alignment: HorizontalAlignment::Right,
+                        vertical_alignment: VerticalAlignment::Top,
+                        margin: Thickness::top_right(5.0),
+                        modal: false,
+                        focus_content: false,
+                    },
+                );
             } else {
                 engine
                     .user_interfaces
                     .first_mut()
-                    .send_message(WindowMessage::close(
-                        self.window,
-                        MessageDirection::ToWidget,
-                    ));
+                    .send(self.window, WindowMessage::Close);
             }
         }
     }

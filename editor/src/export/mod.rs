@@ -47,7 +47,7 @@ use crate::{
                 InspectorContext, InspectorContextArgs, InspectorMessage, PropertyAction,
             },
             list_view::{ListViewBuilder, ListViewMessage},
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             stack_panel::StackPanelBuilder,
             style::{resource::StyleResourceExt, Style},
@@ -562,12 +562,13 @@ impl ExportWindow {
     }
 
     pub fn open(&self, ui: &UserInterface) {
-        ui.send_message(WindowMessage::open_modal(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
     }
 
     fn kill_child_processes(&mut self) {
@@ -577,14 +578,8 @@ impl ExportWindow {
     }
 
     pub fn close_and_destroy(&mut self, ui: &UserInterface) {
-        ui.send_message(WindowMessage::close(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
-        ui.send_message(WidgetMessage::remove(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.window, WindowMessage::Close);
+        ui.send(self.window, WidgetMessage::Remove);
         self.log_message_receiver = None;
         self.build_result_receiver = None;
         self.kill_child_processes();
@@ -592,7 +587,7 @@ impl ExportWindow {
 
     fn clear_log(&self, ui: &UserInterface) {
         for child in ui.node(self.log).children() {
-            ui.send_message(WidgetMessage::remove(*child, MessageDirection::ToWidget));
+            ui.send(*child, WidgetMessage::Remove);
         }
     }
 
@@ -614,11 +609,7 @@ impl ExportWindow {
                 let (tx, rx) = mpsc::channel();
                 self.build_result_receiver = Some(rx);
 
-                ui.send_message(WidgetMessage::enabled(
-                    self.export,
-                    MessageDirection::ToWidget,
-                    false,
-                ));
+                ui.send(self.export, WidgetMessage::Enabled(false));
 
                 self.clear_log(ui);
 
@@ -668,11 +659,10 @@ impl ExportWindow {
                     .map(|name| make_dropdown_list_option(&mut ui.build_ctx(), name))
                     .collect::<Vec<_>>();
 
-                ui.send_message(DropdownListMessage::items(
+                ui.send(
                     self.build_targets_selector,
-                    MessageDirection::ToWidget,
-                    ui_items,
-                ));
+                    DropdownListMessage::Items(ui_items),
+                );
             }
         } else if let Some(InspectorMessage::PropertyChanged(args)) =
             message.data_from(self.inspector)
@@ -728,16 +718,8 @@ impl ExportWindow {
                 .with_text(format!("> {}", message.content))
                 .build(ctx);
 
-                ui.send_message(WidgetMessage::link(
-                    entry,
-                    MessageDirection::ToWidget,
-                    self.log,
-                ));
-
-                ui.send_message(ScrollViewerMessage::scroll_to_end(
-                    self.log_scroll_viewer,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(entry, WidgetMessage::LinkWith(self.log));
+                ui.send(self.log_scroll_viewer, ScrollViewerMessage::ScrollToEnd);
             }
         }
 
@@ -751,11 +733,7 @@ impl ExportWindow {
                     Err(err) => Log::err(format!("Build failed! Reason: {err}")),
                 }
 
-                ui.send_message(WidgetMessage::enabled(
-                    self.export,
-                    MessageDirection::ToWidget,
-                    true,
-                ));
+                ui.send(self.export, WidgetMessage::Enabled(true));
             }
         }
     }

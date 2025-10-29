@@ -28,7 +28,7 @@ use crate::{
         core::{futures::executor::block_on, parking_lot::Mutex, pool::Handle, SafeLock, Uuid},
         engine::Engine,
         fxhash::FxHashMap,
-        gui::{message::MessageDirection, UiNode},
+        gui::UiNode,
     },
     load_image,
 };
@@ -119,15 +119,14 @@ impl AssetPreviewCache {
             if let Some(preview) =
                 self.preview_for(&resource, generators, force_update, &mut generated, engine)
             {
-                let ui = engine.user_interfaces.first();
-
-                ui.send_message(AssetItemMessage::icon(
+                engine.user_interfaces.first().send(
                     widget_handle,
-                    MessageDirection::ToWidget,
-                    Some(preview.texture),
-                    preview.flip_y,
-                    preview.color,
-                ));
+                    AssetItemMessage::Icon {
+                        texture: Some(preview.texture),
+                        flip_y: preview.flip_y,
+                        color: preview.color,
+                    },
+                );
             }
 
             if generated >= self.throughput {

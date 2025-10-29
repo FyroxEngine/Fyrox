@@ -934,12 +934,8 @@ impl AssetBrowser {
     }
 
     pub fn locate_path(&mut self, ui: &UserInterface, path: PathBuf) {
-        ui.send_message(FileBrowserMessage::path(
-            self.folder_browser,
-            MessageDirection::ToWidget,
-            path.parent().map(|p| p.to_path_buf()).unwrap_or_default(),
-        ));
-
+        let folder = path.parent().map(|p| p.to_path_buf()).unwrap_or_default();
+        ui.send(self.folder_browser, FileBrowserMessage::Path(folder));
         self.item_to_select = Some(path);
     }
 
@@ -991,11 +987,10 @@ impl AssetBrowser {
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
-        ui.send_message(WidgetMessage::enabled(
+        ui.send(
             window_content(self.window, ui),
-            MessageDirection::ToWidget,
-            mode.is_edit(),
-        ));
+            WidgetMessage::Enabled(mode.is_edit()),
+        );
     }
 
     pub fn on_message(
@@ -1012,11 +1007,10 @@ impl AssetBrowser {
                 for &item_handle in self.items.iter() {
                     let item = some_or_continue!(ui.try_get_of_type::<AssetItem>(item_handle));
 
-                    ui.send_message(AssetItemMessage::select(
+                    ui.send(
                         item_handle,
-                        MessageDirection::ToWidget,
-                        selection.contains(&item.path),
-                    ));
+                        AssetItemMessage::Select(selection.contains(&item.path)),
+                    );
                 }
 
                 if let Some(inspector_plugin) =
@@ -1105,30 +1099,18 @@ impl AssetBrowser {
                             }
                         }
                     }
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(WidgetMessage::visibility(
-                            inspector_addon.preview.root,
-                            MessageDirection::ToWidget,
-                            has_preview,
-                        ));
+                    engine.user_interfaces.first_mut().send(
+                        inspector_addon.preview.root,
+                        WidgetMessage::Visibility(has_preview),
+                    );
                 }
             } else {
                 for &item in self.items.iter() {
-                    ui.send_message(AssetItemMessage::select(
-                        item,
-                        MessageDirection::ToWidget,
-                        false,
-                    ))
+                    ui.send(item, AssetItemMessage::Select(false))
                 }
 
                 if let Some(inspector_addon) = self.inspector_addon.take() {
-                    ui.send_message(WidgetMessage::remove(
-                        inspector_addon.root,
-                        MessageDirection::ToWidget,
-                    ));
-
+                    ui.send(inspector_addon.root, WidgetMessage::Remove);
                     inspector_addon.preview.destroy(engine);
                 }
             }
