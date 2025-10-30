@@ -220,6 +220,7 @@
 #![allow(clippy::mutable_key_type)]
 #![allow(mismatched_lifetime_syntaxes)]
 
+pub use bbcode::*;
 pub use copypasta;
 pub use fyrox_core as core;
 use message::TouchPhase;
@@ -227,6 +228,7 @@ use message::TouchPhase;
 pub mod absm;
 mod alignment;
 pub mod animation;
+mod bbcode;
 pub mod bit;
 pub mod border;
 pub mod brush;

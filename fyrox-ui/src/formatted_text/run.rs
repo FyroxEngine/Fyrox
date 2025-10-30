@@ -30,6 +30,14 @@ pub type RunBuilder = Run;
 #[derive(Clone, PartialEq, Debug, Default, Reflect)]
 pub struct RunSet(Vec<Run>);
 
+impl IntoIterator for RunSet {
+    type Item = Run;
+    type IntoIter = std::vec::IntoIter<Run>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl From<&[Run]> for RunSet {
     fn from(value: &[Run]) -> Self {
         Self(value.to_vec())
@@ -63,6 +71,21 @@ impl DerefMut for RunSet {
 }
 
 impl RunSet {
+    /// Updates the run set with the given run, overriding any previous runs
+    /// that may have set some of the same formatting attributes in the same range.
+    /// Runs within this set may be merged if appropriate.
+    pub fn push(&mut self, run: Run) {
+        if let Some(last) = self.0.last_mut() {
+            if last.range == run.range {
+                *last = last.clone().with_values_from(run);
+            } else {
+                self.0.push(run);
+            }
+        } else {
+            self.0.push(run);
+        }
+    }
+    /// Find the font at the given position.
     pub fn font_at(&self, index: usize) -> Option<FontResource> {
         for run in self.0.iter().rev() {
             if run.range.contains(&(index as u32)) && run.font().is_some() {
@@ -71,6 +94,7 @@ impl RunSet {
         }
         None
     }
+    /// Find the size at the given position.
     pub fn font_size_at(&self, index: usize) -> Option<f32> {
         for run in self.0.iter().rev() {
             if run.range.contains(&(index as u32)) && run.font_size().is_some() {
@@ -79,6 +103,7 @@ impl RunSet {
         }
         None
     }
+    /// Find the brush at the given position.
     pub fn brush_at(&self, index: usize) -> Option<Brush> {
         for run in self.0.iter().rev() {
             if run.range.contains(&(index as u32)) && run.brush().is_some() {
@@ -87,6 +112,7 @@ impl RunSet {
         }
         None
     }
+    /// Find whether the text shadow is enabled at the given position.
     pub fn shadow_at(&self, index: usize) -> Option<bool> {
         for run in self.0.iter().rev() {
             if run.range.contains(&(index as u32)) && run.shadow().is_some() {
@@ -95,6 +121,7 @@ impl RunSet {
         }
         None
     }
+    /// Find the shadow brush at the given position.
     pub fn shadow_brush_at(&self, index: usize) -> Option<Brush> {
         for run in self.0.iter().rev() {
             if run.range.contains(&(index as u32)) && run.shadow_brush().is_some() {
@@ -103,6 +130,7 @@ impl RunSet {
         }
         None
     }
+    /// Find the shadow dilation at the given position.
     pub fn shadow_dilation_at(&self, index: usize) -> Option<f32> {
         for run in self.0.iter().rev() {
             if run.range.contains(&(index as u32)) && run.shadow_dilation().is_some() {
@@ -111,6 +139,7 @@ impl RunSet {
         }
         None
     }
+    /// Find the shadow offsat at the given position.
     pub fn shadow_offset_at(&self, index: usize) -> Option<Vector2<f32>> {
         for run in self.0.iter().rev() {
             if run.range.contains(&(index as u32)) && run.shadow_offset().is_some() {
@@ -137,6 +166,7 @@ pub struct Run {
 }
 
 impl Run {
+    /// Create a run that sets no formatting values across the given range.
     pub fn new(range: Range<u32>) -> Self {
         Self {
             range,
@@ -181,6 +211,20 @@ impl Run {
     #[deprecated]
     pub fn build(self) -> Self {
         self
+    }
+    /// Set this run to match the values set in the given run, overwriting the values
+    /// in this run only if the corresponding value is set in the given run.
+    pub fn with_values_from(self, run: Run) -> Self {
+        Self {
+            range: self.range,
+            font: run.font.or(self.font),
+            brush: run.brush.or(self.brush),
+            font_size: run.font_size.or(self.font_size),
+            shadow: run.shadow.or(self.shadow),
+            shadow_brush: run.shadow_brush.or(self.shadow_brush),
+            shadow_dilation: run.shadow_dilation.or(self.shadow_dilation),
+            shadow_offset: run.shadow_offset.or(self.shadow_offset),
+        }
     }
     /// Set this run to modify the font of the text within the range.
     pub fn with_font(mut self, font: FontResource) -> Self {

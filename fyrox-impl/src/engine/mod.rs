@@ -117,6 +117,7 @@ use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
 };
+use fyrox_ui::font::{BOLD_ITALIC, BUILT_IN_BOLD, BUILT_IN_ITALIC};
 use fyrox_ui::RenderMode;
 use std::{
     any::TypeId,
@@ -1312,6 +1313,9 @@ pub(crate) fn initialize_resource_manager_loaders(
     }
 
     state.built_in_resources.add(BUILT_IN_FONT.clone());
+    state.built_in_resources.add(BUILT_IN_BOLD.clone());
+    state.built_in_resources.add(BUILT_IN_ITALIC.clone());
+    state.built_in_resources.add(BOLD_ITALIC.clone());
 
     state.built_in_resources.add(texture::PLACEHOLDER.clone());
     state.built_in_resources.add(texture::PURE_COLOR.clone());

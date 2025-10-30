@@ -1344,6 +1344,7 @@ impl Control for TextBox {
                     let mut text = self.formatted_text.borrow_mut();
 
                     match msg {
+                        TextMessage::BBCode(_) => (),
                         TextMessage::Text(new_text) => {
                             fn text_equals(
                                 formatted_text: &FormattedText,

@@ -46,7 +46,7 @@ use fyrox::{
     event_loop::{ControlFlow, EventLoop},
     gui::{
         constructor::new_widget_constructor_container,
-        font::{Font, FontResource},
+        font::{Font, FontResource, FontStyles},
         widget::WidgetMessage,
         UserInterface,
     },
@@ -100,8 +100,7 @@ fn main() {
         Font::from_memory(
             include_bytes!("../resources/Roboto-Regular.ttf").to_vec(),
             1024,
-            None,
-            None,
+            FontStyles::default(),
             Vec::default(),
         )
         .unwrap(),
