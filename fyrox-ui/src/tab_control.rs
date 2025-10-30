@@ -133,6 +133,7 @@ impl TabControlMessage {
             destination,
             direction,
             routing_strategy: Default::default(),
+            delivery_mode: Default::default(),
             flags: 0,
         }
     }

@@ -111,6 +111,7 @@ macro_rules! define_constructor {
                 destination,
                 direction,
                 routing_strategy: Default::default(),
+                delivery_mode: Default::default(),
                 flags: 0
             }
         }
@@ -126,6 +127,7 @@ macro_rules! define_constructor {
                 destination,
                 direction,
                 routing_strategy: Default::default(),
+                delivery_mode: Default::default(),
                 flags: 0
             }
         }
@@ -141,6 +143,7 @@ macro_rules! define_constructor {
                 destination,
                 direction,
                 routing_strategy: Default::default(),
+                delivery_mode: Default::default(),
                 flags: 0
             }
         }
@@ -231,6 +234,23 @@ pub enum RoutingStrategy {
     Direct,
 }
 
+/// Delivery mode
+#[derive(Default, Copy, Clone, Debug, PartialEq)]
+pub enum DeliveryMode {
+    /// The message will be at first processed by the widgets (via [`crate::control::Control::handle_routed_message`] and [`crate::control::Control::preview_message`]
+    /// methods) and then will be returned to the caller of [`UserInterface::poll_message`] for further
+    /// processing. This is the default mode.
+    #[default]
+    FullCycle,
+
+    /// The message will never escape the internal message queue. The [`UserInterface::poll_message`]
+    /// will never return such message, and the message will only be processed by the widgets (via
+    /// [`crate::control::Control::handle_routed_message`] and [`crate::control::Control::preview_message`] methods).
+    /// This mode is used to break message loops at the synchronization stage when the UI state is
+    /// synchronized with a data.
+    SyncOnly,
+}
+
 /// Message is a basic communication element that is used to deliver information to widget or to user code.
 ///
 /// ## Motivation
@@ -278,7 +298,6 @@ pub enum RoutingStrategy {
 /// }
 /// ```
 ///
-///
 pub struct UiMessage {
     /// Useful flag to check if a message was already handled. It could be used to mark messages as "handled" to prevent
     /// any further responses to them. It is especially useful in bubble message routing, when a message is passed through
@@ -300,6 +319,9 @@ pub struct UiMessage {
     /// Defines a way of how the message will behave in the widget tree after it was delivered to
     /// the destination node. Default is bubble routing. See [`RoutingStrategy`] for more info.
     pub routing_strategy: RoutingStrategy,
+
+    /// Message delivery mode. See [`DeliveryMode`] docs for more info.
+    pub delivery_mode: DeliveryMode,
 
     /// A custom user flags. Use it if `handled` flag is not enough.
     pub flags: u64,
@@ -355,6 +377,7 @@ impl Clone for UiMessage {
             destination: self.destination,
             direction: self.direction,
             routing_strategy: self.routing_strategy,
+            delivery_mode: Default::default(),
             flags: self.flags,
         }
     }
@@ -380,6 +403,7 @@ impl UiMessage {
             destination: Default::default(),
             direction: MessageDirection::ToWidget,
             routing_strategy: Default::default(),
+            delivery_mode: Default::default(),
             flags: 0,
         }
     }
@@ -418,6 +442,12 @@ impl UiMessage {
         self
     }
 
+    /// Sets the desired delivery mode for the message.
+    pub fn with_delivery_mode(mut self, delivery_mode: DeliveryMode) -> Self {
+        self.delivery_mode = delivery_mode;
+        self
+    }
+
     /// Sets the desired flags of the message.
     pub fn with_flags(mut self, flags: u64) -> Self {
         self.flags = flags;
@@ -437,6 +467,7 @@ impl UiMessage {
             destination: self.destination,
             direction: self.direction.reverse(),
             routing_strategy: self.routing_strategy,
+            delivery_mode: Default::default(),
             flags: self.flags,
         }
     }

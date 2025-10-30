@@ -153,6 +153,7 @@ impl<T: NumericType> NumericUpDownMessage<T> {
             destination,
             direction,
             routing_strategy: Default::default(),
+            delivery_mode: Default::default(),
             flags: 0,
         }
     }

@@ -347,7 +347,7 @@ pub use alignment::*;
 pub use build::*;
 pub use control::*;
 use fyrox_core::log::Log;
-use fyrox_core::{futures::future::join_all, pool::ObjectOrVariant};
+use fyrox_core::{err, futures::future::join_all, pool::ObjectOrVariant};
 use fyrox_graph::{
     AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping, PrefabData,
     SceneGraph, SceneGraphNode,
@@ -356,7 +356,7 @@ pub use node::*;
 pub use thickness::*;
 
 use crate::constructor::new_widget_constructor_container;
-use crate::message::{MessageData, RoutingStrategy};
+use crate::message::{DeliveryMode, MessageData, RoutingStrategy};
 use crate::style::resource::{StyleResource, StyleResourceExt};
 use crate::style::{Style, DEFAULT_STYLE};
 use crate::widget::WidgetMaterial;
@@ -1980,6 +1980,16 @@ impl UserInterface {
             .unwrap()
     }
 
+    pub fn send_sync<T: MessageData>(&self, handle: Handle<impl ObjectOrVariant<UiNode>>, data: T) {
+        self.sender
+            .send(
+                UiMessage::with_data(data)
+                    .with_destination(handle.transmute())
+                    .with_direction(MessageDirection::ToWidget),
+            )
+            .unwrap()
+    }
+
     pub fn send_with_flags<T: MessageData>(
         &self,
         handle: Handle<impl ObjectOrVariant<UiNode>>,
@@ -2074,312 +2084,375 @@ impl UserInterface {
     /// available nodes first and only then will be moved outside of this method. This is one
     /// of most important methods which must be called each frame of your game loop, otherwise
     /// UI will not respond to any kind of events and simply speaking will just not work.
+    ///
+    /// # Routing Scheme
+    ///
+    /// The following scheme shows the full routing procedure for a single method call.
+    ///
+    /// ```text
+    ///
+    ///     poll_message                                                          return message;
+    ///           │                   Discard Message                                    ▲
+    ///           ├─────────────────────────────◄───────────────────────────┐            │
+    ///           │                                                         │   Delivery │
+    ///           │                                                         │   Mode     │
+    /// ┌─────────▼─────────┐  ┌─────────────────────────────────────┐      │    ┌───────┼──────┐
+    /// │Message            │  │ Destination                         │      │    │ Full Cycle?  │
+    /// │Queue              │  │ Widget Sub-Tree                     │      │    ├──────────────┤
+    /// │   ┌───────────┐   │  │                                     │      └────┼ Sync Only?   │
+    /// │   │  Message  │   │  │ Bubble Routing                      │           └───────▲──────┘
+    /// │   └───────────┘   │  │ ┌─────────────────────────────────┐ │                   │
+    /// │   ┌───────────┐   │  │ │   Root::handle_routed_message   ├─┼─────────►─────────┤
+    /// │   │  Message  │   │  │ └────────────────▲────────────────┘ │                   │
+    /// │   └───────────┘   │  │                 ...                 │                   │
+    /// │        ...        │  │ ┌────────────────┼────────────────┐ │                   │
+    /// │   ┌───────────┐   │  │ │  Parent::handle_routed_message  │ │                   │
+    /// │   │  Message  │   │  │ └────────────────▲────────────────┘ │                   │
+    /// │   └───────────┘   │  │                  │                  │                   │
+    /// │   ┌───────────┐   │  │ ┌────────────────┼────────────────┐ │  Direct Routing   │
+    /// │   │  Message  │   │  │ │  Widget::handle_routed_message  │ │  ┌────────────────┼────────────────┐
+    /// │   └─────────┬─┘   │  │ └────────────────▲────────────────┘ │  │  Widget::handle_routed_message  │
+    /// └─────────────┼─────┘  └──────────────────┼──────────────────┘  └────────────────▲────────────────┘
+    ///               │                           │                                      │
+    ///     pop_front │                  Routing  │                                      │
+    ///               │                  Strategy │                                      │
+    /// ┌─────────────┼───────────────┐   ┌──────────────────┐                           │
+    /// │Preview Set  │               │   │ Bubble Routing?  │                           │
+    /// │ ┌───────────▼─────────────┐ │   ├──────────────────┤                           │
+    /// │ │ Widget::preview_message │ │   │ Direct Routing?  ├───────────────────────────┘
+    /// │ └───────────┬─────────────┘ │   └──────────────────┘
+    /// │             │               │           │
+    /// │ ┌───────────▼─────────────┐ │           │
+    /// │ │ Widget::preview_message │ │           │
+    /// │ └───────────┬─────────────┘ │           │
+    /// │             │               │           │
+    /// │ ┌───────────▼─────────────┐ │           │
+    /// │ │ Widget::preview_message─┼─┼───────────┘
+    /// │ └─────────────────────────┘ │ To destination
+    /// └─────────────────────────────┘ widget
+    /// ```
+    ///
+    /// Keep in mind, that any number of widget may produce some other messages during this method
+    /// call. These messages will be put at the end of the queue.
     pub fn poll_message(&mut self) -> Option<UiMessage> {
-        match self.receiver.try_recv() {
-            Ok(mut message) => {
-                // Destination node may be destroyed at the time we receive message,
-                // we have skip processing of such messages.
-                if !self.nodes.is_valid_handle(message.destination()) {
-                    return Some(message);
-                }
-
-                if let RenderMode::OnChanges = self.render_mode {
-                    self.need_render = true;
-                }
-
-                if message.need_perform_layout() {
-                    self.update_layout(self.screen_size);
-                }
-
-                for &handle in self.methods_registry.preview_message.iter() {
-                    if let Some(node_ref) = self.nodes.try_borrow(handle) {
-                        node_ref.preview_message(self, &mut message);
+        loop {
+            match self.receiver.try_recv() {
+                Ok(message) => {
+                    if let Some(message) = self.poll_single_message(message) {
+                        return Some(message);
+                    } else {
+                        // Process the next message (if any).
                     }
                 }
-
-                match message.routing_strategy {
-                    RoutingStrategy::BubbleUp => self.bubble_message(&mut message),
-                    RoutingStrategy::Direct => {
-                        let (ticket, mut node) = self.nodes.take_reserve(message.destination());
-                        node.handle_routed_message(self, &mut message);
-                        self.nodes.put_back(ticket, node);
+                Err(e) => {
+                    return match e {
+                        TryRecvError::Empty => None,
+                        TryRecvError::Disconnected => {
+                            err!("The message queue was corrupted!");
+                            None
+                        }
                     }
                 }
-
-                if let Some(msg) = message.data::<WidgetMessage>() {
-                    match msg {
-                        WidgetMessage::Focus => {
-                            if self.nodes.is_valid_handle(message.destination())
-                                && message.direction() == MessageDirection::ToWidget
-                            {
-                                self.request_focus(message.destination());
-                            }
-                        }
-                        WidgetMessage::Unfocus => {
-                            if self.nodes.is_valid_handle(message.destination())
-                                && message.direction() == MessageDirection::ToWidget
-                            {
-                                self.request_focus(self.root_canvas);
-                            }
-                        }
-                        WidgetMessage::Topmost => {
-                            if self.nodes.is_valid_handle(message.destination()) {
-                                self.make_topmost(message.destination());
-                            }
-                        }
-                        WidgetMessage::Lowermost => {
-                            if self.nodes.is_valid_handle(message.destination()) {
-                                self.make_lowermost(message.destination());
-                            }
-                        }
-                        WidgetMessage::Unlink => {
-                            if self.nodes.is_valid_handle(message.destination()) {
-                                self.unlink_node(message.destination());
-
-                                let node = &self.nodes[message.destination()];
-                                let new_position =
-                                    self.screen_to_root_canvas_space(node.screen_position());
-                                self.send_message(WidgetMessage::desired_position(
-                                    message.destination(),
-                                    MessageDirection::ToWidget,
-                                    new_position,
-                                ));
-                            }
-                        }
-                        &WidgetMessage::LinkWith(parent) => {
-                            if self.nodes.is_valid_handle(message.destination())
-                                && self.nodes.is_valid_handle(parent)
-                            {
-                                self.link_nodes(message.destination(), parent, false);
-                            }
-                        }
-                        &WidgetMessage::LinkWithReverse(parent) => {
-                            if self.nodes.is_valid_handle(message.destination())
-                                && self.nodes.is_valid_handle(parent)
-                            {
-                                self.link_nodes(message.destination(), parent, true);
-                            }
-                        }
-                        WidgetMessage::ReplaceChildren(children) => {
-                            if self.nodes.is_valid_handle(message.destination()) {
-                                let old_children =
-                                    self.node(message.destination()).children().to_vec();
-                                for child in old_children.iter() {
-                                    if self.nodes.is_valid_handle(*child) {
-                                        if children.contains(child) {
-                                            self.unlink_node(*child);
-                                        } else {
-                                            self.remove_node(*child);
-                                        }
-                                    }
-                                }
-                                for &child in children.iter() {
-                                    if self.nodes.is_valid_handle(child) {
-                                        self.link_nodes(child, message.destination(), false);
-                                    }
-                                }
-                            }
-                        }
-                        WidgetMessage::Remove => {
-                            if self.nodes.is_valid_handle(message.destination()) {
-                                self.remove_node(message.destination());
-                            }
-                        }
-                        WidgetMessage::ContextMenu(context_menu) => {
-                            if self.nodes.is_valid_handle(message.destination()) {
-                                let node = self.nodes.borrow_mut(message.destination());
-                                node.set_context_menu(context_menu.clone());
-                            }
-                        }
-                        WidgetMessage::Tooltip(tooltip) => {
-                            if self.nodes.is_valid_handle(message.destination()) {
-                                let node = self.nodes.borrow_mut(message.destination());
-                                node.set_tooltip(tooltip.clone());
-                            }
-                        }
-                        WidgetMessage::Center => {
-                            if self.nodes.is_valid_handle(message.destination()) {
-                                let node = self.node(message.destination());
-                                let size = node.actual_initial_size();
-                                let parent = node.parent();
-                                let parent_size = if parent.is_some() {
-                                    self.node(parent).actual_initial_size()
-                                } else {
-                                    self.screen_size
-                                };
-
-                                self.send_message(WidgetMessage::desired_position(
-                                    message.destination(),
-                                    MessageDirection::ToWidget,
-                                    (parent_size - size).scale(0.5),
-                                ));
-                            }
-                        }
-                        WidgetMessage::RenderTransform(_) => {
-                            if self.nodes.is_valid_handle(message.destination()) {
-                                self.update_visual_transform(message.destination());
-                            }
-                        }
-                        WidgetMessage::AdjustPositionToFit => {
-                            if self.nodes.is_valid_handle(message.destination()) {
-                                let node = self.node(message.destination());
-                                let mut position = node.actual_local_position();
-                                let size = node.actual_initial_size();
-                                let parent = node.parent();
-                                let parent_size = if parent.is_some() {
-                                    self.node(parent).actual_initial_size()
-                                } else {
-                                    self.screen_size
-                                };
-
-                                if position.x < 0.0 {
-                                    position.x = 0.0;
-                                }
-                                if position.x + size.x > parent_size.x {
-                                    position.x -= (position.x + size.x) - parent_size.x;
-                                }
-                                if position.y < 0.0 {
-                                    position.y = 0.0;
-                                }
-                                if position.y + size.y > parent_size.y {
-                                    position.y -= (position.y + size.y) - parent_size.y;
-                                }
-
-                                self.send_message(WidgetMessage::desired_position(
-                                    message.destination(),
-                                    MessageDirection::ToWidget,
-                                    position,
-                                ));
-                            }
-                        }
-                        WidgetMessage::Align {
-                            relative_to,
-                            horizontal_alignment,
-                            vertical_alignment,
-                            margin,
-                        } => {
-                            if let (Some(node), Some(relative_node)) = (
-                                self.try_get_node(message.destination()),
-                                self.try_get_node(*relative_to),
-                            ) {
-                                // Calculate new anchor point in screen coordinate system.
-                                let relative_node_screen_size = relative_node.screen_bounds().size;
-                                let relative_node_screen_position = relative_node.screen_position();
-                                let node_screen_size = node.screen_bounds().size;
-
-                                let mut screen_anchor_point = Vector2::default();
-                                match horizontal_alignment {
-                                    HorizontalAlignment::Stretch => {
-                                        // Do nothing.
-                                    }
-                                    HorizontalAlignment::Left => {
-                                        screen_anchor_point.x =
-                                            relative_node_screen_position.x + margin.left;
-                                    }
-                                    HorizontalAlignment::Center => {
-                                        screen_anchor_point.x = relative_node_screen_position.x
-                                            + (relative_node_screen_size.x
-                                                + node_screen_size.x
-                                                + margin.left
-                                                + margin.right)
-                                                * 0.5;
-                                    }
-                                    HorizontalAlignment::Right => {
-                                        screen_anchor_point.x = relative_node_screen_position.x
-                                            + relative_node_screen_size.x
-                                            - node_screen_size.x
-                                            - margin.right;
-                                    }
-                                }
-
-                                match vertical_alignment {
-                                    VerticalAlignment::Stretch => {
-                                        // Do nothing.
-                                    }
-                                    VerticalAlignment::Top => {
-                                        screen_anchor_point.y =
-                                            relative_node_screen_position.y + margin.top;
-                                    }
-                                    VerticalAlignment::Center => {
-                                        screen_anchor_point.y = relative_node_screen_position.y
-                                            + (relative_node_screen_size.y
-                                                + node_screen_size.y
-                                                + margin.top
-                                                + margin.bottom)
-                                                * 0.5;
-                                    }
-                                    VerticalAlignment::Bottom => {
-                                        screen_anchor_point.y = relative_node_screen_position.y
-                                            + (relative_node_screen_size.y
-                                                - node_screen_size.y
-                                                - margin.bottom);
-                                    }
-                                }
-
-                                if let Some(parent) = self.try_get_node(node.parent()) {
-                                    // Transform screen anchor point into the local coordinate system
-                                    // of the parent node.
-                                    let local_anchor_point =
-                                        parent.screen_to_local(screen_anchor_point);
-                                    self.send_message(WidgetMessage::desired_position(
-                                        message.destination(),
-                                        MessageDirection::ToWidget,
-                                        local_anchor_point,
-                                    ));
-                                }
-                            }
-                        }
-                        WidgetMessage::MouseUp { button, .. } => {
-                            if *button == MouseButton::Right && !message.handled() {
-                                if let Some(picked) = self.nodes.try_borrow(self.picked_node) {
-                                    // Get the context menu from the current node or a parent node
-                                    let (context_menu, target) = if picked.context_menu().is_some()
-                                    {
-                                        (picked.context_menu(), self.picked_node)
-                                    } else {
-                                        let parent_handle = picked.find_by_criteria_up(self, |n| {
-                                            n.context_menu().is_some()
-                                        });
-
-                                        if let Some(parent) = self.nodes.try_borrow(parent_handle) {
-                                            (parent.context_menu(), parent_handle)
-                                        } else {
-                                            (None, Handle::NONE)
-                                        }
-                                    };
-
-                                    // Display context menu
-                                    if let Some(context_menu) = context_menu {
-                                        self.send_message(PopupMessage::placement(
-                                            context_menu.handle(),
-                                            MessageDirection::ToWidget,
-                                            Placement::Cursor(target),
-                                        ));
-                                        self.send_message(PopupMessage::open(
-                                            context_menu.handle(),
-                                            MessageDirection::ToWidget,
-                                        ));
-                                        // Send Event messages to the widget that was clicked on,
-                                        // not to the widget that has the context menu.
-                                        self.send_message(PopupMessage::owner(
-                                            context_menu.handle(),
-                                            MessageDirection::ToWidget,
-                                            self.picked_node,
-                                        ));
-                                    }
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-
-                Some(message)
             }
-            Err(e) => match e {
-                TryRecvError::Empty => None,
-                TryRecvError::Disconnected => unreachable!(),
-            },
+        }
+    }
+
+    fn poll_single_message(&mut self, mut message: UiMessage) -> Option<UiMessage> {
+        // Destination node may be destroyed at the time we receive message,
+        // we have skip processing of such messages.
+        if !self.nodes.is_valid_handle(message.destination()) {
+            return Some(message);
+        }
+
+        if let RenderMode::OnChanges = self.render_mode {
+            self.need_render = true;
+        }
+
+        if message.need_perform_layout() {
+            self.update_layout(self.screen_size);
+        }
+
+        for &handle in self.methods_registry.preview_message.iter() {
+            if let Some(node_ref) = self.nodes.try_borrow(handle) {
+                node_ref.preview_message(self, &mut message);
+            }
+        }
+
+        match message.routing_strategy {
+            RoutingStrategy::BubbleUp => self.bubble_message(&mut message),
+            RoutingStrategy::Direct => {
+                let (ticket, mut node) = self.nodes.take_reserve(message.destination());
+                node.handle_routed_message(self, &mut message);
+                self.nodes.put_back(ticket, node);
+            }
+        }
+
+        if let Some(msg) = message.data::<WidgetMessage>() {
+            match msg {
+                WidgetMessage::Focus => {
+                    if self.nodes.is_valid_handle(message.destination())
+                        && message.direction() == MessageDirection::ToWidget
+                    {
+                        self.request_focus(message.destination());
+                    }
+                }
+                WidgetMessage::Unfocus => {
+                    if self.nodes.is_valid_handle(message.destination())
+                        && message.direction() == MessageDirection::ToWidget
+                    {
+                        self.request_focus(self.root_canvas);
+                    }
+                }
+                WidgetMessage::Topmost => {
+                    if self.nodes.is_valid_handle(message.destination()) {
+                        self.make_topmost(message.destination());
+                    }
+                }
+                WidgetMessage::Lowermost => {
+                    if self.nodes.is_valid_handle(message.destination()) {
+                        self.make_lowermost(message.destination());
+                    }
+                }
+                WidgetMessage::Unlink => {
+                    if self.nodes.is_valid_handle(message.destination()) {
+                        self.unlink_node(message.destination());
+
+                        let node = &self.nodes[message.destination()];
+                        let new_position = self.screen_to_root_canvas_space(node.screen_position());
+                        self.send_message(WidgetMessage::desired_position(
+                            message.destination(),
+                            MessageDirection::ToWidget,
+                            new_position,
+                        ));
+                    }
+                }
+                &WidgetMessage::LinkWith(parent) => {
+                    if self.nodes.is_valid_handle(message.destination())
+                        && self.nodes.is_valid_handle(parent)
+                    {
+                        self.link_nodes(message.destination(), parent, false);
+                    }
+                }
+                &WidgetMessage::LinkWithReverse(parent) => {
+                    if self.nodes.is_valid_handle(message.destination())
+                        && self.nodes.is_valid_handle(parent)
+                    {
+                        self.link_nodes(message.destination(), parent, true);
+                    }
+                }
+                WidgetMessage::ReplaceChildren(children) => {
+                    if self.nodes.is_valid_handle(message.destination()) {
+                        let old_children = self.node(message.destination()).children().to_vec();
+                        for child in old_children.iter() {
+                            if self.nodes.is_valid_handle(*child) {
+                                if children.contains(child) {
+                                    self.unlink_node(*child);
+                                } else {
+                                    self.remove_node(*child);
+                                }
+                            }
+                        }
+                        for &child in children.iter() {
+                            if self.nodes.is_valid_handle(child) {
+                                self.link_nodes(child, message.destination(), false);
+                            }
+                        }
+                    }
+                }
+                WidgetMessage::Remove => {
+                    if self.nodes.is_valid_handle(message.destination()) {
+                        self.remove_node(message.destination());
+                    }
+                }
+                WidgetMessage::ContextMenu(context_menu) => {
+                    if self.nodes.is_valid_handle(message.destination()) {
+                        let node = self.nodes.borrow_mut(message.destination());
+                        node.set_context_menu(context_menu.clone());
+                    }
+                }
+                WidgetMessage::Tooltip(tooltip) => {
+                    if self.nodes.is_valid_handle(message.destination()) {
+                        let node = self.nodes.borrow_mut(message.destination());
+                        node.set_tooltip(tooltip.clone());
+                    }
+                }
+                WidgetMessage::Center => {
+                    if self.nodes.is_valid_handle(message.destination()) {
+                        let node = self.node(message.destination());
+                        let size = node.actual_initial_size();
+                        let parent = node.parent();
+                        let parent_size = if parent.is_some() {
+                            self.node(parent).actual_initial_size()
+                        } else {
+                            self.screen_size
+                        };
+
+                        self.send_message(WidgetMessage::desired_position(
+                            message.destination(),
+                            MessageDirection::ToWidget,
+                            (parent_size - size).scale(0.5),
+                        ));
+                    }
+                }
+                WidgetMessage::RenderTransform(_) => {
+                    if self.nodes.is_valid_handle(message.destination()) {
+                        self.update_visual_transform(message.destination());
+                    }
+                }
+                WidgetMessage::AdjustPositionToFit => {
+                    if self.nodes.is_valid_handle(message.destination()) {
+                        let node = self.node(message.destination());
+                        let mut position = node.actual_local_position();
+                        let size = node.actual_initial_size();
+                        let parent = node.parent();
+                        let parent_size = if parent.is_some() {
+                            self.node(parent).actual_initial_size()
+                        } else {
+                            self.screen_size
+                        };
+
+                        if position.x < 0.0 {
+                            position.x = 0.0;
+                        }
+                        if position.x + size.x > parent_size.x {
+                            position.x -= (position.x + size.x) - parent_size.x;
+                        }
+                        if position.y < 0.0 {
+                            position.y = 0.0;
+                        }
+                        if position.y + size.y > parent_size.y {
+                            position.y -= (position.y + size.y) - parent_size.y;
+                        }
+
+                        self.send_message(WidgetMessage::desired_position(
+                            message.destination(),
+                            MessageDirection::ToWidget,
+                            position,
+                        ));
+                    }
+                }
+                WidgetMessage::Align {
+                    relative_to,
+                    horizontal_alignment,
+                    vertical_alignment,
+                    margin,
+                } => {
+                    if let (Some(node), Some(relative_node)) = (
+                        self.try_get_node(message.destination()),
+                        self.try_get_node(*relative_to),
+                    ) {
+                        // Calculate new anchor point in screen coordinate system.
+                        let relative_node_screen_size = relative_node.screen_bounds().size;
+                        let relative_node_screen_position = relative_node.screen_position();
+                        let node_screen_size = node.screen_bounds().size;
+
+                        let mut screen_anchor_point = Vector2::default();
+                        match horizontal_alignment {
+                            HorizontalAlignment::Stretch => {
+                                // Do nothing.
+                            }
+                            HorizontalAlignment::Left => {
+                                screen_anchor_point.x =
+                                    relative_node_screen_position.x + margin.left;
+                            }
+                            HorizontalAlignment::Center => {
+                                screen_anchor_point.x = relative_node_screen_position.x
+                                    + (relative_node_screen_size.x
+                                        + node_screen_size.x
+                                        + margin.left
+                                        + margin.right)
+                                        * 0.5;
+                            }
+                            HorizontalAlignment::Right => {
+                                screen_anchor_point.x = relative_node_screen_position.x
+                                    + relative_node_screen_size.x
+                                    - node_screen_size.x
+                                    - margin.right;
+                            }
+                        }
+
+                        match vertical_alignment {
+                            VerticalAlignment::Stretch => {
+                                // Do nothing.
+                            }
+                            VerticalAlignment::Top => {
+                                screen_anchor_point.y =
+                                    relative_node_screen_position.y + margin.top;
+                            }
+                            VerticalAlignment::Center => {
+                                screen_anchor_point.y = relative_node_screen_position.y
+                                    + (relative_node_screen_size.y
+                                        + node_screen_size.y
+                                        + margin.top
+                                        + margin.bottom)
+                                        * 0.5;
+                            }
+                            VerticalAlignment::Bottom => {
+                                screen_anchor_point.y = relative_node_screen_position.y
+                                    + (relative_node_screen_size.y
+                                        - node_screen_size.y
+                                        - margin.bottom);
+                            }
+                        }
+
+                        if let Some(parent) = self.try_get_node(node.parent()) {
+                            // Transform screen anchor point into the local coordinate system
+                            // of the parent node.
+                            let local_anchor_point = parent.screen_to_local(screen_anchor_point);
+                            self.send_message(WidgetMessage::desired_position(
+                                message.destination(),
+                                MessageDirection::ToWidget,
+                                local_anchor_point,
+                            ));
+                        }
+                    }
+                }
+                WidgetMessage::MouseUp { button, .. } => {
+                    if *button == MouseButton::Right && !message.handled() {
+                        if let Some(picked) = self.nodes.try_borrow(self.picked_node) {
+                            // Get the context menu from the current node or a parent node
+                            let (context_menu, target) = if picked.context_menu().is_some() {
+                                (picked.context_menu(), self.picked_node)
+                            } else {
+                                let parent_handle = picked
+                                    .find_by_criteria_up(self, |n| n.context_menu().is_some());
+
+                                if let Some(parent) = self.nodes.try_borrow(parent_handle) {
+                                    (parent.context_menu(), parent_handle)
+                                } else {
+                                    (None, Handle::NONE)
+                                }
+                            };
+
+                            // Display context menu
+                            if let Some(context_menu) = context_menu {
+                                self.send_message(PopupMessage::placement(
+                                    context_menu.handle(),
+                                    MessageDirection::ToWidget,
+                                    Placement::Cursor(target),
+                                ));
+                                self.send_message(PopupMessage::open(
+                                    context_menu.handle(),
+                                    MessageDirection::ToWidget,
+                                ));
+                                // Send Event messages to the widget that was clicked on,
+                                // not to the widget that has the context menu.
+                                self.send_message(PopupMessage::owner(
+                                    context_menu.handle(),
+                                    MessageDirection::ToWidget,
+                                    self.picked_node,
+                                ));
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        match message.delivery_mode {
+            DeliveryMode::FullCycle => Some(message),
+            DeliveryMode::SyncOnly => None,
         }
     }
 
