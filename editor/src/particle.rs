@@ -282,7 +282,7 @@ impl ParticleSystemPreviewControlPanel {
 
         send_sync_message(
             engine.user_interfaces.first(),
-            CheckBoxMessage::checked(self.preview, MessageDirection::ToWidget, Some(false)),
+            UiMessage::for_widget(self.preview, CheckBoxMessage::Check(Some(false))),
         );
     }
 

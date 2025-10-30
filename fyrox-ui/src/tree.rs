@@ -539,11 +539,10 @@ impl Control for Tree {
                     WidgetMessage::DoubleClick { button } => {
                         if *button == MouseButton::Left {
                             // Mimic click on expander button to have uniform behavior.
-                            ui.send_message(CheckBoxMessage::checked(
+                            ui.send(
                                 self.expander,
-                                MessageDirection::ToWidget,
-                                Some(!self.is_expanded),
-                            ));
+                                CheckBoxMessage::Check(Some(!self.is_expanded)),
+                            );
 
                             message.set_handled(true);
                         }
@@ -566,11 +565,7 @@ impl Control for Tree {
                             self.is_expanded,
                         ));
 
-                        ui.send_message(CheckBoxMessage::checked(
-                            self.expander,
-                            MessageDirection::ToWidget,
-                            Some(expand),
-                        ));
+                        ui.send(self.expander, CheckBoxMessage::Check(Some(expand)));
 
                         match expansion_strategy {
                             TreeExpansionStrategy::RecursiveDescendants => {
@@ -651,11 +646,7 @@ impl Control for Tree {
                     &TreeMessage::Select(state) => {
                         if self.is_selected != state.0 {
                             self.is_selected = state.0;
-                            ui.send_message(DecoratorMessage::select(
-                                self.background,
-                                MessageDirection::ToWidget,
-                                self.is_selected,
-                            ));
+                            ui.send(self.background, DecoratorMessage::Select(self.is_selected));
                         }
                     }
                 }

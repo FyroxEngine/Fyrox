@@ -224,7 +224,7 @@ mat_ui_view!(Matrix2<f32>, Matrix3<f32>, Matrix4<f32>);
 
 impl UiView for bool {
     fn into_message(self, item: Handle<UiNode>) -> UiMessage {
-        CheckBoxMessage::checked(item, MessageDirection::ToWidget, Some(self))
+        UiMessage::for_widget(item, CheckBoxMessage::Check(Some(self)))
     }
     fn make_view(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         CheckBoxBuilder::new(WidgetBuilder::new())

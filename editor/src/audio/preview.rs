@@ -18,28 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::gui::widget::WidgetMessage;
-
-use crate::fyrox::graph::SceneGraph;
-use crate::fyrox::{
-    core::pool::Handle,
-    engine::Engine,
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        check_box::{CheckBoxBuilder, CheckBoxMessage},
-        grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessage},
-        scroll_bar::{ScrollBarBuilder, ScrollBarMessage},
-        text::TextBuilder,
-        widget::WidgetBuilder,
-        BuildContext, Thickness, UiNode, VerticalAlignment,
-    },
-    scene::{
-        node::Node,
-        sound::{Sound, Status},
-    },
-};
 use crate::{
+    fyrox::{
+        core::pool::Handle,
+        engine::Engine,
+        graph::SceneGraph,
+        gui::{
+            button::{ButtonBuilder, ButtonMessage},
+            check_box::{CheckBoxBuilder, CheckBoxMessage},
+            grid::{Column, GridBuilder, Row},
+            message::{MessageDirection, UiMessage},
+            scroll_bar::{ScrollBarBuilder, ScrollBarMessage},
+            text::TextBuilder,
+            widget::{WidgetBuilder, WidgetMessage},
+            BuildContext, Thickness, UiNode, VerticalAlignment,
+        },
+        scene::{
+            node::Node,
+            sound::{Sound, Status},
+        },
+    },
     scene::{GameScene, Selection},
     send_sync_message, Message,
 };
@@ -205,14 +203,10 @@ impl AudioPreviewPanel {
                     .nodes
                     .iter()
                     .any(|n| scene.graph.try_get_of_type::<Sound>(*n).is_some());
-                engine
-                    .user_interfaces
-                    .first_mut()
-                    .send_message(WidgetMessage::visibility(
-                        self.root_widget,
-                        MessageDirection::ToWidget,
-                        any_sound_selected,
-                    ));
+                engine.user_interfaces.first_mut().send(
+                    self.root_widget,
+                    WidgetMessage::Visibility(any_sound_selected),
+                );
             }
         }
     }
@@ -282,7 +276,7 @@ impl AudioPreviewPanel {
 
         send_sync_message(
             engine.user_interfaces.first(),
-            CheckBoxMessage::checked(self.preview, MessageDirection::ToWidget, Some(false)),
+            UiMessage::for_widget(self.preview, CheckBoxMessage::Check(Some(false))),
         );
 
         scene.graph.sound_context.state().destroy_sound_sources();

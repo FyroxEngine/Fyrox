@@ -658,10 +658,9 @@ impl BrushMacro for WfcMacro {
         self.frequency_list.sync(frequency_id, tile_set, ui);
         send_sync_message(
             ui,
-            CheckBoxMessage::checked(
+            UiMessage::for_widget(
                 self.edges_toggle,
-                MessageDirection::ToWidget,
-                Some(instance.constrain_edges),
+                CheckBoxMessage::Check(Some(instance.constrain_edges)),
             ),
         );
         send_sync_message(

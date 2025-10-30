@@ -93,26 +93,14 @@ impl Control for AudioBusView {
 
                         let items = make_items(buses, &mut ui.build_ctx());
 
-                        ui.send_message(DropdownListMessage::items(
-                            self.parent_bus_selector,
-                            MessageDirection::ToWidget,
-                            items,
-                        ))
+                        ui.send(self.parent_bus_selector, DropdownListMessage::Items(items))
                     }
                     AudioBusViewMessage::EffectNames(names) => {
                         let items = make_effect_names(names, &mut ui.build_ctx());
-                        ui.send_message(ListViewMessage::items(
-                            self.effect_names_list,
-                            MessageDirection::ToWidget,
-                            items,
-                        ));
+                        ui.send(self.effect_names_list, ListViewMessage::Items(items));
                     }
                     AudioBusViewMessage::Name(new_name) => {
-                        ui.send_message(TextMessage::text(
-                            self.name,
-                            MessageDirection::ToWidget,
-                            new_name.clone(),
-                        ));
+                        ui.send(self.name, TextMessage::Text(new_name.clone()))
                     }
                 }
             }
@@ -121,11 +109,8 @@ impl Control for AudioBusView {
         if let Some(DropdownListMessage::SelectionChanged(Some(selection))) =
             message.data_from(self.parent_bus_selector)
         {
-            ui.send_message(AudioBusViewMessage::change_parent(
-                self.handle,
-                MessageDirection::FromWidget,
-                self.possible_parent_buses[*selection],
-            ));
+            let parent = self.possible_parent_buses[*selection];
+            ui.post(self.handle, AudioBusViewMessage::ChangeParent(parent));
         }
     }
 }

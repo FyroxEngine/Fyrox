@@ -191,11 +191,7 @@ impl Control for Expander {
         if let Some(&ExpanderMessage::Expand(expand)) = message.data::<ExpanderMessage>() {
             if message.is_for(self.handle()) && *self.is_expanded != expand {
                 // Switch state of expander.
-                ui.send_message(CheckBoxMessage::checked(
-                    *self.expander,
-                    MessageDirection::ToWidget,
-                    Some(expand),
-                ));
+                ui.send(*self.expander, CheckBoxMessage::Check(Some(expand)));
                 // Show or hide content.
                 ui.send_message(WidgetMessage::visibility(
                     *self.content,

@@ -32,9 +32,8 @@ use crate::{
         algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         variable::InheritableVariable, visitor::prelude::*,
     },
-    define_constructor,
     grid::{Column, GridBuilder, Row},
-    message::{KeyCode, MessageDirection, UiMessage},
+    message::{KeyCode, UiMessage},
     style::{resource::StyleResourceExt, Style},
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -51,13 +50,6 @@ pub enum CheckBoxMessage {
     Check(Option<bool>),
 }
 impl MessageData for CheckBoxMessage {}
-
-impl CheckBoxMessage {
-    define_constructor!(
-        /// Creates [`CheckBoxMessage::checked`] message.
-        CheckBoxMessage:Check => fn checked(Option<bool>)
-    );
-}
 
 /// Checkbox is a UI widget that have three states - `Checked`, `Unchecked` and `Undefined`. In most cases it is used
 /// only with two values which fits in `bool` type. Third, undefined, state is used for specific situations when your
@@ -221,35 +213,24 @@ impl Control for CheckBox {
 
                         if let Some(value) = *self.checked {
                             // Invert state if it is defined.
-                            ui.send_message(CheckBoxMessage::checked(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                Some(!value),
-                            ));
+                            ui.send(self.handle(), CheckBoxMessage::Check(Some(!value)));
                         } else {
                             // Switch from undefined state to checked.
-                            ui.send_message(CheckBoxMessage::checked(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                Some(true),
-                            ));
+                            ui.send(self.handle(), CheckBoxMessage::Check(Some(true)));
                         }
                     }
                 }
                 WidgetMessage::KeyDown(key_code) => {
                     if !message.handled() && *key_code == KeyCode::Space {
-                        ui.send_message(CheckBoxMessage::checked(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                            self.checked.map(|checked| !checked),
-                        ));
+                        let checked = self.checked.map(|checked| !checked);
+                        ui.send(self.handle, CheckBoxMessage::Check(checked));
                         message.set_handled(true);
                     }
                 }
                 _ => (),
             }
-        } else if let Some(&CheckBoxMessage::Check(value)) = message.data::<CheckBoxMessage>() {
-            if message.is_for(self.handle()) && *self.checked != value {
+        } else if let Some(&CheckBoxMessage::Check(value)) = message.data_for(self.handle) {
+            if *self.checked != value {
                 self.checked.set_value_and_mark_modified(value);
 
                 ui.send_message(message.reverse());
@@ -257,38 +238,14 @@ impl Control for CheckBox {
                 if self.check_mark.is_some() {
                     match value {
                         None => {
-                            ui.send_message(WidgetMessage::visibility(
-                                *self.check_mark,
-                                MessageDirection::ToWidget,
-                                false,
-                            ));
-                            ui.send_message(WidgetMessage::visibility(
-                                *self.uncheck_mark,
-                                MessageDirection::ToWidget,
-                                false,
-                            ));
-                            ui.send_message(WidgetMessage::visibility(
-                                *self.undefined_mark,
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
+                            ui.send(*self.check_mark, WidgetMessage::Visibility(false));
+                            ui.send(*self.uncheck_mark, WidgetMessage::Visibility(false));
+                            ui.send(*self.undefined_mark, WidgetMessage::Visibility(true));
                         }
                         Some(value) => {
-                            ui.send_message(WidgetMessage::visibility(
-                                *self.check_mark,
-                                MessageDirection::ToWidget,
-                                value,
-                            ));
-                            ui.send_message(WidgetMessage::visibility(
-                                *self.uncheck_mark,
-                                MessageDirection::ToWidget,
-                                !value,
-                            ));
-                            ui.send_message(WidgetMessage::visibility(
-                                *self.undefined_mark,
-                                MessageDirection::ToWidget,
-                                false,
-                            ));
+                            ui.send(*self.check_mark, WidgetMessage::Visibility(value));
+                            ui.send(*self.uncheck_mark, WidgetMessage::Visibility(!value));
+                            ui.send(*self.undefined_mark, WidgetMessage::Visibility(false));
                         }
                     }
                 }
@@ -488,9 +445,9 @@ impl CheckBoxBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::message::UiMessage;
     use crate::{
         check_box::{CheckBoxBuilder, CheckBoxMessage},
-        message::MessageDirection,
         widget::WidgetBuilder,
         UserInterface,
     };
@@ -507,8 +464,7 @@ mod test {
         assert_eq!(ui.poll_message(), None);
 
         // Check messages
-        let input_message =
-            CheckBoxMessage::checked(check_box, MessageDirection::ToWidget, Some(true));
+        let input_message = UiMessage::for_widget(check_box, CheckBoxMessage::Check(Some(true)));
 
         ui.send_message(input_message.clone());
 

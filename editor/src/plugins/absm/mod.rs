@@ -295,11 +295,7 @@ impl AbsmEditor {
     {
         assert!(self.preview_mode_data.is_none());
 
-        ui.send_message(CheckBoxMessage::checked(
-            self.toolbar.preview,
-            MessageDirection::ToWidget,
-            Some(true),
-        ));
+        ui.send(self.toolbar.preview, CheckBoxMessage::Check(Some(true)));
 
         // Allow the engine to update the nodes affected by animations.
         for &target in &animation_targets {
@@ -327,11 +323,7 @@ impl AbsmEditor {
         G: SceneGraph<Node = N, Prefab = P>,
         N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
     {
-        ui.send_message(CheckBoxMessage::checked(
-            self.toolbar.preview,
-            MessageDirection::ToWidget,
-            Some(false),
-        ));
+        ui.send(self.toolbar.preview, CheckBoxMessage::Check(Some(false)));
 
         let preview_data = self
             .preview_mode_data

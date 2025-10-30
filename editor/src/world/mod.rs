@@ -184,11 +184,7 @@ fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
             };
 
             if *decorator.normal_brush != new_brush {
-                ui.send_message(DecoratorMessage::normal_brush(
-                    handle,
-                    MessageDirection::ToWidget,
-                    new_brush,
-                ));
+                ui.send(handle, DecoratorMessage::NormalBrush(new_brush));
             }
 
             *index += 1;

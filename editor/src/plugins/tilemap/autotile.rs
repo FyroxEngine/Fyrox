@@ -666,18 +666,16 @@ impl BrushMacro for AutoTileMacro {
             settings.widgets.value_field.sync(value, prop, ui);
             send_sync_message(
                 ui,
-                CheckBoxMessage::checked(
+                UiMessage::for_widget(
                     settings.widgets.adjacent_toggle,
-                    MessageDirection::ToWidget,
-                    adjacent,
+                    CheckBoxMessage::Check(adjacent),
                 ),
             );
             send_sync_message(
                 ui,
-                CheckBoxMessage::checked(
+                UiMessage::for_widget(
                     settings.widgets.diagonal_toggle,
-                    MessageDirection::ToWidget,
-                    diagonal,
+                    CheckBoxMessage::Check(diagonal),
                 ),
             );
             ui.send_message(WidgetMessage::visibility(

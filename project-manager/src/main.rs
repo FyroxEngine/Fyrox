@@ -29,27 +29,24 @@ mod upgrade;
 mod utils;
 
 use crate::{manager::ProjectManager, settings::DATA_DIR, utils::make_button};
-use fyrox::asset::io::FsResourceIo;
-use fyrox::core::Uuid;
-use fyrox::engine::ApplicationLoopController;
-use fyrox::gui::font::FontStyles;
 use fyrox::{
-    asset::{manager::ResourceManager, untyped::ResourceKind},
+    asset::{io::FsResourceIo, manager::ResourceManager, untyped::ResourceKind},
     core::{
         algebra::Matrix3,
         log::{Log, MessageKind},
         task::TaskPool,
+        Uuid,
     },
     dpi::PhysicalSize,
     engine::{
-        Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
+        ApplicationLoopController, Engine, EngineInitParams, GraphicsContext,
+        GraphicsContextParams, SerializationContext,
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
         constructor::new_widget_constructor_container,
-        font::{Font, FontResource},
-        message::MessageDirection,
+        font::{Font, FontResource, FontStyles},
         widget::WidgetMessage,
         UserInterface,
     },
@@ -63,11 +60,10 @@ use std::{
 
 fn set_ui_scaling(ui: &UserInterface, scale: f32) {
     // High-DPI screen support
-    ui.send_message(WidgetMessage::render_transform(
+    ui.send(
         ui.root(),
-        MessageDirection::ToWidget,
-        Matrix3::new_scaling(scale),
-    ));
+        WidgetMessage::RenderTransform(Matrix3::new_scaling(scale)),
+    );
 }
 
 #[allow(clippy::unnecessary_to_owned)]
@@ -220,16 +216,13 @@ fn main() {
 
                             let logical_size = size.to_logical(window.scale_factor());
                             let ui = engine.user_interfaces.first_mut();
-                            ui.send_message(WidgetMessage::width(
+                            ui.send_many(
                                 project_manager.root_grid,
-                                MessageDirection::ToWidget,
-                                logical_size.width,
-                            ));
-                            ui.send_message(WidgetMessage::height(
-                                project_manager.root_grid,
-                                MessageDirection::ToWidget,
-                                logical_size.height,
-                            ));
+                                [
+                                    WidgetMessage::Width(logical_size.width),
+                                    WidgetMessage::Height(logical_size.height),
+                                ],
+                            );
                         }
                         WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                             let ui = engine.user_interfaces.first_mut();

@@ -33,7 +33,7 @@ use crate::{
         visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
-    define_constructor, define_widget_deref,
+    define_widget_deref,
     draw::{CommandTexture, Draw, DrawingContext},
     grid::{Column, GridBuilder, Row},
     inspector::{
@@ -69,10 +69,6 @@ pub enum TextureSliceEditorMessage {
     Slice(TextureSlice),
 }
 impl MessageData for TextureSliceEditorMessage {}
-
-impl TextureSliceEditorMessage {
-    define_constructor!(TextureSliceEditorMessage:Slice => fn slice(TextureSlice));
-}
 
 #[derive(Debug, Clone, PartialEq)]
 struct DragContext {
@@ -114,11 +110,10 @@ impl TextureSliceEditor {
             (self.slice_min_thumb, self.slice.margin_min()),
             (self.slice_max_thumb, self.slice.margin_max()),
         ] {
-            ui.send_message(WidgetMessage::desired_position(
+            ui.send(
                 thumb,
-                MessageDirection::ToWidget,
-                position.cast::<f32>(),
-            ))
+                WidgetMessage::DesiredPosition(position.cast::<f32>()),
+            )
         }
     }
 
@@ -368,21 +363,19 @@ impl Control for TextureSliceEditor {
                 }
                 ThumbMessage::DragCompleted { .. } => {
                     self.drag_context = None;
-                    ui.send_message(TextureSliceEditorMessage::slice(
+                    ui.post(
                         self.handle(),
-                        MessageDirection::FromWidget,
-                        self.slice.clone(),
-                    ));
+                        TextureSliceEditorMessage::Slice(self.slice.clone()),
+                    );
                 }
             }
         } else if let Some(WidgetMessage::MouseWheel { amount, .. }) = message.data() {
             self.scale = (self.scale + 0.1 * *amount).clamp(1.0, 10.0);
 
-            ui.send_message(WidgetMessage::layout_transform(
+            ui.send(
                 self.handle,
-                MessageDirection::ToWidget,
-                Matrix3::new_scaling(self.scale),
-            ));
+                WidgetMessage::LayoutTransform(Matrix3::new_scaling(self.scale)),
+            );
 
             for thumb in [
                 self.slice_min_thumb,
@@ -390,16 +383,8 @@ impl Control for TextureSliceEditor {
                 self.region_min_thumb,
                 self.region_max_thumb,
             ] {
-                ui.send_message(WidgetMessage::width(
-                    thumb,
-                    MessageDirection::ToWidget,
-                    self.handle_size / self.scale,
-                ));
-                ui.send_message(WidgetMessage::height(
-                    thumb,
-                    MessageDirection::ToWidget,
-                    self.handle_size / self.scale,
-                ));
+                ui.send(thumb, WidgetMessage::Width(self.handle_size / self.scale));
+                ui.send(thumb, WidgetMessage::Height(self.handle_size / self.scale));
             }
         }
     }
@@ -500,11 +485,10 @@ pub struct TextureSliceEditorWindow {
 
 impl TextureSliceEditorWindow {
     fn on_slice_changed(&self, ui: &UserInterface) {
-        ui.send_message(RectEditorMessage::value(
+        ui.send(
             self.region,
-            MessageDirection::ToWidget,
-            *self.texture_slice.texture_region,
-        ));
+            RectEditorMessage::Value(*self.texture_slice.texture_region),
+        );
 
         for (widget, value) in [
             (self.left_margin, &self.texture_slice.left_margin),
@@ -512,19 +496,14 @@ impl TextureSliceEditorWindow {
             (self.top_margin, &self.texture_slice.top_margin),
             (self.bottom_margin, &self.texture_slice.bottom_margin),
         ] {
-            ui.send_message(NumericUpDownMessage::value(
-                widget,
-                MessageDirection::ToWidget,
-                **value,
-            ));
+            ui.send(widget, NumericUpDownMessage::Value(**value));
         }
 
         // Send the slice to the parent editor.
-        ui.send_message(TextureSliceEditorMessage::slice(
+        ui.send(
             self.parent_editor,
-            MessageDirection::ToWidget,
-            self.texture_slice.clone(),
-        ));
+            TextureSliceEditorMessage::Slice(self.texture_slice.clone()),
+        );
     }
 }
 
@@ -587,11 +566,10 @@ impl Control for TextureSliceEditorWindow {
             if message.is_for(self.handle()) && &self.texture_slice != slice {
                 self.texture_slice = slice.clone();
 
-                ui.send_message(TextureSliceEditorMessage::slice(
+                ui.send(
                     self.slice_editor,
-                    MessageDirection::ToWidget,
-                    self.texture_slice.clone(),
-                ));
+                    TextureSliceEditorMessage::Slice(self.texture_slice.clone()),
+                );
 
                 self.on_slice_changed(ui);
             }
@@ -614,11 +592,7 @@ impl Control for TextureSliceEditorWindow {
                     }
                 }
                 if target.is_some() {
-                    ui.send_message(TextureSliceEditorMessage::slice(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        slice,
-                    ));
+                    ui.send(self.handle, TextureSliceEditorMessage::Slice(slice));
                 }
             }
         } else if let Some(RectEditorMessage::Value(value)) =
@@ -626,11 +600,7 @@ impl Control for TextureSliceEditorWindow {
         {
             let mut slice = self.texture_slice.clone();
             slice.texture_region.set_value_and_mark_modified(*value);
-            ui.send_message(TextureSliceEditorMessage::slice(
-                self.handle,
-                MessageDirection::ToWidget,
-                slice,
-            ));
+            ui.send(self.handle, TextureSliceEditorMessage::Slice(slice));
         }
     }
 
@@ -789,22 +759,23 @@ impl Control for TextureSliceFieldEditor {
                 .with_texture_slice(self.texture_slice.clone())
                 .build(self.handle, &mut ui.build_ctx());
 
-                ui.send_message(WindowMessage::open_modal(
+                ui.send(
                     self.editor,
-                    MessageDirection::ToWidget,
-                    true,
-                    true,
-                ));
+                    WindowMessage::OpenModal {
+                        center: true,
+                        focus_content: true,
+                    },
+                );
             }
-        } else if let Some(TextureSliceEditorMessage::Slice(slice)) = message.data() {
-            if message.is_for(self.handle) && &self.texture_slice != slice {
+        } else if let Some(TextureSliceEditorMessage::Slice(slice)) = message.data_for(self.handle)
+        {
+            if &self.texture_slice != slice {
                 self.texture_slice = slice.clone();
                 ui.send_message(message.reverse());
-                ui.send_message(TextureSliceEditorMessage::slice(
+                ui.send(
                     self.editor,
-                    MessageDirection::ToWidget,
-                    self.texture_slice.clone(),
-                ));
+                    TextureSliceEditorMessage::Slice(self.texture_slice.clone()),
+                );
             }
         }
     }
@@ -872,11 +843,10 @@ impl PropertyEditorDefinition for TextureSlicePropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<TextureSlice>()?;
-        Ok(Some(TextureSliceEditorMessage::slice(
-            ctx.instance,
-            MessageDirection::ToWidget,
-            value.clone(),
-        )))
+        Ok(Some(
+            UiMessage::with_data(TextureSliceEditorMessage::Slice(value.clone()))
+                .with_destination(ctx.instance),
+        ))
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {

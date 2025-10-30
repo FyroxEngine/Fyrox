@@ -21,15 +21,12 @@
 //! Property editor for [`InheritableVariable`]. It acts like a proxy to inner property, but also
 //! adds special "revert" button that is used to revert value to its parent's value.
 
-use crate::message::MessageData;
-use crate::resources::REVERT_ICON;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
         pool::Handle, reflect::prelude::*, reflect::FieldValue, type_traits::prelude::*,
         uuid_provider, variable::InheritableVariable, visitor::prelude::*, PhantomDataSendSync,
     },
-    define_constructor,
     grid::{Column, GridBuilder, Row},
     image::ImageBuilder,
     inspector::{
@@ -39,7 +36,8 @@ use crate::{
         },
         FieldKind, InheritableAction, InspectorError, PropertyChanged,
     },
-    message::UiMessage,
+    message::{MessageData, UiMessage},
+    resources::REVERT_ICON,
     style::{resource::StyleResourceExt, Style},
     utils::make_simple_tooltip,
     widget::WidgetBuilder,
@@ -59,11 +57,6 @@ pub enum InheritablePropertyEditorMessage {
     Modified(bool),
 }
 impl MessageData for InheritablePropertyEditorMessage {}
-
-impl InheritablePropertyEditorMessage {
-    define_constructor!(InheritablePropertyEditorMessage:Revert => fn revert());
-    define_constructor!(InheritablePropertyEditorMessage:Modified => fn modified(bool));
-}
 
 #[derive(Debug, Clone, Visit, Reflect, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -93,20 +86,11 @@ impl Control for InheritablePropertyEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.revert {
-                ui.send_message(InheritablePropertyEditorMessage::revert(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                ));
-            }
+        if let Some(ButtonMessage::Click) = message.data_from(self.revert) {
+            ui.post(self.handle, InheritablePropertyEditorMessage::Revert);
         } else if let Some(InheritablePropertyEditorMessage::Modified(modified)) = message.data() {
             if message.destination() == self.handle {
-                ui.send_message(WidgetMessage::visibility(
-                    self.revert,
-                    MessageDirection::ToWidget,
-                    *modified,
-                ));
+                ui.send(self.revert, WidgetMessage::Visibility(*modified));
             }
         }
 
@@ -326,16 +310,15 @@ where
                 .cast::<InheritablePropertyEditor>()
                 .unwrap();
 
-            ctx.ui
-                .send_message(InheritablePropertyEditorMessage::modified(
-                    instance.handle,
-                    MessageDirection::ToWidget,
-                    ctx.has_parent_object
-                        && ctx
-                            .property_info
-                            .cast_value::<InheritableVariable<T>>()?
-                            .is_modified(),
-                ));
+            let is_modified = ctx.has_parent_object
+                && ctx
+                    .property_info
+                    .cast_value::<InheritableVariable<T>>()?
+                    .is_modified();
+            ctx.ui.send(
+                instance.handle,
+                InheritablePropertyEditorMessage::Modified(is_modified),
+            );
 
             let property_info = ctx.property_info;
 
@@ -382,7 +365,6 @@ where
         if let Some(InheritablePropertyEditorMessage::Revert) = ctx.message.data() {
             return Some(PropertyChanged {
                 name: ctx.name.to_string(),
-
                 value: FieldKind::Inheritable(InheritableAction::Revert),
             });
         }
@@ -397,7 +379,6 @@ where
                 PropertyEditorTranslationContext {
                     environment: ctx.environment.clone(),
                     name: ctx.name,
-
                     message: ctx.message,
                     definition_container: ctx.definition_container.clone(),
                 },

@@ -211,24 +211,21 @@ impl GridSnappingMenu {
             match message {
                 SettingsMessage::Changed => {
                     if let Some(button) = ui.try_get_of_type::<Button>(self.button) {
-                        ui.send_message(DecoratorMessage::selected_brush(
+                        ui.send_many(
                             *button.decorator,
-                            MessageDirection::ToWidget,
-                            ui.style.property(Style::BRUSH_BRIGHT_BLUE),
-                        ));
-
-                        ui.send_message(DecoratorMessage::select(
-                            *button.decorator,
-                            MessageDirection::ToWidget,
-                            settings.move_mode_settings.grid_snapping,
-                        ));
+                            [
+                                DecoratorMessage::SelectedBrush(
+                                    ui.style.property(Style::BRUSH_BRIGHT_BLUE),
+                                ),
+                                DecoratorMessage::Select(settings.move_mode_settings.grid_snapping),
+                            ],
+                        );
                     }
 
-                    ui.send_message(CheckBoxMessage::checked(
+                    ui.send(
                         self.enabled,
-                        MessageDirection::ToWidget,
-                        Some(settings.move_mode_settings.grid_snapping),
-                    ));
+                        CheckBoxMessage::Check(Some(settings.move_mode_settings.grid_snapping)),
+                    );
 
                     ui.send_message(NumericUpDownMessage::value(
                         self.x_step,
@@ -618,14 +615,10 @@ impl SceneViewer {
                         .unwrap()
                         .decorator;
 
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(DecoratorMessage::select(
-                            decorator,
-                            MessageDirection::ToWidget,
-                            mode_button == active_button,
-                        ));
+                    engine.user_interfaces.first().send(
+                        decorator,
+                        DecoratorMessage::Select(mode_button == active_button),
+                    );
                 }
             }
         }
