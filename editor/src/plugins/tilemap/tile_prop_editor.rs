@@ -782,26 +782,15 @@ fn apply_specs_to_nine(specs: &NineButtonSpec, handle: Handle<UiNode>, ui: &mut 
         MessageDirection::ToWidget,
         specs.foreground_brush().into(),
     ));
-    ui.send_message(DecoratorMessage::selected_brush(
+    ui.send_many(
         decorator,
-        MessageDirection::ToWidget,
-        specs.selected_brush().into(),
-    ));
-    ui.send_message(DecoratorMessage::normal_brush(
-        decorator,
-        MessageDirection::ToWidget,
-        specs.normal_brush().into(),
-    ));
-    ui.send_message(DecoratorMessage::pressed_brush(
-        decorator,
-        MessageDirection::ToWidget,
-        specs.pressed_brush().into(),
-    ));
-    ui.send_message(DecoratorMessage::hover_brush(
-        decorator,
-        MessageDirection::ToWidget,
-        specs.hover_brush().into(),
-    ));
+        [
+            DecoratorMessage::SelectedBrush(specs.selected_brush().into()),
+            DecoratorMessage::NormalBrush(specs.normal_brush().into()),
+            DecoratorMessage::PressedBrush(specs.pressed_brush().into()),
+            DecoratorMessage::HoverBrush(specs.hover_brush().into()),
+        ],
+    );
 }
 
 /// Use [`ButtonBuilder`] to create a buttons to represent one of the nine buttons

@@ -596,11 +596,10 @@ impl TileSetEditor {
             .try_get_of_type::<Button>(self.pick_button)
             .unwrap()
             .decorator;
-        ui.send_message(DecoratorMessage::select(
+        ui.send(
             decorator,
-            MessageDirection::ToWidget,
-            self.state.lock().drawing_mode == DrawingMode::Pick,
-        ));
+            DecoratorMessage::Select(self.state.lock().drawing_mode == DrawingMode::Pick),
+        );
         let cell_position = self.cell_position();
         ui.send_message(TextMessage::text(
             self.cell_position,

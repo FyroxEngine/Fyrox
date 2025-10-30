@@ -690,17 +690,10 @@ impl Control for MenuItem {
                         if *self.is_selected != *selected {
                             self.is_selected.set_value_and_mark_modified(*selected);
 
-                            ui.send_message(DecoratorMessage::select(
-                                *self.decorator,
-                                MessageDirection::ToWidget,
-                                *selected,
-                            ));
+                            ui.send(*self.decorator, DecoratorMessage::Select(*selected));
 
                             if *selected {
-                                ui.send_message(WidgetMessage::focus(
-                                    self.handle,
-                                    MessageDirection::ToWidget,
-                                ));
+                                ui.send(self.handle, WidgetMessage::Focus);
                             }
                         }
                     }

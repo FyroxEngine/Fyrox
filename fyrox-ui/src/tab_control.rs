@@ -373,11 +373,10 @@ impl TabControl {
                 MessageDirection::ToWidget,
                 active_tab == Some(existing_tab_index),
             ));
-            ui.send_message(DecoratorMessage::select(
+            ui.send(
                 tab.decorator,
-                MessageDirection::ToWidget,
-                active_tab == Some(existing_tab_index),
-            ))
+                DecoratorMessage::Select(active_tab == Some(existing_tab_index)),
+            )
         }
 
         self.active_tab = active_tab;

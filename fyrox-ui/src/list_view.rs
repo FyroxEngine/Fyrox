@@ -324,11 +324,7 @@ impl ListView {
                     if node.cast::<ListView>().is_some() {
                         // Do nothing.
                     } else if node.cast::<Decorator>().is_some() {
-                        ui.send_message(DecoratorMessage::select(
-                            handle,
-                            MessageDirection::ToWidget,
-                            select,
-                        ));
+                        ui.send(handle, DecoratorMessage::Select(select));
                     } else {
                         stack.extend_from_slice(node.children())
                     }

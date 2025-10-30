@@ -66,11 +66,7 @@ const DEFAULT_PAGE: Vector2<i32> = Vector2::new(0, 0);
 
 fn highlight_tool_button(button: Handle<UiNode>, highlight: bool, ui: &UserInterface) {
     let decorator = *ui.try_get_of_type::<Button>(button).unwrap().decorator;
-    ui.send_message(DecoratorMessage::select(
-        decorator,
-        MessageDirection::ToWidget,
-        highlight,
-    ));
+    ui.send(decorator, DecoratorMessage::Select(highlight));
 }
 
 fn make_resource_chooser(

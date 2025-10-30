@@ -646,11 +646,7 @@ impl Control for Tree {
                     &TreeMessage::Select(state) => {
                         if self.is_selected != state.0 {
                             self.is_selected = state.0;
-                            ui.send_message(DecoratorMessage::select(
-                                self.background,
-                                MessageDirection::ToWidget,
-                                self.is_selected,
-                            ));
+                            ui.send(self.background, DecoratorMessage::Select(self.is_selected));
                         }
                     }
                 }
