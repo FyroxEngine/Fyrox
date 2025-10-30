@@ -18,61 +18,58 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    asset::manager::ResourceManager,
-    core::{
-        algebra::Vector2, futures::executor::block_on, log::Log, math::Rect, pool::ErasedHandle,
-        pool::Handle,
-    },
-    generic_animation::{Animation, AnimationContainer, RootMotionSettings},
-    graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
-    gui::{
-        border::BorderBuilder,
-        button::{Button, ButtonBuilder, ButtonMessage},
-        check_box::{CheckBoxBuilder, CheckBoxMessage},
-        dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
-        file_browser::{FileSelectorBuilder, FileSelectorMessage, Filter},
-        grid::{Column, GridBuilder, Row},
-        image::ImageBuilder,
-        message::{MessageDirection, UiMessage},
-        numeric::{NumericUpDownBuilder, NumericUpDownMessage},
-        popup::{Placement, PopupBuilder, PopupMessage},
-        stack_panel::StackPanelBuilder,
-        text::{TextBuilder, TextMessage},
-        text_box::{TextBox, TextBoxBuilder},
-        utils::{make_cross, make_simple_tooltip},
-        vector_image::{Primitive, VectorImageBuilder},
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
-    },
-    resource::model::AnimationSource,
-};
-use crate::plugins::animation::{
-    command::{
-        AddAnimationCommand, RemoveAnimationCommand, ReplaceAnimationCommand,
-        SetAnimationEnabledCommand, SetAnimationLoopingCommand, SetAnimationNameCommand,
-        SetAnimationRootMotionSettingsCommand, SetAnimationSpeedCommand,
-        SetAnimationTimeSliceCommand,
-    },
-    selection::AnimationSelection,
-};
-use crate::scene::selector::AllowedType;
 use crate::{
     command::{Command, CommandGroup},
+    fyrox::{
+        asset::manager::ResourceManager,
+        core::{
+            algebra::Vector2, futures::executor::block_on, log::Log, math::Rect,
+            pool::ErasedHandle, pool::Handle,
+        },
+        generic_animation::{Animation, AnimationContainer, RootMotionSettings},
+        graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
+        gui::{
+            border::BorderBuilder,
+            button::{Button, ButtonBuilder, ButtonMessage},
+            check_box::{CheckBoxBuilder, CheckBoxMessage},
+            dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
+            file_browser::{FileSelectorBuilder, FileSelectorMessage, Filter},
+            grid::{Column, GridBuilder, Row},
+            image::ImageBuilder,
+            message::{MessageDirection, UiMessage},
+            numeric::{NumericUpDownBuilder, NumericUpDownMessage},
+            popup::{Placement, PopupBuilder, PopupMessage},
+            stack_panel::StackPanelBuilder,
+            style::{resource::StyleResourceExt, Style},
+            text::{TextBuilder, TextMessage},
+            text_box::{TextBox, TextBoxBuilder},
+            utils::{make_cross, make_dropdown_list_option_universal, make_simple_tooltip},
+            vector_image::{Primitive, VectorImageBuilder},
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+            VerticalAlignment,
+        },
+        resource::model::AnimationSource,
+    },
     load_image,
     message::MessageSender,
+    plugins::animation::{
+        command::{
+            AddAnimationCommand, RemoveAnimationCommand, ReplaceAnimationCommand,
+            SetAnimationEnabledCommand, SetAnimationLoopingCommand, SetAnimationNameCommand,
+            SetAnimationRootMotionSettingsCommand, SetAnimationSpeedCommand,
+            SetAnimationTimeSliceCommand,
+        },
+        selection::AnimationSelection,
+    },
     scene::{
         commands::ChangeSelectionCommand,
-        selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
+        selector::{AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         Selection,
     },
     send_sync_message,
 };
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
-use fyrox::gui::utils::make_dropdown_list_option_universal;
 use std::any::TypeId;
 use std::path::Path;
 
@@ -358,7 +355,7 @@ impl RootMotionDropdownArea {
         fn sync_checked(ui: &UserInterface, check_box: Handle<UiNode>, checked: bool) {
             send_sync_message(
                 ui,
-                CheckBoxMessage::checked(check_box, MessageDirection::ToWidget, Some(checked)),
+                UiMessage::for_widget(check_box, CheckBoxMessage::Check(Some(checked))),
             );
         }
 
@@ -1284,19 +1281,17 @@ impl Toolbar {
 
             send_sync_message(
                 ui,
-                CheckBoxMessage::checked(
+                UiMessage::for_widget(
                     self.looping,
-                    MessageDirection::ToWidget,
-                    Some(animation.is_loop()),
+                    CheckBoxMessage::Check(Some(animation.is_loop())),
                 ),
             );
 
             send_sync_message(
                 ui,
-                CheckBoxMessage::checked(
+                UiMessage::for_widget(
                     self.enabled,
-                    MessageDirection::ToWidget,
-                    Some(animation.is_enabled()),
+                    CheckBoxMessage::Check(Some(animation.is_enabled())),
                 ),
             );
         }

@@ -224,11 +224,10 @@ impl GridSnappingMenu {
                         ));
                     }
 
-                    ui.send_message(CheckBoxMessage::checked(
+                    ui.send(
                         self.enabled,
-                        MessageDirection::ToWidget,
-                        Some(settings.move_mode_settings.grid_snapping),
-                    ));
+                        CheckBoxMessage::Check(Some(settings.move_mode_settings.grid_snapping)),
+                    );
 
                     ui.send_message(NumericUpDownMessage::value(
                         self.x_step,

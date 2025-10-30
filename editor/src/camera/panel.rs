@@ -215,7 +215,7 @@ impl CameraPreviewControlPanel {
             [
                 // Don't keep the render target alive after the preview mode is off.
                 ImageMessage::texture(self.preview_frame, MessageDirection::ToWidget, None),
-                CheckBoxMessage::checked(self.preview, MessageDirection::ToWidget, Some(false)),
+                UiMessage::for_widget(self.preview, CheckBoxMessage::Check(Some(false))),
                 WidgetMessage::visibility(self.preview_frame, MessageDirection::ToWidget, false),
             ],
         );

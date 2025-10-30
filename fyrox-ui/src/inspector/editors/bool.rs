@@ -63,10 +63,9 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<bool>()?;
-        Ok(Some(CheckBoxMessage::checked(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            Some(*value),
+            CheckBoxMessage::Check(Some(*value)),
         )))
     }
 

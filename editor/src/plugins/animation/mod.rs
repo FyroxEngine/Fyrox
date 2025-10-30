@@ -903,10 +903,9 @@ impl AnimationEditor {
         );
         send_sync_message(
             ui,
-            CheckBoxMessage::checked(
+            UiMessage::for_widget(
                 self.toolbar.preview,
-                MessageDirection::ToWidget,
-                Some(self.preview_mode_data.is_some()),
+                CheckBoxMessage::Check(Some(self.preview_mode_data.is_some())),
             ),
         );
         send_sync_message(

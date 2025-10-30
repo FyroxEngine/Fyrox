@@ -359,11 +359,10 @@ impl Control for TrackView {
                         if self.track_enabled != *enabled {
                             self.track_enabled = *enabled;
 
-                            ui.send_message(CheckBoxMessage::checked(
+                            ui.send(
                                 self.track_enabled_switch,
-                                MessageDirection::ToWidget,
-                                Some(*enabled),
-                            ));
+                                CheckBoxMessage::Check(Some(*enabled)),
+                            );
 
                             ui.send_message(message.reverse());
                         }
