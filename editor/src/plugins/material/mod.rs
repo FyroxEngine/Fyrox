@@ -554,10 +554,7 @@ impl MaterialEditor {
 
     pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
         let Some(material) = self.material.as_ref() else {
-            send_sync_message(
-                ui,
-                ListViewMessage::items(self.properties_panel, MessageDirection::ToWidget, vec![]),
-            );
+            ui.send_sync(self.properties_panel, ListViewMessage::Items(vec![]));
             return;
         };
 

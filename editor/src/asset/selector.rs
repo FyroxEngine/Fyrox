@@ -237,8 +237,7 @@ impl Control for AssetSelector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(ListViewMessage::SelectionChanged(selected)) = message.data_from(self.list_view)
-        {
+        if let Some(ListViewMessage::Selection(selected)) = message.data_from(self.list_view) {
             if let Some(path) = selected.first().and_then(|i| self.resources.get(*i)) {
                 let resource = self.resource_manager.request_untyped(path);
                 ui.post(self.handle(), AssetSelectorMessage::Select(resource));
@@ -359,11 +358,8 @@ impl<'a> AssetSelectorBuilder<'a> {
             .build(ctx);
 
         if let Some(selected_item) = selected_item {
-            ctx.send_message(ListViewMessage::bring_item_into_view(
-                list_view,
-                MessageDirection::ToWidget,
-                selected_item,
-            ));
+            ctx.inner()
+                .send(list_view, ListViewMessage::BringItemIntoView(selected_item));
         }
 
         let selector = AssetSelector {

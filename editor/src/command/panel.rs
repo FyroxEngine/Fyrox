@@ -25,7 +25,7 @@ use crate::{
             button::ButtonMessage,
             grid::{Column, GridBuilder, Row},
             list_view::{ListViewBuilder, ListViewMessage},
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
             style::{resource::StyleResourceExt, Style},
@@ -38,7 +38,6 @@ use crate::{
     },
     load_image,
     message::MessageSender,
-    send_sync_message,
     utils::window_content,
     Message, Mode,
 };
@@ -179,10 +178,7 @@ impl CommandStackViewer {
             })
             .collect();
 
-        send_sync_message(
-            ui,
-            ListViewMessage::items(self.list, MessageDirection::ToWidget, items),
-        );
+        ui.send_sync(self.list, ListViewMessage::Items(items));
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {

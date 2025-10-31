@@ -282,7 +282,7 @@ impl Configurator {
                 self.history.visit("History", &mut visitor).unwrap();
                 visitor.save_binary_to_file(HISTORY_PATH).unwrap();
             }
-        } else if let Some(ListViewMessage::SelectionChanged(selected_indices)) =
+        } else if let Some(ListViewMessage::Selection(selected_indices)) =
             message.data_from(self.lv_history)
         {
             if let Some(index) = selected_indices.first().cloned() {

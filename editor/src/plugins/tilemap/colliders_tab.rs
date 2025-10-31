@@ -263,11 +263,7 @@ impl CollidersTab {
     }
     pub fn sync_to_model(&mut self, tile_set: &OptionTileSet, ui: &mut UserInterface) {
         let items = make_items(&mut ui.build_ctx(), tile_set);
-        ui.send_message(ListViewMessage::items(
-            self.list,
-            MessageDirection::ToWidget,
-            items,
-        ));
+        ui.send(self.list, ListViewMessage::Items(items));
         self.sync_data(tile_set, ui);
     }
     fn sync_data(&mut self, tile_set: &OptionTileSet, ui: &mut UserInterface) {
@@ -312,7 +308,7 @@ impl CollidersTab {
         if message.direction() == MessageDirection::ToWidget || message.flags == MSG_SYNC_FLAG {
             return;
         }
-        if let Some(ListViewMessage::SelectionChanged(_)) = message.data() {
+        if let Some(ListViewMessage::Selection(_)) = message.data() {
             if message.destination() == self.list {
                 self.sync_data(&TileSetRef::new(&tile_set).as_loaded(), ui);
             }
@@ -412,11 +408,7 @@ impl CollidersTab {
         if sel_index == new_index {
             return;
         }
-        ui.send_message(ListViewMessage::selection(
-            self.list,
-            MessageDirection::ToWidget,
-            vec![new_index],
-        ));
+        ui.send(self.list, ListViewMessage::Selection(vec![new_index]));
         sender.do_command(MoveColliderLayerCommand {
             tile_set: resource.clone(),
             start: sel_index,
@@ -430,11 +422,7 @@ impl CollidersTab {
             .map(|i| i + 1)
             .unwrap_or(0)
             .clamp(0, tile_set.colliders.len());
-        ui.send_message(ListViewMessage::selection(
-            self.list,
-            MessageDirection::ToWidget,
-            vec![index],
-        ));
+        ui.send(self.list, ListViewMessage::Selection(vec![index]));
         sender.do_command(AddColliderLayerCommand {
             tile_set: resource.clone(),
             index,

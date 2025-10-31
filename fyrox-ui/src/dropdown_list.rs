@@ -266,30 +266,23 @@ impl Control for DropdownList {
                         ));
                     }
                     DropdownListMessage::Items(items) => {
-                        ui.send_message(ListViewMessage::items(
-                            *self.list_view,
-                            MessageDirection::ToWidget,
-                            items.clone(),
-                        ));
+                        ui.send(*self.list_view, ListViewMessage::Items(items.clone()));
                         self.items.set_value_and_mark_modified(items.clone());
                         self.sync_selected_item_preview(ui);
                     }
                     &DropdownListMessage::AddItem(item) => {
-                        ui.send_message(ListViewMessage::add_item(
-                            *self.list_view,
-                            MessageDirection::ToWidget,
-                            item,
-                        ));
+                        ui.send(*self.list_view, ListViewMessage::AddItem(item));
                         self.items.push(item);
                     }
                     &DropdownListMessage::Selection(selection) => {
                         if selection != *self.selection {
                             self.selection.set_value_and_mark_modified(selection);
-                            ui.send_message(ListViewMessage::selection(
+                            ui.send(
                                 *self.list_view,
-                                MessageDirection::ToWidget,
-                                selection.map(|index| vec![index]).unwrap_or_default(),
-                            ));
+                                ListViewMessage::Selection(
+                                    selection.map(|index| vec![index]).unwrap_or_default(),
+                                ),
+                            );
 
                             self.sync_selected_item_preview(ui);
 
@@ -309,9 +302,7 @@ impl Control for DropdownList {
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if let Some(ListViewMessage::SelectionChanged(selection)) =
-            message.data::<ListViewMessage>()
-        {
+        if let Some(ListViewMessage::Selection(selection)) = message.data::<ListViewMessage>() {
             let selection = selection.first().cloned();
             if message.direction() == MessageDirection::FromWidget
                 && message.destination() == *self.list_view

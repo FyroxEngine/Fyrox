@@ -496,11 +496,7 @@ impl PropertiesTab {
     }
     pub fn sync_to_model(&mut self, tile_set: &OptionTileSet, ui: &mut UserInterface) {
         let items = make_items(&mut ui.build_ctx(), tile_set);
-        ui.send_message(ListViewMessage::items(
-            self.list,
-            MessageDirection::ToWidget,
-            items,
-        ));
+        ui.send(self.list, ListViewMessage::Items(items));
         self.sync_data(tile_set, ui);
     }
     pub fn sync_data(&mut self, tile_set: &OptionTileSet, ui: &mut UserInterface) {
@@ -518,11 +514,7 @@ impl PropertiesTab {
             Some(prop) => make_name_items(&mut ui.build_ctx(), prop),
             None => Vec::default(),
         };
-        ui.send_message(ListViewMessage::items(
-            self.name_list,
-            MessageDirection::ToWidget,
-            named_values,
-        ));
+        ui.send(self.name_list, ListViewMessage::Items(named_values));
         send_enabled(ui, self.data_panel, sel_index.is_some());
         send_sync_message(
             ui,
@@ -605,7 +597,7 @@ impl PropertiesTab {
         if message.direction() == MessageDirection::ToWidget || message.flags == MSG_SYNC_FLAG {
             return;
         }
-        if let Some(ListViewMessage::SelectionChanged(_)) = message.data() {
+        if let Some(ListViewMessage::Selection(_)) = message.data() {
             if message.destination() == self.list {
                 self.sync_data(&TileSetRef::new(&tile_set).as_loaded(), ui);
             } else if message.destination() == self.name_list {
@@ -828,11 +820,7 @@ impl PropertiesTab {
         if sel_index == new_index {
             return;
         }
-        ui.send_message(ListViewMessage::selection(
-            self.name_list,
-            MessageDirection::ToWidget,
-            vec![new_index],
-        ));
+        ui.send(self.name_list, ListViewMessage::Selection(vec![new_index]));
         let uuid = prop.uuid;
         drop(tile_set_guard);
         sender.do_command(MovePropertyValueCommand {
@@ -856,11 +844,7 @@ impl PropertiesTab {
             .map(|i| i + 1)
             .unwrap_or(0)
             .clamp(0, prop.named_values.len());
-        ui.send_message(ListViewMessage::selection(
-            self.name_list,
-            MessageDirection::ToWidget,
-            vec![index],
-        ));
+        ui.send(self.name_list, ListViewMessage::Selection(vec![index]));
         ui.send_message(WidgetMessage::focus(
             self.value_name_field,
             MessageDirection::ToWidget,
@@ -913,11 +897,7 @@ impl PropertiesTab {
         if sel_index == new_index {
             return;
         }
-        ui.send_message(ListViewMessage::selection(
-            self.list,
-            MessageDirection::ToWidget,
-            vec![new_index],
-        ));
+        ui.send(self.list, ListViewMessage::Selection(vec![new_index]));
         sender.do_command(MovePropertyLayerCommand {
             tile_set: resource.clone(),
             start: sel_index,
@@ -937,11 +917,7 @@ impl PropertiesTab {
             .map(|i| i + 1)
             .unwrap_or(0)
             .clamp(0, tile_set.properties.len());
-        ui.send_message(ListViewMessage::selection(
-            self.list,
-            MessageDirection::ToWidget,
-            vec![index],
-        ));
+        ui.send(self.list, ListViewMessage::Selection(vec![index]));
         ui.send_message(WidgetMessage::focus(
             self.name_field,
             MessageDirection::ToWidget,

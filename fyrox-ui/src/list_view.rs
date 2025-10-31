@@ -31,7 +31,6 @@ use crate::{
         variable::InheritableVariable, visitor::prelude::*,
     },
     decorator::{Decorator, DecoratorMessage},
-    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     message::{KeyCode, MessageDirection, UiMessage},
     scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
@@ -52,7 +51,7 @@ use std::ops::{Deref, DerefMut};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ListViewMessage {
     /// A message, that is used to either fetch or modify current selection of a [`ListView`] widget.
-    SelectionChanged(Vec<usize>),
+    Selection(Vec<usize>),
     /// A message, that is used to set new items of a list view.
     Items(Vec<Handle<UiNode>>),
     /// A message, that is used to add an item to a list view.
@@ -63,29 +62,6 @@ pub enum ListViewMessage {
     BringItemIntoView(Handle<UiNode>),
 }
 impl MessageData for ListViewMessage {}
-
-impl ListViewMessage {
-    define_constructor!(
-        /// Creates [`ListViewMessage::SelectionChanged`] message.
-        ListViewMessage:SelectionChanged => fn selection(Vec<usize>)
-    );
-    define_constructor!(
-        /// Creates [`ListViewMessage::Items`] message.
-        ListViewMessage:Items => fn items(Vec<Handle<UiNode >>)
-    );
-    define_constructor!(
-        /// Creates [`ListViewMessage::AddItem`] message.
-        ListViewMessage:AddItem => fn add_item(Handle<UiNode>)
-    );
-    define_constructor!(
-        /// Creates [`ListViewMessage::RemoveItem`] message.
-        ListViewMessage:RemoveItem => fn remove_item(Handle<UiNode>)
-    );
-    define_constructor!(
-        /// Creates [`ListViewMessage::BringItemIntoView`] message.
-        ListViewMessage:BringItemIntoView => fn bring_item_into_view(Handle<UiNode>)
-    );
-}
 
 /// List view is used to display lists with arbitrary items. It supports multiple selection and by
 /// default, it stacks the items vertically (this can be changed by providing a custom panel for the
@@ -148,7 +124,7 @@ impl ListViewMessage {
 /// ## Selection
 ///
 /// List view supports any number of selected items (you can add items to the current selecting by
-/// holding Ctrl key), you can change it at runtime by sending [`ListViewMessage::SelectionChanged`]
+/// holding Ctrl key), you can change it at runtime by sending [`ListViewMessage::Selection`]
 /// message with [`MessageDirection::ToWidget`] like so:
 ///
 /// ```rust
@@ -168,7 +144,7 @@ impl ListViewMessage {
 /// It is also possible to not have selected item at all, to do this you need to send an empty vector
 /// as a selection.
 ///
-/// To catch the moment when selection has changed (either by a user or by the [`ListViewMessage::SelectionChanged`],) you need
+/// To catch the moment when selection has changed (either by a user or by the [`ListViewMessage::Selection`],) you need
 /// to listen to the same message but with opposite direction, like so:
 ///
 /// ```rust
@@ -178,7 +154,7 @@ impl ListViewMessage {
 /// # };
 /// #
 /// fn do_something(my_list_view: Handle<UiNode>, message: &UiMessage) {
-///     if let Some(ListViewMessage::SelectionChanged(selection)) = message.data() {
+///     if let Some(ListViewMessage::Selection(selection)) = message.data() {
 ///         if message.destination() == my_list_view
 ///             && message.direction() == MessageDirection::FromWidget
 ///         {
@@ -297,11 +273,7 @@ impl ListView {
         }
 
         if self.selection != fixed_selection {
-            ui.send_message(ListViewMessage::selection(
-                self.handle,
-                MessageDirection::ToWidget,
-                fixed_selection,
-            ));
+            ui.send(self.handle, ListViewMessage::Selection(fixed_selection));
         }
     }
 
@@ -403,11 +375,7 @@ impl Control for ListViewItem {
 
                 // Explicitly set selection on parent items control. This will send
                 // SelectionChanged message and all items will react.
-                ui.send_message(ListViewMessage::selection(
-                    parent_list_view,
-                    MessageDirection::ToWidget,
-                    new_selection,
-                ));
+                ui.send(parent_list_view, ListViewMessage::Selection(new_selection));
                 message.set_handled(true);
             }
         }
@@ -452,7 +420,7 @@ impl Control for ListView {
                         self.item_containers.push(item_container);
                         self.items.push(item);
                     }
-                    ListViewMessage::SelectionChanged(selection) => {
+                    ListViewMessage::Selection(selection) => {
                         if &self.selection != selection {
                             self.selection.clone_from(selection);
                             self.sync_decorators(ui);
@@ -522,17 +490,11 @@ impl Control for ListView {
                 };
 
                 if let Some(new_selection) = new_selection {
-                    ui.send_message(ListViewMessage::selection(
+                    ui.send(self.handle, ListViewMessage::Selection(vec![new_selection]));
+                    ui.send(
                         self.handle,
-                        MessageDirection::ToWidget,
-                        vec![new_selection],
-                    ));
-
-                    ui.send_message(ListViewMessage::bring_item_into_view(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        self.items[new_selection],
-                    ));
+                        ListViewMessage::BringItemIntoView(self.items[new_selection]),
+                    );
 
                     message.set_handled(true);
                 }

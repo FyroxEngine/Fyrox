@@ -177,7 +177,7 @@ impl ResourceCreator {
     ) -> bool {
         let mut asset_added = false;
 
-        if let Some(ListViewMessage::SelectionChanged(selection)) =
+        if let Some(ListViewMessage::Selection(selection)) =
             message.data_from(self.resource_constructors_list)
         {
             self.selected = selection.first().cloned();

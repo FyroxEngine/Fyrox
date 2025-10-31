@@ -1193,8 +1193,7 @@ impl ProjectManager {
 
         if let Some(ButtonMessage::Click) = message.data() {
             self.on_button_click(message.destination, ui);
-        } else if let Some(ListViewMessage::SelectionChanged(selection)) =
-            message.data_from(self.projects)
+        } else if let Some(ListViewMessage::Selection(selection)) = message.data_from(self.projects)
         {
             self.selection.clone_from(&selection.first().cloned());
 

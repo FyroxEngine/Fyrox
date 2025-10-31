@@ -627,7 +627,7 @@ impl ExportWindow {
             } else if message.destination() == self.cancel {
                 self.close_and_destroy(ui);
             }
-        } else if let Some(ListViewMessage::SelectionChanged(selection)) =
+        } else if let Some(ListViewMessage::Selection(selection)) =
             message.data_from(self.target_platform_list)
         {
             if let Some(index) = selection.first().cloned() {

@@ -145,7 +145,7 @@ impl Control for StyledPropertySelector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
 
-        if let Some(ListViewMessage::SelectionChanged(selected)) = message.data() {
+        if let Some(ListViewMessage::Selection(selected)) = message.data() {
             if let Some(selected_index) = selected.first() {
                 if message.destination() == self.properties {
                     self.style_property_name = self.property_list[*selected_index].clone();
@@ -273,11 +273,10 @@ impl StyledPropertySelectorBuilder {
         };
 
         if let Some(selected_item) = selected_item {
-            ctx.send_message(ListViewMessage::bring_item_into_view(
+            ctx.inner().send(
                 properties,
-                MessageDirection::ToWidget,
-                selected_item,
-            ));
+                ListViewMessage::BringItemIntoView(selected_item),
+            );
         }
 
         ctx.add_node(UiNode::new(selector))

@@ -398,7 +398,7 @@ impl AudioPanel {
                     sender.do_command(CommandGroup::from(commands));
                 }
             }
-        } else if let Some(ListViewMessage::SelectionChanged(selected_indices)) =
+        } else if let Some(ListViewMessage::Selection(selected_indices)) =
             message.data_from(self.audio_buses)
         {
             let ui = &engine.user_interfaces.first();
@@ -490,14 +490,7 @@ impl AudioPanel {
                         .buses_pair_iter()
                         .all(|(other_bus_handle, _)| other_bus_handle != bus_handle)
                     {
-                        send_sync_message(
-                            ui,
-                            ListViewMessage::remove_item(
-                                self.audio_buses,
-                                MessageDirection::ToWidget,
-                                item,
-                            ),
-                        );
+                        ui.send_sync(self.audio_buses, ListViewMessage::RemoveItem(item));
                     }
                 }
             }
@@ -520,14 +513,7 @@ impl AudioPanel {
                         .with_audio_bus(audio_bus_handle)
                         .build(&mut ui.build_ctx());
 
-                        send_sync_message(
-                            ui,
-                            ListViewMessage::add_item(
-                                self.audio_buses,
-                                MessageDirection::ToWidget,
-                                item,
-                            ),
-                        );
+                        ui.send_sync(self.audio_buses, ListViewMessage::AddItem(item));
                     }
                 }
             }
@@ -562,14 +548,7 @@ impl AudioPanel {
             ),
         );
 
-        send_sync_message(
-            ui,
-            ListViewMessage::selection(
-                self.audio_buses,
-                MessageDirection::ToWidget,
-                selected_buses,
-            ),
-        );
+        ui.send_sync(self.audio_buses, ListViewMessage::Selection(selected_buses));
 
         for audio_bus_view in ui
             .node(self.audio_buses)

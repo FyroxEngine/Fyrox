@@ -335,11 +335,7 @@ impl MacroTab {
     }
     pub fn sync_to_model(&mut self, brush: TileMapBrushResource, ui: &mut UserInterface) {
         let items = make_instance_items(&mut ui.build_ctx(), brush.clone(), &self.macros.lock());
-        ui.send_message(ListViewMessage::items(
-            self.list,
-            MessageDirection::ToWidget,
-            items,
-        ));
+        ui.send(self.list, ListViewMessage::Items(items));
         self.sync_data(brush, ui);
     }
     fn sync_data(&mut self, brush: TileMapBrushResource, ui: &mut UserInterface) {
@@ -421,7 +417,7 @@ impl MacroTab {
         }
         let ui = editor.engine.user_interfaces.first_mut();
         let sender = &editor.message_sender;
-        if let Some(ListViewMessage::SelectionChanged(_)) = message.data() {
+        if let Some(ListViewMessage::Selection(_)) = message.data() {
             if message.destination() == self.list {
                 self.sync_data(brush.clone(), ui);
             }
@@ -494,11 +490,7 @@ impl MacroTab {
         if sel_index == new_index {
             return;
         }
-        ui.send_message(ListViewMessage::selection(
-            self.list,
-            MessageDirection::ToWidget,
-            vec![new_index],
-        ));
+        ui.send(self.list, ListViewMessage::Selection(vec![new_index]));
         sender.do_command(MoveMacroCommand {
             brush: resource.clone(),
             start: sel_index,
@@ -528,11 +520,7 @@ impl MacroTab {
             name: String::default(),
             settings: data,
         });
-        ui.send_message(ListViewMessage::selection(
-            self.list,
-            MessageDirection::ToWidget,
-            vec![index],
-        ));
+        ui.send(self.list, ListViewMessage::Selection(vec![index]));
         sender.do_command(AddMacroCommand {
             brush: resource.clone(),
             index,
