@@ -27,14 +27,12 @@ use crate::{
     check_box::{CheckBoxBuilder, CheckBoxMessage},
     core::pool::Handle,
     core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
-    define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
-
 use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
@@ -50,13 +48,6 @@ pub enum ExpanderMessage {
     Expand(bool),
 }
 impl MessageData for ExpanderMessage {}
-
-impl ExpanderMessage {
-    define_constructor!(
-        /// Creates [`ExpanderMessage::Expand`] message.
-        ExpanderMessage:Expand => fn expand(bool)
-    );
-}
 
 /// Expander is a simple container that has a header and collapsible/expandable content zone. It is used to
 /// create collapsible regions with headers.
@@ -200,16 +191,10 @@ impl Control for Expander {
                 ));
                 self.is_expanded.set_value_and_mark_modified(expand);
             }
-        } else if let Some(CheckBoxMessage::Check(value)) = message.data::<CheckBoxMessage>() {
-            if message.destination() == *self.expander
-                && message.direction() == MessageDirection::FromWidget
-            {
-                ui.send_message(ExpanderMessage::expand(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                    value.unwrap_or(false),
-                ));
-            }
+        } else if let Some(CheckBoxMessage::Check(value)) =
+            message.data_from::<CheckBoxMessage>(*self.expander)
+        {
+            ui.send(self.handle, ExpanderMessage::Expand(value.unwrap_or(false)));
         }
         self.widget.handle_routed_message(ui, message);
     }
