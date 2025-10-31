@@ -175,16 +175,8 @@ impl Control for MaterialFieldEditor {
         {
             if message.is_for(self.handle) {
                 for widget in [self.image, self.image_preview] {
-                    ui.send_message(ImageMessage::texture(
-                        widget,
-                        MessageDirection::ToWidget,
-                        texture.clone(),
-                    ));
-                    ui.send_message(ImageMessage::flip(
-                        widget,
-                        MessageDirection::ToWidget,
-                        *flip_y,
-                    ));
+                    ui.send(widget, ImageMessage::Texture(texture.clone()));
+                    ui.send(widget, ImageMessage::Flip(*flip_y));
                     ui.send_message(WidgetMessage::background(
                         widget,
                         MessageDirection::ToWidget,

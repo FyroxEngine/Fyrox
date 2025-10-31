@@ -1059,11 +1059,7 @@ impl SceneViewer {
     }
 
     pub fn set_render_target(&self, ui: &UserInterface, render_target: Option<TextureResource>) {
-        ui.send_message(ImageMessage::texture(
-            self.frame,
-            MessageDirection::ToWidget,
-            render_target,
-        ));
+        ui.send(self.frame, ImageMessage::Texture(render_target));
     }
 
     pub fn set_title(&self, ui: &UserInterface, title: String) {

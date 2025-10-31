@@ -107,11 +107,10 @@ impl Control for SpriteSheetFramesEditorWindow {
 
         self.animation.update(dt);
         self.animation.play();
-        ui.send_message(ImageMessage::uv_rect(
+        ui.send(
             self.preview_image,
-            MessageDirection::ToWidget,
-            self.animation.current_frame_uv_rect().unwrap_or_default(),
-        ));
+            ImageMessage::UvRect(self.animation.current_frame_uv_rect().unwrap_or_default()),
+        );
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

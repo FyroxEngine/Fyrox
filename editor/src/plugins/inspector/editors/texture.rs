@@ -185,12 +185,7 @@ impl Control for TextureEditor {
             if &self.texture != texture && message.is_for(self.handle) {
                 self.texture.clone_from(texture);
 
-                ui.send_message(ImageMessage::texture(
-                    self.image,
-                    MessageDirection::ToWidget,
-                    self.texture.clone(),
-                ));
-
+                ui.send(self.image, ImageMessage::Texture(self.texture.clone()));
                 ui.send_message(TextMessage::text(
                     self.path,
                     MessageDirection::ToWidget,

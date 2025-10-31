@@ -164,14 +164,11 @@ impl CameraPreviewControlPanel {
                     assert!(node_overrides.insert(node_handle));
 
                     let rt = Some(TextureResource::new_render_target(200, 200));
-                    send_sync_message(
-                        engine.user_interfaces.first(),
-                        ImageMessage::texture(
-                            self.preview_frame,
-                            MessageDirection::ToWidget,
-                            rt.clone(),
-                        ),
-                    );
+
+                    engine
+                        .user_interfaces
+                        .first()
+                        .send_sync(self.preview_frame, ImageMessage::Texture(rt.clone()));
                     camera.set_render_target(rt);
                     camera
                         .render_mask
@@ -210,11 +207,13 @@ impl CameraPreviewControlPanel {
         game_scene.preview_camera = Handle::NONE;
 
         let ui = engine.user_interfaces.first();
+
+        // Don't keep the render target alive after the preview mode is off.
+        ui.send_sync(self.preview_frame, ImageMessage::Texture(None));
+
         send_sync_messages(
             ui,
             [
-                // Don't keep the render target alive after the preview mode is off.
-                ImageMessage::texture(self.preview_frame, MessageDirection::ToWidget, None),
                 UiMessage::for_widget(self.preview, CheckBoxMessage::Check(Some(false))),
                 WidgetMessage::visibility(self.preview_frame, MessageDirection::ToWidget, false),
             ],

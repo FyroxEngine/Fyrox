@@ -30,9 +30,8 @@ use crate::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
         type_traits::prelude::*, variable::InheritableVariable, visitor::prelude::*,
     },
-    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
-    message::{MessageDirection, UiMessage},
+    message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
@@ -58,28 +57,6 @@ pub enum ImageMessage {
     CheckerboardBackground(bool),
 }
 impl MessageData for ImageMessage {}
-
-impl ImageMessage {
-    define_constructor!(
-        /// Creates [`ImageMessage::Texture`] message.
-        ImageMessage:Texture => fn texture(Option<TextureResource>)
-    );
-
-    define_constructor!(
-        /// Creates [`ImageMessage::Flip`] message.
-        ImageMessage:Flip => fn flip(bool)
-    );
-
-    define_constructor!(
-        /// Creates [`ImageMessage::UvRect`] message.
-        ImageMessage:UvRect => fn uv_rect(Rect<f32>)
-    );
-
-    define_constructor!(
-        /// Creates [`ImageMessage::CheckerboardBackground`] message.
-        ImageMessage:CheckerboardBackground => fn checkerboard_background(bool)
-    );
-}
 
 /// Image widget is a rectangle with a texture, it is used draw custom bitmaps. The UI in the engine is vector-based, Image
 /// widget is the only way to draw a bitmap. Usage of the Image is very simple:
