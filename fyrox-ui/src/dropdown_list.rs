@@ -30,7 +30,6 @@ use crate::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         uuid_provider, variable::InheritableVariable, visitor::prelude::*,
     },
-    define_constructor,
     grid::{Column, GridBuilder, Row},
     list_view::{ListViewBuilder, ListViewMessage},
     message::{KeyCode, MessageDirection, UiMessage},
@@ -55,7 +54,7 @@ use std::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DropdownListMessage {
     /// A message, that is used to set new selection and receive selection changes.
-    SelectionChanged(Option<usize>),
+    Selection(Option<usize>),
     /// A message, that is used to set new items of a dropdown list.
     Items(Vec<Handle<UiNode>>),
     /// A message, that is used to add an item to a dropdown list.
@@ -66,29 +65,6 @@ pub enum DropdownListMessage {
     Close,
 }
 impl MessageData for DropdownListMessage {}
-
-impl DropdownListMessage {
-    define_constructor!(
-        /// Creates [`DropdownListMessage::SelectionChanged`] message.
-        DropdownListMessage:SelectionChanged => fn selection(Option<usize>)
-    );
-    define_constructor!(
-           /// Creates [`DropdownListMessage::Items`] message.
-        DropdownListMessage:Items => fn items(Vec<Handle<UiNode >>)
-    );
-    define_constructor!(
-        /// Creates [`DropdownListMessage::AddItem`] message.
-        DropdownListMessage:AddItem => fn add_item(Handle<UiNode>)
-    );
-    define_constructor!(
-        /// Creates [`DropdownListMessage::Open`] message.
-        DropdownListMessage:Open => fn open()
-    );
-    define_constructor!(
-        /// Creates [`DropdownListMessage::Close`] message.
-        DropdownListMessage:Close => fn close()
-    );
-}
 
 /// Drop-down list is a control which shows currently selected item and provides drop-down
 /// list to select its current item. It is used to show a single selected item in compact way.
@@ -167,7 +143,7 @@ impl DropdownListMessage {
 ///
 /// impl Foo {
 ///     fn on_ui_message(&mut self, message: &UiMessage) {
-///         if let Some(DropdownListMessage::SelectionChanged(new_selection)) = message.data() {
+///         if let Some(DropdownListMessage::Selection(new_selection)) = message.data() {
 ///             if message.destination() == self.dropdown_list
 ///                 && message.direction() == MessageDirection::FromWidget
 ///             {
@@ -179,7 +155,7 @@ impl DropdownListMessage {
 /// }
 /// ```
 ///
-/// To change selection of a dropdown list, send [`DropdownListMessage::SelectionChanged`] message
+/// To change selection of a dropdown list, send [`DropdownListMessage::Selection`] message
 /// to it.
 ///
 /// ## Items
@@ -249,24 +225,15 @@ impl Control for DropdownList {
                     if message.destination() == self.handle()
                         || self.widget.has_descendant(message.destination(), ui)
                     {
-                        ui.send_message(DropdownListMessage::open(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send(self.handle, DropdownListMessage::Open);
                     }
                 }
                 WidgetMessage::KeyDown(key_code) => {
                     if !message.handled() {
                         if *key_code == KeyCode::ArrowDown {
-                            ui.send_message(DropdownListMessage::open(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(self.handle, DropdownListMessage::Open);
                         } else if *key_code == KeyCode::ArrowUp {
-                            ui.send_message(DropdownListMessage::close(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(self.handle, DropdownListMessage::Close);
                         }
                         message.set_handled(true);
                     }
@@ -315,7 +282,7 @@ impl Control for DropdownList {
                         ));
                         self.items.push(item);
                     }
-                    &DropdownListMessage::SelectionChanged(selection) => {
+                    &DropdownListMessage::Selection(selection) => {
                         if selection != *self.selection {
                             self.selection.set_value_and_mark_modified(selection);
                             ui.send_message(ListViewMessage::selection(
@@ -352,31 +319,17 @@ impl Control for DropdownList {
             {
                 // Post message again but from name of this drop-down list so user can catch
                 // message and respond properly.
-                ui.send_message(DropdownListMessage::selection(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                    selection,
-                ));
+                ui.send(self.handle, DropdownListMessage::Selection(selection));
             }
         } else if let Some(msg) = message.data::<PopupMessage>() {
             if message.is_for(*self.popup) {
                 match msg {
                     PopupMessage::Open => {
-                        ui.send_message(DropdownListMessage::open(
-                            self.handle,
-                            MessageDirection::FromWidget,
-                        ));
+                        ui.post(self.handle, DropdownListMessage::Open);
                     }
                     PopupMessage::Close => {
-                        ui.send_message(DropdownListMessage::close(
-                            self.handle,
-                            MessageDirection::FromWidget,
-                        ));
-
-                        ui.send_message(WidgetMessage::focus(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.post(self.handle, DropdownListMessage::Close);
+                        ui.send(self.handle, WidgetMessage::Focus);
                     }
                     _ => (),
                 }

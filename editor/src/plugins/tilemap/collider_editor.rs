@@ -223,10 +223,7 @@ impl TileColliderEditor {
     }
     fn sync_value_to_list(&self, ui: &mut UserInterface) {
         let index = collider_to_index(&self.value);
-        send_sync_message(
-            ui,
-            DropdownListMessage::selection(self.list, MessageDirection::ToWidget, index),
-        );
+        ui.send_sync(self.list, DropdownListMessage::Selection(index));
         send_visibility(ui, self.custom_field, self.value.is_custom());
         send_visibility(
             ui,
@@ -360,7 +357,7 @@ impl TileEditor for TileColliderEditor {
                 let visible = state.is_visible_collider(self.collider_id);
                 state.set_visible_collider(self.collider_id, !visible);
             }
-        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
+        } else if let Some(DropdownListMessage::Selection(Some(index))) = message.data() {
             if message.destination() == self.list {
                 self.value = match *index {
                     1 => TileCollider::Rectangle,

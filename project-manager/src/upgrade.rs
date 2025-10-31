@@ -216,7 +216,7 @@ impl UpgradeTool {
             if message.destination() == self.window {
                 return None;
             }
-        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
+        } else if let Some(DropdownListMessage::Selection(Some(index))) = message.data() {
             if message.destination() == self.version_type_selector {
                 match *index {
                     0 => {

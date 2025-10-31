@@ -246,7 +246,7 @@ impl LogPanel {
                     vec![],
                 ));
             }
-        } else if let Some(DropdownListMessage::SelectionChanged(Some(idx))) =
+        } else if let Some(DropdownListMessage::Selection(Some(idx))) =
             message.data::<DropdownListMessage>()
         {
             if message.destination() == self.severity_list

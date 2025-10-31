@@ -675,7 +675,7 @@ impl ExportWindow {
                 },
             );
             sender.send(Message::ForceSync);
-        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) =
+        } else if let Some(DropdownListMessage::Selection(Some(index))) =
             message.data_from(self.build_targets_selector)
         {
             self.export_options.selected_build_target = *index;

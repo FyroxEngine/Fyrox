@@ -784,15 +784,8 @@ impl MacroPropertyValueField {
         send_sync_message(ui, msg);
         if let Ok(value) = value.try_into() {
             let (index, items) = make_index_and_value_list(prop, value, &mut ui.build_ctx());
-            ui.send_message(DropdownListMessage::items(
-                self.list,
-                MessageDirection::ToWidget,
-                items,
-            ));
-            send_sync_message(
-                ui,
-                DropdownListMessage::selection(self.list, MessageDirection::ToWidget, Some(index)),
-            );
+            ui.send_sync(self.list, DropdownListMessage::Items(items));
+            ui.send_sync(self.list, DropdownListMessage::Selection(Some(index)));
         }
     }
     fn on_numeric_message(
@@ -807,13 +800,9 @@ impl MacroPropertyValueField {
             MessageDirection::FromWidget,
             element,
         ));
-        send_sync_message(
-            ui,
-            DropdownListMessage::selection(
-                self.list,
-                MessageDirection::ToWidget,
-                Some(find_list_index(prop, value)),
-            ),
+        ui.send_sync(
+            self.list,
+            DropdownListMessage::Selection(Some(find_list_index(prop, value))),
         );
     }
     /// Handle the given message, which might be relevant to some widget in the field.
@@ -866,7 +855,7 @@ impl MacroPropertyValueField {
                     ui,
                 );
             }
-        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
+        } else if let Some(DropdownListMessage::Selection(Some(index))) = message.data() {
             if message.destination() == self.list
                 && message.direction() == MessageDirection::FromWidget
                 && *index > 0
@@ -989,15 +978,8 @@ impl MacroPropertyField {
     pub fn sync(&self, value: Option<&Uuid>, tile_set: Option<&TileSet>, ui: &mut UserInterface) {
         let (index, items) =
             make_index_and_items(self.prop_type, value, tile_set, &mut ui.build_ctx());
-        ui.send_message(DropdownListMessage::items(
-            self.list,
-            MessageDirection::ToWidget,
-            items,
-        ));
-        send_sync_message(
-            ui,
-            DropdownListMessage::selection(self.list, MessageDirection::ToWidget, Some(index)),
-        );
+        ui.send_sync(self.list, DropdownListMessage::Items(items));
+        ui.send_sync(self.list, DropdownListMessage::Selection(Some(index)));
     }
     /// Handle the given message, which might be relevant to some widget in the field.
     pub fn on_ui_message(
@@ -1006,7 +988,7 @@ impl MacroPropertyField {
         message: &UiMessage,
         ui: &mut UserInterface,
     ) {
-        if let Some(DropdownListMessage::SelectionChanged(index)) = message.data() {
+        if let Some(DropdownListMessage::Selection(index)) = message.data() {
             if message.destination() == self.list
                 && message.direction() == MessageDirection::FromWidget
             {

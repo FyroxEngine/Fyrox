@@ -209,11 +209,7 @@ impl TilePropertyEditor {
             layer.name.to_string(),
         ));
         let list = make_named_value_list_items(layer, &mut ui.build_ctx());
-        ui.send_message(DropdownListMessage::items(
-            self.list,
-            MessageDirection::ToWidget,
-            list,
-        ));
+        ui.send_sync(self.list, DropdownListMessage::Items(list));
         ui.send_message(WidgetMessage::visibility(
             self.list,
             MessageDirection::ToWidget,
@@ -314,10 +310,7 @@ impl TilePropertyEditor {
         }
         .map(|x| x + 1)
         .unwrap_or(0);
-        send_sync_message(
-            ui,
-            DropdownListMessage::selection(self.list, MessageDirection::ToWidget, Some(index)),
-        );
+        ui.send_sync(self.list, DropdownListMessage::Selection(Some(index)));
     }
     /// Update the value using an index from the dropdown list.
     fn set_value_from_list(
@@ -638,7 +631,7 @@ impl TileEditor for TilePropertyEditor {
                 self.set_value_from_f32(v, state, ui);
                 self.send_value(state, sender, tile_book);
             }
-        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
+        } else if let Some(DropdownListMessage::Selection(Some(index))) = message.data() {
             if message.destination() == self.list {
                 self.set_value_from_list(*index, state, ui, sender, tile_book);
             }

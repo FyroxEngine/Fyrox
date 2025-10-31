@@ -436,7 +436,7 @@ impl AudioPanel {
                     parent: *new_parent,
                 });
             }
-        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
+        } else if let Some(DropdownListMessage::Selection(Some(index))) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.renderer {
                     let renderer = match index {
@@ -615,25 +615,16 @@ impl AudioPanel {
             }
         }
 
-        send_sync_message(
-            ui,
-            DropdownListMessage::selection(
-                self.distance_model,
-                MessageDirection::ToWidget,
-                Some(context_state.distance_model() as usize),
-            ),
+        ui.send_sync(
+            self.distance_model,
+            DropdownListMessage::Selection(Some(context_state.distance_model() as usize)),
         );
-
-        send_sync_message(
-            ui,
-            DropdownListMessage::selection(
-                self.renderer,
-                MessageDirection::ToWidget,
-                Some(match context_state.renderer_ref() {
-                    Renderer::Default => 0,
-                    Renderer::HrtfRenderer(_) => 1,
-                }),
-            ),
+        ui.send_sync(
+            self.renderer,
+            DropdownListMessage::Selection(Some(match context_state.renderer_ref() {
+                Renderer::Default => 0,
+                Renderer::HrtfRenderer(_) => 1,
+            })),
         );
 
         if let Renderer::HrtfRenderer(hrtf) = context_state.renderer_ref() {

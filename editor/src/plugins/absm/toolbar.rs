@@ -204,7 +204,7 @@ impl Toolbar {
             } else {
                 ToolbarAction::LeavePreviewMode
             };
-        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) =
+        } else if let Some(DropdownListMessage::Selection(Some(index))) =
             message.data_from(self.layers)
         {
             let mut new_selection = selection;
@@ -388,19 +388,8 @@ impl Toolbar {
             .map(|l| make_dropdown_list_option(&mut ui.build_ctx(), l.name()))
             .collect();
 
-        send_sync_message(
-            ui,
-            DropdownListMessage::items(self.layers, MessageDirection::ToWidget, layers),
-        );
-
-        send_sync_message(
-            ui,
-            DropdownListMessage::selection(
-                self.layers,
-                MessageDirection::ToWidget,
-                selection.layer,
-            ),
-        );
+        ui.send_sync(self.layers, DropdownListMessage::Items(layers));
+        ui.send_sync(self.layers, DropdownListMessage::Selection(selection.layer));
 
         if let Some(layer_index) = selection.layer {
             if let Some(layer) = machine.layers().get(layer_index) {

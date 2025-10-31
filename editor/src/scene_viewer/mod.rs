@@ -670,11 +670,10 @@ impl SceneViewer {
                     Projection::Orthographic(_) => 1,
                 }
             });
-        ui.send_message(DropdownListMessage::selection(
+        ui.send(
             self.camera_projection,
-            MessageDirection::ToWidget,
-            index,
-        ));
+            DropdownListMessage::Selection(index),
+        );
         let debug_mode_index = new_scene
             .as_ref()
             .and_then(|s| s.controller.downcast_ref::<GameScene>())
@@ -689,11 +688,10 @@ impl SceneViewer {
                 _ => 0,
             });
         if let Some(debug_mode_index) = debug_mode_index {
-            ui.send_message(DropdownListMessage::selection(
+            ui.send(
                 self.debug_switches,
-                MessageDirection::ToWidget,
-                Some(debug_mode_index),
-            ));
+                DropdownListMessage::Selection(Some(debug_mode_index)),
+            );
         }
         self.sync_interaction_modes(new_scene, ui)
     }
@@ -728,7 +726,7 @@ impl SceneViewer {
             } else if message.destination() == self.stop {
                 self.sender.send(Message::SwitchToEditMode);
             }
-        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
+        } else if let Some(DropdownListMessage::Selection(Some(index))) = message.data() {
             if message.direction == MessageDirection::FromWidget {
                 if message.destination() == self.camera_projection {
                     if *index == 0 {
@@ -887,21 +885,15 @@ impl SceneViewer {
                                                 .projection()
                                             {
                                                 Projection::Perspective(_) => {
-                                                    ui.send_message(
-                                                        DropdownListMessage::selection(
-                                                            self.camera_projection,
-                                                            MessageDirection::ToWidget,
-                                                            Some(1),
-                                                        ),
+                                                    ui.send(
+                                                        self.camera_projection,
+                                                        DropdownListMessage::Selection(Some(1)),
                                                     );
                                                 }
                                                 Projection::Orthographic(_) => {
-                                                    ui.send_message(
-                                                        DropdownListMessage::selection(
-                                                            self.camera_projection,
-                                                            MessageDirection::ToWidget,
-                                                            Some(0),
-                                                        ),
+                                                    ui.send(
+                                                        self.camera_projection,
+                                                        DropdownListMessage::Selection(Some(0)),
                                                     );
                                                 }
                                             }
@@ -1084,11 +1076,10 @@ impl SceneViewer {
 
     pub fn reset_camera_projection(&self, ui: &UserInterface) {
         // Default camera projection is Perspective.
-        ui.send_message(DropdownListMessage::selection(
+        ui.send(
             self.camera_projection,
-            MessageDirection::ToWidget,
-            Some(0),
-        ));
+            DropdownListMessage::Selection(Some(0)),
+        );
     }
 
     pub fn frame_bounds(&self, ui: &UserInterface) -> Rect<f32> {

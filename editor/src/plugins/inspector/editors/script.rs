@@ -188,7 +188,7 @@ impl Control for ScriptPropertyEditor {
             }
         }
 
-        if let Some(DropdownListMessage::SelectionChanged(Some(i))) =
+        if let Some(DropdownListMessage::Selection(Some(i))) =
             message.data_from(self.variant_selector)
         {
             let selected_item = ui
@@ -430,13 +430,9 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                 .values()
                 .count()
         {
-            send_sync_message(
-                ctx.ui,
-                DropdownListMessage::items(
-                    instance_ref.variant_selector,
-                    MessageDirection::ToWidget,
-                    new_script_definitions_items,
-                ),
+            ctx.ui.send_sync(
+                instance_ref.variant_selector,
+                DropdownListMessage::Items(new_script_definitions_items),
             );
             send_sync_message(
                 ctx.ui,

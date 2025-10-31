@@ -106,7 +106,7 @@ impl Control for AudioBusView {
             }
         }
 
-        if let Some(DropdownListMessage::SelectionChanged(Some(selection))) =
+        if let Some(DropdownListMessage::Selection(Some(selection))) =
             message.data_from(self.parent_bus_selector)
         {
             let parent = self.possible_parent_buses[*selection];

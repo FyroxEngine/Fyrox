@@ -895,7 +895,7 @@ impl Toolbar {
                 .handle_ui_message(message, graph, sender, ui, animation, root, selection);
         }
 
-        if let Some(DropdownListMessage::SelectionChanged(Some(index))) =
+        if let Some(DropdownListMessage::Selection(Some(index))) =
             message.data_from(self.animations)
         {
             let item = ui
@@ -1170,11 +1170,7 @@ impl Toolbar {
     }
 
     pub fn clear(&mut self, ui: &UserInterface) {
-        ui.send_message(DropdownListMessage::items(
-            self.animations,
-            MessageDirection::ToWidget,
-            vec![],
-        ));
+        ui.send_sync(self.animations, DropdownListMessage::Items(vec![]));
     }
 
     pub fn on_preview_mode_changed(&self, ui: &UserInterface, in_preview_mode: bool) {
@@ -1205,16 +1201,10 @@ impl Toolbar {
             })
             .collect();
 
-        send_sync_message(
-            ui,
-            DropdownListMessage::items(self.animations, MessageDirection::ToWidget, new_items),
-        );
-
-        send_sync_message(
-            ui,
-            DropdownListMessage::selection(
-                self.animations,
-                MessageDirection::ToWidget,
+        ui.send_sync(self.animations, DropdownListMessage::Items(new_items));
+        ui.send_sync(
+            self.animations,
+            DropdownListMessage::Selection(
                 animations
                     .pair_iter()
                     .position(|(h, _)| h == selection.animation),

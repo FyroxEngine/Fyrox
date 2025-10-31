@@ -125,10 +125,9 @@ where
             .iter()
             .position(|d| *value == d.handle.into())
         {
-            Ok(Some(DropdownListMessage::selection(
+            Ok(Some(UiMessage::for_widget(
                 ctx.instance,
-                MessageDirection::ToWidget,
-                Some(index),
+                DropdownListMessage::Selection(Some(index)),
             )))
         } else {
             Ok(None)
@@ -137,7 +136,7 @@ where
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(DropdownListMessage::SelectionChanged(Some(value))) = ctx.message.data() {
+            if let Some(DropdownListMessage::Selection(Some(value))) = ctx.message.data() {
                 if let Ok(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
                     if let Some(definition) = environment.available_animations.get(*value) {
                         return Some(PropertyChanged {

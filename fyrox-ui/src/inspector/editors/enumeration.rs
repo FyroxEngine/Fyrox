@@ -194,7 +194,7 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if message.flags != LOCAL_SYNC_FLAG {
-            if let Some(DropdownListMessage::SelectionChanged(Some(index))) =
+            if let Some(DropdownListMessage::Selection(Some(index))) =
                 message.data_from(self.variant_selector)
             {
                 ui.send(self.handle, EnumPropertyEditorMessage::Variant(*index));
@@ -490,10 +490,9 @@ where
                 .environment
                 .clone();
 
-            let mut selection_message = DropdownListMessage::selection(
+            let mut selection_message = UiMessage::for_widget(
                 instance_ref.variant_selector,
-                MessageDirection::ToWidget,
-                Some(variant_index),
+                DropdownListMessage::Selection(Some(variant_index)),
             );
             selection_message.flags = LOCAL_SYNC_FLAG;
             ctx.ui.send_message(selection_message);

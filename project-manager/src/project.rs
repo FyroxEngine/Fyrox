@@ -312,7 +312,7 @@ impl ProjectWizard {
         } else if let Some(TextMessage::Text(text)) = message.data_from(self.name_field) {
             self.name.clone_from(text);
             self.validate(ui);
-        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
+        } else if let Some(DropdownListMessage::Selection(Some(index))) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.style_field {
                     self.style = Style::from_index(*index);

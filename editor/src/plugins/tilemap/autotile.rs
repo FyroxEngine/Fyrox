@@ -243,7 +243,7 @@ impl BrushMacro for AutoTileMacro {
                 });
             }
         } else {
-            if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
+            if let Some(DropdownListMessage::Selection(Some(index))) = message.data() {
                 if message.destination() == self.failure_log_list
                     && message.direction() == MessageDirection::FromWidget
                 {
@@ -633,13 +633,10 @@ impl BrushMacro for AutoTileMacro {
         let tile_set = tile_set.as_deref();
         self.pattern_list.sync(pattern_id, tile_set, ui);
         self.frequency_list.sync(frequency_id, tile_set, ui);
-        send_sync_message(
-            ui,
-            DropdownListMessage::selection(
-                self.failure_log_list,
-                MessageDirection::ToWidget,
-                Some(log_kind_to_index(instance.failure_log_kind)),
-            ),
+
+        ui.send_sync(
+            self.failure_log_list,
+            DropdownListMessage::Selection(Some(log_kind_to_index(instance.failure_log_kind))),
         );
     }
 
