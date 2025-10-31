@@ -133,12 +133,13 @@ impl Control for ItemContextMenu {
                         .build(&mut ui.build_ctx()),
                     );
 
-                    ui.send_message(MessageBoxMessage::open(
+                    ui.send(
                         self.delete_message_box.get(),
-                        MessageDirection::ToWidget,
-                        None,
-                        None,
-                    ));
+                        MessageBoxMessage::Open {
+                            title: None,
+                            text: None,
+                        },
+                    );
                 }
             } else if message.destination() == self.make_folder {
                 let ctx = &mut ui.build_ctx();

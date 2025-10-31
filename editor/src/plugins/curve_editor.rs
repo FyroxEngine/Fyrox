@@ -432,12 +432,13 @@ impl CurveEditorWindow {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.cancel {
                 if self.modified && self.curve_resource.is_some() {
-                    ui.send_message(MessageBoxMessage::open(
+                    ui.send(
                         self.cancel_message_box,
-                        MessageDirection::ToWidget,
-                        None,
-                        None,
-                    ));
+                        MessageBoxMessage::Open {
+                            text: None,
+                            title: None,
+                        },
+                    );
                 } else {
                     self.destroy(ui);
                     return None;
@@ -445,12 +446,13 @@ impl CurveEditorWindow {
             } else if message.destination() == self.ok {
                 if self.modified && self.curve_resource.is_some() {
                     if self.path == PathBuf::default() {
-                        ui.send_message(MessageBoxMessage::open(
+                        ui.send(
                             self.save_changes_message_box,
-                            MessageDirection::ToWidget,
-                            None,
-                            None,
-                        ));
+                            MessageBoxMessage::Open {
+                                text: None,
+                                title: None,
+                            },
+                        );
                     } else {
                         self.save();
                         self.destroy(ui);

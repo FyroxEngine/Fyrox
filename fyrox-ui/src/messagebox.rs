@@ -30,7 +30,6 @@ use crate::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
     },
-    define_constructor,
     draw::DrawingContext,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
@@ -64,17 +63,6 @@ pub enum MessageBoxMessage {
     Close(MessageBoxResult),
 }
 impl MessageData for MessageBoxMessage {}
-
-impl MessageBoxMessage {
-    define_constructor!(
-        /// Creates [`MessageBoxMessage::Open`] message.
-        MessageBoxMessage:Open => fn open(title: Option<String>, text: Option<String>)
-    );
-    define_constructor!(
-        /// Creates [`MessageBoxMessage::Close`] message.
-        MessageBoxMessage:Close => fn close(MessageBoxResult)
-    );
-}
 
 /// A set of possible reasons why a message box was closed.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
@@ -253,23 +241,17 @@ impl Control for MessageBox {
                     MessageBoxButtons::YesNo => MessageBoxResult::Yes,
                     MessageBoxButtons::YesNoCancel => MessageBoxResult::Yes,
                 };
-                ui.send_message(MessageBoxMessage::close(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                    result,
-                ));
+                ui.send(self.handle, MessageBoxMessage::Close(result));
             } else if message.destination() == *self.cancel {
-                ui.send_message(MessageBoxMessage::close(
+                ui.send(
                     self.handle(),
-                    MessageDirection::ToWidget,
-                    MessageBoxResult::Cancel,
-                ));
+                    MessageBoxMessage::Close(MessageBoxResult::Cancel),
+                );
             } else if message.destination() == *self.no {
-                ui.send_message(MessageBoxMessage::close(
+                ui.send(
                     self.handle(),
-                    MessageDirection::ToWidget,
-                    MessageBoxResult::No,
-                ));
+                    MessageBoxMessage::Close(MessageBoxResult::No),
+                );
             }
         } else if let Some(msg) = message.data::<MessageBoxMessage>() {
             match msg {

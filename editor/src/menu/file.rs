@@ -314,15 +314,13 @@ impl FileMenu {
                             true,
                         ));
                 } else {
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(MessageBoxMessage::open(
-                            self.configure_message,
-                            MessageDirection::ToWidget,
-                            None,
-                            None,
-                        ));
+                    engine.user_interfaces.first_mut().send(
+                        self.configure_message,
+                        MessageBoxMessage::Open {
+                            title: None,
+                            text: None,
+                        },
+                    );
                 }
             } else if message.destination() == self.export_project {
                 let export_window =
