@@ -1972,7 +1972,7 @@ impl UserInterface {
         }
     }
 
-    pub fn send<T: MessageData>(&self, handle: Handle<impl ObjectOrVariant<UiNode>>, data: T) {
+    pub fn send(&self, handle: Handle<impl ObjectOrVariant<UiNode>>, data: impl MessageData) {
         self.sender
             .send(
                 UiMessage::with_data(data)
@@ -1982,12 +1982,13 @@ impl UserInterface {
             .unwrap()
     }
 
-    pub fn send_sync<T: MessageData>(&self, handle: Handle<impl ObjectOrVariant<UiNode>>, data: T) {
+    pub fn send_sync(&self, handle: Handle<impl ObjectOrVariant<UiNode>>, data: impl MessageData) {
         self.sender
             .send(
                 UiMessage::with_data(data)
                     .with_destination(handle.transmute())
-                    .with_direction(MessageDirection::ToWidget),
+                    .with_direction(MessageDirection::ToWidget)
+                    .with_delivery_mode(DeliveryMode::SyncOnly),
             )
             .unwrap()
     }
