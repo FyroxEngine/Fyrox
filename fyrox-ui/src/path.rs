@@ -23,10 +23,10 @@
 
 #![warn(missing_docs)]
 
+use crate::message::MessageData;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
-    define_constructor,
     file_browser::{FileSelectorBuilder, FileSelectorMessage},
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -36,8 +36,6 @@ use crate::{
     window::{WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
-
-use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -54,13 +52,6 @@ pub enum PathEditorMessage {
     Path(PathBuf),
 }
 impl MessageData for PathEditorMessage {}
-
-impl PathEditorMessage {
-    define_constructor!(
-        /// Creates [`PathEditorMessage::Path`] message.
-        PathEditorMessage:Path => fn path(PathBuf)
-    );
-}
 
 /// Path editor is a simple widget that has a text box, that shows the current path and a "..." button, that opens a file
 /// selector.
@@ -170,11 +161,7 @@ impl Control for PathEditor {
                     MessageDirection::ToWidget,
                 ));
 
-                ui.send_message(PathEditorMessage::path(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                    path.clone(),
-                ));
+                ui.send(self.handle, PathEditorMessage::Path(path.clone()));
             }
         }
     }
