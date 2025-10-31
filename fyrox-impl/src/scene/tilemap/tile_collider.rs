@@ -82,7 +82,13 @@ impl Debug for TileCollider {
         match self {
             Self::None => write!(f, "None"),
             Self::Rectangle => write!(f, "Rectangle"),
-            Self::Custom(r) => write!(f, "Custom({})", r.data_ref().deref()),
+            Self::Custom(r) => {
+                if r.is_ok() {
+                    write!(f, "Custom({})", r.data_ref().deref())
+                } else {
+                    f.write_str("Custom(unloaded)")
+                }
+            }
             Self::Mesh => write!(f, "Mesh"),
         }
     }
@@ -151,9 +157,11 @@ impl TileCollider {
                 triangles.push([origin, origin + 2, origin + 3]);
             }
             TileCollider::Custom(resource) => {
-                resource
-                    .data_ref()
-                    .build_collider_shape(transform, position, vertices, triangles);
+                if resource.is_ok() {
+                    resource
+                        .data_ref()
+                        .build_collider_shape(transform, position, vertices, triangles);
+                }
             }
             TileCollider::Mesh => (), // TODO: Add image-to-mesh conversion
         }

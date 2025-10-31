@@ -308,11 +308,18 @@ impl TileEditor for TileColliderEditor {
         send_visibility(ui, self.custom_field, self.value.is_custom());
         send_visibility(ui, self.error_field, false);
         if let TileCollider::Custom(custom) = &self.value {
-            let text = custom.data_ref().to_string();
-            send_sync_message(
-                ui,
-                TextMessage::text(self.custom_field, MessageDirection::ToWidget, text),
-            );
+            if custom.is_ok() {
+                let text = custom.data_ref().to_string();
+                send_sync_message(
+                    ui,
+                    TextMessage::text(self.custom_field, MessageDirection::ToWidget, text),
+                );
+            } else {
+                send_sync_message(
+                    ui,
+                    TextMessage::text(self.custom_field, MessageDirection::ToWidget, String::new()),
+                );
+            }
         }
         highlight_tool_button(
             self.show_button,
