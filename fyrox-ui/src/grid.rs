@@ -28,9 +28,8 @@ use crate::{
         algebra::Vector2, log::Log, math::Rect, pool::Handle, reflect::prelude::*,
         type_traits::prelude::*, uuid_provider, variable::InheritableVariable, visitor::prelude::*,
     },
-    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
-    message::{MessageDirection, UiMessage},
+    message::{UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
@@ -58,28 +57,6 @@ pub enum GridMessage {
     BorderThickness(f32),
 }
 impl MessageData for GridMessage {}
-
-impl GridMessage {
-    define_constructor!(
-        /// Creates a new [`Self::Rows`] message.
-        GridMessage:Rows => fn rows(Vec<Row>)
-    );
-
-    define_constructor!(
-        /// Creates a new [`Self::Columns`] message.
-        GridMessage:Columns => fn columns(Vec<Column>)
-    );
-
-    define_constructor!(
-        /// Creates a new [`Self::DrawBorder`] message.
-        GridMessage:DrawBorder => fn draw_border(bool)
-    );
-
-    define_constructor!(
-        /// Creates a new [`Self::BorderThickness`] message.
-        GridMessage:BorderThickness => fn border_thickness(f32)
-    );
-}
 
 /// Size mode defines how grid's dimension (see [`GridDimension`]) will behave on layout step.
 #[derive(
@@ -706,30 +683,28 @@ impl Control for Grid {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(msg) = message.data::<GridMessage>() {
-            if message.is_for(self.handle) {
-                match msg {
-                    GridMessage::Rows(rows) => {
-                        if &*self.rows.borrow() != rows {
-                            self.rows
-                                .set_value_and_mark_modified(RefCell::new(rows.clone()));
-                            self.invalidate_layout();
-                        }
+        if let Some(msg) = message.data_for::<GridMessage>(self.handle) {
+            match msg {
+                GridMessage::Rows(rows) => {
+                    if &*self.rows.borrow() != rows {
+                        self.rows
+                            .set_value_and_mark_modified(RefCell::new(rows.clone()));
+                        self.invalidate_layout();
                     }
-                    GridMessage::Columns(columns) => {
-                        if &*self.columns.borrow() != columns {
-                            self.columns
-                                .set_value_and_mark_modified(RefCell::new(columns.clone()));
-                            self.invalidate_layout();
-                        }
+                }
+                GridMessage::Columns(columns) => {
+                    if &*self.columns.borrow() != columns {
+                        self.columns
+                            .set_value_and_mark_modified(RefCell::new(columns.clone()));
+                        self.invalidate_layout();
                     }
-                    GridMessage::DrawBorder(draw_border) => {
-                        self.draw_border.set_value_and_mark_modified(*draw_border);
-                    }
-                    GridMessage::BorderThickness(border_thickness) => {
-                        self.border_thickness
-                            .set_value_and_mark_modified(*border_thickness);
-                    }
+                }
+                GridMessage::DrawBorder(draw_border) => {
+                    self.draw_border.set_value_and_mark_modified(*draw_border);
+                }
+                GridMessage::BorderThickness(border_thickness) => {
+                    self.border_thickness
+                        .set_value_and_mark_modified(*border_thickness);
                 }
             }
         }
