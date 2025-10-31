@@ -671,6 +671,7 @@ impl TextBox {
             self.char_index_to_position(position + 1)
                 .unwrap_or_default(),
         );
+        self.invalidate_layout();
         if *self.commit_mode == TextCommitMode::Immediate {
             ui.send_message(TextMessage::text(
                 self.handle,
@@ -701,6 +702,7 @@ impl TextBox {
             self.char_index_to_position(position + str.chars().count())
                 .unwrap_or_default(),
         );
+        self.invalidate_layout();
         if *self.commit_mode == TextCommitMode::Immediate {
             ui.send_message(TextMessage::text(
                 self.handle,
@@ -724,6 +726,7 @@ impl TextBox {
         self.formatted_text.borrow_mut().remove_range(range);
         self.selection_range.set_value_and_mark_modified(None);
         self.set_caret_position(selection.left());
+        self.invalidate_layout();
     }
 
     /// Returns current text length in characters.
@@ -808,6 +811,7 @@ impl TextBox {
             text.remove_at(position);
             text.build();
             drop(text);
+            self.invalidate_layout();
 
             if *self.commit_mode == TextCommitMode::Immediate {
                 ui.send_message(TextMessage::text(
@@ -833,6 +837,7 @@ impl TextBox {
         self.formatted_text.borrow_mut().build();
         self.set_caret_position(selection.left());
         self.selection_range.set_value_and_mark_modified(None);
+        self.invalidate_layout();
         if *self.commit_mode == TextCommitMode::Immediate {
             ui.send_message(TextMessage::text(
                 self.handle(),
@@ -1153,7 +1158,7 @@ impl Control for TextBox {
                                 self.remove_char(HorizontalDirection::Right, ui);
                             }
                             KeyCode::NumpadEnter | KeyCode::Enter if *self.editable => {
-                                if *self.multiline {
+                                if *self.multiline && !ui.keyboard_modifiers.shift {
                                     self.insert_char('\n', ui);
                                 } else if *self.commit_mode == TextCommitMode::LostFocusPlusEnter {
                                     ui.send_message(TextMessage::text(
