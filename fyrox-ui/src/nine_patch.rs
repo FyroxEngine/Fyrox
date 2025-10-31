@@ -25,9 +25,8 @@ use crate::{
         some_or_return, type_traits::prelude::*, variable::InheritableVariable,
         visitor::prelude::*,
     },
-    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
-    message::{compare_and_set, MessageDirection, UiMessage},
+    message::{compare_and_set, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
@@ -79,37 +78,6 @@ pub enum NinePatchMessage {
     DrawCenter(bool),
 }
 impl MessageData for NinePatchMessage {}
-
-impl NinePatchMessage {
-    define_constructor!(
-        /// Creates [`NinePatchMessage::LeftMargin`] message.
-        NinePatchMessage:LeftMargin => fn left_margin(u32)
-    );
-    define_constructor!(
-        /// Creates [`NinePatchMessage::RightMargin`] message.
-        NinePatchMessage:RightMargin => fn right_margin(u32)
-    );
-    define_constructor!(
-        /// Creates [`NinePatchMessage::TopMargin`] message.
-        NinePatchMessage:TopMargin => fn top_margin(u32)
-    );
-    define_constructor!(
-        /// Creates [`NinePatchMessage::BottomMargin`] message.
-        NinePatchMessage:BottomMargin => fn bottom_margin(u32)
-    );
-    define_constructor!(
-        /// Creates [`NinePatchMessage::TextureRegion`] message.
-        NinePatchMessage:TextureRegion => fn texture_region(Rect<u32>)
-    );
-    define_constructor!(
-        /// Creates [`NinePatchMessage::Texture`] message.
-        NinePatchMessage:Texture => fn texture(Option<TextureResource>)
-    );
-    define_constructor!(
-        /// Creates [`NinePatchMessage::DrawCenter`] message.
-        NinePatchMessage:DrawCenter => fn draw_center(bool)
-    );
-}
 
 /// A texture slice that defines a region in a texture and margins that will be used to split the
 /// section in nine pieces.
