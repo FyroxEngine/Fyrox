@@ -2019,6 +2019,16 @@ impl UserInterface {
         }
     }
 
+    pub fn send_sync_many<const N: usize, T: MessageData>(
+        &self,
+        handle: Handle<impl ObjectOrVariant<UiNode>>,
+        payload: [T; N],
+    ) {
+        for data in payload {
+            self.send_sync(handle, data)
+        }
+    }
+
     pub fn post<T: MessageData>(&self, handle: Handle<impl ObjectOrVariant<UiNode>>, data: T) {
         self.sender
             .send(
