@@ -578,11 +578,10 @@ impl EditorPlugin for CurveEditorPlugin {
         let ui = editor.engine.user_interfaces.first_mut();
         let ctx = &mut ui.build_ctx();
         self.open_curve_editor = create_menu_item("Curve Editor", vec![], ctx);
-        ui.send_message(MenuItemMessage::add_item(
+        ui.send(
             editor.menu.utils_menu.menu,
-            MessageDirection::ToWidget,
-            self.open_curve_editor,
-        ));
+            MenuItemMessage::AddItem(self.open_curve_editor),
+        );
     }
 
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {

@@ -463,11 +463,10 @@ impl EditorPlugin for SettingsPlugin {
         let ui = editor.engine.user_interfaces.first_mut();
         let ctx = &mut ui.build_ctx();
         self.open_settings = create_menu_item("Editor Settings...", vec![], ctx);
-        ui.send_message(MenuItemMessage::add_item(
+        ui.send(
             editor.menu.file_menu.menu,
-            MessageDirection::ToWidget,
-            self.open_settings,
-        ));
+            MenuItemMessage::AddItem(self.open_settings),
+        );
     }
 
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {

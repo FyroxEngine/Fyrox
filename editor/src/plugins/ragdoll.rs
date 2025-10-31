@@ -1259,11 +1259,10 @@ impl EditorPlugin for RagdollPlugin {
         let ui = editor.engine.user_interfaces.first_mut();
         let ctx = &mut ui.build_ctx();
         self.open_ragdoll_wizard = create_menu_item("Ragdoll Wizard", vec![], ctx);
-        ui.send_message(MenuItemMessage::add_item(
+        ui.send(
             editor.menu.utils_menu.menu,
-            MessageDirection::ToWidget,
-            self.open_ragdoll_wizard,
-        ));
+            MenuItemMessage::AddItem(self.open_ragdoll_wizard),
+        );
     }
 
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {

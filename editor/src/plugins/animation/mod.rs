@@ -944,11 +944,10 @@ impl EditorPlugin for AnimationEditorPlugin {
 
         let ctx = &mut ui.build_ctx();
         self.open_animation_editor = create_menu_item("Animation Editor", vec![], ctx);
-        ui.send_message(MenuItemMessage::add_item(
+        ui.send(
             editor.menu.utils_menu.menu,
-            MessageDirection::ToWidget,
-            self.open_animation_editor,
-        ));
+            MenuItemMessage::AddItem(self.open_animation_editor),
+        );
     }
 
     fn on_sync_to_model(&mut self, editor: &mut Editor) {

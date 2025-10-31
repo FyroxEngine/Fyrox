@@ -741,11 +741,10 @@ impl EditorPlugin for AbsmEditorPlugin {
 
         let ctx = &mut ui.build_ctx();
         self.open_absm_editor = create_menu_item("ABSM Editor", vec![], ctx);
-        ui.send_message(MenuItemMessage::add_item(
+        ui.send(
             editor.menu.utils_menu.menu,
-            MessageDirection::ToWidget,
-            self.open_absm_editor,
-        ));
+            MenuItemMessage::AddItem(self.open_absm_editor),
+        );
     }
 
     fn on_sync_to_model(&mut self, editor: &mut Editor) {

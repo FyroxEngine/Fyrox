@@ -24,8 +24,8 @@ use crate::{
         fxhash::FxHashMap,
         graph::constructor::{VariantConstructor, VariantResult},
         gui::{
-            constructor::WidgetConstructorContainer, menu::MenuItemMessage,
-            message::MessageDirection, message::UiMessage, BuildContext, UiNode, UserInterface,
+            constructor::WidgetConstructorContainer, menu::MenuItemMessage, message::UiMessage,
+            BuildContext, UiNode, UserInterface,
         },
     },
     menu::create_menu_item,
@@ -62,11 +62,7 @@ impl UiMenu {
                         root_items.push(group);
                         group
                     });
-                    ctx.inner().send_message(MenuItemMessage::add_item(
-                        group,
-                        MessageDirection::ToWidget,
-                        item,
-                    ));
+                    ctx.inner().send(group, MenuItemMessage::AddItem(item));
                 }
             }
         }
@@ -74,11 +70,10 @@ impl UiMenu {
         let menu = create_menu_item(name, root_items.clone(), ctx);
 
         for root_item in root_items.iter().chain(&[menu]) {
-            ctx.inner().send_message(MenuItemMessage::sort(
+            ctx.inner().send(
                 *root_item,
-                MessageDirection::ToWidget,
-                SortingPredicate::sort_by_text(),
-            ))
+                MenuItemMessage::Sort(SortingPredicate::sort_by_text()),
+            )
         }
 
         Self {

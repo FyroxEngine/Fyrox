@@ -195,11 +195,10 @@ impl FileMenu {
 
     pub fn update_recent_files_list(&mut self, ui: &mut UserInterface, settings: &Settings) {
         self.recent_files = make_recent_files_items(&mut ui.build_ctx(), &settings.recent);
-        ui.send_message(MenuItemMessage::items(
+        ui.send(
             self.recent_files_container,
-            MessageDirection::ToWidget,
-            self.recent_files.clone(),
-        ));
+            MenuItemMessage::Items(self.recent_files.clone()),
+        );
     }
 
     pub fn open_load_file_selector(&self, ui: &mut UserInterface) {

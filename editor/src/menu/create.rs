@@ -62,11 +62,10 @@ impl CreateEntityRootMenu {
 
         let menu = create_root_menu_item("Create", sub_menus.root_items.clone(), ctx);
 
-        ctx.inner().send_message(MenuItemMessage::sort(
+        ctx.inner().send(
             menu,
-            MessageDirection::ToWidget,
-            SortingPredicate::sort_by_text(),
-        ));
+            MenuItemMessage::Sort(SortingPredicate::sort_by_text()),
+        );
 
         Self { menu, sub_menus }
     }
@@ -146,21 +145,16 @@ impl CreateEntityMenu {
                         root_items.push(group);
                         group
                     });
-                    ctx.send_message(MenuItemMessage::add_item(
-                        group,
-                        MessageDirection::ToWidget,
-                        item,
-                    ))
+                    ctx.inner().send(group, MenuItemMessage::AddItem(item))
                 }
             }
         }
 
         for root_item in root_items.iter() {
-            ctx.inner().send_message(MenuItemMessage::sort(
+            ctx.inner().send(
                 *root_item,
-                MessageDirection::ToWidget,
-                SortingPredicate::sort_by_text(),
-            ))
+                MenuItemMessage::Sort(SortingPredicate::sort_by_text()),
+            )
         }
 
         Self {

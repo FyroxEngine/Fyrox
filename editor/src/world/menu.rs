@@ -203,11 +203,10 @@ impl SceneNodeContextMenu {
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         for item in [create_child, create_parent, replace_with] {
-            ctx.inner().send_message(MenuItemMessage::sort(
+            ctx.inner().send(
                 item,
-                MessageDirection::ToWidget,
-                SortingPredicate::sort_by_text(),
-            ))
+                MenuItemMessage::Sort(SortingPredicate::sort_by_text()),
+            )
         }
 
         Self {

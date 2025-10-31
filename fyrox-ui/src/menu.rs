@@ -32,7 +32,6 @@ use crate::{
         uuid_provider, variable::InheritableVariable, visitor::prelude::*,
     },
     decorator::{DecoratorBuilder, DecoratorMessage},
-    define_constructor,
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
     message::{ButtonState, KeyCode, MessageDirection, OsEvent, UiMessage},
@@ -68,17 +67,6 @@ pub enum MenuMessage {
     Deactivate,
 }
 impl MessageData for MenuMessage {}
-
-impl MenuMessage {
-    define_constructor!(
-        /// Creates [`MenuMessage::Activate`] message.
-        MenuMessage:Activate => fn activate()
-    );
-    define_constructor!(
-        /// Creates [`MenuMessage::Deactivate`] message.
-        MenuMessage:Deactivate => fn deactivate()
-    );
-}
 
 /// A predicate that is used to sort menu items.
 #[derive(Clone)]
@@ -155,41 +143,6 @@ pub enum MenuItemMessage {
     Sort(SortingPredicate),
 }
 impl MessageData for MenuItemMessage {}
-
-impl MenuItemMessage {
-    define_constructor!(
-        /// Creates [`MenuItemMessage::Open`] message.
-        MenuItemMessage:Open => fn open()
-    );
-    define_constructor!(
-          /// Creates [`MenuItemMessage::Close`] message.
-        MenuItemMessage:Close => fn close(deselect: bool)
-    );
-    define_constructor!(
-          /// Creates [`MenuItemMessage::Click`] message.
-        MenuItemMessage:Click => fn click()
-    );
-    define_constructor!(
-          /// Creates [`MenuItemMessage::AddItem`] message.
-        MenuItemMessage:AddItem => fn add_item(Handle<UiNode>)
-    );
-    define_constructor!(
-          /// Creates [`MenuItemMessage::RemoveItem`] message.
-        MenuItemMessage:RemoveItem => fn remove_item(Handle<UiNode>)
-    );
-    define_constructor!(
-          /// Creates [`MenuItemMessage::Items`] message.
-        MenuItemMessage:Items => fn items(Vec<Handle<UiNode>>)
-    );
-    define_constructor!(
-          /// Creates [`MenuItemMessage::Select`] message.
-        MenuItemMessage:Select => fn select(bool)
-    );
-    define_constructor!(
-          /// Creates [`MenuItemMessage::Sort`] message.
-        MenuItemMessage:Sort => fn sort(SortingPredicate)
-    );
-}
 
 /// Menu widget is a root widget of an arbitrary menu hierarchy. An example could be "standard" menu strip with `File`, `Edit`, `View`, etc.
 /// items. Menu widget can contain any number of children item (`File`, `Edit` in the previous example). These items should be [`MenuItem`]
@@ -299,11 +252,7 @@ impl Control for Menu {
                         while let Some(handle) = stack.pop() {
                             let node = ui.node(handle);
                             if let Some(item) = node.cast::<MenuItem>() {
-                                ui.send_message(MenuItemMessage::close(
-                                    handle,
-                                    MessageDirection::ToWidget,
-                                    true,
-                                ));
+                                ui.send(handle, MenuItemMessage::Close { deselect: true });
                                 // We have to search in popup content too because menu shows its content
                                 // in popup and content could be another menu item.
                                 stack.push(*item.items_panel);
@@ -319,10 +268,7 @@ impl Control for Menu {
                 if keyboard_navigation(ui, *key_code, self, self.handle) {
                     message.set_handled(true);
                 } else if *key_code == KeyCode::Escape {
-                    ui.send_message(MenuMessage::deactivate(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                    ));
+                    ui.send(self.handle, MenuMessage::Deactivate);
                     message.set_handled(true);
                 }
             }
@@ -368,10 +314,7 @@ impl Control for Menu {
                     }
 
                     if !any_picked {
-                        ui.send_message(MenuMessage::deactivate(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send(self.handle(), MenuMessage::Deactivate);
                     }
                 }
             }
@@ -593,46 +536,26 @@ impl Control for MenuItem {
                     let menu = find_menu(self.parent(), ui);
                     if menu.is_some() {
                         if self.is_opened(ui) {
-                            ui.send_message(MenuItemMessage::close(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
-                            ui.send_message(MenuMessage::deactivate(
-                                menu,
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(self.handle(), MenuItemMessage::Close { deselect: true });
+                            ui.send(menu, MenuMessage::Deactivate);
                         } else {
                             // Activate menu so it user will be able to open submenus by
                             // mouse hover.
-                            ui.send_message(MenuMessage::activate(
-                                menu,
-                                MessageDirection::ToWidget,
-                            ));
-
-                            ui.send_message(MenuItemMessage::open(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(menu, MenuMessage::Activate);
+                            ui.send(self.handle(), MenuItemMessage::Open);
                         }
                     }
                 }
                 WidgetMessage::MouseUp { .. } => {
                     if !message.handled() {
                         if self.items_container.is_empty() || *self.clickable_when_not_empty {
-                            ui.send_message(MenuItemMessage::click(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(self.handle(), MenuItemMessage::Click);
                         }
                         if self.items_container.is_empty() {
                             let menu = find_menu(self.parent(), ui);
                             if menu.is_some() {
                                 // Deactivate menu if we have one.
-                                ui.send_message(MenuMessage::deactivate(
-                                    menu,
-                                    MessageDirection::ToWidget,
-                                ));
+                                ui.send(menu, MenuMessage::Deactivate);
                             } else {
                                 // Or close menu chain if menu item is in "orphaned" state.
                                 close_menu_chain(self.parent(), ui);
@@ -655,29 +578,19 @@ impl Control for MenuItem {
                         true
                     };
                     if open {
-                        ui.send_message(MenuItemMessage::open(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send(self.handle(), MenuItemMessage::Open);
                     }
                 }
                 WidgetMessage::MouseLeave => {
                     if !self.is_opened(ui) {
-                        ui.send_message(MenuItemMessage::select(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                            false,
-                        ));
+                        ui.send(self.handle, MenuItemMessage::Select(false));
                     }
                 }
                 WidgetMessage::KeyDown(key_code) => {
                     if !message.handled() && *self.is_selected && *key_code == KeyCode::Enter {
-                        ui.send_message(MenuItemMessage::click(
-                            self.handle,
-                            MessageDirection::FromWidget,
-                        ));
+                        ui.post(self.handle, MenuItemMessage::Click);
                         let menu = find_menu(self.parent(), ui);
-                        ui.send_message(MenuMessage::deactivate(menu, MessageDirection::ToWidget));
+                        ui.send(menu, MenuMessage::Deactivate);
                         message.set_handled(true);
                     }
                 }
@@ -705,11 +618,7 @@ impl Control for MenuItem {
                             };
 
                             if !*self.is_selected {
-                                ui.send_message(MenuItemMessage::select(
-                                    self.handle,
-                                    MessageDirection::ToWidget,
-                                    true,
-                                ));
+                                ui.send(self.handle, MenuItemMessage::Select(true));
                             }
 
                             // Open popup.
@@ -735,20 +644,12 @@ impl Control for MenuItem {
                                 ));
 
                                 if *deselect && *self.is_selected {
-                                    ui.send_message(MenuItemMessage::select(
-                                        self.handle,
-                                        MessageDirection::ToWidget,
-                                        false,
-                                    ));
+                                    ui.send(self.handle, MenuItemMessage::Select(false));
                                 }
 
                                 // Recursively deselect everything in the sub-items container.
                                 for &item in &*self.items_container.items {
-                                    ui.send_message(MenuItemMessage::close(
-                                        item,
-                                        MessageDirection::ToWidget,
-                                        true,
-                                    ));
+                                    ui.send(item, MenuItemMessage::Close { deselect: true });
                                 }
                             }
                         }
@@ -854,11 +755,7 @@ impl Control for MenuItem {
                     if let Some(panel) = ui.node(*self.items_panel).query_component::<ContextMenu>()
                     {
                         if *panel.popup.is_open {
-                            ui.send_message(MenuItemMessage::close(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
+                            ui.send(self.handle(), MenuItemMessage::Close { deselect: true });
                         }
                     }
                 }
@@ -1401,28 +1298,20 @@ fn keyboard_navigation(
     };
 
     if key_code == close_key {
-        ui.send_message(MenuItemMessage::close(
+        ui.send(
             parent_menu_item_handle,
-            MessageDirection::ToWidget,
-            false,
-        ));
+            MenuItemMessage::Close { deselect: false },
+        );
         return true;
     } else if key_code == enter_key {
         if let Some(selected_item_index) = items_container.selected_item_index(ui) {
             let selected_item = items_container.items[selected_item_index];
 
-            ui.send_message(MenuItemMessage::open(
-                selected_item,
-                MessageDirection::ToWidget,
-            ));
+            ui.send(selected_item, MenuItemMessage::Open);
 
             if let Some(selected_item_ref) = ui.try_get_of_type::<MenuItem>(selected_item) {
                 if let Some(first_item) = selected_item_ref.items_container.first() {
-                    ui.send_message(MenuItemMessage::select(
-                        *first_item,
-                        MessageDirection::ToWidget,
-                        true,
-                    ));
+                    ui.send(*first_item, MenuItemMessage::Select(true));
                 }
             }
         }
@@ -1438,25 +1327,16 @@ fn keyboard_navigation(
             };
 
             if let Some(new_selection) = items_container.next_item_to_select_in_dir(ui, dir) {
-                ui.send_message(MenuItemMessage::select(
+                ui.send(
                     items_container.items[selected_item_index],
-                    MessageDirection::ToWidget,
-                    false,
-                ));
-                ui.send_message(MenuItemMessage::select(
-                    new_selection,
-                    MessageDirection::ToWidget,
-                    true,
-                ));
+                    MenuItemMessage::Select(false),
+                );
+                ui.send(new_selection, MenuItemMessage::Select(true));
 
                 return true;
             }
         } else if let Some(first_item) = items_container.items.first() {
-            ui.send_message(MenuItemMessage::select(
-                *first_item,
-                MessageDirection::ToWidget,
-                true,
-            ));
+            ui.send(*first_item, MenuItemMessage::Select(true));
 
             return true;
         }

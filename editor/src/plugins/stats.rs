@@ -51,11 +51,10 @@ impl EditorPlugin for UiStatisticsPlugin {
         let ui = editor.engine.user_interfaces.first_mut();
         let ctx = &mut ui.build_ctx();
         self.open_ui_stats = create_menu_item("Editor UI Statistics", vec![], ctx);
-        ui.send_message(MenuItemMessage::add_item(
+        ui.send(
             editor.menu.utils_menu.menu,
-            MessageDirection::ToWidget,
-            self.open_ui_stats,
-        ));
+            MenuItemMessage::AddItem(self.open_ui_stats),
+        );
     }
 
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
