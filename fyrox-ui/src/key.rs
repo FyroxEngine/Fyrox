@@ -23,21 +23,20 @@
 
 #![warn(missing_docs)]
 
+use crate::message::MessageData;
 use crate::{
     brush::Brush,
     core::{
         color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
     },
-    define_constructor, define_widget_deref,
+    define_widget_deref,
     draw::{CommandTexture, Draw, DrawingContext},
     message::{KeyCode, KeyboardModifiers, MessageDirection, MouseButton, UiMessage},
     text::{TextBuilder, TextMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
-
-use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -136,13 +135,6 @@ pub enum HotKeyEditorMessage {
     Value(HotKey),
 }
 impl MessageData for HotKeyEditorMessage {}
-
-impl HotKeyEditorMessage {
-    define_constructor!(
-        /// Creates [`HotKeyEditorMessage::Value`] message.
-        HotKeyEditorMessage:Value => fn value(HotKey)
-    );
-}
 
 /// Hot key editor is used to provide a unified way of editing an arbitrary combination of modifiers keyboard keys (such
 /// as Ctrl, Shift, Alt) with any other key. It could be used, if you need a simple way to add an editor for [`HotKey`].
@@ -249,14 +241,13 @@ impl Control for HotKeyEditor {
                                 | KeyCode::AltRight
                         )
                     {
-                        ui.send_message(HotKeyEditorMessage::value(
+                        ui.send(
                             self.handle,
-                            MessageDirection::ToWidget,
-                            HotKey::Some {
+                            HotKeyEditorMessage::Value(HotKey::Some {
                                 code: *key,
                                 modifiers: ui.keyboard_modifiers,
-                            },
-                        ));
+                            }),
+                        );
 
                         message.set_handled(true);
                     }
@@ -379,12 +370,6 @@ pub enum KeyBindingEditorMessage {
 }
 impl MessageData for KeyBindingEditorMessage {}
 
-impl KeyBindingEditorMessage {
-    define_constructor!(
-        /// Creates [`KeyBindingEditorMessage::Value`] message.
-        KeyBindingEditorMessage:Value => fn value(KeyBinding));
-}
-
 /// Key binding editor is used to provide a unified way of setting a key binding.
 ///
 /// ## Examples
@@ -469,11 +454,10 @@ impl Control for KeyBindingEditor {
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::KeyDown(key) => {
-                    ui.send_message(KeyBindingEditorMessage::value(
+                    ui.send(
                         self.handle,
-                        MessageDirection::ToWidget,
-                        KeyBinding::Some(*key),
-                    ));
+                        KeyBindingEditorMessage::Value(KeyBinding::Some(*key)),
+                    );
 
                     message.set_handled(true);
                 }

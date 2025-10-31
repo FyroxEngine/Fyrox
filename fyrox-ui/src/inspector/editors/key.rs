@@ -63,10 +63,9 @@ impl PropertyEditorDefinition for HotKeyPropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<HotKey>()?;
-        Ok(Some(HotKeyEditorMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            value.clone(),
+            HotKeyEditorMessage::Value(value.clone()),
         )))
     }
 
@@ -111,10 +110,9 @@ impl PropertyEditorDefinition for KeyBindingPropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<KeyBinding>()?;
-        Ok(Some(KeyBindingEditorMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            value.clone(),
+            KeyBindingEditorMessage::Value(value.clone()),
         )))
     }
 
