@@ -301,10 +301,9 @@ impl<T: NumericType> NumericUpDown<T> {
     fn sync_text_field(&mut self, ui: &UserInterface) {
         let text = format!("{:.1$}", *self.value, *self.precision);
         self.formatted_value = text.parse::<T>().unwrap_or(*self.value);
-        let msg = TextMessage::text(
+        let msg = UiMessage::for_widget(
             *self.field,
-            MessageDirection::ToWidget,
-            format!("{:.1$}", *self.value, *self.precision),
+            TextMessage::Text(format!("{:.1$}", *self.value, *self.precision)),
         );
         msg.set_handled(true);
         ui.send_message(msg);
@@ -444,10 +443,9 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                                 start_mouse_pos,
                             } => {
                                 // Just change visual value while dragging; do not touch actual value.
-                                ui.send_message(TextMessage::text(
+                                ui.send(
                                     *self.field,
-                                    MessageDirection::ToWidget,
-                                    format!(
+                                    TextMessage::Text(format!(
                                         "{:.1$}",
                                         calculate_value_by_offset(
                                             *start_value,
@@ -458,8 +456,8 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                                             *self.max_value
                                         ),
                                         *self.precision
-                                    ),
-                                ));
+                                    )),
+                                );
                             }
                         }
                     }

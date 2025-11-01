@@ -18,43 +18,42 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    core::pool::Handle,
-    fxhash::FxHashSet,
-    generic_animation::machine::{mask::LayerMask, Machine, MachineLayer},
-    graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        check_box::{CheckBoxBuilder, CheckBoxMessage},
-        dropdown_list::{DropdownListBuilder, DropdownListMessage},
-        image::ImageBuilder,
-        message::{MessageDirection, UiMessage},
-        stack_panel::StackPanelBuilder,
-        text::{TextBuilder, TextMessage},
-        text_box::{TextBox, TextBoxBuilder},
-        utils::{make_cross, make_simple_tooltip},
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
-    },
-};
-use crate::plugins::absm::{
-    animation_container_ref,
-    command::{AddLayerCommand, RemoveLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
-    fetch_selection, machine_container_ref,
-    selection::AbsmSelection,
-};
-use crate::scene::selector::{AllowedType, SelectedHandle};
 use crate::{
     command::{Command, CommandGroup},
+    fyrox::{
+        core::pool::Handle,
+        fxhash::FxHashSet,
+        generic_animation::machine::{mask::LayerMask, Machine, MachineLayer},
+        graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
+        gui::{
+            button::{ButtonBuilder, ButtonMessage},
+            check_box::{CheckBoxBuilder, CheckBoxMessage},
+            dropdown_list::{DropdownListBuilder, DropdownListMessage},
+            image::ImageBuilder,
+            message::{MessageDirection, UiMessage},
+            stack_panel::StackPanelBuilder,
+            text::{TextBuilder, TextMessage},
+            text_box::{TextBox, TextBoxBuilder},
+            utils::{make_cross, make_simple_tooltip},
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
+        },
+    },
     load_image,
     message::MessageSender,
+    plugins::absm::{
+        animation_container_ref,
+        command::{AddLayerCommand, RemoveLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
+        fetch_selection, machine_container_ref,
+        selection::AbsmSelection,
+    },
+    scene::selector::{AllowedType, SelectedHandle},
     scene::{
         commands::ChangeSelectionCommand,
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         Selection,
     },
-    send_sync_message,
 };
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -393,14 +392,7 @@ impl Toolbar {
 
         if let Some(layer_index) = selection.layer {
             if let Some(layer) = machine.layers().get(layer_index) {
-                send_sync_message(
-                    ui,
-                    TextMessage::text(
-                        self.layer_name,
-                        MessageDirection::ToWidget,
-                        layer.name().to_string(),
-                    ),
-                );
+                ui.send_sync(self.layer_name, TextMessage::Text(layer.name().to_string()));
             }
         }
     }

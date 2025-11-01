@@ -242,11 +242,7 @@ impl BuildWindow {
         self.active.store(false, Ordering::SeqCst);
         self.changed.store(false, Ordering::SeqCst);
         self.log.safe_lock().clear();
-        ui.send_message(TextMessage::text(
-            self.log_text,
-            MessageDirection::ToWidget,
-            Default::default(),
-        ));
+        ui.send(self.log_text, TextMessage::Text(Default::default()));
     }
 
     pub fn destroy(mut self, ui: &UserInterface) {
@@ -259,11 +255,10 @@ impl BuildWindow {
 
     pub fn update(&mut self, ui: &UserInterface, dt: f32) {
         if self.changed.load(Ordering::SeqCst) {
-            ui.send_message(TextMessage::text(
+            ui.send(
                 self.log_text,
-                MessageDirection::ToWidget,
-                self.log.safe_lock().clone(),
-            ));
+                TextMessage::Text(self.log.safe_lock().clone()),
+            );
             ui.send_message(ScrollViewerMessage::scroll_to_end(
                 self.scroll_viewer,
                 MessageDirection::ToWidget,

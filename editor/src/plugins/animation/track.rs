@@ -368,11 +368,7 @@ impl Control for TrackView {
                         }
                     }
                     TrackViewMessage::TrackName(name) => {
-                        ui.send_message(TextMessage::text(
-                            self.name_text,
-                            MessageDirection::ToWidget,
-                            name.clone(),
-                        ));
+                        ui.send(self.name_text, TextMessage::Text(name.clone()));
                     }
                     TrackViewMessage::TrackTargetIsValid(result) => {
                         ui.send_message(WidgetMessage::foreground(
@@ -827,11 +823,10 @@ impl TrackList {
                     MessageDirection::ToWidget,
                 ));
             } else if message.destination() == self.toolbar.clear_search_text {
-                ui.send_message(TextMessage::text(
+                ui.send(
                     self.toolbar.search_text,
-                    MessageDirection::ToWidget,
-                    Default::default(),
-                ));
+                    TextMessage::Text(Default::default()),
+                );
             }
         } else if let Some(TextMessage::Text(text)) = message.data_from(self.toolbar.search_text) {
             let filter_text = text.to_lowercase();
@@ -1579,21 +1574,19 @@ impl TrackList {
                     if let Some(parent_group) =
                         self.group_views.get(&model_track_binding.target().into())
                     {
-                        send_sync_message(
-                            ui,
-                            TextMessage::text(
-                                ui.node(*parent_group)
-                                    .query_component::<Tree>()
-                                    .unwrap()
-                                    .content,
-                                MessageDirection::ToWidget,
-                                format!(
-                                    "{} ({}:{})",
-                                    target.name(),
-                                    model_track_binding.target().index(),
-                                    model_track_binding.target().generation()
-                                ),
-                            ),
+                        let content = ui
+                            .node(*parent_group)
+                            .query_component::<Tree>()
+                            .unwrap()
+                            .content;
+                        ui.send_sync(
+                            content,
+                            TextMessage::Text(format!(
+                                "{} ({}:{})",
+                                target.name(),
+                                model_track_binding.target().index(),
+                                model_track_binding.target().generation()
+                            )),
                         );
                     }
 

@@ -597,11 +597,7 @@ impl TileSetEditor {
             DecoratorMessage::Select(self.state.lock().drawing_mode == DrawingMode::Pick),
         );
         let cell_position = self.cell_position();
-        ui.send_message(TextMessage::text(
-            self.cell_position,
-            MessageDirection::ToWidget,
-            cell_position,
-        ));
+        ui.send(self.cell_position, TextMessage::Text(cell_position));
         for palette in [self.pages_palette, self.tiles_palette] {
             ui.send_message(PaletteMessage::sync_to_state(
                 palette,

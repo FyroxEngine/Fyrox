@@ -131,16 +131,11 @@ impl Control for FontField {
             if &self.font != font && message.is_for(self.handle) {
                 self.font = font.clone();
 
-                ui.send_message(TextMessage::font(
+                ui.send(self.text_preview, TextMessage::Font(font.clone()));
+                ui.send(
                     self.text_preview,
-                    MessageDirection::ToWidget,
-                    font.clone(),
-                ));
-                ui.send_message(TextMessage::text(
-                    self.text_preview,
-                    MessageDirection::ToWidget,
-                    make_name(&self.resource_manager, &self.font),
-                ));
+                    TextMessage::Text(make_name(&self.resource_manager, &self.font)),
+                );
 
                 ui.send_message(message.reverse());
             }

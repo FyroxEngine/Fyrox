@@ -52,7 +52,7 @@ use fyrox::{
 };
 use palette::Subposition;
 
-use crate::{send_sync_message, MSG_SYNC_FLAG};
+use crate::MSG_SYNC_FLAG;
 
 use super::*;
 
@@ -203,11 +203,7 @@ impl TilePropertyEditor {
     /// state of the layer.
     fn apply_property_update(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
         let layer = state.find_property(self.property_id).unwrap();
-        ui.send_message(TextMessage::text(
-            self.name_field,
-            MessageDirection::ToWidget,
-            layer.name.to_string(),
-        ));
+        ui.send(self.name_field, TextMessage::Text(layer.name.to_string()));
         let list = make_named_value_list_items(layer, &mut ui.build_ctx());
         ui.send_sync(self.list, DropdownListMessage::Items(list));
         ui.send_message(WidgetMessage::visibility(
@@ -253,14 +249,7 @@ impl TilePropertyEditor {
                 ui.send_sync(self.value_field, TextMessage::Text(v.to_string()));
             }
             TileSetPropertyOptionValue::String(None) => {
-                send_sync_message(
-                    ui,
-                    TextMessage::text(
-                        self.value_field,
-                        MessageDirection::ToWidget,
-                        String::default(),
-                    ),
-                );
+                ui.send_sync(self.value_field, TextMessage::Text(String::default()));
             }
             TileSetPropertyOptionValue::NineSlice(_) => {
                 if let DrawValue::I8(v) = self.draw_value {
@@ -743,11 +732,7 @@ fn apply_specs_to_nine(specs: &NineButtonSpec, handle: Handle<UiNode>, ui: &mut 
     let button = ui.try_get_of_type::<Button>(handle).unwrap();
     let text = *button.content.clone();
     let decorator = *button.decorator.clone();
-    ui.send_message(TextMessage::text(
-        text,
-        MessageDirection::ToWidget,
-        specs.name.clone(),
-    ));
+    ui.send(text, TextMessage::Text(specs.name.clone()));
     ui.send_message(WidgetMessage::foreground(
         text,
         MessageDirection::ToWidget,

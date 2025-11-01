@@ -186,11 +186,13 @@ impl Control for TextureEditor {
                 self.texture.clone_from(texture);
 
                 ui.send(self.image, ImageMessage::Texture(self.texture.clone()));
-                ui.send_message(TextMessage::text(
+                ui.send(
                     self.path,
-                    MessageDirection::ToWidget,
-                    texture_name(self.texture.as_ref(), &self.selector_mixin.resource_manager),
-                ));
+                    TextMessage::Text(texture_name(
+                        self.texture.as_ref(),
+                        &self.selector_mixin.resource_manager,
+                    )),
+                );
 
                 ui.send_message(message.reverse());
             }

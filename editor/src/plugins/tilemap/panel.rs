@@ -683,11 +683,7 @@ impl TileMapPanel {
     /// have changed.
     pub fn sync_to_model(&self, ui: &mut UserInterface, resource_manager: &ResourceManager) {
         let name = self.tile_book.name(resource_manager);
-        ui.send_message(TextMessage::text(
-            self.tile_set_name,
-            MessageDirection::ToWidget,
-            name,
-        ));
+        ui.send(self.tile_set_name, TextMessage::Text(name));
         highlight_tool_button(self.brush_button, self.tile_book.is_brush(), ui);
         highlight_tool_button(self.tile_set_button, self.tile_book.is_tile_set(), ui);
         ui.send_message(WidgetMessage::enabled(

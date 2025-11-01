@@ -231,11 +231,13 @@ where
             if &self.resource != resource && message.is_for(self.handle()) {
                 self.resource.clone_from(resource);
 
-                ui.send_message(TextMessage::text(
+                ui.send(
                     self.name,
-                    MessageDirection::ToWidget,
-                    resource_path(&self.selector_mixin.resource_manager, resource),
-                ));
+                    TextMessage::Text(resource_path(
+                        &self.selector_mixin.resource_manager,
+                        resource,
+                    )),
+                );
 
                 ui.send_message(message.reverse());
             }

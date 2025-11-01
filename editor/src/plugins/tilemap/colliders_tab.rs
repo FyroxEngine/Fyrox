@@ -289,10 +289,7 @@ impl CollidersTab {
             MessageDirection::ToWidget,
             sel_index.is_some(),
         ));
-        send_sync_message(
-            ui,
-            TextMessage::text(self.name_field, MessageDirection::ToWidget, name),
-        );
+        ui.send_sync(self.name_field, TextMessage::Text(name));
         send_sync_message(
             ui,
             ColorFieldMessage::color(self.color_field, MessageDirection::ToWidget, color),

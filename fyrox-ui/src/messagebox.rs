@@ -263,11 +263,7 @@ impl Control for MessageBox {
                     }
 
                     if let Some(text) = text {
-                        ui.send_message(TextMessage::text(
-                            *self.text,
-                            MessageDirection::ToWidget,
-                            text.clone(),
-                        ));
+                        ui.send(*self.text, TextMessage::Text(text.clone()));
                     }
 
                     ui.send_message(WindowMessage::open_modal(

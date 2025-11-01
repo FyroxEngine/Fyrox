@@ -23,7 +23,7 @@
 use std::any::TypeId;
 use std::ops::{Deref, DerefMut};
 
-use crate::{send_sync_message, MSG_SYNC_FLAG};
+use crate::MSG_SYNC_FLAG;
 
 use super::*;
 use fyrox::gui::inspector::FieldKind;
@@ -122,10 +122,7 @@ impl Control for TileDefinitionHandleEditor {
         if let Some(&TileDefinitionHandleEditorMessage::Value(handle)) = message.data() {
             if message.is_for(self.handle()) {
                 self.value = handle;
-                send_sync_message(
-                    ui,
-                    TextMessage::text(self.field, MessageDirection::ToWidget, self.text()),
-                );
+                ui.send_sync(self.field, TextMessage::Text(self.text()));
                 ui.send_message(message.reverse());
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
@@ -141,10 +138,7 @@ impl Control for TileDefinitionHandleEditor {
                     MessageDirection::FromWidget,
                     self.value,
                 ));
-                send_sync_message(
-                    ui,
-                    TextMessage::text(self.field, MessageDirection::ToWidget, self.text()),
-                );
+                ui.send_sync(self.field, TextMessage::Text(self.text()));
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.direction() == MessageDirection::FromWidget

@@ -336,16 +336,11 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 /// ```rust,no_run
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     message::{MessageDirection},
 /// #     UiNode, UserInterface,
 /// #     text::TextMessage
 /// # };
 /// fn request_change_text(ui: &UserInterface, text_box_widget_handle: Handle<UiNode>, text: &str) {
-///     ui.send_message(TextMessage::text(
-///         text_box_widget_handle,
-///         MessageDirection::ToWidget,
-///         text.to_owned(),
-///     ))
+///     ui.send(text_box_widget_handle, TextMessage::Text(text.to_owned()))
 /// }
 /// ```
 ///
@@ -495,11 +490,7 @@ impl TextBox {
         if self.recent != raw {
             self.recent.clear();
             self.recent.extend(raw);
-            ui.send_message(TextMessage::text(
-                self.handle,
-                MessageDirection::FromWidget,
-                formatted_text.text(),
-            ));
+            ui.post(self.handle, TextMessage::Text(formatted_text.text()));
         }
     }
     fn filter_paste_str_multiline(&self, str: &str) -> String {
@@ -673,11 +664,10 @@ impl TextBox {
         );
         self.invalidate_layout();
         if *self.commit_mode == TextCommitMode::Immediate {
-            ui.send_message(TextMessage::text(
+            ui.post(
                 self.handle,
-                MessageDirection::FromWidget,
-                self.formatted_text.borrow().text(),
-            ));
+                TextMessage::Text(self.formatted_text.borrow().text()),
+            );
         }
     }
 
@@ -704,11 +694,10 @@ impl TextBox {
         );
         self.invalidate_layout();
         if *self.commit_mode == TextCommitMode::Immediate {
-            ui.send_message(TextMessage::text(
+            ui.post(
                 self.handle,
-                MessageDirection::FromWidget,
-                self.formatted_text.borrow().text(),
-            ));
+                TextMessage::Text(self.formatted_text.borrow().text()),
+            );
         }
     }
 
@@ -814,11 +803,10 @@ impl TextBox {
             self.invalidate_layout();
 
             if *self.commit_mode == TextCommitMode::Immediate {
-                ui.send_message(TextMessage::text(
+                ui.post(
                     self.handle(),
-                    MessageDirection::FromWidget,
-                    self.formatted_text.borrow().text(),
-                ));
+                    TextMessage::Text(self.formatted_text.borrow().text()),
+                );
             }
 
             self.set_caret_position(self.char_index_to_position(position).unwrap_or_default());
@@ -839,11 +827,10 @@ impl TextBox {
         self.selection_range.set_value_and_mark_modified(None);
         self.invalidate_layout();
         if *self.commit_mode == TextCommitMode::Immediate {
-            ui.send_message(TextMessage::text(
+            ui.post(
                 self.handle(),
-                MessageDirection::FromWidget,
-                self.formatted_text.borrow().text(),
-            ));
+                TextMessage::Text(self.formatted_text.borrow().text()),
+            );
         }
     }
 
@@ -1161,11 +1148,7 @@ impl Control for TextBox {
                                 if *self.multiline && !ui.keyboard_modifiers.shift {
                                     self.insert_char('\n', ui);
                                 } else if *self.commit_mode == TextCommitMode::LostFocusPlusEnter {
-                                    ui.send_message(TextMessage::text(
-                                        self.handle,
-                                        MessageDirection::FromWidget,
-                                        self.text(),
-                                    ));
+                                    ui.post(self.handle, TextMessage::Text(self.text()));
                                 } else if *self.commit_mode == TextCommitMode::Changed {
                                     self.commit_if_changed(ui);
                                 }
@@ -1287,11 +1270,7 @@ impl Control for TextBox {
 
                             match *self.commit_mode {
                                 TextCommitMode::LostFocus | TextCommitMode::LostFocusPlusEnter => {
-                                    ui.send_message(TextMessage::text(
-                                        self.handle,
-                                        MessageDirection::FromWidget,
-                                        self.text(),
-                                    ));
+                                    ui.post(self.handle, TextMessage::Text(self.text()));
                                 }
                                 TextCommitMode::Changed => {
                                     self.commit_if_changed(ui);

@@ -178,12 +178,7 @@ impl Control for SceneItem {
         if let Some(SceneItemMessage::Name(name)) = message.data() {
             if message.destination() == self.handle() {
                 self.name_value = make_node_name(name, self.entity_handle);
-
-                ui.send_message(TextMessage::text(
-                    self.text_name,
-                    MessageDirection::ToWidget,
-                    self.name_value.clone(),
-                ));
+                ui.send(self.text_name, TextMessage::Text(self.name_value.clone()));
             }
         } else if let Some(SceneItemMessage::Validate(result)) = message.data() {
             if message.destination() == self.handle() {

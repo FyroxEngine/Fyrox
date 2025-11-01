@@ -39,7 +39,7 @@ use fyrox::gui::{
 
 use fyrox::scene::tilemap::*;
 
-use crate::{send_sync_message, MSG_SYNC_FLAG};
+use crate::MSG_SYNC_FLAG;
 
 use super::*;
 
@@ -349,10 +349,7 @@ impl MacroTab {
             MessageDirection::ToWidget,
             brush_macro.is_some(),
         ));
-        send_sync_message(
-            ui,
-            TextMessage::text(self.name_field, MessageDirection::ToWidget, name),
-        );
+        ui.send_sync(self.name_field, TextMessage::Text(name));
         if macro_id == self.current_macro_id {
             if let Some(brush_macro) = brush_macro {
                 let macro_id = brush_macro.macro_id;

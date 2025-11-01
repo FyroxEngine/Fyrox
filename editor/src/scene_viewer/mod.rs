@@ -966,18 +966,14 @@ impl SceneViewer {
         }
         for tab in tabs.iter() {
             if let Some(scene) = scenes.entry_by_scene_id(tab.uuid) {
-                engine
-                    .user_interfaces
-                    .first_mut()
-                    .send_message(TextMessage::text(
-                        tab.header_content,
-                        MessageDirection::ToWidget,
-                        format!(
-                            "{}{}",
-                            scene.name(),
-                            if scene.need_save() { "*" } else { "" }
-                        ),
-                    ));
+                engine.user_interfaces.first().send(
+                    tab.header_content,
+                    TextMessage::Text(format!(
+                        "{}{}",
+                        scene.name(),
+                        if scene.need_save() { "*" } else { "" }
+                    )),
+                );
             }
         }
 

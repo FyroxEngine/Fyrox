@@ -23,26 +23,20 @@
 
 #![warn(missing_docs)]
 
-use crate::formatted_text::{Run, RunSet};
-use crate::style::StyledProperty;
-use crate::BBCode;
 use crate::{
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         uuid_provider, visitor::prelude::*,
     },
-    define_constructor,
     draw::DrawingContext,
     font::FontResource,
-    formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
-    message::{MessageDirection, UiMessage},
-    style::{resource::StyleResourceExt, Style},
+    formatted_text::{FormattedText, FormattedTextBuilder, Run, RunSet, WrapMode},
+    message::{MessageData, UiMessage},
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
+    BBCode, BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
-
-use crate::message::MessageData;
 use fyrox_core::algebra::Matrix3;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -83,68 +77,6 @@ pub enum TextMessage {
     Runs(RunSet),
 }
 impl MessageData for TextMessage {}
-
-impl TextMessage {
-    define_constructor!(
-        /// Creates new [`TextMessage::BBCode`] message.
-        TextMessage:BBCode => fn bbcode(String)
-    );
-
-    define_constructor!(
-        /// Creates new [`TextMessage::Text`] message.
-        TextMessage:Text => fn text(String)
-    );
-
-    define_constructor!(
-        /// Creates new [`TextMessage::Wrap`] message.
-        TextMessage:Wrap => fn wrap(WrapMode)
-    );
-
-    define_constructor!(
-        /// Creates new [`TextMessage::Font`] message.
-        TextMessage:Font => fn font(FontResource)
-    );
-
-    define_constructor!(
-        /// Creates new [`TextMessage::VerticalAlignment`] message.
-        TextMessage:VerticalAlignment => fn vertical_alignment(VerticalAlignment)
-    );
-
-    define_constructor!(
-        /// Creates new [`TextMessage::HorizontalAlignment`] message.
-        TextMessage:HorizontalAlignment => fn horizontal_alignment(HorizontalAlignment)
-    );
-
-    define_constructor!(
-        /// Creates new [`TextMessage::Shadow`] message.
-        TextMessage:Shadow => fn shadow(bool)
-    );
-
-    define_constructor!(
-        /// Creates new [`TextMessage::ShadowDilation`] message.
-        TextMessage:ShadowDilation => fn shadow_dilation(f32)
-    );
-
-    define_constructor!(
-        /// Creates new [`TextMessage::ShadowBrush`] message.
-        TextMessage:ShadowBrush => fn shadow_brush(Brush)
-    );
-
-    define_constructor!(
-        /// Creates new [`TextMessage::ShadowOffset`] message.
-        TextMessage:ShadowOffset => fn shadow_offset(Vector2<f32>)
-    );
-
-    define_constructor!(
-        /// Creates new [`TextMessage::FontSize`] message.
-        TextMessage:FontSize => fn font_size(StyledProperty<f32>)
-    );
-
-    define_constructor!(
-        /// Creates new [`TextMessage::Runs`] message.
-        TextMessage:Runs => fn runs(RunSet)
-    );
-}
 
 /// Text is a simple widget that allows you to print text on screen. It has various options like word wrapping, text
 /// alignment, and so on.
@@ -383,11 +315,7 @@ impl TextMessage {
 /// #     text::TextMessage
 /// # };
 /// fn request_change_text(ui: &UserInterface, text_widget_handle: Handle<UiNode>, text: &str) {
-///     ui.send_message(TextMessage::text(
-///         text_widget_handle,
-///         MessageDirection::ToWidget,
-///         text.to_owned(),
-///     ))
+///     ui.send(text_widget_handle, TextMessage::Text(text.to_owned()))
 /// }
 /// ```
 ///

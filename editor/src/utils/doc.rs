@@ -66,11 +66,7 @@ impl DocWindow {
     }
 
     pub fn open(&self, doc: String, ui: &UserInterface) {
-        ui.send_message(TextMessage::text(
-            self.text,
-            MessageDirection::ToWidget,
-            doc,
-        ));
+        ui.send(self.text, TextMessage::Text(doc));
         ui.send_message(WindowMessage::open(
             self.window,
             MessageDirection::ToWidget,

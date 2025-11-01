@@ -246,11 +246,13 @@ where
                         if &self.name_value != name {
                             self.name_value.clone_from(name);
 
-                            ui.send_message(TextMessage::text(
+                            ui.send(
                                 self.name,
-                                MessageDirection::ToWidget,
-                                format!("{} ({})", self.name_value, self.model_handle),
-                            ));
+                                TextMessage::Text(format!(
+                                    "{} ({})",
+                                    self.name_value, self.model_handle
+                                )),
+                            );
                         }
                     }
                     AbsmNodeMessage::SetActive(active) => {

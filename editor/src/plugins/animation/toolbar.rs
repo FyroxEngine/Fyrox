@@ -377,14 +377,14 @@ impl RootMotionDropdownArea {
         }
 
         if let Some(settings) = animation.root_motion_settings_ref() {
-            send_sync_message(
-                ui,
-                TextMessage::text(
-                    *ui.node(self.select_node)
-                        .query_component::<Button>()
-                        .unwrap()
-                        .content,
-                    MessageDirection::ToWidget,
+            let content = *ui
+                .node(self.select_node)
+                .query_component::<Button>()
+                .unwrap()
+                .content;
+            ui.send_sync(
+                content,
+                TextMessage::Text(
                     graph
                         .try_get_node(settings.node)
                         .map(|n| n.name().to_owned())
@@ -1213,13 +1213,9 @@ impl Toolbar {
                 .sync_to_model(animation, graph, ui);
 
             selected_animation_valid = true;
-            send_sync_message(
-                ui,
-                TextMessage::text(
-                    self.animation_name,
-                    MessageDirection::ToWidget,
-                    animation.name().to_string(),
-                ),
+            ui.send_sync(
+                self.animation_name,
+                TextMessage::Text(animation.name().to_string()),
             );
 
             ui.send_sync(

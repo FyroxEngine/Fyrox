@@ -846,10 +846,7 @@ impl BlendSpaceEditor {
         if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first() {
             if let PoseNode::BlendSpace(blend_space) = layer.node(*first) {
                 let sync_text = |destination: Handle<UiNode>, text: String| {
-                    send_sync_message(
-                        ui,
-                        TextMessage::text(destination, MessageDirection::ToWidget, text),
-                    );
+                    ui.send_sync(destination, TextMessage::Text(text));
                 };
 
                 sync_text(self.min_x, blend_space.min_values().x.to_string());

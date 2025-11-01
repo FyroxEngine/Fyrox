@@ -20,18 +20,15 @@
 
 //! A widget for showing handles in the tile set editor.
 
-use crate::{
-    fyrox::gui::{
-        button::ButtonMessage,
-        define_constructor, define_widget_deref,
-        grid::{Column, GridBuilder, Row},
-        stack_panel::StackPanelBuilder,
-        text::{TextBuilder, TextMessage},
-        text_box::TextBoxBuilder,
-        widget::Widget,
-        Control, Orientation,
-    },
-    send_sync_message,
+use crate::fyrox::gui::{
+    button::ButtonMessage,
+    define_constructor, define_widget_deref,
+    grid::{Column, GridBuilder, Row},
+    stack_panel::StackPanelBuilder,
+    text::{TextBuilder, TextMessage},
+    text_box::TextBoxBuilder,
+    widget::Widget,
+    Control, Orientation,
 };
 use fyrox::gui::message::MessageData;
 
@@ -94,11 +91,7 @@ impl Control for TileHandleField {
         if message.direction() == MessageDirection::ToWidget {
             if let Some(TileHandleEditorMessage::Value(value)) = message.data() {
                 self.value = *value;
-                ui.send_message(TextMessage::text(
-                    self.field,
-                    MessageDirection::ToWidget,
-                    value_to_string(*value),
-                ));
+                ui.send(self.field, TextMessage::Text(value_to_string(*value)));
                 ui.send_message(message.reverse());
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
@@ -129,14 +122,7 @@ impl Control for TileHandleField {
                         ));
                     }
                 }
-                send_sync_message(
-                    ui,
-                    TextMessage::text(
-                        self.field,
-                        MessageDirection::ToWidget,
-                        value_to_string(self.value),
-                    ),
-                );
+                ui.send_sync(self.field, TextMessage::Text(value_to_string(self.value)));
             }
         }
     }

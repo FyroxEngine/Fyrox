@@ -50,7 +50,6 @@ use crate::{
     plugin::EditorPlugin,
     plugins::{absm::animation_container_ref, inspector::editors::make_property_editors_container},
     scene::{controller::SceneController, GameScene, Selection},
-    send_sync_message,
     ui_scene::UiScene,
     utils::window_content,
     Editor, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
@@ -359,13 +358,9 @@ impl InspectorPlugin {
             context,
         ));
 
-        send_sync_message(
-            ui,
-            TextMessage::text(
-                self.type_name_text,
-                MessageDirection::ToWidget,
-                format!("Type Name: {}", obj.type_name()),
-            ),
+        ui.send_sync(
+            self.type_name_text,
+            TextMessage::Text(format!("Type Name: {}", obj.type_name())),
         );
     }
 

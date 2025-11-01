@@ -165,22 +165,14 @@ impl ItemHeader {
         }
     }
     fn sync(&self, name: String, has_cell: bool, ui: &mut UserInterface) {
-        ui.send_message(TextMessage::text(
-            self.label,
-            MessageDirection::ToWidget,
-            name,
-        ));
+        ui.send(self.label, TextMessage::Text(name));
         let button_text = if has_cell {
             REMOVE_BUTTON_LABEL
         } else {
             ADD_BUTTON_LABEL
         };
         let button = ui.node(self.button).cast::<Button>().unwrap();
-        ui.send_message(TextMessage::text(
-            *button.content,
-            MessageDirection::ToWidget,
-            button_text.into(),
-        ));
+        ui.send(*button.content, TextMessage::Text(button_text.into()));
         let tooltip = if has_cell {
             REMOVE_TOOLTIP
         } else {

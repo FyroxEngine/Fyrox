@@ -72,10 +72,9 @@ impl PropertyEditorDefinition for ImmutableStringPropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<ImmutableString>()?;
-        Ok(Some(TextMessage::text(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            value.to_mutable(),
+            TextMessage::Text(value.to_mutable()),
         )))
     }
 

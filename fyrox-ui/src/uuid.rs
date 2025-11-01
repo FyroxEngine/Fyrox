@@ -107,11 +107,7 @@ impl Control for UuidEditor {
                     self.value = *value;
                     ui.send_message(message.reverse());
 
-                    ui.send_message(TextMessage::text(
-                        self.text,
-                        MessageDirection::ToWidget,
-                        value.to_string(),
-                    ));
+                    ui.send(self.text, TextMessage::Text(value.to_string()));
                 }
             }
         } else if message.destination() == self.generate {

@@ -399,11 +399,10 @@ impl Control for FileSelectorField {
         } else if let Some(FileSelectorFieldMessage::Path(new_path)) = message.data() {
             if message.is_for(self.handle) && &self.path != new_path {
                 self.path.clone_from(new_path);
-                ui.send_message(TextMessage::text(
+                ui.send(
                     self.path_field,
-                    MessageDirection::ToWidget,
-                    self.path.to_string_lossy().to_string(),
-                ));
+                    TextMessage::Text(self.path.to_string_lossy().to_string()),
+                );
 
                 ui.send_message(message.reverse());
             }

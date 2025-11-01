@@ -142,14 +142,13 @@ impl Control for SurfaceDataPropertyEditor {
                 self.surface_resource = surface_resource.clone();
                 ui.send_message(message.reverse());
 
-                ui.send_message(TextMessage::text(
+                ui.send(
                     self.text,
-                    MessageDirection::ToWidget,
-                    surface_data_info(
+                    TextMessage::Text(surface_data_info(
                         &self.asset_selector_mixin.resource_manager,
                         surface_resource,
-                    ),
-                ));
+                    )),
+                );
 
                 self.asset_selector_mixin
                     .request_preview(self.handle, surface_resource);

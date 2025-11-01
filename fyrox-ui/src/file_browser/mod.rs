@@ -244,11 +244,7 @@ impl FileBrowser {
             ));
         } else {
             // Clear text field if path is invalid.
-            ui.send_message(TextMessage::text(
-                self.path_text,
-                MessageDirection::ToWidget,
-                String::new(),
-            ));
+            ui.send(self.path_text, TextMessage::Text(String::new()));
         }
     }
 }
@@ -292,11 +288,10 @@ impl Control for FileBrowser {
                             self.path.clone_from(path);
 
                             // Set value of text field.
-                            ui.send_message(TextMessage::text(
+                            ui.send(
                                 self.path_text,
-                                MessageDirection::ToWidget,
-                                path.to_string_lossy().to_string(),
-                            ));
+                                TextMessage::Text(path.to_string_lossy().to_string()),
+                            );
 
                             // Path can be invalid, so we shouldn't do anything in such case.
                             if item.is_some() {
@@ -509,13 +504,14 @@ impl Control for FileBrowser {
 
                         if let FileBrowserMode::Save { .. } = self.mode {
                             if path.is_file() {
-                                ui.send_message(TextMessage::text(
+                                ui.send(
                                     self.file_name,
-                                    MessageDirection::ToWidget,
-                                    path.file_name()
-                                        .map(|f| f.to_string_lossy().to_string())
-                                        .unwrap_or_default(),
-                                ));
+                                    TextMessage::Text(
+                                        path.file_name()
+                                            .map(|f| f.to_string_lossy().to_string())
+                                            .unwrap_or_default(),
+                                    ),
+                                );
                             } else {
                                 path = path.join(&self.file_name_value);
                             }
@@ -524,11 +520,10 @@ impl Control for FileBrowser {
                         if self.path != path {
                             self.path.clone_from(&path);
 
-                            ui.send_message(TextMessage::text(
+                            ui.send(
                                 self.path_text,
-                                MessageDirection::ToWidget,
-                                path.to_string_lossy().to_string(),
-                            ));
+                                TextMessage::Text(path.to_string_lossy().to_string()),
+                            );
 
                             // Do response.
                             ui.send_message(FileBrowserMessage::path(

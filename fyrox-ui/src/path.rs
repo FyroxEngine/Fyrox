@@ -143,11 +143,10 @@ impl Control for PathEditor {
             if message.is_for(self.handle) && &*self.path != path {
                 self.path.set_value_and_mark_modified(path.clone());
 
-                ui.send_message(TextMessage::text(
+                ui.send(
                     *self.text_field,
-                    MessageDirection::ToWidget,
-                    path.to_string_lossy().to_string(),
-                ));
+                    TextMessage::Text(path.to_string_lossy().to_string()),
+                );
                 ui.send_message(message.reverse());
             }
         }

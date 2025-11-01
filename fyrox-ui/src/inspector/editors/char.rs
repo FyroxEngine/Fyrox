@@ -68,10 +68,9 @@ impl PropertyEditorDefinition for CharPropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<char>()?;
-        Ok(Some(TextMessage::text(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            value.clone().to_string(),
+            TextMessage::Text(value.clone().to_string()),
         )))
     }
 

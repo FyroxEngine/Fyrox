@@ -67,10 +67,9 @@ impl PropertyEditorDefinition for Utf32StringPropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Vec<char>>()?;
-        Ok(Some(TextMessage::text(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            value.iter().collect::<String>(),
+            TextMessage::Text(value.iter().collect::<String>()),
         )))
     }
 

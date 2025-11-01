@@ -175,11 +175,7 @@ impl NodeRemovalDialog {
             }
         }
 
-        ui.send_message(TextMessage::text(
-            self.info_text,
-            MessageDirection::ToWidget,
-            text,
-        ));
+        ui.send(self.info_text, TextMessage::Text(text));
     }
 
     pub fn handle_ui_message(

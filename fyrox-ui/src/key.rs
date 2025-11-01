@@ -32,7 +32,7 @@ use crate::{
     },
     define_widget_deref,
     draw::{CommandTexture, Draw, DrawingContext},
-    message::{KeyCode, KeyboardModifiers, MessageDirection, MouseButton, UiMessage},
+    message::{KeyCode, KeyboardModifiers, MouseButton, UiMessage},
     text::{TextBuilder, TextMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
@@ -197,15 +197,12 @@ define_widget_deref!(HotKeyEditor);
 impl HotKeyEditor {
     fn set_editing(&mut self, editing: bool, ui: &UserInterface) {
         self.editing.set_value_and_mark_modified(editing);
-        ui.send_message(TextMessage::text(
-            *self.text,
-            MessageDirection::ToWidget,
-            if *self.editing {
-                "[WAITING INPUT]".to_string()
-            } else {
-                format!("{}", *self.value)
-            },
-        ));
+        let text = if *self.editing {
+            "[WAITING INPUT]".to_string()
+        } else {
+            format!("{}", *self.value)
+        };
+        ui.send(*self.text, TextMessage::Text(text));
     }
 }
 
@@ -274,13 +271,7 @@ impl Control for HotKeyEditor {
             if let Some(HotKeyEditorMessage::Value(value)) = message.data() {
                 if value != &*self.value {
                     self.value.set_value_and_mark_modified(value.clone());
-
-                    ui.send_message(TextMessage::text(
-                        *self.text,
-                        MessageDirection::ToWidget,
-                        format!("{}", *self.value),
-                    ));
-
+                    ui.send(*self.text, TextMessage::Text(format!("{}", *self.value)));
                     ui.send_message(message.reverse());
                 }
             }
@@ -421,15 +412,14 @@ define_widget_deref!(KeyBindingEditor);
 impl KeyBindingEditor {
     fn set_editing(&mut self, editing: bool, ui: &UserInterface) {
         self.editing.set_value_and_mark_modified(editing);
-        ui.send_message(TextMessage::text(
+        ui.send(
             *self.text,
-            MessageDirection::ToWidget,
-            if *self.editing {
+            TextMessage::Text(if *self.editing {
                 "[WAITING INPUT]".to_string()
             } else {
                 format!("{}", *self.value)
-            },
-        ));
+            }),
+        );
     }
 }
 
@@ -483,13 +473,7 @@ impl Control for KeyBindingEditor {
             if let Some(KeyBindingEditorMessage::Value(value)) = message.data() {
                 if value != &*self.value {
                     self.value.set_value_and_mark_modified(value.clone());
-
-                    ui.send_message(TextMessage::text(
-                        *self.text,
-                        MessageDirection::ToWidget,
-                        format!("{}", *self.value),
-                    ));
-
+                    ui.send(*self.text, TextMessage::Text(format!("{}", *self.value)));
                     ui.send_message(message.reverse());
                 }
             }

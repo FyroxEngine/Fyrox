@@ -146,11 +146,13 @@ impl Control for MaterialFieldEditor {
             if message.is_for(self.handle) && &self.material != material {
                 self.material = material.clone();
 
-                ui.send_message(TextMessage::text(
+                ui.send(
                     self.text,
-                    MessageDirection::ToWidget,
-                    make_name(&self.asset_selector_mixin.resource_manager, &self.material),
-                ));
+                    TextMessage::Text(make_name(
+                        &self.asset_selector_mixin.resource_manager,
+                        &self.material,
+                    )),
+                );
 
                 self.asset_selector_mixin
                     .request_preview(self.handle, material);

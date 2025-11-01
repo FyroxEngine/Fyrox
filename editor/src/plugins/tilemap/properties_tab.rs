@@ -516,10 +516,7 @@ impl PropertiesTab {
         };
         ui.send(self.name_list, ListViewMessage::Items(named_values));
         send_enabled(ui, self.data_panel, sel_index.is_some());
-        send_sync_message(
-            ui,
-            TextMessage::text(self.name_field, MessageDirection::ToWidget, name),
-        );
+        ui.send_sync(self.name_field, TextMessage::Text(name));
         send_enabled(ui, self.name_list, sel_index.is_some());
         self.sync_name_edit(sel_index.is_some(), tile_set, ui);
     }
@@ -542,14 +539,7 @@ impl PropertiesTab {
                 .unwrap_or(Color::BLACK),
             _ => Color::BLACK,
         };
-        send_sync_message(
-            ui,
-            TextMessage::text(
-                self.value_name_field,
-                MessageDirection::ToWidget,
-                value_name,
-            ),
-        );
+        ui.send_sync(self.value_name_field, TextMessage::Text(value_name));
         send_sync_message(
             ui,
             ColorFieldMessage::color(self.color_field, MessageDirection::ToWidget, color),

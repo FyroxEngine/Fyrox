@@ -189,11 +189,10 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
                 };
 
                 if let Some(value) = value {
-                    ui.send_message(TextMessage::text(
+                    ui.send(
                         self.text,
-                        MessageDirection::ToWidget,
-                        format!("{} ({})", value, self.value),
-                    ));
+                        TextMessage::Text(format!("{} ({})", value, self.value)),
+                    );
 
                     let color = if self.value.is_none() {
                         ui.style.property(Style::BRUSH_WARNING)
@@ -206,11 +205,10 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
                         color,
                     ));
                 } else {
-                    ui.send_message(TextMessage::text(
+                    ui.send(
                         self.text,
-                        MessageDirection::ToWidget,
-                        format!("<Invalid handle!> ({})", self.value),
-                    ));
+                        TextMessage::Text(format!("<Invalid handle!> ({})", self.value)),
+                    );
 
                     ui.send_message(WidgetMessage::foreground(
                         self.text,

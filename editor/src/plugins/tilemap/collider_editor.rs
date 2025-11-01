@@ -48,7 +48,7 @@ use fyrox::{
 };
 use std::str::FromStr;
 
-use crate::{send_sync_message, MSG_SYNC_FLAG};
+use crate::MSG_SYNC_FLAG;
 
 use super::*;
 
@@ -193,11 +193,7 @@ impl TileColliderEditor {
     }
     fn apply_collider_update(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
         let layer = state.find_collider(self.collider_id).unwrap();
-        ui.send_message(TextMessage::text(
-            self.name_field,
-            MessageDirection::ToWidget,
-            layer.name.to_string(),
-        ));
+        ui.send(self.name_field, TextMessage::Text(layer.name.to_string()));
         ui.send_message(WidgetMessage::background(
             self.color_icon,
             MessageDirection::ToWidget,
@@ -242,21 +238,14 @@ impl TileColliderEditor {
             Err(e) => {
                 self.has_error = true;
                 send_visibility(ui, self.error_field, true);
-                ui.send_message(TextMessage::text(
-                    self.error_field,
-                    MessageDirection::ToWidget,
-                    e.to_string(),
-                ));
+                ui.send(self.error_field, TextMessage::Text(e.to_string()));
                 None
             }
         }
     }
     fn build_empty_collider(&mut self, ui: &mut UserInterface) -> CustomTileColliderResource {
         send_visibility(ui, self.error_field, false);
-        send_sync_message(
-            ui,
-            TextMessage::text(self.custom_field, MessageDirection::ToWidget, "".into()),
-        );
+        ui.send_sync(self.custom_field, TextMessage::Text("".into()));
         Resource::new_embedded(CustomTileCollider::default())
     }
     fn send_value(&self, state: &TileEditorState, sender: &MessageSender, tile_book: &TileBook) {
@@ -304,15 +293,9 @@ impl TileEditor for TileColliderEditor {
         if let TileCollider::Custom(custom) = &self.value {
             if custom.is_ok() {
                 let text = custom.data_ref().to_string();
-                send_sync_message(
-                    ui,
-                    TextMessage::text(self.custom_field, MessageDirection::ToWidget, text),
-                );
+                ui.send_sync(self.custom_field, TextMessage::Text(text));
             } else {
-                send_sync_message(
-                    ui,
-                    TextMessage::text(self.custom_field, MessageDirection::ToWidget, String::new()),
-                );
+                ui.send_sync(self.custom_field, TextMessage::Text(String::new()));
             }
         }
         highlight_tool_button(

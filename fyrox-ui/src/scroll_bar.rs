@@ -275,11 +275,13 @@ impl Control for ScrollBar {
                             self.invalidate_arrange();
 
                             if self.value_text.is_some() {
-                                ui.send_message(TextMessage::text(
+                                ui.send(
                                     *self.value_text,
-                                    MessageDirection::ToWidget,
-                                    format!("{:.1$}", value, *self.value_precision),
-                                ));
+                                    TextMessage::Text(format!(
+                                        "{:.1$}",
+                                        value, *self.value_precision
+                                    )),
+                                );
                             }
 
                             let mut response = UiMessage::from_widget(
