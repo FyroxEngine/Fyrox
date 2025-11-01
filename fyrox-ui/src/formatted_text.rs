@@ -41,6 +41,9 @@ use textwrapper::*;
 mod run;
 mod textwrapper;
 
+/// Width of a tab when multiplied by font size.
+const TAB_WIDTH: f32 = 2.0;
+
 /// Defines a position in the text. It is just a coordinates of a character in text.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Visit, Reflect)]
 pub struct Position {
@@ -178,6 +181,17 @@ fn build_glyph(
 
     x = x.floor();
     y = y.floor();
+
+    if character == '\t' {
+        let rect = Rect::new(x, y + ascender, font_size * TAB_WIDTH, font_size);
+        let text_glyph = TextGlyph {
+            bounds: rect,
+            tex_coords: [Vector2::default(); 4],
+            atlas_page_index: 0,
+            source_char_index,
+        };
+        return (text_glyph, rect.w());
+    }
 
     // Request larger glyph with super sampling scaling.
     match metrics.glyph(character, super_sampling_scale) {
