@@ -1982,6 +1982,21 @@ impl UserInterface {
             .unwrap()
     }
 
+    pub fn send_handled(
+        &self,
+        handle: Handle<impl ObjectOrVariant<UiNode>>,
+        data: impl MessageData,
+    ) {
+        self.sender
+            .send(
+                UiMessage::with_data(data)
+                    .with_destination(handle.transmute())
+                    .with_direction(MessageDirection::ToWidget)
+                    .with_handled(true),
+            )
+            .unwrap()
+    }
+
     pub fn send_sync(&self, handle: Handle<impl ObjectOrVariant<UiNode>>, data: impl MessageData) {
         self.sender
             .send(

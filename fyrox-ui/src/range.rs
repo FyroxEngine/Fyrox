@@ -185,16 +185,8 @@ where
                 if message.destination() == self.handle && *self.value != *range {
                     self.value.set_value_and_mark_modified(range.clone());
 
-                    ui.send_message(NumericUpDownMessage::value(
-                        *self.start,
-                        MessageDirection::ToWidget,
-                        range.start,
-                    ));
-                    ui.send_message(NumericUpDownMessage::value(
-                        *self.end,
-                        MessageDirection::ToWidget,
-                        range.end,
-                    ));
+                    ui.send(*self.start, NumericUpDownMessage::Value(range.start));
+                    ui.send(*self.end, NumericUpDownMessage::Value(range.end));
 
                     ui.send_message(message.reverse());
                 }
@@ -211,10 +203,9 @@ where
                             }),
                         );
                     } else {
-                        let mut msg = NumericUpDownMessage::value(
+                        let mut msg = UiMessage::for_widget(
                             *self.start,
-                            MessageDirection::ToWidget,
-                            self.value.end,
+                            NumericUpDownMessage::Value(self.value.end),
                         );
                         msg.flags = SYNC_FLAG;
                         ui.send_message(msg);
@@ -229,10 +220,9 @@ where
                             }),
                         );
                     } else {
-                        let mut msg = NumericUpDownMessage::value(
+                        let mut msg = UiMessage::for_widget(
                             *self.end,
-                            MessageDirection::ToWidget,
-                            self.value.start,
+                            NumericUpDownMessage::Value(self.value.start),
                         );
                         msg.flags = SYNC_FLAG;
                         ui.send_message(msg);

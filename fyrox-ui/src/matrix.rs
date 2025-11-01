@@ -193,11 +193,7 @@ where
 
                     if *current != new {
                         *current = new;
-                        ui.send_message(NumericUpDownMessage::value(
-                            editor,
-                            MessageDirection::ToWidget,
-                            new,
-                        ));
+                        ui.send(editor, NumericUpDownMessage::Value(new));
                         changed = true;
                     }
                 }

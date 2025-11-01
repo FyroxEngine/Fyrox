@@ -826,60 +826,19 @@ impl ConstructorProvider<UiNode, UserInterface> for ColorPicker {
 
 crate::define_widget_deref!(ColorPicker);
 
-fn mark_handled(message: UiMessage) -> UiMessage {
-    message.set_handled(true);
-    message
-}
-
 impl ColorPicker {
     fn sync_fields(&self, ui: &mut UserInterface, color: Color, hsv: Hsv) {
-        ui.send_message(mark_handled(NumericUpDownMessage::value(
-            self.hue,
-            MessageDirection::ToWidget,
-            hsv.hue(),
-        )));
-
-        ui.send_message(mark_handled(NumericUpDownMessage::value(
-            self.saturation,
-            MessageDirection::ToWidget,
-            hsv.saturation(),
-        )));
-
-        ui.send_message(mark_handled(NumericUpDownMessage::value(
-            self.brightness,
-            MessageDirection::ToWidget,
-            hsv.brightness(),
-        )));
-
-        ui.send_message(mark_handled(NumericUpDownMessage::value(
-            self.red,
-            MessageDirection::ToWidget,
-            color.r as f32,
-        )));
-
-        ui.send_message(mark_handled(NumericUpDownMessage::value(
-            self.green,
-            MessageDirection::ToWidget,
-            color.g as f32,
-        )));
-
-        ui.send_message(mark_handled(NumericUpDownMessage::value(
-            self.blue,
-            MessageDirection::ToWidget,
-            color.b as f32,
-        )));
-
-        ui.send_message(mark_handled(NumericUpDownMessage::value(
-            self.alpha,
-            MessageDirection::ToWidget,
-            color.a as f32,
-        )));
-
-        ui.send_message(mark_handled(WidgetMessage::background(
-            self.color_mark,
-            MessageDirection::ToWidget,
-            Brush::Solid(color).into(),
-        )));
+        ui.send_handled(self.hue, NumericUpDownMessage::Value(hsv.hue()));
+        let saturation = hsv.saturation();
+        ui.send_handled(self.saturation, NumericUpDownMessage::Value(saturation));
+        let brightness = hsv.brightness();
+        ui.send_handled(self.brightness, NumericUpDownMessage::Value(brightness));
+        ui.send_handled(self.red, NumericUpDownMessage::Value(color.r as f32));
+        ui.send_handled(self.green, NumericUpDownMessage::Value(color.g as f32));
+        ui.send_handled(self.blue, NumericUpDownMessage::Value(color.b as f32));
+        ui.send_handled(self.alpha, NumericUpDownMessage::Value(color.a as f32));
+        let background = Brush::Solid(color).into();
+        ui.send_handled(self.color_mark, WidgetMessage::Background(background));
     }
 }
 

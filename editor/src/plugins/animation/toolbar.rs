@@ -1222,48 +1222,25 @@ impl Toolbar {
                 ),
             );
 
-            send_sync_message(
-                ui,
-                NumericUpDownMessage::value(
-                    self.time_slice_start,
-                    MessageDirection::ToWidget,
-                    animation.time_slice().start,
-                ),
+            ui.send_sync(
+                self.time_slice_start,
+                NumericUpDownMessage::Value(animation.time_slice().start),
             );
-            send_sync_message(
-                ui,
-                NumericUpDownMessage::max_value(
-                    self.time_slice_start,
-                    MessageDirection::ToWidget,
-                    animation.time_slice().end,
-                ),
+            ui.send_sync(
+                self.time_slice_start,
+                NumericUpDownMessage::MaxValue(animation.time_slice().end),
             );
 
-            send_sync_message(
-                ui,
-                NumericUpDownMessage::value(
-                    self.time_slice_end,
-                    MessageDirection::ToWidget,
-                    animation.time_slice().end,
-                ),
+            ui.send_sync(
+                self.time_slice_end,
+                NumericUpDownMessage::Value(animation.time_slice().end),
             );
-            send_sync_message(
-                ui,
-                NumericUpDownMessage::min_value(
-                    self.time_slice_end,
-                    MessageDirection::ToWidget,
-                    animation.time_slice().start,
-                ),
+            ui.send_sync(
+                self.time_slice_end,
+                NumericUpDownMessage::MinValue(animation.time_slice().start),
             );
 
-            send_sync_message(
-                ui,
-                NumericUpDownMessage::value(
-                    self.speed,
-                    MessageDirection::ToWidget,
-                    animation.speed(),
-                ),
-            );
+            ui.send_sync(self.speed, NumericUpDownMessage::Value(animation.speed()));
 
             send_sync_message(
                 ui,

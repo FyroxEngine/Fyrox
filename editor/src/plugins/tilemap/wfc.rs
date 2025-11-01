@@ -139,10 +139,7 @@ fn sync_terrain_list(
     let freq_iter = terrain_freq.iter().map(|&(_, freq)| freq);
     let handle_iter = list.iter().map(|w| w.frequency_field);
     for (handle, freq) in handle_iter.zip(freq_iter) {
-        send_sync_message(
-            ui,
-            NumericUpDownMessage::value(handle, MessageDirection::ToWidget, freq),
-        );
+        ui.send_sync(handle, NumericUpDownMessage::Value(freq));
     }
 }
 
@@ -663,13 +660,10 @@ impl BrushMacro for WfcMacro {
                 CheckBoxMessage::Check(Some(instance.constrain_edges)),
             ),
         );
-        send_sync_message(
-            ui,
-            NumericUpDownMessage::<u32>::value(
-                self.attempts_field,
-                MessageDirection::ToWidget,
-                instance.max_attempts,
-            ),
+
+        ui.send_sync(
+            self.attempts_field,
+            NumericUpDownMessage::<u32>::Value(instance.max_attempts),
         );
         let layer =
             tile_set.and_then(|tile_set| pattern_id.and_then(|id| tile_set.find_property(*id)));

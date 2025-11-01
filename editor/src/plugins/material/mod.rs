@@ -178,7 +178,7 @@ macro_rules! numeric_ui_view {
     ($($ty:ty),*) => {
          $(impl UiView for $ty {
             fn into_message(self, item: Handle<UiNode>) -> UiMessage {
-                NumericUpDownMessage::value(item, MessageDirection::ToWidget, self)
+                UiMessage::for_widget(item, NumericUpDownMessage::Value(self))
             }
             fn make_view(self, ctx: &mut BuildContext) -> Handle<UiNode> {
                 NumericUpDownBuilder::new(WidgetBuilder::new().with_height(24.0))

@@ -35,7 +35,6 @@ use crate::{
         visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
-    define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{KeyCode, MessageDirection, MouseButton, UiMessage},
     text::TextMessage,
@@ -122,42 +121,6 @@ pub enum NumericUpDownMessage<T: NumericType> {
     Precision(usize),
 }
 impl<T: NumericType> MessageData for NumericUpDownMessage<T> {}
-
-impl<T: NumericType> NumericUpDownMessage<T> {
-    define_constructor!(
-        /// Creates [`NumericUpDownMessage::Value`] message.
-        NumericUpDownMessage:Value => fn value(T)
-    );
-    define_constructor!(
-        /// Creates [`NumericUpDownMessage::MinValue`] message.
-        NumericUpDownMessage:MinValue => fn min_value(T)
-    );
-    define_constructor!(
-        /// Creates [`NumericUpDownMessage::MaxValue`] message.
-        NumericUpDownMessage:MaxValue => fn max_value(T)
-    );
-    define_constructor!(
-        /// Creates [`NumericUpDownMessage::Step`] message.
-        NumericUpDownMessage:Step => fn step(T)
-    );
-
-    /// Creates [`NumericUpDownMessage::Precision`] message.
-    pub fn precision(
-        destination: Handle<UiNode>,
-        direction: MessageDirection,
-        precision: usize,
-    ) -> UiMessage {
-        UiMessage {
-            handled: Default::default(),
-            data: Box::new(Self::Precision(precision)),
-            destination,
-            direction,
-            routing_strategy: Default::default(),
-            delivery_mode: Default::default(),
-            flags: 0,
-        }
-    }
-}
 
 /// Used to store drag info when dragging the cursor on the up/down buttons.
 #[derive(Clone, Debug)]
@@ -350,11 +313,7 @@ impl<T: NumericType> NumericUpDown<T> {
     fn sync_value_to_bounds_if_needed(&self, ui: &UserInterface) {
         let clamped = self.clamp_value(*self.value);
         if *self.value != clamped {
-            ui.send_message(NumericUpDownMessage::value(
-                self.handle,
-                MessageDirection::ToWidget,
-                clamped,
-            ));
+            ui.send(self.handle, NumericUpDownMessage::Value(clamped));
         }
     }
 
@@ -368,11 +327,7 @@ impl<T: NumericType> NumericUpDown<T> {
                 if value != self.formatted_value {
                     self.formatted_value = value;
                     let value = self.clamp_value(value);
-                    ui.send_message(NumericUpDownMessage::value(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                        value,
-                    ));
+                    ui.send(self.handle(), NumericUpDownMessage::Value(value));
                 }
             } else {
                 // Inform the user that parsing failed by re-establishing a valid value.
@@ -530,10 +485,9 @@ impl<T: NumericType> Control for NumericUpDown<T> {
 
                             self.sync_text_field(ui);
 
-                            let mut msg = NumericUpDownMessage::value(
+                            let mut msg = UiMessage::from_widget(
                                 self.handle,
-                                MessageDirection::FromWidget,
-                                *self.value,
+                                NumericUpDownMessage::Value(*self.value),
                             );
                             // We must maintain flags
                             msg.set_handled(message.handled());
@@ -578,33 +532,23 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                     start_mouse_pos,
                 }) = self.drag_context.take()
                 {
-                    ui.send_message(NumericUpDownMessage::value(
+                    ui.send(
                         self.handle,
-                        MessageDirection::ToWidget,
-                        calculate_value_by_offset(
+                        NumericUpDownMessage::Value(calculate_value_by_offset(
                             start_value,
                             ((start_mouse_pos - ui.cursor_position().y) * *self.drag_value_scaling)
                                 as i32,
                             *self.step,
                             *self.min_value,
                             *self.max_value,
-                        ),
-                    ));
+                        )),
+                    );
                 } else if message.destination() == *self.decrease {
                     let value = self.clamp_value(saturating_sub(*self.value, *self.step));
-                    ui.send_message(NumericUpDownMessage::value(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                        value,
-                    ));
+                    ui.send(self.handle(), NumericUpDownMessage::Value(value));
                 } else if message.destination() == *self.increase {
                     let value = self.clamp_value(saturating_add(*self.value, *self.step));
-
-                    ui.send_message(NumericUpDownMessage::value(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                        value,
-                    ));
+                    ui.send(self.handle(), NumericUpDownMessage::Value(value));
                 }
             }
         }

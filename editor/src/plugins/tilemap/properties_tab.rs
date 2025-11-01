@@ -557,18 +557,15 @@ impl PropertiesTab {
         let named_value = name_index.and_then(|i| prop.and_then(|p| p.named_values.get(i)));
         let value = named_value.map(|v| v.value);
         match value {
-            Some(NamableValue::I8(value)) => send_sync_message(
-                ui,
-                NumericUpDownMessage::value(self.i8_field, MessageDirection::ToWidget, value),
-            ),
-            Some(NamableValue::I32(value)) => send_sync_message(
-                ui,
-                NumericUpDownMessage::value(self.i32_field, MessageDirection::ToWidget, value),
-            ),
-            Some(NamableValue::F32(value)) => send_sync_message(
-                ui,
-                NumericUpDownMessage::value(self.f32_field, MessageDirection::ToWidget, value),
-            ),
+            Some(NamableValue::I8(value)) => {
+                ui.send_sync(self.i8_field, NumericUpDownMessage::Value(value))
+            }
+            Some(NamableValue::I32(value)) => {
+                ui.send_sync(self.i32_field, NumericUpDownMessage::Value(value))
+            }
+            Some(NamableValue::F32(value)) => {
+                ui.send_sync(self.f32_field, NumericUpDownMessage::Value(value))
+            }
             None => (),
         }
         let show_i8 = matches!(value, Some(NamableValue::I8(_))) && enabled;

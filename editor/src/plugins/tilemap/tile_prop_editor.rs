@@ -238,34 +238,19 @@ impl TilePropertyEditor {
     fn sync_value_to_field(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
         match &self.value {
             &TileSetPropertyOptionValue::I32(Some(v)) => {
-                send_sync_message(
-                    ui,
-                    NumericUpDownMessage::value(self.value_field, MessageDirection::ToWidget, v),
-                );
+                ui.send_sync(self.value_field, NumericUpDownMessage::Value(v));
             }
             TileSetPropertyOptionValue::I32(None) => {
-                send_sync_message(
-                    ui,
-                    NumericUpDownMessage::value(self.value_field, MessageDirection::ToWidget, 0),
-                );
+                ui.send_sync(self.value_field, NumericUpDownMessage::Value(0));
             }
             &TileSetPropertyOptionValue::F32(Some(v)) => {
-                send_sync_message(
-                    ui,
-                    NumericUpDownMessage::value(self.value_field, MessageDirection::ToWidget, v),
-                );
+                ui.send_sync(self.value_field, NumericUpDownMessage::Value(v));
             }
             TileSetPropertyOptionValue::F32(None) => {
-                send_sync_message(
-                    ui,
-                    NumericUpDownMessage::value(self.value_field, MessageDirection::ToWidget, 0.0),
-                );
+                ui.send_sync(self.value_field, NumericUpDownMessage::Value(0.0));
             }
             TileSetPropertyOptionValue::String(Some(v)) => {
-                send_sync_message(
-                    ui,
-                    TextMessage::text(self.value_field, MessageDirection::ToWidget, v.to_string()),
-                );
+                ui.send_sync(self.value_field, TextMessage::Text(v.to_string()));
             }
             TileSetPropertyOptionValue::String(None) => {
                 send_sync_message(
@@ -279,14 +264,7 @@ impl TilePropertyEditor {
             }
             TileSetPropertyOptionValue::NineSlice(_) => {
                 if let DrawValue::I8(v) = self.draw_value {
-                    send_sync_message(
-                        ui,
-                        NumericUpDownMessage::value(
-                            self.value_field,
-                            MessageDirection::ToWidget,
-                            v,
-                        ),
-                    );
+                    ui.send_sync(self.value_field, NumericUpDownMessage::Value(v));
                 }
                 if let Some(layer) = state.find_property(self.property_id) {
                     let specs = create_nine_specs(&self.value, layer);

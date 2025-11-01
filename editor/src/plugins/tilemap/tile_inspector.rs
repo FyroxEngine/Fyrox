@@ -1067,13 +1067,9 @@ impl TileInspector {
                 ),
             );
         } else if let Some((_, anim)) = state.animation_page() {
-            send_sync_message(
-                ui,
-                NumericUpDownMessage::value(
-                    self.animation_speed_inspector.field,
-                    MessageDirection::ToWidget,
-                    anim.frame_rate,
-                ),
+            ui.send_sync(
+                self.animation_speed_inspector.field,
+                NumericUpDownMessage::Value(anim.frame_rate),
             );
         }
     }

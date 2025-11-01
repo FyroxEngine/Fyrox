@@ -1257,22 +1257,13 @@ impl CurveEditor {
         if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
             if let Some(first) = keys.iter().next() {
                 if let Some(key) = self.curves.key_ref(*first) {
-                    ui.send_message(
-                        NumericUpDownMessage::value(
-                            self.context_menu.key_location,
-                            MessageDirection::ToWidget,
-                            key.position.x,
-                        )
-                        .with_handled(true),
+                    ui.send_handled(
+                        self.context_menu.key_location,
+                        NumericUpDownMessage::Value(key.position.x),
                     );
-
-                    ui.send_message(
-                        NumericUpDownMessage::value(
-                            self.context_menu.key_value,
-                            MessageDirection::ToWidget,
-                            key.position.y,
-                        )
-                        .with_handled(true),
+                    ui.send_handled(
+                        self.context_menu.key_value,
+                        NumericUpDownMessage::Value(key.position.y),
                     );
                 }
             }

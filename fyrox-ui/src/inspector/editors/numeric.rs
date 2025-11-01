@@ -99,10 +99,9 @@ where
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<T>()?;
-        Ok(Some(NumericUpDownMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            *value,
+            NumericUpDownMessage::Value(*value),
         )))
     }
 

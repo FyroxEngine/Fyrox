@@ -768,18 +768,12 @@ impl MacroPropertyValueField {
     ) {
         use TileSetPropertyValueElement as Element;
         let msg = match &value {
-            Element::I32(v) => {
-                NumericUpDownMessage::value(self.textbox, MessageDirection::ToWidget, *v)
-            }
-            Element::F32(v) => {
-                NumericUpDownMessage::value(self.textbox, MessageDirection::ToWidget, *v)
-            }
+            Element::I32(v) => UiMessage::for_widget(self.textbox, NumericUpDownMessage::Value(*v)),
+            Element::F32(v) => UiMessage::for_widget(self.textbox, NumericUpDownMessage::Value(*v)),
             Element::String(v) => {
-                TextMessage::text(self.textbox, MessageDirection::ToWidget, v.to_string())
+                UiMessage::for_widget(self.textbox, TextMessage::Text(v.to_string()))
             }
-            Element::I8(v) => {
-                NumericUpDownMessage::value(self.textbox, MessageDirection::ToWidget, *v)
-            }
+            Element::I8(v) => UiMessage::for_widget(self.textbox, NumericUpDownMessage::Value(*v)),
         };
         send_sync_message(ui, msg);
         if let Ok(value) = value.try_into() {
@@ -868,13 +862,13 @@ impl MacroPropertyValueField {
                     ));
                     let msg = match v.value {
                         NamableValue::I32(v) => {
-                            NumericUpDownMessage::value(self.textbox, MessageDirection::ToWidget, v)
+                            UiMessage::for_widget(self.textbox, NumericUpDownMessage::Value(v))
                         }
                         NamableValue::F32(v) => {
-                            NumericUpDownMessage::value(self.textbox, MessageDirection::ToWidget, v)
+                            UiMessage::for_widget(self.textbox, NumericUpDownMessage::Value(v))
                         }
                         NamableValue::I8(v) => {
-                            NumericUpDownMessage::value(self.textbox, MessageDirection::ToWidget, v)
+                            UiMessage::for_widget(self.textbox, NumericUpDownMessage::Value(v))
                         }
                     };
                     send_sync_message(ui, msg);
