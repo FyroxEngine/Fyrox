@@ -522,11 +522,10 @@ impl Control for Tile {
                                 for tab in tabs.tabs.iter() {
                                     let uuid = tab.uuid;
                                     if !windows.iter().any(|&h| ui.node(h).id == uuid) {
-                                        ui.send_message(TabControlMessage::remove_tab_by_uuid(
+                                        ui.send(
                                             self.tabs,
-                                            MessageDirection::ToWidget,
-                                            uuid,
-                                        ));
+                                            TabControlMessage::RemoveTabByUuid(uuid),
+                                        );
                                     }
                                 }
                                 for (i, &w) in windows.iter().enumerate() {
@@ -541,11 +540,10 @@ impl Control for Tile {
                                 }
                                 if let Some(&w) = windows.get(*index as usize) {
                                     let uuid = ui.node(w).id;
-                                    ui.send_message(TabControlMessage::active_tab_uuid(
+                                    ui.send(
                                         self.tabs,
-                                        MessageDirection::ToWidget,
-                                        Some(uuid),
-                                    ));
+                                        TabControlMessage::ActiveTabUuid(Some(uuid)),
+                                    );
                                 }
                             }
                             TileContent::VerticalTiles { tiles, .. }
@@ -1097,12 +1095,7 @@ impl Tile {
             content: Handle::NONE,
             user_data: None,
         };
-        ui.send_message(TabControlMessage::add_tab_with_uuid(
-            self.tabs,
-            MessageDirection::ToWidget,
-            uuid,
-            definition,
-        ));
+        ui.send(self.tabs, TabControlMessage::AddTab { uuid, definition });
     }
     /// Send messages to prepare the window at the given handle for being docked
     /// in this tile.

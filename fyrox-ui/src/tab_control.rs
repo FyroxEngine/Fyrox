@@ -23,8 +23,6 @@
 
 #![warn(missing_docs)]
 
-use crate::style::resource::StyleResourceExt;
-use crate::style::{Style, StyledProperty};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -34,9 +32,11 @@ use crate::{
         uuid_provider, visitor::prelude::*,
     },
     decorator::{DecoratorBuilder, DecoratorMessage},
-    define_constructor,
     grid::{Column, GridBuilder, Row},
+    message::MessageData,
     message::{ButtonState, MessageDirection, MouseButton, UiMessage},
+    style::resource::StyleResourceExt,
+    style::{Style, StyledProperty},
     utils::make_cross_primitive,
     vector_image::VectorImageBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -45,7 +45,6 @@ use crate::{
     VerticalAlignment,
 };
 
-use crate::message::MessageData;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
@@ -88,56 +87,6 @@ pub enum TabControlMessage {
     },
 }
 impl MessageData for TabControlMessage {}
-
-impl TabControlMessage {
-    define_constructor!(
-        /// Creates [`TabControlMessage::ActiveTab`] message.
-        TabControlMessage:ActiveTab => fn active_tab(Option<usize>)
-    );
-    define_constructor!(
-        /// Creates [`TabControlMessage::ActiveTabUuid`] message.
-        TabControlMessage:ActiveTabUuid => fn active_tab_uuid(Option<Uuid>)
-    );
-    define_constructor!(
-        /// Creates [`TabControlMessage::CloseTab`] message.
-        TabControlMessage:CloseTab => fn close_tab(usize)
-    );
-    define_constructor!(
-        /// Creates [`TabControlMessage::CloseTabByUuid`] message.
-        TabControlMessage:CloseTabByUuid => fn close_tab_by_uuid(Uuid)
-    );
-    define_constructor!(
-        /// Creates [`TabControlMessage::RemoveTab`] message.
-        TabControlMessage:RemoveTab => fn remove_tab(usize)
-    );
-    define_constructor!(
-        /// Creates [`TabControlMessage::RemoveTabByUuid`] message.
-        TabControlMessage:RemoveTabByUuid => fn remove_tab_by_uuid(Uuid)
-    );
-    define_constructor!(
-        /// Creates [`TabControlMessage::AddTab`] message.
-        TabControlMessage:AddTab => fn add_tab_with_uuid(uuid: Uuid, definition: TabDefinition)
-    );
-    /// Creates [`TabControlMessage::AddTab`] message with a random UUID.
-    pub fn add_tab(
-        destination: Handle<UiNode>,
-        direction: MessageDirection,
-        definition: TabDefinition,
-    ) -> UiMessage {
-        UiMessage {
-            handled: std::cell::Cell::new(false),
-            data: Box::new(Self::AddTab {
-                uuid: Uuid::new_v4(),
-                definition,
-            }),
-            destination,
-            direction,
-            routing_strategy: Default::default(),
-            delivery_mode: Default::default(),
-            flags: 0,
-        }
-    }
-}
 
 /// User-defined data of a tab.
 #[derive(Clone)]
@@ -384,14 +333,12 @@ impl TabControl {
 
         // Notify potential listeners that the active tab has changed.
         // First we notify by tab index.
-        let mut msg =
-            TabControlMessage::active_tab(self.handle, MessageDirection::FromWidget, active_tab);
+        let mut msg = UiMessage::from_widget(self.handle, TabControlMessage::ActiveTab(active_tab));
         msg.flags = flags;
         ui.send_message(msg);
         // Next we notify by the tab's uuid, which does not change even as the tab moves.
         let tab_id = active_tab.and_then(|i| self.tabs.get(i)).map(|t| t.uuid);
-        let mut msg =
-            TabControlMessage::active_tab_uuid(self.handle, MessageDirection::FromWidget, tab_id);
+        let mut msg = UiMessage::from_widget(self.handle, TabControlMessage::ActiveTabUuid(tab_id));
         msg.flags = flags;
         ui.send_message(msg);
     }
@@ -444,41 +391,24 @@ impl Control for TabControl {
         if let Some(ButtonMessage::Click) = message.data() {
             for (tab_index, tab) in self.tabs.iter().enumerate() {
                 if message.destination() == tab.header_button && tab.header_button.is_some() {
-                    ui.send_message(TabControlMessage::active_tab_uuid(
+                    ui.send(
                         self.handle,
-                        MessageDirection::ToWidget,
-                        Some(tab.uuid),
-                    ));
+                        TabControlMessage::ActiveTabUuid(Some(tab.uuid)),
+                    );
                     break;
                 } else if message.destination() == tab.close_button {
                     // Send two messages, one containing the index, one containing the UUID,
                     // to allow listeners their choice of which system they prefer.
-                    ui.send_message(TabControlMessage::close_tab(
-                        self.handle,
-                        MessageDirection::FromWidget,
-                        tab_index,
-                    ));
-                    ui.send_message(TabControlMessage::close_tab_by_uuid(
-                        self.handle,
-                        MessageDirection::FromWidget,
-                        tab.uuid,
-                    ));
+                    ui.post(self.handle, TabControlMessage::CloseTab(tab_index));
+                    ui.post(self.handle, TabControlMessage::CloseTabByUuid(tab.uuid));
                 }
             }
         } else if let Some(WidgetMessage::MouseDown { button, .. }) = message.data() {
             if *button == MouseButton::Middle {
                 for (tab_index, tab) in self.tabs.iter().enumerate() {
                     if ui.is_node_child_of(message.destination(), tab.header_button) {
-                        ui.send_message(TabControlMessage::close_tab(
-                            self.handle,
-                            MessageDirection::FromWidget,
-                            tab_index,
-                        ));
-                        ui.send_message(TabControlMessage::close_tab_by_uuid(
-                            self.handle,
-                            MessageDirection::FromWidget,
-                            tab.uuid,
-                        ));
+                        ui.post(self.handle, TabControlMessage::CloseTab(tab_index));
+                        ui.post(self.handle, TabControlMessage::CloseTabByUuid(tab.uuid));
                     }
                 }
             }

@@ -932,13 +932,9 @@ impl SceneViewer {
         // Remove any excess tabs.
         for tab in tabs.iter() {
             if scenes.iter().all(|s| tab.uuid != s.id) {
-                send_sync_message(
-                    engine.user_interfaces.first(),
-                    TabControlMessage::remove_tab_by_uuid(
-                        self.tab_control,
-                        MessageDirection::ToWidget,
-                        tab.uuid,
-                    ),
+                engine.user_interfaces.first().send_sync(
+                    self.tab_control,
+                    TabControlMessage::RemoveTabByUuid(tab.uuid),
                 );
             }
         }
@@ -954,19 +950,17 @@ impl SceneViewer {
                 .with_text(entry.name())
                 .build(&mut engine.user_interfaces.first_mut().build_ctx());
 
-                send_sync_message(
-                    engine.user_interfaces.first(),
-                    TabControlMessage::add_tab_with_uuid(
-                        self.tab_control,
-                        MessageDirection::ToWidget,
-                        entry.id,
-                        TabDefinition {
+                engine.user_interfaces.first().send_sync(
+                    self.tab_control,
+                    TabControlMessage::AddTab {
+                        uuid: entry.id,
+                        definition: TabDefinition {
                             header,
                             content: Default::default(),
                             can_be_closed: true,
                             user_data: None,
                         },
-                    ),
+                    },
                 );
             }
         }
@@ -987,15 +981,10 @@ impl SceneViewer {
             }
         }
 
-        send_sync_message(
-            engine.user_interfaces.first(),
-            TabControlMessage::active_tab_uuid(
-                self.tab_control,
-                MessageDirection::ToWidget,
-                scenes.current_scene_entry_ref().map(|e| e.id),
-            ),
+        engine.user_interfaces.first().send_sync(
+            self.tab_control,
+            TabControlMessage::ActiveTabUuid(scenes.current_scene_entry_ref().map(|e| e.id)),
         );
-
         // Then sync to the current scene.
         if let Some(entry) = scenes.current_scene_entry_ref() {
             self.set_title(

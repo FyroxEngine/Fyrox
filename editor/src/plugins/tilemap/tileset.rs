@@ -505,11 +505,7 @@ impl TileSetEditor {
             MessageDirection::ToWidget,
             tile_book.is_brush(),
         ));
-        ui.send_message(TabControlMessage::active_tab(
-            self.tab_control,
-            MessageDirection::ToWidget,
-            Some(0),
-        ));
+        ui.send(self.tab_control, TabControlMessage::ActiveTab(Some(0)));
         for palette in [self.pages_palette, self.tiles_palette] {
             ui.send_message(PaletteMessage::set_page(
                 palette,
