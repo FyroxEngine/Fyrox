@@ -38,8 +38,7 @@ use std::{
 };
 
 /// An actual type of a property value.
-#[derive(Visit, Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Visit, Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub enum ValueType {
     /// `bool`
     Bool,
@@ -193,7 +192,6 @@ impl ValueType {
         }
     }
 }
-
 
 /// A real value that can be produced by an animation track. Animations always operate on real numbers (`f32`) for any kind
 /// of machine numeric types (including `bool`). This is needed to be able to blend values; final blending result is then

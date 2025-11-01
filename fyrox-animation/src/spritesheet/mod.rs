@@ -46,8 +46,9 @@ pub trait SpriteSheetTexture: PartialEq + Clone + Visit + Reflect {}
 impl<T: PartialEq + Clone + Visit + Reflect> SpriteSheetTexture for T {}
 
 /// Animation playback status.
-#[derive(Visit, Reflect, Copy, Clone, Eq, PartialEq, Debug, AsRefStr, EnumString, VariantNames)]
-#[derive(Default)]
+#[derive(
+    Visit, Reflect, Copy, Clone, Eq, PartialEq, Debug, AsRefStr, EnumString, VariantNames, Default,
+)]
 pub enum Status {
     /// Animation is playing.
     Playing,
@@ -62,7 +63,6 @@ pub enum Status {
 }
 
 uuid_provider!(Status = "74a31122-a7a8-476c-ab87-77e53cf0523c");
-
 
 /// Some animation event.
 #[derive(Visit, Reflect, Clone, Debug, Eq, PartialEq)]

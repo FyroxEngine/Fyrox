@@ -35,8 +35,7 @@ use fyrox_core::algebra::{Quaternion, UnitQuaternion};
 
 /// The kind of track output value, the animation system works only with numeric properties and the number
 /// of variants is small.
-#[derive(Clone, Copy, Debug, Visit, Reflect, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Clone, Copy, Debug, Visit, Reflect, PartialEq, Eq, Default)]
 pub enum TrackValueKind {
     /// A real number. Requires only 1 parametric curve.
     Real,
@@ -78,7 +77,6 @@ impl TrackValueKind {
         }
     }
 }
-
 
 /// Interpolation mode for track data.
 #[derive(Visit, Reflect, Debug, Clone, Default, PartialEq)]

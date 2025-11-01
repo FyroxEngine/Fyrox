@@ -889,7 +889,6 @@ pub enum TextureMagnificationFilter {
 
 uuid_provider!(TextureMagnificationFilter = "824f5b6c-8957-42db-9ebc-ef2a5dece5ab");
 
-
 /// The texture minifying function is used whenever the pixel being textured maps to an area
 /// greater than one texture element.
 #[derive(
@@ -958,7 +957,6 @@ impl TextureMinificationFilter {
     }
 }
 
-
 /// Defines a law of texture coordinate modification.
 #[derive(
     Copy,
@@ -1004,7 +1002,6 @@ pub enum TextureWrapMode {
 }
 
 uuid_provider!(TextureWrapMode = "e360d139-4374-4323-a66d-d192809d9d87");
-
 
 /// Texture kind defines pixel format of texture.
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Reflect)]
@@ -1277,7 +1274,6 @@ pub enum CompressionOptions {
 }
 
 uuid_provider!(CompressionOptions = "fbdcc081-d0b8-4b62-9925-2de6c013fbf5");
-
 
 fn transmute_slice<T>(bytes: &[u8]) -> &'_ [T] {
     // SAFETY: This is absolutely safe because `image` crate's Rgb8/Rgba8/etc. and `tbc`s Rgb8/Rgba8/etc.

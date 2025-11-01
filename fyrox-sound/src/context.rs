@@ -103,7 +103,6 @@ pub enum DistanceModel {
 
 uuid_provider!(DistanceModel = "957f3b00-3f89-438c-b1b7-e841e8d75ba9");
 
-
 /// See module docs.
 #[derive(Clone, Default, Debug, Visit)]
 pub struct SoundContext {

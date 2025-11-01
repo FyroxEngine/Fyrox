@@ -31,8 +31,7 @@ use crate::{
 };
 
 /// Defines exact behavior of the composite node.
-#[derive(Debug, PartialEq, Visit, Eq, Clone)]
-#[derive(Default)]
+#[derive(Debug, PartialEq, Visit, Eq, Clone, Default)]
 pub enum CompositeNodeKind {
     /// `Sequence` node will execute children nodes consecutively
     /// until `Status::Failure` is returned from any descendant node. In other words `Sequence`
@@ -44,7 +43,6 @@ pub enum CompositeNodeKind {
     /// function.
     Selector,
 }
-
 
 /// See module docs.
 #[derive(Debug, PartialEq, Visit, Eq, Clone)]

@@ -45,8 +45,7 @@ pub mod hrtf;
 // This "large size difference" is not a problem because renderer
 // can be only one at a time on context.
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone, AsRefStr, EnumString, VariantNames, Visit, Reflect)]
-#[derive(Default)]
+#[derive(Debug, Clone, AsRefStr, EnumString, VariantNames, Visit, Reflect, Default)]
 pub enum Renderer {
     /// Stateless default renderer.
     #[default]
@@ -58,7 +57,6 @@ pub enum Renderer {
 }
 
 uuid_provider!(Renderer = "13bf8432-987a-4216-b6aa-f5c0e8914a31");
-
 
 fn render_with_params(
     source: &mut SoundSource,

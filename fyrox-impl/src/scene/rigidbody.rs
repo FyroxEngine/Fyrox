@@ -84,7 +84,6 @@ pub enum RigidBodyType {
 
 uuid_provider!(RigidBodyType = "562d2907-1b41-483a-8ca2-12eebaff7f5d");
 
-
 impl From<dynamics::RigidBodyType> for RigidBodyType {
     fn from(s: dynamics::RigidBodyType) -> Self {
         match s {

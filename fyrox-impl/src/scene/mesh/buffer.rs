@@ -70,7 +70,6 @@ pub enum VertexAttributeDataType {
     U8,
 }
 
-
 impl VertexAttributeDataType {
     /// Returns size of data in bytes.
     pub fn size(self) -> u8 {
@@ -137,7 +136,6 @@ pub enum VertexAttributeUsage {
     /// Maximum amount of attribute kinds.
     Count,
 }
-
 
 /// Input vertex attribute descriptor used to construct layouts and feed vertex buffer.
 #[derive(Debug, Hash)]
