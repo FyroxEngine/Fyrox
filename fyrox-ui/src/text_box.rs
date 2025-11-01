@@ -38,7 +38,6 @@ use crate::{
         visitor::prelude::*,
         SafeLock,
     },
-    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     font::FontResource,
     formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
@@ -79,29 +78,6 @@ pub enum TextBoxMessage {
     Editable(bool),
 }
 impl MessageData for TextBoxMessage {}
-
-impl TextBoxMessage {
-    define_constructor!(
-        /// Creates [`TextBoxMessage::SelectionBrush`].
-        TextBoxMessage:SelectionBrush => fn selection_brush(Brush)
-    );
-    define_constructor!(
-        /// Creates [`TextBoxMessage::CaretBrush`].
-        TextBoxMessage:CaretBrush => fn caret_brush(Brush)
-    );
-    define_constructor!(
-        /// Creates [`TextBoxMessage::TextCommitMode`].
-        TextBoxMessage:TextCommitMode => fn text_commit_mode(TextCommitMode)
-    );
-    define_constructor!(
-        /// Creates [`TextBoxMessage::Multiline`].
-        TextBoxMessage:Multiline => fn multiline(bool)
-    );
-    define_constructor!(
-        /// Creates [`TextBoxMessage::Editable`].
-        TextBoxMessage:Editable => fn editable(bool)
-    );
-}
 
 /// Specifies a direction on horizontal axis.
 #[derive(Copy, Clone, PartialEq, Eq)]
