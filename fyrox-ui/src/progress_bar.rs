@@ -32,7 +32,6 @@ use crate::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
     },
-    define_constructor,
     message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
@@ -51,13 +50,6 @@ pub enum ProgressBarMessage {
     Progress(f32),
 }
 impl MessageData for ProgressBarMessage {}
-
-impl ProgressBarMessage {
-    define_constructor!(
-        /// Creates [`ProgressBarMessage::Progress`].
-        ProgressBarMessage:Progress => fn progress(f32)
-    );
-}
 
 /// Progress bar is used to show a bar that fills in from left to right according to the progress value. It is used to
 /// show progress for long actions.
@@ -95,11 +87,7 @@ impl ProgressBarMessage {
 /// #     UserInterface,
 /// # };
 /// fn change_progress(progress_bar: Handle<UiNode>, ui: &UserInterface) {
-///     ui.send_message(ProgressBarMessage::progress(
-///         progress_bar,
-///         MessageDirection::ToWidget,
-///         0.33,
-///     ));
+///     ui.send(progress_bar, ProgressBarMessage::Progress(0.33));
 /// }
 /// ```
 #[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
