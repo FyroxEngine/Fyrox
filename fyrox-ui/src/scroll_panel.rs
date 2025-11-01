@@ -28,9 +28,8 @@ use crate::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
         type_traits::prelude::*, visitor::prelude::*,
     },
-    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
-    message::{MessageDirection, UiMessage},
+    message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
@@ -52,25 +51,6 @@ pub enum ScrollPanelMessage {
     BringIntoView(Handle<UiNode>),
     /// Scrolls to end of the content.
     ScrollToEnd,
-}
-
-impl ScrollPanelMessage {
-    define_constructor!(
-        /// Creates [`ScrollPanelMessage::VerticalScroll`] message.
-        ScrollPanelMessage:VerticalScroll => fn vertical_scroll(f32)
-    );
-    define_constructor!(
-        /// Creates [`ScrollPanelMessage::HorizontalScroll`] message.
-        ScrollPanelMessage:HorizontalScroll => fn horizontal_scroll(f32)
-    );
-    define_constructor!(
-        /// Creates [`ScrollPanelMessage::BringIntoView`] message.
-        ScrollPanelMessage:BringIntoView => fn bring_into_view(Handle<UiNode>)
-    );
-    define_constructor!(
-        /// Creates [`ScrollPanelMessage::ScrollToEnd`] message.
-        ScrollPanelMessage:ScrollToEnd => fn scroll_to_end()
-    );
 }
 
 impl MessageData for ScrollPanelMessage {
@@ -141,16 +121,8 @@ impl MessageData for ScrollPanelMessage {
 ///     vertical: f32,
 ///     ui: &UserInterface,
 /// ) {
-///     ui.send_message(ScrollPanelMessage::horizontal_scroll(
-///         scroll_panel,
-///         MessageDirection::ToWidget,
-///         horizontal,
-///     ));
-///     ui.send_message(ScrollPanelMessage::vertical_scroll(
-///         scroll_panel,
-///         MessageDirection::ToWidget,
-///         vertical,
-///     ));
+///     ui.send(scroll_panel, ScrollPanelMessage::HorizontalScroll(horizontal));
+///     ui.send(scroll_panel, ScrollPanelMessage::VerticalScroll(vertical));
 /// }
 /// ```
 ///
@@ -168,11 +140,7 @@ impl MessageData for ScrollPanelMessage {
 ///     child: Handle<UiNode>,
 ///     ui: &UserInterface,
 /// ) {
-///     ui.send_message(ScrollPanelMessage::bring_into_view(
-///         scroll_panel,
-///         MessageDirection::ToWidget,
-///         child,
-///     ))
+///     ui.send(scroll_panel, ScrollPanelMessage::BringIntoView(child))
 /// }
 /// ```
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
@@ -241,11 +209,10 @@ impl ScrollPanel {
             relative_position.y += self.scroll.y;
             let scroll_max = (children_size.y - view_size.y).max(0.0);
             relative_position.y = relative_position.y.clamp(0.0, scroll_max);
-            ui.send_message(ScrollPanelMessage::vertical_scroll(
+            ui.send(
                 self.handle,
-                MessageDirection::ToWidget,
-                relative_position.y,
-            ));
+                ScrollPanelMessage::VerticalScroll(relative_position.y),
+            );
         }
         if self.horizontal_scroll_allowed
             && (relative_position.x < 0.0 || relative_position.x + size.x > view_size.x)
@@ -253,11 +220,10 @@ impl ScrollPanel {
             relative_position.x += self.scroll.x;
             let scroll_max = (children_size.x - view_size.x).max(0.0);
             relative_position.x = relative_position.x.clamp(0.0, scroll_max);
-            ui.send_message(ScrollPanelMessage::horizontal_scroll(
+            ui.send(
                 self.handle,
-                MessageDirection::ToWidget,
-                relative_position.x,
-            ));
+                ScrollPanelMessage::HorizontalScroll(relative_position.x),
+            );
         }
     }
 }
@@ -352,18 +318,20 @@ impl Control for ScrollPanel {
                     ScrollPanelMessage::ScrollToEnd => {
                         let max_size = self.children_size(ui);
                         if self.vertical_scroll_allowed {
-                            ui.send_message(ScrollPanelMessage::vertical_scroll(
+                            ui.send(
                                 self.handle,
-                                MessageDirection::ToWidget,
-                                (max_size.y - self.actual_local_size().y).max(0.0),
-                            ));
+                                ScrollPanelMessage::VerticalScroll(
+                                    (max_size.y - self.actual_local_size().y).max(0.0),
+                                ),
+                            );
                         }
                         if self.horizontal_scroll_allowed {
-                            ui.send_message(ScrollPanelMessage::horizontal_scroll(
+                            ui.send(
                                 self.handle,
-                                MessageDirection::ToWidget,
-                                (max_size.x - self.actual_local_size().x).max(0.0),
-                            ));
+                                ScrollPanelMessage::HorizontalScroll(
+                                    (max_size.x - self.actual_local_size().x).max(0.0),
+                                ),
+                            );
                         }
                     }
                 }

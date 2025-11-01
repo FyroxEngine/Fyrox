@@ -298,19 +298,17 @@ impl Control for ScrollViewer {
                             if message.destination() == self.v_scroll_bar
                                 && self.v_scroll_bar.is_some()
                             {
-                                ui.send_message(ScrollPanelMessage::vertical_scroll(
+                                ui.send(
                                     self.scroll_panel,
-                                    MessageDirection::ToWidget,
-                                    *new_value,
-                                ));
+                                    ScrollPanelMessage::VerticalScroll(*new_value),
+                                );
                             } else if message.destination() == self.h_scroll_bar
                                 && self.h_scroll_bar.is_some()
                             {
-                                ui.send_message(ScrollPanelMessage::horizontal_scroll(
+                                ui.send(
                                     self.scroll_panel,
-                                    MessageDirection::ToWidget,
-                                    *new_value,
-                                ));
+                                    ScrollPanelMessage::HorizontalScroll(*new_value),
+                                );
                             }
                         }
                     }
@@ -363,11 +361,7 @@ impl Control for ScrollViewer {
                     }
                     &ScrollViewerMessage::BringIntoView(handle) => {
                         // Re-cast message to inner panel.
-                        ui.send_message(ScrollPanelMessage::bring_into_view(
-                            self.scroll_panel,
-                            MessageDirection::ToWidget,
-                            handle,
-                        ));
+                        ui.send(self.scroll_panel, ScrollPanelMessage::BringIntoView(handle));
                     }
                     &ScrollViewerMessage::HScrollSpeed(speed) => {
                         if self.h_scroll_speed != speed
@@ -389,10 +383,7 @@ impl Control for ScrollViewer {
                     }
                     ScrollViewerMessage::ScrollToEnd => {
                         // Re-cast message to inner panel.
-                        ui.send_message(ScrollPanelMessage::scroll_to_end(
-                            self.scroll_panel,
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send(self.scroll_panel, ScrollPanelMessage::ScrollToEnd);
                     }
                     ScrollViewerMessage::HorizontalScroll(value) => {
                         ui.send(self.h_scroll_bar, ScrollBarMessage::Value(*value));
