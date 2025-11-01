@@ -57,6 +57,7 @@ pub const SAMPLE_RATE: u32 = 44100;
 /// Distance model defines how volume of sound will decay when distance to listener changes.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Reflect, Visit, AsRefStr, EnumString, VariantNames)]
 #[repr(u32)]
+#[derive(Default)]
 pub enum DistanceModel {
     /// No distance attenuation at all.
     None = 0,
@@ -73,6 +74,7 @@ pub enum DistanceModel {
     /// # Notes
     ///
     /// This is default distance model of context.
+    #[default]
     InverseDistance = 1,
 
     /// Distance will decay using following formula:
@@ -101,11 +103,6 @@ pub enum DistanceModel {
 
 uuid_provider!(DistanceModel = "957f3b00-3f89-438c-b1b7-e841e8d75ba9");
 
-impl Default for DistanceModel {
-    fn default() -> Self {
-        Self::InverseDistance
-    }
-}
 
 /// See module docs.
 #[derive(Clone, Default, Debug, Visit)]

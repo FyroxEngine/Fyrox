@@ -654,7 +654,7 @@ fn make_fs_watcher_event_path_relative_to_tree_root(
 ) -> PathBuf {
     match root {
         Some(ref root) => {
-            let remove_prefix = if *root == PathBuf::from(".") {
+            let remove_prefix = if root == Path::new(".") {
                 std::env::current_dir().unwrap()
             } else {
                 root.clone()

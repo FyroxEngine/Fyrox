@@ -57,8 +57,10 @@ pub trait VertexTrait: Copy + 'static {
 /// Data type for a vertex attribute component.
 #[derive(Reflect, Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Debug)]
 #[repr(u8)]
+#[derive(Default)]
 pub enum VertexAttributeDataType {
     /// 32-bit floating-point.
+    #[default]
     F32,
     /// 32-bit unsigned integer.
     U32,
@@ -68,11 +70,6 @@ pub enum VertexAttributeDataType {
     U8,
 }
 
-impl Default for VertexAttributeDataType {
-    fn default() -> Self {
-        Self::F32
-    }
-}
 
 impl VertexAttributeDataType {
     /// Returns size of data in bytes.
@@ -89,8 +86,10 @@ impl VertexAttributeDataType {
 /// room for any custom data - it may be fit into `TexCoordN` attributes.
 #[derive(Reflect, Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Debug)]
 #[repr(u32)]
+#[derive(Default)]
 pub enum VertexAttributeUsage {
     /// Vertex position. Usually `Vector2<f32>` or `Vector3<f32>`.
+    #[default]
     Position = 0,
     /// Vertex normal. Usually `Vector3<f32>`, more rare `Vector3<u16>` (F16).
     Normal = 1,
@@ -139,11 +138,6 @@ pub enum VertexAttributeUsage {
     Count,
 }
 
-impl Default for VertexAttributeUsage {
-    fn default() -> Self {
-        Self::Position
-    }
-}
 
 /// Input vertex attribute descriptor used to construct layouts and feed vertex buffer.
 #[derive(Debug, Hash)]

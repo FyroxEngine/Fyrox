@@ -67,8 +67,10 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
     Copy, Clone, Debug, Reflect, Visit, PartialEq, Eq, Hash, AsRefStr, EnumString, VariantNames,
 )]
 #[repr(u32)]
+#[derive(Default)]
 pub enum RigidBodyType {
     /// Dynamic rigid bodies can be affected by external forces.
+    #[default]
     Dynamic = 0,
     /// Static rigid bodies cannot be affected by external forces.
     Static = 1,
@@ -82,11 +84,6 @@ pub enum RigidBodyType {
 
 uuid_provider!(RigidBodyType = "562d2907-1b41-483a-8ca2-12eebaff7f5d");
 
-impl Default for RigidBodyType {
-    fn default() -> Self {
-        Self::Dynamic
-    }
-}
 
 impl From<dynamics::RigidBodyType> for RigidBodyType {
     fn from(s: dynamics::RigidBodyType) -> Self {

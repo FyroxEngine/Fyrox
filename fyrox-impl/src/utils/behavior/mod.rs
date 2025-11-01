@@ -95,12 +95,13 @@ where
 }
 
 /// Possible variations of behavior nodes.
-#[derive(Debug, PartialEq, Visit, Eq, Clone)]
+#[derive(Debug, PartialEq, Visit, Eq, Clone, Default)]
 pub enum BehaviorNode<B>
 where
     B: Clone,
 {
     #[doc(hidden)]
+    #[default]
     Unknown,
     /// Root node of the tree.
     Root(RootNode<B>),
@@ -111,15 +112,6 @@ where
     /// A node, that inverts its child state ([`Status::Failure`] becomes [`Status::Success`] and vice versa, [`Status::Running`] remains
     /// unchanged)
     Inverter(Inverter<B>),
-}
-
-impl<B> Default for BehaviorNode<B>
-where
-    B: Clone,
-{
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 /// See module docs.
@@ -388,19 +380,14 @@ mod test {
         }
     }
 
-    #[derive(Debug, PartialEq, Visit, Clone)]
+    #[derive(Debug, PartialEq, Visit, Clone, Default)]
     enum BotBehavior {
+        #[default]
         None,
         Walk(WalkAction),
         OpenDoor(OpenDoorAction),
         StepThrough(StepThroughAction),
         CloseDoor(CloseDoorAction),
-    }
-
-    impl Default for BotBehavior {
-        fn default() -> Self {
-            Self::None
-        }
     }
 
     #[derive(Default, Visit)]

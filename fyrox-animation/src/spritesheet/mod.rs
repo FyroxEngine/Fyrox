@@ -47,12 +47,14 @@ impl<T: PartialEq + Clone + Visit + Reflect> SpriteSheetTexture for T {}
 
 /// Animation playback status.
 #[derive(Visit, Reflect, Copy, Clone, Eq, PartialEq, Debug, AsRefStr, EnumString, VariantNames)]
+#[derive(Default)]
 pub enum Status {
     /// Animation is playing.
     Playing,
 
     /// Animation is stopped. Stopped animation is guaranteed to be either at beginning or at end frames (depending on speed).
     /// When an animation is stopped manually via ([`SpriteSheetAnimation::stop()`], the animation will be rewound to beginning.
+    #[default]
     Stopped,
 
     /// Animation is paused. Playback can be resumed by [`SpriteSheetAnimation::play()`].
@@ -61,11 +63,6 @@ pub enum Status {
 
 uuid_provider!(Status = "74a31122-a7a8-476c-ab87-77e53cf0523c");
 
-impl Default for Status {
-    fn default() -> Self {
-        Self::Stopped
-    }
-}
 
 /// Some animation event.
 #[derive(Visit, Reflect, Clone, Debug, Eq, PartialEq)]

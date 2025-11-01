@@ -39,10 +39,12 @@ use std::{
 
 /// An actual type of a property value.
 #[derive(Visit, Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub enum ValueType {
     /// `bool`
     Bool,
     /// `f32`
+    #[default]
     F32,
     /// `f64`
     F64,
@@ -192,11 +194,6 @@ impl ValueType {
     }
 }
 
-impl Default for ValueType {
-    fn default() -> Self {
-        Self::F32
-    }
-}
 
 /// A real value that can be produced by an animation track. Animations always operate on real numbers (`f32`) for any kind
 /// of machine numeric types (including `bool`). This is needed to be able to blend values; final blending result is then

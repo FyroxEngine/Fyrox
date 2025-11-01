@@ -872,17 +872,12 @@ mod test {
     }
 
     #[allow(dead_code)]
-    #[derive(Visit, PartialEq, Debug)]
+    #[derive(Visit, PartialEq, Debug, Default)]
     pub enum ResourceKind {
+        #[default]
         Unknown,
         Model(Model),
         Texture(Texture),
-    }
-
-    impl Default for ResourceKind {
-        fn default() -> Self {
-            Self::Unknown
-        }
     }
 
     #[derive(Visit, PartialEq, Debug)]

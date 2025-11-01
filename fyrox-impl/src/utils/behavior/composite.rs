@@ -32,10 +32,12 @@ use crate::{
 
 /// Defines exact behavior of the composite node.
 #[derive(Debug, PartialEq, Visit, Eq, Clone)]
+#[derive(Default)]
 pub enum CompositeNodeKind {
     /// `Sequence` node will execute children nodes consecutively
     /// until `Status::Failure` is returned from any descendant node. In other words `Sequence`
     /// implement AND logical function.
+    #[default]
     Sequence,
     /// `Selector` node will execute children until `Status::Success`
     /// is returned from any descendant node. In other worlds `Selector` implement OR logical
@@ -43,11 +45,6 @@ pub enum CompositeNodeKind {
     Selector,
 }
 
-impl Default for CompositeNodeKind {
-    fn default() -> Self {
-        Self::Sequence
-    }
-}
 
 /// See module docs.
 #[derive(Debug, PartialEq, Visit, Eq, Clone)]

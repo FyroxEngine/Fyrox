@@ -669,6 +669,7 @@ impl Default for Model {
     EnumString,
     VariantNames,
 )]
+#[derive(Default)]
 pub enum MaterialSearchOptions {
     /// Search in specified materials directory. It is suitable for cases when
     /// your model resource use shared textures.
@@ -684,6 +685,7 @@ pub enum MaterialSearchOptions {
     /// # Platform specific
     ///
     /// Works on every platform.
+    #[default]
     RecursiveUp,
 
     /// Global search starting from working directory. Slowest option with a lot of ambiguities -
@@ -707,11 +709,6 @@ pub enum MaterialSearchOptions {
 
 uuid_provider!(MaterialSearchOptions = "11634aa0-cf8f-4532-a8cd-c0fa6ef804f1");
 
-impl Default for MaterialSearchOptions {
-    fn default() -> Self {
-        Self::RecursiveUp
-    }
-}
 
 impl MaterialSearchOptions {
     /// A helper to create MaterialsDirectory variant.

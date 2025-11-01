@@ -50,18 +50,12 @@ struct Generics<T> {
 }
 
 // NOTE: This enum doesn't implement copy, but `#[derive(Visit)]` still works
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Visit)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Visit, Default)]
 enum PlainEnum {
+    #[default]
     A,
     B,
     C,
-}
-
-// NOTE: implementing default for `PlainEnum` is REQUIRED to derive `Visit` for `OnefTheTypes`
-impl Default for PlainEnum {
-    fn default() -> Self {
-        Self::A
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Visit)]

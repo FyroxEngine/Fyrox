@@ -46,8 +46,10 @@ pub mod hrtf;
 // can be only one at a time on context.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, AsRefStr, EnumString, VariantNames, Visit, Reflect)]
+#[derive(Default)]
 pub enum Renderer {
     /// Stateless default renderer.
+    #[default]
     Default,
 
     /// Can be used *only* with mono sounds, stereo sounds will be rendered through
@@ -57,11 +59,6 @@ pub enum Renderer {
 
 uuid_provider!(Renderer = "13bf8432-987a-4216-b6aa-f5c0e8914a31");
 
-impl Default for Renderer {
-    fn default() -> Self {
-        Self::Default
-    }
-}
 
 fn render_with_params(
     source: &mut SoundSource,

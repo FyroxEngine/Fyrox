@@ -249,10 +249,12 @@ impl<Pos, Ter, Pat> Deref for HashConstraintMap<Pos, Ter, Pat> {
 
 /// The ways in which a cell's choice of tile can be constrained.
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub enum TileConstraint<T, P> {
     /// No constraint. This means that the cell is outside of the area of consideration
     /// for the autotiler, such as beyond the edge of the world. Cells with this constraint
     /// put no limits on what may be adjacent in any direction.
+    #[default]
     None,
     /// A terrain is a set of possible patterns. Any pattern within the terrain may be chosen
     /// to be the pattern for this cell.
@@ -262,11 +264,6 @@ pub enum TileConstraint<T, P> {
     Pattern(P),
 }
 
-impl<T, P> Default for TileConstraint<T, P> {
-    fn default() -> Self {
-        Self::None
-    }
-}
 
 impl<T, P> Default for &TileConstraint<T, P> {
     fn default() -> Self {

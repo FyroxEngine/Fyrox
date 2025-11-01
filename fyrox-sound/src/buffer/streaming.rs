@@ -75,17 +75,14 @@ pub struct StreamingBuffer {
 }
 
 #[derive(Debug)]
+#[derive(Default)]
 enum StreamingSource {
+    #[default]
     Null,
     Decoder(Decoder),
     Raw(Box<dyn RawStreamingDataSource>),
 }
 
-impl Default for StreamingSource {
-    fn default() -> Self {
-        Self::Null
-    }
-}
 
 impl StreamingSource {
     #[inline]
