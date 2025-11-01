@@ -239,16 +239,8 @@ impl Control for ScrollViewer {
             } else {
                 1.0
             };
-            ui.send_message(ScrollBarMessage::max_value(
-                self.h_scroll_bar,
-                MessageDirection::ToWidget,
-                x_max,
-            ));
-            ui.send_message(ScrollBarMessage::size_ratio(
-                self.h_scroll_bar,
-                MessageDirection::ToWidget,
-                x_size_ratio,
-            ));
+            ui.send(self.h_scroll_bar, ScrollBarMessage::MaxValue(x_max));
+            ui.send(self.h_scroll_bar, ScrollBarMessage::SizeRatio(x_size_ratio));
 
             let y_max = (content_size.y - available_size_for_content.y).max(0.0);
             let y_size_ratio = if content_size.y > f32::EPSILON {
@@ -256,16 +248,8 @@ impl Control for ScrollViewer {
             } else {
                 1.0
             };
-            ui.send_message(ScrollBarMessage::max_value(
-                self.v_scroll_bar,
-                MessageDirection::ToWidget,
-                y_max,
-            ));
-            ui.send_message(ScrollBarMessage::size_ratio(
-                self.v_scroll_bar,
-                MessageDirection::ToWidget,
-                y_size_ratio,
-            ));
+            ui.send(self.v_scroll_bar, ScrollBarMessage::MaxValue(y_max));
+            ui.send(self.v_scroll_bar, ScrollBarMessage::SizeRatio(y_size_ratio));
         }
 
         size
@@ -288,26 +272,18 @@ impl Control for ScrollViewer {
                     if (old_value - new_value).abs() > f32::EPSILON {
                         message.set_handled(true);
                     }
-                    ui.send_message(ScrollBarMessage::value(
-                        scroll_bar.handle,
-                        MessageDirection::ToWidget,
-                        new_value,
-                    ));
+                    ui.send(scroll_bar.handle, ScrollBarMessage::Value(new_value));
                 }
             }
         } else if let Some(msg) = message.data::<ScrollPanelMessage>() {
             if message.destination() == self.scroll_panel {
                 let msg = match *msg {
-                    ScrollPanelMessage::VerticalScroll(value) => ScrollBarMessage::value(
-                        self.v_scroll_bar,
-                        MessageDirection::ToWidget,
-                        value,
-                    ),
-                    ScrollPanelMessage::HorizontalScroll(value) => ScrollBarMessage::value(
-                        self.h_scroll_bar,
-                        MessageDirection::ToWidget,
-                        value,
-                    ),
+                    ScrollPanelMessage::VerticalScroll(value) => {
+                        UiMessage::for_widget(self.v_scroll_bar, ScrollBarMessage::Value(value))
+                    }
+                    ScrollPanelMessage::HorizontalScroll(value) => {
+                        UiMessage::for_widget(self.h_scroll_bar, ScrollBarMessage::Value(value))
+                    }
                     _ => return,
                 };
                 // handle flag here is raised to prevent infinite message loop with the branch down below (ScrollBar::value).
@@ -419,18 +395,10 @@ impl Control for ScrollViewer {
                         ));
                     }
                     ScrollViewerMessage::HorizontalScroll(value) => {
-                        ui.send_message(ScrollBarMessage::value(
-                            self.h_scroll_bar,
-                            MessageDirection::ToWidget,
-                            *value,
-                        ));
+                        ui.send(self.h_scroll_bar, ScrollBarMessage::Value(*value));
                     }
                     ScrollViewerMessage::VerticalScroll(value) => {
-                        ui.send_message(ScrollBarMessage::value(
-                            self.v_scroll_bar,
-                            MessageDirection::ToWidget,
-                            *value,
-                        ));
+                        ui.send(self.v_scroll_bar, ScrollBarMessage::Value(*value));
                     }
                 }
             }

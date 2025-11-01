@@ -23,9 +23,6 @@
 
 #![warn(missing_docs)]
 
-use crate::font::FontResource;
-use crate::style::resource::StyleResourceExt;
-use crate::style::{Style, StyledProperty};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -36,17 +33,16 @@ use crate::{
         visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
-    define_constructor,
+    font::FontResource,
     grid::{Column, GridBuilder, Row},
-    message::{MessageDirection, UiMessage},
+    message::{MessageData, MessageDirection, UiMessage},
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     text::{TextBuilder, TextMessage},
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-
-use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -70,25 +66,6 @@ pub enum ScrollBarMessage {
     SizeRatio(f32),
 }
 impl MessageData for ScrollBarMessage {}
-
-impl ScrollBarMessage {
-    define_constructor!(
-        /// Creates [`ScrollBarMessage::Value`] message.
-        ScrollBarMessage:Value => fn value(f32)
-    );
-    define_constructor!(
-        /// Creates [`ScrollBarMessage::MaxValue`] message.
-        ScrollBarMessage:MaxValue => fn max_value(f32)
-    );
-    define_constructor!(
-        /// Creates [`ScrollBarMessage::MinValue`] message.
-        ScrollBarMessage:MinValue => fn min_value(f32)
-    );
-    define_constructor!(
-        /// Creates [`ScrollBarMessage::SizeRatio`] message.
-        ScrollBarMessage:SizeRatio => fn size_ratio(f32)
-    );
-}
 
 /// Scroll bar is used to represent a value on a finite range. It has a thumb that shows the current value on
 /// on the bar. Usually it is used in pair with [`crate::scroll_panel::ScrollPanel`] to create something like
@@ -277,17 +254,15 @@ impl Control for ScrollBar {
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == *self.increase {
-                ui.send_message(ScrollBarMessage::value(
+                ui.send(
                     self.handle(),
-                    MessageDirection::ToWidget,
-                    *self.value + *self.step,
-                ));
+                    ScrollBarMessage::Value(*self.value + *self.step),
+                );
             } else if message.destination() == *self.decrease {
-                ui.send_message(ScrollBarMessage::value(
+                ui.send(
                     self.handle(),
-                    MessageDirection::ToWidget,
-                    *self.value - *self.step,
-                ));
+                    ScrollBarMessage::Value(*self.value - *self.step),
+                );
             }
         } else if let Some(msg) = message.data::<ScrollBarMessage>() {
             if message.is_for(self.handle()) {
@@ -307,10 +282,9 @@ impl Control for ScrollBar {
                                 ));
                             }
 
-                            let mut response = ScrollBarMessage::value(
+                            let mut response = UiMessage::from_widget(
                                 self.handle,
-                                MessageDirection::FromWidget,
-                                *self.value,
+                                ScrollBarMessage::Value(*self.value),
                             );
                             response.flags = message.flags;
                             response.set_handled(message.handled());
@@ -326,17 +300,12 @@ impl Control for ScrollBar {
                             let old_value = *self.value;
                             let new_value = self.value.clamp(*self.min, *self.max);
                             if (new_value - old_value).abs() > f32::EPSILON {
-                                ui.send_message(ScrollBarMessage::value(
-                                    self.handle(),
-                                    MessageDirection::ToWidget,
-                                    new_value,
-                                ));
+                                ui.send(self.handle(), ScrollBarMessage::Value(new_value));
                             }
 
-                            let response = ScrollBarMessage::min_value(
+                            let response = UiMessage::from_widget(
                                 self.handle,
-                                MessageDirection::FromWidget,
-                                *self.min,
+                                ScrollBarMessage::MinValue(*self.min),
                             );
                             response.set_handled(message.handled());
                             ui.send_message(response);
@@ -351,17 +320,12 @@ impl Control for ScrollBar {
                             let old_value = *self.value;
                             let value = self.value.clamp(*self.min, *self.max);
                             if (value - old_value).abs() > f32::EPSILON {
-                                ui.send_message(ScrollBarMessage::value(
-                                    self.handle(),
-                                    MessageDirection::ToWidget,
-                                    value,
-                                ));
+                                ui.send(self.handle(), ScrollBarMessage::Value(value));
                             }
 
-                            let response = ScrollBarMessage::max_value(
+                            let response = UiMessage::from_widget(
                                 self.handle,
-                                MessageDirection::FromWidget,
-                                *self.max,
+                                ScrollBarMessage::MaxValue(*self.max),
                             );
                             response.set_handled(message.handled());
                             ui.send_message(response);
@@ -451,11 +415,12 @@ impl Control for ScrollBar {
                                         }
                                     }
                                 };
-                                ui.send_message(ScrollBarMessage::value(
+                                ui.send(
                                     self.handle(),
-                                    MessageDirection::ToWidget,
-                                    *self.min + percent * (*self.max - *self.min),
-                                ));
+                                    ScrollBarMessage::Value(
+                                        *self.min + percent * (*self.max - *self.min),
+                                    ),
+                                );
                                 message.set_handled(true);
                             }
                         }

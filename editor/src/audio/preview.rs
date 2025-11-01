@@ -231,23 +231,14 @@ impl AudioPreviewPanel {
                             let mut state = buffer.state();
                             if let Some(buffer) = state.data() {
                                 let duration_secs = buffer.duration().as_secs_f32();
-
-                                send_sync_message(
-                                    engine.user_interfaces.first(),
-                                    ScrollBarMessage::max_value(
-                                        self.time,
-                                        MessageDirection::ToWidget,
-                                        duration_secs,
-                                    ),
-                                );
-
-                                send_sync_message(
-                                    engine.user_interfaces.first(),
-                                    ScrollBarMessage::value(
-                                        self.time,
-                                        MessageDirection::ToWidget,
-                                        sound.playback_time().clamp(0.0, duration_secs),
-                                    ),
+                                engine.user_interfaces.first().send_sync_many(
+                                    self.time,
+                                    [
+                                        ScrollBarMessage::MaxValue(duration_secs),
+                                        ScrollBarMessage::Value(
+                                            sound.playback_time().clamp(0.0, duration_secs),
+                                        ),
+                                    ],
                                 );
                             }
                         }
@@ -291,14 +282,10 @@ impl AudioPreviewPanel {
         if let Some(new_graph_selection) = editor_selection.as_graph() {
             for &node_handle in &new_graph_selection.nodes {
                 if let Some(sound) = scene.graph.try_get_of_type::<Sound>(node_handle) {
-                    send_sync_message(
-                        engine.user_interfaces.first(),
-                        ScrollBarMessage::value(
-                            self.time,
-                            MessageDirection::ToWidget,
-                            sound.playback_time(),
-                        ),
-                    );
+                    engine
+                        .user_interfaces
+                        .first()
+                        .send_sync(self.time, ScrollBarMessage::Value(sound.playback_time()));
 
                     break;
                 }

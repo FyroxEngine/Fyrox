@@ -418,6 +418,17 @@ impl UiMessage {
             .with_direction(MessageDirection::ToWidget)
     }
 
+    /// Creates a new UI message with the given data to be posted from the name of the specified
+    /// widget.
+    pub fn from_widget(
+        handle: Handle<impl ObjectOrVariant<UiNode>>,
+        data: impl MessageData,
+    ) -> Self {
+        Self::with_data(data)
+            .with_destination(handle.transmute())
+            .with_direction(MessageDirection::FromWidget)
+    }
+
     /// Sets the desired destination of the message.
     pub fn with_destination(mut self, destination: Handle<UiNode>) -> Self {
         self.destination = destination;
