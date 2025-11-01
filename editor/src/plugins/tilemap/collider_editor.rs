@@ -140,15 +140,12 @@ impl TileColliderEditor {
         let name_field = TextBuilder::new(WidgetBuilder::new().on_column(3))
             .with_text(collider_layer.name.clone())
             .build(ctx);
-        let custom_field = TextBoxBuilder::new(
-            WidgetBuilder::new()
-                .with_visibility(value.is_custom())
-                .with_min_size(Vector2::new(0.0, 100.0)),
-        )
-        .with_multiline(true)
-        .with_wrap(WrapMode::Word)
-        .with_text_commit_mode(TextCommitMode::Changed)
-        .build(ctx);
+        let custom_field =
+            TextBoxBuilder::new(WidgetBuilder::new().with_visibility(value.is_custom()))
+                .with_multiline(true)
+                .with_wrap(WrapMode::Word)
+                .with_text_commit_mode(TextCommitMode::Changed)
+                .build(ctx);
         let error_field = TextBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_wrap(WrapMode::Word)
             .with_horizontal_text_alignment(HorizontalAlignment::Center)

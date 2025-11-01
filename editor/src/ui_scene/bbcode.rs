@@ -2,7 +2,7 @@ use fyrox::{
     core::{pool::Handle, variable::InheritableVariable},
     engine::Engine,
     gui::{
-        formatted_text::RunSet,
+        formatted_text::{RunSet, WrapMode},
         message::{MessageDirection, UiMessage},
         stack_panel::StackPanelBuilder,
         text::{Text, TextBuilder, TextMessage},
@@ -29,6 +29,8 @@ impl BBCodePanel {
     pub fn new(inspector_head: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
         let text_box = TextBoxBuilder::new(WidgetBuilder::new())
             .with_text_commit_mode(TextCommitMode::Changed)
+            .with_multiline(true)
+            .with_wrap(WrapMode::Word)
             .build(ctx);
         let root_widget = StackPanelBuilder::new(
             WidgetBuilder::new()
