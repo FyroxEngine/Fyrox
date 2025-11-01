@@ -921,15 +921,11 @@ impl Toolbar {
             } else if message.destination() == self.stop {
                 return ToolbarAction::Stop;
             } else if message.destination() == self.root_motion {
-                ui.send_message(PopupMessage::placement(
+                ui.send(
                     self.root_motion_dropdown_area.popup,
-                    MessageDirection::ToWidget,
-                    Placement::LeftBottom(self.root_motion),
-                ));
-                ui.send_message(PopupMessage::open(
-                    self.root_motion_dropdown_area.popup,
-                    MessageDirection::ToWidget,
-                ));
+                    PopupMessage::Placement(Placement::LeftBottom(self.root_motion)),
+                );
+                ui.send(self.root_motion_dropdown_area.popup, PopupMessage::Open);
             } else if message.destination() == self.remove_current_animation {
                 if animations.try_get(selection.animation).is_some() {
                     let group = vec![

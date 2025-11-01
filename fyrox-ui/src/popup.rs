@@ -30,7 +30,6 @@ use crate::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         uuid_provider, variable::InheritableVariable, visitor::prelude::*,
     },
-    define_constructor,
     message::{ButtonState, KeyCode, MessageDirection, OsEvent, UiMessage},
     style::{resource::StyleResourceExt, Style},
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -60,37 +59,6 @@ pub enum PopupMessage {
     Owner(Handle<UiNode>),
     /// Sent by the Popup to its owner when handling messages from the Popup's children.
     RelayedMessage(UiMessage),
-}
-
-impl PopupMessage {
-    define_constructor!(
-        /// Creates [`PopupMessage::Open`] message.
-        PopupMessage:Open => fn open()
-    );
-    define_constructor!(
-        /// Creates [`PopupMessage::Close`] message.
-        PopupMessage:Close => fn close()
-    );
-    define_constructor!(
-        /// Creates [`PopupMessage::Content`] message.
-        PopupMessage:Content => fn content(Handle<UiNode>)
-    );
-    define_constructor!(
-        /// Creates [`PopupMessage::Placement`] message.
-        PopupMessage:Placement => fn placement(Placement)
-    );
-    define_constructor!(
-        /// Creates [`PopupMessage::AdjustPosition`] message.
-        PopupMessage:AdjustPosition => fn adjust_position()
-    );
-    define_constructor!(
-        /// Creates [`PopupMessage::Owner`] message.
-        PopupMessage:Owner => fn owner(Handle<UiNode>)
-    );
-    define_constructor!(
-        /// Creates [`PopupMessage::RelayedMessage`] message.
-        PopupMessage:RelayedMessage => fn relayed_message(UiMessage)
-    );
 }
 
 impl MessageData for PopupMessage {
@@ -202,7 +170,7 @@ impl Placement {
 ///         .build(&mut ui.build_ctx());
 ///
 ///     // Open the popup explicitly.
-///     ui.send_message(PopupMessage::open(popup, MessageDirection::ToWidget));
+///     ui.send(popup, PopupMessage::Open);
 ///
 ///     popup
 /// }
@@ -234,7 +202,7 @@ impl Placement {
 ///         .build(&mut ui.build_ctx());
 ///
 ///     // Open the popup explicitly at the current placement.
-///     ui.send_message(PopupMessage::open(popup, MessageDirection::ToWidget));
+///     ui.send(popup, PopupMessage::Open);
 ///
 ///     popup
 /// }
@@ -270,7 +238,7 @@ impl Placement {
 ///         .build(&mut ui.build_ctx());
 ///
 ///     // Open the popup explicitly at the current placement.
-///     ui.send_message(PopupMessage::open(popup, MessageDirection::ToWidget));
+///     ui.send(popup, PopupMessage::Open);
 ///
 ///     popup
 /// }
@@ -454,10 +422,7 @@ impl Control for Popup {
                                 MessageDirection::ToWidget,
                             ));
                             if *self.smart_placement {
-                                ui.send_message(PopupMessage::adjust_position(
-                                    self.handle,
-                                    MessageDirection::ToWidget,
-                                ));
+                                ui.send(self.handle, PopupMessage::AdjustPosition);
                             }
                             ui.send_message(message.reverse());
                         }
@@ -536,16 +501,12 @@ impl Control for Popup {
             }
         } else if let Some(WidgetMessage::KeyDown(key)) = message.data() {
             if !message.handled() && *key == KeyCode::Escape {
-                ui.send_message(PopupMessage::close(self.handle, MessageDirection::ToWidget));
+                ui.send(self.handle, PopupMessage::Close);
                 message.set_handled(true);
             }
         }
         if ui.is_valid_handle(self.owner) && !message.handled() {
-            ui.send_message(PopupMessage::relayed_message(
-                self.owner,
-                MessageDirection::ToWidget,
-                message.clone(),
-            ));
+            ui.send(self.owner, PopupMessage::RelayedMessage(message.clone()));
         }
     }
 
@@ -570,10 +531,7 @@ impl Control for Popup {
 
             let pos = ui.cursor_position();
             if !self.widget.screen_bounds().contains(pos) && !*self.stays_open {
-                ui.send_message(PopupMessage::close(
-                    self.handle(),
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.handle(), PopupMessage::Close);
             }
         }
     }

@@ -1284,12 +1284,11 @@ impl Control for ColorField {
                     MessageDirection::ToWidget,
                     self.actual_local_size().x,
                 ));
-                ui.send_message(PopupMessage::placement(
+                ui.send(
                     self.popup,
-                    MessageDirection::ToWidget,
-                    Placement::LeftBottom(self.handle),
-                ));
-                ui.send_message(PopupMessage::open(self.popup, MessageDirection::ToWidget));
+                    PopupMessage::Placement(Placement::LeftBottom(self.handle)),
+                );
+                ui.send(self.popup, PopupMessage::Open);
                 ui.send_message(ColorPickerMessage::color(
                     self.picker,
                     MessageDirection::ToWidget,

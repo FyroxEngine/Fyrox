@@ -249,21 +249,14 @@ impl Control for DropdownList {
                             MessageDirection::ToWidget,
                             self.actual_local_size().x,
                         ));
-                        ui.send_message(PopupMessage::placement(
+                        ui.send(
                             *self.popup,
-                            MessageDirection::ToWidget,
-                            Placement::LeftBottom(self.handle),
-                        ));
-                        ui.send_message(PopupMessage::open(
-                            *self.popup,
-                            MessageDirection::ToWidget,
-                        ));
+                            PopupMessage::Placement(Placement::LeftBottom(self.handle)),
+                        );
+                        ui.send(*self.popup, PopupMessage::Open);
                     }
                     DropdownListMessage::Close => {
-                        ui.send_message(PopupMessage::close(
-                            *self.popup,
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send(*self.popup, PopupMessage::Close);
                     }
                     DropdownListMessage::Items(items) => {
                         ui.send(*self.list_view, ListViewMessage::Items(items.clone()));
@@ -287,10 +280,7 @@ impl Control for DropdownList {
                             self.sync_selected_item_preview(ui);
 
                             if *self.close_on_selection {
-                                ui.send_message(PopupMessage::close(
-                                    *self.popup,
-                                    MessageDirection::ToWidget,
-                                ));
+                                ui.send(*self.popup, PopupMessage::Close);
                             }
 
                             ui.send_message(message.reverse());

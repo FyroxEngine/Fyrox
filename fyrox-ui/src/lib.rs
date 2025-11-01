@@ -2439,22 +2439,17 @@ impl UserInterface {
 
                             // Display context menu
                             if let Some(context_menu) = context_menu {
-                                self.send_message(PopupMessage::placement(
+                                self.send(
                                     context_menu.handle(),
-                                    MessageDirection::ToWidget,
-                                    Placement::Cursor(target),
-                                ));
-                                self.send_message(PopupMessage::open(
-                                    context_menu.handle(),
-                                    MessageDirection::ToWidget,
-                                ));
+                                    PopupMessage::Placement(Placement::Cursor(target)),
+                                );
+                                self.send(context_menu.handle(), PopupMessage::Open);
                                 // Send Event messages to the widget that was clicked on,
                                 // not to the widget that has the context menu.
-                                self.send_message(PopupMessage::owner(
+                                self.send(
                                     context_menu.handle(),
-                                    MessageDirection::ToWidget,
-                                    self.picked_node,
-                                ));
+                                    PopupMessage::Owner(self.picked_node),
+                                );
                             }
                         }
                     }

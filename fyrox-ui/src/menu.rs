@@ -498,10 +498,7 @@ fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
 
         if let Some(panel) = ui.try_get_of_type::<ContextMenu>(popup_handle) {
             if *panel.popup.is_open {
-                ui.send_message(PopupMessage::close(
-                    popup_handle,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(popup_handle, PopupMessage::Close);
             }
 
             // Continue search from parent menu item of popup.
@@ -622,15 +619,8 @@ impl Control for MenuItem {
                             }
 
                             // Open popup.
-                            ui.send_message(PopupMessage::placement(
-                                *self.items_panel,
-                                MessageDirection::ToWidget,
-                                placement,
-                            ));
-                            ui.send_message(PopupMessage::open(
-                                *self.items_panel,
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(*self.items_panel, PopupMessage::Placement(placement));
+                            ui.send(*self.items_panel, PopupMessage::Open);
                         }
                     }
                     MenuItemMessage::Close { deselect } => {
@@ -638,10 +628,7 @@ impl Control for MenuItem {
                             ui.node(*self.items_panel).query_component::<ContextMenu>()
                         {
                             if *panel.popup.is_open {
-                                ui.send_message(PopupMessage::close(
-                                    *self.items_panel,
-                                    MessageDirection::ToWidget,
-                                ));
+                                ui.send(*self.items_panel, PopupMessage::Close);
 
                                 if *deselect && *self.is_selected {
                                     ui.send(self.handle, MenuItemMessage::Select(false));
@@ -779,10 +766,7 @@ impl Control for MenuItem {
                             && find_menu(self.parent(), ui).is_none()
                         {
                             if *panel.popup.is_open {
-                                ui.send_message(PopupMessage::close(
-                                    *self.items_panel,
-                                    MessageDirection::ToWidget,
-                                ));
+                                ui.send(*self.items_panel, PopupMessage::Close);
                             }
 
                             // Close all other popups.

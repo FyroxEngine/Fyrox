@@ -62,12 +62,11 @@ impl Control for DropdownMenu {
 
         if let Some(WidgetMessage::MouseDown { button, .. }) = message.data() {
             if *button == MouseButton::Left {
-                ui.send_message(PopupMessage::placement(
+                ui.send(
                     self.popup,
-                    MessageDirection::ToWidget,
-                    Placement::LeftBottom(self.handle),
-                ));
-                ui.send_message(PopupMessage::open(self.popup, MessageDirection::ToWidget));
+                    PopupMessage::Placement(Placement::LeftBottom(self.handle)),
+                );
+                ui.send(self.popup, PopupMessage::Open);
             }
         }
     }
