@@ -22,7 +22,6 @@ use crate::{
     border::BorderBuilder,
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     decorator::{DecoratorBuilder, DecoratorMessage},
-    define_constructor,
     message::{MessageDirection, UiMessage},
     style::{resource::StyleResourceExt, Style},
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -50,15 +49,6 @@ pub enum ToggleButtonMessage {
     Content(Handle<UiNode>),
 }
 impl MessageData for ToggleButtonMessage {}
-
-impl ToggleButtonMessage {
-    define_constructor!(
-        ToggleButtonMessage:Toggled => fn toggled(bool)
-    );
-    define_constructor!(
-        ToggleButtonMessage:Content => fn content(Handle<UiNode>)
-    );
-}
 
 impl ToggleButton {
     /// A name of style property, that defines corner radius of a toggle button.
@@ -105,11 +95,7 @@ impl Control for ToggleButton {
                         if ui.captured_node() == self.handle() {
                             let new_state = !self.is_toggled;
 
-                            ui.send_message(ToggleButtonMessage::toggled(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                new_state,
-                            ));
+                            ui.send(self.handle(), ToggleButtonMessage::Toggled(new_state));
 
                             ui.release_mouse_capture();
                         }

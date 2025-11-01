@@ -860,11 +860,10 @@ impl WorldViewer {
     }
 
     pub fn on_configure(&self, ui: &UserInterface, settings: &Settings) {
-        ui.send_message(ToggleButtonMessage::toggled(
+        ui.send(
             self.track_selection,
-            MessageDirection::ToWidget,
-            settings.selection.track_selection,
-        ));
+            ToggleButtonMessage::Toggled(settings.selection.track_selection),
+        );
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
