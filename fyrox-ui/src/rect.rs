@@ -28,7 +28,6 @@ use crate::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
     },
-    define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
@@ -56,13 +55,6 @@ where
     Value(Rect<T>),
 }
 impl<T: NumericType> MessageData for RectEditorMessage<T> {}
-
-impl<T: NumericType> RectEditorMessage<T> {
-    define_constructor!(
-        /// Creates [`RectEditorMessage::Value`] message.
-        RectEditorMessage:Value => fn value(Rect<T>)
-    );
-}
 
 /// Rect editor widget is used to show and edit [`Rect`] values. It shows four numeric fields: two for top left corner
 /// of a rect, two for its size.
@@ -99,11 +91,7 @@ impl<T: NumericType> RectEditorMessage<T> {
 /// # };
 /// #
 /// fn change_value(rect_editor: Handle<UiNode>, ui: &UserInterface) {
-///     ui.send_message(RectEditorMessage::value(
-///         rect_editor,
-///         MessageDirection::ToWidget,
-///         Rect::new(20, 20, 60, 80),
-///     ));
+///     ui.send(rect_editor, RectEditorMessage::Value(Rect::new(20, 20, 60, 80)));
 /// }
 /// ```
 ///
@@ -209,23 +197,26 @@ where
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == *self.position {
                     if self.value.position != *value {
-                        ui.send_message(RectEditorMessage::value(
+                        ui.send(
                             self.handle,
-                            MessageDirection::ToWidget,
-                            Rect::new(value.x, value.y, self.value.size.x, self.value.size.y),
-                        ));
+                            RectEditorMessage::Value(Rect::new(
+                                value.x,
+                                value.y,
+                                self.value.size.x,
+                                self.value.size.y,
+                            )),
+                        );
                     }
                 } else if message.destination() == *self.size && self.value.size != *value {
-                    ui.send_message(RectEditorMessage::value(
+                    ui.send(
                         self.handle,
-                        MessageDirection::ToWidget,
-                        Rect::new(
+                        RectEditorMessage::Value(Rect::new(
                             self.value.position.x,
                             self.value.position.y,
                             value.x,
                             value.y,
-                        ),
-                    ));
+                        )),
+                    );
                 }
             }
         }

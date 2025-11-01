@@ -88,10 +88,9 @@ where
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Rect<T>>()?;
-        Ok(Some(RectEditorMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            *value,
+            RectEditorMessage::Value(*value),
         )))
     }
 

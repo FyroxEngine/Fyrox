@@ -79,11 +79,7 @@ impl<T: NumericType> MessageData for RangeEditorMessage<T> {}
 /// #     UserInterface,
 /// # };
 /// fn change_value(range_editor: Handle<UiNode>, ui: &UserInterface) {
-///     ui.send_message(RangeEditorMessage::value(
-///         range_editor,
-///         MessageDirection::ToWidget,
-///         5u32..20u32,
-///     ))
+///     ui.send(range_editor, RangeEditorMessage::Value(5u32..20u32))
 /// }
 /// ```
 ///
