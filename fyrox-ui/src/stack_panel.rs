@@ -28,13 +28,10 @@ use crate::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
     },
-    define_constructor,
-    message::{MessageDirection, UiMessage},
+    message::{MessageData, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
-
-use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -48,13 +45,6 @@ pub enum StackPanelMessage {
     Orientation(Orientation),
 }
 impl MessageData for StackPanelMessage {}
-
-impl StackPanelMessage {
-    define_constructor!(
-        /// Creates [`StackPanelMessage::Orientation`] message.
-        StackPanelMessage:Orientation => fn orientation(Orientation)
-    );
-}
 
 /// Stack Panels are one of several methods to position multiple widgets in relation to each other. A Stack Panel Widget
 /// orders its children widgets linearly, aka in a stack of widgets, based on the order the widgets were added as children.
