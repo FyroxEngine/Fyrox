@@ -223,19 +223,14 @@ impl FileBrowser {
         );
 
         // Replace tree contents.
-        ui.send_message(TreeRootMessage::items(
-            self.tree_root,
-            MessageDirection::ToWidget,
-            result.root_items,
-        ));
+        ui.send(self.tree_root, TreeRootMessage::Items(result.root_items));
 
         if result.path_item.is_some() {
             // Select item of new path.
-            ui.send_message(TreeRootMessage::select(
+            ui.send(
                 self.tree_root,
-                MessageDirection::ToWidget,
-                vec![result.path_item],
-            ));
+                TreeRootMessage::Select(vec![result.path_item]),
+            );
             // Bring item of new path into view.
             ui.send_message(ScrollViewerMessage::bring_into_view(
                 self.scroll_viewer,
@@ -276,11 +271,7 @@ impl Control for FileBrowser {
                                 );
 
                                 // Replace tree contents.
-                                ui.send_message(TreeRootMessage::items(
-                                    self.tree_root,
-                                    MessageDirection::ToWidget,
-                                    result.root_items,
-                                ));
+                                ui.send(self.tree_root, TreeRootMessage::Items(result.root_items));
 
                                 item = result.path_item;
                             }
@@ -296,11 +287,7 @@ impl Control for FileBrowser {
                             // Path can be invalid, so we shouldn't do anything in such case.
                             if item.is_some() {
                                 // Select item of new path.
-                                ui.send_message(TreeRootMessage::select(
-                                    self.tree_root,
-                                    MessageDirection::ToWidget,
-                                    vec![item],
-                                ));
+                                ui.send(self.tree_root, TreeRootMessage::Select(vec![item]));
 
                                 // Bring item of new path into view.
                                 ui.send_message(ScrollViewerMessage::bring_into_view(
@@ -371,11 +358,7 @@ impl Control for FileBrowser {
                                         ui,
                                     );
                                 } else if !tree.always_show_expander {
-                                    ui.send_message(TreeMessage::set_expander_shown(
-                                        tree.handle(),
-                                        MessageDirection::ToWidget,
-                                        true,
-                                    ))
+                                    ui.send(tree.handle(), TreeMessage::SetExpanderShown(true))
                                 }
                             }
                         }
@@ -387,11 +370,7 @@ impl Control for FileBrowser {
                         if node.is_some() {
                             let parent_path = parent_path(&path);
                             let parent_node = find_tree(self.tree_root, &parent_path, ui);
-                            ui.send_message(TreeMessage::remove_item(
-                                parent_node,
-                                MessageDirection::ToWidget,
-                                node,
-                            ))
+                            ui.send(parent_node, TreeMessage::RemoveItem(node))
                         }
                     }
                     FileBrowserMessage::Rescan | FileBrowserMessage::Drop { .. } => (),
@@ -400,11 +379,7 @@ impl Control for FileBrowser {
                             let item = find_tree(self.tree_root, &canonical_path, ui);
                             if item.is_some() {
                                 // Select item of new path.
-                                ui.send_message(TreeRootMessage::select(
-                                    self.tree_root,
-                                    MessageDirection::ToWidget,
-                                    vec![item],
-                                ));
+                                ui.send(self.tree_root, TreeRootMessage::Select(vec![item]));
                                 ui.send_message(ScrollViewerMessage::bring_into_view(
                                     self.scroll_viewer,
                                     MessageDirection::ToWidget,
@@ -466,12 +441,13 @@ impl Control for FileBrowser {
             } else {
                 // Nuke everything in collapsed item. This also will free some resources
                 // and will speed up layout pass.
-                ui.send_message(TreeMessage::set_items(
+                ui.send(
                     message.destination(),
-                    MessageDirection::ToWidget,
-                    vec![],
-                    true,
-                ));
+                    TreeMessage::SetItems {
+                        items: vec![],
+                        remove_previous: true,
+                    },
+                );
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if !message.handled() {
@@ -490,8 +466,7 @@ impl Control for FileBrowser {
                     message.set_handled(true);
                 }
             }
-        } else if let Some(TreeRootMessage::Selected(selection)) = message.data::<TreeRootMessage>()
-        {
+        } else if let Some(TreeRootMessage::Select(selection)) = message.data::<TreeRootMessage>() {
             if message.destination() == self.tree_root
                 && message.direction() == MessageDirection::FromWidget
             {
@@ -788,17 +763,9 @@ fn insert_subtree_in_parent(
     tree: Handle<UiNode>,
 ) {
     if is_parent_root {
-        ui.send_message(TreeRootMessage::add_item(
-            parent,
-            MessageDirection::ToWidget,
-            tree,
-        ));
+        ui.send(parent, TreeRootMessage::AddItem(tree));
     } else {
-        ui.send_message(TreeMessage::add_item(
-            parent,
-            MessageDirection::ToWidget,
-            tree,
-        ));
+        ui.send(parent, TreeMessage::AddItem(tree));
     }
 }
 

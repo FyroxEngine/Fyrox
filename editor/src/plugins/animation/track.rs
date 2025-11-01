@@ -813,15 +813,9 @@ impl TrackList {
                     self.property_binding_mode = PropertyBindingMode::Rotation;
                 }
             } else if message.destination() == self.toolbar.expand_all {
-                ui.send_message(TreeRootMessage::expand_all(
-                    self.tree_root,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.tree_root, TreeRootMessage::ExpandAll);
             } else if message.destination() == self.toolbar.collapse_all {
-                ui.send_message(TreeRootMessage::collapse_all(
-                    self.tree_root,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.tree_root, TreeRootMessage::CollapseAll);
             } else if message.destination() == self.toolbar.clear_search_text {
                 ui.send(
                     self.toolbar.search_text,
@@ -972,7 +966,7 @@ impl TrackList {
                     }
                 }
             }
-        } else if let Some(TreeRootMessage::Selected(tree_selection)) =
+        } else if let Some(TreeRootMessage::Select(tree_selection)) =
             message.data_from(self.tree_root)
         {
             let new_selection = Selection::new(AnimationSelection {
@@ -1256,11 +1250,7 @@ impl TrackList {
     }
 
     pub fn clear(&mut self, ui: &UserInterface) {
-        ui.send_message(TreeRootMessage::items(
-            self.tree_root,
-            MessageDirection::ToWidget,
-            vec![],
-        ));
+        ui.send(self.tree_root, TreeRootMessage::Items(vec![]));
         self.group_views.clear();
         self.track_views.clear();
         self.selected_node = Default::default();
@@ -1314,14 +1304,7 @@ impl TrackList {
 
                         // Remove group if it is empty.
                         if let Some(group) = self.group_views.get(&track_view_data.target) {
-                            send_sync_message(
-                                ui,
-                                TreeMessage::remove_item(
-                                    *group,
-                                    MessageDirection::ToWidget,
-                                    *track_view,
-                                ),
-                            );
+                            ui.send_sync(*group, TreeMessage::RemoveItem(*track_view));
 
                             if ui
                                 .node(*group)
@@ -1331,15 +1314,7 @@ impl TrackList {
                                 .len()
                                 <= 1
                             {
-                                send_sync_message(
-                                    ui,
-                                    TreeRootMessage::remove_item(
-                                        self.tree_root,
-                                        MessageDirection::ToWidget,
-                                        *group,
-                                    ),
-                                );
-
+                                ui.send_sync(self.tree_root, TreeRootMessage::RemoveItem(*group));
                                 assert!(self.group_views.remove(&track_view_data.target).is_some());
                             }
                         }
@@ -1387,15 +1362,7 @@ impl TrackList {
                                             .build(ctx),
                                         )
                                         .build(ctx);
-                                    send_sync_message(
-                                        ui,
-                                        TreeRootMessage::add_item(
-                                            self.tree_root,
-                                            MessageDirection::ToWidget,
-                                            group,
-                                        ),
-                                    );
-
+                                    ui.send_sync(self.tree_root, TreeRootMessage::AddItem(group));
                                     *entry.insert(group)
                                 }
                             };
@@ -1496,14 +1463,7 @@ impl TrackList {
                         .with_name(format!("{}", model_track.value_binding()))
                         .build(ctx);
 
-                        send_sync_message(
-                            ui,
-                            TreeMessage::add_item(
-                                parent_group,
-                                MessageDirection::ToWidget,
-                                track_view,
-                            ),
-                        );
+                        ui.send_sync(parent_group, TreeMessage::AddItem(track_view));
 
                         assert!(self
                             .track_views
@@ -1528,10 +1488,7 @@ impl TrackList {
             })
             .collect();
 
-        send_sync_message(
-            ui,
-            TreeRootMessage::select(self.tree_root, MessageDirection::ToWidget, tree_selection),
-        );
+        ui.send_sync(self.tree_root, TreeRootMessage::Select(tree_selection));
 
         send_sync_message(
             ui,

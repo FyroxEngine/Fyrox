@@ -351,11 +351,7 @@ impl PropertySelector {
             ))
         }
 
-        ui.send_message(TreeRootMessage::select(
-            self.tree_root,
-            MessageDirection::ToWidget,
-            selected_trees,
-        ));
+        ui.send(self.tree_root, TreeRootMessage::Select(selected_trees));
     }
 }
 
@@ -363,7 +359,7 @@ impl Control for PropertySelector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(TreeRootMessage::Selected(selection)) = message.data() {
+        if let Some(TreeRootMessage::Select(selection)) = message.data() {
             if message.destination() == self.tree_root
                 && message.direction() == MessageDirection::FromWidget
             {

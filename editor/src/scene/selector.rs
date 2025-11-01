@@ -257,11 +257,7 @@ impl Control for NodeSelector {
                     NodeSelectorMessage::Hierarchy(hierarchy) => {
                         let items =
                             vec![hierarchy.make_view(&self.allowed_types, &mut ui.build_ctx())];
-                        ui.send_message(TreeRootMessage::items(
-                            self.tree_root,
-                            MessageDirection::ToWidget,
-                            items,
-                        ));
+                        ui.send(self.tree_root, TreeRootMessage::Items(items));
                     }
                     NodeSelectorMessage::Selection(selection) => {
                         if &self.selected != selection {
@@ -300,7 +296,7 @@ impl Control for NodeSelector {
                     }
                 }
             }
-        } else if let Some(TreeRootMessage::Selected(selection)) = message.data() {
+        } else if let Some(TreeRootMessage::Select(selection)) = message.data() {
             if message.destination() == self.tree_root
                 && message.direction() == MessageDirection::FromWidget
             {
@@ -366,11 +362,7 @@ impl NodeSelector {
             ))
         }
 
-        ui.send_message(TreeRootMessage::select(
-            self.tree_root,
-            MessageDirection::ToWidget,
-            selected_trees,
-        ));
+        ui.send(self.tree_root, TreeRootMessage::Select(selected_trees));
     }
 }
 

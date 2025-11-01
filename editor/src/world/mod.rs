@@ -482,10 +482,7 @@ impl WorldViewer {
 
                     let child_node = tree_node(ui, item);
                     if !data_provider.is_node_has_child(node_handle, child_node) {
-                        send_sync_message(
-                            ui,
-                            TreeMessage::remove_item(tree_handle, MessageDirection::ToWidget, item),
-                        );
+                        ui.send_sync(tree_handle, TreeMessage::RemoveItem(item));
                         if let Some(existing_view) = self.node_to_view_map.get(&child_node) {
                             if *existing_view == item {
                                 self.node_to_view_map.remove(&child_node);
@@ -521,14 +518,8 @@ impl WorldViewer {
                             self.sender.clone(),
                             fetch_expanded_state(child_handle, data_provider, settings),
                         );
-                        send_sync_message(
-                            ui,
-                            TreeMessage::add_item(
-                                tree_handle,
-                                MessageDirection::ToWidget,
-                                graph_node_item,
-                            ),
-                        );
+
+                        ui.send_sync(tree_handle, TreeMessage::AddItem(graph_node_item));
                         items.push(graph_node_item);
                         self.node_to_view_map.insert(child_handle, graph_node_item);
                     }
@@ -551,16 +542,17 @@ impl WorldViewer {
                     }
 
                     if !is_order_match {
-                        ui.send_message(TreeMessage::set_items(
+                        ui.send(
                             tree_handle,
-                            MessageDirection::ToWidget,
-                            data_provider
-                                .children_of(node_handle)
-                                .into_iter()
-                                .map(|c| self.node_to_view_map.get(&c).cloned().unwrap())
-                                .collect(),
-                            false,
-                        ));
+                            TreeMessage::SetItems {
+                                items: data_provider
+                                    .children_of(node_handle)
+                                    .into_iter()
+                                    .map(|c| self.node_to_view_map.get(&c).cloned().unwrap())
+                                    .collect(),
+                                remove_previous: false,
+                            },
+                        );
                     }
                 }
             } else if let Some(tree_root) = ui_node.cast::<TreeRoot>() {
@@ -581,14 +573,8 @@ impl WorldViewer {
                         self.sender.clone(),
                         fetch_expanded_state(node_handle, data_provider, settings),
                     );
-                    send_sync_message(
-                        ui,
-                        TreeRootMessage::items(
-                            tree_handle,
-                            MessageDirection::ToWidget,
-                            vec![new_root_item],
-                        ),
-                    );
+
+                    ui.send_sync(tree_handle, TreeRootMessage::Items(vec![new_root_item]));
                     self.node_to_view_map.insert(node_handle, new_root_item);
                     self.stack.push((new_root_item, node_handle));
                 } else {
@@ -690,7 +676,7 @@ impl WorldViewer {
         ui: &UserInterface,
         settings: &mut Settings,
     ) {
-        if let Some(TreeRootMessage::Selected(selection)) = message.data::<TreeRootMessage>() {
+        if let Some(TreeRootMessage::Select(selection)) = message.data::<TreeRootMessage>() {
             if message.destination() == self.tree_root
                 && message.direction() == MessageDirection::FromWidget
             {
@@ -705,15 +691,9 @@ impl WorldViewer {
                     data_provider.on_selection_changed(&[graph_node.entity_handle]);
                 }
             } else if message.destination() == self.collapse_all {
-                ui.send_message(TreeRootMessage::collapse_all(
-                    self.tree_root,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.tree_root, TreeRootMessage::CollapseAll);
             } else if message.destination() == self.expand_all {
-                ui.send_message(TreeRootMessage::expand_all(
-                    self.tree_root,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.tree_root, TreeRootMessage::ExpandAll);
             } else if message.destination() == self.locate_selection {
                 self.locate_selection(&data_provider.selection(), ui)
             }
@@ -757,12 +737,13 @@ impl WorldViewer {
         let tree_to_focus = self.map_selection(selection, ui);
 
         if let Some(tree_to_focus) = tree_to_focus.first() {
-            ui.send_message(TreeMessage::expand(
+            ui.send(
                 *tree_to_focus,
-                MessageDirection::ToWidget,
-                true,
-                TreeExpansionStrategy::RecursiveAncestors,
-            ));
+                TreeMessage::Expand {
+                    expand: true,
+                    expansion_strategy: TreeExpansionStrategy::RecursiveAncestors,
+                },
+            );
 
             ui.send_message(ScrollViewerMessage::bring_into_view(
                 self.scroll_view,
@@ -834,12 +815,7 @@ impl WorldViewer {
         // Hack. See `self.sync_selection` for details.
         if self.sync_selection {
             let trees = self.map_selection(&data_provider.selection(), ui);
-
-            send_sync_message(
-                ui,
-                TreeRootMessage::select(self.tree_root, MessageDirection::ToWidget, trees),
-            );
-
+            ui.send_sync(self.tree_root, TreeRootMessage::Select(trees));
             self.update_breadcrumbs(ui, data_provider);
             if settings.selection.track_selection {
                 self.locate_selection(&data_provider.selection(), ui);
@@ -852,11 +828,7 @@ impl WorldViewer {
     pub fn clear(&mut self, ui: &UserInterface) {
         self.node_to_view_map.clear();
         self.clear_breadcrumbs(ui);
-        ui.send_message(TreeRootMessage::items(
-            self.tree_root,
-            MessageDirection::ToWidget,
-            vec![],
-        ));
+        ui.send(self.tree_root, TreeRootMessage::Items(vec![]));
     }
 
     pub fn on_configure(&self, ui: &UserInterface, settings: &Settings) {
