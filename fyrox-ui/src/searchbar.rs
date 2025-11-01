@@ -36,7 +36,7 @@ use crate::{
         uuid_provider, variable::InheritableVariable, visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
-    define_constructor, define_widget_deref,
+    define_widget_deref,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     text::TextMessage,
@@ -59,13 +59,6 @@ pub enum SearchBarMessage {
     Text(String),
 }
 impl MessageData for SearchBarMessage {}
-
-impl SearchBarMessage {
-    define_constructor!(
-        /// Creates [`SearchBarMessage::Text`] message.
-        SearchBarMessage:Text => fn text(String)
-    );
-}
 
 /// Search bar widget is a text box with a "clear text" button. It is used as an input field for search functionality.
 /// Keep in mind, that it does **not** provide any built-in searching functionality by itself, you need to implement
@@ -150,11 +143,7 @@ impl Control for SearchBar {
 
         if message.destination() == *self.clear {
             if let Some(ButtonMessage::Click) = message.data() {
-                ui.send_message(SearchBarMessage::text(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                    String::new(),
-                ));
+                ui.send(self.handle, SearchBarMessage::Text(String::new()));
             }
         }
 
@@ -162,11 +151,7 @@ impl Control for SearchBar {
             && message.direction() == MessageDirection::FromWidget
         {
             if let Some(TextMessage::Text(text)) = message.data() {
-                ui.send_message(SearchBarMessage::text(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    text.clone(),
-                ));
+                ui.post(self.handle, SearchBarMessage::Text(text.clone()));
             }
         }
     }
