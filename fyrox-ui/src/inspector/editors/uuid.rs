@@ -63,10 +63,9 @@ impl PropertyEditorDefinition for UuidPropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Uuid>()?;
-        Ok(Some(UuidEditorMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            *value,
+            UuidEditorMessage::Value(*value),
         )))
     }
 

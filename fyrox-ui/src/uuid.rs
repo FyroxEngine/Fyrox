@@ -26,9 +26,9 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
-    define_constructor, define_widget_deref,
+    define_widget_deref,
     grid::{Column, GridBuilder, Row},
-    message::{MessageDirection, UiMessage},
+    message::UiMessage,
     text::{TextBuilder, TextMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
@@ -46,13 +46,6 @@ pub enum UuidEditorMessage {
     Value(Uuid),
 }
 impl MessageData for UuidEditorMessage {}
-
-impl UuidEditorMessage {
-    define_constructor!(
-        /// Creates [`UuidEditorMessage::Value`] message.
-        UuidEditorMessage:Value => fn value(Uuid)
-    );
-}
 
 /// UUID editor is used to show an arbitrary UUID and give an ability to generate a new value. It is widely used in
 /// [`crate::inspector::Inspector`] to show and edit UUIDs.
@@ -112,11 +105,7 @@ impl Control for UuidEditor {
             }
         } else if message.destination() == self.generate {
             if let Some(ButtonMessage::Click) = message.data() {
-                ui.send_message(UuidEditorMessage::value(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                    Uuid::new_v4(),
-                ));
+                ui.send(self.handle, UuidEditorMessage::Value(Uuid::new_v4()));
             }
         }
     }
