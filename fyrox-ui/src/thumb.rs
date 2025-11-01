@@ -23,8 +23,7 @@ use crate::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
     },
-    define_constructor,
-    message::{ButtonState, MessageDirection, MouseButton, UiMessage},
+    message::{ButtonState, MouseButton, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
@@ -40,12 +39,6 @@ pub enum ThumbMessage {
     DragCompleted { position: Vector2<f32> },
 }
 impl MessageData for ThumbMessage {}
-
-impl ThumbMessage {
-    define_constructor!(ThumbMessage:DragStarted => fn drag_started(position: Vector2<f32>));
-    define_constructor!(ThumbMessage:DragDelta => fn drag_delta(offset: Vector2<f32>));
-    define_constructor!(ThumbMessage:DragCompleted => fn drag_completed(position: Vector2<f32>));
-}
 
 /// A helper widget that is used to provide basic dragging interaction. The widget itself does not
 /// move when being dragged, instead it captures mouse input when clicked and calculates the
@@ -144,34 +137,38 @@ impl Control for Thumb {
                         ui.capture_mouse(self.handle);
                         message.set_handled(true);
                         self.click_pos = *pos;
-                        ui.send_message(ThumbMessage::drag_started(
+                        ui.post(
                             self.handle,
-                            MessageDirection::FromWidget,
-                            self.actual_local_position(),
-                        ));
+                            ThumbMessage::DragStarted {
+                                position: self.actual_local_position(),
+                            },
+                        );
                     }
                 }
                 WidgetMessage::MouseUp { button, .. } => {
                     if ui.captured_node() == self.handle && *button == MouseButton::Left {
-                        ui.send_message(ThumbMessage::drag_completed(
+                        ui.post(
                             self.handle,
-                            MessageDirection::FromWidget,
-                            self.actual_local_position(),
-                        ));
+                            ThumbMessage::DragCompleted {
+                                position: self.actual_local_position(),
+                            },
+                        );
 
                         ui.release_mouse_capture();
                     }
                 }
                 WidgetMessage::MouseMove { pos, state } => {
                     if ui.captured_node() == self.handle && state.left == ButtonState::Pressed {
-                        ui.send_message(ThumbMessage::drag_delta(
+                        ui.post(
                             self.handle,
-                            MessageDirection::FromWidget,
-                            self.visual_transform()
-                                .try_inverse()
-                                .unwrap_or_default()
-                                .transform_vector(&(*pos - self.click_pos)),
-                        ));
+                            ThumbMessage::DragDelta {
+                                offset: self
+                                    .visual_transform()
+                                    .try_inverse()
+                                    .unwrap_or_default()
+                                    .transform_vector(&(*pos - self.click_pos)),
+                            },
+                        );
                     }
                 }
                 _ => (),
