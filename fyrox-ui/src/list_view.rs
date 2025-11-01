@@ -133,11 +133,7 @@ impl MessageData for ListViewMessage {}
 /// #     UserInterface,
 /// # };
 /// fn change_selection(my_list_view: Handle<UiNode>, ui: &UserInterface) {
-///     ui.send_message(ListViewMessage::selection(
-///         my_list_view,
-///         MessageDirection::ToWidget,
-///         vec![1],
-///     ));
+///     ui.send(my_list_view, ListViewMessage::Selection(vec![1]));
 /// }
 /// ```
 ///
@@ -189,11 +185,7 @@ impl MessageData for ListViewMessage {}
 ///     ];
 ///
 ///     // Then send the message with their handles to the list view.
-///     ui.send_message(ListViewMessage::items(
-///         my_list_view,
-///         MessageDirection::ToWidget,
-///         items,
-///     ));
+///     ui.send(my_list_view, ListViewMessage::Items(items));
 /// }
 /// ```
 ///
@@ -212,11 +204,7 @@ impl MessageData for ListViewMessage {}
 ///     my_item: Handle<UiNode>,
 ///     ui: &UserInterface,
 /// ) {
-///     ui.send_message(ListViewMessage::bring_item_into_view(
-///         my_list_view,
-///         MessageDirection::ToWidget,
-///         my_item,
-///     ));
+///     ui.send(my_list_view, ListViewMessage::BringItemIntoView(my_item));
 /// }
 /// ```
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]

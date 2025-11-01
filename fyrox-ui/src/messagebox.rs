@@ -151,12 +151,10 @@ pub enum MessageBoxButtons {
 /// #     UserInterface,
 /// # };
 /// # fn open_message_box(my_message_box: Handle<UiNode>, ui: &UserInterface) {
-/// ui.send_message(MessageBoxMessage::open(
-///     my_message_box,
-///     MessageDirection::ToWidget,
-///     Some("This is the new title".to_string()),
-///     Some("This is the new text".to_string()),
-/// ))
+/// ui.send(my_message_box, MessageBoxMessage::Open{
+///     title: Some("This is the new title".to_string()),
+///     text: Some("This is the new text".to_string()),
+/// })
 /// # }
 /// ```
 ///

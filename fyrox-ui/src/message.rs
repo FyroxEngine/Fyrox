@@ -480,7 +480,8 @@ impl UiMessage {
     /// ```rust
     /// # use fyrox_core::pool::Handle;
     /// # use fyrox_ui::message::{MessageDirection, MessageData, UiMessage};
-    /// # let widget_handle = Handle::NONE;
+    /// # use fyrox_ui::UiNode;
+    /// # let widget_handle = Handle::<UiNode>::NONE;
     /// # #[derive(Debug, Clone, PartialEq)]
     /// # struct MyMessage;
     /// # impl MessageData for MyMessage {}
@@ -495,7 +496,8 @@ impl UiMessage {
     /// ```rust
     /// # use fyrox_core::pool::Handle;
     /// # use fyrox_ui::message::{MessageData, MessageDirection, UiMessage};
-    /// # let widget_handle = Handle::NONE;
+    /// # use fyrox_ui::UiNode;
+    /// # let widget_handle = Handle::<UiNode>::NONE;
     /// # #[derive(Debug, Clone, PartialEq)]
     /// # struct MyMessage;
     /// # impl MessageData for MyMessage {}
@@ -525,7 +527,8 @@ impl UiMessage {
     /// ```rust
     /// # use fyrox_core::pool::Handle;
     /// # use fyrox_ui::message::{MessageDirection, MessageData, UiMessage};
-    /// # let widget_handle = Handle::NONE;
+    /// # use fyrox_ui::UiNode;
+    /// # let widget_handle = Handle::<UiNode>::NONE;
     /// # #[derive(Debug, Clone, PartialEq)]
     /// # struct MyMessage;
     /// # impl MessageData for MyMessage {}
@@ -540,7 +543,8 @@ impl UiMessage {
     /// ```rust
     /// # use fyrox_core::pool::Handle;
     /// # use fyrox_ui::message::{MessageData, MessageDirection, UiMessage};
-    /// # let widget_handle = Handle::NONE;
+    /// # use fyrox_ui::UiNode;
+    /// # let widget_handle = Handle::<UiNode>::NONE;
     /// # #[derive(Debug, Clone, PartialEq)]
     /// # struct MyMessage;
     /// # impl MessageData for MyMessage {}
