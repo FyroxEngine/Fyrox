@@ -25,7 +25,6 @@
 
 use crate::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
-    define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     numeric::{NumericType, NumericUpDownBuilder, NumericUpDownMessage},
@@ -49,13 +48,6 @@ where
     Value(Range<T>),
 }
 impl<T: NumericType> MessageData for RangeEditorMessage<T> {}
-
-impl<T: NumericType> RangeEditorMessage<T> {
-    define_constructor!(
-        /// Creates [`RangeEditorMessage::Value`] message.
-        RangeEditorMessage:Value => fn value(Range<T>)
-    );
-}
 
 /// Range editor is used to display and edit closed ranges like `0..1`. The widget is generic over numeric type,
 /// so you can display and editor ranges of any type, such as `u32`, `f32`, `f64`, etc.
@@ -215,14 +207,13 @@ where
             {
                 if message.destination() == *self.start {
                     if *value < self.value.end {
-                        ui.send_message(RangeEditorMessage::value(
+                        ui.send(
                             self.handle,
-                            MessageDirection::ToWidget,
-                            Range {
+                            RangeEditorMessage::Value(Range {
                                 start: *value,
                                 end: self.value.end,
-                            },
-                        ));
+                            }),
+                        );
                     } else {
                         let mut msg = NumericUpDownMessage::value(
                             *self.start,
@@ -234,14 +225,13 @@ where
                     }
                 } else if message.destination() == *self.end {
                     if *value > self.value.start {
-                        ui.send_message(RangeEditorMessage::value(
+                        ui.send(
                             self.handle,
-                            MessageDirection::ToWidget,
-                            Range {
+                            RangeEditorMessage::Value(Range {
                                 start: self.value.start,
                                 end: *value,
-                            },
-                        ));
+                            }),
+                        );
                     } else {
                         let mut msg = NumericUpDownMessage::value(
                             *self.end,

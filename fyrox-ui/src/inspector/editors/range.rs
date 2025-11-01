@@ -70,10 +70,9 @@ impl<T: NumericType> PropertyEditorDefinition for RangePropertyEditorDefinition<
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Range<T>>()?;
 
-        Ok(Some(RangeEditorMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            value.clone(),
+            RangeEditorMessage::Value(value.clone()),
         )))
     }
 
