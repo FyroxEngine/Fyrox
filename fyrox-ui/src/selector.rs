@@ -25,7 +25,7 @@ use crate::{
         pool::Handle, reflect::prelude::*, type_traits::prelude::*, variable::InheritableVariable,
         visitor::prelude::*,
     },
-    define_constructor, define_widget_deref,
+    define_widget_deref,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     utils::{make_arrow, ArrowDirection},
@@ -48,25 +48,6 @@ pub enum SelectorMessage {
     Current(Option<usize>),
 }
 impl MessageData for SelectorMessage {}
-
-impl SelectorMessage {
-    define_constructor!(
-        /// Creates [`SelectorMessage::AddItem`] message.
-        SelectorMessage:AddItem => fn add_item(Handle<UiNode>)
-    );
-    define_constructor!(
-        /// Creates [`SelectorMessage::RemoveItem`] message.
-        SelectorMessage:RemoveItem => fn remove_item(Handle<UiNode>)
-    );
-    define_constructor!(
-        /// Creates [`SelectorMessage::SetItems`] message.
-        SelectorMessage:SetItems => fn set_items(items: Vec<Handle<UiNode>>, remove_previous: bool)
-    );
-    define_constructor!(
-        /// Creates [`SelectorMessage::Current`] message.
-        SelectorMessage:Current => fn current(Option<usize>)
-    );
-}
 
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -180,22 +161,14 @@ impl Control for Selector {
             if message.destination() == *self.prev {
                 if let Some(current) = *self.current {
                     let new_current = current.saturating_sub(1);
-                    ui.send_message(SelectorMessage::current(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        Some(new_current),
-                    ));
+                    ui.send(self.handle, SelectorMessage::Current(Some(new_current)));
                 }
             } else if message.destination() == *self.next {
                 if let Some(current) = *self.current {
                     let new_current = current
                         .saturating_add(1)
                         .min(self.items.len().saturating_sub(1));
-                    ui.send_message(SelectorMessage::current(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        Some(new_current),
-                    ));
+                    ui.send(self.handle, SelectorMessage::Current(Some(new_current)));
                 }
             }
         }
