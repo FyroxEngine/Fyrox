@@ -556,36 +556,26 @@ impl AudioPanel {
                 .node(*audio_bus_view)
                 .query_component::<AudioBusView>()
                 .unwrap();
-            send_sync_message(
-                ui,
-                AudioBusViewMessage::possible_parent_buses(
-                    *audio_bus_view,
-                    MessageDirection::ToWidget,
-                    fetch_possible_parent_buses(
-                        audio_bus_view_ref.bus,
-                        context_state.bus_graph_ref(),
-                    ),
-                ),
+
+            ui.send_sync(
+                *audio_bus_view,
+                AudioBusViewMessage::PossibleParentBuses(fetch_possible_parent_buses(
+                    audio_bus_view_ref.bus,
+                    context_state.bus_graph_ref(),
+                )),
             );
             if let Some(audio_bus_ref) = context_state
                 .bus_graph_ref()
                 .try_get_bus_ref(audio_bus_view_ref.bus)
             {
-                send_sync_message(
-                    ui,
-                    AudioBusViewMessage::effect_names(
-                        *audio_bus_view,
-                        MessageDirection::ToWidget,
-                        audio_bus_effect_names(audio_bus_ref),
-                    ),
+                ui.send_sync(
+                    *audio_bus_view,
+                    AudioBusViewMessage::EffectNames(audio_bus_effect_names(audio_bus_ref)),
                 );
-                send_sync_message(
-                    ui,
-                    AudioBusViewMessage::name(
-                        *audio_bus_view,
-                        MessageDirection::ToWidget,
-                        audio_bus_ref.name().to_owned(),
-                    ),
+
+                ui.send_sync(
+                    *audio_bus_view,
+                    AudioBusViewMessage::Name(audio_bus_ref.name().to_owned()),
                 );
             }
         }

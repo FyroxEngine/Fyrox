@@ -36,13 +36,13 @@ use crate::{
             brush::Brush,
             button::{Button, ButtonBuilder, ButtonMessage},
             decorator::DecoratorBuilder,
-            define_constructor, define_widget_deref,
+            define_widget_deref,
             draw::DrawingContext,
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
             list_view::{ListView, ListViewBuilder, ListViewMessage},
-            message::{MessageData, MessageDirection, OsEvent, UiMessage},
+            message::{MessageData, OsEvent, UiMessage},
             searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
             text::{Text, TextBuilder},
@@ -68,10 +68,6 @@ pub enum AssetSelectorMessage {
     Select(UntypedResource),
 }
 impl MessageData for AssetSelectorMessage {}
-
-impl AssetSelectorMessage {
-    define_constructor!(AssetSelectorMessage:Select => fn select(UntypedResource));
-}
 
 #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "aa4f0726-8d25-4c90-add1-92ba392310c6")]

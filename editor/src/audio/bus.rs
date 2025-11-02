@@ -26,11 +26,11 @@ use crate::fyrox::{
     gui::{
         border::BorderBuilder,
         decorator::DecoratorBuilder,
-        define_constructor, define_widget_deref,
+        define_widget_deref,
         dropdown_list::{DropdownListBuilder, DropdownListMessage},
         grid::{Column, GridBuilder, Row},
         list_view::{ListViewBuilder, ListViewMessage},
-        message::{MessageDirection, UiMessage},
+        message::UiMessage,
         text::{TextBuilder, TextMessage},
         utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder},
@@ -39,7 +39,6 @@ use crate::fyrox::{
     },
     scene::sound::{AudioBus, AudioBusGraph},
 };
-
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -54,13 +53,6 @@ pub enum AudioBusViewMessage {
     Name(String),
 }
 impl MessageData for AudioBusViewMessage {}
-
-impl AudioBusViewMessage {
-    define_constructor!(AudioBusViewMessage:ChangeParent => fn change_parent(Handle<AudioBus>));
-    define_constructor!(AudioBusViewMessage:PossibleParentBuses => fn possible_parent_buses(Vec<(Handle<AudioBus>, String)>));
-    define_constructor!(AudioBusViewMessage:EffectNames => fn effect_names(Vec<String>));
-    define_constructor!(AudioBusViewMessage:Name => fn name(String));
-}
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
