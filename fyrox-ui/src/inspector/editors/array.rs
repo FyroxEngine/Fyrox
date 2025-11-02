@@ -23,7 +23,6 @@ use crate::{
         pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
         visitor::prelude::*, PhantomDataSendSync,
     },
-    define_constructor,
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
@@ -60,10 +59,6 @@ pub enum ArrayEditorMessage {
 }
 impl MessageData for ArrayEditorMessage {}
 
-impl ArrayEditorMessage {
-    define_constructor!(ArrayEditorMessage:ItemChanged => fn item_changed(index: usize, message: UiMessage));
-}
-
 #[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
 pub struct ArrayEditor {
@@ -84,12 +79,13 @@ impl Control for ArrayEditor {
             .iter()
             .position(|i| i.editor_instance.editor() == message.destination())
         {
-            ui.send_message(ArrayEditorMessage::item_changed(
+            ui.post(
                 self.handle,
-                MessageDirection::FromWidget,
-                index,
-                message.clone(),
-            ));
+                ArrayEditorMessage::ItemChanged {
+                    index,
+                    message: message.clone(),
+                },
+            );
         }
     }
 }
