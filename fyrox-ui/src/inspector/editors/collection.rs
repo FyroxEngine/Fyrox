@@ -24,7 +24,6 @@ use crate::{
         pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
         PhantomDataSendSync,
     },
-    define_constructor,
     grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
@@ -111,11 +110,6 @@ pub enum CollectionEditorMessage {
 }
 impl MessageData for CollectionEditorMessage {}
 
-impl CollectionEditorMessage {
-    define_constructor!(CollectionEditorMessage:Items => fn items(Vec<Item>));
-    define_constructor!(CollectionEditorMessage:ItemChanged => fn item_changed(index: usize, message: UiMessage));
-}
-
 impl<T: CollectionItem> TypeUuidProvider for CollectionEditor<T> {
     fn type_uuid() -> Uuid {
         combine_uuids(
@@ -158,12 +152,13 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
             .iter()
             .position(|i| i.editor_instance.editor() == message.destination())
         {
-            ui.send_message(CollectionEditorMessage::item_changed(
+            ui.post(
                 self.handle,
-                MessageDirection::FromWidget,
-                index,
-                message.clone(),
-            ));
+                CollectionEditorMessage::ItemChanged {
+                    index,
+                    message: message.clone(),
+                },
+            );
         }
     }
 
@@ -566,10 +561,9 @@ where
                 has_parent_object,
             )?;
 
-            Ok(Some(CollectionEditorMessage::items(
+            Ok(Some(UiMessage::for_widget(
                 instance,
-                MessageDirection::ToWidget,
-                items,
+                CollectionEditorMessage::Items(items),
             )))
         } else {
             if let Some(definition) = definition_container.definitions().get(&TypeId::of::<T>()) {
