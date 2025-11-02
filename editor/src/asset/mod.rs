@@ -46,7 +46,7 @@ use crate::{
             file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
             grid::{Column, GridBuilder, Row},
             menu::MenuItemMessage,
-            message::{MessageDirection, MouseButton, UiMessage},
+            message::{MouseButton, UiMessage},
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
@@ -463,14 +463,13 @@ impl AssetBrowser {
 
         let ui = engine.user_interfaces.first_mut();
 
-        ui.send_messages([
-            FileBrowserMessage::root(
-                self.folder_browser,
-                MessageDirection::ToWidget,
-                Some(dir.to_owned()),
-            ),
-            FileBrowserMessage::path(self.folder_browser, MessageDirection::ToWidget, "./".into()),
-        ]);
+        ui.send_many(
+            self.folder_browser,
+            [
+                FileBrowserMessage::Root(Some(dir.to_owned())),
+                FileBrowserMessage::Path("./".into()),
+            ],
+        );
 
         self.set_path(Path::new("./"), ui, &engine.resource_manager);
     }

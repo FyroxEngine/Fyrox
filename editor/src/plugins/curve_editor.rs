@@ -390,11 +390,10 @@ impl CurveEditorWindow {
     }
 
     fn open_save_file_dialog(&self, ui: &UserInterface) {
-        ui.send_message(FileSelectorMessage::root(
+        ui.send(
             self.save_file_selector,
-            MessageDirection::ToWidget,
-            Some(std::env::current_dir().unwrap()),
-        ));
+            FileSelectorMessage::Root(Some(std::env::current_dir().unwrap())),
+        );
 
         ui.send(
             self.save_file_selector,
@@ -466,11 +465,10 @@ impl CurveEditorWindow {
 
                 self.sync_to_model(ui);
             } else if message.destination() == self.menu.file.load {
-                ui.send_message(FileSelectorMessage::root(
+                ui.send(
                     self.load_file_selector,
-                    MessageDirection::ToWidget,
-                    Some(std::env::current_dir().unwrap()),
-                ));
+                    FileSelectorMessage::Root(Some(std::env::current_dir().unwrap())),
+                );
 
                 ui.send(
                     self.load_file_selector,

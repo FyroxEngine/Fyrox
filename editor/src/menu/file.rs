@@ -27,7 +27,7 @@ use crate::{
             file_browser::{FileSelectorBuilder, FileSelectorMessage},
             menu,
             menu::MenuItemMessage,
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -209,11 +209,10 @@ impl FileMenu {
                 focus_content: true,
             },
         );
-        ui.send_message(FileSelectorMessage::root(
+        ui.send(
             self.load_file_selector,
-            MessageDirection::ToWidget,
-            Some(std::env::current_dir().unwrap()),
-        ));
+            FileSelectorMessage::Root(Some(std::env::current_dir().unwrap())),
+        );
     }
 
     pub fn open_save_file_selector(&mut self, ui: &mut UserInterface, default_file_name: PathBuf) {
@@ -226,16 +225,14 @@ impl FileMenu {
                 focus_content: true,
             },
         );
-        ui.send_message(FileSelectorMessage::path(
+        ui.send(
             self.save_file_selector,
-            MessageDirection::ToWidget,
-            std::env::current_dir().unwrap(),
-        ));
-        ui.send_message(FileSelectorMessage::root(
+            FileSelectorMessage::Path(std::env::current_dir().unwrap()),
+        );
+        ui.send(
             self.save_file_selector,
-            MessageDirection::ToWidget,
-            std::env::current_dir().ok(),
-        ));
+            FileSelectorMessage::Root(std::env::current_dir().ok()),
+        );
     }
 
     pub fn handle_ui_message(

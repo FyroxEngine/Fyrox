@@ -57,7 +57,7 @@ use crate::{
     settings::Settings,
     utils,
     world::WorldViewerItemContextMenu,
-    Engine, Message, MessageDirection, PasteCommand,
+    Engine, Message, PasteCommand,
 };
 use std::{any::TypeId, path::PathBuf};
 
@@ -357,11 +357,10 @@ impl SceneNodeContextMenu {
                             focus_content: true,
                         },
                     );
-                    ui.send_message(FileSelectorMessage::root(
+                    ui.send(
                         self.save_as_prefab_dialog,
-                        MessageDirection::ToWidget,
-                        Some(std::env::current_dir().unwrap()),
-                    ));
+                        FileSelectorMessage::Root(Some(std::env::current_dir().unwrap())),
+                    );
                 } else if message.destination() == self.make_root {
                     if let Some(graph_selection) = editor_selection.as_graph() {
                         if let Some(first) = graph_selection.nodes.first() {

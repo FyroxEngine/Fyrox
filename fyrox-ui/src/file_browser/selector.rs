@@ -24,7 +24,7 @@ use crate::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
     },
-    define_constructor, define_widget_deref,
+    define_widget_deref,
     draw::DrawingContext,
     file_browser::{FileBrowser, FileBrowserBuilder, FileBrowserMessage, FileBrowserMode, Filter},
     grid::{Column, GridBuilder, Row},
@@ -57,15 +57,6 @@ pub enum FileSelectorMessage {
     Filter(Option<Filter>),
 }
 impl MessageData for FileSelectorMessage {}
-
-impl FileSelectorMessage {
-    define_constructor!(FileSelectorMessage:Commit => fn commit(PathBuf));
-    define_constructor!(FileSelectorMessage:Root => fn root(Option<PathBuf>));
-    define_constructor!(FileSelectorMessage:Path => fn path(PathBuf));
-    define_constructor!(FileSelectorMessage:Cancel => fn cancel());
-    define_constructor!(FileSelectorMessage:FocusCurrentPath => fn focus_current_path());
-    define_constructor!(FileSelectorMessage:Filter => fn filter(Option<Filter>));
-}
 
 /// File selector is a modal window that allows you to select a file (or directory) and commit or
 /// cancel selection.
@@ -140,16 +131,9 @@ impl Control for FileSelector {
                     .path
                     .clone();
 
-                ui.send_message(FileSelectorMessage::commit(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                    path,
-                ));
+                ui.send(self.handle, FileSelectorMessage::Commit(path));
             } else if message.destination() == self.cancel {
-                ui.send_message(FileSelectorMessage::cancel(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ))
+                ui.send(self.handle, FileSelectorMessage::Cancel)
             }
         } else if let Some(msg) = message.data::<FileSelectorMessage>() {
             if message.destination() == self.handle {
@@ -157,30 +141,17 @@ impl Control for FileSelector {
                     FileSelectorMessage::Commit(_) | FileSelectorMessage::Cancel => {
                         ui.send(self.handle, WindowMessage::Close)
                     }
-                    FileSelectorMessage::Path(path) => ui.send_message(FileBrowserMessage::path(
-                        self.browser,
-                        MessageDirection::ToWidget,
-                        path.clone(),
-                    )),
+                    FileSelectorMessage::Path(path) => {
+                        ui.send(self.browser, FileBrowserMessage::Path(path.clone()))
+                    }
                     FileSelectorMessage::Root(root) => {
-                        ui.send_message(FileBrowserMessage::root(
-                            self.browser,
-                            MessageDirection::ToWidget,
-                            root.clone(),
-                        ));
+                        ui.send(self.browser, FileBrowserMessage::Root(root.clone()));
                     }
                     FileSelectorMessage::Filter(filter) => {
-                        ui.send_message(FileBrowserMessage::filter(
-                            self.browser,
-                            MessageDirection::ToWidget,
-                            filter.clone(),
-                        ));
+                        ui.send(self.browser, FileBrowserMessage::Filter(filter.clone()));
                     }
                     FileSelectorMessage::FocusCurrentPath => {
-                        ui.send_message(FileBrowserMessage::focus_current_path(
-                            self.browser,
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send(self.browser, FileBrowserMessage::FocusCurrentPath);
                     }
                 }
             }
@@ -328,10 +299,6 @@ pub enum FileSelectorFieldMessage {
 }
 impl MessageData for FileSelectorFieldMessage {}
 
-impl FileSelectorFieldMessage {
-    define_constructor!(FileSelectorFieldMessage:Path => fn path(PathBuf));
-}
-
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
 pub struct FileSelectorField {
@@ -367,11 +334,7 @@ impl Control for FileSelectorField {
                 && message.direction() == MessageDirection::FromWidget
                 && Path::new(text.as_str()) != self.path
             {
-                ui.send_message(FileSelectorFieldMessage::path(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                    text.into(),
-                ));
+                ui.send(self.handle, FileSelectorFieldMessage::Path(text.into()));
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.select {
@@ -411,11 +374,10 @@ impl Control for FileSelectorField {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if let Some(FileSelectorMessage::Commit(new_path)) = message.data() {
             if message.destination() == self.file_selector {
-                ui.send_message(FileSelectorFieldMessage::path(
+                ui.send(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    new_path.clone(),
-                ));
+                    FileSelectorFieldMessage::Path(new_path.clone()),
+                );
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.file_selector {

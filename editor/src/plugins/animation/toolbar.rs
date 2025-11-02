@@ -1079,11 +1079,10 @@ impl Toolbar {
                         focus_content: true,
                     },
                 );
-                ui.send_message(FileSelectorMessage::root(
+                ui.send(
                     self.import_file_selector,
-                    MessageDirection::ToWidget,
-                    Some(std::env::current_dir().unwrap()),
-                ));
+                    FileSelectorMessage::Root(Some(std::env::current_dir().unwrap())),
+                );
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.import_file_selector {

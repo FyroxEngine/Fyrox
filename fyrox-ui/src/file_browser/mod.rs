@@ -29,7 +29,6 @@ use crate::{
         parking_lot::Mutex, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         uuid_provider, visitor::prelude::*, SafeLock,
     },
-    define_constructor,
     file_browser::menu::ItemContextMenu,
     grid::{Column, GridBuilder, Row},
     image::ImageBuilder,
@@ -89,22 +88,6 @@ pub enum FileBrowserMessage {
     },
 }
 impl MessageData for FileBrowserMessage {}
-
-impl FileBrowserMessage {
-    define_constructor!(FileBrowserMessage:Root => fn root(Option<PathBuf>));
-    define_constructor!(FileBrowserMessage:Path => fn path(PathBuf));
-    define_constructor!(FileBrowserMessage:Filter => fn filter(Option<Filter>));
-    define_constructor!(FileBrowserMessage:Add => fn add(PathBuf));
-    define_constructor!(FileBrowserMessage:Remove => fn remove(PathBuf));
-    define_constructor!(FileBrowserMessage:Rescan => fn rescan());
-    define_constructor!(FileBrowserMessage:FocusCurrentPath => fn focus_current_path());
-    define_constructor!(FileBrowserMessage:Drop => fn drop(
-        dropped: Handle<UiNode>,
-        path_item: Handle<UiNode>,
-        path: PathBuf,
-        dropped_path: PathBuf)
-    );
-}
 
 #[derive(Clone)]
 #[allow(clippy::type_complexity)]
@@ -396,15 +379,14 @@ impl Control for FileBrowser {
                     self.path = txt.into();
                 } else if message.destination() == self.file_name {
                     self.file_name_value = txt.into();
-                    ui.send_message(FileBrowserMessage::path(
+                    ui.send(
                         self.handle,
-                        MessageDirection::ToWidget,
-                        {
+                        FileBrowserMessage::Path({
                             let mut combined = self.path.clone();
                             combined.set_file_name(PathBuf::from(txt));
                             combined
-                        },
-                    ));
+                        }),
+                    );
                 }
             }
         } else if let Some(TreeMessage::Expand { expand, .. }) = message.data::<TreeMessage>() {
@@ -452,17 +434,18 @@ impl Control for FileBrowser {
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if !message.handled() {
                 if let Some(path) = ui.node(message.destination()).user_data_cloned::<PathBuf>() {
-                    ui.send_message(FileBrowserMessage::drop(
+                    ui.post(
                         self.handle,
-                        MessageDirection::FromWidget,
-                        *dropped,
-                        message.destination(),
-                        path.clone(),
-                        ui.node(*dropped)
-                            .user_data_cloned::<PathBuf>()
-                            .unwrap_or_default(),
-                    ));
-
+                        FileBrowserMessage::Drop {
+                            dropped: *dropped,
+                            path_item: message.destination(),
+                            path: path.clone(),
+                            dropped_path: ui
+                                .node(*dropped)
+                                .user_data_cloned::<PathBuf>()
+                                .unwrap_or_default(),
+                        },
+                    );
                     message.set_handled(true);
                 }
             }
@@ -501,11 +484,7 @@ impl Control for FileBrowser {
                             );
 
                             // Do response.
-                            ui.send_message(FileBrowserMessage::path(
-                                self.handle,
-                                MessageDirection::FromWidget,
-                                path,
-                            ));
+                            ui.post(self.handle, FileBrowserMessage::Path(path));
                         }
                     }
                 }
@@ -518,11 +497,10 @@ impl Control for FileBrowser {
                     if let Some(desktop_dir) =
                         user_dirs.as_ref().and_then(|dirs| dirs.desktop_dir())
                     {
-                        ui.send_message(FileBrowserMessage::path(
+                        ui.send(
                             self.handle,
-                            MessageDirection::ToWidget,
-                            desktop_dir.to_path_buf(),
-                        ));
+                            FileBrowserMessage::Path(desktop_dir.to_path_buf()),
+                        );
                     }
                 }
 
@@ -530,11 +508,10 @@ impl Control for FileBrowser {
                 if message.destination() == self.home_dir {
                     let user_dirs = directories::UserDirs::new();
                     if let Some(home_dir) = user_dirs.as_ref().map(|dirs| dirs.home_dir()) {
-                        ui.send_message(FileBrowserMessage::path(
+                        ui.send(
                             self.handle,
-                            MessageDirection::ToWidget,
-                            home_dir.to_path_buf(),
-                        ));
+                            FileBrowserMessage::Path(home_dir.to_path_buf()),
+                        );
                     }
                 }
             }
@@ -544,26 +521,15 @@ impl Control for FileBrowser {
     fn update(&mut self, _dt: f32, ui: &mut UserInterface) {
         if let Ok(event) = self.fs_receiver.as_ref().unwrap().try_recv() {
             if event.need_rescan() {
-                ui.send_message(FileBrowserMessage::rescan(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.handle, FileBrowserMessage::Rescan);
             } else {
                 for path in event.paths.iter() {
                     match event.kind {
                         notify::EventKind::Remove(_) => {
-                            ui.send_message(FileBrowserMessage::remove(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                path.clone(),
-                            ));
+                            ui.send(self.handle, FileBrowserMessage::Remove(path.clone()));
                         }
                         notify::EventKind::Create(_) => {
-                            ui.send_message(FileBrowserMessage::add(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                path.clone(),
-                            ));
+                            ui.send(self.handle, FileBrowserMessage::Add(path.clone()));
                         }
                         _ => (),
                     }

@@ -29,7 +29,7 @@ use crate::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     file_browser::{FileSelectorBuilder, FileSelectorMessage},
     grid::{Column, GridBuilder, Row},
-    message::{MessageDirection, UiMessage},
+    message::UiMessage,
     text::TextMessage,
     text_box::TextBoxBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -123,11 +123,10 @@ impl Control for PathEditor {
                     .build(&mut ui.build_ctx()),
                 );
 
-                ui.send_message(FileSelectorMessage::path(
+                ui.send(
                     *self.selector,
-                    MessageDirection::ToWidget,
-                    (*self.path).clone(),
-                ));
+                    FileSelectorMessage::Path((*self.path).clone()),
+                );
                 ui.send(
                     *self.selector,
                     WindowMessage::OpenModal {
@@ -135,10 +134,7 @@ impl Control for PathEditor {
                         focus_content: true,
                     },
                 );
-                ui.send_message(FileSelectorMessage::focus_current_path(
-                    *self.selector,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(*self.selector, FileSelectorMessage::FocusCurrentPath);
             }
         } else if let Some(PathEditorMessage::Path(path)) = message.data() {
             if message.is_for(self.handle) && &*self.path != path {
