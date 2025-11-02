@@ -32,9 +32,9 @@ use crate::fyrox::{
     },
     gui::{
         brush::Brush,
-        define_constructor, define_widget_deref,
+        define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
-        message::{MessageDirection, UiMessage},
+        message::UiMessage,
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface,
     },
@@ -56,10 +56,6 @@ pub enum TransitionMessage {
     Activate,
 }
 impl MessageData for TransitionMessage {}
-
-impl TransitionMessage {
-    define_constructor!(TransitionMessage:Activate => fn activate());
-}
 
 #[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]

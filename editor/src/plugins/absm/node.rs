@@ -28,9 +28,8 @@ use crate::fyrox::{
         border::{BorderBuilder, BorderMessage},
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
-        define_constructor,
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, MouseButton, UiMessage},
+        message::{MouseButton, UiMessage},
         stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -153,17 +152,6 @@ pub enum AbsmNodeMessage {
 }
 impl MessageData for AbsmNodeMessage {}
 
-impl AbsmNodeMessage {
-    define_constructor!(AbsmNodeMessage:Name => fn name(String));
-    define_constructor!(AbsmNodeMessage:Enter => fn enter());
-    define_constructor!(AbsmNodeMessage:AddInput => fn add_input());
-    define_constructor!(AbsmNodeMessage:InputSockets => fn input_sockets(Vec<Handle<UiNode>>));
-    define_constructor!(AbsmNodeMessage:NormalBrush => fn normal_color(StyledProperty<Brush>));
-    define_constructor!(AbsmNodeMessage:SelectedBrush => fn selected_color(StyledProperty<Brush>));
-    define_constructor!(AbsmNodeMessage:SetActive => fn set_active(bool));
-    define_constructor!(AbsmNodeMessage:Edit => fn edit());
-}
-
 impl<T: Reflect> TypeUuidProvider for AbsmNode<T> {
     fn type_uuid() -> Uuid {
         uuid!("15bc1a7e-a385-46e0-a65c-7e9c014b4a1d")
@@ -186,22 +174,13 @@ where
             }
         } else if let Some(WidgetMessage::DoubleClick { button }) = message.data() {
             if !message.handled() && *button == MouseButton::Left {
-                ui.send_message(AbsmNodeMessage::enter(
-                    self.handle(),
-                    MessageDirection::FromWidget,
-                ));
+                ui.post(self.handle(), AbsmNodeMessage::Enter);
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_input {
-                ui.send_message(AbsmNodeMessage::add_input(
-                    self.handle(),
-                    MessageDirection::FromWidget,
-                ));
+                ui.post(self.handle(), AbsmNodeMessage::AddInput);
             } else if message.destination() == self.edit {
-                ui.send_message(AbsmNodeMessage::edit(
-                    self.handle(),
-                    MessageDirection::FromWidget,
-                ));
+                ui.post(self.handle(), AbsmNodeMessage::Edit);
             }
         } else if let Some(msg) = message.data::<AbsmNodeMessage>() {
             if message.is_for(self.handle()) {

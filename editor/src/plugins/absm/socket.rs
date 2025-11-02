@@ -25,9 +25,9 @@ use crate::fyrox::{
         uuid_provider, visitor::prelude::*,
     },
     gui::{
-        define_constructor, define_widget_deref,
+        define_widget_deref,
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, MouseButton, UiMessage},
+        message::{MouseButton, UiMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         vector_image::{Primitive, VectorImageBuilder},
@@ -47,10 +47,6 @@ pub enum SocketMessage {
     StartDragging,
 }
 impl MessageData for SocketMessage {}
-
-impl SocketMessage {
-    define_constructor!(SocketMessage:StartDragging => fn start_dragging());
-}
 
 #[derive(Copy, Clone, PartialEq, Hash, Debug, Eq, Visit, Reflect, Default)]
 pub enum SocketDirection {
@@ -105,11 +101,7 @@ impl Control for Socket {
                 WidgetMessage::MouseMove { pos, .. } => {
                     if let Some(click_position) = self.click_position {
                         if click_position.metric_distance(pos) >= 5.0 {
-                            ui.send_message(SocketMessage::start_dragging(
-                                self.handle(),
-                                MessageDirection::FromWidget,
-                            ));
-
+                            ui.post(self.handle(), SocketMessage::StartDragging);
                             self.click_position = None;
                         }
                     }

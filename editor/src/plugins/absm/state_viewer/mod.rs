@@ -55,10 +55,7 @@ use crate::plugins::absm::{
     state_viewer::context::{CanvasContextMenu, ConnectionContextMenu, NodeContextMenu},
     AbsmEditor,
 };
-use crate::{
-    scene::{commands::ChangeSelectionCommand, Selection},
-    send_sync_message,
-};
+use crate::scene::{commands::ChangeSelectionCommand, Selection};
 
 use fyrox::core::reflect::Reflect;
 use fyrox::gui::style::resource::StyleResourceExt;
@@ -585,10 +582,7 @@ impl StateViewer {
 
                 let new_name = make_pose_node_name(model_ref, animation_container);
                 if new_name != view_ref.name_value {
-                    send_sync_message(
-                        ui,
-                        AbsmNodeMessage::name(view, MessageDirection::ToWidget, new_name),
-                    );
+                    ui.send_sync(view, AbsmNodeMessage::Name(new_name));
                 }
 
                 if view_ref.base.input_sockets.len() != children.len() {
@@ -598,15 +592,7 @@ impl StateViewer {
                         view_ref.model_handle,
                         ui,
                     );
-
-                    send_sync_message(
-                        ui,
-                        AbsmNodeMessage::input_sockets(
-                            view,
-                            MessageDirection::ToWidget,
-                            input_sockets,
-                        ),
-                    );
+                    ui.send_sync(view, AbsmNodeMessage::InputSockets(input_sockets));
                 }
 
                 if position != model_ref.position {
@@ -614,29 +600,21 @@ impl StateViewer {
                 }
 
                 if model_ref.parent_state == self.state.into() {
-                    send_sync_message(
-                        ui,
-                        AbsmNodeMessage::normal_color(
-                            view,
-                            MessageDirection::ToWidget,
-                            if model_handle == parent_state_ref.root {
-                                ui.style.property(AbsmEditor::NORMAL_ROOT_COLOR)
-                            } else {
-                                ui.style.property(Style::BRUSH_LIGHTER_PRIMARY)
-                            },
-                        ),
+                    ui.send_sync(
+                        view,
+                        AbsmNodeMessage::NormalBrush(if model_handle == parent_state_ref.root {
+                            ui.style.property(AbsmEditor::NORMAL_ROOT_COLOR)
+                        } else {
+                            ui.style.property(Style::BRUSH_LIGHTER_PRIMARY)
+                        }),
                     );
-                    send_sync_message(
-                        ui,
-                        AbsmNodeMessage::selected_color(
-                            view,
-                            MessageDirection::ToWidget,
-                            if model_handle == parent_state_ref.root {
-                                ui.style.property(AbsmEditor::SELECTED_ROOT_COLOR)
-                            } else {
-                                ui.style.property(Style::BRUSH_LIGHTER)
-                            },
-                        ),
+                    ui.send_sync(
+                        view,
+                        AbsmNodeMessage::SelectedBrush(if model_handle == parent_state_ref.root {
+                            ui.style.property(AbsmEditor::SELECTED_ROOT_COLOR)
+                        } else {
+                            ui.style.property(Style::BRUSH_LIGHTER)
+                        }),
                     );
                 }
             }
@@ -715,22 +693,11 @@ impl StateViewer {
                 })
                 .collect::<Vec<_>>();
 
-            send_sync_message(
-                ui,
-                AbsmCanvasMessage::selection_changed(
-                    self.canvas,
-                    MessageDirection::ToWidget,
-                    new_selection,
-                ),
+            ui.send_sync(
+                self.canvas,
+                AbsmCanvasMessage::SelectionChanged(new_selection),
             );
-
-            send_sync_message(
-                ui,
-                AbsmCanvasMessage::force_sync_dependent_objects(
-                    self.canvas,
-                    MessageDirection::ToWidget,
-                ),
-            );
+            ui.send_sync(self.canvas, AbsmCanvasMessage::ForceSyncDependentObjects);
         } else {
             // Clean the canvas.
             for child in ui.node(self.canvas).children() {

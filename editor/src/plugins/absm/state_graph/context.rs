@@ -19,33 +19,33 @@
 // SOFTWARE.
 
 use super::fetch_state_node_model_handle;
-use crate::fyrox::{
-    core::pool::Handle,
-    generic_animation::machine::{Machine, State, Transition},
-    graph::BaseSceneGraph,
-    gui::{
-        menu::MenuItemMessage,
-        message::{MessageDirection, UiMessage},
-        popup::{Placement, PopupBuilder, PopupMessage},
-        stack_panel::StackPanelBuilder,
-        widget::WidgetBuilder,
-        BuildContext, RcUiNodeHandle, UiNode, UserInterface,
-    },
-};
-use crate::plugins::absm::{
-    canvas::{AbsmCanvas, AbsmCanvasMessage, Mode},
-    command::{
-        AddStateCommand, AddTransitionCommand, DeleteStateCommand, DeleteTransitionCommand,
-        SetMachineEntryStateCommand,
-    },
-    node::{AbsmNode, AbsmNodeMessage},
-    selection::SelectedEntity,
-    transition::TransitionView,
-};
 use crate::{
     command::{Command, CommandGroup},
+    fyrox::{
+        core::pool::Handle,
+        generic_animation::machine::{Machine, State, Transition},
+        graph::BaseSceneGraph,
+        gui::{
+            menu::MenuItemMessage,
+            message::UiMessage,
+            popup::{Placement, PopupBuilder, PopupMessage},
+            stack_panel::StackPanelBuilder,
+            widget::WidgetBuilder,
+            BuildContext, RcUiNodeHandle, UiNode, UserInterface,
+        },
+    },
     menu::create_menu_item,
     message::MessageSender,
+    plugins::absm::{
+        canvas::{AbsmCanvas, AbsmCanvasMessage, Mode},
+        command::{
+            AddStateCommand, AddTransitionCommand, DeleteStateCommand, DeleteTransitionCommand,
+            SetMachineEntryStateCommand,
+        },
+        node::{AbsmNode, AbsmNodeMessage},
+        selection::SelectedEntity,
+        transition::TransitionView,
+    },
     scene::{commands::ChangeSelectionCommand, Selection},
 };
 
@@ -232,15 +232,14 @@ impl NodeContextMenu {
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.create_transition {
-                ui.send_message(AbsmCanvasMessage::switch_mode(
+                ui.send(
                     self.canvas,
-                    MessageDirection::ToWidget,
-                    Mode::CreateTransition {
+                    AbsmCanvasMessage::SwitchMode(Mode::CreateTransition {
                         source: self.placement_target,
                         source_pos: ui.node(self.placement_target).center(),
                         dest_pos: ui.node(self.canvas).screen_to_local(ui.cursor_position()),
-                    },
-                ))
+                    }),
+                )
             } else if message.destination == self.remove {
                 if let Some(selection) = editor_selection.as_absm() {
                     let states_to_remove = selection
@@ -307,10 +306,7 @@ impl NodeContextMenu {
                         .model_handle,
                 });
             } else if message.destination == self.enter_state {
-                ui.send_message(AbsmNodeMessage::enter(
-                    self.placement_target,
-                    MessageDirection::FromWidget,
-                ));
+                ui.post(self.placement_target, AbsmNodeMessage::Enter);
             } else if message.destination == self.connect_to_all_nodes {
                 let canvas = ui
                     .node(self.canvas)
@@ -323,12 +319,13 @@ impl NodeContextMenu {
                     .cloned()
                     .filter(|c| ui.node(*c).has_component::<AbsmNode<State<Handle<N>>>>())
                     .collect::<Vec<_>>();
-                ui.send_message(AbsmCanvasMessage::commit_transition_to_all_nodes(
+                ui.post(
                     self.canvas,
-                    MessageDirection::FromWidget,
-                    self.placement_target,
-                    state_nodes,
-                ));
+                    AbsmCanvasMessage::CommitTransitionToAllNodes {
+                        source_node: self.placement_target,
+                        dest_nodes: state_nodes,
+                    },
+                );
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu.handle() {

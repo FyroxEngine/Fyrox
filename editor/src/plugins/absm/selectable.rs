@@ -23,9 +23,9 @@
 use crate::fyrox::{
     core::pool::Handle,
     core::{reflect::prelude::*, visitor::prelude::*},
-    gui::message::{MessageDirection, MouseButton, UiMessage},
+    gui::message::{MouseButton, UiMessage},
     gui::widget::WidgetMessage,
-    gui::{define_constructor, UiNode, UserInterface},
+    gui::{UiNode, UserInterface},
 };
 use fyrox::gui::message::MessageData;
 
@@ -34,10 +34,6 @@ pub enum SelectableMessage {
     Select(bool),
 }
 impl MessageData for SelectableMessage {}
-
-impl SelectableMessage {
-    define_constructor!(SelectableMessage:Select => fn select(bool));
-}
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, Visit, Reflect)]
 pub struct Selectable {
@@ -57,11 +53,7 @@ impl Selectable {
                     if (*button == MouseButton::Left || *button == MouseButton::Right)
                         && !self.selected
                     {
-                        ui.send_message(SelectableMessage::select(
-                            self_handle,
-                            MessageDirection::ToWidget,
-                            true,
-                        ));
+                        ui.send(self_handle, SelectableMessage::Select(true));
 
                         ui.capture_mouse(self_handle);
                     }

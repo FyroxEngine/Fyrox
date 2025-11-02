@@ -45,7 +45,6 @@ use crate::{
     command::{Command, CommandGroup},
     message::MessageSender,
     scene::{commands::ChangeSelectionCommand, Selection},
-    send_sync_message,
 };
 
 use fyrox::core::reflect::Reflect;
@@ -139,10 +138,7 @@ impl StateGraphViewer {
                     transition == transition_view_ref.model_handle.into()
                 })
         }) {
-            ui.send_message(TransitionMessage::activate(
-                view_handle,
-                MessageDirection::ToWidget,
-            ));
+            ui.send(view_handle, TransitionMessage::Activate);
         }
     }
 
@@ -161,11 +157,10 @@ impl StateGraphViewer {
                     .map(|state_view_ref| (c, state_view_ref))
             })
         {
-            ui.send_message(AbsmNodeMessage::set_active(
+            ui.send(
                 state_view_handle,
-                MessageDirection::ToWidget,
-                state_view_ref.model_handle == state,
-            ));
+                AbsmNodeMessage::SetActive(state_view_ref.model_handle == state),
+            );
         }
     }
 
@@ -423,14 +418,7 @@ impl StateGraphViewer {
             let state_model_ref = &machine_layer.states()[state_node.model_handle];
 
             if state_model_ref.name != state_node.name_value {
-                send_sync_message(
-                    ui,
-                    AbsmNodeMessage::name(
-                        *state,
-                        MessageDirection::ToWidget,
-                        state_model_ref.name.clone(),
-                    ),
-                );
+                ui.send_sync(*state, AbsmNodeMessage::Name(state_model_ref.name.clone()));
             }
 
             ui.send_sync(
@@ -438,11 +426,9 @@ impl StateGraphViewer {
                 WidgetMessage::DesiredPosition(state_model_ref.position),
             );
 
-            send_sync_message(
-                ui,
-                AbsmNodeMessage::normal_color(
-                    *state,
-                    MessageDirection::ToWidget,
+            ui.send_sync(
+                *state,
+                AbsmNodeMessage::NormalBrush(
                     if state_model_handle == machine_layer.entry_state() {
                         ui.style.property(AbsmEditor::NORMAL_ROOT_COLOR)
                     } else {
@@ -450,11 +436,10 @@ impl StateGraphViewer {
                     },
                 ),
             );
-            send_sync_message(
-                ui,
-                AbsmNodeMessage::selected_color(
-                    *state,
-                    MessageDirection::ToWidget,
+
+            ui.send_sync(
+                *state,
+                AbsmNodeMessage::SelectedBrush(
                     if state_model_handle == machine_layer.entry_state() {
                         ui.style.property(AbsmEditor::SELECTED_ROOT_COLOR)
                     } else {
@@ -578,21 +563,10 @@ impl StateGraphViewer {
             })
             .collect::<Vec<_>>();
 
-        send_sync_message(
-            ui,
-            AbsmCanvasMessage::selection_changed(
-                self.canvas,
-                MessageDirection::ToWidget,
-                new_selection,
-            ),
+        ui.send_sync(
+            self.canvas,
+            AbsmCanvasMessage::SelectionChanged(new_selection),
         );
-
-        send_sync_message(
-            ui,
-            AbsmCanvasMessage::force_sync_dependent_objects(
-                self.canvas,
-                MessageDirection::ToWidget,
-            ),
-        );
+        ui.send_sync(self.canvas, AbsmCanvasMessage::ForceSyncDependentObjects);
     }
 }

@@ -36,7 +36,7 @@ use crate::fyrox::{
     graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
     gui::{
         brush::Brush,
-        define_constructor, define_widget_deref,
+        define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
         grid::{Column, GridBuilder, Row},
         menu::MenuItemMessage,
@@ -56,7 +56,7 @@ use crate::plugins::absm::{
     },
     selection::{AbsmSelection, SelectedEntity},
 };
-use crate::{menu::create_menu_item, message::MessageSender, send_sync_message};
+use crate::{menu::create_menu_item, message::MessageSender};
 
 use fyrox::gui::menu::ContextMenuBuilder;
 use fyrox::gui::message::MessageData;
@@ -82,18 +82,6 @@ pub enum BlendSpaceFieldMessage {
     },
     AddPoint(Vector2<f32>),
     RemovePoint(usize),
-}
-
-impl BlendSpaceFieldMessage {
-    define_constructor!(BlendSpaceFieldMessage:Points => fn points(Vec<Vector2<f32>>));
-    define_constructor!(BlendSpaceFieldMessage:Triangles => fn triangles(Vec<TriangleDefinition>));
-    define_constructor!(BlendSpaceFieldMessage:MinValues => fn min_values(Vector2<f32>));
-    define_constructor!(BlendSpaceFieldMessage:MaxValues => fn max_values(Vector2<f32>));
-    define_constructor!(BlendSpaceFieldMessage:SnapStep => fn snap_step(Vector2<f32>));
-    define_constructor!(BlendSpaceFieldMessage:SamplingPoint => fn sampling_point(Vector2<f32>));
-    define_constructor!(BlendSpaceFieldMessage:MovePoint  => fn move_point(index: usize, position: Vector2<f32>));
-    define_constructor!(BlendSpaceFieldMessage:AddPoint  => fn add_point(Vector2<f32>));
-    define_constructor!(BlendSpaceFieldMessage:RemovePoint  => fn remove_point(usize));
 }
 
 impl MessageData for BlendSpaceFieldMessage {
@@ -385,10 +373,7 @@ impl Control for BlendSpaceField {
                         {
                             self.drag_context = Some(DragContext::Point { point: pos });
 
-                            ui.send_message(BlendSpaceFieldPointMessage::select(
-                                self.points[pos],
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(self.points[pos], BlendSpaceFieldPointMessage::Select);
                         } else {
                             self.drag_context = Some(DragContext::SamplingPoint);
                         }
@@ -400,17 +385,18 @@ impl Control for BlendSpaceField {
                     if let Some(drag_context) = self.drag_context.take() {
                         if *button == MouseButton::Left {
                             if let DragContext::Point { point } = drag_context {
-                                ui.send_message(BlendSpaceFieldMessage::move_point(
+                                ui.send(
                                     self.handle,
-                                    MessageDirection::ToWidget,
-                                    point,
-                                    screen_to_blend(
-                                        *pos,
-                                        self.min_values,
-                                        self.max_values,
-                                        self.screen_bounds(),
-                                    ),
-                                ));
+                                    BlendSpaceFieldMessage::MovePoint {
+                                        index: point,
+                                        position: screen_to_blend(
+                                            *pos,
+                                            self.min_values,
+                                            self.max_values,
+                                            self.screen_bounds(),
+                                        ),
+                                    },
+                                );
                             }
 
                             ui.release_mouse_capture();
@@ -427,11 +413,10 @@ impl Control for BlendSpaceField {
                         );
                         match drag_context {
                             DragContext::SamplingPoint => {
-                                ui.send_message(BlendSpaceFieldMessage::sampling_point(
+                                ui.send(
                                     self.handle,
-                                    MessageDirection::ToWidget,
-                                    blend_pos,
-                                ));
+                                    BlendSpaceFieldMessage::SamplingPoint(blend_pos),
+                                );
                             }
                             DragContext::Point { point } => {
                                 ui.send(
@@ -469,22 +454,14 @@ impl Control for BlendSpaceField {
                     self.max_values,
                     self.screen_bounds(),
                 );
-                ui.send_message(BlendSpaceFieldMessage::add_point(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    pos,
-                ));
+                ui.post(self.handle, BlendSpaceFieldMessage::AddPoint(pos));
             } else if message.destination() == self.field_context_menu.remove_point {
                 if let Some(pos) = self
                     .points
                     .iter()
                     .position(|p| *p == self.field_context_menu.placement_target.get())
                 {
-                    ui.send_message(BlendSpaceFieldMessage::remove_point(
-                        self.handle,
-                        MessageDirection::FromWidget,
-                        pos,
-                    ));
+                    ui.post(self.handle, BlendSpaceFieldMessage::RemovePoint(pos));
                 }
             }
         }
@@ -566,10 +543,6 @@ pub enum BlendSpaceFieldPointMessage {
     Select,
 }
 impl MessageData for BlendSpaceFieldPointMessage {}
-
-impl BlendSpaceFieldPointMessage {
-    define_constructor!(BlendSpaceFieldPointMessage:Select => fn select());
-}
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -851,58 +824,33 @@ impl BlendSpaceEditor {
                 sync_text(self.x_axis_name, blend_space.x_axis_name().to_string());
                 sync_text(self.y_axis_name, blend_space.y_axis_name().to_string());
 
-                send_sync_message(
-                    ui,
-                    BlendSpaceFieldMessage::min_values(
-                        self.field,
-                        MessageDirection::ToWidget,
-                        blend_space.min_values(),
-                    ),
+                ui.send_sync(
+                    self.field,
+                    BlendSpaceFieldMessage::MinValues(blend_space.min_values()),
                 );
-                send_sync_message(
-                    ui,
-                    BlendSpaceFieldMessage::max_values(
-                        self.field,
-                        MessageDirection::ToWidget,
-                        blend_space.max_values(),
-                    ),
+                ui.send_sync(
+                    self.field,
+                    BlendSpaceFieldMessage::MaxValues(blend_space.max_values()),
                 );
-                send_sync_message(
-                    ui,
-                    BlendSpaceFieldMessage::snap_step(
-                        self.field,
-                        MessageDirection::ToWidget,
-                        blend_space.snap_step(),
-                    ),
+                ui.send_sync(
+                    self.field,
+                    BlendSpaceFieldMessage::SnapStep(blend_space.snap_step()),
                 );
-                send_sync_message(
-                    ui,
-                    BlendSpaceFieldMessage::points(
-                        self.field,
-                        MessageDirection::ToWidget,
+                ui.send_sync(
+                    self.field,
+                    BlendSpaceFieldMessage::Points(
                         blend_space.points().iter().map(|p| p.position).collect(),
                     ),
                 );
-                send_sync_message(
-                    ui,
-                    BlendSpaceFieldMessage::triangles(
-                        self.field,
-                        MessageDirection::ToWidget,
-                        blend_space.triangles().to_vec(),
-                    ),
+                ui.send_sync(
+                    self.field,
+                    BlendSpaceFieldMessage::Triangles(blend_space.triangles().to_vec()),
                 );
 
                 if let Some(Parameter::SamplingPoint(pt)) =
                     parameters.get(blend_space.sampling_parameter())
                 {
-                    send_sync_message(
-                        ui,
-                        BlendSpaceFieldMessage::sampling_point(
-                            self.field,
-                            MessageDirection::ToWidget,
-                            *pt,
-                        ),
-                    );
+                    ui.send_sync(self.field, BlendSpaceFieldMessage::SamplingPoint(*pt));
                 }
             }
         }
