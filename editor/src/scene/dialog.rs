@@ -26,7 +26,7 @@ use crate::fyrox::{
         button::{ButtonBuilder, ButtonMessage},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessage},
+        message::UiMessage,
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
@@ -148,12 +148,13 @@ impl NodeRemovalDialog {
         let ui = &engine.user_interfaces.first();
         let graph = &engine.scenes[game_scene.scene].graph;
 
-        ui.send_message(WindowMessage::open_modal(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
 
         let mut text = String::new();
 
@@ -189,10 +190,7 @@ impl NodeRemovalDialog {
         let ui = &engine.user_interfaces.first();
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
-                ui.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.window, WindowMessage::Close);
 
                 sender.send(Message::DoCommand(make_delete_selection_command(
                     editor_selection,
@@ -200,10 +198,7 @@ impl NodeRemovalDialog {
                     engine,
                 )));
             } else if message.destination() == self.cancel {
-                ui.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.window, WindowMessage::Close);
             }
         }
     }

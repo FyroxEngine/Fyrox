@@ -239,11 +239,10 @@ impl StateViewer {
             })
             .unwrap_or_else(|| (String::from("<No State>"), false));
 
-        ui.send_message(WindowMessage::title(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            WindowTitle::text(format!("State Viewer - {state_name}")),
-        ));
+            WindowMessage::Title(WindowTitle::text(format!("State Viewer - {state_name}"))),
+        );
 
         ui.send_message(WidgetMessage::enabled(
             self.canvas_context_menu.menu.handle(),
@@ -259,11 +258,10 @@ impl StateViewer {
             ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
         }
 
-        ui.send_message(WindowMessage::title(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            WindowTitle::text("State Viewer - No State"),
-        ));
+            WindowMessage::Title(WindowTitle::text("State Viewer - No State")),
+        );
 
         ui.send_message(WidgetMessage::enabled(
             self.canvas_context_menu.menu.handle(),

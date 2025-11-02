@@ -20,58 +20,58 @@
 
 use fyrox::scene::terrain::brushstroke::{BrushSender, BrushThreadMessage, UndoData};
 
-use crate::fyrox::core::uuid::{uuid, Uuid};
-use crate::fyrox::core::TypeUuidProvider;
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::gui::{HorizontalAlignment, Thickness, VerticalAlignment};
-use crate::fyrox::{
-    core::{
-        algebra::{Matrix2, Matrix4, Vector2, Vector3},
-        arrayvec::ArrayVec,
-        color::Color,
-        log::{Log, MessageKind},
-        math::vector_to_quat,
-        pool::Handle,
-    },
-    engine::Engine,
-    gui::{
-        inspector::{
-            editors::{
-                enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
-            },
-            Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
-        },
-        key::HotKey,
-        message::{MessageDirection, UiMessage},
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, UiNode, UserInterface,
-    },
-    scene::{
-        base::BaseBuilder,
-        camera::Camera,
-        graph::Graph,
-        mesh::{
-            surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
-            MeshBuilder, RenderPath,
-        },
-        node::Node,
-        terrain::brushstroke::{Brush, BrushMode, BrushShape, BrushStroke, BrushTarget},
-        terrain::{Terrain, TerrainRayCastResult},
-    },
-};
-use crate::interaction::make_interaction_mode_button;
-use crate::scene::controller::SceneController;
-use crate::scene::SelectionContainer;
 use crate::{
-    interaction::InteractionMode,
+    fyrox::{
+        core::{
+            algebra::{Matrix2, Matrix4, Vector2, Vector3},
+            arrayvec::ArrayVec,
+            color::Color,
+            log::{Log, MessageKind},
+            math::vector_to_quat,
+            pool::Handle,
+            uuid::{uuid, Uuid},
+            TypeUuidProvider,
+        },
+        engine::Engine,
+        graph::BaseSceneGraph,
+        gui::{
+            inspector::{
+                editors::{
+                    enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
+                },
+                Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
+            },
+            key::HotKey,
+            message::UiMessage,
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, UiNode, UserInterface,
+        },
+        gui::{HorizontalAlignment, Thickness, VerticalAlignment},
+        scene::{
+            base::BaseBuilder,
+            camera::Camera,
+            graph::Graph,
+            mesh::{
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
+                MeshBuilder, RenderPath,
+            },
+            node::Node,
+            terrain::{
+                brushstroke::{Brush, BrushMode, BrushShape, BrushStroke, BrushTarget},
+                Terrain, TerrainRayCastResult,
+            },
+        },
+    },
+    interaction::{make_interaction_mode_button, InteractionMode},
     make_color_material,
     message::MessageSender,
     scene::{
         commands::terrain::{
             ModifyTerrainHeightCommand, ModifyTerrainHolesCommand, ModifyTerrainLayerMaskCommand,
         },
-        GameScene, Selection,
+        controller::SceneController,
+        GameScene, Selection, SelectionContainer,
     },
     settings::Settings,
     MSG_SYNC_FLAG,
@@ -421,19 +421,17 @@ impl InteractionMode for TerrainInteractionMode {
         self.brush_panel
             .sync_to_model(engine.user_interfaces.first_mut(), &self.brush);
 
-        engine
-            .user_interfaces
-            .first_mut()
-            .send_message(WindowMessage::open_and_align(
-                self.brush_panel.window,
-                MessageDirection::ToWidget,
-                self.scene_viewer_frame,
-                HorizontalAlignment::Right,
-                VerticalAlignment::Top,
-                Thickness::top_right(5.0),
-                false,
-                false,
-            ));
+        engine.user_interfaces.first_mut().send(
+            self.brush_panel.window,
+            WindowMessage::OpenAndAlign {
+                relative_to: self.scene_viewer_frame,
+                horizontal_alignment: HorizontalAlignment::Right,
+                vertical_alignment: VerticalAlignment::Top,
+                margin: Thickness::top_right(5.0),
+                modal: false,
+                focus_content: false,
+            },
+        );
     }
 
     fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {

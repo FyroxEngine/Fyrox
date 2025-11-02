@@ -89,12 +89,13 @@ impl Control for SpriteSheetFramesPropertyEditor {
                     self.handle,
                 );
 
-                ui.send_message(WindowMessage::open_modal(
+                ui.send(
                     window,
-                    MessageDirection::ToWidget,
-                    true,
-                    true,
-                ));
+                    WindowMessage::OpenModal {
+                        center: true,
+                        focus_content: true,
+                    },
+                );
             }
         } else if let Some(SpriteSheetFramesPropertyEditorMessage::Value(value)) = message.data() {
             if message.is_for(self.handle) {

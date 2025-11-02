@@ -128,12 +128,13 @@ impl Control for PathEditor {
                     MessageDirection::ToWidget,
                     (*self.path).clone(),
                 ));
-                ui.send_message(WindowMessage::open_modal(
+                ui.send(
                     *self.selector,
-                    MessageDirection::ToWidget,
-                    true,
-                    true,
-                ));
+                    WindowMessage::OpenModal {
+                        center: true,
+                        focus_content: true,
+                    },
+                );
                 ui.send_message(FileSelectorMessage::focus_current_path(
                     *self.selector,
                     MessageDirection::ToWidget,

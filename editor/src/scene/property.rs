@@ -534,10 +534,7 @@ impl PropertySelectorWindow {
                 .selected_property_paths
                 .clone(),
         ));
-        ui.send_message(WindowMessage::close(
-            self.handle,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.handle, WindowMessage::Close);
     }
 }
 
@@ -571,10 +568,7 @@ impl Control for PropertySelectorWindow {
             if message.destination() == self.ok {
                 self.confirm(ui);
             } else if message.destination() == self.cancel {
-                ui.send_message(WindowMessage::close(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.handle, WindowMessage::Close);
             }
         } else if let Some(PropertySelectorMessage::Selection(selection)) = message.data() {
             if message.destination() == self.selector

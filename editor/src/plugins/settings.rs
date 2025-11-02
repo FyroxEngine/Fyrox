@@ -243,12 +243,13 @@ impl SettingsWindow {
         sender: &MessageSender,
         resource_manager: ResourceManager,
     ) {
-        ui.send_message(WindowMessage::open(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::Open {
+                center: true,
+                focus_content: true,
+            },
+        );
 
         self.sync_to_model(ui, settings, sender, resource_manager);
     }
@@ -362,10 +363,7 @@ impl SettingsWindow {
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.ok {
-                ui.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.window, WindowMessage::Close);
             } else if message.destination() == self.default {
                 **settings = Default::default();
 

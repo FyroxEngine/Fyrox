@@ -423,14 +423,13 @@ impl TileSetEditor {
             .with_content(tab_control)
             .build(ctx);
 
-        ctx.sender()
-            .send(WindowMessage::open(
-                window,
-                MessageDirection::ToWidget,
-                true,
-                true,
-            ))
-            .unwrap();
+        ctx.inner().send(
+            window,
+            WindowMessage::Open {
+                center: true,
+                focus_content: true,
+            },
+        );
 
         let mut editor = Self {
             window,
@@ -480,11 +479,13 @@ impl TileSetEditor {
             self.brush_macro_cell_sets.lock().clear();
         }
         self.tile_inspector.set_tile_resource(tile_book.clone(), ui);
-        ui.send_message(WindowMessage::title(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            WindowTitle::text(tile_set_to_title(resource_manager, &tile_book)),
-        ));
+            WindowMessage::Title(WindowTitle::text(tile_set_to_title(
+                resource_manager,
+                &tile_book,
+            ))),
+        );
         let mut state = self.state.lock_mut("set_tile_resource");
         if state.selection_palette() == self.pages_palette
             || state.selection_palette() == self.tiles_palette

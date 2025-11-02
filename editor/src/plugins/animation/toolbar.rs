@@ -300,12 +300,13 @@ impl RootMotionDropdownArea {
                         },
                     ));
 
-                    ui.send_message(WindowMessage::open_modal(
+                    ui.send(
                         self.node_selector,
-                        MessageDirection::ToWidget,
-                        true,
-                        true,
-                    ));
+                        WindowMessage::OpenModal {
+                            center: true,
+                            focus_content: true,
+                        },
+                    );
                 }
             }
         } else if let Some(NodeSelectorMessage::Selection(node_selection)) =
@@ -1066,12 +1067,13 @@ impl Toolbar {
                     HierarchyNode::from_scene_node(root, Handle::NONE, graph),
                 ));
 
-                ui.send_message(WindowMessage::open_modal(
+                ui.send(
                     self.node_selector,
-                    MessageDirection::ToWidget,
-                    true,
-                    true,
-                ));
+                    WindowMessage::OpenModal {
+                        center: true,
+                        focus_content: true,
+                    },
+                );
 
                 if message.destination() == self.reimport {
                     self.import_mode = ImportMode::Reimport;
@@ -1085,12 +1087,13 @@ impl Toolbar {
             if let Some(first) = selected_nodes.first() {
                 self.selected_import_root = first.handle;
 
-                ui.send_message(WindowMessage::open_modal(
+                ui.send(
                     self.import_file_selector,
-                    MessageDirection::ToWidget,
-                    true,
-                    true,
-                ));
+                    WindowMessage::OpenModal {
+                        center: true,
+                        focus_content: true,
+                    },
+                );
                 ui.send_message(FileSelectorMessage::root(
                     self.import_file_selector,
                     MessageDirection::ToWidget,

@@ -18,33 +18,32 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::{Command, CommandGroup};
-use crate::fyrox::graph::SceneGraph;
-use crate::fyrox::{
-    core::{
-        algebra::{Vector2, Vector3},
-        color::Color,
-        math::{ray::CylinderKind, TriangleEdge},
-        pool::Handle,
-        uuid::{uuid, Uuid},
-        TypeUuidProvider,
-    },
-    engine::Engine,
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        grid::{Column, GridBuilder, Row},
-        message::{KeyCode, MessageDirection, UiMessage},
-        stack_panel::StackPanelBuilder,
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Orientation, Thickness, UiNode, UserInterface,
-    },
-    gui::{HorizontalAlignment, VerticalAlignment},
-    scene::{camera::Camera, navmesh::NavigationalMesh},
-};
-use crate::scene::SelectionContainer;
 use crate::{
     camera::PickingOptions,
+    command::{Command, CommandGroup},
+    fyrox::{
+        core::{
+            algebra::{Vector2, Vector3},
+            color::Color,
+            math::{ray::CylinderKind, TriangleEdge},
+            pool::Handle,
+            uuid::{uuid, Uuid},
+            TypeUuidProvider,
+        },
+        engine::Engine,
+        graph::SceneGraph,
+        gui::{
+            button::{ButtonBuilder, ButtonMessage},
+            grid::{Column, GridBuilder, Row},
+            message::{KeyCode, UiMessage},
+            stack_panel::StackPanelBuilder,
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, Orientation, Thickness, UiNode, UserInterface,
+        },
+        gui::{HorizontalAlignment, VerticalAlignment},
+        scene::{camera::Camera, navmesh::NavigationalMesh},
+    },
     interaction::{
         calculate_gizmo_distance_scaling,
         gizmo::move_gizmo::MoveGizmo,
@@ -63,7 +62,7 @@ use crate::{
             ChangeSelectionCommand,
         },
         controller::SceneController,
-        GameScene, Selection,
+        GameScene, Selection, SelectionContainer,
     },
     settings::Settings,
     utils::window_content,
@@ -167,19 +166,17 @@ impl NavmeshPanel {
         }
 
         if navmesh_selected {
-            engine
-                .user_interfaces
-                .first()
-                .send_message(WindowMessage::open_and_align(
-                    self.window,
-                    MessageDirection::ToWidget,
-                    self.scene_frame,
-                    HorizontalAlignment::Right,
-                    VerticalAlignment::Top,
-                    Thickness::uniform(1.0),
-                    false,
-                    false,
-                ));
+            engine.user_interfaces.first().send(
+                self.window,
+                WindowMessage::OpenAndAlign {
+                    relative_to: self.scene_frame,
+                    horizontal_alignment: HorizontalAlignment::Right,
+                    vertical_alignment: VerticalAlignment::Top,
+                    margin: Thickness::uniform(1.0),
+                    modal: false,
+                    focus_content: false,
+                },
+            );
         } else {
             engine
                 .user_interfaces

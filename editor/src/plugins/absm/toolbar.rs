@@ -292,12 +292,13 @@ impl Toolbar {
                     .with_hierarchy(root)
                     .build(&mut ui.build_ctx());
 
-                    ui.send_message(WindowMessage::open_modal(
+                    ui.send(
                         self.node_selector,
-                        MessageDirection::ToWidget,
-                        true,
-                        true,
-                    ));
+                        WindowMessage::OpenModal {
+                            center: true,
+                            focus_content: true,
+                        },
+                    );
 
                     if let Some(layer_index) = selection.layer {
                         if let Some(layer) = machine.layers().get(layer_index) {

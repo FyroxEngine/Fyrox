@@ -278,11 +278,7 @@ fn deminimize_other_window(
         return;
     }
     if let Some(handle) = other_window {
-        ui.send_message(WindowMessage::minimize(
-            handle,
-            MessageDirection::ToWidget,
-            false,
-        ));
+        ui.send(handle, WindowMessage::Minimize(false));
     }
 }
 
@@ -763,11 +759,7 @@ impl Control for Tile {
                         // because docked windows are not resizable.
                         if let Some(window) = ui.node(message.destination()).cast::<Window>() {
                             self.undock(window, ui);
-                            ui.send_message(WindowMessage::maximize(
-                                window.handle(),
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
+                            ui.send(window.handle(), WindowMessage::Maximize(true));
                         }
                     }
                 }
@@ -1106,11 +1098,7 @@ impl Tile {
             self.handle(),
         ));
 
-        ui.send_message(WindowMessage::can_resize(
-            window,
-            MessageDirection::ToWidget,
-            false,
-        ));
+        ui.send(window, WindowMessage::CanResize(false));
 
         // Make the window size undefined, so it will be stretched to the tile
         // size correctly.
@@ -1132,11 +1120,7 @@ impl Tile {
             MessageDirection::ToWidget,
         ));
 
-        ui.send_message(WindowMessage::can_resize(
-            window.handle(),
-            MessageDirection::ToWidget,
-            true,
-        ));
+        ui.send(window.handle(), WindowMessage::CanResize(true));
 
         let height = if window.minimized() {
             f32::NAN

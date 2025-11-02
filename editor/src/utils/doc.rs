@@ -22,7 +22,6 @@ use crate::fyrox::{
     core::pool::Handle,
     gui::{
         formatted_text::WrapMode,
-        message::MessageDirection,
         scroll_viewer::ScrollViewerBuilder,
         text::TextMessage,
         text_box::TextBoxBuilder,
@@ -67,11 +66,12 @@ impl DocWindow {
 
     pub fn open(&self, doc: String, ui: &UserInterface) {
         ui.send(self.text, TextMessage::Text(doc));
-        ui.send_message(WindowMessage::open(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::Open {
+                center: true,
+                focus_content: true,
+            },
+        );
     }
 }

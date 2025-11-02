@@ -33,7 +33,7 @@ use fyrox::{
             },
             Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
         },
-        message::{MessageDirection, UiMessage},
+        message::UiMessage,
         scroll_viewer::ScrollViewerBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -251,12 +251,13 @@ impl SettingsWindow {
             .with_remove_on_close(true)
             .build(ctx);
 
-        ctx.send_message(WindowMessage::open_modal(
+        ctx.inner().send(
             window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
 
         Self {
             window,

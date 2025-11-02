@@ -579,12 +579,13 @@ impl SceneLoadingWindow {
             )
             .build(ctx);
 
-        ctx.send_message(WindowMessage::open_modal(
+        ctx.inner().send(
             window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
 
         Self {
             window,

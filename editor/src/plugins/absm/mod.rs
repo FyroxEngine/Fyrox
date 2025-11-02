@@ -466,12 +466,13 @@ impl AbsmEditor {
     }
 
     pub fn open(&self, ui: &UserInterface) {
-        ui.send_message(WindowMessage::open(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::Open {
+                center: true,
+                focus_content: true,
+            },
+        );
     }
 
     pub fn update<P, G, N>(

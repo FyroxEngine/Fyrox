@@ -296,12 +296,13 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
                 )
                 .build(&mut ui.build_ctx());
 
-                ui.send_message(WindowMessage::open_modal(
+                ui.send(
                     node_selector,
-                    MessageDirection::ToWidget,
-                    true,
-                    true,
-                ));
+                    WindowMessage::OpenModal {
+                        center: true,
+                        focus_content: true,
+                    },
+                );
 
                 self.sender
                     .send(Message::ProvideSceneHierarchy { view: self.handle });

@@ -243,12 +243,13 @@ impl ProjectWizard {
             .with_title(WindowTitle::text("Project Wizard"))
             .build(ctx);
 
-        ctx.send_message(WindowMessage::open_modal(
+        ctx.inner().send(
             window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::Open {
+                center: true,
+                focus_content: true,
+            },
+        );
 
         Self {
             window,

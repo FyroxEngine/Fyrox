@@ -208,12 +208,13 @@ impl BuildWindow {
         Self::spawn_pipe_pump(stderr, &reader_active, &log_changed, &log);
         Self::spawn_pipe_pump(stdout, &reader_active, &log_changed, &log);
 
-        ui.send_message(WindowMessage::open_modal(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
     }
 
     fn spawn_pipe_pump(
@@ -247,10 +248,7 @@ impl BuildWindow {
 
     pub fn destroy(mut self, ui: &UserInterface) {
         self.reset(ui);
-        ui.send_message(WindowMessage::close(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.window, WindowMessage::Close);
     }
 
     pub fn update(&mut self, ui: &UserInterface, dt: f32) {

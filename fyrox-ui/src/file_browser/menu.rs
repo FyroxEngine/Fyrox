@@ -215,12 +215,13 @@ impl Control for ItemContextMenu {
                         )
                         .build(ctx);
 
-                ui.send_message(WindowMessage::open_modal(
+                ui.send(
                     dialog,
-                    MessageDirection::ToWidget,
-                    true,
-                    true,
-                ));
+                    WindowMessage::OpenModal {
+                        center: true,
+                        focus_content: true,
+                    },
+                );
 
                 self.folder_name_dialog = RefCell::new(Some(FolderNameDialog {
                     dialog,
@@ -281,17 +282,10 @@ impl Control for ItemContextMenu {
             let mut dialog = self.folder_name_dialog.borrow_mut();
             if let Some(dialog) = dialog.as_mut() {
                 if message.destination() == dialog.ok {
-                    ui.send_message(WindowMessage::close(
-                        dialog.dialog,
-                        MessageDirection::ToWidget,
-                    ));
+                    ui.send(dialog.dialog, WindowMessage::Close);
                 } else if message.destination() == dialog.cancel {
                     dialog.folder_name.clear();
-
-                    ui.send_message(WindowMessage::close(
-                        dialog.dialog,
-                        MessageDirection::ToWidget,
-                    ));
+                    ui.send(dialog.dialog, WindowMessage::Close);
                 }
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {

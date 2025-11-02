@@ -1044,11 +1044,7 @@ impl SceneViewer {
     }
 
     pub fn set_title(&self, ui: &UserInterface, title: String) {
-        ui.send_message(WindowMessage::title(
-            self.window,
-            MessageDirection::ToWidget,
-            WindowTitle::text(title),
-        ));
+        ui.send(self.window, WindowMessage::Title(WindowTitle::text(title)));
     }
 
     pub fn reset_camera_projection(&self, ui: &UserInterface) {

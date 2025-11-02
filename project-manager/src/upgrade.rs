@@ -25,7 +25,7 @@ use fyrox::{
         button::ButtonMessage,
         dropdown_list::{DropdownListBuilder, DropdownListMessage},
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessage},
+        message::UiMessage,
         stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
         text_box::TextBoxBuilder,
@@ -174,12 +174,13 @@ impl UpgradeTool {
             .with_remove_on_close(true)
             .build(ctx);
 
-        ctx.send_message(WindowMessage::open_modal(
+        ctx.inner().send(
             window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
 
         Self {
             window,

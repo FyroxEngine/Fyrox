@@ -296,12 +296,13 @@ impl StyledPropertySelectorBuilder {
         )
         .build(target_style, target_type, style_property_name, ctx);
 
-        ctx.send_message(WindowMessage::open_modal(
+        ctx.inner().send(
             window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
 
         window
     }

@@ -431,16 +431,17 @@ impl TileMapPanel {
                 MessageDirection::ToWidget,
             ));
         } else {
-            ui.send_message(WindowMessage::open_and_align(
+            ui.send(
                 self.window,
-                MessageDirection::ToWidget,
-                relative_to,
-                HorizontalAlignment::Right,
-                VerticalAlignment::Top,
-                Thickness::uniform(2.0),
-                false,
-                true,
-            ));
+                WindowMessage::OpenAndAlign {
+                    relative_to,
+                    horizontal_alignment: HorizontalAlignment::Right,
+                    vertical_alignment: VerticalAlignment::Top,
+                    margin: Thickness::uniform(2.0),
+                    modal: false,
+                    focus_content: true,
+                },
+            );
         }
     }
 

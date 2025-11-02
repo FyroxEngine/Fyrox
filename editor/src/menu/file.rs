@@ -202,12 +202,13 @@ impl FileMenu {
     }
 
     pub fn open_load_file_selector(&self, ui: &mut UserInterface) {
-        ui.send_message(WindowMessage::open_modal(
+        ui.send(
             self.load_file_selector,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
         ui.send_message(FileSelectorMessage::root(
             self.load_file_selector,
             MessageDirection::ToWidget,
@@ -218,12 +219,13 @@ impl FileMenu {
     pub fn open_save_file_selector(&mut self, ui: &mut UserInterface, default_file_name: PathBuf) {
         self.save_file_selector = make_save_file_selector(&mut ui.build_ctx(), default_file_name);
 
-        ui.send_message(WindowMessage::open_modal(
+        ui.send(
             self.save_file_selector,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
         ui.send_message(FileSelectorMessage::path(
             self.save_file_selector,
             MessageDirection::ToWidget,
@@ -304,15 +306,13 @@ impl FileMenu {
                 sender.send(Message::NewUiScene);
             } else if message.destination() == self.configure {
                 if entry.is_none() {
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(WindowMessage::open_modal(
-                            panels.configurator_window,
-                            MessageDirection::ToWidget,
-                            true,
-                            true,
-                        ));
+                    engine.user_interfaces.first().send(
+                        panels.configurator_window,
+                        WindowMessage::OpenModal {
+                            center: true,
+                            focus_content: true,
+                        },
+                    );
                 } else {
                     engine.user_interfaces.first_mut().send(
                         self.configure_message,

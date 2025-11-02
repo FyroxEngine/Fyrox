@@ -486,10 +486,7 @@ impl NodeSelectorWindow {
                 .clone(),
         ));
 
-        ui.send_message(WindowMessage::close(
-            self.handle,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.handle, WindowMessage::Close);
     }
 }
 
@@ -521,10 +518,7 @@ impl Control for NodeSelectorWindow {
             if message.destination() == self.ok {
                 self.confirm(ui);
             } else if message.destination() == self.cancel {
-                ui.send_message(WindowMessage::close(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.handle, WindowMessage::Close);
             }
         } else if let Some(msg) = message.data::<NodeSelectorMessage>() {
             if message.is_for(self.handle) {

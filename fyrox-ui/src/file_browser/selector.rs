@@ -154,11 +154,9 @@ impl Control for FileSelector {
         } else if let Some(msg) = message.data::<FileSelectorMessage>() {
             if message.destination() == self.handle {
                 match msg {
-                    FileSelectorMessage::Commit(_) | FileSelectorMessage::Cancel => ui
-                        .send_message(WindowMessage::close(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                        )),
+                    FileSelectorMessage::Commit(_) | FileSelectorMessage::Cancel => {
+                        ui.send(self.handle, WindowMessage::Close)
+                    }
                     FileSelectorMessage::Path(path) => ui.send_message(FileBrowserMessage::path(
                         self.browser,
                         MessageDirection::ToWidget,
@@ -389,12 +387,13 @@ impl Control for FileSelectorField {
 
                 self.file_selector = file_selector;
 
-                ui.send_message(WindowMessage::open_modal(
+                ui.send(
                     file_selector,
-                    MessageDirection::ToWidget,
-                    true,
-                    true,
-                ));
+                    WindowMessage::OpenModal {
+                        center: true,
+                        focus_content: true,
+                    },
+                );
             }
         } else if let Some(FileSelectorFieldMessage::Path(new_path)) = message.data() {
             if message.is_for(self.handle) && &self.path != new_path {

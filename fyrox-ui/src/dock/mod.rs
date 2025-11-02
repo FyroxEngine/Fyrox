@@ -335,17 +335,15 @@ impl DockingManager {
                     self.floating_windows.borrow_mut().push(floating_window);
 
                     if floating_window_desc.is_open {
-                        ui.send_message(WindowMessage::open(
+                        ui.send(
                             floating_window,
-                            MessageDirection::ToWidget,
-                            false,
-                            false,
-                        ));
+                            WindowMessage::Open {
+                                center: false,
+                                focus_content: false,
+                            },
+                        );
                     } else {
-                        ui.send_message(WindowMessage::close(
-                            floating_window,
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send(floating_window, WindowMessage::Close);
                     }
 
                     ui.send_message(WidgetMessage::desired_position(

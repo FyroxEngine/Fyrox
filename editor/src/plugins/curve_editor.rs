@@ -325,19 +325,17 @@ impl CurveEditorWindow {
             self.save_file_selector,
             MessageDirection::ToWidget,
         ));
-        ui.send_message(WindowMessage::close(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.window, WindowMessage::Close);
     }
 
     pub fn open(&self, ui: &UserInterface) {
-        ui.send_message(WindowMessage::open_modal(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
     }
 
     fn sync_to_model(&mut self, ui: &UserInterface) {
@@ -398,11 +396,7 @@ impl CurveEditorWindow {
             "Curve Editor".to_string()
         };
 
-        ui.send_message(WindowMessage::title(
-            self.window,
-            MessageDirection::ToWidget,
-            WindowTitle::text(title),
-        ));
+        ui.send(self.window, WindowMessage::Title(WindowTitle::text(title)));
     }
 
     fn revert(&self) {
@@ -418,12 +412,13 @@ impl CurveEditorWindow {
             Some(std::env::current_dir().unwrap()),
         ));
 
-        ui.send_message(WindowMessage::open_modal(
+        ui.send(
             self.save_file_selector,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
     }
 
     pub fn handle_ui_message(mut self, message: &UiMessage, engine: &mut Engine) -> Option<Self> {
@@ -493,12 +488,13 @@ impl CurveEditorWindow {
                     Some(std::env::current_dir().unwrap()),
                 ));
 
-                ui.send_message(WindowMessage::open_modal(
+                ui.send(
                     self.load_file_selector,
-                    MessageDirection::ToWidget,
-                    true,
-                    true,
-                ));
+                    WindowMessage::OpenModal {
+                        center: true,
+                        focus_content: true,
+                    },
+                );
             } else if message.destination() == self.menu.file.new {
                 self.path = Default::default();
 

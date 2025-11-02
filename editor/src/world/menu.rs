@@ -350,12 +350,13 @@ impl SceneNodeContextMenu {
                     self.save_as_prefab_dialog =
                         make_save_file_selector(&mut ui.build_ctx(), PathBuf::from("unnamed.rgs"));
 
-                    ui.send_message(WindowMessage::open_modal(
+                    ui.send(
                         self.save_as_prefab_dialog,
-                        MessageDirection::ToWidget,
-                        true,
-                        true,
-                    ));
+                        WindowMessage::OpenModal {
+                            center: true,
+                            focus_content: true,
+                        },
+                    );
                     ui.send_message(FileSelectorMessage::root(
                         self.save_as_prefab_dialog,
                         MessageDirection::ToWidget,

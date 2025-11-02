@@ -24,7 +24,7 @@ use crate::{
         graph::BaseSceneGraph,
         gui::{
             menu::{self, MenuItemMessage},
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             window::WindowMessage,
             BuildContext, UiNode, UserInterface,
         },
@@ -51,11 +51,17 @@ pub struct ViewMenu {
 
 fn switch_window_state(window: Handle<UiNode>, ui: &UserInterface, center: bool) {
     let current_state = ui.node(window).visibility();
-    ui.send_message(if current_state {
-        WindowMessage::close(window, MessageDirection::ToWidget)
+    if current_state {
+        ui.send(window, WindowMessage::Close);
     } else {
-        WindowMessage::open(window, MessageDirection::ToWidget, center, true)
-    })
+        ui.send(
+            window,
+            WindowMessage::Open {
+                center,
+                focus_content: true,
+            },
+        )
+    }
 }
 
 impl ViewMenu {

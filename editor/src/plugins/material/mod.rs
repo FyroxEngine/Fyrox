@@ -381,14 +381,14 @@ impl MaterialEditor {
                 .unwrap_or(PathBuf::from("Embedded"))
                 .to_string_lossy()
                 .to_string();
-            engine
-                .user_interfaces
-                .first()
-                .send_message(WindowMessage::title(
-                    self.window,
-                    MessageDirection::ToWidget,
-                    WindowTitle::text(format!("{} - {}", Self::TITLE, material_name)),
-                ));
+            engine.user_interfaces.first().send(
+                self.window,
+                WindowMessage::Title(WindowTitle::text(format!(
+                    "{} - {}",
+                    Self::TITLE,
+                    material_name
+                ))),
+            );
 
             engine.scenes[self.preview.scene()].graph[self.preview.model()]
                 .as_mesh_mut()
@@ -813,12 +813,13 @@ impl EditorPlugin for MaterialPlugin {
         );
 
         let ui = engine.user_interfaces.first_mut();
-        ui.send_message(WindowMessage::open(
+        ui.send(
             material_editor.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::Open {
+                center: true,
+                focus_content: true,
+            },
+        );
         ui.send_message(DockingManagerMessage::add_floating_window(
             editor.docking_manager,
             MessageDirection::ToWidget,

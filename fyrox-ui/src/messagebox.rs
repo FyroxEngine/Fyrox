@@ -33,7 +33,7 @@ use crate::{
     draw::DrawingContext,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
-    message::{MessageDirection, OsEvent, UiMessage},
+    message::{OsEvent, UiMessage},
     stack_panel::StackPanelBuilder,
     text::{TextBuilder, TextMessage},
     widget::{Widget, WidgetBuilder},
@@ -255,30 +255,27 @@ impl Control for MessageBox {
             match msg {
                 MessageBoxMessage::Open { title, text } => {
                     if let Some(title) = title {
-                        ui.send_message(WindowMessage::title(
+                        ui.send(
                             self.handle(),
-                            MessageDirection::ToWidget,
-                            WindowTitle::text(title.clone()),
-                        ));
+                            WindowMessage::Title(WindowTitle::text(title.clone())),
+                        );
                     }
 
                     if let Some(text) = text {
                         ui.send(*self.text, TextMessage::Text(text.clone()));
                     }
 
-                    ui.send_message(WindowMessage::open_modal(
+                    ui.send(
                         self.handle(),
-                        MessageDirection::ToWidget,
-                        true,
-                        true,
-                    ));
+                        WindowMessage::OpenModal {
+                            center: true,
+                            focus_content: true,
+                        },
+                    );
                 }
                 MessageBoxMessage::Close(_) => {
                     // Translate message box message into window message.
-                    ui.send_message(WindowMessage::close(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                    ));
+                    ui.send(self.handle(), WindowMessage::Close);
                 }
             }
         }

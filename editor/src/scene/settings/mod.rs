@@ -116,12 +116,13 @@ impl SceneSettingsWindow {
         icon_request_sender: Sender<IconRequest>,
     ) {
         let ui = engine.user_interfaces.first();
-        ui.send_message(WindowMessage::open(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::Open {
+                center: true,
+                focus_content: true,
+            },
+        );
         self.sync_to_model(true, game_scene, engine, sender, icon_request_sender);
     }
 

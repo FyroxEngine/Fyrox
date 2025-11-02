@@ -31,10 +31,9 @@ use crate::{
         type_traits::prelude::*, uuid_provider, visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
-    define_constructor,
     font::FontResource,
     grid::{Column, GridBuilder, Row},
-    message::{CursorIcon, KeyCode, MessageDirection, UiMessage},
+    message::{CursorIcon, KeyCode, UiMessage},
     navigation::NavigationLayerBuilder,
     style::{resource::StyleResourceExt, Style, StyledProperty},
     text::{Text, TextBuilder, TextMessage},
@@ -138,76 +137,6 @@ pub enum WindowMessage {
     SafeBorderSize(Option<Vector2<f32>>),
 }
 impl MessageData for WindowMessage {}
-
-impl WindowMessage {
-    define_constructor!(
-        /// Creates [`WindowMessage::Open`] message.
-        WindowMessage:Open => fn open(center: bool, focus_content: bool)
-    );
-    define_constructor!(
-        /// Creates [`WindowMessage::OpenAt`] message.
-        WindowMessage:OpenAt => fn open_at(position: Vector2<f32>, focus_content: bool)
-    );
-    define_constructor!(
-        /// Creates [`WindowMessage::OpenAndAlign`] message.
-        WindowMessage:OpenAndAlign => fn open_and_align(
-            relative_to: Handle<UiNode>,
-            horizontal_alignment: HorizontalAlignment,
-            vertical_alignment: VerticalAlignment,
-            margin: Thickness,
-            modal: bool,
-            focus_content: bool
-        )
-    );
-    define_constructor!(
-        /// Creates [`WindowMessage::OpenModal`] message.
-        WindowMessage:OpenModal => fn open_modal(center: bool, focus_content: bool)
-    );
-    define_constructor!(
-        /// Creates [`WindowMessage::Close`] message.
-        WindowMessage:Close => fn close()
-    );
-    define_constructor!(
-        /// Creates [`WindowMessage::Minimize`] message.
-        WindowMessage:Minimize => fn minimize(bool)
-    );
-    define_constructor!(
-        /// Creates [`WindowMessage::Maximize`] message.
-        WindowMessage:Maximize => fn maximize(bool)
-    );
-    define_constructor!(
-        /// Creates [`WindowMessage::CanMinimize`] message.
-        WindowMessage:CanMinimize => fn can_minimize(bool)
-    );
-    define_constructor!(
-        /// Creates [`WindowMessage::CanClose`] message.
-        WindowMessage:CanClose => fn can_close(bool)
-    );
-    define_constructor!(
-        /// Creates [`WindowMessage::CanResize`] message.
-        WindowMessage:CanResize => fn can_resize(bool)
-    );
-    define_constructor!(
-        /// Creates [`WindowMessage::MoveStart`] message.
-        WindowMessage:MoveStart => fn move_start()
-    );
-    define_constructor!(
-        /// Creates [`WindowMessage::Move`] message.
-        WindowMessage:Move => fn move_to(Vector2<f32>)
-    );
-    define_constructor!(
-        /// Creates [`WindowMessage::MoveEnd`] message.
-        WindowMessage:MoveEnd => fn move_end()
-    );
-    define_constructor!(
-        /// Creates [`WindowMessage::Title`] message.
-        WindowMessage:Title => fn title(WindowTitle)
-    );
-    define_constructor!(
-        /// Creates [`WindowMessage::SafeBorderSize`] message.
-        WindowMessage:SafeBorderSize => fn safe_border_size(Option<Vector2<f32>>)
-    );
-}
 
 /// The state of a window's size, as controlled by the buttons on the top-right corner.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Visit, Reflect)]

@@ -76,16 +76,17 @@ impl EditorPlugin for UiStatisticsPlugin {
                         .open(false)
                         .build(ctx);
 
-                ui.send_message(WindowMessage::open_and_align(
+                ui.send(
                     self.window,
-                    MessageDirection::ToWidget,
-                    editor.scene_viewer.frame(),
-                    HorizontalAlignment::Right,
-                    VerticalAlignment::Bottom,
-                    Thickness::uniform(1.0),
-                    false,
-                    true,
-                ));
+                    WindowMessage::OpenAndAlign {
+                        relative_to: editor.scene_viewer.frame(),
+                        horizontal_alignment: HorizontalAlignment::Right,
+                        vertical_alignment: VerticalAlignment::Bottom,
+                        margin: Thickness::uniform(1.0),
+                        modal: false,
+                        focus_content: true,
+                    },
+                );
             }
         }
 

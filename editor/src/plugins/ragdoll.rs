@@ -36,7 +36,7 @@ use crate::{
             grid::{Column, GridBuilder, Row},
             inspector::{InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction},
             menu::MenuItemMessage,
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
             utils::make_simple_tooltip,
@@ -1128,12 +1128,13 @@ impl RagdollWizard {
     }
 
     pub fn open(&self, ui: &UserInterface) {
-        ui.send_message(WindowMessage::open(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::Open {
+                center: true,
+                focus_content: true,
+            },
+        );
     }
 
     pub fn handle_ui_message(
@@ -1165,15 +1166,9 @@ impl RagdollWizard {
                 self.preset
                     .create_and_send_command(graph, game_scene, sender);
 
-                ui.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.window, WindowMessage::Close);
             } else if message.destination() == self.cancel {
-                ui.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.window, WindowMessage::Close);
             } else if message.destination() == self.autofill {
                 fn find_by_pattern(graph: &Graph, pattern: &str) -> Handle<Node> {
                     graph

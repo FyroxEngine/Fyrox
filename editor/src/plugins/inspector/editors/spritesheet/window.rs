@@ -125,10 +125,7 @@ impl Control for SpriteSheetFramesEditorWindow {
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
-                ui.send_message(WindowMessage::close(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.handle, WindowMessage::Close);
 
                 ui.send_message(SpriteSheetFramesPropertyEditorMessage::value(
                     self.editor,
@@ -136,10 +133,7 @@ impl Control for SpriteSheetFramesEditorWindow {
                     self.animation.frames().clone(),
                 ));
             } else if message.destination() == self.cancel {
-                ui.send_message(WindowMessage::close(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.handle, WindowMessage::Close);
             }
         } else if let Some(NumericUpDownMessage::Value(value)) = message.data() {
             if message.destination() == self.width {

@@ -22,7 +22,7 @@ use crate::fyrox::{
     core::pool::Handle,
     engine::{Engine, GraphicsContext},
     gui::{
-        message::{MessageDirection, UiMessage},
+        message::UiMessage,
         scroll_viewer::ScrollViewerBuilder,
         text::{TextBuilder, TextMessage},
         widget::{WidgetBuilder, WidgetMessage},
@@ -61,16 +61,17 @@ impl StatisticsWindow {
             .with_title(WindowTitle::text("Rendering Statistics"))
             .build(ctx);
 
-        ctx.send_message(WindowMessage::open_and_align(
+        ctx.inner().send(
             window,
-            MessageDirection::ToWidget,
-            anchor,
-            HorizontalAlignment::Right,
-            VerticalAlignment::Top,
-            Thickness::uniform(2.0),
-            false,
-            false,
-        ));
+            WindowMessage::OpenAndAlign {
+                relative_to: anchor,
+                horizontal_alignment: HorizontalAlignment::Right,
+                vertical_alignment: VerticalAlignment::Top,
+                margin: Thickness::uniform(2.0),
+                focus_content: false,
+                modal: false,
+            },
+        );
 
         Self { window, text }
     }

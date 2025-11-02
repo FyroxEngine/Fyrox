@@ -796,12 +796,13 @@ impl TrackList {
                 .with_hierarchy(HierarchyNode::from_scene_node(root, Handle::NONE, graph))
                 .build(&mut ui.build_ctx());
 
-                ui.send_message(WindowMessage::open_modal(
+                ui.send(
                     self.node_selector,
-                    MessageDirection::ToWidget,
-                    true,
-                    true,
-                ));
+                    WindowMessage::OpenModal {
+                        center: true,
+                        focus_content: true,
+                    },
+                );
 
                 if message.destination() == self.add_track {
                     self.property_binding_mode = PropertyBindingMode::Generic;
@@ -1022,12 +1023,13 @@ impl TrackList {
                 .with_hierarchy(HierarchyNode::from_scene_node(root, Handle::NONE, graph))
                 .build(&mut ui.build_ctx());
 
-                ui.send_message(WindowMessage::open_modal(
+                ui.send(
                     self.context_menu.target_node_selector,
-                    MessageDirection::ToWidget,
-                    true,
-                    true,
-                ));
+                    WindowMessage::OpenModal {
+                        center: true,
+                        focus_content: true,
+                    },
+                );
             } else if message.destination() == self.context_menu.rebind {
                 if let Some(animation) = selected_animation {
                     self.on_rebind_clicked(graph, selection, animation, ui);
@@ -1155,12 +1157,13 @@ impl TrackList {
         .with_property_descriptors(descriptors)
         .build(&mut ui.build_ctx());
 
-        ui.send_message(WindowMessage::open_modal(
+        ui.send(
             property_selector,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::OpenModal {
+                center: true,
+                focus_content: true,
+            },
+        );
 
         property_selector
     }

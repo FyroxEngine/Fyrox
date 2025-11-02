@@ -222,19 +222,17 @@ impl LogPanel {
     }
 
     pub fn open(&self, ui: &UserInterface) {
-        ui.send_message(WindowMessage::open(
+        ui.send(
             self.window,
-            MessageDirection::ToWidget,
-            true,
-            true,
-        ));
+            WindowMessage::Open {
+                center: true,
+                focus_content: true,
+            },
+        );
     }
 
     pub fn close(&self, ui: &UserInterface) {
-        ui.send_message(WindowMessage::close(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.window, WindowMessage::Close);
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
