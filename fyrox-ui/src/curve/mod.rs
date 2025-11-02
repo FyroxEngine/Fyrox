@@ -40,7 +40,6 @@ use crate::{
         SafeLock,
     },
     curve::key::{CurveKeyView, CurveKeyViewContainer},
-    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder},
     grid::{Column, GridBuilder, Row},
@@ -90,24 +89,6 @@ pub enum CurveEditorMessage {
     PasteSelection,
     // Position in screen coordinates.
     AddKey(Vector2<f32>),
-}
-
-impl CurveEditorMessage {
-    define_constructor!(CurveEditorMessage:SyncBackground => fn sync_background(Vec<Curve>));
-    define_constructor!(CurveEditorMessage:Sync => fn sync(Vec<Curve>));
-    define_constructor!(CurveEditorMessage:Colorize => fn colorize(Vec<(Uuid, Brush)>));
-    define_constructor!(CurveEditorMessage:ViewPosition => fn view_position(Vector2<f32>));
-    define_constructor!(CurveEditorMessage:Zoom => fn zoom(Vector2<f32>));
-    define_constructor!(CurveEditorMessage:ZoomToFit => fn zoom_to_fit(after_layout: bool));
-    define_constructor!(CurveEditorMessage:HighlightZones => fn hightlight_zones(Vec<HighlightZone>));
-    // Internal. Use only when you know what you're doing.
-    define_constructor!(CurveEditorMessage:RemoveSelection => fn remove_selection());
-    define_constructor!(CurveEditorMessage:ChangeSelectedKeysKind => fn change_selected_keys_kind(CurveKeyKind));
-    define_constructor!(CurveEditorMessage:ChangeSelectedKeysValue => fn change_selected_keys_value(f32));
-    define_constructor!(CurveEditorMessage:ChangeSelectedKeysLocation => fn change_selected_keys_location(f32));
-    define_constructor!(CurveEditorMessage:AddKey => fn add_key(Vector2<f32>));
-    define_constructor!(CurveEditorMessage:CopySelection => fn copy_selection());
-    define_constructor!(CurveEditorMessage:PasteSelection => fn paste_selection());
 }
 
 impl MessageData for CurveEditorMessage {
@@ -631,11 +612,10 @@ impl Control for CurveEditor {
                                     // Dragging left moves the position right. Dragging up moves the position down.
                                     // Remember: up is negative-y in screen space, and up is positive-y in curve space.
                                     let delta = Vector2::<f32>::new(-d.x / zoom.x, d.y / zoom.y);
-                                    ui.send_message(CurveEditorMessage::view_position(
+                                    ui.send(
                                         self.handle,
-                                        MessageDirection::ToWidget,
-                                        initial_view_pos + delta,
-                                    ));
+                                        CurveEditorMessage::ViewPosition(initial_view_pos + delta),
+                                    );
                                 }
                                 OperationContext::DragTangent { key_id: key, left } => {
                                     if let Some(key) = self.curves.key_mut(*key) {
@@ -851,11 +831,7 @@ impl Control for CurveEditor {
                             zoom * k
                         };
 
-                        ui.send_message(CurveEditorMessage::zoom(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                            new_zoom,
-                        ));
+                        ui.send(self.handle, CurveEditorMessage::Zoom(new_zoom));
 
                         message.set_handled(true);
                     }
@@ -1008,69 +984,52 @@ impl Control for CurveEditor {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.context_menu.remove {
-                ui.send_message(CurveEditorMessage::remove_selection(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.handle, CurveEditorMessage::RemoveSelection);
             } else if message.destination() == self.context_menu.make_constant {
-                ui.send_message(CurveEditorMessage::change_selected_keys_kind(
+                ui.send(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    CurveKeyKind::Constant,
-                ));
+                    CurveEditorMessage::ChangeSelectedKeysKind(CurveKeyKind::Constant),
+                );
             } else if message.destination() == self.context_menu.make_linear {
-                ui.send_message(CurveEditorMessage::change_selected_keys_kind(
+                ui.send(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    CurveKeyKind::Linear,
-                ));
+                    CurveEditorMessage::ChangeSelectedKeysKind(CurveKeyKind::Linear),
+                );
             } else if message.destination() == self.context_menu.make_cubic {
-                ui.send_message(CurveEditorMessage::change_selected_keys_kind(
+                ui.send(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    CurveKeyKind::Cubic {
+                    CurveEditorMessage::ChangeSelectedKeysKind(CurveKeyKind::Cubic {
                         left_tangent: 0.0,
                         right_tangent: 0.0,
-                    },
-                ));
+                    }),
+                );
             } else if message.destination() == self.context_menu.add_key {
                 let screen_pos = ui.node(self.context_menu.widget.handle()).screen_position();
-                ui.send_message(CurveEditorMessage::add_key(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                    screen_pos,
-                ));
+                ui.send(self.handle, CurveEditorMessage::AddKey(screen_pos));
             } else if message.destination() == self.context_menu.zoom_to_fit {
-                ui.send_message(CurveEditorMessage::zoom_to_fit(
+                ui.send(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    false,
-                ));
+                    CurveEditorMessage::ZoomToFit {
+                        after_layout: false,
+                    },
+                );
             } else if message.destination() == self.context_menu.copy_keys {
-                ui.send_message(CurveEditorMessage::copy_selection(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.handle, CurveEditorMessage::CopySelection);
             } else if message.destination() == self.context_menu.paste_keys {
-                ui.send_message(CurveEditorMessage::paste_selection(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.handle, CurveEditorMessage::PasteSelection);
             }
         } else if let Some(NumericUpDownMessage::<f32>::Value(value)) = message.data() {
             if message.direction() == MessageDirection::FromWidget && !message.handled() {
                 if message.destination() == self.context_menu.key_value {
-                    ui.send_message(CurveEditorMessage::change_selected_keys_value(
+                    ui.send(
                         self.handle,
-                        MessageDirection::ToWidget,
-                        *value,
-                    ));
+                        CurveEditorMessage::ChangeSelectedKeysValue(*value),
+                    );
                 } else if message.destination() == self.context_menu.key_location {
-                    ui.send_message(CurveEditorMessage::change_selected_keys_location(
+                    ui.send(
                         self.handle,
-                        MessageDirection::ToWidget,
-                        *value,
-                    ));
+                        CurveEditorMessage::ChangeSelectedKeysLocation(*value),
+                    );
                 }
             }
         }
@@ -1174,21 +1133,19 @@ impl CurveEditor {
         let center = bounds.center();
 
         sender
-            .send(CurveEditorMessage::zoom(
+            .send(UiMessage::for_widget(
                 self.handle,
-                MessageDirection::ToWidget,
-                Vector2::new(
+                CurveEditorMessage::Zoom(Vector2::new(
                     self.actual_local_size().x / bounds.w(),
                     self.actual_local_size().y / bounds.h(),
-                ),
+                )),
             ))
             .unwrap();
 
         sender
-            .send(CurveEditorMessage::view_position(
+            .send(UiMessage::for_widget(
                 self.handle,
-                MessageDirection::ToWidget,
-                center,
+                CurveEditorMessage::ViewPosition(center),
             ))
             .unwrap();
     }
@@ -1373,11 +1330,10 @@ impl CurveEditor {
     }
 
     fn send_curves(&self, ui: &UserInterface) {
-        ui.send_message(CurveEditorMessage::sync(
+        ui.send(
             self.handle,
-            MessageDirection::FromWidget,
-            self.curves.to_native(),
-        ));
+            CurveEditorMessage::Sync(self.curves.to_native()),
+        );
     }
 
     fn draw_background(&self, ctx: &mut DrawingContext) {

@@ -503,17 +503,18 @@ impl AnimationEditor {
                     let length = animation_ref.length().max(1.0);
                     let zoom = size.x / length;
 
-                    ui.send_message(CurveEditorMessage::zoom(
+                    ui.send(
                         self.curve_editor,
-                        MessageDirection::ToWidget,
-                        Vector2::new(zoom, zoom),
-                    ));
+                        CurveEditorMessage::Zoom(Vector2::new(zoom, zoom)),
+                    );
 
-                    ui.send_message(CurveEditorMessage::view_position(
+                    ui.send(
                         self.curve_editor,
-                        MessageDirection::ToWidget,
-                        Vector2::new(0.5 * animation_ref.length(), 0.0),
-                    ));
+                        CurveEditorMessage::ViewPosition(Vector2::new(
+                            0.5 * animation_ref.length(),
+                            0.0,
+                        )),
+                    );
                 }
                 ToolbarAction::PlayPause => {
                     if self.preview_mode_data.is_some() {
@@ -711,21 +712,17 @@ impl AnimationEditor {
                     return;
                 };
 
-                send_sync_message(
-                    ui,
-                    CurveEditorMessage::hightlight_zones(
-                        self.curve_editor,
-                        MessageDirection::ToWidget,
-                        vec![HighlightZone {
-                            rect: Rect::new(
-                                animation.time_slice().start,
-                                -100000.0,
-                                animation.time_slice().end - animation.time_slice().start,
-                                200000.0,
-                            ),
-                            brush: ui.style.get_or_default(Style::BRUSH_PRIMARY),
-                        }],
-                    ),
+                ui.send_sync(
+                    self.curve_editor,
+                    CurveEditorMessage::HighlightZones(vec![HighlightZone {
+                        rect: Rect::new(
+                            animation.time_slice().start,
+                            -100000.0,
+                            animation.time_slice().end - animation.time_slice().start,
+                            200000.0,
+                        ),
+                        brush: ui.style.get_or_default(Style::BRUSH_PRIMARY),
+                    }]),
                 );
 
                 send_sync_message(
@@ -803,13 +800,9 @@ impl AnimationEditor {
                     }
                 }
 
-                send_sync_message(
-                    ui,
-                    CurveEditorMessage::sync_background(
-                        self.curve_editor,
-                        MessageDirection::ToWidget,
-                        background_curves,
-                    ),
+                ui.send_sync(
+                    self.curve_editor,
+                    CurveEditorMessage::SyncBackground(background_curves),
                 );
 
                 if !selected_curves.is_empty() {
@@ -818,26 +811,16 @@ impl AnimationEditor {
                         .map(|(index, curve)| (curve.id, Brush::Solid(Color::COLORS[3 + *index])))
                         .collect::<Vec<_>>();
 
-                    send_sync_message(
-                        ui,
-                        CurveEditorMessage::sync(
-                            self.curve_editor,
-                            MessageDirection::ToWidget,
+                    ui.send_sync(
+                        self.curve_editor,
+                        CurveEditorMessage::Sync(
                             selected_curves
                                 .into_iter()
                                 .map(|(_, curve)| curve)
                                 .collect(),
                         ),
                     );
-
-                    send_sync_message(
-                        ui,
-                        CurveEditorMessage::colorize(
-                            self.curve_editor,
-                            MessageDirection::ToWidget,
-                            color_map,
-                        ),
-                    );
+                    ui.send_sync(self.curve_editor, CurveEditorMessage::Colorize(color_map));
 
                     is_curve_selected = true;
                 }
@@ -849,32 +832,20 @@ impl AnimationEditor {
         if !is_animation_selected || !is_animation_player_selected {
             self.track_list.clear(ui);
 
-            send_sync_message(
-                ui,
-                CurveEditorMessage::zoom(
-                    self.curve_editor,
-                    MessageDirection::ToWidget,
-                    Vector2::new(1.0, 1.0),
-                ),
+            ui.send_sync(
+                self.curve_editor,
+                CurveEditorMessage::Zoom(Vector2::new(1.0, 1.0)),
             );
-            send_sync_message(
-                ui,
-                CurveEditorMessage::view_position(
-                    self.curve_editor,
-                    MessageDirection::ToWidget,
-                    Vector2::default(),
-                ),
+            ui.send_sync(
+                self.curve_editor,
+                CurveEditorMessage::ViewPosition(Vector2::default()),
             );
         }
 
         if !is_animation_selected || !is_animation_player_selected || !is_curve_selected {
-            send_sync_message(
-                ui,
-                CurveEditorMessage::sync(
-                    self.curve_editor,
-                    MessageDirection::ToWidget,
-                    Default::default(),
-                ),
+            ui.send_sync(
+                self.curve_editor,
+                CurveEditorMessage::Sync(Default::default()),
             );
         }
 

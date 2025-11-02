@@ -34,7 +34,7 @@ use crate::{
             file_browser::{FileBrowserMode, FileSelectorMessage},
             grid::{Column, GridBuilder, Row},
             menu::{MenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             messagebox::{MessageBoxBuilder, MessageBoxResult},
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
@@ -45,7 +45,6 @@ use crate::{
     },
     menu::create_menu_item,
     plugin::EditorPlugin,
-    send_sync_message,
     utils::create_file_selector,
     Editor, MessageBoxButtons, MessageBoxMessage, MSG_SYNC_FLAG,
 };
@@ -328,13 +327,9 @@ impl CurveEditorWindow {
 
     fn sync_to_model(&mut self, ui: &UserInterface) {
         if let Some(curve_resource) = self.curve_resource.as_ref() {
-            send_sync_message(
-                ui,
-                CurveEditorMessage::sync(
-                    self.curve_editor,
-                    MessageDirection::ToWidget,
-                    vec![curve_resource.data_ref().curve.clone()],
-                ),
+            ui.send_sync(
+                self.curve_editor,
+                CurveEditorMessage::Sync(vec![curve_resource.data_ref().curve.clone()]),
             );
         }
     }

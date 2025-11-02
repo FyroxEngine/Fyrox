@@ -55,11 +55,8 @@ impl PropertyEditorDefinition for CurvePropertyEditorDefinition {
         .with_curves(vec![value.clone()])
         .build(ctx.build_context);
         ctx.build_context
-            .send_message(CurveEditorMessage::zoom_to_fit(
-                editor,
-                MessageDirection::ToWidget,
-                true,
-            ));
+            .inner()
+            .send(editor, CurveEditorMessage::ZoomToFit { after_layout: true });
         Ok(PropertyEditorInstance::Simple { editor })
     }
 
@@ -68,10 +65,9 @@ impl PropertyEditorDefinition for CurvePropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Curve>()?;
-        Ok(Some(CurveEditorMessage::sync(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            vec![value.clone()],
+            CurveEditorMessage::Sync(vec![value.clone()]),
         )))
     }
 
