@@ -34,7 +34,6 @@ use crate::{
         uuid_provider,
         visitor::prelude::*,
     },
-    define_constructor,
     expander::ExpanderBuilder,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
@@ -83,12 +82,6 @@ pub enum CollectionChanged {
     },
 }
 impl MessageData for CollectionChanged {}
-
-impl CollectionChanged {
-    define_constructor!(CollectionChanged:Add => fn add(ObjectValue));
-    define_constructor!(CollectionChanged:Remove => fn remove(usize));
-    define_constructor!(CollectionChanged:ItemChanged => fn item_changed(index: usize, property: FieldKind));
-}
 
 /// Changes that can happen to inheritable variables.
 #[derive(Debug, Clone)]
@@ -427,15 +420,6 @@ pub enum InspectorMessage {
 }
 impl MessageData for InspectorMessage {}
 
-impl InspectorMessage {
-    define_constructor!(InspectorMessage:Context => fn context(InspectorContext));
-    define_constructor!(InspectorMessage:PropertyChanged => fn property_changed(PropertyChanged));
-    define_constructor!(InspectorMessage:CopyValue => fn copy_value(path: String));
-    define_constructor!(InspectorMessage:PasteValue => fn paste_value(dest: String));
-    define_constructor!(InspectorMessage:PropertyContextMenuOpened => fn property_context_menu_opened(path: String));
-    define_constructor!(InspectorMessage:PropertyContextMenuStatus => fn property_context_menu_status(can_clone: bool, can_paste: bool));
-}
-
 /// This trait allows dynamically typed context information to be
 /// passed to an [Inspector] widget.
 /// Since an Inspector might be used in applications other than Fyroxed,
@@ -583,12 +567,12 @@ impl Inspector {
 
         match msg {
             InspectorMessage::PropertyContextMenuOpened { path } => {
-                let mut can_copy = false;
+                let mut can_clone = false;
                 let mut can_paste = false;
 
                 object.resolve_path(path, &mut |result| {
                     if let Ok(field) = result {
-                        can_copy = field.try_clone_box().is_some();
+                        can_clone = field.try_clone_box().is_some();
 
                         if let Some(clipboard_value) = clipboard_value {
                             clipboard_value.as_any(&mut |clipboard_value| {
@@ -600,12 +584,13 @@ impl Inspector {
                     }
                 });
 
-                ui.send_message(InspectorMessage::property_context_menu_status(
+                ui.send(
                     inspector,
-                    MessageDirection::ToWidget,
-                    can_copy,
-                    can_paste,
-                ));
+                    InspectorMessage::PropertyContextMenuStatus {
+                        can_clone,
+                        can_paste,
+                    },
+                );
             }
             InspectorMessage::CopyValue { path } => {
                 object.resolve_path(path, &mut |field| {
@@ -1444,20 +1429,22 @@ impl Control for Inspector {
                     } else if popup_message.destination() == self.context.menu.copy_value {
                         if let Some(entry) = self.find_property_container(message.destination(), ui)
                         {
-                            ui.send_message(InspectorMessage::copy_value(
+                            ui.post(
                                 self.handle,
-                                MessageDirection::FromWidget,
-                                entry.property_path.clone(),
-                            ));
+                                InspectorMessage::CopyValue {
+                                    path: entry.property_path.clone(),
+                                },
+                            );
                         }
                     } else if popup_message.destination() == self.context.menu.paste_value {
                         if let Some(entry) = self.find_property_container(message.destination(), ui)
                         {
-                            ui.send_message(InspectorMessage::paste_value(
+                            ui.post(
                                 self.handle,
-                                MessageDirection::FromWidget,
-                                entry.property_path.clone(),
-                            ));
+                                InspectorMessage::PasteValue {
+                                    dest: entry.property_path.clone(),
+                                },
+                            );
                         }
                     }
                 }
@@ -1484,11 +1471,7 @@ impl Control for Inspector {
                                 })
                         })
                     {
-                        ui.send_message(InspectorMessage::property_changed(
-                            self.handle,
-                            MessageDirection::FromWidget,
-                            args,
-                        ));
+                        ui.post(self.handle, InspectorMessage::PropertyChanged(args));
                     }
                 }
             }
@@ -1503,11 +1486,12 @@ impl Control for Inspector {
                 {
                     if let Some(popup) = ui.try_get_of_type::<Popup>(menu.handle()) {
                         if let Some(entry) = self.find_property_container(popup.owner, ui) {
-                            ui.send_message(InspectorMessage::property_context_menu_opened(
+                            ui.post(
                                 self.handle,
-                                MessageDirection::FromWidget,
-                                entry.property_path.clone(),
-                            ));
+                                InspectorMessage::PropertyContextMenuOpened {
+                                    path: entry.property_path.clone(),
+                                },
+                            );
                         }
                     }
                 }

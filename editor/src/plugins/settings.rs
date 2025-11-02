@@ -288,11 +288,7 @@ impl SettingsWindow {
                 })
                 .collect::<Vec<_>>();
         ui.send(self.groups, WidgetMessage::ReplaceChildren(groups));
-        ui.send_message(InspectorMessage::context(
-            self.inspector,
-            MessageDirection::ToWidget,
-            context,
-        ));
+        ui.send(self.inspector, InspectorMessage::Context(context));
     }
 
     fn apply_filter(&self, filter_text: &str, ui: &UserInterface) {

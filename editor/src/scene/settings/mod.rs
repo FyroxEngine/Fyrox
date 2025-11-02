@@ -50,7 +50,7 @@ use crate::{
     message::MessageSender,
     plugins::inspector::{editors::make_property_editors_container, EditorEnvironment},
     scene::commands::GameSceneContext,
-    GameScene, Message, MessageDirection, MSG_SYNC_FLAG,
+    GameScene, Message, MSG_SYNC_FLAG,
 };
 use fyrox::{
     asset::manager::ResourceManager,
@@ -185,11 +185,7 @@ impl SceneSettingsWindow {
             has_parent_object: false,
         });
 
-        ui.send_message(InspectorMessage::context(
-            self.inspector,
-            MessageDirection::ToWidget,
-            context,
-        ));
+        ui.send(self.inspector, InspectorMessage::Context(context));
     }
 
     pub fn handle_ui_message(&self, message: &UiMessage, sender: &MessageSender) {

@@ -352,12 +352,7 @@ impl InspectorPlugin {
             has_parent_object,
         });
 
-        ui.send_message(InspectorMessage::context(
-            self.inspector,
-            MessageDirection::ToWidget,
-            context,
-        ));
-
+        ui.send(self.inspector, InspectorMessage::Context(context));
         ui.send_sync(
             self.type_name_text,
             TextMessage::Text(format!("Type Name: {}", obj.type_name())),
@@ -365,11 +360,10 @@ impl InspectorPlugin {
     }
 
     fn clear(&self, ui: &UserInterface) {
-        ui.send_message(InspectorMessage::context(
+        ui.send(
             self.inspector,
-            MessageDirection::ToWidget,
-            Default::default(),
-        ));
+            InspectorMessage::Context(Default::default()),
+        );
     }
 }
 
@@ -476,7 +470,7 @@ impl EditorPlugin for InspectorPlugin {
                     }
                     InspectorMessage::PropertyContextMenuOpened { path } => {
                         let mut can_paste = false;
-                        let mut can_copy = false;
+                        let mut can_clone = false;
 
                         // TODO: This could work incorrectly in case of multiselection of objects
                         // of different types.
@@ -486,7 +480,7 @@ impl EditorPlugin for InspectorPlugin {
                             &mut |entity, _| {
                                 entity.resolve_path(path, &mut |result| {
                                     if let Ok(property) = result {
-                                        can_copy = property.try_clone_box().is_some();
+                                        can_clone = property.try_clone_box().is_some();
 
                                         if let Some(value) = self.clipboard.as_ref() {
                                             value.as_any(&mut |value| {
@@ -501,13 +495,12 @@ impl EditorPlugin for InspectorPlugin {
                             },
                         );
 
-                        editor.engine.user_interfaces.first().send_message(
-                            InspectorMessage::property_context_menu_status(
-                                message.destination(),
-                                MessageDirection::ToWidget,
-                                can_copy,
+                        editor.engine.user_interfaces.first().send(
+                            message.destination(),
+                            InspectorMessage::PropertyContextMenuStatus {
+                                can_clone,
                                 can_paste,
-                            ),
+                            },
                         )
                     }
                     _ => (),

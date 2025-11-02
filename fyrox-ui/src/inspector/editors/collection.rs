@@ -135,11 +135,7 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
                 .iter()
                 .position(|i| i.remove == message.destination())
             {
-                ui.send_message(CollectionChanged::remove(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    index,
-                ));
+                ui.post(self.handle, CollectionChanged::Remove(index));
             }
         } else if let Some(msg) = message.data::<CollectionEditorMessage>() {
             if message.destination == self.handle {
@@ -174,13 +170,12 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.add {
-                ui.send_message(CollectionChanged::add(
+                ui.post(
                     self.handle,
-                    MessageDirection::FromWidget,
-                    ObjectValue {
+                    CollectionChanged::Add(ObjectValue {
                         value: Box::<T>::default(),
-                    },
-                ))
+                    }),
+                )
             }
         }
     }

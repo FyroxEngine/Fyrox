@@ -40,7 +40,7 @@ use crate::{
         InspectorContextArgs, InspectorEnvironment, InspectorError, InspectorMessage,
         PropertyChanged, PropertyFilter,
     },
-    message::{MessageData, MessageDirection, UiMessage},
+    message::{MessageData, UiMessage},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
@@ -513,10 +513,9 @@ where
                 has_parent_object: ctx.has_parent_object,
             });
 
-            Ok(Some(InspectorMessage::context(
+            Ok(Some(UiMessage::for_widget(
                 inspector,
-                MessageDirection::ToWidget,
-                context,
+                InspectorMessage::Context(context),
             )))
         } else {
             let layer_index = ctx.layer_index;

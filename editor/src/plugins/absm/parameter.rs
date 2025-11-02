@@ -18,34 +18,37 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    core::{log::Log, pool::Handle},
-    generic_animation::machine::parameter::{Parameter, ParameterContainer, ParameterDefinition},
-    graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
-    gui::{
-        inspector::{
-            editors::{
-                collection::VecCollectionPropertyEditorDefinition,
-                enumeration::EnumPropertyEditorDefinition,
-                inspectable::InspectablePropertyEditorDefinition,
-                PropertyEditorDefinitionContainer,
-            },
-            InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
-        },
-        message::UiMessage,
-        scroll_viewer::ScrollViewerBuilder,
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowTitle},
-        BuildContext, UiNode, UserInterface,
-    },
-};
-use crate::plugins::absm::command::fetch_machine;
-use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{
-    command::make_command, message::MessageSender, Message, MessageDirection, MSG_SYNC_FLAG,
+    command::make_command,
+    fyrox::{
+        asset::manager::ResourceManager,
+        core::{log::Log, pool::Handle},
+        generic_animation::machine::parameter::{
+            Parameter, ParameterContainer, ParameterDefinition,
+        },
+        graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
+        gui::{
+            inspector::{
+                editors::{
+                    collection::VecCollectionPropertyEditorDefinition,
+                    enumeration::EnumPropertyEditorDefinition,
+                    inspectable::InspectablePropertyEditorDefinition,
+                    PropertyEditorDefinitionContainer,
+                },
+                InspectorBuilder, InspectorContext, InspectorContextArgs, InspectorMessage,
+                PropertyAction,
+            },
+            message::UiMessage,
+            scroll_viewer::ScrollViewerBuilder,
+            widget::WidgetBuilder,
+            window::{WindowBuilder, WindowTitle},
+            BuildContext, UiNode, UserInterface,
+        },
+    },
+    message::MessageSender,
+    plugins::{absm::command::fetch_machine, inspector::editors::make_property_editors_container},
+    Message, MSG_SYNC_FLAG,
 };
-use fyrox::asset::manager::ResourceManager;
-use fyrox::gui::inspector::InspectorContextArgs;
 use std::sync::Arc;
 
 pub struct ParameterPanel {
@@ -111,19 +114,14 @@ impl ParameterPanel {
             })
             .unwrap_or_default();
 
-        ui.send_message(InspectorMessage::context(
-            self.inspector,
-            MessageDirection::ToWidget,
-            inspector_context,
-        ));
+        ui.send(self.inspector, InspectorMessage::Context(inspector_context));
     }
 
     pub fn reset(&self, ui: &UserInterface) {
-        ui.send_message(InspectorMessage::context(
+        ui.send(
             self.inspector,
-            MessageDirection::ToWidget,
-            Default::default(),
-        ));
+            InspectorMessage::Context(Default::default()),
+        );
     }
 
     pub fn sync_to_model(&mut self, ui: &mut UserInterface, parameters: &ParameterContainer) {

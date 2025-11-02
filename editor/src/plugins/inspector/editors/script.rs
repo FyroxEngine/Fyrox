@@ -479,7 +479,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                 })
                 .unwrap_or_default();
 
-            let mut msg = InspectorMessage::context(inspector, MessageDirection::ToWidget, context);
+            let mut msg = UiMessage::for_widget(inspector, InspectorMessage::Context(context));
             msg.flags = MSG_SYNC_FLAG;
             Ok(Some(msg))
         } else {
