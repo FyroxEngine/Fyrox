@@ -36,7 +36,7 @@ use fyrox::{
     gui::{
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
-        define_constructor, define_widget_deref,
+        define_widget_deref,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         inspector::{
@@ -64,15 +64,6 @@ pub enum TileDefinitionHandleEditorMessage {
     Goto(TileDefinitionHandle),
 }
 impl MessageData for TileDefinitionHandleEditorMessage {}
-
-impl TileDefinitionHandleEditorMessage {
-    define_constructor!(
-        /// The value of the handle has changed.
-        TileDefinitionHandleEditorMessage:Value => fn value(Option<TileDefinitionHandle>));
-    define_constructor!(
-        /// The user has clicked the go-to button beside the handle.
-        TileDefinitionHandleEditorMessage:Goto => fn goto(TileDefinitionHandle));
-}
 
 /// The widget for editing a [`TileDefinitionHandle`].
 /// It has a button that can be used to focus the tile map control panel on the tile
@@ -133,11 +124,10 @@ impl Control for TileDefinitionHandleEditor {
                 if self.allow_none || value.is_some() {
                     self.value = value;
                 }
-                ui.send_message(TileDefinitionHandleEditorMessage::value(
+                ui.post(
                     self.handle(),
-                    MessageDirection::FromWidget,
-                    self.value,
-                ));
+                    TileDefinitionHandleEditorMessage::Value(self.value),
+                );
                 ui.send_sync(self.field, TextMessage::Text(self.text()));
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
@@ -145,11 +135,10 @@ impl Control for TileDefinitionHandleEditor {
                 && message.destination() == self.button
             {
                 if let Some(handle) = self.value {
-                    ui.send_message(TileDefinitionHandleEditorMessage::goto(
+                    ui.post(
                         self.handle(),
-                        MessageDirection::FromWidget,
-                        handle,
-                    ));
+                        TileDefinitionHandleEditorMessage::Goto(handle),
+                    );
                 }
             }
         }
@@ -248,10 +237,9 @@ impl PropertyEditorDefinition for TileDefinitionHandlePropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = *ctx.property_info.cast_value::<TileDefinitionHandle>()?;
-        Ok(Some(TileDefinitionHandleEditorMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            Some(value),
+            TileDefinitionHandleEditorMessage::Value(Some(value)),
         )))
     }
 
@@ -303,10 +291,9 @@ impl PropertyEditorDefinition for OptionTileDefinitionHandlePropertyEditorDefini
         let value = *ctx
             .property_info
             .cast_value::<Option<TileDefinitionHandle>>()?;
-        Ok(Some(TileDefinitionHandleEditorMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            value,
+            TileDefinitionHandleEditorMessage::Value(value),
         )))
     }
 

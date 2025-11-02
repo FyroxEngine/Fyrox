@@ -371,10 +371,7 @@ impl TileEditor for TileMaterialEditor {
             );
         }
         send_visibility(ui, self.bounds_field, Self::bounds_visible(state));
-        send_sync_message(
-            ui,
-            TileBoundsMessage::value(self.bounds_field, MessageDirection::ToWidget, bounds),
-        );
+        ui.send_sync(self.bounds_field, TileBoundsMessage::Value(bounds));
     }
 
     fn draw_tile(
@@ -606,10 +603,7 @@ impl TileEditor for TileHandleEditor {
         let value = Self::find_value(state);
         self.value = value;
         send_visibility(ui, self.handle, state.tile_redirect().next().is_some());
-        send_sync_message(
-            ui,
-            TileHandleEditorMessage::value(self.handle, MessageDirection::ToWidget, value),
-        );
+        ui.send_sync(self.handle, TileHandleEditorMessage::Value(value));
     }
 
     fn draw_tile(

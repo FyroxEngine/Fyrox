@@ -993,13 +993,9 @@ impl TileInspector {
         send_visibility(ui, self.collider_editors.handle, tile_data_selected);
         self.sync_to_page(&state, ui);
         let page_icon = self.find_page_icon(&state);
-        send_sync_message(
-            ui,
-            TileHandleEditorMessage::value(
-                self.page_icon_field,
-                MessageDirection::ToWidget,
-                page_icon,
-            ),
+        ui.send_sync(
+            self.page_icon_field,
+            TileHandleEditorMessage::Value(page_icon),
         );
         let iter = self
             .tile_editors

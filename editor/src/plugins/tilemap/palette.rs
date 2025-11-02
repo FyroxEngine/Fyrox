@@ -22,48 +22,47 @@
 //! is responsible for displaying a grid of tiles where the user may select tiles,
 //! drag tiles, and use drawing tools upon the tiles.
 
-use fyrox::core::SafeLock;
-use fyrox::scene::tilemap::brush::TileMapBrushResource;
-use fyrox::scene::tilemap::tileset::OptionTileSet;
-use fyrox::scene::tilemap::{ResourceTilePosition, RotTileHandle};
-
 use super::{commands::*, *};
-use crate::asset::item::AssetItem;
-use crate::command::{Command, CommandGroup};
-use crate::fyrox::{
-    core::{
-        algebra::{Matrix3, Point2, Vector2},
-        color::Color,
-        math::Rect,
-        pool::Handle,
-        reflect::prelude::*,
-        type_traits::prelude::*,
-        visitor::prelude::*,
-    },
-    fxhash::FxHashMap,
-    fxhash::FxHashSet,
-    graph::BaseSceneGraph,
-    gui::{
-        brush::Brush,
-        define_constructor, define_widget_deref,
-        draw::{CommandTexture, Draw, DrawingContext},
-        formatted_text::{FormattedText, FormattedTextBuilder},
-        message::CursorIcon,
-        message::{KeyCode, MessageDirection, MouseButton, UiMessage},
-        widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, UiNode, UserInterface,
-    },
-    material::{Material, MaterialResource},
-    resource::texture::TextureKind,
-    scene::tilemap::{
-        tileset::{TileSetPageSource, TileSetRef},
-        OrthoTransformation, TileBook, TilePaletteStage, TileRect, TileRenderData, TileSetUpdate,
-        TileSource, TransTilesUpdate,
+use crate::{
+    asset::item::AssetItem,
+    command::{Command, CommandGroup},
+    fyrox::{
+        core::{
+            algebra::{Matrix3, Point2, Vector2},
+            color::Color,
+            math::Rect,
+            pool::Handle,
+            reflect::prelude::*,
+            type_traits::prelude::*,
+            visitor::prelude::*,
+            SafeLock,
+        },
+        fxhash::{FxHashMap, FxHashSet},
+        graph::BaseSceneGraph,
+        gui::{
+            brush::Brush,
+            define_widget_deref,
+            draw::{CommandTexture, Draw, DrawingContext},
+            formatted_text::{FormattedText, FormattedTextBuilder},
+            message::CursorIcon,
+            message::{KeyCode, MessageDirection, MouseButton, UiMessage},
+            widget::{Widget, WidgetBuilder, WidgetMessage},
+            BuildContext, Control, UiNode, UserInterface,
+        },
+        material::{Material, MaterialResource},
+        resource::texture::TextureKind,
+        scene::tilemap::{
+            brush::TileMapBrushResource,
+            tileset::{OptionTileSet, TileSetPageSource, TileSetRef},
+            OrthoTransformation, ResourceTilePosition, RotTileHandle, TileBook, TilePaletteStage,
+            TileRect, TileRenderData, TileSetUpdate, TileSource, TransTilesUpdate,
+        },
     },
 };
-
-use std::cell::RefCell;
-use std::ops::{Deref, DerefMut};
+use std::{
+    cell::RefCell,
+    ops::{Deref, DerefMut},
+};
 
 /// The tint of the background material that is used for tile atlas pages of tile sets.
 /// This tint makes it possible to visibly distinguish the background material from actual tiles.
@@ -109,36 +108,6 @@ pub enum PaletteMessage {
     BeginMotion(Vector2<f32>),
 }
 impl MessageData for PaletteMessage {}
-
-impl PaletteMessage {
-    define_constructor!(
-        /// Display the given page of the given resource.
-        PaletteMessage:SetPage => fn set_page(source: TileBook, page: Option<Vector2<i32>>));
-    define_constructor!(
-        /// Center the view on the given grid position.
-        PaletteMessage:Center => fn center(Vector2<i32>));
-    define_constructor!(
-        /// Select all tiles/pages in this view.
-        PaletteMessage:SelectAll => fn select_all());
-    define_constructor!(
-        /// Select the given position.
-        PaletteMessage:SelectOne => fn select_one(Vector2<i32>));
-    define_constructor!(
-        /// Delete the selected tiles/pages in this view.
-        PaletteMessage:Delete => fn delete());
-    define_constructor!(
-        /// Set the tint of the background material.
-        PaletteMessage:MaterialColor => fn material_color(Color));
-    define_constructor!(
-        /// Notify this widget that the editor state has changed.
-        PaletteMessage:SyncToState => fn sync_to_state());
-    define_constructor!(
-        /// Notify that the user has pressed a mouse button.
-        /// This is needed in order to delay the start of mouse operations
-        /// by one frame so that they do not clash with operations that happen
-        /// when de-focusing whatever was previously in focus.
-        PaletteMessage:BeginMotion => fn begin_motion(Vector2<f32>));
-}
 
 /// The operation of the current mouse motion.
 #[derive(Clone, Default, Debug, PartialEq)]
@@ -961,12 +930,13 @@ impl PaletteWidget {
     }
     fn send_new_page(&mut self, page: Vector2<i32>, ui: &mut UserInterface) {
         self.page = Some(page);
-        ui.send_message(PaletteMessage::set_page(
+        ui.post(
             self.handle,
-            MessageDirection::FromWidget,
-            self.content.clone(),
-            Some(page),
-        ));
+            PaletteMessage::SetPage {
+                source: self.content.clone(),
+                page: Some(page),
+            },
+        );
     }
     fn drawing_mode(&self) -> DrawingMode {
         if self.editable {
@@ -1930,7 +1900,7 @@ impl Control for PaletteWidget {
             } else if *button == MouseButton::Left && !message.handled() {
                 ui.send_message(DelayedMessage::message(
                     MOUSE_CLICK_DELAY_FRAMES,
-                    PaletteMessage::begin_motion(self.handle(), MessageDirection::ToWidget, *pos),
+                    UiMessage::for_widget(self.handle(), PaletteMessage::BeginMotion(*pos)),
                 ));
             }
         } else if let Some(WidgetMessage::MouseUp { pos, button, .. }) = message.data() {

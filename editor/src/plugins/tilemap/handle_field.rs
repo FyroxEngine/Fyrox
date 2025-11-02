@@ -22,7 +22,7 @@
 
 use crate::fyrox::gui::{
     button::ButtonMessage,
-    define_constructor, define_widget_deref,
+    define_widget_deref,
     grid::{Column, GridBuilder, Row},
     stack_panel::StackPanelBuilder,
     text::{TextBuilder, TextMessage},
@@ -43,12 +43,6 @@ pub enum TileHandleEditorMessage {
     Value(Option<TileDefinitionHandle>),
 }
 impl MessageData for TileHandleEditorMessage {}
-
-impl TileHandleEditorMessage {
-    define_constructor!(TileHandleEditorMessage:Goto => fn goto(TileDefinitionHandle));
-    define_constructor!(TileHandleEditorMessage:OpenPalette => fn open_palette(TileDefinitionHandle));
-    define_constructor!(TileHandleEditorMessage:Value => fn value(Option<TileDefinitionHandle>));
-}
 
 /// The widget for editing a [`TileDefinitionHandle`].
 /// It has a button for focusing the tile map control panel on the tile represented
@@ -97,17 +91,9 @@ impl Control for TileHandleField {
         } else if let Some(ButtonMessage::Click) = message.data() {
             if let Some(value) = self.value {
                 if message.destination() == self.palette_button {
-                    ui.send_message(TileHandleEditorMessage::open_palette(
-                        self.handle(),
-                        MessageDirection::FromWidget,
-                        value,
-                    ));
+                    ui.post(self.handle(), TileHandleEditorMessage::OpenPalette(value));
                 } else if message.destination() == self.goto_button {
-                    ui.send_message(TileHandleEditorMessage::goto(
-                        self.handle(),
-                        MessageDirection::FromWidget,
-                        value,
-                    ));
+                    ui.post(self.handle(), TileHandleEditorMessage::Goto(value));
                 }
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
@@ -115,11 +101,7 @@ impl Control for TileHandleField {
                 if let Ok(value) = text.parse() {
                     if self.value != Some(value) {
                         self.value = Some(value);
-                        ui.send_message(TileHandleEditorMessage::value(
-                            self.handle(),
-                            MessageDirection::FromWidget,
-                            self.value,
-                        ));
+                        ui.post(self.handle(), TileHandleEditorMessage::Value(self.value));
                     }
                 }
                 ui.send_sync(self.field, TextMessage::Text(value_to_string(self.value)));

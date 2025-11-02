@@ -24,7 +24,7 @@ use fyrox::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     gui::{
         button::ButtonMessage,
-        define_constructor, define_widget_deref,
+        define_widget_deref,
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
         stack_panel::StackPanelBuilder,
@@ -44,13 +44,6 @@ pub enum TileBoundsMessage {
     FlipY,
 }
 impl MessageData for TileBoundsMessage {}
-
-impl TileBoundsMessage {
-    define_constructor!(TileBoundsMessage:Value => fn value(Option<TileBounds>));
-    define_constructor!(TileBoundsMessage:Turn => fn turn(i8));
-    define_constructor!(TileBoundsMessage:FlipX => fn flip_x());
-    define_constructor!(TileBoundsMessage:FlipY => fn flip_y());
-}
 
 #[derive(Clone, Default, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "1e600103-6516-4c5a-a30b-f90f64fc9623")]

@@ -507,12 +507,13 @@ impl TileSetEditor {
         );
         ui.send(self.tab_control, TabControlMessage::ActiveTab(Some(0)));
         for palette in [self.pages_palette, self.tiles_palette] {
-            ui.send_message(PaletteMessage::set_page(
+            ui.send(
                 palette,
-                MessageDirection::ToWidget,
-                tile_book.clone(),
-                Some(Vector2::new(0, 0)),
-            ));
+                PaletteMessage::SetPage {
+                    source: tile_book.clone(),
+                    page: Some(Vector2::new(0, 0)),
+                },
+            );
         }
         self.sync_to_model(ui);
     }
@@ -530,28 +531,17 @@ impl TileSetEditor {
     /// Focus the editor on a particular tile and select that tile.
     pub fn set_position(&self, handle: TileDefinitionHandle, ui: &mut UserInterface) {
         for palette in [self.pages_palette, self.tiles_palette] {
-            ui.send_message(PaletteMessage::set_page(
+            ui.send(
                 palette,
-                MessageDirection::ToWidget,
-                self.tile_book.clone(),
-                Some(handle.page()),
-            ));
+                PaletteMessage::SetPage {
+                    source: self.tile_book.clone(),
+                    page: Some(handle.page()),
+                },
+            );
         }
-        ui.send_message(PaletteMessage::center(
-            self.pages_palette,
-            MessageDirection::ToWidget,
-            handle.page(),
-        ));
-        ui.send_message(PaletteMessage::center(
-            self.tiles_palette,
-            MessageDirection::ToWidget,
-            handle.tile(),
-        ));
-        ui.send_message(PaletteMessage::select_one(
-            self.tiles_palette,
-            MessageDirection::ToWidget,
-            handle.tile(),
-        ));
+        ui.send(self.pages_palette, PaletteMessage::Center(handle.page()));
+        ui.send(self.tiles_palette, PaletteMessage::Center(handle.tile()));
+        ui.send(self.tiles_palette, PaletteMessage::SelectOne(handle.tile()));
     }
 
     fn destroy(self, ui: &UserInterface) {
@@ -588,10 +578,7 @@ impl TileSetEditor {
         let cell_position = self.cell_position();
         ui.send(self.cell_position, TextMessage::Text(cell_position));
         for palette in [self.pages_palette, self.tiles_palette] {
-            ui.send_message(PaletteMessage::sync_to_state(
-                palette,
-                MessageDirection::ToWidget,
-            ));
+            ui.send(palette, PaletteMessage::SyncToState);
         }
     }
 
@@ -693,11 +680,7 @@ impl TileSetEditor {
             if message.destination() == self.color_field
                 && message.direction() == MessageDirection::FromWidget
             {
-                ui.send_message(PaletteMessage::material_color(
-                    self.tiles_palette,
-                    MessageDirection::ToWidget,
-                    *color,
-                ));
+                ui.send(self.tiles_palette, PaletteMessage::MaterialColor(*color));
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.pick_button {
@@ -707,15 +690,9 @@ impl TileSetEditor {
             } else if message.destination() == self.remove {
                 self.do_delete_command(ui, sender);
             } else if message.destination() == self.all_tiles {
-                ui.send_message(PaletteMessage::select_all(
-                    self.tiles_palette,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.tiles_palette, PaletteMessage::SelectAll);
             } else if message.destination() == self.all_pages {
-                ui.send_message(PaletteMessage::select_all(
-                    self.pages_palette,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.pages_palette, PaletteMessage::SelectAll);
             }
         }
         Some(self)
@@ -733,10 +710,7 @@ impl TileSetEditor {
                 .collect::<Vec<_>>();
             sender.do_command(CommandGroup::from(commands).with_custom_name("Delete Pages"));
         } else if palette == self.tiles_palette {
-            ui.send_message(PaletteMessage::delete(
-                self.tiles_palette,
-                MessageDirection::ToWidget,
-            ));
+            ui.send(self.tiles_palette, PaletteMessage::Delete);
         }
     }
 

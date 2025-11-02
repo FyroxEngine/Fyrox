@@ -520,18 +520,20 @@ impl TileMapPanel {
 
     /// Inform the palette widgets that they need to display the current resource.
     fn send_tile_resource(&self, ui: &mut UserInterface) {
-        ui.send_message(PaletteMessage::set_page(
+        ui.send(
             self.pages,
-            MessageDirection::ToWidget,
-            self.tile_book.clone(),
-            Some(DEFAULT_PAGE),
-        ));
-        ui.send_message(PaletteMessage::set_page(
+            PaletteMessage::SetPage {
+                source: self.tile_book.clone(),
+                page: Some(DEFAULT_PAGE),
+            },
+        );
+        ui.send(
             self.palette,
-            MessageDirection::ToWidget,
-            self.tile_book.clone(),
-            Some(DEFAULT_PAGE),
-        ));
+            PaletteMessage::SetPage {
+                source: self.tile_book.clone(),
+                page: Some(DEFAULT_PAGE),
+            },
+        );
     }
 
     /// True if the current resource is a brush.
@@ -555,33 +557,23 @@ impl TileMapPanel {
         let sel = state.selection_positions_mut();
         sel.clear();
         sel.insert(handle.tile());
-        ui.send_message(PaletteMessage::set_page(
+        ui.send(
             self.pages,
-            MessageDirection::ToWidget,
-            self.tile_book.clone(),
-            Some(handle.page()),
-        ));
-        ui.send_message(PaletteMessage::set_page(
+            PaletteMessage::SetPage {
+                source: self.tile_book.clone(),
+                page: Some(handle.page()),
+            },
+        );
+        ui.send(
             self.palette,
-            MessageDirection::ToWidget,
-            self.tile_book.clone(),
-            Some(handle.page()),
-        ));
-        ui.send_message(PaletteMessage::center(
-            self.pages,
-            MessageDirection::ToWidget,
-            handle.page(),
-        ));
-        ui.send_message(PaletteMessage::center(
-            self.palette,
-            MessageDirection::ToWidget,
-            handle.tile(),
-        ));
-        ui.send_message(PaletteMessage::select_one(
-            self.palette,
-            MessageDirection::ToWidget,
-            handle.tile(),
-        ));
+            PaletteMessage::SetPage {
+                source: self.tile_book.clone(),
+                page: Some(handle.page()),
+            },
+        );
+        ui.send(self.pages, PaletteMessage::Center(handle.page()));
+        ui.send(self.palette, PaletteMessage::Center(handle.tile()));
+        ui.send(self.palette, PaletteMessage::SelectOne(handle.tile()));
     }
 
     /// Process the effect of pressing one of the buttons.
@@ -746,10 +738,7 @@ impl TileMapPanel {
             }
         }
         for destination in [self.preview, self.pages, self.palette] {
-            ui.send_message(PaletteMessage::sync_to_state(
-                destination,
-                MessageDirection::ToWidget,
-            ));
+            ui.send(destination, PaletteMessage::SyncToState);
         }
     }
 }
