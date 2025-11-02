@@ -199,22 +199,17 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
                     } else {
                         ui.style.property(Style::BRUSH_FOREGROUND)
                     };
-                    ui.send_message(WidgetMessage::foreground(
-                        self.text,
-                        MessageDirection::ToWidget,
-                        color,
-                    ));
+                    ui.send(self.text, WidgetMessage::Foreground(color));
                 } else {
                     ui.send(
                         self.text,
                         TextMessage::Text(format!("<Invalid handle!> ({})", self.value)),
                     );
 
-                    ui.send_message(WidgetMessage::foreground(
+                    ui.send(
                         self.text,
-                        MessageDirection::ToWidget,
-                        ui.style.property(Style::BRUSH_ERROR),
-                    ));
+                        WidgetMessage::Foreground(ui.style.property(Style::BRUSH_ERROR)),
+                    );
                 };
             }
         }
@@ -326,10 +321,7 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.selector {
-                ui.send_message(WidgetMessage::remove(
-                    self.selector,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.selector, WidgetMessage::Remove);
             }
         }
     }

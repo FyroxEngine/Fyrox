@@ -34,7 +34,7 @@ use crate::{
     decorator::{DecoratorBuilder, DecoratorMessage},
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
-    message::{ButtonState, KeyCode, MessageDirection, OsEvent, UiMessage},
+    message::{ButtonState, KeyCode, OsEvent, UiMessage},
     popup::{Placement, Popup, PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
     style::{resource::StyleResourceExt, Style},
@@ -448,11 +448,10 @@ impl MenuItem {
     }
 
     fn sync_arrow_visibility(&self, ui: &UserInterface) {
-        ui.send_message(WidgetMessage::visibility(
+        ui.send(
             *self.arrow,
-            MessageDirection::ToWidget,
-            !self.items_container.is_empty(),
-        ));
+            WidgetMessage::Visibility(!self.items_container.is_empty()),
+        );
     }
 }
 
@@ -517,9 +516,9 @@ impl Control for MenuItem {
         // Popup won't be deleted with the menu item, because it is not the child of the item.
         // So we have to remove it manually.
         sender
-            .send(WidgetMessage::remove(
+            .send(UiMessage::for_widget(
                 *self.items_panel,
-                MessageDirection::ToWidget,
+                WidgetMessage::Remove,
             ))
             .unwrap();
     }
@@ -643,11 +642,7 @@ impl Control for MenuItem {
                     }
                     MenuItemMessage::Click => {}
                     MenuItemMessage::AddItem(item) => {
-                        ui.send_message(WidgetMessage::link(
-                            *item,
-                            MessageDirection::ToWidget,
-                            *self.panel,
-                        ));
+                        ui.send(*item, WidgetMessage::LinkWith(*self.panel));
                         self.items_container.push(*item);
                         if self.items_container.len() == 1 {
                             self.sync_arrow_visibility(ui);
@@ -659,10 +654,7 @@ impl Control for MenuItem {
                         {
                             self.items_container.remove(position);
 
-                            ui.send_message(WidgetMessage::remove(
-                                *item,
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(*item, WidgetMessage::Remove);
 
                             if self.items_container.is_empty() {
                                 self.sync_arrow_visibility(ui);
@@ -671,18 +663,11 @@ impl Control for MenuItem {
                     }
                     MenuItemMessage::Items(items) => {
                         for &current_item in self.items_container.iter() {
-                            ui.send_message(WidgetMessage::remove(
-                                current_item,
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(current_item, WidgetMessage::Remove);
                         }
 
                         for &item in items {
-                            ui.send_message(WidgetMessage::link(
-                                item,
-                                MessageDirection::ToWidget,
-                                *self.panel,
-                            ));
+                            ui.send(item, WidgetMessage::LinkWith(*self.panel));
                         }
 
                         self.items_container
@@ -693,22 +678,23 @@ impl Control for MenuItem {
                     }
                     MenuItemMessage::Sort(predicate) => {
                         let predicate = predicate.clone();
-                        ui.send_message(WidgetMessage::sort_children(
+                        ui.send(
                             *self.panel,
-                            MessageDirection::ToWidget,
-                            widget::SortingPredicate::new(move |a, b, ui| {
-                                let item_a = ui.try_get_of_type::<MenuItem>(a).unwrap();
-                                let item_b = ui.try_get_of_type::<MenuItem>(b).unwrap();
+                            WidgetMessage::SortChildren(widget::SortingPredicate::new(
+                                move |a, b, ui| {
+                                    let item_a = ui.try_get_of_type::<MenuItem>(a).unwrap();
+                                    let item_b = ui.try_get_of_type::<MenuItem>(b).unwrap();
 
-                                if let (Some(a_content), Some(b_content)) =
-                                    (item_a.content.as_ref(), item_b.content.as_ref())
-                                {
-                                    predicate.0(a_content, b_content, ui)
-                                } else {
-                                    Ordering::Equal
-                                }
-                            }),
-                        ));
+                                    if let (Some(a_content), Some(b_content)) =
+                                        (item_a.content.as_ref(), item_b.content.as_ref())
+                                    {
+                                        predicate.0(a_content, b_content, ui)
+                                    } else {
+                                        Ordering::Equal
+                                    }
+                                },
+                            )),
+                        );
                     }
                 }
             }

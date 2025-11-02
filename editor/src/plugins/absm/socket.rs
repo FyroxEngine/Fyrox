@@ -115,18 +115,16 @@ impl Control for Socket {
                     }
                 }
                 WidgetMessage::MouseLeave => {
-                    ui.send_message(WidgetMessage::foreground(
+                    ui.send(
                         self.pin,
-                        MessageDirection::ToWidget,
-                        ui.style.property(Style::BRUSH_BRIGHT),
-                    ));
+                        WidgetMessage::Foreground(ui.style.property(Style::BRUSH_BRIGHT)),
+                    );
                 }
                 WidgetMessage::MouseEnter => {
-                    ui.send_message(WidgetMessage::foreground(
+                    ui.send(
                         self.pin,
-                        MessageDirection::ToWidget,
-                        ui.style.property(Style::BRUSH_BRIGHTEST),
-                    ));
+                        WidgetMessage::Foreground(ui.style.property(Style::BRUSH_BRIGHTEST)),
+                    );
                 }
                 _ => (),
             }

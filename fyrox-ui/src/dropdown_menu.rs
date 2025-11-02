@@ -23,7 +23,7 @@
 
 use crate::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
-    message::{MessageDirection, MouseButton, UiMessage},
+    message::{MouseButton, UiMessage},
     popup::{Placement, PopupBuilder, PopupMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
@@ -50,10 +50,7 @@ crate::define_widget_deref!(DropdownMenu);
 impl Control for DropdownMenu {
     fn on_remove(&self, sender: &Sender<UiMessage>) {
         sender
-            .send(WidgetMessage::remove(
-                self.popup,
-                MessageDirection::ToWidget,
-            ))
+            .send(UiMessage::for_widget(self.popup, WidgetMessage::Remove))
             .unwrap()
     }
 

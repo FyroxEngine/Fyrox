@@ -401,14 +401,8 @@ impl AbsmEditor {
             MessageDirection::ToWidget,
             self.window,
         ));
-        ui.send_message(WidgetMessage::remove(
-            self.blend_space_editor.window,
-            MessageDirection::ToWidget,
-        ));
-        ui.send_message(WidgetMessage::remove(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.blend_space_editor.window, WidgetMessage::Remove);
+        ui.send(self.window, WidgetMessage::Remove);
     }
 
     pub fn sync_to_model<P, G, N>(

@@ -1060,11 +1060,8 @@ impl AssetBrowser {
                         .add_row(Row::stretch())
                         .build(ctx);
 
-                        ctx.send_message(WidgetMessage::link(
-                            root,
-                            MessageDirection::ToWidget,
-                            inspector_plugin.footer,
-                        ));
+                        ctx.inner()
+                            .send(root, WidgetMessage::LinkWith(inspector_plugin.footer));
 
                         self.inspector_addon = Some(InspectorAddon {
                             root,

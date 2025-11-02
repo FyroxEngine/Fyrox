@@ -28,7 +28,7 @@ use crate::fyrox::{
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessage},
+        message::UiMessage,
         numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         text::TextBuilder,
         widget::WidgetBuilder,
@@ -194,11 +194,8 @@ impl ParticleSystemPreviewControlPanel {
         .add_column(Column::stretch())
         .build(ctx);
 
-        ctx.send_message(WidgetMessage::link(
-            root_widget,
-            MessageDirection::ToWidget,
-            inspector_head,
-        ));
+        ctx.inner()
+            .send(root_widget, WidgetMessage::LinkWith(inspector_head));
 
         Self {
             root_widget,

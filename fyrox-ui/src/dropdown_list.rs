@@ -209,10 +209,7 @@ impl Control for DropdownList {
         // Popup won't be deleted with the dropdown list, because it is not the child of the list.
         // So we have to remove it manually.
         sender
-            .send(WidgetMessage::remove(
-                *self.popup,
-                MessageDirection::ToWidget,
-            ))
+            .send(UiMessage::for_widget(*self.popup, WidgetMessage::Remove))
             .unwrap();
     }
 
@@ -244,11 +241,10 @@ impl Control for DropdownList {
             if message.is_for(self.handle()) {
                 match msg {
                     DropdownListMessage::Open => {
-                        ui.send_message(WidgetMessage::width(
+                        ui.send(
                             *self.popup,
-                            MessageDirection::ToWidget,
-                            self.actual_local_size().x,
-                        ));
+                            WidgetMessage::Width(self.actual_local_size().x),
+                        );
                         ui.send(
                             *self.popup,
                             PopupMessage::Placement(Placement::LeftBottom(self.handle)),
@@ -334,30 +330,19 @@ impl DropdownList {
         // (change color on mouse hover, change something on click, etc)
         // it will be also reflected in selected item.
         if self.current.is_some() {
-            ui.send_message(WidgetMessage::remove(
-                *self.current,
-                MessageDirection::ToWidget,
-            ));
+            ui.send(*self.current, WidgetMessage::Remove);
         }
         if let Some(index) = *self.selection {
             if let Some(item) = self.items.get(index) {
                 self.current
                     .set_value_and_mark_modified(ui.copy_node(*item));
-                ui.send_message(WidgetMessage::link(
-                    *self.current,
-                    MessageDirection::ToWidget,
-                    *self.main_grid,
-                ));
+                ui.send(*self.current, WidgetMessage::LinkWith(*self.main_grid));
                 ui.node(*self.current).request_update_visibility();
-                ui.send_message(WidgetMessage::margin(
+                ui.send(
                     *self.current,
-                    MessageDirection::ToWidget,
-                    Thickness::uniform(0.0),
-                ));
-                ui.send_message(WidgetMessage::reset_visual(
-                    *self.current,
-                    MessageDirection::ToWidget,
-                ));
+                    WidgetMessage::Margin(Thickness::uniform(0.0)),
+                );
+                ui.send(*self.current, WidgetMessage::ResetVisual);
             } else {
                 self.current.set_value_and_mark_modified(Handle::NONE);
             }

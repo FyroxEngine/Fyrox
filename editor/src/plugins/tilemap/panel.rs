@@ -414,22 +414,20 @@ impl TileMapPanel {
     /// Bring the window to the front and move it to the top-right of the given node.
     pub fn align(&self, relative_to: Handle<UiNode>, ui: &UserInterface) {
         if ui.node(self.window).visibility() {
-            ui.send_message(WidgetMessage::align(
+            ui.send(
                 self.window,
-                MessageDirection::ToWidget,
-                relative_to,
-                HorizontalAlignment::Right,
-                VerticalAlignment::Top,
-                Thickness::uniform(2.0),
-            ));
-            ui.send_message(WidgetMessage::topmost(
-                self.window,
-                MessageDirection::ToWidget,
-            ));
-            ui.send_message(WidgetMessage::focus(
+                WidgetMessage::Align {
+                    relative_to,
+                    horizontal_alignment: HorizontalAlignment::Right,
+                    vertical_alignment: VerticalAlignment::Top,
+                    margin: Thickness::uniform(2.0),
+                },
+            );
+            ui.send(self.window, WidgetMessage::Topmost);
+            ui.send(
                 ui.node(self.window).cast::<Window>().unwrap().content,
-                MessageDirection::ToWidget,
-            ));
+                WidgetMessage::Focus,
+            );
         } else {
             ui.send(
                 self.window,
@@ -447,27 +445,17 @@ impl TileMapPanel {
 
     /// Bring the window to the top.
     pub fn to_top(&self, ui: &UserInterface) {
-        ui.send_message(WidgetMessage::topmost(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
-        ui.send_message(WidgetMessage::focus(
+        ui.send(self.window, WidgetMessage::Topmost);
+        ui.send(
             ui.node(self.window).cast::<Window>().unwrap().content,
-            MessageDirection::ToWidget,
-        ));
-        ui.send_message(WidgetMessage::visibility(
-            self.window,
-            MessageDirection::ToWidget,
-            true,
-        ));
+            WidgetMessage::Focus,
+        );
+        ui.send(self.window, WidgetMessage::Visibility(true));
     }
 
     /// Close the window.
     pub fn destroy(self, ui: &UserInterface) {
-        ui.send_message(WidgetMessage::remove(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.window, WidgetMessage::Remove);
     }
 
     /// Set the source for the control panel's tiles.
@@ -687,21 +675,16 @@ impl TileMapPanel {
         ui.send(self.tile_set_name, TextMessage::Text(name));
         highlight_tool_button(self.brush_button, self.tile_book.is_brush(), ui);
         highlight_tool_button(self.tile_set_button, self.tile_book.is_tile_set(), ui);
-        ui.send_message(WidgetMessage::enabled(
+        ui.send(
             self.brush_button,
-            MessageDirection::ToWidget,
-            self.brush.is_some(),
-        ));
+            WidgetMessage::Enabled(self.brush.is_some()),
+        );
         let has_tile_set = match &self.tile_book {
             TileBook::Empty => false,
             TileBook::TileSet(_) => true,
             TileBook::Brush(brush) => brush.data_ref().tile_set.is_some(),
         };
-        ui.send_message(WidgetMessage::enabled(
-            self.tile_set_button,
-            MessageDirection::ToWidget,
-            has_tile_set,
-        ));
+        ui.send(self.tile_set_button, WidgetMessage::Enabled(has_tile_set));
         self.sync_to_state(ui);
     }
     /// Use the given UI to update the panel after the data the [`TileDrawState`] may have changed.

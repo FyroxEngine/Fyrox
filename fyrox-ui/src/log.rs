@@ -211,14 +211,8 @@ impl LogPanel {
     }
 
     pub fn destroy(self, ui: &UserInterface) {
-        ui.send_message(WidgetMessage::remove(
-            self.context_menu.menu.handle(),
-            MessageDirection::ToWidget,
-        ));
-        ui.send_message(WidgetMessage::remove(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.context_menu.menu.handle(), WidgetMessage::Remove);
+        ui.send(self.window, WidgetMessage::Remove);
     }
 
     pub fn open(&self, ui: &UserInterface) {
@@ -238,11 +232,7 @@ impl LogPanel {
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.clear {
-                ui.send_message(WidgetMessage::replace_children(
-                    self.messages,
-                    MessageDirection::ToWidget,
-                    vec![],
-                ));
+                ui.send(self.messages, WidgetMessage::ReplaceChildren(vec![]));
             }
         } else if let Some(DropdownListMessage::Selection(Some(idx))) =
             message.data::<DropdownListMessage>()
@@ -275,7 +265,7 @@ impl LogPanel {
             // TODO: This is suboptimal, because it creates a message per each excessive entry, which
             //  might be slow to process in case of large amount of messages.
             for item in existing_items.iter().take(delta) {
-                ui.send_message(WidgetMessage::remove(*item, MessageDirection::ToWidget));
+                ui.send(*item, WidgetMessage::Remove);
             }
 
             count -= delta;
@@ -330,11 +320,7 @@ impl LogPanel {
             )
             .build(ctx);
 
-            ui.send_message(WidgetMessage::link(
-                item,
-                MessageDirection::ToWidget,
-                self.messages,
-            ));
+            ui.send(item, WidgetMessage::LinkWith(self.messages));
 
             item_to_bring_into_view = item;
 

@@ -333,7 +333,7 @@ impl Control for BlendSpaceField {
                 match msg {
                     BlendSpaceFieldMessage::Points(points) => {
                         for &pt in self.points.iter() {
-                            ui.send_message(WidgetMessage::remove(pt, MessageDirection::ToWidget));
+                            ui.send(pt, WidgetMessage::Remove);
                         }
 
                         let point_views = make_points(
@@ -343,11 +343,7 @@ impl Control for BlendSpaceField {
                         );
 
                         for &new_pt in point_views.iter() {
-                            ui.send_message(WidgetMessage::link(
-                                new_pt,
-                                MessageDirection::ToWidget,
-                                self.handle,
-                            ));
+                            ui.send(new_pt, WidgetMessage::LinkWith(self.handle));
                         }
 
                         self.points = point_views;
@@ -438,11 +434,10 @@ impl Control for BlendSpaceField {
                                 ));
                             }
                             DragContext::Point { point } => {
-                                ui.send_message(WidgetMessage::desired_position(
+                                ui.send(
                                     self.points[*point],
-                                    MessageDirection::ToWidget,
-                                    blend_pos,
-                                ));
+                                    WidgetMessage::DesiredPosition(blend_pos),
+                                );
                             }
                         }
                     }
@@ -457,11 +452,10 @@ impl Control for BlendSpaceField {
             if message.destination() == self.field_context_menu.menu.handle() {
                 self.field_context_menu.placement_target.set(*target);
 
-                ui.send_message(WidgetMessage::enabled(
+                ui.send(
                     self.field_context_menu.remove_point,
-                    MessageDirection::ToWidget,
-                    self.points.contains(target),
-                ));
+                    WidgetMessage::Enabled(self.points.contains(target)),
+                );
 
                 self.field_context_menu
                     .screen_position

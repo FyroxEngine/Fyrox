@@ -27,7 +27,7 @@ use crate::fyrox::{
         brush::Brush,
         define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
-        message::{MessageDirection, UiMessage},
+        message::UiMessage,
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface,
     },
@@ -93,18 +93,16 @@ impl Control for Connection {
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::MouseEnter => {
-                    ui.send_message(WidgetMessage::foreground(
+                    ui.send(
                         self.handle(),
-                        MessageDirection::ToWidget,
-                        PICKED_BRUSH.clone().into(),
-                    ));
+                        WidgetMessage::Foreground(PICKED_BRUSH.clone().into()),
+                    );
                 }
                 WidgetMessage::MouseLeave => {
-                    ui.send_message(WidgetMessage::foreground(
+                    ui.send(
                         self.handle(),
-                        MessageDirection::ToWidget,
-                        NORMAL_BRUSH.clone().into(),
-                    ));
+                        WidgetMessage::Foreground(NORMAL_BRUSH.clone().into()),
+                    );
                 }
                 _ => (),
             }

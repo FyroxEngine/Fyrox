@@ -18,19 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::{BaseSceneGraph, SceneGraphNode};
-use crate::fyrox::{
-    core::pool::Handle,
-    gui::{
-        menu::MenuItemMessage,
-        message::UiMessage,
-        popup::{Placement, PopupBuilder, PopupMessage},
-        stack_panel::StackPanelBuilder,
-        widget::{WidgetBuilder, WidgetMessage},
-        BuildContext, RcUiNodeHandle, UiNode,
-    },
-};
 use crate::{
+    fyrox::graph::{BaseSceneGraph, SceneGraphNode},
+    fyrox::{
+        core::pool::Handle,
+        gui::{
+            menu::MenuItemMessage,
+            message::UiMessage,
+            popup::{Placement, PopupBuilder, PopupMessage},
+            stack_panel::StackPanelBuilder,
+            widget::{WidgetBuilder, WidgetMessage},
+            BuildContext, RcUiNodeHandle, UiNode,
+        },
+    },
     menu::{create_menu_item, create_menu_item_shortcut, ui::UiMenu},
     message::MessageSender,
     scene::{controller::SceneController, Selection},
@@ -40,7 +40,7 @@ use crate::{
     },
     utils,
     world::WorldViewerItemContextMenu,
-    Engine, Message, MessageDirection,
+    Engine, Message,
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::gui::constructor::WidgetConstructorContainer;
@@ -207,14 +207,10 @@ impl WidgetContextMenu {
                     self.placement_target = *target;
 
                     // Check if there's something to paste and deactivate "Paste" if nothing.
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(WidgetMessage::enabled(
-                            self.paste,
-                            MessageDirection::ToWidget,
-                            !ui_scene.clipboard.is_empty(),
-                        ));
+                    engine.user_interfaces.first_mut().send(
+                        self.paste,
+                        WidgetMessage::Enabled(!ui_scene.clipboard.is_empty()),
+                    );
                 }
             }
         }

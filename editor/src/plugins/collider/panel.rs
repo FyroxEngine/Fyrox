@@ -26,7 +26,7 @@ use crate::{
         graph::{BaseSceneGraph, SceneGraph},
         gui::{
             button::{ButtonBuilder, ButtonMessage},
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             stack_panel::StackPanelBuilder,
             utils::make_simple_tooltip,
             widget::{WidgetBuilder, WidgetMessage},
@@ -115,10 +115,7 @@ impl ColliderControlPanel {
     }
 
     pub fn destroy(self, ui: &UserInterface) {
-        ui.send_message(WidgetMessage::remove(
-            self.root_widget,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.root_widget, WidgetMessage::Remove);
     }
 
     pub fn handle_ui_message(

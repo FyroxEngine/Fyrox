@@ -113,11 +113,7 @@ fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface
     {
         is_any_match |= data.name.to_lowercase().contains(filter);
 
-        ui.send_message(WidgetMessage::visibility(
-            node,
-            MessageDirection::ToWidget,
-            is_any_match,
-        ));
+        ui.send(node, WidgetMessage::Visibility(is_any_match));
     }
 
     is_any_match
@@ -387,10 +383,7 @@ impl Control for PropertySelector {
                         }
                     }
                     PropertySelectorMessage::ChooseFocus => {
-                        ui.send_message(WidgetMessage::focus(
-                            self.search_bar,
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send(self.search_bar, WidgetMessage::Focus);
                         self.sync_selection(ui);
                     }
                 }
@@ -580,11 +573,7 @@ impl Control for PropertySelectorWindow {
                         .is_none_or(|types| types.contains(&d.type_id))
                 });
 
-                ui.send_message(WidgetMessage::enabled(
-                    self.ok,
-                    MessageDirection::ToWidget,
-                    enabled,
-                ));
+                ui.send(self.ok, WidgetMessage::Enabled(enabled));
             }
         } else if let Some(WindowMessage::Open { .. })
         | Some(WindowMessage::OpenAt { .. })

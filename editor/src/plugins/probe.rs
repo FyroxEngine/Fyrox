@@ -34,7 +34,7 @@ use crate::{
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             widget::{WidgetBuilder, WidgetMessage},
             BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
@@ -132,10 +132,7 @@ impl ReflectionProbePreviewControlPanel {
     }
 
     fn destroy(self, ui: &UserInterface) {
-        ui.send_message(WidgetMessage::remove(
-            self.root_widget,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.root_widget, WidgetMessage::Remove);
     }
 }
 
@@ -369,11 +366,7 @@ impl EditorPlugin for ReflectionProbePlugin {
                     let inspector = editor.plugins.get::<InspectorPlugin>();
                     let ui = editor.engine.user_interfaces.first_mut();
                     let panel = ReflectionProbePreviewControlPanel::new(&mut ui.build_ctx());
-                    ui.send_message(WidgetMessage::link(
-                        panel.root_widget,
-                        MessageDirection::ToWidget,
-                        inspector.head,
-                    ));
+                    ui.send(panel.root_widget, WidgetMessage::LinkWith(inspector.head));
                     self.panel = Some(panel);
                 }
             } else if let Some(panel) = self.panel.take() {

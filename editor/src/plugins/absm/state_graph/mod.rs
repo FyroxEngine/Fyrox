@@ -121,7 +121,7 @@ impl StateGraphViewer {
 
     pub fn clear(&self, ui: &UserInterface) {
         for &child in ui.node(self.canvas).children() {
-            ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
+            ui.send(child, WidgetMessage::Remove);
         }
     }
 
@@ -380,14 +380,7 @@ impl StateGraphViewer {
 
                         states.push(state_view_handle);
 
-                        send_sync_message(
-                            ui,
-                            WidgetMessage::link(
-                                state_view_handle,
-                                MessageDirection::ToWidget,
-                                self.canvas,
-                            ),
-                        );
+                        ui.send_sync(state_view_handle, WidgetMessage::LinkWith(self.canvas));
                     }
                 }
             }
@@ -409,11 +402,7 @@ impl StateGraphViewer {
                         .pair_iter()
                         .all(|(h, _)| h != state_model_handle)
                     {
-                        send_sync_message(
-                            ui,
-                            WidgetMessage::remove(state_view_handle, MessageDirection::ToWidget),
-                        );
-
+                        ui.send_sync(state_view_handle, WidgetMessage::Remove);
                         if let Some(position) = states.iter().position(|s| *s == state_view_handle)
                         {
                             states.remove(position);
@@ -444,13 +433,9 @@ impl StateGraphViewer {
                 );
             }
 
-            send_sync_message(
-                ui,
-                WidgetMessage::desired_position(
-                    *state,
-                    MessageDirection::ToWidget,
-                    state_model_ref.position,
-                ),
+            ui.send_sync(
+                *state,
+                WidgetMessage::DesiredPosition(state_model_ref.position),
             );
 
             send_sync_message(
@@ -525,19 +510,8 @@ impl StateGraphViewer {
                         .with_dest(find_state_view(transition.dest(), &states, ui))
                         .build(transition_handle.into(), &mut ui.build_ctx());
 
-                        send_sync_message(
-                            ui,
-                            WidgetMessage::link(
-                                transition_view,
-                                MessageDirection::ToWidget,
-                                self.canvas,
-                            ),
-                        );
-
-                        send_sync_message(
-                            ui,
-                            WidgetMessage::lowermost(transition_view, MessageDirection::ToWidget),
-                        );
+                        ui.send_sync(transition_view, WidgetMessage::LinkWith(self.canvas));
+                        ui.send_sync(transition_view, WidgetMessage::Lowermost);
 
                         transitions.push(transition_view);
                     }
@@ -562,13 +536,7 @@ impl StateGraphViewer {
                         .pair_iter()
                         .all(|(h, _)| h != transition_model_handle.into())
                     {
-                        send_sync_message(
-                            ui,
-                            WidgetMessage::remove(
-                                transition_view_handle,
-                                MessageDirection::ToWidget,
-                            ),
-                        );
+                        ui.send_sync(transition_view_handle, WidgetMessage::Remove);
 
                         if let Some(position) = transitions
                             .iter()

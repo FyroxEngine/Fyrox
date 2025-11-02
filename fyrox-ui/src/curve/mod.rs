@@ -594,22 +594,17 @@ impl Control for CurveEditor {
                             .is_some_and(|ctx| ctx.is_dragging());
                         if self.pick(*pos).is_some() || is_dragging {
                             if self.cursor.is_none() {
-                                ui.send_message(WidgetMessage::cursor(
+                                ui.send(
                                     self.handle,
-                                    MessageDirection::ToWidget,
-                                    Some(if is_dragging {
+                                    WidgetMessage::Cursor(Some(if is_dragging {
                                         CursorIcon::Grabbing
                                     } else {
                                         CursorIcon::Grab
-                                    }),
-                                ));
+                                    })),
+                                );
                             }
                         } else if self.cursor.is_some() {
-                            ui.send_message(WidgetMessage::cursor(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                None,
-                            ));
+                            ui.send(self.handle, WidgetMessage::Cursor(None));
                         }
 
                         let curve_mouse_pos = self.screen_to_curve_space(*pos);
@@ -1236,23 +1231,18 @@ impl CurveEditor {
     fn set_selection(&mut self, selection: Option<Selection>, ui: &UserInterface) {
         self.selection = selection;
 
-        ui.send_message(WidgetMessage::enabled(
+        ui.send(
             self.context_menu.remove,
-            MessageDirection::ToWidget,
-            self.selection.is_some(),
-        ));
-
-        ui.send_message(WidgetMessage::enabled(
+            WidgetMessage::Enabled(self.selection.is_some()),
+        );
+        ui.send(
             self.context_menu.key,
-            MessageDirection::ToWidget,
-            self.selection.is_some(),
-        ));
-
-        ui.send_message(WidgetMessage::enabled(
+            WidgetMessage::Enabled(self.selection.is_some()),
+        );
+        ui.send(
             self.context_menu.key_properties,
-            MessageDirection::ToWidget,
-            self.selection.is_some(),
-        ));
+            WidgetMessage::Enabled(self.selection.is_some()),
+        );
 
         if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
             if let Some(first) = keys.iter().next() {

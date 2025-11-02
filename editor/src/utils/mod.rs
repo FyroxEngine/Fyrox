@@ -29,7 +29,6 @@ use crate::{
             button::ButtonBuilder,
             file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
             image::ImageBuilder,
-            message::MessageDirection,
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowBuilder},
             BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
@@ -94,11 +93,7 @@ pub fn window_content(window: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNo
 }
 
 pub fn enable_widget(handle: Handle<UiNode>, state: bool, ui: &UserInterface) {
-    ui.send_message(WidgetMessage::enabled(
-        handle,
-        MessageDirection::ToWidget,
-        state,
-    ));
+    ui.send(handle, WidgetMessage::Enabled(state));
 }
 
 pub fn create_file_selector(
@@ -159,11 +154,7 @@ where
         if let Some(has_match) = filter(node_ref) {
             is_any_match |= has_match;
 
-            ui.send_message(WidgetMessage::visibility(
-                node,
-                MessageDirection::ToWidget,
-                is_any_match,
-            ));
+            ui.send(node, WidgetMessage::Visibility(is_any_match));
         }
 
         is_any_match

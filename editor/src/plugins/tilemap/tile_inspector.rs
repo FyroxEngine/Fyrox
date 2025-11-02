@@ -470,11 +470,7 @@ fn highlight_tool_button(button: Handle<UiNode>, highlight: bool, ui: &UserInter
 }
 
 fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: bool) {
-    ui.send_message(WidgetMessage::visibility(
-        destination,
-        MessageDirection::ToWidget,
-        visible,
-    ));
+    ui.send(destination, WidgetMessage::Visibility(visible));
 }
 
 fn make_property_editors(
@@ -613,18 +609,14 @@ impl PropertyEditors {
         if self.needs_rebuild(state) {
             // The list has changed somehow, so remove the old editors and construct an all new editor for each layer.
             for (_, editor) in self.editors.iter() {
-                ui.send_message(WidgetMessage::remove(
-                    editor.safe_lock().handle(),
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(editor.safe_lock().handle(), WidgetMessage::Remove);
             }
             make_property_editors(state, &mut self.editors, &mut ui.build_ctx());
             for (_, editor) in self.editors.iter() {
-                ui.send_message(WidgetMessage::link(
+                ui.send(
                     editor.safe_lock().handle(),
-                    MessageDirection::ToWidget,
-                    self.content,
-                ));
+                    WidgetMessage::LinkWith(self.content),
+                );
             }
         } else {
             // The list has not changed, so just sync each editor because one of the layers may have changed.
@@ -688,18 +680,14 @@ impl ColliderEditors {
         if self.needs_rebuild(state) {
             // The list has changed somehow, so remove the old editors and construct an all new editor for each layer.
             for (_, editor) in self.editors.iter() {
-                ui.send_message(WidgetMessage::remove(
-                    editor.safe_lock().handle(),
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(editor.safe_lock().handle(), WidgetMessage::Remove);
             }
             make_collider_editors(state, &mut self.editors, &mut ui.build_ctx());
             for (_, editor) in self.editors.iter() {
-                ui.send_message(WidgetMessage::link(
+                ui.send(
                     editor.safe_lock().handle(),
-                    MessageDirection::ToWidget,
-                    self.content,
-                ));
+                    WidgetMessage::LinkWith(self.content),
+                );
             }
         } else {
             // The list has not changed, so just sync each editor because one of the layers may have changed.

@@ -26,7 +26,7 @@ use crate::{
         gui::{
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             image::{ImageBuilder, ImageMessage},
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             stack_panel::StackPanelBuilder,
             text::TextBuilder,
             widget::WidgetBuilder,
@@ -37,7 +37,7 @@ use crate::{
         scene::{camera::Camera, node::Node},
     },
     scene::{GameScene, Selection},
-    send_sync_message, send_sync_messages, Message,
+    send_sync_messages, Message,
 };
 use fyrox::core::algebra::Vector2;
 use fyrox::graph::BaseSceneGraph;
@@ -176,14 +176,10 @@ impl CameraPreviewControlPanel {
 
                     game_scene.preview_camera = node_handle;
 
-                    send_sync_message(
-                        engine.user_interfaces.first(),
-                        WidgetMessage::visibility(
-                            self.preview_frame,
-                            MessageDirection::ToWidget,
-                            true,
-                        ),
-                    );
+                    engine
+                        .user_interfaces
+                        .first()
+                        .send_sync(self.preview_frame, WidgetMessage::Visibility(true));
 
                     self.camera_state = Some((node_handle, scene.graph[node_handle].clone_box()));
                     break;
@@ -215,7 +211,7 @@ impl CameraPreviewControlPanel {
             ui,
             [
                 UiMessage::for_widget(self.preview, CheckBoxMessage::Check(Some(false))),
-                WidgetMessage::visibility(self.preview_frame, MessageDirection::ToWidget, false),
+                UiMessage::for_widget(self.preview_frame, WidgetMessage::Visibility(false)),
             ],
         );
     }

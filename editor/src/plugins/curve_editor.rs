@@ -309,22 +309,10 @@ impl CurveEditorWindow {
     }
 
     fn destroy(self, ui: &UserInterface) {
-        ui.send_message(WidgetMessage::remove(
-            self.cancel_message_box,
-            MessageDirection::ToWidget,
-        ));
-        ui.send_message(WidgetMessage::remove(
-            self.save_changes_message_box,
-            MessageDirection::ToWidget,
-        ));
-        ui.send_message(WidgetMessage::remove(
-            self.load_file_selector,
-            MessageDirection::ToWidget,
-        ));
-        ui.send_message(WidgetMessage::remove(
-            self.save_file_selector,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.cancel_message_box, WidgetMessage::Remove);
+        ui.send(self.save_changes_message_box, WidgetMessage::Remove);
+        ui.send(self.load_file_selector, WidgetMessage::Remove);
+        ui.send(self.save_file_selector, WidgetMessage::Remove);
         ui.send(self.window, WindowMessage::Close);
     }
 
@@ -370,11 +358,7 @@ impl CurveEditorWindow {
         self.backup = curve.data_ref().curve.clone();
         self.curve_resource = Some(curve);
 
-        ui.send_message(WidgetMessage::enabled(
-            self.curve_editor,
-            MessageDirection::ToWidget,
-            true,
-        ));
+        ui.send(self.curve_editor, WidgetMessage::Enabled(true));
 
         self.sync_to_model(ui);
         self.sync_title(resource_manager, ui);

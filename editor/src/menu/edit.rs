@@ -21,10 +21,8 @@
 use crate::fyrox::{
     core::pool::Handle,
     gui::{
-        menu::MenuItemMessage,
-        message::{MessageDirection, UiMessage},
-        widget::WidgetMessage,
-        BuildContext, UiNode, UserInterface,
+        menu::MenuItemMessage, message::UiMessage, widget::WidgetMessage, BuildContext, UiNode,
+        UserInterface,
     },
 };
 use crate::scene::controller::SceneController;
@@ -117,10 +115,6 @@ impl EditMenu {
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
-        ui.send_message(WidgetMessage::enabled(
-            self.menu,
-            MessageDirection::ToWidget,
-            mode.is_edit(),
-        ));
+        ui.send(self.menu, WidgetMessage::Enabled(mode.is_edit()));
     }
 }

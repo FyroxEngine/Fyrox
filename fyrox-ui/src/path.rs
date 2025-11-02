@@ -156,11 +156,7 @@ impl Control for PathEditor {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == *self.selector && &*self.path != path {
-                ui.send_message(WidgetMessage::remove(
-                    *self.selector,
-                    MessageDirection::ToWidget,
-                ));
-
+                ui.send(*self.selector, WidgetMessage::Remove);
                 ui.send(self.handle, PathEditorMessage::Path(path.clone()));
             }
         }

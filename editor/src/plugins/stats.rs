@@ -23,7 +23,7 @@ use crate::{
         core::pool::Handle,
         gui::{
             menu::MenuItemMessage,
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             stack_panel::StackPanelBuilder,
             text::{TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
@@ -92,10 +92,7 @@ impl EditorPlugin for UiStatisticsPlugin {
 
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
-                ui.send_message(WidgetMessage::remove(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.window, WidgetMessage::Remove);
                 self.window = Handle::NONE;
             }
         }

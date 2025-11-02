@@ -171,11 +171,7 @@ fn make_drawable_field(
 }
 
 fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: bool) {
-    ui.send_message(WidgetMessage::visibility(
-        destination,
-        MessageDirection::ToWidget,
-        visible,
-    ));
+    ui.send(destination, WidgetMessage::Visibility(visible));
 }
 
 /// An editor for the material and bounds of a freeform tile.

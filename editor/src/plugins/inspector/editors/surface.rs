@@ -163,11 +163,10 @@ impl Control for SurfaceDataPropertyEditor {
                 for widget in [self.image, self.image_preview] {
                     ui.send(widget, ImageMessage::Texture(texture.clone()));
                     ui.send(widget, ImageMessage::Flip(*flip_y));
-                    ui.send_message(WidgetMessage::background(
+                    ui.send(
                         widget,
-                        MessageDirection::ToWidget,
-                        Brush::Solid(*color).into(),
-                    ))
+                        WidgetMessage::Background(Brush::Solid(*color).into()),
+                    )
                 }
             }
         }

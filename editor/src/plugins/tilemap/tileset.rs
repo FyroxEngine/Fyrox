@@ -501,11 +501,10 @@ impl TileSetEditor {
             ));
         }
         self.send_tabs_visible(tile_book.is_tile_set(), ui);
-        ui.send_message(WidgetMessage::visibility(
+        ui.send(
             self.tile_set_selector,
-            MessageDirection::ToWidget,
-            tile_book.is_brush(),
-        ));
+            WidgetMessage::Visibility(tile_book.is_brush()),
+        );
         ui.send(self.tab_control, TabControlMessage::ActiveTab(Some(0)));
         for palette in [self.pages_palette, self.tiles_palette] {
             ui.send_message(PaletteMessage::set_page(
@@ -523,17 +522,9 @@ impl TileSetEditor {
         let tabs = tab_control.headers_container;
         let children = ui.node(tabs).children();
         for &tab in &children[1..3] {
-            ui.send_message(WidgetMessage::visibility(
-                tab,
-                MessageDirection::ToWidget,
-                is_tile_set,
-            ));
+            ui.send(tab, WidgetMessage::Visibility(is_tile_set));
         }
-        ui.send_message(WidgetMessage::visibility(
-            children[3],
-            MessageDirection::ToWidget,
-            !is_tile_set,
-        ));
+        ui.send(children[3], WidgetMessage::Visibility(!is_tile_set));
     }
 
     /// Focus the editor on a particular tile and select that tile.
@@ -564,10 +555,7 @@ impl TileSetEditor {
     }
 
     fn destroy(self, ui: &UserInterface) {
-        ui.send_message(WidgetMessage::remove(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.window, WidgetMessage::Remove);
     }
 
     fn cell_position(&self) -> String {

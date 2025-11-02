@@ -27,7 +27,7 @@ use crate::{
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
     menu::{ContextMenu, ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
-    message::{MessageDirection, OsEvent, UiMessage},
+    message::{OsEvent, UiMessage},
     messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
     popup::{Placement, PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
@@ -110,11 +110,7 @@ impl Control for ItemContextMenu {
         if let Some(PopupMessage::Placement(Placement::Cursor(_))) = message.data() {
             if message.destination() == self.handle {
                 if let Some(item_path) = self.item_path(ui) {
-                    ui.send_message(WidgetMessage::enabled(
-                        self.make_folder,
-                        MessageDirection::ToWidget,
-                        item_path.is_dir(),
-                    ));
+                    ui.send(self.make_folder, WidgetMessage::Enabled(item_path.is_dir()));
                 }
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
@@ -249,10 +245,7 @@ impl Control for ItemContextMenu {
                     }
                 }
 
-                ui.send_message(WidgetMessage::remove(
-                    self.delete_message_box.get(),
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.delete_message_box.get(), WidgetMessage::Remove);
 
                 self.delete_message_box.set(Handle::NONE);
             }
@@ -268,10 +261,7 @@ impl Control for ItemContextMenu {
                         }
                     }
 
-                    ui.send_message(WidgetMessage::remove(
-                        dialog.dialog,
-                        MessageDirection::ToWidget,
-                    ));
+                    ui.send(dialog.dialog, WidgetMessage::Remove);
 
                     drop(dialog_ref);
 

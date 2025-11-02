@@ -359,10 +359,7 @@ impl MaterialEditor {
             MessageDirection::ToWidget,
             self.window,
         ));
-        ui.send_message(WidgetMessage::remove(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.window, WidgetMessage::Remove);
     }
 
     pub fn set_material(
@@ -413,10 +410,7 @@ impl MaterialEditor {
         resource_manager: &ResourceManager,
     ) {
         for resource_view in self.resource_views.drain(..) {
-            send_sync_message(
-                ui,
-                WidgetMessage::remove(resource_view.container, MessageDirection::ToWidget),
-            );
+            ui.send_sync(resource_view.container, WidgetMessage::Remove);
         }
 
         let material = some_or_return!(self.material.clone());
@@ -471,13 +465,9 @@ impl MaterialEditor {
                 ),
             };
 
-            send_sync_message(
-                ui,
-                WidgetMessage::link(
-                    view.container,
-                    MessageDirection::ToWidget,
-                    self.properties_panel,
-                ),
+            ui.send_sync(
+                view.container,
+                WidgetMessage::LinkWith(self.properties_panel),
             );
 
             self.resource_views.push(view);

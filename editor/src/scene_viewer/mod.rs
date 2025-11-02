@@ -60,7 +60,6 @@ use crate::{
     message::MessageSender,
     scene::container::EditorSceneEntry,
     scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction},
-    send_sync_message,
     settings::SettingsMessage,
     utils::enable_widget,
     DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
@@ -627,7 +626,7 @@ impl SceneViewer {
     ) {
         // Remove interaction mode buttons first.
         for (_, button) in self.interaction_modes.drain() {
-            ui.send_message(WidgetMessage::remove(button, MessageDirection::ToWidget));
+            ui.send(button, WidgetMessage::Remove);
         }
 
         // Create new buttons for each mode.
@@ -637,11 +636,7 @@ impl SceneViewer {
                     &mut ui.build_ctx(),
                     scene_entry.current_interaction_mode.unwrap_or_default() == mode.uuid(),
                 );
-                ui.send_message(WidgetMessage::link(
-                    button,
-                    MessageDirection::ToWidget,
-                    self.interaction_mode_panel,
-                ));
+                ui.send(button, WidgetMessage::LinkWith(self.interaction_mode_panel));
                 self.interaction_modes.insert(mode.uuid(), button);
             }
         }
@@ -1001,23 +996,15 @@ impl SceneViewer {
                 entry.controller.render_target(engine),
             );
 
-            send_sync_message(
-                engine.user_interfaces.first(),
-                WidgetMessage::visibility(
-                    self.scene_gizmo_image,
-                    MessageDirection::ToWidget,
-                    entry.controller.downcast_ref::<GameScene>().is_some(),
-                ),
+            engine.user_interfaces.first().send_sync(
+                self.scene_gizmo_image,
+                WidgetMessage::Visibility(entry.controller.downcast_ref::<GameScene>().is_some()),
             );
         }
 
-        send_sync_message(
-            engine.user_interfaces.first(),
-            WidgetMessage::visibility(
-                self.no_scene_reminder,
-                MessageDirection::ToWidget,
-                scenes.current_scene_controller_ref().is_none(),
-            ),
+        engine.user_interfaces.first().send_sync(
+            self.no_scene_reminder,
+            WidgetMessage::Visibility(scenes.current_scene_controller_ref().is_none()),
         );
     }
 
@@ -1027,16 +1014,8 @@ impl SceneViewer {
             enable_widget(widget, enabled, ui);
         }
 
-        ui.send_message(WidgetMessage::enabled(
-            self.play,
-            MessageDirection::ToWidget,
-            mode.is_edit(),
-        ));
-        ui.send_message(WidgetMessage::enabled(
-            self.stop,
-            MessageDirection::ToWidget,
-            !mode.is_edit(),
-        ));
+        ui.send(self.play, WidgetMessage::Enabled(mode.is_edit()));
+        ui.send(self.stop, WidgetMessage::Enabled(!mode.is_edit()));
     }
 
     pub fn set_render_target(&self, ui: &UserInterface, render_target: Option<TextureResource>) {

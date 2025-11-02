@@ -34,7 +34,7 @@ use crate::{
     decorator::{DecoratorBuilder, DecoratorMessage},
     grid::{Column, GridBuilder, Row},
     message::MessageData,
-    message::{ButtonState, MessageDirection, MouseButton, UiMessage},
+    message::{ButtonState, MouseButton, UiMessage},
     style::resource::StyleResourceExt,
     style::{Style, StyledProperty},
     utils::make_cross_primitive,
@@ -297,11 +297,10 @@ impl TabControl {
             self.active_tab = self.tabs.iter().position(|t| t.uuid == uuid);
         }
         let new_tab_handles = self.tabs.iter().map(|t| t.header_container).collect();
-        ui.send_message(WidgetMessage::replace_children(
+        ui.send(
             self.headers_container,
-            MessageDirection::ToWidget,
-            new_tab_handles,
-        ));
+            WidgetMessage::ReplaceChildren(new_tab_handles),
+        );
     }
     /// Use a tab's UUID to look up the tab.
     pub fn get_tab_by_uuid(&self, uuid: Uuid) -> Option<&Tab> {
@@ -318,11 +317,10 @@ impl TabControl {
         }
         // Send messages to update the state of each tab.
         for (existing_tab_index, tab) in self.tabs.iter().enumerate() {
-            ui.send_message(WidgetMessage::visibility(
+            ui.send(
                 tab.content,
-                MessageDirection::ToWidget,
-                active_tab == Some(existing_tab_index),
-            ));
+                WidgetMessage::Visibility(active_tab == Some(existing_tab_index)),
+            );
             ui.send(
                 tab.decorator,
                 DecoratorMessage::Select(active_tab == Some(existing_tab_index)),
@@ -350,14 +348,8 @@ impl TabControl {
         let Some(tab) = self.tabs.get(index) else {
             return false;
         };
-        ui.send_message(WidgetMessage::remove(
-            tab.header_container,
-            MessageDirection::ToWidget,
-        ));
-        ui.send_message(WidgetMessage::remove(
-            tab.content,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(tab.header_container, WidgetMessage::Remove);
+        ui.send(tab.content, WidgetMessage::Remove);
 
         self.tabs.remove(index);
 
@@ -465,14 +457,8 @@ impl Control for TabControl {
                     }
                     TabControlMessage::AddTab { uuid, definition } => {
                         if self.tabs.iter().any(|t| &t.uuid == uuid) {
-                            ui.send_message(WidgetMessage::remove(
-                                definition.header,
-                                MessageDirection::ToWidget,
-                            ));
-                            ui.send_message(WidgetMessage::remove(
-                                definition.content,
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(definition.header, WidgetMessage::Remove);
+                            ui.send(definition.content, WidgetMessage::Remove);
                             return;
                         }
                         let header = Header::build(
@@ -482,17 +468,15 @@ impl Control for TabControl {
                             &mut ui.build_ctx(),
                         );
 
-                        ui.send_message(WidgetMessage::link(
+                        ui.send(
                             header.button,
-                            MessageDirection::ToWidget,
-                            self.headers_container,
-                        ));
+                            WidgetMessage::LinkWith(self.headers_container),
+                        );
 
-                        ui.send_message(WidgetMessage::link(
+                        ui.send(
                             definition.content,
-                            MessageDirection::ToWidget,
-                            self.content_container,
-                        ));
+                            WidgetMessage::LinkWith(self.content_container),
+                        );
 
                         ui.send_message(message.reverse());
 

@@ -396,10 +396,7 @@ impl Visit for RcUiNodeHandleInner {
 impl Drop for RcUiNodeHandleInner {
     fn drop(&mut self) {
         if let Some(sender) = self.sender.as_ref() {
-            let _ = sender.send(WidgetMessage::remove(
-                self.handle,
-                MessageDirection::ToWidget,
-            ));
+            let _ = sender.send(UiMessage::for_widget(self.handle, WidgetMessage::Remove));
         } else {
             Log::warn(format!(
                 "There's no message sender for shared handle {}. The object \
@@ -1536,11 +1533,7 @@ impl UserInterface {
                     notify_depth_first(*child, ui);
                 }
 
-                ui.send_message(WidgetMessage::style(
-                    node,
-                    MessageDirection::ToWidget,
-                    ui.style.clone(),
-                ));
+                ui.send(node, WidgetMessage::Style(ui.style.clone()));
             }
         }
 
@@ -2247,11 +2240,10 @@ impl UserInterface {
 
                         let node = &self.nodes[message.destination()];
                         let new_position = self.screen_to_root_canvas_space(node.screen_position());
-                        self.send_message(WidgetMessage::desired_position(
+                        self.send(
                             message.destination(),
-                            MessageDirection::ToWidget,
-                            new_position,
-                        ));
+                            WidgetMessage::DesiredPosition(new_position),
+                        );
                     }
                 }
                 &WidgetMessage::LinkWith(parent) => {
@@ -2315,11 +2307,10 @@ impl UserInterface {
                             self.screen_size
                         };
 
-                        self.send_message(WidgetMessage::desired_position(
+                        self.send(
                             message.destination(),
-                            MessageDirection::ToWidget,
-                            (parent_size - size).scale(0.5),
-                        ));
+                            WidgetMessage::DesiredPosition((parent_size - size).scale(0.5)),
+                        );
                     }
                 }
                 WidgetMessage::RenderTransform(_) => {
@@ -2352,11 +2343,10 @@ impl UserInterface {
                             position.y -= (position.y + size.y) - parent_size.y;
                         }
 
-                        self.send_message(WidgetMessage::desired_position(
+                        self.send(
                             message.destination(),
-                            MessageDirection::ToWidget,
-                            position,
-                        ));
+                            WidgetMessage::DesiredPosition(position),
+                        );
                     }
                 }
                 WidgetMessage::Align {
@@ -2427,11 +2417,10 @@ impl UserInterface {
                             // Transform screen anchor point into the local coordinate system
                             // of the parent node.
                             let local_anchor_point = parent.screen_to_local(screen_anchor_point);
-                            self.send_message(WidgetMessage::desired_position(
+                            self.send(
                                 message.destination(),
-                                MessageDirection::ToWidget,
-                                local_anchor_point,
-                            ));
+                                WidgetMessage::DesiredPosition(local_anchor_point),
+                            );
                         }
                     }
                 }
@@ -2484,24 +2473,15 @@ impl UserInterface {
     }
 
     fn show_tooltip(&self, tooltip: RcUiNodeHandle) {
-        self.send_message(WidgetMessage::visibility(
+        self.send(tooltip.handle(), WidgetMessage::Visibility(true));
+        self.send(tooltip.handle(), WidgetMessage::Topmost);
+        self.send(
             tooltip.handle(),
-            MessageDirection::ToWidget,
-            true,
-        ));
-        self.send_message(WidgetMessage::topmost(
-            tooltip.handle(),
-            MessageDirection::ToWidget,
-        ));
-        self.send_message(WidgetMessage::desired_position(
-            tooltip.handle(),
-            MessageDirection::ToWidget,
-            self.screen_to_root_canvas_space(self.cursor_position() + Vector2::new(0.0, 16.0)),
-        ));
-        self.send_message(WidgetMessage::adjust_position_to_fit(
-            tooltip.handle(),
-            MessageDirection::ToWidget,
-        ));
+            WidgetMessage::DesiredPosition(
+                self.screen_to_root_canvas_space(self.cursor_position() + Vector2::new(0.0, 16.0)),
+            ),
+        );
+        self.send(tooltip.handle(), WidgetMessage::AdjustPositionToFit);
     }
 
     fn replace_or_update_tooltip(&mut self, tooltip: RcUiNodeHandle, disappear_timeout: f32) {
@@ -2520,11 +2500,7 @@ impl UserInterface {
                 entry.tooltip = tooltip.clone();
 
                 // Hide previous.
-                self.send_message(WidgetMessage::visibility(
-                    old_tooltip.handle(),
-                    MessageDirection::ToWidget,
-                    false,
-                ));
+                self.send(old_tooltip.handle(), WidgetMessage::Visibility(false));
             }
         } else {
             self.active_tooltip = Some(TooltipEntry::new(
@@ -2546,10 +2522,9 @@ impl UserInterface {
                     // This uses sender directly since we're currently mutably borrowing
                     // visible_tooltips
                     sender
-                        .send(WidgetMessage::visibility(
+                        .send(UiMessage::for_widget(
                             entry.tooltip.handle(),
-                            MessageDirection::ToWidget,
-                            false,
+                            WidgetMessage::Visibility(false),
                         ))
                         .unwrap();
 
@@ -2630,19 +2605,11 @@ impl UserInterface {
     fn request_focus(&mut self, new_focused: Handle<UiNode>) {
         if self.keyboard_focus_node != new_focused {
             if self.keyboard_focus_node.is_some() {
-                self.send_message(WidgetMessage::unfocus(
-                    self.keyboard_focus_node,
-                    MessageDirection::FromWidget,
-                ));
+                self.post(self.keyboard_focus_node, WidgetMessage::Unfocus);
             }
-
             self.keyboard_focus_node = new_focused;
-
             if self.keyboard_focus_node.is_some() {
-                self.send_message(WidgetMessage::focus(
-                    self.keyboard_focus_node,
-                    MessageDirection::FromWidget,
-                ));
+                self.post(self.keyboard_focus_node, WidgetMessage::Focus);
             }
         }
     }
@@ -2715,32 +2682,30 @@ impl UserInterface {
                         self.request_focus(self.picked_node);
 
                         if self.picked_node.is_some() {
-                            self.send_message(WidgetMessage::mouse_down(
+                            self.post(
                                 self.picked_node,
-                                MessageDirection::FromWidget,
-                                self.cursor_position,
-                                button,
-                            ));
+                                WidgetMessage::MouseDown {
+                                    pos: self.cursor_position,
+                                    button,
+                                },
+                            );
                             event_processed = true;
                         }
 
                         // Make sure double click will be emitted after mouse down event.
                         if emit_double_click {
-                            self.send_message(WidgetMessage::double_click(
-                                self.picked_node,
-                                MessageDirection::FromWidget,
-                                button,
-                            ));
+                            self.post(self.picked_node, WidgetMessage::DoubleClick { button });
                         }
                     }
                     ButtonState::Released => {
                         if self.picked_node.is_some() {
-                            self.send_message(WidgetMessage::mouse_up(
+                            self.post(
                                 self.picked_node,
-                                MessageDirection::FromWidget,
-                                self.cursor_position,
-                                button,
-                            ));
+                                WidgetMessage::MouseUp {
+                                    pos: self.cursor_position,
+                                    button,
+                                },
+                            );
 
                             if self.drag_context.is_dragging {
                                 self.drag_context.is_dragging = false;
@@ -2752,11 +2717,10 @@ impl UserInterface {
                                 while let Some(handle) = self.stack.pop() {
                                     let node = &self.nodes[handle];
                                     if node.is_drop_allowed() {
-                                        self.send_message(WidgetMessage::drop(
+                                        self.post(
                                             handle,
-                                            MessageDirection::FromWidget,
-                                            self.drag_context.drag_node,
-                                        ));
+                                            WidgetMessage::Drop(self.drag_context.drag_node),
+                                        );
                                         self.stack.clear();
                                         break;
                                     } else if node.parent().is_some() {
@@ -2799,11 +2763,10 @@ impl UserInterface {
 
                     self.drag_context.is_dragging = true;
 
-                    self.send_message(WidgetMessage::drag_started(
+                    self.post(
                         self.picked_node,
-                        MessageDirection::FromWidget,
-                        self.drag_context.drag_node,
-                    ));
+                        WidgetMessage::DragStarted(self.drag_context.drag_node),
+                    );
 
                     self.cursor_icon = CursorIcon::Crosshair;
                 }
@@ -2812,11 +2775,10 @@ impl UserInterface {
                     && self.nodes.is_valid_handle(self.drag_context.drag_preview)
                 {
                     let local_position = self.screen_to_root_canvas_space(*position);
-                    self.send_message(WidgetMessage::desired_position(
+                    self.send(
                         self.drag_context.drag_preview,
-                        MessageDirection::ToWidget,
-                        local_position,
-                    ));
+                        WidgetMessage::DesiredPosition(local_position),
+                    );
                 }
 
                 // Fire mouse leave for previously picked node
@@ -2824,10 +2786,7 @@ impl UserInterface {
                     let prev_picked_node = self.nodes.borrow_mut(self.prev_picked_node);
                     if prev_picked_node.is_mouse_directly_over {
                         prev_picked_node.is_mouse_directly_over = false;
-                        self.send_message(WidgetMessage::mouse_leave(
-                            self.prev_picked_node,
-                            MessageDirection::FromWidget,
-                        ));
+                        self.post(self.prev_picked_node, WidgetMessage::MouseLeave);
                     }
                 }
 
@@ -2835,26 +2794,23 @@ impl UserInterface {
                     let picked_node = self.nodes.borrow_mut(self.picked_node);
                     if !picked_node.is_mouse_directly_over {
                         picked_node.is_mouse_directly_over = true;
-                        self.send_message(WidgetMessage::mouse_enter(
-                            self.picked_node,
-                            MessageDirection::FromWidget,
-                        ));
+                        self.post(self.picked_node, WidgetMessage::MouseEnter);
                     }
 
                     // Fire mouse move
-                    self.send_message(WidgetMessage::mouse_move(
+                    self.post(
                         self.picked_node,
-                        MessageDirection::FromWidget,
-                        self.cursor_position,
-                        self.mouse_state,
-                    ));
+                        WidgetMessage::MouseMove {
+                            pos: self.cursor_position,
+                            state: self.mouse_state,
+                        },
+                    );
 
                     if self.drag_context.is_dragging {
-                        self.send_message(WidgetMessage::drag_over(
+                        self.post(
                             self.picked_node,
-                            MessageDirection::FromWidget,
-                            self.drag_context.drag_node,
-                        ));
+                            WidgetMessage::DragOver(self.drag_context.drag_node),
+                        );
                     }
 
                     event_processed = true;
@@ -2862,12 +2818,13 @@ impl UserInterface {
             }
             OsEvent::MouseWheel(_, y) => {
                 if self.picked_node.is_some() {
-                    self.send_message(WidgetMessage::mouse_wheel(
+                    self.post(
                         self.picked_node,
-                        MessageDirection::FromWidget,
-                        self.cursor_position,
-                        *y,
-                    ));
+                        WidgetMessage::MouseWheel {
+                            pos: self.cursor_position,
+                            amount: *y,
+                        },
+                    );
 
                     event_processed = true;
                 }
@@ -2881,25 +2838,21 @@ impl UserInterface {
                     if keyboard_focus_node.is_globally_visible() {
                         match state {
                             ButtonState::Pressed => {
-                                self.send_message(WidgetMessage::key_down(
+                                self.post(
                                     self.keyboard_focus_node,
-                                    MessageDirection::FromWidget,
-                                    *button,
-                                ));
+                                    WidgetMessage::KeyDown(*button),
+                                );
 
                                 if !text.is_empty() {
-                                    self.send_message(WidgetMessage::text(
+                                    self.post(
                                         self.keyboard_focus_node,
-                                        MessageDirection::FromWidget,
-                                        text.clone(),
-                                    ));
+                                        WidgetMessage::Text(text.clone()),
+                                    );
                                 }
                             }
-                            ButtonState::Released => self.send_message(WidgetMessage::key_up(
-                                self.keyboard_focus_node,
-                                MessageDirection::FromWidget,
-                                *button,
-                            )),
+                            ButtonState::Released => {
+                                self.post(self.keyboard_focus_node, WidgetMessage::KeyUp(*button))
+                            }
                         }
 
                         event_processed = true;
@@ -2969,25 +2922,27 @@ impl UserInterface {
                     self.request_focus(self.picked_node);
 
                     if self.picked_node.is_some() {
-                        self.send_message(WidgetMessage::touch_started(
+                        self.post(
                             self.picked_node,
-                            MessageDirection::FromWidget,
-                            self.cursor_position,
-                            *force,
-                            *id,
-                        ));
+                            WidgetMessage::TouchStarted {
+                                pos: self.cursor_position,
+                                force: *force,
+                                id: *id,
+                            },
+                        );
                         event_processed = true;
                     }
 
                     // Make sure double click will be emitted after mouse down event.
                     if emit_double_tap {
-                        self.send_message(WidgetMessage::double_tap(
+                        self.post(
                             self.picked_node,
-                            MessageDirection::FromWidget,
-                            *location,
-                            *force,
-                            *id,
-                        ));
+                            WidgetMessage::DoubleTap {
+                                pos: *location,
+                                force: *force,
+                                id: *id,
+                            },
+                        );
                     }
                 }
                 TouchPhase::Moved => {
@@ -3014,24 +2969,26 @@ impl UserInterface {
                     self.request_focus(self.picked_node);
 
                     if self.picked_node.is_some() {
-                        self.send_message(WidgetMessage::touch_moved(
+                        self.post(
                             self.picked_node,
-                            MessageDirection::FromWidget,
-                            self.cursor_position,
-                            *force,
-                            *id,
-                        ));
+                            WidgetMessage::TouchMoved {
+                                pos: self.cursor_position,
+                                force: *force,
+                                id: *id,
+                            },
+                        );
                         event_processed = true;
                     }
                 }
                 TouchPhase::Ended => {
                     if self.picked_node.is_some() {
-                        self.send_message(WidgetMessage::touch_ended(
+                        self.post(
                             self.picked_node,
-                            MessageDirection::FromWidget,
-                            self.cursor_position,
-                            *id,
-                        ));
+                            WidgetMessage::TouchEnded {
+                                pos: self.cursor_position,
+                                id: *id,
+                            },
+                        );
 
                         if self.drag_context.is_dragging {
                             self.drag_context.is_dragging = false;
@@ -3042,11 +2999,10 @@ impl UserInterface {
                             while let Some(handle) = self.stack.pop() {
                                 let node = &self.nodes[handle];
                                 if node.is_drop_allowed() {
-                                    self.send_message(WidgetMessage::drop(
+                                    self.post(
                                         handle,
-                                        MessageDirection::FromWidget,
-                                        self.drag_context.drag_node,
-                                    ));
+                                        WidgetMessage::Drop(self.drag_context.drag_node),
+                                    );
                                     self.stack.clear();
                                     break;
                                 } else if node.parent().is_some() {
@@ -3065,12 +3021,13 @@ impl UserInterface {
                 }
                 TouchPhase::Cancelled => {
                     if self.picked_node.is_some() {
-                        self.send_message(WidgetMessage::touch_cancelled(
+                        self.post(
                             self.picked_node,
-                            MessageDirection::FromWidget,
-                            self.cursor_position,
-                            *id,
-                        ));
+                            WidgetMessage::TouchCancelled {
+                                pos: self.cursor_position,
+                                id: *id,
+                            },
+                        );
 
                         if self.drag_context.is_dragging {
                             self.drag_context.is_dragging = false;
@@ -3900,7 +3857,6 @@ impl ResourceData for UserInterface {
 pub mod test {
     use crate::{
         core::{algebra::Vector2, pool::Handle},
-        message::MessageDirection,
         widget::WidgetMessage,
         BuildContext, UiNode, UserInterface,
     };
@@ -3909,7 +3865,7 @@ pub mod test {
         let screen_size = Vector2::new(100.0, 100.0);
         let mut ui = UserInterface::new(screen_size);
         let widget = constructor(&mut ui.build_ctx());
-        ui.send_message(WidgetMessage::remove(widget, MessageDirection::ToWidget));
+        ui.send(widget, WidgetMessage::Remove);
         ui.update(screen_size, 1.0 / 60.0, &Default::default());
         while ui.poll_message().is_some() {}
         // Only root node must be alive.
@@ -3919,10 +3875,10 @@ pub mod test {
 
 #[cfg(test)]
 mod test_inner {
+    use crate::message::UiMessage;
     use crate::{
         border::BorderBuilder,
         core::algebra::{Rotation2, UnitComplex, Vector2},
-        message::MessageDirection,
         message::{ButtonState, KeyCode},
         text_box::TextBoxBuilder,
         transform_size,
@@ -3952,7 +3908,7 @@ mod test_inner {
         )
         .build(&mut ui.build_ctx());
         ui.update(screen_size, 0.0, &Default::default()); // Make sure layout was calculated.
-        ui.send_message(WidgetMessage::center(widget, MessageDirection::ToWidget));
+        ui.send(widget, WidgetMessage::Center);
         while ui.poll_message().is_some() {}
         ui.update(screen_size, 0.0, &Default::default());
         let expected_position = (screen_size - widget_size).scale(0.5);
@@ -3972,25 +3928,22 @@ mod test_inner {
 
         assert!(ui.poll_message().is_none());
 
-        ui.send_message(WidgetMessage::focus(text_box, MessageDirection::ToWidget));
+        ui.send(text_box, WidgetMessage::Focus);
 
         // Ensure that the message has gotten in the queue.
         assert_eq!(
             ui.poll_message(),
-            Some(WidgetMessage::focus(text_box, MessageDirection::ToWidget))
+            Some(UiMessage::for_widget(text_box, WidgetMessage::Focus))
         );
         // Root must be unfocused right before new widget is focused.
         assert_eq!(
             ui.poll_message(),
-            Some(WidgetMessage::unfocus(
-                ui.root(),
-                MessageDirection::FromWidget
-            ))
+            Some(UiMessage::from_widget(ui.root(), WidgetMessage::Unfocus))
         );
         // Finally there should be a response from newly focused node.
         assert_eq!(
             ui.poll_message(),
-            Some(WidgetMessage::focus(text_box, MessageDirection::FromWidget))
+            Some(UiMessage::from_widget(text_box, WidgetMessage::Focus))
         );
 
         // Do additional check - emulate key press of "A" and check if the focused text box has accepted it.
@@ -4000,16 +3953,15 @@ mod test_inner {
             text: "A".to_string(),
         });
 
-        let msg = WidgetMessage::key_down(text_box, MessageDirection::FromWidget, KeyCode::KeyA);
+        let msg = UiMessage::from_widget(text_box, WidgetMessage::KeyDown(KeyCode::KeyA));
         msg.set_handled(true);
         assert_eq!(ui.poll_message(), Some(msg));
 
         assert_eq!(
             ui.poll_message(),
-            Some(WidgetMessage::text(
+            Some(UiMessage::from_widget(
                 text_box,
-                MessageDirection::FromWidget,
-                'A'.to_string()
+                WidgetMessage::Text('A'.to_string())
             ))
         );
 

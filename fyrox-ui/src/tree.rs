@@ -334,11 +334,10 @@ impl Control for Tree {
         let size = self.widget.arrange_override(ui, final_size);
 
         let expander_visibility = !self.items.is_empty() || self.always_show_expander;
-        ui.send_message(WidgetMessage::visibility(
+        ui.send(
             self.expander,
-            MessageDirection::ToWidget,
-            expander_visibility,
-        ));
+            WidgetMessage::Visibility(expander_visibility),
+        );
 
         size
     }
@@ -484,12 +483,7 @@ impl Control for Tree {
                     } => {
                         self.is_expanded = expand;
 
-                        ui.send_message(WidgetMessage::visibility(
-                            self.panel,
-                            MessageDirection::ToWidget,
-                            self.is_expanded,
-                        ));
-
+                        ui.send(self.panel, WidgetMessage::Visibility(self.is_expanded));
                         ui.send(self.expander, CheckBoxMessage::Check(Some(expand)));
 
                         match expansion_strategy {
@@ -532,20 +526,12 @@ impl Control for Tree {
                         self.invalidate_arrange();
                     }
                     &TreeMessage::AddItem(item) => {
-                        ui.send_message(WidgetMessage::link(
-                            item,
-                            MessageDirection::ToWidget,
-                            self.panel,
-                        ));
-
+                        ui.send(item, WidgetMessage::LinkWith(self.panel));
                         self.items.push(item);
                     }
                     &TreeMessage::RemoveItem(item) => {
                         if let Some(pos) = self.items.iter().position(|&i| i == item) {
-                            ui.send_message(WidgetMessage::remove(
-                                item,
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(item, WidgetMessage::Remove);
                             self.items.remove(pos);
                         }
                     }
@@ -555,18 +541,11 @@ impl Control for Tree {
                     } => {
                         if *remove_previous {
                             for &item in self.items.iter() {
-                                ui.send_message(WidgetMessage::remove(
-                                    item,
-                                    MessageDirection::ToWidget,
-                                ));
+                                ui.send(item, WidgetMessage::Remove);
                             }
                         }
                         for &item in items {
-                            ui.send_message(WidgetMessage::link(
-                                item,
-                                MessageDirection::ToWidget,
-                                self.panel,
-                            ));
+                            ui.send(item, WidgetMessage::LinkWith(self.panel));
                         }
                         self.items.clone_from(items);
                     }
@@ -862,39 +841,23 @@ impl Control for TreeRoot {
             if message.is_for(self.handle()) {
                 match msg {
                     &TreeRootMessage::AddItem(item) => {
-                        ui.send_message(WidgetMessage::link(
-                            item,
-                            MessageDirection::ToWidget,
-                            self.panel,
-                        ));
-
+                        ui.send(item, WidgetMessage::LinkWith(self.panel));
                         self.items.push(item);
                         ui.post(self.handle, TreeRootMessage::ItemsChanged);
                     }
                     &TreeRootMessage::RemoveItem(item) => {
                         if let Some(pos) = self.items.iter().position(|&i| i == item) {
-                            ui.send_message(WidgetMessage::remove(
-                                item,
-                                MessageDirection::ToWidget,
-                            ));
-
+                            ui.send(item, WidgetMessage::Remove);
                             self.items.remove(pos);
                             ui.post(self.handle, TreeRootMessage::ItemsChanged);
                         }
                     }
                     TreeRootMessage::Items(items) => {
                         for &item in self.items.iter() {
-                            ui.send_message(WidgetMessage::remove(
-                                item,
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(item, WidgetMessage::Remove);
                         }
                         for &item in items {
-                            ui.send_message(WidgetMessage::link(
-                                item,
-                                MessageDirection::ToWidget,
-                                self.panel,
-                            ));
+                            ui.send(item, WidgetMessage::LinkWith(self.panel));
                         }
 
                         self.items = items.to_vec();

@@ -675,11 +675,10 @@ impl BrushMacro for AutoTileMacro {
                     CheckBoxMessage::Check(diagonal),
                 ),
             );
-            ui.send_message(WidgetMessage::visibility(
+            ui.send(
                 settings.widgets.handle,
-                MessageDirection::ToWidget,
-                cell_data.is_some(),
-            ));
+                WidgetMessage::Visibility(cell_data.is_some()),
+            );
         }
     }
 

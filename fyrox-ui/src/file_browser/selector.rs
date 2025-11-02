@@ -419,10 +419,7 @@ impl Control for FileSelectorField {
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.file_selector {
-                ui.send_message(WidgetMessage::remove(
-                    self.file_selector,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.file_selector, WidgetMessage::Remove);
             }
         }
     }

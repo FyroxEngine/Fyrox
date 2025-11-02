@@ -179,21 +179,16 @@ impl ItemHeader {
             ADD_TOOLTIP
         };
         let tooltip = make_simple_tooltip(&mut ui.build_ctx(), tooltip);
-        ui.send_message(WidgetMessage::tooltip(
-            self.button,
-            MessageDirection::ToWidget,
-            Some(tooltip),
-        ));
+        ui.send(self.button, WidgetMessage::Tooltip(Some(tooltip)));
         let color = if has_cell {
             CELL_WITH_MACRO_COLOR
         } else {
             CELL_WITHOUT_MACRO_COLOR
         };
-        ui.send_message(WidgetMessage::background(
+        ui.send(
             self.handle,
-            MessageDirection::ToWidget,
-            Brush::Solid(color).into(),
-        ));
+            WidgetMessage::Background(Brush::Solid(color).into()),
+        );
     }
 }
 
@@ -331,15 +326,16 @@ impl MacroInspector {
                 &mut ui.build_ctx(),
                 &mut self.items,
             );
-            ui.send_message(WidgetMessage::replace_children(
+            ui.send(
                 self.content,
-                MessageDirection::ToWidget,
-                self.items
-                    .iter()
-                    .filter_map(|item| item.editor.as_ref())
-                    .map(|e| e.handle)
-                    .collect(),
-            ));
+                WidgetMessage::ReplaceChildren(
+                    self.items
+                        .iter()
+                        .filter_map(|item| item.editor.as_ref())
+                        .map(|e| e.handle)
+                        .collect(),
+                ),
+            );
         }
     }
     fn sync_to_cell_inner(

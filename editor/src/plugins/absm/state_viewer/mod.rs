@@ -244,18 +244,17 @@ impl StateViewer {
             WindowMessage::Title(WindowTitle::text(format!("State Viewer - {state_name}"))),
         );
 
-        ui.send_message(WidgetMessage::enabled(
+        ui.send(
             self.canvas_context_menu.menu.handle(),
-            MessageDirection::ToWidget,
-            exists,
-        ));
+            WidgetMessage::Enabled(exists),
+        );
     }
 
     pub fn clear(&mut self, ui: &UserInterface) {
         self.state = Default::default();
 
         for &child in ui.node(self.canvas).children() {
-            ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
+            ui.send(child, WidgetMessage::Remove);
         }
 
         ui.send(
@@ -263,11 +262,10 @@ impl StateViewer {
             WindowMessage::Title(WindowTitle::text("State Viewer - No State")),
         );
 
-        ui.send_message(WidgetMessage::enabled(
+        ui.send(
             self.canvas_context_menu.menu.handle(),
-            MessageDirection::ToWidget,
-            false,
-        ));
+            WidgetMessage::Enabled(false),
+        );
     }
 
     pub fn handle_ui_message<P, G, N>(
@@ -452,11 +450,7 @@ impl StateViewer {
                             } else {
                                 // Remove every node that does not belong to a state or its data model was
                                 // removed.
-                                send_sync_message(
-                                    ui,
-                                    WidgetMessage::remove(*h, MessageDirection::ToWidget),
-                                );
-
+                                ui.send_sync(*h, WidgetMessage::Remove);
                                 false
                             }
                         } else {
@@ -549,14 +543,7 @@ impl StateViewer {
                             .with_model_handle(pose_definition)
                             .build(&mut ui.build_ctx());
 
-                            send_sync_message(
-                                ui,
-                                WidgetMessage::link(
-                                    node_view,
-                                    MessageDirection::ToWidget,
-                                    self.canvas,
-                                ),
-                            );
+                            ui.send_sync(node_view, WidgetMessage::LinkWith(self.canvas));
 
                             views.push(node_view);
                         }
@@ -575,11 +562,7 @@ impl StateViewer {
                             .pair_iter()
                             .all(|(h, _)| view_ref.model_handle != h)
                         {
-                            send_sync_message(
-                                ui,
-                                WidgetMessage::remove(view, MessageDirection::ToWidget),
-                            );
-
+                            ui.send_sync(view, WidgetMessage::Remove);
                             if let Some(position) = views.iter().position(|s| *s == view) {
                                 views.remove(position);
                             }
@@ -627,14 +610,7 @@ impl StateViewer {
                 }
 
                 if position != model_ref.position {
-                    send_sync_message(
-                        ui,
-                        WidgetMessage::desired_position(
-                            view,
-                            MessageDirection::ToWidget,
-                            model_ref.position,
-                        ),
-                    );
+                    ui.send_sync(view, WidgetMessage::DesiredPosition(model_ref.position));
                 }
 
                 if model_ref.parent_state == self.state.into() {
@@ -673,7 +649,7 @@ impl StateViewer {
             // removing every connection and create new.
             for child in ui.node(self.canvas).children().iter().cloned() {
                 if ui.node(child).has_component::<Connection>() {
-                    send_sync_message(ui, WidgetMessage::remove(child, MessageDirection::ToWidget));
+                    ui.send_sync(child, WidgetMessage::Remove);
                 }
             }
 
@@ -714,18 +690,8 @@ impl StateViewer {
                         .with_dest_node(dest_handle)
                         .build(self.canvas, &mut ui.build_ctx());
 
-                        send_sync_message(
-                            ui,
-                            WidgetMessage::link(
-                                connection,
-                                MessageDirection::ToWidget,
-                                self.canvas,
-                            ),
-                        );
-                        send_sync_message(
-                            ui,
-                            WidgetMessage::lowermost(connection, MessageDirection::ToWidget),
-                        );
+                        ui.send_sync(connection, WidgetMessage::LinkWith(self.canvas));
+                        ui.send_sync(connection, WidgetMessage::Lowermost);
                     }
                 }
             }
@@ -768,10 +734,7 @@ impl StateViewer {
         } else {
             // Clean the canvas.
             for child in ui.node(self.canvas).children() {
-                send_sync_message(
-                    ui,
-                    WidgetMessage::remove(*child, MessageDirection::ToWidget),
-                );
+                ui.send_sync(*child, WidgetMessage::Remove);
             }
         }
     }

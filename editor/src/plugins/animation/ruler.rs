@@ -442,11 +442,10 @@ impl Control for Ruler {
                 .iter()
                 .any(|signal| signal.screen_bounds(self).contains(ui.cursor_position()));
 
-            ui.send_message(WidgetMessage::enabled(
+            ui.send(
                 self.context_menu.remove_signal,
-                MessageDirection::ToWidget,
-                can_remove,
-            ));
+                WidgetMessage::Enabled(can_remove),
+            );
         }
     }
 }

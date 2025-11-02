@@ -32,7 +32,7 @@ use crate::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
     },
-    message::{MessageDirection, UiMessage},
+    message::UiMessage,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
@@ -123,17 +123,9 @@ impl Control for ProgressBar {
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
-        ui.send_message(WidgetMessage::width(
-            *self.indicator,
-            MessageDirection::ToWidget,
-            size.x * *self.progress,
-        ));
-
-        ui.send_message(WidgetMessage::height(
-            *self.indicator,
-            MessageDirection::ToWidget,
-            size.y,
-        ));
+        let width = size.x * *self.progress;
+        ui.send(*self.indicator, WidgetMessage::Width(width));
+        ui.send(*self.indicator, WidgetMessage::Height(size.y));
 
         size
     }

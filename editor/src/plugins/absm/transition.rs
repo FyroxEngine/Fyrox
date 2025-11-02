@@ -74,15 +74,14 @@ pub struct TransitionView {
 
 impl TransitionView {
     fn handle_selection_change(&self, ui: &UserInterface) {
-        ui.send_message(WidgetMessage::foreground(
+        ui.send(
             self.handle(),
-            MessageDirection::ToWidget,
-            if self.selectable.selected {
+            WidgetMessage::Foreground(if self.selectable.selected {
                 ui.style.property(Style::BRUSH_BRIGHT)
             } else {
                 ui.style.property(Style::BRUSH_LIGHTER)
-            },
-        ));
+            }),
+        );
     }
 }
 
@@ -142,11 +141,10 @@ impl Control for TransitionView {
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::MouseEnter => {
-                    ui.send_message(WidgetMessage::foreground(
+                    ui.send(
                         self.handle(),
-                        MessageDirection::ToWidget,
-                        ui.style.property(Style::BRUSH_LIGHTEST),
-                    ));
+                        WidgetMessage::Foreground(ui.style.property(Style::BRUSH_LIGHTEST)),
+                    );
                 }
                 WidgetMessage::MouseLeave => {
                     self.handle_selection_change(ui);

@@ -206,11 +206,10 @@ impl TilePropertyEditor {
         ui.send(self.name_field, TextMessage::Text(layer.name.to_string()));
         let list = make_named_value_list_items(layer, &mut ui.build_ctx());
         ui.send_sync(self.list, DropdownListMessage::Items(list));
-        ui.send_message(WidgetMessage::visibility(
+        ui.send(
             self.list,
-            MessageDirection::ToWidget,
-            !layer.named_values.is_empty(),
-        ));
+            WidgetMessage::Visibility(!layer.named_values.is_empty()),
+        );
         self.sync_list_index(state, ui);
     }
     /// Scan the currently selected tiles to find the value that this editor should display.
@@ -733,11 +732,10 @@ fn apply_specs_to_nine(specs: &NineButtonSpec, handle: Handle<UiNode>, ui: &mut 
     let text = *button.content.clone();
     let decorator = *button.decorator.clone();
     ui.send(text, TextMessage::Text(specs.name.clone()));
-    ui.send_message(WidgetMessage::foreground(
+    ui.send(
         text,
-        MessageDirection::ToWidget,
-        specs.foreground_brush().into(),
-    ));
+        WidgetMessage::Foreground(specs.foreground_brush().into()),
+    );
     ui.send_many(
         decorator,
         [

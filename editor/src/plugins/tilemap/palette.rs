@@ -702,11 +702,7 @@ impl PaletteWidget {
     }
 
     fn send_cursor_icon(&self, icon: Option<CursorIcon>, ui: &mut UserInterface) {
-        ui.send_message(WidgetMessage::cursor(
-            self.handle(),
-            MessageDirection::ToWidget,
-            icon,
-        ));
+        ui.send(self.handle(), WidgetMessage::Cursor(icon));
     }
     fn sync_to_state(&mut self, ui: &mut UserInterface) {
         let state = self.state.lock();

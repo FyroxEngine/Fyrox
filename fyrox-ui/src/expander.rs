@@ -29,7 +29,7 @@ use crate::{
     core::pool::Handle,
     core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     grid::{Column, GridBuilder, Row},
-    message::{MessageDirection, UiMessage},
+    message::UiMessage,
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
@@ -184,11 +184,7 @@ impl Control for Expander {
                 // Switch state of expander.
                 ui.send(*self.expander, CheckBoxMessage::Check(Some(expand)));
                 // Show or hide content.
-                ui.send_message(WidgetMessage::visibility(
-                    *self.content,
-                    MessageDirection::ToWidget,
-                    expand,
-                ));
+                ui.send(*self.content, WidgetMessage::Visibility(expand));
                 self.is_expanded.set_value_and_mark_modified(expand);
             }
         } else if let Some(CheckBoxMessage::Check(value)) =

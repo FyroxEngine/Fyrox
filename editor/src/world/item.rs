@@ -184,10 +184,7 @@ impl Control for SceneItem {
             if message.destination() == self.handle() {
                 match result {
                     Ok(_) => {
-                        ui.send_message(WidgetMessage::remove(
-                            self.warning_icon,
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send(self.warning_icon, WidgetMessage::Remove);
                         self.warning_icon = Handle::NONE;
                     }
                     Err(msg) => {
@@ -203,11 +200,7 @@ impl Control for SceneItem {
                         .with_opt_texture(load_image!("../../resources/warning.png"))
                         .build(&mut ui.build_ctx());
 
-                        ui.send_message(WidgetMessage::link(
-                            self.warning_icon,
-                            MessageDirection::ToWidget,
-                            self.grid,
-                        ));
+                        ui.send(self.warning_icon, WidgetMessage::LinkWith(self.grid));
                     }
                 }
             }

@@ -64,11 +64,7 @@ fn collider_to_index(tile_collider: &TileCollider) -> Option<usize> {
 }
 
 fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: bool) {
-    ui.send_message(WidgetMessage::visibility(
-        destination,
-        MessageDirection::ToWidget,
-        visible,
-    ));
+    ui.send(destination, WidgetMessage::Visibility(visible));
 }
 
 fn highlight_tool_button(button: Handle<UiNode>, highlight: bool, ui: &UserInterface) {
@@ -194,11 +190,10 @@ impl TileColliderEditor {
     fn apply_collider_update(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
         let layer = state.find_collider(self.collider_id).unwrap();
         ui.send(self.name_field, TextMessage::Text(layer.name.to_string()));
-        ui.send_message(WidgetMessage::background(
+        ui.send(
             self.color_icon,
-            MessageDirection::ToWidget,
-            Brush::Solid(layer.color.to_opaque()).into(),
-        ));
+            WidgetMessage::Background(Brush::Solid(layer.color.to_opaque()).into()),
+        );
     }
     fn find_value(&self, state: &TileEditorState) -> Option<TileCollider> {
         let mut iter = state.tile_data().map(|(_, d)| {

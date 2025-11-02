@@ -621,11 +621,7 @@ impl Control for SaturationBrightnessField {
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.deref().arrange_override(ui, final_size);
         // Make sure field is always square.
-        ui.send_message(WidgetMessage::width(
-            self.handle,
-            MessageDirection::ToWidget,
-            final_size.y,
-        ));
+        ui.send(self.handle, WidgetMessage::Width(final_size.y));
         size
     }
 
@@ -1210,10 +1206,7 @@ impl Control for ColorField {
         // Popup won't be deleted with the color field, because it is not the child of the field.
         // So we have to remove it manually.
         sender
-            .send(WidgetMessage::remove(
-                self.popup,
-                MessageDirection::ToWidget,
-            ))
+            .send(UiMessage::for_widget(self.popup, WidgetMessage::Remove))
             .unwrap();
     }
 
@@ -1238,11 +1231,7 @@ impl Control for ColorField {
                 && message.direction() == MessageDirection::FromWidget
                 && button == MouseButton::Left
             {
-                ui.send_message(WidgetMessage::width(
-                    self.popup,
-                    MessageDirection::ToWidget,
-                    self.actual_local_size().x,
-                ));
+                ui.send(self.popup, WidgetMessage::Width(self.actual_local_size().x));
                 ui.send(
                     self.popup,
                     PopupMessage::Placement(Placement::LeftBottom(self.handle)),

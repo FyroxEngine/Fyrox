@@ -18,21 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    core::{
-        algebra::Vector2,
-        pool::Handle,
-        uuid::{uuid, Uuid},
-        TypeUuidProvider,
-    },
-    engine::Engine,
-    gui::{message::MessageDirection, widget::WidgetMessage, BuildContext, UiNode},
-};
-use crate::scene::commands::ChangeSelectionCommand;
 use crate::{
+    fyrox::graph::BaseSceneGraph,
+    fyrox::{
+        core::{
+            algebra::Vector2,
+            pool::Handle,
+            uuid::{uuid, Uuid},
+            TypeUuidProvider,
+        },
+        engine::Engine,
+        gui::{widget::WidgetMessage, BuildContext, UiNode},
+    },
     interaction::{make_interaction_mode_button, InteractionMode},
     message::MessageSender,
+    scene::commands::ChangeSelectionCommand,
     scene::{controller::SceneController, Selection},
     settings::Settings,
     ui_scene::{UiScene, UiSelection},
@@ -82,26 +82,13 @@ impl InteractionMode for UiSelectInteractionMode {
     ) {
         self.click_pos = mouse_pos;
         let ui = &mut engine.user_interfaces.first_mut();
-        ui.send_message(WidgetMessage::visibility(
+        ui.send(self.selection_frame, WidgetMessage::Visibility(true));
+        ui.send(
             self.selection_frame,
-            MessageDirection::ToWidget,
-            true,
-        ));
-        ui.send_message(WidgetMessage::desired_position(
-            self.selection_frame,
-            MessageDirection::ToWidget,
-            mouse_pos,
-        ));
-        ui.send_message(WidgetMessage::width(
-            self.selection_frame,
-            MessageDirection::ToWidget,
-            0.0,
-        ));
-        ui.send_message(WidgetMessage::height(
-            self.selection_frame,
-            MessageDirection::ToWidget,
-            0.0,
-        ));
+            WidgetMessage::DesiredPosition(mouse_pos),
+        );
+        ui.send(self.selection_frame, WidgetMessage::Width(0.0));
+        ui.send(self.selection_frame, WidgetMessage::Height(0.0));
     }
 
     fn on_left_mouse_button_up(
@@ -177,12 +164,8 @@ impl InteractionMode for UiSelectInteractionMode {
         }
         engine
             .user_interfaces
-            .first_mut()
-            .send_message(WidgetMessage::visibility(
-                self.selection_frame,
-                MessageDirection::ToWidget,
-                false,
-            ));
+            .first()
+            .send(self.selection_frame, WidgetMessage::Visibility(false));
     }
 
     fn on_mouse_move(
@@ -211,21 +194,12 @@ impl InteractionMode for UiSelectInteractionMode {
                 self.click_pos.y
             },
         );
-        ui.send_message(WidgetMessage::desired_position(
+        ui.send(
             self.selection_frame,
-            MessageDirection::ToWidget,
-            position,
-        ));
-        ui.send_message(WidgetMessage::width(
-            self.selection_frame,
-            MessageDirection::ToWidget,
-            width.abs(),
-        ));
-        ui.send_message(WidgetMessage::height(
-            self.selection_frame,
-            MessageDirection::ToWidget,
-            height.abs(),
-        ));
+            WidgetMessage::DesiredPosition(position),
+        );
+        ui.send(self.selection_frame, WidgetMessage::Width(width.abs()));
+        ui.send(self.selection_frame, WidgetMessage::Height(height.abs()));
     }
 
     fn update(

@@ -138,10 +138,7 @@ impl Control for NavigationLayer {
                 };
 
                 if let Some(entry) = tab_list.get(next_focused_node_index) {
-                    ui.send_message(WidgetMessage::focus(
-                        entry.handle,
-                        MessageDirection::ToWidget,
-                    ));
+                    ui.send(entry.handle, WidgetMessage::Focus);
 
                     if *self.bring_into_view {
                         // Find a parent scroll viewer.

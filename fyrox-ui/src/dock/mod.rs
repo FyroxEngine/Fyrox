@@ -303,19 +303,12 @@ impl DockingManager {
             }
 
             // Destroy the root tile with all descendant tiles.
-            ui.send_message(WidgetMessage::remove(
-                root_tile_handle,
-                MessageDirection::ToWidget,
-            ));
+            ui.send(root_tile_handle, WidgetMessage::Remove);
 
             // Re-create the tiles according to the layout and attach it to the docking manager.
             if let Some(root_tile_descriptor) = layout_descriptor.root_tile_descriptor.as_ref() {
                 let root_tile = root_tile_descriptor.create_tile(ui, &windows);
-                ui.send_message(WidgetMessage::link(
-                    root_tile,
-                    MessageDirection::ToWidget,
-                    self.handle,
-                ));
+                ui.send(root_tile, WidgetMessage::LinkWith(self.handle));
             }
 
             // Restore floating windows.
@@ -346,26 +339,23 @@ impl DockingManager {
                         ui.send(floating_window, WindowMessage::Close);
                     }
 
-                    ui.send_message(WidgetMessage::desired_position(
+                    ui.send(
                         floating_window,
-                        MessageDirection::ToWidget,
-                        floating_window_desc.position,
-                    ));
+                        WidgetMessage::DesiredPosition(floating_window_desc.position),
+                    );
 
                     if floating_window_desc.size.x != 0.0 {
-                        ui.send_message(WidgetMessage::width(
+                        ui.send(
                             floating_window,
-                            MessageDirection::ToWidget,
-                            floating_window_desc.size.x,
-                        ));
+                            WidgetMessage::Width(floating_window_desc.size.x),
+                        );
                     }
 
                     if floating_window_desc.size.y != 0.0 {
-                        ui.send_message(WidgetMessage::height(
+                        ui.send(
                             floating_window,
-                            MessageDirection::ToWidget,
-                            floating_window_desc.size.y,
-                        ));
+                            WidgetMessage::Height(floating_window_desc.size.y),
+                        );
                     }
                 }
             }

@@ -287,11 +287,7 @@ impl SettingsWindow {
                     .build(ctx)
                 })
                 .collect::<Vec<_>>();
-        ui.send_message(WidgetMessage::replace_children(
-            self.groups,
-            MessageDirection::ToWidget,
-            groups,
-        ));
+        ui.send(self.groups, WidgetMessage::ReplaceChildren(groups));
         ui.send_message(InspectorMessage::context(
             self.inspector,
             MessageDirection::ToWidget,
@@ -323,11 +319,10 @@ impl SettingsWindow {
                 inner_match |= display_name.contains(filter_text)
                     || fuzzy_compare(filter_text, display_name.as_str()) >= 0.5;
 
-                ui.send_message(WidgetMessage::visibility(
+                ui.send(
                     entry.property_container,
-                    MessageDirection::ToWidget,
-                    inner_match,
-                ));
+                    WidgetMessage::Visibility(inner_match),
+                );
 
                 is_any_match |= inner_match;
             }
@@ -394,10 +389,7 @@ impl SettingsWindow {
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
-                ui.send_message(WidgetMessage::remove(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.window, WidgetMessage::Remove);
                 ui.send_message(DockingManagerMessage::remove_floating_window(
                     docking_manager,
                     MessageDirection::ToWidget,

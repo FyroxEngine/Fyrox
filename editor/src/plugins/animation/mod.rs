@@ -649,10 +649,7 @@ impl AnimationEditor {
             MessageDirection::ToWidget,
             self.window,
         ));
-        ui.send_message(WidgetMessage::remove(
-            self.window,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.window, WidgetMessage::Remove);
     }
 
     pub fn clear(&mut self, ui: &UserInterface) {
@@ -886,21 +883,13 @@ impl AnimationEditor {
             self.toolbar.clear(ui);
         }
 
-        send_sync_message(
-            ui,
-            WidgetMessage::visibility(
-                self.content,
-                MessageDirection::ToWidget,
-                is_animation_player_selected,
-            ),
+        ui.send_sync(
+            self.content,
+            WidgetMessage::Visibility(is_animation_player_selected),
         );
-        send_sync_message(
-            ui,
-            WidgetMessage::enabled(
-                self.track_list.panel,
-                MessageDirection::ToWidget,
-                is_animation_selected,
-            ),
+        ui.send_sync(
+            self.track_list.panel,
+            WidgetMessage::Enabled(is_animation_selected),
         );
         send_sync_message(
             ui,
@@ -909,13 +898,9 @@ impl AnimationEditor {
                 CheckBoxMessage::Check(Some(self.preview_mode_data.is_some())),
             ),
         );
-        send_sync_message(
-            ui,
-            WidgetMessage::enabled(
-                self.curve_editor,
-                MessageDirection::ToWidget,
-                is_animation_selected,
-            ),
+        ui.send_sync(
+            self.curve_editor,
+            WidgetMessage::Enabled(is_animation_selected),
         );
     }
 }

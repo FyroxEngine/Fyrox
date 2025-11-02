@@ -181,32 +181,19 @@ impl TileContent {
 }
 
 fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: bool) {
-    ui.send_message(WidgetMessage::visibility(
-        destination,
-        MessageDirection::ToWidget,
-        visible,
-    ));
+    ui.send(destination, WidgetMessage::Visibility(visible));
 }
 
 fn send_size(ui: &UserInterface, destination: Handle<UiNode>, width: f32, height: f32) {
-    ui.send_message(WidgetMessage::width(
-        destination,
-        MessageDirection::ToWidget,
-        width,
-    ));
-    ui.send_message(WidgetMessage::height(
-        destination,
-        MessageDirection::ToWidget,
-        height,
-    ));
+    ui.send(destination, WidgetMessage::Width(width));
+    ui.send(destination, WidgetMessage::Height(height));
 }
 
 fn send_background(ui: &UserInterface, destination: Handle<UiNode>, color: Color) {
-    ui.send_message(WidgetMessage::background(
+    ui.send(
         destination,
-        MessageDirection::ToWidget,
-        Brush::Solid(color).into(),
-    ));
+        WidgetMessage::Background(Brush::Solid(color).into()),
+    );
 }
 
 /// The window contained by the tile at the given handle, if the handle points
@@ -545,28 +532,22 @@ impl Control for Tile {
                             TileContent::VerticalTiles { tiles, .. }
                             | TileContent::HorizontalTiles { tiles, .. } => {
                                 for &tile in tiles {
-                                    ui.send_message(WidgetMessage::link(
-                                        tile,
-                                        MessageDirection::ToWidget,
-                                        self.handle(),
-                                    ));
+                                    ui.send(tile, WidgetMessage::LinkWith(self.handle()));
                                 }
 
                                 send_visibility(ui, self.splitter, true);
                                 match content {
                                     TileContent::HorizontalTiles { .. } => {
-                                        ui.send_message(WidgetMessage::cursor(
+                                        ui.send(
                                             self.splitter,
-                                            MessageDirection::ToWidget,
-                                            Some(CursorIcon::WResize),
-                                        ));
+                                            WidgetMessage::Cursor(Some(CursorIcon::WResize)),
+                                        );
                                     }
                                     TileContent::VerticalTiles { .. } => {
-                                        ui.send_message(WidgetMessage::cursor(
+                                        ui.send(
                                             self.splitter,
-                                            MessageDirection::ToWidget,
-                                            Some(CursorIcon::NResize),
-                                        ));
+                                            WidgetMessage::Cursor(Some(CursorIcon::NResize)),
+                                        );
                                     }
                                     _ => (),
                                 }
@@ -655,10 +636,7 @@ impl Control for Tile {
                                             TileContent::Window(sub_tile_wnd) => {
                                                 // If we have only a tile with a window, then detach window and schedule
                                                 // linking with current tile.
-                                                ui.send_message(WidgetMessage::unlink(
-                                                    sub_tile_wnd,
-                                                    MessageDirection::ToWidget,
-                                                ));
+                                                ui.send(sub_tile_wnd, WidgetMessage::Unlink);
 
                                                 ui.send_message(TileMessage::content(
                                                     self.handle,
@@ -670,10 +648,7 @@ impl Control for Tile {
                                             }
                                             TileContent::MultiWindow { index, ref windows } => {
                                                 for &sub_tile_wnd in windows {
-                                                    ui.send_message(WidgetMessage::unlink(
-                                                        sub_tile_wnd,
-                                                        MessageDirection::ToWidget,
-                                                    ));
+                                                    ui.send(sub_tile_wnd, WidgetMessage::Unlink);
                                                 }
 
                                                 ui.send_message(TileMessage::content(
@@ -694,10 +669,7 @@ impl Control for Tile {
                                                 tiles: sub_tiles,
                                             } => {
                                                 for &sub_tile in &sub_tiles {
-                                                    ui.send_message(WidgetMessage::unlink(
-                                                        sub_tile,
-                                                        MessageDirection::ToWidget,
-                                                    ));
+                                                    ui.send(sub_tile, WidgetMessage::Unlink);
                                                 }
                                                 // Transfer sub tiles to current tile.
                                                 ui.send_message(TileMessage::content(
@@ -714,10 +686,7 @@ impl Control for Tile {
                                                 tiles: sub_tiles,
                                             } => {
                                                 for &sub_tile in &sub_tiles {
-                                                    ui.send_message(WidgetMessage::unlink(
-                                                        sub_tile,
-                                                        MessageDirection::ToWidget,
-                                                    ));
+                                                    ui.send(sub_tile, WidgetMessage::Unlink);
                                                 }
                                                 // Transfer sub tiles to current tile.
                                                 ui.send_message(TileMessage::content(
@@ -736,10 +705,7 @@ impl Control for Tile {
 
                                 // Destroy tiles.
                                 for &tile in &tiles {
-                                    ui.send_message(WidgetMessage::remove(
-                                        tile,
-                                        MessageDirection::ToWidget,
-                                    ));
+                                    ui.send(tile, WidgetMessage::Remove);
                                 }
                             }
                         }
@@ -829,10 +795,7 @@ impl Control for Tile {
                                 }
                                 if let Some(tile_b_ref) = ui.node(tile_b).query_component::<Tile>()
                                 {
-                                    ui.send_message(WidgetMessage::unlink(
-                                        closed_window,
-                                        MessageDirection::ToWidget,
-                                    ));
+                                    ui.send(closed_window, WidgetMessage::Unlink);
 
                                     tile_b_ref.unlink_content(ui);
 
@@ -844,10 +807,7 @@ impl Control for Tile {
 
                                     // Destroy tiles.
                                     for &tile in &tiles {
-                                        ui.send_message(WidgetMessage::remove(
-                                            tile,
-                                            MessageDirection::ToWidget,
-                                        ));
+                                        ui.send(tile, WidgetMessage::Remove);
                                     }
 
                                     if let Some((_, docking_manager)) =
@@ -936,11 +896,10 @@ impl Control for Tile {
                                                 MessageDirection::ToWidget,
                                                 TileContent::Window(message.destination()),
                                             ));
-                                            ui.send_message(WidgetMessage::link(
+                                            ui.send(
                                                 message.destination(),
-                                                MessageDirection::ToWidget,
-                                                self.handle,
-                                            ));
+                                                WidgetMessage::LinkWith(self.handle),
+                                            );
                                         }
                                     }
                                     TileContent::Window(_) | TileContent::MultiWindow { .. } => {
@@ -1057,11 +1016,11 @@ impl Tile {
         match &self.content {
             TileContent::Empty => {}
             TileContent::Window(window) => {
-                ui.send_message(WidgetMessage::unlink(*window, MessageDirection::ToWidget));
+                ui.send(*window, WidgetMessage::Unlink);
             }
             TileContent::MultiWindow { windows, .. } => {
                 for tile in windows.iter() {
-                    ui.send_message(WidgetMessage::unlink(*tile, MessageDirection::ToWidget));
+                    ui.send(*tile, WidgetMessage::Unlink);
                 }
             }
             TileContent::VerticalTiles {
@@ -1071,7 +1030,7 @@ impl Tile {
                 tiles: sub_tiles, ..
             } => {
                 for tile in sub_tiles {
-                    ui.send_message(WidgetMessage::unlink(*tile, MessageDirection::ToWidget));
+                    ui.send(*tile, WidgetMessage::Unlink);
                 }
             }
         }
@@ -1092,12 +1051,7 @@ impl Tile {
     /// Send messages to prepare the window at the given handle for being docked
     /// in this tile.
     fn dock(&self, window: Handle<UiNode>, ui: &UserInterface) {
-        ui.send_message(WidgetMessage::link(
-            window,
-            MessageDirection::ToWidget,
-            self.handle(),
-        ));
-
+        ui.send(window, WidgetMessage::LinkWith(self.handle()));
         ui.send(window, WindowMessage::CanResize(false));
 
         // Make the window size undefined, so it will be stretched to the tile
@@ -1115,11 +1069,7 @@ impl Tile {
             self.content.clone().minus_window(window.handle()),
         ));
 
-        ui.send_message(WidgetMessage::unlink(
-            window.handle(),
-            MessageDirection::ToWidget,
-        ));
-
+        ui.send(window.handle(), WidgetMessage::Unlink);
         ui.send(window.handle(), WindowMessage::CanResize(true));
 
         let height = if window.minimized() {

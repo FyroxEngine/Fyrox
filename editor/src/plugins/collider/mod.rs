@@ -53,10 +53,7 @@ use crate::{
         },
         engine::Engine,
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
-        gui::{
-            message::{MessageDirection, UiMessage},
-            BuildContext, UiNode,
-        },
+        gui::{message::UiMessage, BuildContext, UiNode},
         material::{
             shader::{ShaderResource, ShaderResourceExtension},
             Material, MaterialResource,
@@ -744,11 +741,7 @@ impl EditorPlugin for ColliderPlugin {
                     let inspector = editor.plugins.get::<InspectorPlugin>();
                     let ui = editor.engine.user_interfaces.first_mut();
                     let panel = ColliderControlPanel::new(&mut ui.build_ctx());
-                    ui.send_message(WidgetMessage::link(
-                        panel.root_widget,
-                        MessageDirection::ToWidget,
-                        inspector.head,
-                    ));
+                    ui.send(panel.root_widget, WidgetMessage::LinkWith(inspector.head));
                     self.panel = Some(panel);
                 }
             } else if let Some(panel) = self.panel.take() {

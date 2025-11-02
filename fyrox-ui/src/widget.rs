@@ -23,8 +23,6 @@
 
 #![warn(missing_docs)]
 
-use crate::message::MessageData;
-use crate::style::DEFAULT_STYLE;
 use crate::{
     brush::Brush,
     core::{
@@ -37,11 +35,10 @@ use crate::{
         ImmutableString, SafeLock,
     },
     core::{parking_lot::Mutex, variable::InheritableVariable},
-    define_constructor,
-    message::{CursorIcon, Force, KeyCode, MessageDirection, UiMessage},
+    message::{CursorIcon, Force, KeyCode, MessageData, UiMessage},
     style::{
         resource::{StyleResource, StyleResourceExt},
-        Style, StyledProperty,
+        Style, StyledProperty, DEFAULT_STYLE,
     },
     BuildContext, HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle,
     Thickness, UiNode, UserInterface, VerticalAlignment,
@@ -49,12 +46,12 @@ use crate::{
 use fyrox_graph::BaseSceneGraph;
 use fyrox_material::{Material, MaterialResource};
 use fyrox_resource::Resource;
-use std::ops::{Deref, DerefMut};
 use std::{
     any::Any,
     cell::{Cell, RefCell},
     cmp::Ordering,
     fmt::{Debug, Formatter},
+    ops::{Deref, DerefMut},
     sync::{mpsc::Sender, Arc},
 };
 
@@ -450,311 +447,6 @@ pub enum WidgetMessage {
     /// Asks a widget to reset its visual state. The actual response to this message is widget-specific.
     /// In most cases, it does nothing.
     ResetVisual,
-}
-
-impl WidgetMessage {
-    define_constructor!(
-        /// Creates [`WidgetMessage::Remove`] message.
-        WidgetMessage:Remove => fn remove()
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Unlink`] message.
-        WidgetMessage:Unlink => fn unlink()
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::LinkWith`] message.
-        WidgetMessage:LinkWith => fn link(Handle<UiNode>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::LinkWithReverse`] message.
-        WidgetMessage:LinkWithReverse => fn link_reverse(Handle<UiNode>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::ReplaceChildren`] message.
-        WidgetMessage:ReplaceChildren => fn replace_children(Vec<Handle<UiNode>>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Background`] message.
-        WidgetMessage:Background => fn background(StyledProperty<Brush>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Foreground`] message.
-        WidgetMessage:Foreground => fn foreground(StyledProperty<Brush>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Visibility`] message.
-        WidgetMessage:Visibility => fn visibility(bool)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Width`] message.
-        WidgetMessage:Width => fn width(f32)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Height`] message.
-        WidgetMessage:Height => fn height(f32)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::DesiredPosition`] message.
-        WidgetMessage:DesiredPosition => fn desired_position(Vector2<f32>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Center`] message.
-        WidgetMessage:Center => fn center()
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::AdjustPositionToFit`] message.
-        WidgetMessage:AdjustPositionToFit => fn adjust_position_to_fit()
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Align`] message.
-        WidgetMessage:Align => fn align(
-            relative_to: Handle<UiNode>,
-            horizontal_alignment: HorizontalAlignment,
-            vertical_alignment: VerticalAlignment,
-            margin: Thickness)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Topmost`] message.
-        WidgetMessage:Topmost => fn topmost()
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Lowermost`] message.
-        WidgetMessage:Lowermost => fn lowermost()
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Enabled`] message.
-        WidgetMessage:Enabled => fn enabled(bool)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Name`] message.
-        WidgetMessage:Name => fn name(String)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Row`] message.
-        WidgetMessage:Row => fn row(usize)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Column`] message.
-        WidgetMessage:Column => fn column(usize)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Cursor`] message.
-        WidgetMessage:Cursor => fn cursor(Option<CursorIcon>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::ZIndex`] message.
-        WidgetMessage:ZIndex => fn z_index(usize)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::HitTestVisibility`] message.
-        WidgetMessage:HitTestVisibility => fn hit_test_visibility(bool)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Margin`] message.
-        WidgetMessage:Margin => fn margin(Thickness)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::MinSize`] message.
-        WidgetMessage:MinSize => fn min_size(Vector2<f32>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::MaxSize`] message.
-        WidgetMessage:MaxSize => fn max_size(Vector2<f32>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::HorizontalAlignment`] message.
-        WidgetMessage:HorizontalAlignment => fn horizontal_alignment(HorizontalAlignment)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::VerticalAlignment`] message.
-        WidgetMessage:VerticalAlignment => fn vertical_alignment(VerticalAlignment)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Opacity`] message.
-        WidgetMessage:Opacity => fn opacity(Option<f32>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::LayoutTransform`] message.
-        WidgetMessage:LayoutTransform => fn layout_transform(Matrix3<f32>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::RenderTransform`] message.
-        WidgetMessage:RenderTransform => fn render_transform(Matrix3<f32>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::ContextMenu`] message.
-        WidgetMessage:ContextMenu => fn context_menu(Option<RcUiNodeHandle>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Tooltip`] message.
-        WidgetMessage:Tooltip => fn tooltip(Option<RcUiNodeHandle>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Focus`] message.
-        WidgetMessage:Focus => fn focus()
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Unfocus`] message.
-        WidgetMessage:Unfocus => fn unfocus()
-    );
-
-    // Internal messages. Do not use.
-    define_constructor!(
-        /// Creates [`WidgetMessage::MouseDown`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:MouseDown => fn mouse_down(pos: Vector2<f32>, button: MouseButton)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::MouseUp`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:MouseUp => fn mouse_up(pos: Vector2<f32>, button: MouseButton)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::MouseMove`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:MouseMove => fn mouse_move(pos: Vector2<f32>, state: MouseState)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::MouseWheel`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:MouseWheel => fn mouse_wheel(pos: Vector2<f32>, amount: f32)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::MouseLeave`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:MouseLeave => fn mouse_leave()
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::MouseEnter`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:MouseEnter => fn mouse_enter()
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Text`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:Text => fn text(String)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::KeyDown`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:KeyDown => fn key_down(KeyCode)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::KeyUp`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:KeyUp => fn key_up(KeyCode)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::DragStarted`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:DragStarted => fn drag_started(Handle<UiNode>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::DragOver`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:DragOver => fn drag_over(Handle<UiNode>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Drop`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:Drop => fn drop(Handle<UiNode>)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::DoubleClick`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:DoubleClick => fn double_click(button: MouseButton)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::TouchStarted`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:TouchStarted => fn touch_started(pos: Vector2<f32>, force: Option<Force>, id: u64)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::TouchEnded`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:TouchEnded => fn touch_ended(pos: Vector2<f32>, id: u64)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::TouchMoved`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:TouchMoved => fn touch_moved(pos: Vector2<f32>, force: Option<Force>, id: u64)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::TouchCancelled`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:TouchCancelled => fn touch_cancelled(pos: Vector2<f32>, id: u64)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::DoubleTap`] message. This method is for internal use only, and should not
-        /// be used anywhere else.
-        WidgetMessage:DoubleTap => fn double_tap(pos: Vector2<f32>, force: Option<Force>, id: u64)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::SortChildren`] message.
-        WidgetMessage:SortChildren => fn sort_children(SortingPredicate)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::Style`] message.
-        WidgetMessage:Style => fn style(StyleResource)
-    );
-
-    define_constructor!(
-        /// Creates [`WidgetMessage::ResetVisual`] message.
-        WidgetMessage:ResetVisual => fn reset_visual()
-    );
 }
 
 impl MessageData for WidgetMessage {

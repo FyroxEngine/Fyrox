@@ -680,11 +680,7 @@ impl BrushMacro for WfcMacro {
                 &mut self.terrain_list,
                 &mut ui.build_ctx(),
             );
-            ui.send_message(WidgetMessage::replace_children(
-                self.terrain_stack,
-                MessageDirection::ToWidget,
-                list,
-            ));
+            ui.send(self.terrain_stack, WidgetMessage::ReplaceChildren(list));
         } else {
             sync_terrain_list(&terrain_freq, &self.terrain_list, ui);
         }

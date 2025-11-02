@@ -116,15 +116,8 @@ impl Control for ToggleButton {
                         }
                     }
                     ToggleButtonMessage::Content(content) => {
-                        ui.send_message(WidgetMessage::remove(
-                            self.content,
-                            MessageDirection::ToWidget,
-                        ));
-                        ui.send_message(WidgetMessage::link(
-                            *content,
-                            MessageDirection::ToWidget,
-                            self.decorator,
-                        ));
+                        ui.send(self.content, WidgetMessage::Remove);
+                        ui.send(*content, WidgetMessage::LinkWith(self.decorator));
                     }
                 }
             }

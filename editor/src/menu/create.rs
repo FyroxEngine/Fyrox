@@ -25,8 +25,8 @@ use crate::{
         engine::{Engine, SerializationContext},
         fxhash::FxHashMap,
         gui::{
-            menu::MenuItemMessage, message::MessageDirection, message::UiMessage,
-            widget::WidgetMessage, BuildContext, UiNode, UserInterface,
+            menu::MenuItemMessage, message::UiMessage, widget::WidgetMessage, BuildContext, UiNode,
+            UserInterface,
         },
         scene::node::Node,
     },
@@ -107,11 +107,7 @@ impl CreateEntityRootMenu {
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
-        ui.send_message(WidgetMessage::enabled(
-            self.menu,
-            MessageDirection::ToWidget,
-            mode.is_edit(),
-        ));
+        ui.send(self.menu, WidgetMessage::Enabled(mode.is_edit()));
     }
 }
 
@@ -167,22 +163,13 @@ impl CreateEntityMenu {
     pub fn on_scene_changed(&self, controller: &dyn SceneController, ui: &UserInterface) {
         let is_ui_scene = controller.downcast_ref::<UiScene>().is_some();
 
-        ui.send_message(WidgetMessage::enabled(
-            self.ui_menu.menu,
-            MessageDirection::ToWidget,
-            is_ui_scene,
-        ));
+        ui.send(self.ui_menu.menu, WidgetMessage::Enabled(is_ui_scene));
 
         for widget in self.root_items.iter() {
             if *widget == self.ui_menu.menu {
                 continue;
             }
-
-            ui.send_message(WidgetMessage::enabled(
-                *widget,
-                MessageDirection::ToWidget,
-                !is_ui_scene,
-            ));
+            ui.send(*widget, WidgetMessage::Enabled(!is_ui_scene));
         }
     }
 

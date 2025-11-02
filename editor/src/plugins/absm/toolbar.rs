@@ -360,10 +360,7 @@ impl Toolbar {
                     mask: new_mask,
                 });
 
-                ui.send_message(WidgetMessage::remove(
-                    self.node_selector,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.node_selector, WidgetMessage::Remove);
 
                 self.node_selector = Handle::NONE;
             }

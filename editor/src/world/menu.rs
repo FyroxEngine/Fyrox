@@ -422,28 +422,22 @@ impl SceneNodeContextMenu {
                     self.placement_target = *target;
 
                     // Check if there's something to paste and deactivate "Paste" if nothing.
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(WidgetMessage::enabled(
-                            self.paste,
-                            MessageDirection::ToWidget,
-                            !game_scene.clipboard.is_empty(),
-                        ));
+                    engine.user_interfaces.first_mut().send(
+                        self.paste,
+                        WidgetMessage::Enabled(!game_scene.clipboard.is_empty()),
+                    );
 
-                    engine
-                        .user_interfaces
-                        .first()
-                        .send_message(WidgetMessage::enabled(
-                            self.open_asset,
-                            MessageDirection::ToWidget,
+                    engine.user_interfaces.first().send(
+                        self.open_asset,
+                        WidgetMessage::Enabled(
                             resource_path_of_first_selected_node(
                                 editor_selection,
                                 game_scene,
                                 engine,
                             )
                             .is_some_and(|p| utils::is_native_scene(&p)),
-                        ));
+                        ),
+                    );
                 }
             } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
                 if message.destination() == self.save_as_prefab_dialog {

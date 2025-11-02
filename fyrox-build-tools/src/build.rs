@@ -266,13 +266,14 @@ impl BuildWindow {
         }
 
         self.angle += 10.0 * dt;
-        ui.send_message(WidgetMessage::render_transform(
+        ui.send(
             self.progress_indicator,
-            MessageDirection::ToWidget,
-            Matrix3::new_translation(&Vector2::new(8.0, 8.0))
-                * Matrix3::new_rotation(self.angle)
-                * Matrix3::new_translation(&Vector2::new(-8.0, -8.0)),
-        ));
+            WidgetMessage::RenderTransform(
+                Matrix3::new_translation(&Vector2::new(8.0, 8.0))
+                    * Matrix3::new_rotation(self.angle)
+                    * Matrix3::new_translation(&Vector2::new(-8.0, -8.0)),
+            ),
+        );
     }
 
     pub fn handle_ui_message(

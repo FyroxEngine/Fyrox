@@ -25,7 +25,7 @@ use crate::{
         core::{algebra::Vector2, pool::Handle},
         gui::{
             menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             widget::{WidgetBuilder, WidgetMessage},
             BuildContext, Thickness, UiNode, UserInterface,
         },
@@ -36,7 +36,6 @@ use crate::{
     },
     message::MessageSender,
     scene::{container::EditorSceneEntry, controller::SceneController},
-    send_sync_message,
     settings::Settings,
     stats::StatisticsWindow,
     Engine, Mode, SceneSettingsWindow,
@@ -178,10 +177,7 @@ impl Menu {
         ]
         .iter()
         {
-            send_sync_message(
-                ui,
-                WidgetMessage::enabled(widget, MessageDirection::ToWidget, has_active_scene),
-            );
+            ui.send_sync(widget, WidgetMessage::Enabled(has_active_scene));
         }
     }
 

@@ -384,11 +384,10 @@ impl EditorPlugin for InspectorPlugin {
 
         let mut need_clear = true;
 
-        ui.send_message(WidgetMessage::visibility(
+        ui.send(
             self.warning_text,
-            MessageDirection::ToWidget,
-            entry.selection.len() > 1,
-        ));
+            WidgetMessage::Visibility(entry.selection.len() > 1),
+        );
 
         entry.selection.first_selected_entity(
             &*entry.controller,
@@ -434,11 +433,10 @@ impl EditorPlugin for InspectorPlugin {
     fn on_mode_changed(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first();
 
-        ui.send_message(WidgetMessage::enabled(
+        ui.send(
             window_content(self.window, ui),
-            MessageDirection::ToWidget,
-            editor.mode.is_edit(),
-        ));
+            WidgetMessage::Enabled(editor.mode.is_edit()),
+        );
     }
 
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {

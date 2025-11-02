@@ -27,7 +27,7 @@ use crate::{
             button::{ButtonBuilder, ButtonMessage},
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             grid::{Column, GridBuilder, Row},
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             scroll_bar::{ScrollBarBuilder, ScrollBarMessage},
             text::TextBuilder,
             widget::{WidgetBuilder, WidgetMessage},
@@ -164,11 +164,8 @@ impl AudioPreviewPanel {
         .add_row(Row::strict(20.0))
         .build(ctx);
 
-        ctx.send_message(WidgetMessage::link(
-            root_widget,
-            MessageDirection::ToWidget,
-            inspector_head,
-        ));
+        ctx.inner()
+            .send(root_widget, WidgetMessage::LinkWith(inspector_head));
 
         Self {
             root_widget,

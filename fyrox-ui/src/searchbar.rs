@@ -130,10 +130,7 @@ impl Control for SearchBar {
             if let Some(SearchBarMessage::Text(text)) = message.data() {
                 ui.send(*self.text_box, TextMessage::Text(text.clone()));
             } else if let Some(WidgetMessage::Focus) = message.data() {
-                ui.send_message(WidgetMessage::focus(
-                    *self.text_box,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(*self.text_box, WidgetMessage::Focus);
             }
         }
 

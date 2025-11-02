@@ -38,7 +38,7 @@ use fyrox::{
         image::ImageBuilder,
         list_view::{ListViewBuilder, ListViewMessage},
         log::LogPanel,
-        message::{KeyCode, MessageDirection, UiMessage},
+        message::{KeyCode, UiMessage},
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
         navigation::NavigationLayerBuilder,
         searchbar::{SearchBarBuilder, SearchBarMessage},
@@ -702,10 +702,7 @@ impl ProjectManager {
         .add_column(Column::stretch())
         .build(ctx);
 
-        ctx.send_message(WidgetMessage::focus(
-            navigation_layer,
-            MessageDirection::ToWidget,
-        ));
+        ctx.inner().send(navigation_layer, WidgetMessage::Focus);
 
         Self {
             root_grid,

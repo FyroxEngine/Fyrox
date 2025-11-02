@@ -147,18 +147,11 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
                     let views = create_item_views(items, &mut ui.build_ctx());
 
                     for old_item in ui.node(self.panel).children() {
-                        ui.send_message(WidgetMessage::remove(
-                            *old_item,
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send(*old_item, WidgetMessage::Remove);
                     }
 
                     for view in views {
-                        ui.send_message(WidgetMessage::link(
-                            view,
-                            MessageDirection::ToWidget,
-                            self.panel,
-                        ));
+                        ui.send(view, WidgetMessage::LinkWith(self.panel));
                     }
 
                     self.items.clone_from(items);

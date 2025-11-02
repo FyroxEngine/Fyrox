@@ -328,20 +328,14 @@ impl RootMotionDropdownArea {
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.node_selector {
-                ui.send_message(WidgetMessage::remove(
-                    self.node_selector,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.node_selector, WidgetMessage::Remove);
                 self.node_selector = Handle::NONE;
             }
         }
     }
 
     pub fn destroy(self, ui: &UserInterface) {
-        ui.send_message(WidgetMessage::remove(
-            self.popup,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.popup, WidgetMessage::Remove);
     }
 
     pub fn sync_to_model<G, N>(
@@ -371,10 +365,7 @@ impl RootMotionDropdownArea {
             self.ignore_z,
             self.ignore_rotation,
         ] {
-            send_sync_message(
-                ui,
-                WidgetMessage::enabled(widget, MessageDirection::ToWidget, root_motion_enabled),
-            );
+            ui.send_sync(widget, WidgetMessage::Enabled(root_motion_enabled));
         }
 
         if let Some(settings) = animation.root_motion_settings_ref() {
@@ -865,14 +856,8 @@ impl Toolbar {
     }
 
     pub fn destroy(self, ui: &UserInterface) {
-        ui.send_message(WidgetMessage::remove(
-            self.node_selector,
-            MessageDirection::ToWidget,
-        ));
-        ui.send_message(WidgetMessage::remove(
-            self.import_file_selector,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.node_selector, WidgetMessage::Remove);
+        ui.send(self.import_file_selector, WidgetMessage::Remove);
         self.root_motion_dropdown_area.destroy(ui);
     }
 
@@ -1174,11 +1159,7 @@ impl Toolbar {
 
     pub fn on_preview_mode_changed(&self, ui: &UserInterface, in_preview_mode: bool) {
         for widget in [self.play_pause, self.stop] {
-            ui.send_message(WidgetMessage::enabled(
-                widget,
-                MessageDirection::ToWidget,
-                in_preview_mode,
-            ));
+            ui.send(widget, WidgetMessage::Enabled(in_preview_mode));
         }
     }
 
@@ -1270,24 +1251,13 @@ impl Toolbar {
             self.enabled,
             self.root_motion,
         ] {
-            send_sync_message(
-                ui,
-                WidgetMessage::enabled(
-                    widget,
-                    MessageDirection::ToWidget,
-                    selected_animation_valid,
-                ),
-            );
+            ui.send_sync(widget, WidgetMessage::Enabled(selected_animation_valid));
         }
 
         for widget in [self.play_pause, self.stop] {
-            send_sync_message(
-                ui,
-                WidgetMessage::enabled(
-                    widget,
-                    MessageDirection::ToWidget,
-                    selected_animation_valid && in_preview_mode,
-                ),
+            ui.send_sync(
+                widget,
+                WidgetMessage::Enabled(selected_animation_valid && in_preview_mode),
             );
         }
     }

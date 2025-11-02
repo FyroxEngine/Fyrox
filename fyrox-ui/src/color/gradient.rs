@@ -234,7 +234,7 @@ impl Control for ColorGradientEditor {
                 ));
 
                 for &point in ui.node(self.points_canvas).children() {
-                    ui.send_message(WidgetMessage::remove(point, MessageDirection::ToWidget));
+                    ui.send(point, WidgetMessage::Remove);
                 }
 
                 let points = create_color_points(
@@ -244,11 +244,7 @@ impl Control for ColorGradientEditor {
                 );
 
                 for point in points {
-                    ui.send_message(WidgetMessage::link(
-                        point,
-                        MessageDirection::ToWidget,
-                        self.points_canvas,
-                    ));
+                    ui.send(point, WidgetMessage::LinkWith(self.points_canvas));
                 }
             }
         }

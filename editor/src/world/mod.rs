@@ -414,10 +414,7 @@ impl WorldViewer {
             )
             .build(ctx);
 
-        send_sync_message(
-            ui,
-            WidgetMessage::link_reverse(element, MessageDirection::ToWidget, self.node_path),
-        );
+        ui.send_sync(element, WidgetMessage::LinkWithReverse(self.node_path));
 
         self.breadcrumbs.insert(element, associated_item);
     }
@@ -425,7 +422,7 @@ impl WorldViewer {
     fn clear_breadcrumbs(&mut self, ui: &UserInterface) {
         self.breadcrumbs.clear();
         for &child in ui.node(self.node_path).children() {
-            send_sync_message(ui, WidgetMessage::remove(child, MessageDirection::ToWidget));
+            ui.send_sync(child, WidgetMessage::Remove);
         }
     }
 
@@ -634,11 +631,7 @@ impl WorldViewer {
                 is_any_match |= name.to_lowercase().contains(filter)
                     || fuzzy_compare(filter, name.to_lowercase().as_str()) >= 0.33;
 
-                ui.send_message(WidgetMessage::visibility(
-                    node,
-                    MessageDirection::ToWidget,
-                    is_any_match,
-                ));
+                ui.send(node, WidgetMessage::Visibility(is_any_match));
             }
 
             is_any_match
@@ -839,11 +832,10 @@ impl WorldViewer {
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
-        ui.send_message(WidgetMessage::enabled(
+        ui.send(
             window_content(self.window, ui),
-            MessageDirection::ToWidget,
-            mode.is_edit(),
-        ));
+            WidgetMessage::Enabled(mode.is_edit()),
+        );
     }
 
     pub fn validate(&self, data_provider: &dyn WorldViewerDataProvider, ui: &UserInterface) {

@@ -284,11 +284,7 @@ impl CollidersTab {
                 .unwrap_or(Color::BLACK),
             None => Color::BLACK,
         };
-        ui.send_message(WidgetMessage::enabled(
-            self.data_panel,
-            MessageDirection::ToWidget,
-            sel_index.is_some(),
-        ));
+        ui.send(self.data_panel, WidgetMessage::Enabled(sel_index.is_some()));
         ui.send_sync(self.name_field, TextMessage::Text(name));
         send_sync_message(
             ui,
@@ -355,10 +351,7 @@ impl CollidersTab {
         let Some(uuid) = colliders.get(sel_index).map(|l| l.uuid) else {
             return;
         };
-        ui.send_message(WidgetMessage::focus(
-            self.name_field,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.name_field, WidgetMessage::Focus);
         sender.do_command(SetColliderLayerNameCommand {
             tile_set: resource.clone(),
             uuid,

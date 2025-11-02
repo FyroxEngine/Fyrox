@@ -28,7 +28,7 @@ use crate::{
         graph::SceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             stack_panel::StackPanelBuilder,
             utils::make_simple_tooltip,
             widget::WidgetBuilder,
@@ -131,11 +131,8 @@ impl MeshControlPanel {
         )
         .build(ctx);
 
-        ctx.send_message(WidgetMessage::link(
-            root_widget,
-            MessageDirection::ToWidget,
-            inspector_head,
-        ));
+        ctx.inner()
+            .send(root_widget, WidgetMessage::LinkWith(inspector_head));
 
         Self {
             root_widget,

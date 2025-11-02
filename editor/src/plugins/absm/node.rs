@@ -129,15 +129,14 @@ where
     T: Reflect,
 {
     fn update_colors(&self, ui: &UserInterface) {
-        ui.send_message(WidgetMessage::background(
+        ui.send(
             self.background,
-            MessageDirection::ToWidget,
-            if self.selectable.selected {
+            WidgetMessage::Background(if self.selectable.selected {
                 self.selected_brush.clone()
             } else {
                 self.normal_brush.clone()
-            },
-        ));
+            }),
+        );
     }
 }
 
@@ -183,10 +182,7 @@ where
         if let Some(SelectableMessage::Select(selected)) = message.data_from(self.handle()) {
             self.update_colors(ui);
             if *selected {
-                ui.send_message(WidgetMessage::topmost(
-                    self.handle(),
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.handle(), WidgetMessage::Topmost);
             }
         } else if let Some(WidgetMessage::DoubleClick { button }) = message.data() {
             if !message.handled() && *button == MouseButton::Left {
@@ -213,18 +209,11 @@ where
                     AbsmNodeMessage::InputSockets(input_sockets) => {
                         if input_sockets != &self.base.input_sockets {
                             for &child in ui.node(self.input_sockets_panel).children() {
-                                ui.send_message(WidgetMessage::remove(
-                                    child,
-                                    MessageDirection::ToWidget,
-                                ));
+                                ui.send(child, WidgetMessage::Remove);
                             }
 
                             for &socket in input_sockets {
-                                ui.send_message(WidgetMessage::link(
-                                    socket,
-                                    MessageDirection::ToWidget,
-                                    self.input_sockets_panel,
-                                ));
+                                ui.send(socket, WidgetMessage::LinkWith(self.input_sockets_panel));
                             }
 
                             self.base.input_sockets.clone_from(input_sockets);

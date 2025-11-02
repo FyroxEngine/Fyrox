@@ -118,10 +118,7 @@ impl Control for SpriteSheetFramesEditorWindow {
 
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.handle {
-                ui.send_message(WidgetMessage::remove(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(self.handle, WidgetMessage::Remove);
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
@@ -229,18 +226,14 @@ impl SpriteSheetFramesEditorWindow {
     fn resize(&mut self, size: Vector2<u32>, ui: &mut UserInterface) {
         self.animation.frames_mut().set_size(size);
 
-        ui.send_message(WidgetMessage::remove(self.grid, MessageDirection::ToWidget));
+        ui.send(self.grid, WidgetMessage::Remove);
 
         let (grid, cells) = make_grid(&mut ui.build_ctx(), self.animation.frames());
 
         self.grid = grid;
         self.cells = cells;
 
-        ui.send_message(WidgetMessage::link(
-            self.grid,
-            MessageDirection::ToWidget,
-            self.preview_container,
-        ));
+        ui.send(self.grid, WidgetMessage::LinkWith(self.preview_container));
     }
 
     pub fn build(

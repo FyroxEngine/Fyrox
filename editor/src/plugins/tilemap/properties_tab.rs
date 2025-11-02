@@ -227,19 +227,11 @@ fn make_name_items(ctx: &mut BuildContext, property: &TileSetPropertyLayer) -> V
 }
 
 fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: bool) {
-    ui.send_message(WidgetMessage::visibility(
-        destination,
-        MessageDirection::ToWidget,
-        visible,
-    ));
+    ui.send(destination, WidgetMessage::Visibility(visible));
 }
 
 fn send_enabled(ui: &UserInterface, destination: Handle<UiNode>, enabled: bool) {
-    ui.send_message(WidgetMessage::enabled(
-        destination,
-        MessageDirection::ToWidget,
-        enabled,
-    ));
+    ui.send(destination, WidgetMessage::Enabled(enabled));
 }
 
 impl PropertiesTab {
@@ -832,10 +824,7 @@ impl PropertiesTab {
             .unwrap_or(0)
             .clamp(0, prop.named_values.len());
         ui.send(self.name_list, ListViewMessage::Selection(vec![index]));
-        ui.send_message(WidgetMessage::focus(
-            self.value_name_field,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.value_name_field, WidgetMessage::Focus);
         let uuid = prop.uuid;
         let value_type = prop.prop_type;
         drop(tile_set_guard);
@@ -905,10 +894,7 @@ impl PropertiesTab {
             .unwrap_or(0)
             .clamp(0, tile_set.properties.len());
         ui.send(self.list, ListViewMessage::Selection(vec![index]));
-        ui.send_message(WidgetMessage::focus(
-            self.name_field,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.name_field, WidgetMessage::Focus);
         sender.do_command(AddPropertyLayerCommand {
             tile_set: resource.clone(),
             index,

@@ -21,7 +21,6 @@
 use crate::{
     core::{algebra::Vector2, log::Log, pool::Handle, visitor::prelude::*, ImmutableString},
     dock::{Tile, TileBuilder, TileContent},
-    message::MessageDirection,
     widget::{WidgetBuilder, WidgetMessage},
     Orientation, UiNode, UserInterface,
 };
@@ -188,12 +187,7 @@ impl TileDescriptor {
                 TileContentDescriptor::Window(window_name) => {
                     let window_handle = find_window(window_name, ui, windows);
                     if window_handle.is_some() {
-                        ui.send_message(WidgetMessage::visibility(
-                            window_handle,
-                            MessageDirection::ToWidget,
-                            true,
-                        ));
-
+                        ui.send(window_handle, WidgetMessage::Visibility(true));
                         TileContent::Window(window_handle)
                     } else {
                         TileContent::Empty

@@ -1405,18 +1405,11 @@ impl Control for Inspector {
                     InspectorMessage::Context(ctx) => {
                         // Remove previous content.
                         for child in self.children() {
-                            ui.send_message(WidgetMessage::remove(
-                                *child,
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(*child, WidgetMessage::Remove);
                         }
 
                         // Link new panel.
-                        ui.send_message(WidgetMessage::link(
-                            ctx.stack_panel,
-                            MessageDirection::ToWidget,
-                            self.handle,
-                        ));
+                        ui.send(ctx.stack_panel, WidgetMessage::LinkWith(self.handle));
 
                         self.context = ctx.clone();
                     }
@@ -1424,16 +1417,14 @@ impl Control for Inspector {
                         can_clone,
                         can_paste,
                     } => {
-                        ui.send_message(WidgetMessage::enabled(
+                        ui.send(
                             self.context.menu.copy_value,
-                            MessageDirection::ToWidget,
-                            *can_clone,
-                        ));
-                        ui.send_message(WidgetMessage::enabled(
+                            WidgetMessage::Enabled(*can_clone),
+                        );
+                        ui.send(
                             self.context.menu.paste_value,
-                            MessageDirection::ToWidget,
-                            *can_paste,
-                        ));
+                            WidgetMessage::Enabled(*can_paste),
+                        );
                     }
                     _ => (),
                 }

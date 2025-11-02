@@ -82,17 +82,12 @@ impl Control for Selector {
         if let Some(msg) = message.data::<SelectorMessage>() {
             match msg {
                 SelectorMessage::AddItem(item) => {
-                    ui.send_message(WidgetMessage::link(
-                        *item,
-                        MessageDirection::ToWidget,
-                        *self.items_panel,
-                    ));
+                    ui.send(*item, WidgetMessage::LinkWith(*self.items_panel));
                     self.items.push(*item);
                 }
                 SelectorMessage::RemoveItem(item) => {
                     if let Some(position) = self.items.iter().position(|i| i == item) {
-                        ui.send_message(WidgetMessage::remove(*item, MessageDirection::ToWidget));
-
+                        ui.send(*item, WidgetMessage::Remove);
                         self.items.remove(position);
                     }
                 }
@@ -102,29 +97,18 @@ impl Control for Selector {
                 } => {
                     if *remove_previous {
                         for &item in &*self.items {
-                            ui.send_message(WidgetMessage::remove(
-                                item,
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(item, WidgetMessage::Remove);
                         }
                     }
 
                     for &item in items {
-                        ui.send_message(WidgetMessage::link(
-                            item,
-                            MessageDirection::ToWidget,
-                            *self.items_panel,
-                        ));
+                        ui.send(item, WidgetMessage::LinkWith(*self.items_panel));
                     }
 
                     self.items.set_value_and_mark_modified(items.clone());
 
                     for (i, item) in self.items.iter().enumerate() {
-                        ui.send_message(WidgetMessage::visibility(
-                            *item,
-                            MessageDirection::ToWidget,
-                            *self.current == Some(i),
-                        ));
+                        ui.send(*item, WidgetMessage::Visibility(*self.current == Some(i)));
                     }
                 }
                 SelectorMessage::Current(current) => {
@@ -133,11 +117,7 @@ impl Control for Selector {
                     {
                         if let Some(current) = *self.current {
                             if let Some(current_item) = self.items.get(current) {
-                                ui.send_message(WidgetMessage::visibility(
-                                    *current_item,
-                                    MessageDirection::ToWidget,
-                                    false,
-                                ));
+                                ui.send(*current_item, WidgetMessage::Visibility(false));
                             }
                         }
 
@@ -145,11 +125,7 @@ impl Control for Selector {
 
                         if let Some(new_current) = *self.current {
                             if let Some(new_current_item) = self.items.get(new_current) {
-                                ui.send_message(WidgetMessage::visibility(
-                                    *new_current_item,
-                                    MessageDirection::ToWidget,
-                                    true,
-                                ));
+                                ui.send(*new_current_item, WidgetMessage::Visibility(true));
                             }
                         }
 

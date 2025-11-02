@@ -155,11 +155,7 @@ impl AbsmCanvas {
         let transform =
             Matrix3::new_translation(&-self.view_position) * Matrix3::new_scaling(self.zoom);
 
-        ui.send_message(WidgetMessage::layout_transform(
-            self.handle(),
-            MessageDirection::ToWidget,
-            transform,
-        ));
+        ui.send(self.handle(), WidgetMessage::LayoutTransform(transform));
     }
 
     fn make_drag_context(&self, ui: &UserInterface) -> DragContext {
@@ -552,11 +548,7 @@ impl Control for AbsmCanvas {
                         let new_position = entry.initial_position
                             + (local_cursor_pos - drag_context.initial_cursor_position);
 
-                        ui.send_message(WidgetMessage::desired_position(
-                            entry.node,
-                            MessageDirection::ToWidget,
-                            new_position,
-                        ));
+                        ui.send(entry.node, WidgetMessage::DesiredPosition(new_position));
                     }
                 }
                 Mode::CreateTransition {

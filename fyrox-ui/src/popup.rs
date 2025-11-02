@@ -30,7 +30,7 @@ use crate::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         uuid_provider, variable::InheritableVariable, visitor::prelude::*,
     },
-    message::{ButtonState, KeyCode, MessageDirection, OsEvent, UiMessage},
+    message::{ButtonState, KeyCode, OsEvent, UiMessage},
     style::{resource::StyleResourceExt, Style},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RestrictionEntry, Thickness, UiNode, UserInterface,
@@ -379,21 +379,14 @@ impl Control for Popup {
                     PopupMessage::Open => {
                         if !*self.is_open {
                             self.is_open.set_value_and_mark_modified(true);
-                            ui.send_message(WidgetMessage::visibility(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
+                            ui.send(self.handle(), WidgetMessage::Visibility(true));
                             if *self.restrict_picking {
                                 ui.push_picking_restriction(RestrictionEntry {
                                     handle: self.handle(),
                                     stop: false,
                                 });
                             }
-                            ui.send_message(WidgetMessage::topmost(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(self.handle(), WidgetMessage::Topmost);
                             let position = match *self.placement {
                                 Placement::LeftTop(target) => self.left_top_placement(ui, target),
                                 Placement::RightTop(target) => self.right_top_placement(ui, target),
@@ -408,19 +401,20 @@ impl Control for Popup {
                                 Placement::Position { position, .. } => position,
                             };
 
-                            ui.send_message(WidgetMessage::desired_position(
+                            ui.send(
                                 self.handle(),
-                                MessageDirection::ToWidget,
-                                ui.screen_to_root_canvas_space(position),
-                            ));
-                            ui.send_message(WidgetMessage::focus(
+                                WidgetMessage::DesiredPosition(
+                                    ui.screen_to_root_canvas_space(position),
+                                ),
+                            );
+                            ui.send(
                                 if self.content.is_some() {
                                     *self.content
                                 } else {
                                     self.handle
                                 },
-                                MessageDirection::ToWidget,
-                            ));
+                                WidgetMessage::Focus,
+                            );
                             if *self.smart_placement {
                                 ui.send(self.handle, PopupMessage::AdjustPosition);
                             }
@@ -430,20 +424,13 @@ impl Control for Popup {
                     PopupMessage::Close => {
                         if *self.is_open {
                             self.is_open.set_value_and_mark_modified(false);
-                            ui.send_message(WidgetMessage::visibility(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                false,
-                            ));
+                            ui.send(self.handle(), WidgetMessage::Visibility(false));
 
                             if *self.restrict_picking {
                                 ui.remove_picking_restriction(self.handle());
 
                                 if let Some(top) = ui.top_picking_restriction() {
-                                    ui.send_message(WidgetMessage::focus(
-                                        top.handle,
-                                        MessageDirection::ToWidget,
-                                    ));
+                                    ui.send(top.handle, WidgetMessage::Focus);
                                 }
                             }
 
@@ -457,18 +444,10 @@ impl Control for Popup {
                     PopupMessage::Content(content) => {
                         if *self.content != *content {
                             if self.content.is_some() {
-                                ui.send_message(WidgetMessage::remove(
-                                    *self.content,
-                                    MessageDirection::ToWidget,
-                                ));
+                                ui.send(*self.content, WidgetMessage::Remove);
                             }
                             self.content.set_value_and_mark_modified(*content);
-
-                            ui.send_message(WidgetMessage::link(
-                                *self.content,
-                                MessageDirection::ToWidget,
-                                *self.body,
-                            ));
+                            ui.send(*self.content, WidgetMessage::LinkWith(*self.body));
 
                             ui.send_message(message.reverse());
                         }
@@ -486,11 +465,12 @@ impl Control for Popup {
                             adjust_placement_position(self.screen_bounds(), ui.screen_size());
 
                         if new_position != self.screen_position() {
-                            ui.send_message(WidgetMessage::desired_position(
+                            ui.send(
                                 self.handle,
-                                MessageDirection::ToWidget,
-                                ui.screen_to_root_canvas_space(new_position),
-                            ));
+                                WidgetMessage::DesiredPosition(
+                                    ui.screen_to_root_canvas_space(new_position),
+                                ),
+                            );
                         }
                     }
                     PopupMessage::Owner(owner) => {

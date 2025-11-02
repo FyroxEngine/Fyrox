@@ -237,11 +237,7 @@ fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface
     {
         is_any_match |= data.name.to_lowercase().contains(filter);
 
-        ui.send_message(WidgetMessage::visibility(
-            node,
-            MessageDirection::ToWidget,
-            is_any_match,
-        ));
+        ui.send(node, WidgetMessage::Visibility(is_any_match));
     }
 
     is_any_match
@@ -269,10 +265,7 @@ impl Control for NodeSelector {
                         }
                     }
                     NodeSelectorMessage::ChooseFocus => {
-                        ui.send_message(WidgetMessage::focus(
-                            self.search_bar,
-                            MessageDirection::ToWidget,
-                        ));
+                        ui.send(self.search_bar, WidgetMessage::Focus);
                         self.sync_selection(ui);
                     }
                 }
@@ -531,18 +524,20 @@ impl Control for NodeSelectorWindow {
             {
                 // Enable "ok" button if selection is valid.
                 if let NodeSelectorMessage::Selection(selection) = msg {
-                    ui.send_message(WidgetMessage::enabled(
+                    ui.send(
                         self.ok,
-                        MessageDirection::ToWidget,
-                        !selection.is_empty()
-                            && selection.iter().all(|h| {
-                                self.allowed_types
-                                    .contains(&AllowedType::unnamed(h.inner_type_id))
-                                    || h.derived_type_ids.iter().any(|derived| {
-                                        self.allowed_types.contains(&AllowedType::unnamed(*derived))
-                                    })
-                            }),
-                    ));
+                        WidgetMessage::Enabled(
+                            !selection.is_empty()
+                                && selection.iter().all(|h| {
+                                    self.allowed_types
+                                        .contains(&AllowedType::unnamed(h.inner_type_id))
+                                        || h.derived_type_ids.iter().any(|derived| {
+                                            self.allowed_types
+                                                .contains(&AllowedType::unnamed(*derived))
+                                        })
+                                }),
+                        ),
+                    );
                 }
             }
         } else if let Some(WindowMessage::Open { .. })

@@ -319,11 +319,7 @@ impl Control for ScrollViewer {
                             {
                                 let visibility =
                                     (*scroll_bar.max - *scroll_bar.min).abs() >= f32::EPSILON;
-                                ui.send_message(WidgetMessage::visibility(
-                                    self.v_scroll_bar,
-                                    MessageDirection::ToWidget,
-                                    visibility,
-                                ));
+                                ui.send(self.v_scroll_bar, WidgetMessage::Visibility(visibility));
                             }
                         } else if message.destination() == self.h_scroll_bar
                             && self.h_scroll_bar.is_some()
@@ -332,11 +328,7 @@ impl Control for ScrollViewer {
                             {
                                 let visibility =
                                     (*scroll_bar.max - *scroll_bar.min).abs() >= f32::EPSILON;
-                                ui.send_message(WidgetMessage::visibility(
-                                    self.h_scroll_bar,
-                                    MessageDirection::ToWidget,
-                                    visibility,
-                                ));
+                                ui.send(self.h_scroll_bar, WidgetMessage::Visibility(visibility));
                             }
                         }
                     }
@@ -348,16 +340,9 @@ impl Control for ScrollViewer {
                 match msg {
                     ScrollViewerMessage::Content(content) => {
                         for child in ui.node(self.scroll_panel).children() {
-                            ui.send_message(WidgetMessage::remove(
-                                *child,
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(*child, WidgetMessage::Remove);
                         }
-                        ui.send_message(WidgetMessage::link(
-                            *content,
-                            MessageDirection::ToWidget,
-                            self.scroll_panel,
-                        ));
+                        ui.send(*content, WidgetMessage::LinkWith(self.scroll_panel));
                     }
                     &ScrollViewerMessage::BringIntoView(handle) => {
                         // Re-cast message to inner panel.

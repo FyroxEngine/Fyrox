@@ -383,11 +383,10 @@ impl Control for ListView {
                         // Generate new items.
                         let item_containers = generate_item_containers(&mut ui.build_ctx(), items);
 
-                        ui.send_message(WidgetMessage::replace_children(
+                        ui.send(
                             *self.panel,
-                            MessageDirection::ToWidget,
-                            item_containers.clone(),
-                        ));
+                            WidgetMessage::ReplaceChildren(item_containers.clone()),
+                        );
 
                         self.item_containers
                             .set_value_and_mark_modified(item_containers);
@@ -399,11 +398,7 @@ impl Control for ListView {
                     &ListViewMessage::AddItem(item) => {
                         let item_container = generate_item_container(&mut ui.build_ctx(), item);
 
-                        ui.send_message(WidgetMessage::link(
-                            item_container,
-                            MessageDirection::ToWidget,
-                            *self.panel,
-                        ));
+                        ui.send(item_container, WidgetMessage::LinkWith(*self.panel));
 
                         self.item_containers.push(item_container);
                         self.items.push(item);
@@ -422,10 +417,7 @@ impl Control for ListView {
 
                             let container = ui.node(item).parent();
 
-                            ui.send_message(WidgetMessage::remove(
-                                container,
-                                MessageDirection::ToWidget,
-                            ));
+                            ui.send(container, WidgetMessage::Remove);
 
                             self.fix_selection(ui);
                             self.sync_decorators(ui);

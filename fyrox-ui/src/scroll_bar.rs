@@ -35,7 +35,7 @@ use crate::{
     decorator::DecoratorBuilder,
     font::FontResource,
     grid::{Column, GridBuilder, Row},
-    message::{MessageData, MessageDirection, UiMessage},
+    message::{MessageData, UiMessage},
     style::{resource::StyleResourceExt, Style, StyledProperty},
     text::{TextBuilder, TextMessage},
     utils::{make_arrow, ArrowDirection},
@@ -191,58 +191,26 @@ impl Control for ScrollBar {
         let indicator = ui.node(*self.indicator);
         match *self.orientation {
             Orientation::Horizontal => {
-                ui.send_message(WidgetMessage::height(
-                    *self.indicator,
-                    MessageDirection::ToWidget,
-                    field_size.y,
-                ));
-                ui.send_message(WidgetMessage::width(
-                    *self.decrease,
-                    MessageDirection::ToWidget,
-                    field_size.y,
-                ));
-                ui.send_message(WidgetMessage::width(
-                    *self.increase,
-                    MessageDirection::ToWidget,
-                    field_size.y,
-                ));
+                ui.send(*self.indicator, WidgetMessage::Height(field_size.y));
+                ui.send(*self.decrease, WidgetMessage::Width(field_size.y));
+                ui.send(*self.increase, WidgetMessage::Width(field_size.y));
 
                 let position = Vector2::new(
                     percent * (field_size.x - indicator.actual_local_size().x).max(0.0),
                     0.0,
                 );
-                ui.send_message(WidgetMessage::desired_position(
-                    *self.indicator,
-                    MessageDirection::ToWidget,
-                    position,
-                ));
+                ui.send(*self.indicator, WidgetMessage::DesiredPosition(position));
             }
             Orientation::Vertical => {
-                ui.send_message(WidgetMessage::width(
-                    *self.indicator,
-                    MessageDirection::ToWidget,
-                    field_size.x,
-                ));
-                ui.send_message(WidgetMessage::height(
-                    *self.decrease,
-                    MessageDirection::ToWidget,
-                    field_size.x,
-                ));
-                ui.send_message(WidgetMessage::height(
-                    *self.increase,
-                    MessageDirection::ToWidget,
-                    field_size.x,
-                ));
+                ui.send(*self.indicator, WidgetMessage::Width(field_size.x));
+                ui.send(*self.decrease, WidgetMessage::Height(field_size.x));
+                ui.send(*self.increase, WidgetMessage::Height(field_size.x));
 
                 let position = Vector2::new(
                     0.0,
                     percent * (field_size.y - indicator.actual_local_size().y).max(0.0),
                 );
-                ui.send_message(WidgetMessage::desired_position(
-                    *self.indicator,
-                    MessageDirection::ToWidget,
-                    position,
-                ));
+                ui.send(*self.indicator, WidgetMessage::DesiredPosition(position));
             }
         }
 
@@ -344,11 +312,7 @@ impl Control for ScrollBar {
                                 let old_size = indicator_size.x;
 
                                 if new_size != old_size {
-                                    ui.send_message(WidgetMessage::width(
-                                        *self.indicator,
-                                        MessageDirection::ToWidget,
-                                        new_size,
-                                    ));
+                                    ui.send(*self.indicator, WidgetMessage::Width(new_size));
                                 }
                             }
                             Orientation::Vertical => {
@@ -357,11 +321,7 @@ impl Control for ScrollBar {
                                 let old_size = indicator_size.y;
 
                                 if new_size != old_size {
-                                    ui.send_message(WidgetMessage::height(
-                                        *self.indicator,
-                                        MessageDirection::ToWidget,
-                                        new_size,
-                                    ));
+                                    ui.send(*self.indicator, WidgetMessage::Height(new_size));
                                 }
                             }
                         }

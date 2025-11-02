@@ -3,7 +3,7 @@ use fyrox::{
     engine::Engine,
     gui::{
         formatted_text::{RunSet, WrapMode},
-        message::{MessageDirection, UiMessage},
+        message::UiMessage,
         stack_panel::StackPanelBuilder,
         text::{Text, TextBuilder, TextMessage},
         text_box::{TextBoxBuilder, TextCommitMode},
@@ -43,11 +43,8 @@ impl BBCodePanel {
                 .with_child(text_box),
         )
         .build(ctx);
-        ctx.send_message(WidgetMessage::link(
-            root_widget,
-            MessageDirection::ToWidget,
-            inspector_head,
-        ));
+        ctx.inner()
+            .send(root_widget, WidgetMessage::LinkWith(inspector_head));
         Self {
             root_widget,
             text_box,

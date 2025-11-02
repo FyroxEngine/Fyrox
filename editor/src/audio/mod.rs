@@ -539,13 +539,9 @@ impl AudioPanel {
             }
         }
 
-        send_sync_message(
-            ui,
-            WidgetMessage::enabled(
-                self.remove_bus,
-                MessageDirection::ToWidget,
-                !selected_buses.is_empty() && !is_primary_bus_selected,
-            ),
+        ui.send_sync(
+            self.remove_bus,
+            WidgetMessage::Enabled(!selected_buses.is_empty() && !is_primary_bus_selected),
         );
 
         ui.send_sync(self.audio_buses, ListViewMessage::Selection(selected_buses));
@@ -607,10 +603,7 @@ impl AudioPanel {
         );
 
         if let Renderer::HrtfRenderer(hrtf) = context_state.renderer_ref() {
-            send_sync_message(
-                ui,
-                WidgetMessage::visibility(self.hrir_resource, MessageDirection::ToWidget, true),
-            );
+            ui.send_sync(self.hrir_resource, WidgetMessage::Visibility(true));
 
             send_sync_message(
                 ui,
@@ -621,10 +614,7 @@ impl AudioPanel {
                 ),
             );
         } else {
-            send_sync_message(
-                ui,
-                WidgetMessage::visibility(self.hrir_resource, MessageDirection::ToWidget, false),
-            );
+            ui.send_sync(self.hrir_resource, WidgetMessage::Visibility(false));
         }
     }
 

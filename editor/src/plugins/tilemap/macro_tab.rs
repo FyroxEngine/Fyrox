@@ -344,11 +344,10 @@ impl MacroTab {
         let brush_macro = sel_index.and_then(|i| brush_guard.macros.get(i));
         let name = brush_macro.map(|m| m.name.clone()).unwrap_or_default();
         let macro_id = brush_macro.map(|m| m.macro_id);
-        ui.send_message(WidgetMessage::enabled(
+        ui.send(
             self.data_panel,
-            MessageDirection::ToWidget,
-            brush_macro.is_some(),
-        ));
+            WidgetMessage::Enabled(brush_macro.is_some()),
+        );
         ui.send_sync(self.name_field, TextMessage::Text(name));
         if macro_id == self.current_macro_id {
             if let Some(brush_macro) = brush_macro {
@@ -377,11 +376,10 @@ impl MacroTab {
                 &mut macro_list,
                 instance,
             );
-            ui.send_message(WidgetMessage::replace_children(
+            ui.send(
                 self.macro_panel,
-                MessageDirection::ToWidget,
-                editor.into_iter().collect(),
-            ));
+                WidgetMessage::ReplaceChildren(editor.into_iter().collect()),
+            );
         }
     }
     pub fn handle_ui_message(
@@ -460,10 +458,7 @@ impl MacroTab {
         else {
             return;
         };
-        ui.send_message(WidgetMessage::focus(
-            self.name_field,
-            MessageDirection::ToWidget,
-        ));
+        ui.send(self.name_field, WidgetMessage::Focus);
         sender.do_command(SetMacroNameCommand {
             brush: resource.clone(),
             index: sel_index,

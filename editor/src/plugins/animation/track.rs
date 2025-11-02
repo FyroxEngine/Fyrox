@@ -371,33 +371,24 @@ impl Control for TrackView {
                         ui.send(self.name_text, TextMessage::Text(name.clone()));
                     }
                     TrackViewMessage::TrackTargetIsValid(result) => {
-                        ui.send_message(WidgetMessage::foreground(
+                        ui.send(
                             self.name_text,
-                            MessageDirection::ToWidget,
-                            if result.is_ok() {
+                            WidgetMessage::Foreground(if result.is_ok() {
                                 ui.style.property(Style::BRUSH_TEXT)
                             } else {
                                 ui.style.property(Style::BRUSH_ERROR)
-                            },
-                        ));
+                            }),
+                        );
 
                         match result {
                             Ok(_) => {
-                                ui.send_message(WidgetMessage::tooltip(
-                                    self.name_text,
-                                    MessageDirection::ToWidget,
-                                    None,
-                                ));
+                                ui.send(self.name_text, WidgetMessage::Tooltip(None));
                             }
                             Err(reason) => {
                                 let tooltip =
                                     make_simple_tooltip(&mut ui.build_ctx(), reason.as_str());
 
-                                ui.send_message(WidgetMessage::tooltip(
-                                    self.name_text,
-                                    MessageDirection::ToWidget,
-                                    Some(tooltip),
-                                ));
+                                ui.send(self.name_text, WidgetMessage::Tooltip(Some(tooltip)));
                             }
                         }
                     }
@@ -862,10 +853,7 @@ impl TrackList {
                 || message.destination() == self.context_menu.target_node_selector
                 || message.destination() == self.context_menu.property_rebinding_selector
             {
-                ui.send_message(WidgetMessage::remove(
-                    message.destination(),
-                    MessageDirection::ToWidget,
-                ));
+                ui.send(message.destination(), WidgetMessage::Remove);
             }
         } else if let Some(NodeSelectorMessage::Selection(node_selection)) = message.data() {
             if message.destination() == self.node_selector {
@@ -1493,21 +1481,13 @@ impl TrackList {
 
         ui.send_sync(self.tree_root, TreeRootMessage::Select(tree_selection));
 
-        send_sync_message(
-            ui,
-            WidgetMessage::enabled(
-                self.context_menu.remove_track,
-                MessageDirection::ToWidget,
-                any_track_selected,
-            ),
+        ui.send_sync(
+            self.context_menu.remove_track,
+            WidgetMessage::Enabled(any_track_selected),
         );
-        send_sync_message(
-            ui,
-            WidgetMessage::enabled(
-                self.context_menu.set_target,
-                MessageDirection::ToWidget,
-                any_track_selected,
-            ),
+        ui.send_sync(
+            self.context_menu.set_target,
+            WidgetMessage::Enabled(any_track_selected),
         );
 
         for model_track in tracks_data.tracks() {
