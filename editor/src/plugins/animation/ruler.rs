@@ -30,7 +30,7 @@ use crate::fyrox::{
         visitor::prelude::*,
     },
     gui::{
-        define_constructor, define_widget_deref,
+        define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
         formatted_text::{FormattedText, FormattedTextBuilder},
         menu::MenuItemMessage,
@@ -67,17 +67,6 @@ pub enum RulerMessage {
     SelectSignal(Uuid),
 }
 impl MessageData for RulerMessage {}
-
-impl RulerMessage {
-    define_constructor!(RulerMessage:Zoom => fn zoom(f32));
-    define_constructor!(RulerMessage:ViewPosition => fn view_position(f32));
-    define_constructor!(RulerMessage:Value => fn value(f32));
-    define_constructor!(RulerMessage:AddSignal => fn add_signal(f32));
-    define_constructor!(RulerMessage:RemoveSignal => fn remove_signal(Uuid));
-    define_constructor!(RulerMessage:SyncSignals => fn sync_signals(Vec<SignalView>));
-    define_constructor!(RulerMessage:MoveSignal => fn move_signal(id: Uuid, new_position: f32));
-    define_constructor!(RulerMessage:SelectSignal => fn select_signal(Uuid));
-}
 
 #[derive(Clone)]
 struct ContextMenu {
@@ -338,20 +327,15 @@ impl Control for Ruler {
                                         entity: DragEntity::Signal(signal.id),
                                     });
 
-                                    ui.send_message(RulerMessage::select_signal(
-                                        self.handle,
-                                        MessageDirection::FromWidget,
-                                        signal.id,
-                                    ));
+                                    ui.post(self.handle, RulerMessage::SelectSignal(signal.id));
                                 }
                             }
 
                             if self.drag_context.is_none() {
-                                ui.send_message(RulerMessage::value(
+                                ui.send(
                                     self.handle,
-                                    MessageDirection::ToWidget,
-                                    self.screen_to_value_space(pos.x),
-                                ));
+                                    RulerMessage::Value(self.screen_to_value_space(pos.x)),
+                                );
 
                                 self.drag_context = Some(DragContext {
                                     entity: DragEntity::TimePosition,
@@ -370,12 +354,13 @@ impl Control for Ruler {
                                     {
                                         signal.selected = false;
 
-                                        ui.send_message(RulerMessage::move_signal(
+                                        ui.post(
                                             self.handle,
-                                            MessageDirection::FromWidget,
-                                            id,
-                                            self.screen_to_value_space(pos.x),
-                                        ))
+                                            RulerMessage::MoveSignal {
+                                                id,
+                                                new_position: self.screen_to_value_space(pos.x),
+                                            },
+                                        )
                                     }
                                 }
                             }
@@ -385,11 +370,10 @@ impl Control for Ruler {
                         if let Some(drag_context) = self.drag_context.as_ref() {
                             match drag_context.entity {
                                 DragEntity::TimePosition => {
-                                    ui.send_message(RulerMessage::value(
+                                    ui.send(
                                         self.handle,
-                                        MessageDirection::ToWidget,
-                                        self.screen_to_value_space(pos.x),
-                                    ));
+                                        RulerMessage::Value(self.screen_to_value_space(pos.x)),
+                                    );
                                 }
 
                                 DragEntity::Signal(id) => {
@@ -411,22 +395,17 @@ impl Control for Ruler {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.context_menu.add_signal {
-                ui.send_message(RulerMessage::add_signal(
+                ui.post(
                     self.handle,
-                    MessageDirection::FromWidget,
-                    self.context_menu.selected_position.get(),
-                ));
+                    RulerMessage::AddSignal(self.context_menu.selected_position.get()),
+                );
             } else if message.destination() == self.context_menu.remove_signal {
                 for signal in self.signals.borrow().iter() {
                     if signal
                         .screen_bounds(self)
                         .contains(ui.node(self.context_menu.menu.handle()).screen_position())
                     {
-                        ui.send_message(RulerMessage::remove_signal(
-                            self.handle,
-                            MessageDirection::FromWidget,
-                            signal.id,
-                        ));
+                        ui.post(self.handle, RulerMessage::RemoveSignal(signal.id));
                         break; // No multi-selection
                     }
                 }

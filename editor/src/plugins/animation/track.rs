@@ -50,7 +50,6 @@ use crate::{
             brush::Brush,
             button::{ButtonBuilder, ButtonMessage},
             check_box::{CheckBoxBuilder, CheckBoxMessage},
-            define_constructor,
             draw::DrawingContext,
             grid::{Column, GridBuilder, Row},
             image::ImageBuilder,
@@ -94,7 +93,7 @@ use crate::{
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         Selection,
     },
-    send_sync_message, utils,
+    utils,
 };
 use fyrox::gui::message::MessageData;
 use std::{
@@ -284,12 +283,6 @@ pub enum TrackViewMessage {
 }
 impl MessageData for TrackViewMessage {}
 
-impl TrackViewMessage {
-    define_constructor!(TrackViewMessage:TrackEnabled => fn track_enabled(bool));
-    define_constructor!(TrackViewMessage:TrackName => fn track_name(String));
-    define_constructor!(TrackViewMessage:TrackTargetIsValid => fn track_target_is_valid(Result<(), String>));
-}
-
 #[derive(Clone, Debug, Reflect, Visit, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
 struct TrackView {
@@ -346,11 +339,7 @@ impl Control for TrackView {
             message.data_from(self.track_enabled_switch)
         {
             if self.track_enabled != *value {
-                ui.send_message(TrackViewMessage::track_enabled(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                    *value,
-                ));
+                ui.send(self.handle, TrackViewMessage::TrackEnabled(*value));
             }
         } else if let Some(msg) = message.data::<TrackViewMessage>() {
             if message.is_for(self.handle) {
@@ -1499,13 +1488,9 @@ impl TrackList {
             if let Some(track_view) = self.track_views.get(&model_track.id()) {
                 let track_view_ref = ui.node(*track_view).query_component::<TrackView>().unwrap();
                 if track_view_ref.track_enabled != model_track_binding.is_enabled() {
-                    send_sync_message(
-                        ui,
-                        TrackViewMessage::track_enabled(
-                            *track_view,
-                            MessageDirection::ToWidget,
-                            model_track_binding.is_enabled(),
-                        ),
+                    ui.send_sync(
+                        *track_view,
+                        TrackViewMessage::TrackEnabled(model_track_binding.is_enabled()),
                     );
                 }
 
@@ -1530,13 +1515,9 @@ impl TrackList {
                         );
                     }
 
-                    send_sync_message(
-                        ui,
-                        TrackViewMessage::track_name(
-                            *track_view,
-                            MessageDirection::ToWidget,
-                            format!("{}", model_track.value_binding()),
-                        ),
+                    ui.send_sync(
+                        *track_view,
+                        TrackViewMessage::TrackName(format!("{}", model_track.value_binding())),
                     );
 
                     if let ValueBinding::Property { name, value_type } = model_track.value_binding()
@@ -1570,13 +1551,9 @@ impl TrackList {
                         Err("Invalid handle. The target node does not exist!".to_owned());
                 }
 
-                send_sync_message(
-                    ui,
-                    TrackViewMessage::track_target_is_valid(
-                        *track_view,
-                        MessageDirection::ToWidget,
-                        validation_result,
-                    ),
+                ui.send_sync(
+                    *track_view,
+                    TrackViewMessage::TrackTargetIsValid(validation_result),
                 );
             }
         }

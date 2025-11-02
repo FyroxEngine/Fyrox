@@ -38,7 +38,7 @@ use crate::{
             dock::DockingManagerMessage,
             grid::{Column, GridBuilder, Row},
             menu::MenuItemMessage,
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, UiNode, UserInterface,
@@ -361,28 +361,12 @@ impl AnimationEditor {
                         sender.do_command(group);
                     }
                     CurveEditorMessage::ViewPosition(position) => {
-                        ui.send_message(RulerMessage::view_position(
-                            self.ruler,
-                            MessageDirection::ToWidget,
-                            position.x,
-                        ));
-                        ui.send_message(ThumbMessage::view_position(
-                            self.thumb,
-                            MessageDirection::ToWidget,
-                            position.x,
-                        ));
+                        ui.send(self.ruler, RulerMessage::ViewPosition(position.x));
+                        ui.send(self.thumb, ThumbMessage::ViewPosition(position.x));
                     }
                     CurveEditorMessage::Zoom(zoom) => {
-                        ui.send_message(RulerMessage::zoom(
-                            self.ruler,
-                            MessageDirection::ToWidget,
-                            zoom.x,
-                        ));
-                        ui.send_message(ThumbMessage::zoom(
-                            self.thumb,
-                            MessageDirection::ToWidget,
-                            zoom.x,
-                        ))
+                        ui.send(self.ruler, RulerMessage::Zoom(zoom.x));
+                        ui.send(self.thumb, ThumbMessage::Zoom(zoom.x))
                     }
                     _ => (),
                 }
@@ -670,11 +654,10 @@ impl AnimationEditor {
 
         if let Some(container) = animation_container_ref(graph, selection.animation_player) {
             if let Some(animation) = container.try_get(selection.animation) {
-                ui.send_message(ThumbMessage::position(
+                ui.send(
                     self.thumb,
-                    MessageDirection::ToWidget,
-                    animation.time_position(),
-                ));
+                    ThumbMessage::Position(animation.time_position()),
+                );
             }
         }
     }
@@ -725,11 +708,9 @@ impl AnimationEditor {
                     }]),
                 );
 
-                send_sync_message(
-                    ui,
-                    RulerMessage::sync_signals(
-                        self.ruler,
-                        MessageDirection::ToWidget,
+                ui.send_sync(
+                    self.ruler,
+                    RulerMessage::SyncSignals(
                         animation
                             .signals()
                             .iter()

@@ -32,9 +32,9 @@ use crate::fyrox::{
         visitor::prelude::*,
     },
     gui::{
-        define_constructor, define_widget_deref,
+        define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
-        message::{MessageDirection, UiMessage},
+        message::UiMessage,
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, UiNode, UserInterface,
     },
@@ -53,12 +53,6 @@ pub enum ThumbMessage {
     Position(f32),
 }
 impl MessageData for ThumbMessage {}
-
-impl ThumbMessage {
-    define_constructor!(ThumbMessage:Zoom => fn zoom(f32));
-    define_constructor!(ThumbMessage:ViewPosition => fn view_position(f32));
-    define_constructor!(ThumbMessage:Position => fn position(f32));
-}
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
