@@ -390,11 +390,10 @@ impl SettingsWindow {
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
                 ui.send(self.window, WidgetMessage::Remove);
-                ui.send_message(DockingManagerMessage::remove_floating_window(
+                ui.send(
                     docking_manager,
-                    MessageDirection::ToWidget,
-                    self.window,
-                ));
+                    DockingManagerMessage::RemoveFloatingWindow(self.window),
+                );
                 return None;
             }
         } else if let Some(SearchBarMessage::Text(search_text)) = message.data_from(self.search_bar)
@@ -440,11 +439,10 @@ impl SettingsPlugin {
             &editor.message_sender,
             editor.engine.resource_manager.clone(),
         );
-        ui.send_message(DockingManagerMessage::add_floating_window(
+        ui.send(
             editor.docking_manager,
-            MessageDirection::ToWidget,
-            window.window,
-        ));
+            DockingManagerMessage::AddFloatingWindow(window.window),
+        );
     }
 }
 

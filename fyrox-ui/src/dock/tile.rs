@@ -25,7 +25,6 @@ use crate::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
         type_traits::prelude::*, visitor::prelude::*,
     },
-    define_constructor,
     dock::DockingManager,
     grid::{Column, GridBuilder, Row},
     message::{CursorIcon, MessageDirection, UiMessage},
@@ -57,13 +56,6 @@ pub enum TileMessage {
     },
 }
 impl MessageData for TileMessage {}
-
-impl TileMessage {
-    define_constructor!(TileMessage:Content => fn content(TileContent));
-    define_constructor!(TileMessage:Split => fn split(window: Handle<UiNode>,
-        direction: SplitDirection,
-        first: bool));
-}
 
 #[derive(Default, Debug, PartialEq, Clone, Visit, Reflect)]
 pub enum TileContent {
@@ -638,11 +630,12 @@ impl Control for Tile {
                                                 // linking with current tile.
                                                 ui.send(sub_tile_wnd, WidgetMessage::Unlink);
 
-                                                ui.send_message(TileMessage::content(
+                                                ui.send(
                                                     self.handle,
-                                                    MessageDirection::ToWidget,
-                                                    TileContent::Window(sub_tile_wnd),
-                                                ));
+                                                    TileMessage::Content(TileContent::Window(
+                                                        sub_tile_wnd,
+                                                    )),
+                                                );
                                                 // Splitter must be hidden.
                                                 send_visibility(ui, self.splitter, false);
                                             }
@@ -651,14 +644,15 @@ impl Control for Tile {
                                                     ui.send(sub_tile_wnd, WidgetMessage::Unlink);
                                                 }
 
-                                                ui.send_message(TileMessage::content(
+                                                ui.send(
                                                     self.handle,
-                                                    MessageDirection::ToWidget,
-                                                    TileContent::MultiWindow {
-                                                        index,
-                                                        windows: windows.clone(),
-                                                    },
-                                                ));
+                                                    TileMessage::Content(
+                                                        TileContent::MultiWindow {
+                                                            index,
+                                                            windows: windows.clone(),
+                                                        },
+                                                    ),
+                                                );
                                                 // Splitter must be hidden.
                                                 send_visibility(ui, self.splitter, false);
                                             }
@@ -672,14 +666,15 @@ impl Control for Tile {
                                                     ui.send(sub_tile, WidgetMessage::Unlink);
                                                 }
                                                 // Transfer sub tiles to current tile.
-                                                ui.send_message(TileMessage::content(
+                                                ui.send(
                                                     self.handle,
-                                                    MessageDirection::ToWidget,
-                                                    TileContent::VerticalTiles {
-                                                        splitter,
-                                                        tiles: sub_tiles,
-                                                    },
-                                                ));
+                                                    TileMessage::Content(
+                                                        TileContent::VerticalTiles {
+                                                            splitter,
+                                                            tiles: sub_tiles,
+                                                        },
+                                                    ),
+                                                );
                                             }
                                             TileContent::HorizontalTiles {
                                                 splitter,
@@ -689,14 +684,15 @@ impl Control for Tile {
                                                     ui.send(sub_tile, WidgetMessage::Unlink);
                                                 }
                                                 // Transfer sub tiles to current tile.
-                                                ui.send_message(TileMessage::content(
+                                                ui.send(
                                                     self.handle,
-                                                    MessageDirection::ToWidget,
-                                                    TileContent::HorizontalTiles {
-                                                        splitter,
-                                                        tiles: sub_tiles,
-                                                    },
-                                                ));
+                                                    TileMessage::Content(
+                                                        TileContent::HorizontalTiles {
+                                                            splitter,
+                                                            tiles: sub_tiles,
+                                                        },
+                                                    ),
+                                                );
                                             }
                                             _ => {}
                                         }
@@ -799,11 +795,10 @@ impl Control for Tile {
 
                                     tile_b_ref.unlink_content(ui);
 
-                                    ui.send_message(TileMessage::content(
+                                    ui.send(
                                         self.handle,
-                                        MessageDirection::ToWidget,
-                                        tile_b_ref.content.clone(),
-                                    ));
+                                        TileMessage::Content(tile_b_ref.content.clone()),
+                                    );
 
                                     // Destroy tiles.
                                     for &tile in &tiles {
@@ -891,11 +886,12 @@ impl Control for Tile {
                                 match &self.content {
                                     TileContent::Empty => {
                                         if self.drop_anchor.get() == self.center_anchor {
-                                            ui.send_message(TileMessage::content(
+                                            ui.send(
                                                 self.handle,
-                                                MessageDirection::ToWidget,
-                                                TileContent::Window(message.destination()),
-                                            ));
+                                                TileMessage::Content(TileContent::Window(
+                                                    message.destination(),
+                                                )),
+                                            );
                                             ui.send(
                                                 message.destination(),
                                                 WidgetMessage::LinkWith(self.handle),
@@ -905,48 +901,53 @@ impl Control for Tile {
                                     TileContent::Window(_) | TileContent::MultiWindow { .. } => {
                                         if self.drop_anchor.get() == self.left_anchor {
                                             // Split horizontally, dock to left.
-                                            ui.send_message(TileMessage::split(
+                                            ui.send(
                                                 self.handle,
-                                                MessageDirection::ToWidget,
-                                                message.destination(),
-                                                SplitDirection::Horizontal,
-                                                true,
-                                            ));
+                                                TileMessage::Split {
+                                                    window: message.destination(),
+                                                    direction: SplitDirection::Horizontal,
+                                                    first: true,
+                                                },
+                                            );
                                         } else if self.drop_anchor.get() == self.right_anchor {
                                             // Split horizontally, dock to right.
-                                            ui.send_message(TileMessage::split(
+                                            ui.send(
                                                 self.handle,
-                                                MessageDirection::ToWidget,
-                                                message.destination(),
-                                                SplitDirection::Horizontal,
-                                                false,
-                                            ));
+                                                TileMessage::Split {
+                                                    window: message.destination(),
+                                                    direction: SplitDirection::Horizontal,
+                                                    first: false,
+                                                },
+                                            );
                                         } else if self.drop_anchor.get() == self.top_anchor {
                                             // Split vertically, dock to top.
-                                            ui.send_message(TileMessage::split(
+                                            ui.send(
                                                 self.handle,
-                                                MessageDirection::ToWidget,
-                                                message.destination(),
-                                                SplitDirection::Vertical,
-                                                true,
-                                            ));
+                                                TileMessage::Split {
+                                                    window: message.destination(),
+                                                    direction: SplitDirection::Vertical,
+                                                    first: true,
+                                                },
+                                            );
                                         } else if self.drop_anchor.get() == self.bottom_anchor {
                                             // Split vertically, dock to bottom.
-                                            ui.send_message(TileMessage::split(
+                                            ui.send(
                                                 self.handle,
-                                                MessageDirection::ToWidget,
-                                                message.destination(),
-                                                SplitDirection::Vertical,
-                                                false,
-                                            ));
+                                                TileMessage::Split {
+                                                    window: message.destination(),
+                                                    direction: SplitDirection::Vertical,
+                                                    first: false,
+                                                },
+                                            );
                                         } else if self.drop_anchor.get() == self.center_anchor {
-                                            ui.send_message(TileMessage::content(
+                                            ui.send(
                                                 self.handle,
-                                                MessageDirection::ToWidget,
-                                                self.content
-                                                    .clone()
-                                                    .plus_window(message.destination()),
-                                            ));
+                                                TileMessage::Content(
+                                                    self.content
+                                                        .clone()
+                                                        .plus_window(message.destination()),
+                                                ),
+                                            );
                                         }
                                     }
                                     // Rest cannot accept windows.
@@ -1006,11 +1007,7 @@ impl Tile {
             return;
         };
         let new_content = self.content.clone().with_active(window);
-        ui.send_message(TileMessage::content(
-            self.handle(),
-            MessageDirection::ToWidget,
-            new_content,
-        ));
+        ui.send(self.handle(), TileMessage::Content(new_content));
     }
     fn unlink_content(&self, ui: &UserInterface) {
         match &self.content {
@@ -1063,11 +1060,10 @@ impl Tile {
     /// this tile should have [`TileContent::Window`] and the window
     /// contained in this tile must be given window.
     fn undock(&self, window: &Window, ui: &UserInterface) {
-        ui.send_message(TileMessage::content(
+        ui.send(
             self.handle,
-            MessageDirection::ToWidget,
-            self.content.clone().minus_window(window.handle()),
-        ));
+            TileMessage::Content(self.content.clone().minus_window(window.handle())),
+        );
 
         ui.send(window.handle(), WidgetMessage::Unlink);
         ui.send(window.handle(), WindowMessage::CanResize(true));
@@ -1193,16 +1189,14 @@ impl Tile {
             })
             .build(&mut ui.build_ctx());
 
-        ui.send_message(TileMessage::content(
+        ui.send(
             if first { second_tile } else { first_tile },
-            MessageDirection::ToWidget,
-            std::mem::take(&mut self.content),
-        ));
+            TileMessage::Content(std::mem::take(&mut self.content)),
+        );
 
-        ui.send_message(TileMessage::content(
+        ui.send(
             self.handle,
-            MessageDirection::ToWidget,
-            match direction {
+            TileMessage::Content(match direction {
                 SplitDirection::Horizontal => TileContent::HorizontalTiles {
                     tiles: [first_tile, second_tile],
                     splitter: 0.5,
@@ -1211,8 +1205,8 @@ impl Tile {
                     tiles: [first_tile, second_tile],
                     splitter: 0.5,
                 },
-            },
-        ));
+            }),
+        );
     }
 }
 

@@ -354,11 +354,10 @@ impl MaterialEditor {
     pub fn destroy(self, docking_manager: Handle<UiNode>, engine: &mut Engine) {
         self.preview.destroy(engine);
         let ui = engine.user_interfaces.first();
-        ui.send_message(DockingManagerMessage::remove_floating_window(
+        ui.send(
             docking_manager,
-            MessageDirection::ToWidget,
-            self.window,
-        ));
+            DockingManagerMessage::RemoveFloatingWindow(self.window),
+        );
         ui.send(self.window, WidgetMessage::Remove);
     }
 
@@ -810,10 +809,9 @@ impl EditorPlugin for MaterialPlugin {
                 focus_content: true,
             },
         );
-        ui.send_message(DockingManagerMessage::add_floating_window(
+        ui.send(
             editor.docking_manager,
-            MessageDirection::ToWidget,
-            material_editor.window,
-        ));
+            DockingManagerMessage::AddFloatingWindow(material_editor.window),
+        );
     }
 }

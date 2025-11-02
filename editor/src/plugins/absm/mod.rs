@@ -18,49 +18,50 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    core::{pool::ErasedHandle, pool::Handle, variable::InheritableVariable},
-    fxhash::FxHashSet,
-    generic_animation::{
-        machine::{
-            event::Event, node::blendspace::BlendSpacePoint, BlendPose, IndexedBlendInput, Machine,
-            PoseNode, State,
+use crate::{
+    fyrox::{
+        asset::manager::ResourceManager,
+        core::{
+            pool::ErasedHandle, pool::Handle, reflect::Reflect, some_or_return,
+            variable::InheritableVariable,
         },
-        AnimationContainer,
+        fxhash::FxHashSet,
+        generic_animation::{
+            machine::{
+                event::Event, node::blendspace::BlendSpacePoint, BlendPose, IndexedBlendInput,
+                Machine, PoseNode, State,
+            },
+            AnimationContainer,
+        },
+        graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
+        gui::{
+            check_box::CheckBoxMessage,
+            dock::{DockingManagerBuilder, DockingManagerMessage, TileBuilder, TileContent},
+            grid::{Column, GridBuilder, Row},
+            menu::MenuItemMessage,
+            message::UiMessage,
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, UiNode, UserInterface,
+        },
     },
-    graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
-    gui::{
-        check_box::CheckBoxMessage,
-        dock::{DockingManagerBuilder, TileBuilder, TileContent},
-        grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessage},
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, UiNode, UserInterface,
+    menu::create_menu_item,
+    message::MessageSender,
+    plugin::EditorPlugin,
+    plugins::absm::{
+        blendspace::BlendSpaceEditor,
+        command::blend::{AddBlendSpacePointCommand, AddInputCommand, AddPoseSourceCommand},
+        node::{AbsmNode, AbsmNodeMessage},
+        parameter::ParameterPanel,
+        selection::AbsmSelection,
+        state_graph::StateGraphViewer,
+        state_viewer::StateViewer,
+        toolbar::{Toolbar, ToolbarAction},
     },
+    scene::{GameScene, Selection},
+    ui_scene::UiScene,
+    Editor, Message,
 };
-use crate::menu::create_menu_item;
-use crate::plugin::EditorPlugin;
-use crate::plugins::absm::{
-    blendspace::BlendSpaceEditor,
-    command::blend::{AddBlendSpacePointCommand, AddInputCommand, AddPoseSourceCommand},
-    node::{AbsmNode, AbsmNodeMessage},
-    parameter::ParameterPanel,
-    selection::AbsmSelection,
-    state_graph::StateGraphViewer,
-    state_viewer::StateViewer,
-    toolbar::{Toolbar, ToolbarAction},
-};
-use crate::scene::GameScene;
-use crate::ui_scene::UiScene;
-use crate::{message::MessageSender, scene::Selection, Editor, Message};
-
-use fyrox::asset::manager::ResourceManager;
-use fyrox::core::reflect::Reflect;
-use fyrox::core::some_or_return;
-use fyrox::gui::dock::DockingManagerMessage;
-use fyrox::gui::menu::MenuItemMessage;
-use fyrox::gui::widget::WidgetMessage;
 use std::any::Any;
 
 mod blendspace;
@@ -396,11 +397,10 @@ impl AbsmEditor {
     }
 
     fn destroy(self, ui: &UserInterface, docking_manager: Handle<UiNode>) {
-        ui.send_message(DockingManagerMessage::remove_floating_window(
+        ui.send(
             docking_manager,
-            MessageDirection::ToWidget,
-            self.window,
-        ));
+            DockingManagerMessage::RemoveFloatingWindow(self.window),
+        );
         ui.send(self.blend_space_editor.window, WidgetMessage::Remove);
         ui.send(self.window, WidgetMessage::Remove);
     }
@@ -864,11 +864,10 @@ impl EditorPlugin for AbsmEditorPlugin {
 
             absm_editor.open(ui);
 
-            ui.send_message(DockingManagerMessage::add_floating_window(
+            ui.send(
                 editor.docking_manager,
-                MessageDirection::ToWidget,
-                absm_editor.window,
-            ));
+                DockingManagerMessage::AddFloatingWindow(absm_editor.window),
+            );
 
             self.on_sync_to_model(editor);
         }

@@ -30,9 +30,8 @@ use crate::{
         log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
         visitor::prelude::*,
     },
-    define_constructor,
     dock::config::{DockingManagerLayoutDescriptor, FloatingWindowDescriptor, TileDescriptor},
-    message::{MessageDirection, UiMessage},
+    message::UiMessage,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::WindowMessage,
     BuildContext, Control, UiNode, UserInterface,
@@ -59,21 +58,6 @@ pub enum DockingManagerMessage {
     RemoveFloatingWindow(Handle<UiNode>),
 }
 impl MessageData for DockingManagerMessage {}
-
-impl DockingManagerMessage {
-    define_constructor!(
-        /// Creates a new [Self::Layout] message.
-        DockingManagerMessage:Layout => fn layout(DockingManagerLayoutDescriptor)
-    );
-    define_constructor!(
-        /// Creates a new [Self::AddFloatingWindow] message.
-        DockingManagerMessage:AddFloatingWindow => fn add_floating_window(Handle<UiNode>)
-    );
-    define_constructor!(
-        /// Creates a new [Self::RemoveFloatingWindow] message.
-        DockingManagerMessage:RemoveFloatingWindow => fn remove_floating_window(Handle<UiNode>)
-    );
-}
 
 /// Docking manager is a special container widget, that holds a bunch of children widgets in-place
 /// using [`Tile`]s and a bunch of floating windows. Any window can be undocked and become a floating

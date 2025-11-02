@@ -644,11 +644,10 @@ impl AnimationEditor {
 
     pub fn destroy(self, ui: &UserInterface, docking_manager: Handle<UiNode>) {
         self.toolbar.destroy(ui);
-        ui.send_message(DockingManagerMessage::remove_floating_window(
+        ui.send(
             docking_manager,
-            MessageDirection::ToWidget,
-            self.window,
-        ));
+            DockingManagerMessage::RemoveFloatingWindow(self.window),
+        );
         ui.send(self.window, WidgetMessage::Remove);
     }
 
@@ -1057,11 +1056,10 @@ impl EditorPlugin for AnimationEditorPlugin {
 
             animation_editor.open(ui);
 
-            ui.send_message(DockingManagerMessage::add_floating_window(
+            ui.send(
                 editor.docking_manager,
-                MessageDirection::ToWidget,
-                animation_editor.window,
-            ));
+                DockingManagerMessage::AddFloatingWindow(animation_editor.window),
+            );
 
             self.on_sync_to_model(editor);
         }
