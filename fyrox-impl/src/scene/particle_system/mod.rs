@@ -36,7 +36,7 @@ use crate::{
         variable::InheritableVariable,
         visitor::prelude::*,
     },
-    material::{self, Material, MaterialResource},
+    material::{Material, MaterialResource},
     rand::{prelude::StdRng, RngCore, SeedableRng},
     renderer::{self, bundle::RenderContext},
     scene::{
@@ -309,37 +309,13 @@ impl Visit for ParticleSystem {
         self.is_playing.visit("Enabled", &mut region)?;
         self.particles.visit("Particles", &mut region)?;
         self.free_particles.visit("FreeParticles", &mut region)?;
-        let _ = self.rng.visit("Rng", &mut region);
-        let _ = self.visible_distance.visit("VisibleDistance", &mut region);
-        let _ = self
-            .coordinate_system
-            .visit("CoordinateSystem", &mut region);
-        let _ = self.fadeout_margin.visit("FadeoutMargin", &mut region);
-
-        // Backward compatibility.
-        if region.is_reading() {
-            if let Some(material) = material::visit_old_texture_as_material(
-                &mut region,
-                Material::standard_particle_system,
-            ) {
-                self.material = material.into();
-            } else {
-                self.material.visit("Material", &mut region)?;
-            }
-        } else {
-            self.material.visit("Material", &mut region)?;
-        }
-
-        let mut soft_boundary_sharpness_factor = 100.0;
-        if soft_boundary_sharpness_factor
-            .visit("SoftBoundarySharpnessFactor", &mut region)
-            .is_ok()
-        {
-            self.material.data_ref().set_property(
-                "softBoundarySharpnessFactor",
-                soft_boundary_sharpness_factor,
-            );
-        }
+        self.rng.visit("Rng", &mut region)?;
+        self.visible_distance
+            .visit("VisibleDistance", &mut region)?;
+        self.coordinate_system
+            .visit("CoordinateSystem", &mut region)?;
+        self.fadeout_margin.visit("FadeoutMargin", &mut region)?;
+        self.material.visit("Material", &mut region)?;
 
         Ok(())
     }

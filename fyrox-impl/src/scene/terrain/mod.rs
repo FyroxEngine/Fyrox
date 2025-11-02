@@ -79,13 +79,12 @@ mod quadtree;
 
 use crate::scene::node::constructor::NodeConstructor;
 pub use brushstroke::*;
-use fyrox_core::visitor::pod::PodVecView;
 use fyrox_graph::constructor::ConstructorProvider;
 
 use super::collider::BitMask;
 
 /// Current implementation version marker.
-pub const VERSION: u8 = 2;
+pub const VERSION: u8 = 0;
 
 lazy_static! {
     /// Solid white texture
@@ -418,58 +417,22 @@ impl Visit for Chunk {
         let mut region = visitor.enter_region(name)?;
 
         let mut version = VERSION;
-        let _ = version.visit("Version", &mut region);
+        version.visit("Version", &mut region)?;
 
-        match version {
-            0 => {
-                let mut height_map = Vec::<f32>::new();
-                let mut view = PodVecView::from_pod_vec(&mut height_map);
-                view.visit("Heightmap", &mut region)?;
-
-                self.position.visit("Position", &mut region)?;
-
-                let mut width = 0.0f32;
-                width.visit("Width", &mut region)?;
-                let mut length = 0.0f32;
-                length.visit("Length", &mut region)?;
-                self.physical_size = Vector2::new(width, length);
-
-                let mut width_point_count = 0u32;
-                width_point_count.visit("WidthPointCount", &mut region)?;
-                let mut length_point_count = 0u32;
-                length_point_count.visit("LengthPointCount", &mut region)?;
-                self.height_map_size = Vector2::new(width_point_count, length_point_count);
-
-                self.grid_position = Vector2::new(
-                    (self.position.x / width) as i32,
-                    (self.position.y / length) as i32,
-                );
-
-                self.heightmap = Some(make_height_map_texture(
-                    height_map,
-                    Vector2::new(width_point_count, length_point_count),
-                ));
+        if let VERSION = version {
+            self.heightmap.visit("Heightmap", &mut region)?;
+            self.hole_mask.visit("HoleMask", &mut region)?;
+            // We do not need to visit position, since its value is implied by grid_position.
+            //self.position.visit("Position", &mut region)?;
+            self.physical_size.visit("PhysicalSize", &mut region)?;
+            self.height_map_size.visit("HeightMapSize", &mut region)?;
+            self.layer_masks.visit("LayerMasks", &mut region)?;
+            self.grid_position.visit("GridPosition", &mut region)?;
+            // Set position to have the value implied by grid_position
+            if region.is_reading() {
+                self.position = self.position()
             }
-            1 | VERSION => {
-                self.heightmap.visit("Heightmap", &mut region)?;
-                let _ = self.hole_mask.visit("HoleMask", &mut region);
-                // We do not need to visit position, since its value is implied by grid_position.
-                //self.position.visit("Position", &mut region)?;
-                self.physical_size.visit("PhysicalSize", &mut region)?;
-                self.height_map_size.visit("HeightMapSize", &mut region)?;
-                self.layer_masks.visit("LayerMasks", &mut region)?;
-                self.grid_position.visit("GridPosition", &mut region)?;
-                // Set position to have the value implied by grid_position
-                if region.is_reading() {
-                    self.position = self.position()
-                }
-                let _ = self.block_size.visit("BlockSize", &mut region);
-            }
-            _ => (),
-        }
-
-        if region.is_reading() && version < 2 {
-            self.create_margin();
+            self.block_size.visit("BlockSize", &mut region)?;
         }
 
         self.quad_tree = Mutex::new(make_quad_tree(
@@ -1151,151 +1114,29 @@ impl Default for Terrain {
     }
 }
 
-#[derive(Visit)]
-struct OldLayer {
-    pub material: MaterialResource,
-    pub mask_property_name: String,
-    pub chunk_masks: Vec<TextureResource>,
-}
-
-impl Default for OldLayer {
-    fn default() -> Self {
-        Self {
-            material: MaterialResource::new_ok(
-                Uuid::new_v4(),
-                Default::default(),
-                Material::standard_terrain(),
-            ),
-            mask_property_name: "maskTexture".to_string(),
-            chunk_masks: Default::default(),
-        }
-    }
-}
-
 impl Visit for Terrain {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
         let mut version = VERSION;
-        let _ = version.visit("Version", &mut region);
+        version.visit("Version", &mut region)?;
 
-        match version {
-            0 => {
-                // Old version.
-                self.base.visit("Base", &mut region)?;
-
-                let mut layers =
-                    InheritableVariable::<Vec<OldLayer>>::new_modified(Default::default());
-                layers.visit("Layers", &mut region)?;
-
-                let mut width = 0.0f32;
-                width.visit("Width", &mut region)?;
-                let mut length = 0.0f32;
-                length.visit("Length", &mut region)?;
-
-                let mut mask_resolution = 0.0f32;
-                mask_resolution.visit("MaskResolution", &mut region)?;
-
-                let mut height_map_resolution = 0.0f32;
-                height_map_resolution.visit("HeightMapResolution", &mut region)?;
-
-                let mut chunks = Vec::<Chunk>::new();
-                chunks.visit("Chunks", &mut region)?;
-
-                let mut width_chunks = 0u32;
-                width_chunks.visit("WidthChunks", &mut region)?;
-                self.width_chunks = (0..(width_chunks as i32)).into();
-
-                let mut length_chunks = 0u32;
-                length_chunks.visit("LengthChunks", &mut region)?;
-                self.length_chunks = (0..(length_chunks as i32)).into();
-
-                self.chunk_size =
-                    Vector2::new(width / width_chunks as f32, length / length_chunks as f32).into();
-
-                self.mask_size = Vector2::new(
-                    (self.chunk_size.x * mask_resolution) as u32,
-                    (self.chunk_size.y * mask_resolution) as u32,
-                )
-                .into();
-                self.height_map_size = Vector2::new(
-                    (self.chunk_size.x * height_map_resolution) as u32,
-                    (self.chunk_size.y * height_map_resolution) as u32,
-                )
-                .into();
-
-                // Convert to new format.
-                for mut layer in layers.take() {
-                    for chunk in chunks.iter_mut().rev() {
-                        chunk.layer_masks.push(layer.chunk_masks.pop().unwrap());
-                    }
-
-                    // TODO: Due to the bug in resource system, material properties are not kept in sync
-                    // so here we must re-create the material and put every property from the old material
-                    // to the new.
-                    let new_material = Material::standard_terrain();
-
-                    // TODO
-                    /*
-                    let mut material_state = layer.material.state();
-                    if let Some(material) = material_state.data() {
-                        for (name, value) in material.properties() {
-                            Log::verify(new_material.set_property(name.clone(), value.clone()));
-                        }
-                    }*/
-
-                    self.layers.push(Layer {
-                        material: MaterialResource::new_ok(
-                            Uuid::new_v4(),
-                            Default::default(),
-                            new_material,
-                        ),
-                        mask_property_name: layer.mask_property_name,
-                        ..Default::default()
-                    });
-                }
-
-                self.chunks = chunks.into();
-            }
-            1 | VERSION => {
-                // Current version
-                self.base.visit("Base", &mut region)?;
-                let _ = self.holes_enabled.visit("HolesEnabled", &mut region);
-                self.layers.visit("Layers", &mut region)?;
-                self.chunk_size.visit("ChunkSize", &mut region)?;
-                self.width_chunks.visit("WidthChunks", &mut region)?;
-                self.length_chunks.visit("LengthChunks", &mut region)?;
-                self.height_map_size.visit("HeightMapSize", &mut region)?;
-                let _ = self.block_size.visit("BlockSize", &mut region);
-                self.mask_size.visit("MaskSize", &mut region)?;
-                self.chunks.visit("Chunks", &mut region)?;
-            }
-            _ => (),
+        if let VERSION = version {
+            // Current version
+            self.base.visit("Base", &mut region)?;
+            self.holes_enabled.visit("HolesEnabled", &mut region)?;
+            self.layers.visit("Layers", &mut region)?;
+            self.chunk_size.visit("ChunkSize", &mut region)?;
+            self.width_chunks.visit("WidthChunks", &mut region)?;
+            self.length_chunks.visit("LengthChunks", &mut region)?;
+            self.height_map_size.visit("HeightMapSize", &mut region)?;
+            self.block_size.visit("BlockSize", &mut region)?;
+            self.mask_size.visit("MaskSize", &mut region)?;
+            self.chunks.visit("Chunks", &mut region)?;
         }
 
         if region.is_reading() {
             self.geometry = TerrainGeometry::new(*self.block_size);
-            if version < 2 {
-                Log::info(format!("Updating terrain to version: {VERSION}"));
-                *self.height_map_size = self.height_map_size.map(|x| x + 2);
-                for c in self.chunks.iter() {
-                    if c.height_map_size() != self.height_map_size() {
-                        Log::err(format!(
-                            "Terrain version update failure, height map size mismatch: {} != {}",
-                            c.height_map_size(),
-                            self.height_map_size()
-                        ));
-                    }
-                }
-                for pos in self
-                    .chunks
-                    .iter()
-                    .map(|c| c.grid_position)
-                    .collect::<Vec<_>>()
-                {
-                    self.align_chunk_margins(pos);
-                }
-            }
         }
 
         Ok(())

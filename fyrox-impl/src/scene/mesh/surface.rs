@@ -43,7 +43,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
         Uuid,
     },
-    material::{self, Material, MaterialResource, MaterialResourceExtension},
+    material::{Material, MaterialResource, MaterialResourceExtension},
     resource::texture::{TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension},
     scene::{
         mesh::{
@@ -1250,7 +1250,7 @@ impl SurfaceResourceExtension for SurfaceResource {
 ///
 /// This code snippet creates a cone surface instance, check the docs for [`SurfaceData`] for more info about built-in
 /// methods.
-#[derive(Debug, Reflect, PartialEq)]
+#[derive(Debug, Reflect, Visit, PartialEq)]
 pub struct Surface {
     pub(crate) data: InheritableVariable<SurfaceResource>,
 
@@ -1271,6 +1271,7 @@ pub struct Surface {
     // like so: iterate over all vertices and weight data and calculate index of node handle that
     // associated with vertex in `bones` array and store it as bone index in vertex.
     #[reflect(hidden)]
+    #[visit(skip)]
     pub(crate) vertex_weights: Vec<VertexWeightSet>,
 }
 
@@ -1291,29 +1292,6 @@ impl Clone for Surface {
             unique_material: self.unique_material.clone(),
             vertex_weights: self.vertex_weights.clone(),
         }
-    }
-}
-
-impl Visit for Surface {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
-
-        // Backward compatibility.
-        if region.is_reading() {
-            if let Some(material) = material::visit_old_material(&mut region) {
-                self.material = material.into();
-            } else {
-                self.material.visit("Material", &mut region)?;
-            }
-        } else {
-            self.material.visit("Material", &mut region)?;
-        }
-
-        self.data.visit("Data", &mut region)?;
-        self.bones.visit("Bones", &mut region)?;
-        let _ = self.unique_material.visit("UniqueMaterial", &mut region); // Backward compatibility.
-
-        Ok(())
     }
 }
 

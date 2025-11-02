@@ -88,23 +88,11 @@ impl<T: EntityId> TrackBinding<T> {
 /// Track is responsible in animating a property of a single scene node. The track consists up to 4 parametric curves
 /// that contains the actual property data. Parametric curves allows the engine to perform various interpolations between
 /// key values.
-#[derive(Debug, Reflect, Clone, PartialEq)]
+#[derive(Debug, Reflect, Clone, PartialEq, Visit)]
 pub struct Track {
     pub(super) binding: ValueBinding,
     pub(super) frames: TrackDataContainer,
     pub(super) id: Uuid,
-}
-
-impl Visit for Track {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
-
-        let _ = self.binding.visit("Binding", &mut region); // Backward compatibility
-        let _ = self.id.visit("Id", &mut region); // Backward compatibility
-        let _ = self.frames.visit("Frames", &mut region); // Backward compatibility
-
-        Ok(())
-    }
 }
 
 impl Default for Track {

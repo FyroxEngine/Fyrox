@@ -33,12 +33,12 @@ use crate::{
     error::SoundError,
 };
 use fyrox_core::{
-    io::FileError, reflect::prelude::*, uuid::Uuid, visitor::prelude::*, TypeUuidProvider,
+    io::FileError, reflect::prelude::*, uuid, uuid::Uuid, visitor::prelude::*, TypeUuidProvider,
 };
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{
     io::{FileReader, ResourceIo},
-    Resource, ResourceData, SOUND_BUFFER_RESOURCE_UUID,
+    Resource, ResourceData,
 };
 use std::{
     error::Error,
@@ -298,7 +298,7 @@ impl SoundBufferResourceExtension for SoundBufferResource {
 
 impl TypeUuidProvider for SoundBuffer {
     fn type_uuid() -> Uuid {
-        SOUND_BUFFER_RESOURCE_UUID
+        uuid!("f6a077b7-c8ff-4473-a95b-0289441ea9d8")
     }
 }
 
@@ -348,7 +348,7 @@ impl DerefMut for SoundBuffer {
 
 impl ResourceData for SoundBuffer {
     fn type_uuid(&self) -> Uuid {
-        SOUND_BUFFER_RESOURCE_UUID
+        uuid!("f6a077b7-c8ff-4473-a95b-0289441ea9d8")
     }
 
     fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {

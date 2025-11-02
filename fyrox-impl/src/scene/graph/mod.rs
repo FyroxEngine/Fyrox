@@ -1742,7 +1742,7 @@ impl Visit for Graph {
         self.sound_context.visit("SoundContext", &mut region)?;
         self.physics.visit("PhysicsWorld", &mut region)?;
         self.physics2d.visit("PhysicsWorld2D", &mut region)?;
-        let _ = self.lightmap.visit("Lightmap", &mut region);
+        self.lightmap.visit("Lightmap", &mut region)?;
 
         Ok(())
     }
@@ -1975,7 +1975,6 @@ mod test {
         script::ScriptTrait,
     };
     use fyrox_core::algebra::Vector2;
-    use fyrox_core::append_extension;
     use fyrox_resource::untyped::ResourceKind;
     use std::{fs, path::Path, sync::Arc};
 
@@ -2184,10 +2183,7 @@ mod test {
     fn save_scene(scene: &mut Scene, path: &Path) {
         let mut visitor = Visitor::new();
         scene.save("Scene", &mut visitor).unwrap();
-        visitor.save_binary_to_file(path).unwrap();
-        visitor
-            .save_ascii_to_file(append_extension(path, "txt"))
-            .unwrap();
+        visitor.save_ascii_to_file(path).unwrap();
     }
 
     fn make_resource_manager(root: &Path) -> ResourceManager {

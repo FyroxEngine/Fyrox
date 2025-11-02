@@ -25,6 +25,7 @@
 #![allow(clippy::doc_lazy_continuation)]
 #![allow(mismatched_lifetime_syntaxes)]
 
+use crate::track::TrackBinding;
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -39,7 +40,11 @@ use crate::{
     track::Track,
 };
 use fxhash::FxHashMap;
+pub use fyrox_core as core;
+use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{Resource, ResourceData};
+pub use pose::{AnimationPose, NodePose};
+pub use signal::{AnimationEvent, AnimationSignal};
 use std::{
     collections::VecDeque,
     error::Error,
@@ -49,13 +54,6 @@ use std::{
     path::Path,
 };
 use value::{nlerp, TrackValue, ValueBinding};
-
-use crate::container::TrackDataContainer;
-use crate::track::TrackBinding;
-pub use fyrox_core as core;
-use fyrox_resource::untyped::ResourceKind;
-pub use pose::{AnimationPose, NodePose};
-pub use signal::{AnimationEvent, AnimationSignal};
 
 pub mod container;
 pub mod machine;
@@ -268,7 +266,7 @@ pub type AnimationTracksDataResource = Resource<AnimationTracksData>;
 /// The code above creates a simple animation that moves a node along X axis in various ways. The usage of the animation
 /// is only for the sake of completeness of the example. In the real games you need to add the animation to an animation
 /// player scene node and it will do the job for you.
-#[derive(Debug, Reflect, PartialEq)]
+#[derive(Debug, Reflect, Visit, PartialEq)]
 pub struct Animation<T: EntityId> {
     name: ImmutableString,
     tracks_data: AnimationTracksDataResource,
@@ -283,77 +281,14 @@ pub struct Animation<T: EntityId> {
     max_event_capacity: usize,
 
     #[reflect(hidden)]
+    #[visit(skip)]
     root_motion: Option<RootMotion>,
-    // Non-serialized
     #[reflect(hidden)]
+    #[visit(skip)]
     pose: AnimationPose<T>,
-    // Non-serialized
     #[reflect(hidden)]
+    #[visit(skip)]
     events: VecDeque<AnimationEvent>,
-}
-
-#[derive(Visit, Default)]
-struct OldTrack<T: EntityId> {
-    binding: ValueBinding,
-    frames: TrackDataContainer,
-    enabled: bool,
-    node: T,
-    id: Uuid,
-}
-
-impl<T: EntityId> Visit for Animation<T> {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
-
-        // Backward compatibility.
-        let mut old_tracks = Vec::<OldTrack<T>>::new();
-        if region.is_reading() {
-            if old_tracks.visit("Tracks", &mut region).is_ok() {
-                let mut tracks_data = AnimationTracksData::default();
-                for old_track in old_tracks {
-                    self.track_bindings.insert(
-                        old_track.id,
-                        TrackBinding {
-                            enabled: old_track.enabled,
-                            target: old_track.node,
-                        },
-                    );
-                    tracks_data.tracks.push(Track {
-                        binding: old_track.binding,
-                        frames: old_track.frames,
-                        id: old_track.id,
-                    });
-                }
-                self.tracks_data = AnimationTracksDataResource::new_ok(
-                    Uuid::new_v4(),
-                    ResourceKind::Embedded,
-                    tracks_data,
-                );
-            } else {
-                self.tracks_data.visit("TracksData", &mut region)?;
-                self.track_bindings.visit("TrackBindings", &mut region)?;
-            }
-        } else {
-            self.tracks_data.visit("TracksData", &mut region)?;
-            self.track_bindings.visit("TrackBindings", &mut region)?;
-        }
-
-        let _ = self.name.visit("Name", &mut region);
-        self.time_position.visit("TimePosition", &mut region)?;
-        let _ = self.time_slice.visit("TimeSlice", &mut region);
-        self.speed.visit("Speed", &mut region)?;
-        self.looped.visit("Looped", &mut region)?;
-        self.enabled.visit("Enabled", &mut region)?;
-        self.signals.visit("Signals", &mut region)?;
-        let _ = self
-            .max_event_capacity
-            .visit("MaxEventCapacity", &mut region);
-        let _ = self
-            .root_motion_settings
-            .visit("RootMotionSettings", &mut region);
-
-        Ok(())
-    }
 }
 
 impl<T: EntityId> TypeUuidProvider for Animation<T> {

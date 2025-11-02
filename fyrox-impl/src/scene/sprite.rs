@@ -36,7 +36,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     graph::{constructor::ConstructorProvider, BaseSceneGraph},
-    material::{self, Material, MaterialResource},
+    material::{Material, MaterialResource},
     renderer::{self, bundle::RenderContext},
     scene::{
         base::{Base, BaseBuilder},
@@ -152,7 +152,7 @@ impl VertexTrait for SpriteVertex {
 /// **does not** reuse it. Ideally, you should reuse the shared material across multiple instances
 /// to get the best possible performance. Otherwise, each your sprite will be put in a separate batch
 /// which will force your GPU to render a single sprite in dedicated draw call which is quite slow.
-#[derive(Debug, Reflect, Clone, ComponentProvider)]
+#[derive(Debug, Reflect, Clone, ComponentProvider, Visit)]
 #[reflect(derived_type = "Node")]
 pub struct Sprite {
     base: Base,
@@ -177,36 +177,6 @@ pub struct Sprite {
 
     #[reflect(setter = "set_flip_y")]
     flip_y: InheritableVariable<bool>,
-}
-
-impl Visit for Sprite {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
-
-        if region.is_reading() {
-            if let Some(material) =
-                material::visit_old_texture_as_material(&mut region, Material::standard_sprite)
-            {
-                self.material = material.into();
-            } else {
-                self.material.visit("Material", &mut region)?;
-            }
-        } else {
-            self.material.visit("Material", &mut region)?;
-        }
-
-        self.base.visit("Base", &mut region)?;
-        self.color.visit("Color", &mut region)?;
-        self.size.visit("Size", &mut region)?;
-        self.rotation.visit("Rotation", &mut region)?;
-
-        // Backward compatibility.
-        let _ = self.flip_x.visit("FlipX", &mut region);
-        let _ = self.flip_y.visit("FlipY", &mut region);
-        let _ = self.uv_rect.visit("UvRect", &mut region);
-
-        Ok(())
-    }
 }
 
 impl Deref for Sprite {

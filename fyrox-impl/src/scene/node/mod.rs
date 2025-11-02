@@ -751,7 +751,7 @@ mod test {
     fn save_scene(scene: &mut Scene, path: &Path) {
         let mut visitor = Visitor::new();
         scene.save("Scene", &mut visitor).unwrap();
-        visitor.save_binary_to_file(path).unwrap();
+        visitor.save_ascii_to_file(path).unwrap();
     }
 
     #[test]

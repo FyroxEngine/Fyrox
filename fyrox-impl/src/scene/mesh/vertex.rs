@@ -21,10 +21,7 @@
 //! Contains most common vertex formats and their layouts.
 
 use crate::{
-    core::{
-        algebra::{Vector2, Vector3, Vector4},
-        visitor::{Visit, VisitResult, Visitor},
-    },
+    core::algebra::{Vector2, Vector3, Vector4},
     scene::mesh::buffer::{
         VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexTrait,
     },
@@ -288,116 +285,5 @@ impl Hash for SimpleVertex {
                 std::mem::size_of::<Self>(),
             ))
         }
-    }
-}
-
-/// Fat vertex used before customizable VertexBuffer was made.
-/// It is used only to be able to load scenes in old formats to
-/// keep backward compatibility.
-#[derive(Copy, Clone, Debug, Default)]
-#[repr(C)] // OpenGL expects this structure packed as in C
-pub struct OldVertex {
-    /// Position of vertex in local coordinates.
-    pub position: Vector3<f32>,
-    /// Texture coordinates.
-    pub tex_coord: Vector2<f32>,
-    /// Normal in local coordinates.
-    pub normal: Vector3<f32>,
-    /// Tangent vector in local coordinates.
-    pub tangent: Vector4<f32>,
-    /// Array of bone weights. Unused bones will have 0.0 weight so they won't
-    /// impact the shape of mesh.
-    pub bone_weights: [f32; 4],
-    /// Array of bone indices. It has indices of bones in array of bones of a
-    /// surface.
-    pub bone_indices: [u8; 4],
-    /// Second texture coordinates.
-    pub second_tex_coord: Vector2<f32>,
-}
-
-impl Visit for OldVertex {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
-
-        self.position.visit("Position", &mut region)?;
-        self.tex_coord.visit("TexCoord", &mut region)?;
-        self.second_tex_coord.visit("SecondTexCoord", &mut region)?;
-        self.normal.visit("Normal", &mut region)?;
-        self.tangent.visit("Tangent", &mut region)?;
-
-        self.bone_weights[0].visit("Weight0", &mut region)?;
-        self.bone_weights[1].visit("Weight1", &mut region)?;
-        self.bone_weights[2].visit("Weight2", &mut region)?;
-        self.bone_weights[3].visit("Weight3", &mut region)?;
-
-        self.bone_indices[0].visit("BoneIndex0", &mut region)?;
-        self.bone_indices[1].visit("BoneIndex1", &mut region)?;
-        self.bone_indices[2].visit("BoneIndex2", &mut region)?;
-        self.bone_indices[3].visit("BoneIndex3", &mut region)?;
-
-        Ok(())
-    }
-}
-
-impl VertexTrait for OldVertex {
-    fn layout() -> &'static [VertexAttributeDescriptor] {
-        &[
-            VertexAttributeDescriptor {
-                usage: VertexAttributeUsage::Position,
-                data_type: VertexAttributeDataType::F32,
-                size: 3,
-                divisor: 0,
-                shader_location: 0,
-                normalized: false,
-            },
-            VertexAttributeDescriptor {
-                usage: VertexAttributeUsage::TexCoord0,
-                data_type: VertexAttributeDataType::F32,
-                size: 2,
-                divisor: 0,
-                shader_location: 1,
-                normalized: false,
-            },
-            VertexAttributeDescriptor {
-                usage: VertexAttributeUsage::Normal,
-                data_type: VertexAttributeDataType::F32,
-                size: 3,
-                divisor: 0,
-                shader_location: 2,
-                normalized: false,
-            },
-            VertexAttributeDescriptor {
-                usage: VertexAttributeUsage::Tangent,
-                data_type: VertexAttributeDataType::F32,
-                size: 4,
-                divisor: 0,
-                shader_location: 3,
-                normalized: false,
-            },
-            VertexAttributeDescriptor {
-                usage: VertexAttributeUsage::BoneWeight,
-                data_type: VertexAttributeDataType::F32,
-                size: 4,
-                divisor: 0,
-                shader_location: 4,
-                normalized: false,
-            },
-            VertexAttributeDescriptor {
-                usage: VertexAttributeUsage::BoneIndices,
-                data_type: VertexAttributeDataType::U8,
-                size: 4,
-                divisor: 0,
-                shader_location: 5,
-                normalized: false,
-            },
-            VertexAttributeDescriptor {
-                usage: VertexAttributeUsage::TexCoord1,
-                data_type: VertexAttributeDataType::F32,
-                size: 2,
-                divisor: 0,
-                shader_location: 6,
-                normalized: false,
-            },
-        ]
     }
 }

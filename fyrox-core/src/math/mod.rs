@@ -168,9 +168,7 @@ impl_reflect!(
 
 impl_visit!(
     pub struct Curve {
-        #[visit(optional)] // Backward compatibility
         pub id: Uuid,
-        #[visit(optional)] // Backward compatibility
         pub name: String,
         pub keys: Vec<CurveKey>,
     }

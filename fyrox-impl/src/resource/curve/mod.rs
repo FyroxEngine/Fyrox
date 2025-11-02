@@ -21,7 +21,7 @@
 //! Curve resource holds a [`Curve`]
 
 use crate::{
-    asset::{io::ResourceIo, Resource, ResourceData, CURVE_RESOURCE_UUID},
+    asset::{io::ResourceIo, Resource, ResourceData},
     core::{
         io::FileError, math::curve::Curve, reflect::prelude::*, uuid::Uuid, visitor::prelude::*,
         TypeUuidProvider,
@@ -32,6 +32,7 @@ use std::{
     fmt::{Display, Formatter},
     path::Path,
 };
+use uuid::uuid;
 
 pub mod loader;
 
@@ -101,7 +102,7 @@ impl ResourceData for CurveResourceState {
 
 impl TypeUuidProvider for CurveResourceState {
     fn type_uuid() -> Uuid {
-        CURVE_RESOURCE_UUID
+        uuid!("f28b949f-28a2-4b68-9089-59c234f58b6b")
     }
 }
 

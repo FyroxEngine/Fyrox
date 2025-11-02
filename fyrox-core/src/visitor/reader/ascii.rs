@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::visitor::VisitorVersion;
 use crate::{
     pool::{Handle, Pool},
     visitor::{
@@ -332,47 +331,29 @@ impl Reader for AsciiReader<'_> {
             ..VisitorNode::default()
         };
 
-        if visitor.version < VisitorVersion::AsciiNoCounters as u32 {
-            let field_count: usize = self.src.read_num_until(b':')?;
-            for _ in 0..field_count {
-                node.fields.push(self.read_field()?);
+        loop {
+            self.src.skip_ws()?;
+            let next = self.src.peek()?;
+            if next == b']' {
+                self.src.skip_n(1)?;
+                break;
             }
-            self.src.skip_until(|ch| ch != b']')?;
-            self.src.skip_n(1)?;
-        } else {
-            loop {
-                self.src.skip_ws()?;
-                let next = self.src.peek()?;
-                if next == b']' {
-                    self.src.skip_n(1)?;
-                    break;
-                }
-                node.fields.push(self.read_field()?);
-            }
+            node.fields.push(self.read_field()?);
         }
 
         self.src.skip_until(|ch| ch != b'{')?;
         self.src.skip_n(1)?;
 
         let mut children = Vec::new();
-        if visitor.version < VisitorVersion::AsciiNoCounters as u32 {
-            let child_count: usize = self.src.read_num_until(b':')?;
-            children.reserve(child_count);
-            for _ in 0..child_count {
-                children.push(self.read_node(visitor)?);
+
+        loop {
+            self.src.skip_ws()?;
+            let next = self.src.peek()?;
+            if next == b'}' {
+                self.src.skip_n(1)?;
+                break;
             }
-            self.src.skip_until(|ch| ch != b'}')?;
-            self.src.skip_n(1)?;
-        } else {
-            loop {
-                self.src.skip_ws()?;
-                let next = self.src.peek()?;
-                if next == b'}' {
-                    self.src.skip_n(1)?;
-                    break;
-                }
-                children.push(self.read_node(visitor)?);
-            }
+            children.push(self.read_node(visitor)?);
         }
 
         node.children.clone_from(&children);
@@ -391,9 +372,7 @@ impl Reader for AsciiReader<'_> {
 
         let magic: [u8; 4] = [src.next()?, src.next()?, src.next()?, src.next()?];
 
-        let version = if magic.eq(Visitor::MAGIC_ASCII_OLD.as_bytes()) {
-            VisitorVersion::Legacy as u32
-        } else if magic.eq(Visitor::MAGIC_ASCII_CURRENT.as_bytes()) {
+        let version = if magic.eq(Visitor::MAGIC_ASCII_CURRENT.as_bytes()) {
             src.skip_until(|ch| ch != b':')?;
             src.skip_n(1)?;
             src.read_num_until::<u32, _>(b';')?

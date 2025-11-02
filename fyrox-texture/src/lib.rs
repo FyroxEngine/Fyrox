@@ -61,7 +61,7 @@ use fyrox_core::{
 };
 use fyrox_resource::{
     embedded_data_source, io::ResourceIo, manager::BuiltInResource, options::ImportOptions,
-    untyped::ResourceKind, Resource, ResourceData, TEXTURE_RESOURCE_UUID,
+    untyped::ResourceKind, Resource, ResourceData,
 };
 use image::{ColorType, DynamicImage, ImageError, ImageFormat, Pixel};
 use lazy_static::lazy_static;
@@ -287,7 +287,7 @@ pub struct Texture {
 
 impl TypeUuidProvider for Texture {
     fn type_uuid() -> Uuid {
-        TEXTURE_RESOURCE_UUID
+        uuid!("02c23a44-55fa-411a-bc39-eb7a5eadf15c")
     }
 }
 
@@ -363,17 +363,16 @@ impl Visit for Texture {
         self.anisotropy.visit("Anisotropy", &mut region)?;
         self.s_wrap_mode.visit("SWrapMode", &mut region)?;
         self.t_wrap_mode.visit("TWrapMode", &mut region)?;
-        let _ = self.t_wrap_mode.visit("RWrapMode", &mut region);
+        self.t_wrap_mode.visit("RWrapMode", &mut region)?;
         self.mip_count.visit("MipCount", &mut region)?;
         self.kind.visit("Kind", &mut region)?;
         let mut bytes_view = PodVecView::from_pod_vec(&mut self.bytes);
-        let _ = bytes_view.visit("Data", &mut region);
-
-        let _ = self.base_level.visit("BaseLevel", &mut region);
-        let _ = self.max_level.visit("MaxLevel", &mut region);
-        let _ = self.min_lod.visit("MinLod", &mut region);
-        let _ = self.max_lod.visit("MaxLod", &mut region);
-        let _ = self.lod_bias.visit("LodBias", &mut region);
+        bytes_view.visit("Data", &mut region)?;
+        self.base_level.visit("BaseLevel", &mut region)?;
+        self.max_level.visit("MaxLevel", &mut region)?;
+        self.min_lod.visit("MinLod", &mut region)?;
+        self.max_lod.visit("MaxLod", &mut region)?;
+        self.lod_bias.visit("LodBias", &mut region)?;
 
         Ok(())
     }

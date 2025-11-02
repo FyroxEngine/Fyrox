@@ -41,7 +41,7 @@
 use crate::{
     asset::{
         io::ResourceIo, manager::ResourceManager, options::ImportOptions, untyped::ResourceKind,
-        Resource, ResourceData, MODEL_RESOURCE_UUID,
+        Resource, ResourceData,
     },
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -76,6 +76,7 @@ use std::{
     sync::Arc,
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
+use uuid::uuid;
 
 pub mod loader;
 
@@ -104,7 +105,7 @@ impl PrefabData for Model {
 
 impl TypeUuidProvider for Model {
     fn type_uuid() -> Uuid {
-        MODEL_RESOURCE_UUID
+        uuid!("44cd768f-b4ca-4804-a98c-0adf85577ada")
     }
 }
 

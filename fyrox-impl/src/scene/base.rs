@@ -1188,14 +1188,7 @@ impl Visit for Base {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        if self.name.visit("Name", &mut region).is_err() {
-            // Name was wrapped into `InheritableVariable` previously, so we must maintain
-            // backward compatibility here.
-            let mut region = region.enter_region("Name")?;
-            let mut value = String::default();
-            value.visit("Value", &mut region)?;
-            self.name = ImmutableString::new(value);
-        }
+        self.name.visit("Name", &mut region)?;
         self.local_transform.visit("Transform", &mut region)?;
         self.visibility.visit("Visibility", &mut region)?;
         self.parent.visit("Parent", &mut region)?;
@@ -1209,12 +1202,12 @@ impl Visit for Base {
         self.original_handle_in_resource
             .visit("Original", &mut region)?;
         self.tag.visit("Tag", &mut region)?;
-        let _ = self.properties.visit("Properties", &mut region);
-        let _ = self.frustum_culling.visit("FrustumCulling", &mut region);
-        let _ = self.cast_shadows.visit("CastShadows", &mut region);
-        let _ = self.instance_id.visit("InstanceId", &mut region);
-        let _ = self.enabled.visit("Enabled", &mut region);
-        let _ = self.render_mask.visit("RenderMask", &mut region);
+        self.properties.visit("Properties", &mut region)?;
+        self.frustum_culling.visit("FrustumCulling", &mut region)?;
+        self.cast_shadows.visit("CastShadows", &mut region)?;
+        self.instance_id.visit("InstanceId", &mut region)?;
+        self.enabled.visit("Enabled", &mut region)?;
+        self.render_mask.visit("RenderMask", &mut region)?;
 
         // Script visiting may fail for various reasons:
         //
@@ -1224,15 +1217,6 @@ impl Visit for Base {
         //
         // None of the reasons are fatal and we should still give an ability to load such node
         // to edit or remove it.
-
-        // This block is needed for backward compatibility
-        let mut old_script = None;
-        if region.is_reading() && visit_opt_script("Script", &mut old_script, &mut region).is_ok() {
-            if let Some(old_script) = old_script {
-                self.scripts.push(ScriptRecord::new(old_script));
-            }
-            return Ok(());
-        }
 
         let _ = self.scripts.visit("Scripts", &mut region);
 

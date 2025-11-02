@@ -276,10 +276,8 @@ pub struct Window {
     pub prev_bounds: Option<Rect<f32>>,
     /// If `true`, then the window can be closed using `Esc` key. Default is `true`. Works only if
     /// `can_close` is also `true`.
-    #[visit(optional)] // Backward compatibility
     pub close_by_esc: bool,
     /// If `true`, then the window will be deleted after closing.
-    #[visit(optional)] // Backward compatibility
     pub remove_on_close: bool,
 }
 

@@ -21,19 +21,17 @@
 //! A module for untyped resources. See [`UntypedResource`] docs for more info.
 
 use crate::state::ResourceDataWrapper;
+use crate::ResourceHeaderGuard;
 use crate::{
     core::{
-        math::curve::Curve, parking_lot::Mutex, reflect::prelude::*, uuid, uuid::Uuid,
-        visitor::prelude::*, TypeUuidProvider,
+        parking_lot::Mutex, reflect::prelude::*, uuid, uuid::Uuid, visitor::prelude::*,
+        TypeUuidProvider,
     },
     manager::ResourceManager,
     state::{LoadError, ResourceState},
-    Resource, ResourceData, ResourceLoadError, TypedResourceData, CURVE_RESOURCE_UUID,
-    MODEL_RESOURCE_UUID, SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
+    Resource, ResourceData, ResourceLoadError, TypedResourceData,
 };
-use crate::{ResourceHeaderGuard, FONT_RESOURCE_UUID, HRIR_SPHERE_RESOURCE_UUID};
 use fxhash::FxHasher64;
-use fyrox_core::io::FileError;
 use fyrox_core::log::Log;
 use fyrox_core::parking_lot::MutexGuard;
 use fyrox_core::SafeLock;
@@ -41,7 +39,6 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Write;
 use std::{
     error::Error,
-    ffi::OsStr,
     fmt::{Debug, Display, Formatter},
     future::Future,
     hash::{Hash, Hasher},
@@ -54,201 +51,6 @@ use std::{
 
 const MISSING_RESOURCE_MANAGER: &str =
     "Resource data constructor container must be provided when serializing resources!";
-
-/// The UUIDs for resources that cannot be visited as embedded data because none of their
-/// fields are visited. This is used by `LegacyHeader` to avoid mistakenly interpretting
-/// a visitor node as an embedded resource.
-/// Being on this list does *not* prevent future versions of these resources from being
-/// embedded. It is purely a heuristic to assist with reading legacy resources.
-const INVALID_EMBEDDED_RESOURCES: &[Uuid] = &[
-    SOUND_BUFFER_RESOURCE_UUID,
-    MODEL_RESOURCE_UUID,
-    HRIR_SPHERE_RESOURCE_UUID,
-    FONT_RESOURCE_UUID,
-];
-
-#[derive(Default, Debug, Visit, Clone, PartialEq, Eq, Hash)]
-enum OldResourceKind {
-    #[default]
-    Embedded,
-    External(PathBuf),
-}
-
-#[derive(Debug)]
-enum LegacyHeader {
-    Path(PathBuf),
-    Uuid(Uuid),
-    Data(Box<dyn ResourceData>),
-}
-
-impl LegacyHeader {
-    fn visit_path(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut path = PathBuf::default();
-        path.visit(name, visitor)?;
-        if path.as_os_str().is_empty() {
-            return Err(VisitError::FileLoadError(FileError::Custom(
-                "Empty path".to_string(),
-            )));
-        }
-        *self = Self::Path(path);
-        Ok(())
-    }
-    fn visit_details(&mut self, type_uuid: Uuid, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region("Details")?;
-        if type_uuid == SOUND_BUFFER_RESOURCE_UUID {
-            let mut sound_region = region.enter_region("0")?;
-            self.visit_path("Path", &mut sound_region)
-        } else {
-            self.visit_path("Path", &mut region)
-        }
-    }
-    fn take_data(&mut self, uuid: Uuid) -> Option<Box<dyn ResourceData>> {
-        if let Self::Data(data) = std::mem::replace(self, Self::Uuid(uuid)) {
-            Some(data)
-        } else {
-            None
-        }
-    }
-    fn is_valid_embedded_type_uuid(uuid: Uuid) -> bool {
-        INVALID_EMBEDDED_RESOURCES.contains(&uuid)
-    }
-}
-
-impl Default for LegacyHeader {
-    fn default() -> Self {
-        Self::Path(PathBuf::default())
-    }
-}
-
-impl Visit for LegacyHeader {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        assert!(visitor.is_reading());
-        let mut region = visitor.enter_region(name)?;
-
-        let mut type_uuid = Uuid::default();
-        if type_uuid.visit("TypeUuid", &mut region).is_err() {
-            // We might be reading the old version, try to guess an actual type uuid by
-            // the inner content of the resource data.
-            type_uuid = guess_uuid(&mut region);
-        };
-        let resource_manager = region
-            .blackboard
-            .get::<ResourceManager>()
-            .expect(MISSING_RESOURCE_MANAGER);
-        let resource_manager_state = resource_manager.state();
-        let Some(mut instance) = resource_manager_state
-            .constructors_container
-            .try_create(&type_uuid)
-        else {
-            return Err(VisitError::User(format!(
-                "There's no constructor registered for type {type_uuid}!"
-            )));
-        };
-        drop(resource_manager_state);
-
-        let mut id: u32 = 0;
-
-        if id.visit("Id", &mut region).is_ok() {
-            // We're interested only in embedded resources.
-            if id == 2 {
-                let result = self.visit_details(type_uuid, &mut region);
-                if let Err(err0) = result {
-                    if Self::is_valid_embedded_type_uuid(type_uuid) {
-                        let result = instance.visit("Details", &mut region);
-                        if let Err(err1) = result {
-                            let result = instance.visit("State", &mut region);
-                            if let Err(err2) = result {
-                                return Err(err0.multiple(err1).multiple(err2));
-                            }
-                        }
-                        *self = Self::Data(instance);
-                        Ok(())
-                    } else {
-                        Err(err0)
-                    }
-                } else {
-                    result
-                }
-            } else {
-                Err(VisitError::User("Old resource".into()))
-            }
-        } else {
-            let mut uuid = Uuid::default();
-            if uuid.visit("ResourceUuid", &mut region).is_ok() && !uuid.is_nil() {
-                *self = Self::Uuid(uuid);
-                return Ok(());
-            }
-            let mut old_kind = OldResourceKind::Embedded;
-            old_kind.visit("Kind", &mut region)?;
-            match old_kind {
-                OldResourceKind::External(path) => {
-                    if path.as_os_str().is_empty() {
-                        return Err(VisitError::FileLoadError(FileError::Custom(
-                            "Empty path".to_string(),
-                        )));
-                    }
-                    *self = Self::Path(path);
-                }
-                OldResourceKind::Embedded => {
-                    instance.visit("State", &mut region)?;
-                    *self = Self::Data(instance);
-                }
-            }
-            Ok(())
-        }
-    }
-}
-
-// Heuristic function to guess resource uuid based on inner content of a resource.
-fn guess_uuid(region: &mut Visitor) -> Uuid {
-    assert!(region.is_reading());
-
-    let guard = region.enter_region("Details");
-    let mut region = match guard {
-        Ok(region) => region,
-        Err(ref err) => {
-            Log::err(err.to_string());
-            drop(guard);
-            Log::info(region.debug());
-            return TEXTURE_RESOURCE_UUID;
-        }
-    };
-
-    let mut mip_count = 0u32;
-    if mip_count.visit("MipCount", &mut region).is_ok() {
-        return TEXTURE_RESOURCE_UUID;
-    }
-
-    let mut curve = Curve::default();
-    if curve.visit("Curve", &mut region).is_ok() {
-        return CURVE_RESOURCE_UUID;
-    }
-
-    let mut id = 0u32;
-    if id.visit("Id", &mut region).is_ok() {
-        return SOUND_BUFFER_RESOURCE_UUID;
-    }
-
-    let mut path = PathBuf::new();
-    if path.visit("Path", &mut region).is_ok() {
-        let ext = path.extension().unwrap_or_default().to_ascii_lowercase();
-        if ext == OsStr::new("rgs")
-            || ext == OsStr::new("fbx")
-            || ext == OsStr::new("gltf")
-            || ext == OsStr::new("glb")
-        {
-            return MODEL_RESOURCE_UUID;
-        } else if ext == OsStr::new("shader")
-            || path == OsStr::new("Standard")
-            || path == OsStr::new("StandardTwoSides")
-            || path == OsStr::new("StandardTerrain")
-        {
-            return SHADER_RESOURCE_UUID;
-        }
-    }
-
-    Default::default()
-}
 
 /// Kind of a resource. It defines how the resource manager will treat a resource content on serialization.
 #[derive(Default, Reflect, Debug, Visit, Copy, Clone, PartialEq, Eq, Hash)]
@@ -537,16 +339,9 @@ impl UntypedResource {
         let mut region = visitor.enter_region(name)?;
         if region.is_reading() {
             let mut uuid = Uuid::default();
-            match uuid.visit("Uuid", &mut region) {
-                Ok(()) => {
-                    self.read_visit(uuid, type_uuid, &mut region)?;
-                    drop(region);
-                }
-                Err(_) => {
-                    drop(region);
-                    self.legacy_visit(name, visitor)?;
-                }
-            }
+            uuid.visit("Uuid", &mut region)?;
+            self.read_visit(uuid, type_uuid, &mut region)?;
+            drop(region);
             let resource_manager = visitor
                 .blackboard
                 .get::<ResourceManager>()
@@ -568,55 +363,6 @@ impl UntypedResource {
                 Ok(())
             }
         }
-    }
-    fn legacy_visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut header: Arc<Mutex<LegacyHeader>> = Default::default();
-        let result = header.visit(name, visitor);
-        if let Err(err1) = result {
-            header = Arc::default();
-            if let Ok(mut region) = visitor.enter_region(name) {
-                let mut region = if region.has_region("Value") {
-                    region.enter_region("Value").unwrap()
-                } else {
-                    region
-                };
-                let result = header.visit("State", &mut region);
-                if let Err(err2) = result {
-                    if let Ok(mut region) = region.enter_region("State") {
-                        let result = header.visit("Data", &mut region);
-                        if let Err(err3) = result {
-                            return Err(err1.multiple(err2).multiple(err3));
-                        }
-                    } else {
-                        return Err(err1.multiple(err2));
-                    }
-                }
-            } else {
-                return Err(err1);
-            }
-        }
-        let resource_manager = visitor
-            .blackboard
-            .get::<ResourceManager>()
-            .expect("Resource manager must be available when deserializing resources!")
-            .clone();
-        let mut state = resource_manager.state();
-        let mut header = header.try_lock().expect("header locked");
-        match *header {
-            LegacyHeader::Path(ref path) => {
-                Log::info(format!("Requesting {path:?}"));
-                *self = state.request(path);
-            }
-            LegacyHeader::Uuid(uuid) => {
-                *self = uuid.into();
-            }
-            LegacyHeader::Data(_) => {
-                let uuid = Uuid::new_v4();
-                let data = header.take_data(uuid).unwrap();
-                *self = UntypedResource::new_ok_untyped(uuid, ResourceKind::Embedded, data);
-            }
-        }
-        Ok(())
     }
     fn read_visit(
         &mut self,

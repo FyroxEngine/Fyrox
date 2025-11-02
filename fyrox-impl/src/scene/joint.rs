@@ -60,27 +60,21 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 pub struct BallJoint {
     /// Whether X angular limits are enabled or not. Default is `false`
-    #[visit(optional)] // Backward compatibility
     pub x_limits_enabled: bool,
 
     /// Allowed angle range around local X axis of the joint (in radians).
-    #[visit(optional)] // Backward compatibility
     pub x_limits_angles: Range<f32>,
 
     /// Whether Y angular limits are enabled or not. Default is `false`
-    #[visit(optional)] // Backward compatibility
     pub y_limits_enabled: bool,
 
     /// Allowed angle range around local Y axis of the joint (in radians).
-    #[visit(optional)] // Backward compatibility
     pub y_limits_angles: Range<f32>,
 
     /// Whether Z angular limits are enabled or not. Default is `false`
-    #[visit(optional)] // Backward compatibility
     pub z_limits_enabled: bool,
 
     /// Allowed angle range around local Z axis of the joint (in radians).
-    #[visit(optional)] // Backward compatibility
     pub z_limits_angles: Range<f32>,
 }
 
@@ -107,11 +101,9 @@ pub struct FixedJoint;
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 pub struct PrismaticJoint {
     /// Whether linear limits along local joint X axis are enabled or not. Default is `false`
-    #[visit(optional)] // Backward compatibility
     pub limits_enabled: bool,
 
-    /// The min an max relative position of the attached bodies along local X axis of the joint.
-    #[visit(optional)] // Backward compatibility
+    /// The min and max relative position of the attached bodies along local X axis of the joint.
     pub limits: Range<f32>,
 }
 
@@ -130,11 +122,9 @@ impl Default for PrismaticJoint {
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 pub struct RevoluteJoint {
     /// Whether angular limits around local X axis of the joint are enabled or not. Default is `false`
-    #[visit(optional)] // Backward compatibility
     pub limits_enabled: bool,
 
     /// Allowed angle range around local X axis of the joint (in radians).
-    #[visit(optional)] // Backward compatibility
     pub limits: Range<f32>,
 }
 
@@ -224,7 +214,6 @@ pub struct Joint {
     pub(crate) params: InheritableVariable<JointParams>,
 
     #[reflect(setter = "set_motor_params")]
-    #[visit(optional)] // Backward compatibility
     pub(crate) motor_params: InheritableVariable<JointMotorParams>,
 
     #[reflect(setter = "set_body1")]
@@ -234,11 +223,9 @@ pub struct Joint {
     pub(crate) body2: InheritableVariable<Handle<RigidBody>>,
 
     #[reflect(setter = "set_contacts_enabled")]
-    #[visit(optional)] // Backward compatibility
     pub(crate) contacts_enabled: InheritableVariable<bool>,
 
     #[reflect(setter = "set_auto_rebinding")]
-    #[visit(optional)] // Backward compatibility
     pub(crate) auto_rebind: InheritableVariable<bool>,
 
     #[visit(optional)]

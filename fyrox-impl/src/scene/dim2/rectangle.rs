@@ -37,7 +37,7 @@ use crate::{
         visitor::prelude::*,
     },
     graph::{constructor::ConstructorProvider, BaseSceneGraph},
-    material::{self, Material, MaterialResource},
+    material::{Material, MaterialResource},
     renderer::{self, bundle::RenderContext},
     scene::{
         base::{Base, BaseBuilder},
@@ -170,7 +170,7 @@ impl Hash for RectangleVertex {
 /// image, but just changing portion for rendering. Keep in mind that the coordinates are normalized
 /// which means `[0; 0]` corresponds to top-left corner of the texture and `[1; 1]` corresponds to
 /// right-bottom corner.
-#[derive(Reflect, Debug, Clone, ComponentProvider)]
+#[derive(Reflect, Debug, Clone, Visit, ComponentProvider)]
 #[reflect(derived_type = "Node")]
 pub struct Rectangle {
     base: Base,
@@ -188,34 +188,6 @@ pub struct Rectangle {
 
     #[reflect(setter = "set_flip_y")]
     flip_y: InheritableVariable<bool>,
-}
-
-impl Visit for Rectangle {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
-
-        if region.is_reading() {
-            if let Some(material) =
-                material::visit_old_texture_as_material(&mut region, Material::standard_2d)
-            {
-                self.material = material.into();
-            } else {
-                self.material.visit("Material", &mut region)?;
-            }
-        } else {
-            self.material.visit("Material", &mut region)?;
-        }
-
-        self.base.visit("Base", &mut region)?;
-        self.color.visit("Color", &mut region)?;
-
-        // Backward compatibility.
-        let _ = self.flip_x.visit("FlipX", &mut region);
-        let _ = self.flip_y.visit("FlipY", &mut region);
-        let _ = self.uv_rect.visit("UvRect", &mut region);
-
-        Ok(())
-    }
 }
 
 impl Default for Rectangle {

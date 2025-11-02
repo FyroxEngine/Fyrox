@@ -39,7 +39,6 @@ pub struct BaseEmitter {
     #[visit(rename = "SpawnRate")]
     particle_spawn_rate: u32,
     /// Maximum amount of particles emitter can emit. Unlimited if < 0
-    #[visit(optional)] // Backward compatibility
     max_particles: Option<u32>,
     /// Range of initial lifetime of a particle
     #[visit(rename = "LifeTime")]

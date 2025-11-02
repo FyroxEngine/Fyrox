@@ -816,13 +816,11 @@ impl Visit for UserInterface {
         self.cursor_icon.visit("CursorIcon", &mut region)?;
         self.double_click_time_slice
             .visit("DoubleClickTimeSlice", &mut region)?;
-        let _ = self
-            .tooltip_appear_delay
-            .visit("TooltipAppearDelay", &mut region);
-        let _ = self
-            .standard_material
-            .visit("StandardMaterial", &mut region);
-        let _ = self.render_mode.visit("RenderMode", &mut region);
+        self.tooltip_appear_delay
+            .visit("TooltipAppearDelay", &mut region)?;
+        self.standard_material
+            .visit("StandardMaterial", &mut region)?;
+        self.render_mode.visit("RenderMode", &mut region)?;
 
         if region.is_reading() {
             for node in self.nodes.iter() {

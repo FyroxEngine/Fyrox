@@ -38,7 +38,7 @@ use crate::{
         Mesh,
     },
     utils::{
-        astar::{Graph, GraphVertex, PathError, PathKind, VertexData, VertexDataProvider},
+        astar::{Graph, PathError, PathKind, VertexData, VertexDataProvider},
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
@@ -94,22 +94,7 @@ impl Visit for Navmesh {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        // Backward compatibility.
-        if region.is_reading() {
-            let mut pathfinder = Graph::<GraphVertex>::new();
-            if pathfinder.visit("PathFinder", &mut region).is_ok() {
-                self.vertices = pathfinder
-                    .vertices
-                    .iter()
-                    .map(|v| v.position)
-                    .collect::<Vec<_>>();
-            } else {
-                self.vertices.visit("Vertices", &mut region)?;
-            }
-        } else {
-            self.vertices.visit("Vertices", &mut region)?;
-        }
-
+        self.vertices.visit("Vertices", &mut region)?;
         self.triangles.visit("Triangles", &mut region)?;
 
         drop(region);

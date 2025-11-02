@@ -69,21 +69,6 @@ pub mod registry;
 pub mod state;
 pub mod untyped;
 
-/// Type UUID of texture resource. It is defined here to load old versions of resources.
-pub const TEXTURE_RESOURCE_UUID: Uuid = uuid!("02c23a44-55fa-411a-bc39-eb7a5eadf15c");
-/// Type UUID of model resource. It is defined here to load old versions of resources.
-pub const MODEL_RESOURCE_UUID: Uuid = uuid!("44cd768f-b4ca-4804-a98c-0adf85577ada");
-/// Type UUID of sound buffer resource. It is defined here to load old versions of resources.
-pub const SOUND_BUFFER_RESOURCE_UUID: Uuid = uuid!("f6a077b7-c8ff-4473-a95b-0289441ea9d8");
-/// Type UUID of shader resource. It is defined here to load old versions of resources.
-pub const SHADER_RESOURCE_UUID: Uuid = uuid!("f1346417-b726-492a-b80f-c02096c6c019");
-/// Type UUID of curve resource. It is defined here to load old versions of resources.
-pub const CURVE_RESOURCE_UUID: Uuid = uuid!("f28b949f-28a2-4b68-9089-59c234f58b6b");
-/// Type UUID of HRIR sphere resource. It is defined here to load old versions of resources.
-pub const HRIR_SPHERE_RESOURCE_UUID: Uuid = uuid!("c92a0fa3-0ed3-49a9-be44-8f06271c6be2");
-/// Type UUID of font resource. It is defined here to load old versions of resources.
-pub const FONT_RESOURCE_UUID: Uuid = uuid!("692fec79-103a-483c-bb0b-9fc3a349cb48");
-
 /// A trait for resource data.
 pub trait ResourceData: Debug + Visit + Send + Reflect {
     /// Returns unique data type id.

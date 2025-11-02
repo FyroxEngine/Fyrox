@@ -10,14 +10,12 @@ use fyrox_core::{
     algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
     color::Color,
     io::FileError,
-    parking_lot::Mutex,
     reflect::prelude::*,
     sstorage::ImmutableString,
     uuid::{uuid, Uuid},
-    visitor::{prelude::*, RegionGuard},
-    SafeLock, TypeUuidProvider,
+    visitor::prelude::*,
+    TypeUuidProvider,
 };
-use fyrox_graphics::gpu_program::SamplerFallback;
 use fyrox_resource::{
     io::ResourceIo,
     manager::{BuiltInResource, ResourceManager},
@@ -609,40 +607,6 @@ pub struct Material {
     resource_bindings: FxHashMap<ImmutableString, MaterialResourceBinding>,
 }
 
-#[derive(Debug, Visit, Clone, Reflect)]
-enum OldMaterialProperty {
-    Float(f32),
-    FloatArray(Vec<f32>),
-    Int(i32),
-    IntArray(Vec<i32>),
-    UInt(u32),
-    UIntArray(Vec<u32>),
-    Vector2(Vector2<f32>),
-    Vector2Array(Vec<Vector2<f32>>),
-    Vector3(Vector3<f32>),
-    Vector3Array(Vec<Vector3<f32>>),
-    Vector4(Vector4<f32>),
-    Vector4Array(Vec<Vector4<f32>>),
-    Matrix2(Matrix2<f32>),
-    Matrix2Array(Vec<Matrix2<f32>>),
-    Matrix3(Matrix3<f32>),
-    Matrix3Array(Vec<Matrix3<f32>>),
-    Matrix4(Matrix4<f32>),
-    Matrix4Array(Vec<Matrix4<f32>>),
-    Bool(bool),
-    Color(Color),
-    Sampler {
-        value: Option<TextureResource>,
-        fallback: SamplerFallback,
-    },
-}
-
-impl Default for OldMaterialProperty {
-    fn default() -> Self {
-        Self::Float(0.0)
-    }
-}
-
 impl Visit for Material {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
@@ -659,56 +623,8 @@ impl Visit for Material {
         shader.visit("Shader", &mut region)?;
         self.shader = shader;
 
-        if region.is_reading() {
-            // Backward compatibility.
-            let mut old_properties = FxHashMap::<ImmutableString, OldMaterialProperty>::default();
-            if old_properties.visit("Properties", &mut region).is_ok() {
-                for (name, old_property) in &old_properties {
-                    if let OldMaterialProperty::Sampler { value, .. } = old_property {
-                        self.bind(
-                            name.clone(),
-                            MaterialResourceBinding::Texture(MaterialTextureBinding {
-                                value: value.clone(),
-                            }),
-                        )
-                    }
-                }
-
-                let properties = self.try_get_or_insert_property_group("properties");
-
-                for (name, old_property) in old_properties {
-                    match old_property {
-                        OldMaterialProperty::Float(v) => properties.set_property(name, v),
-                        OldMaterialProperty::FloatArray(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Int(v) => properties.set_property(name, v),
-                        OldMaterialProperty::IntArray(v) => properties.set_property(name, v),
-                        OldMaterialProperty::UInt(v) => properties.set_property(name, v),
-                        OldMaterialProperty::UIntArray(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Vector2(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Vector2Array(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Vector3(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Vector3Array(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Vector4(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Vector4Array(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Matrix2(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Matrix2Array(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Matrix3(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Matrix3Array(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Matrix4(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Matrix4Array(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Bool(v) => properties.set_property(name, v),
-                        OldMaterialProperty::Color(v) => properties.set_property(name, v),
-                        _ => (),
-                    };
-                }
-            } else {
-                self.resource_bindings
-                    .visit("ResourceBindings", &mut region)?;
-            }
-        } else {
-            self.resource_bindings
-                .visit("ResourceBindings", &mut region)?;
-        }
+        self.resource_bindings
+            .visit("ResourceBindings", &mut region)?;
 
         Ok(())
     }
@@ -1166,44 +1082,6 @@ impl MaterialResourceExtension for MaterialResource {
             ),
         }
     }
-}
-
-#[doc(hidden)]
-pub fn visit_old_material(region: &mut RegionGuard) -> Option<MaterialResource> {
-    let mut old_material = Arc::new(Mutex::new(Material::default()));
-    if let Ok(mut inner) = region.enter_region("Material") {
-        if old_material.visit("Value", &mut inner).is_ok() {
-            return Some(MaterialResource::new_ok(
-                Uuid::new_v4(),
-                Default::default(),
-                old_material.safe_lock().clone(),
-            ));
-        }
-    }
-    None
-}
-
-#[doc(hidden)]
-pub fn visit_old_texture_as_material<F>(
-    region: &mut RegionGuard,
-    make_default_material: F,
-) -> Option<MaterialResource>
-where
-    F: FnOnce() -> Material,
-{
-    let mut old_texture: Option<TextureResource> = None;
-    if let Ok(mut inner) = region.enter_region("Texture") {
-        if old_texture.visit("Value", &mut inner).is_ok() {
-            let mut material = make_default_material();
-            material.bind("diffuseTexture", old_texture);
-            return Some(MaterialResource::new_ok(
-                Uuid::new_v4(),
-                Default::default(),
-                material,
-            ));
-        }
-    }
-    None
 }
 
 lazy_static! {

@@ -467,7 +467,7 @@ pub use fyrox_graphics::gpu_program::{
 use fyrox_graphics::{gpu_program::ShaderProperty, DrawParameters};
 use fyrox_resource::{
     embedded_data_source, io::ResourceIo, manager::BuiltInResource, untyped::ResourceKind,
-    Resource, ResourceData, SHADER_RESOURCE_UUID,
+    Resource, ResourceData,
 };
 use lazy_static::lazy_static;
 use ron::ser::PrettyConfig;
@@ -528,7 +528,7 @@ pub struct Shader {
 
 impl TypeUuidProvider for Shader {
     fn type_uuid() -> Uuid {
-        SHADER_RESOURCE_UUID
+        uuid!("f1346417-b726-492a-b80f-c02096c6c019")
     }
 }
 

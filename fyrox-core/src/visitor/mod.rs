@@ -83,12 +83,8 @@ use std::{
 /// Version of the visitor.
 #[repr(u32)]
 pub enum VisitorVersion {
-    /// Version of the old format.
-    Legacy = 0,
-    /// Flattened vector structure.
-    VectorFlattening,
-    /// Removal of `[N:` and `{N:` counters in ascii format.
-    AsciiNoCounters,
+    /// The first stable release of Fyrox 1.0.
+    FirstStableRelease,
 
     /// ^^ Add a new version above this line ^^.
     ///
@@ -475,9 +471,6 @@ pub enum Format {
 }
 
 impl Visitor {
-    /// Old header marker for binary version.
-    pub const MAGIC_BINARY_OLD: &'static str = "RG3D";
-
     /// Sequence of bytes that is automatically written at the start when a visitor is encoded into
     /// bytes. It is written by [Visitor::save_binary_to_file], [Visitor::save_binary_to_memory],
     /// and [Visitor::save_binary_to_vec].
@@ -486,9 +479,6 @@ impl Visitor {
     /// at the beginning of the file, and [Visitor::load_binary_from_memory] will return an error of
     /// these bytes are not at the beginning of the given slice.
     pub const MAGIC_BINARY_CURRENT: &'static str = "FBAF";
-
-    /// Old header marker for ASCII version.
-    pub const MAGIC_ASCII_OLD: &'static str = "FTAF";
 
     /// Sequence of bytes that is automatically written at the start when a visitor is encoded into
     /// ascii form. It is written by [Visitor::save_ascii_to_file], [Visitor::save_ascii_to_memory],
@@ -509,13 +499,9 @@ impl Visitor {
     pub fn detect_format(src: &mut dyn Read) -> Format {
         let mut magic: [u8; 4] = Default::default();
         if src.read_exact(&mut magic).is_ok() {
-            if magic.eq(Visitor::MAGIC_BINARY_OLD.as_bytes())
-                || magic.eq(Visitor::MAGIC_BINARY_CURRENT.as_bytes())
-            {
+            if magic.eq(Visitor::MAGIC_BINARY_CURRENT.as_bytes()) {
                 return Format::Binary;
-            } else if magic.eq(Visitor::MAGIC_ASCII_OLD.as_bytes())
-                || magic.eq(Visitor::MAGIC_ASCII_CURRENT.as_bytes())
-            {
+            } else if magic.eq(Visitor::MAGIC_ASCII_CURRENT.as_bytes()) {
                 return Format::Ascii;
             }
         }

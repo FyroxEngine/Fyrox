@@ -58,11 +58,9 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 pub struct BallJoint {
     /// Whether angular limits are enabled or not. Default is `false`
-    #[visit(optional)] // Backward compatibility
     pub limits_enabled: bool,
 
     /// Allowed angles range for the joint (in radians).
-    #[visit(optional)] // Backward compatibility
     pub limits_angles: Range<f32>,
 }
 
@@ -85,11 +83,9 @@ pub struct FixedJoint;
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 pub struct PrismaticJoint {
     /// Whether linear limits along local X axis of the joint are enabled or not. Default is `false`
-    #[visit(optional)] // Backward compatibility
     pub limits_enabled: bool,
 
     /// Allowed linear distance range along local X axis of the joint.
-    #[visit(optional)] // Backward compatibility
     pub limits: Range<f32>,
 }
 
@@ -177,7 +173,6 @@ pub struct Joint {
     pub(crate) params: InheritableVariable<JointParams>,
 
     #[reflect(setter = "set_motor_params")]
-    #[visit(optional)] // Backward compatibility
     pub(crate) motor_params: InheritableVariable<JointMotorParams>,
 
     #[reflect(setter = "set_body1")]
@@ -186,7 +181,6 @@ pub struct Joint {
     #[reflect(setter = "set_body2")]
     pub(crate) body2: InheritableVariable<Handle<RigidBody>>,
 
-    #[visit(optional)] // Backward compatibility
     #[reflect(setter = "set_contacts_enabled")]
     pub(crate) contacts_enabled: InheritableVariable<bool>,
 

@@ -92,7 +92,7 @@ use std::{
 };
 
 /// Current implementation version marker.
-pub const VERSION: u8 = 1;
+pub const VERSION: u8 = 0;
 
 lazy_static! {
     /// The default material for tiles that have no material set.
@@ -979,27 +979,12 @@ impl Visit for TileMap {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
         let mut version = if region.is_reading() { 0 } else { VERSION };
-        let _ = version.visit("Version", &mut region);
+        version.visit("Version", &mut region)?;
         self.base.visit("Base", &mut region)?;
         self.tile_set.visit("TileSet", &mut region)?;
         self.tile_scale.visit("TileScale", &mut region)?;
         self.active_brush.visit("ActiveBrush", &mut region)?;
         match version {
-            0 => {
-                let mut tiles = InheritableVariable::new_non_modified(Tiles::default());
-                let result = tiles.visit("Tiles", &mut region);
-                result?;
-                let mut data = TileMapData::default();
-                for (p, h) in tiles.iter() {
-                    data.set(*p, *h);
-                }
-                self.tiles = Some(Resource::new_ok(
-                    Uuid::new_v4(),
-                    ResourceKind::Embedded,
-                    data,
-                ))
-                .into();
-            }
             VERSION => {
                 self.tiles.visit("Tiles", &mut region)?;
             }
