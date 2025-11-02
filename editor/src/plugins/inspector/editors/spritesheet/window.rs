@@ -124,11 +124,10 @@ impl Control for SpriteSheetFramesEditorWindow {
             if message.destination() == self.ok {
                 ui.send(self.handle, WindowMessage::Close);
 
-                ui.send_message(SpriteSheetFramesPropertyEditorMessage::value(
+                ui.post(
                     self.editor,
-                    MessageDirection::FromWidget,
-                    self.animation.frames().clone(),
-                ));
+                    SpriteSheetFramesPropertyEditorMessage::Value(self.animation.frames().clone()),
+                );
             } else if message.destination() == self.cancel {
                 ui.send(self.handle, WindowMessage::Close);
             }

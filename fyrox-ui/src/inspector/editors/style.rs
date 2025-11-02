@@ -28,7 +28,7 @@ use crate::{
         pool::Handle, reflect::prelude::*, reflect::FieldValue, type_traits::prelude::*,
         visitor::prelude::*, ImmutableString, PhantomDataSendSync,
     },
-    define_constructor, define_widget_deref,
+    define_widget_deref,
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
     image::ImageBuilder,
@@ -50,8 +50,8 @@ use crate::{
     utils::{make_dropdown_list_option, make_simple_tooltip},
     widget::WidgetBuilder,
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, MessageDirection, Orientation, Thickness, UiNode,
-    UserInterface, VerticalAlignment, Widget,
+    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+    VerticalAlignment, Widget,
 };
 use fyrox_core::algebra::{Matrix3, Vector2};
 use fyrox_graph::BaseSceneGraph;
@@ -68,19 +68,11 @@ pub enum StyledPropertySelectorMessage {
 }
 impl MessageData for StyledPropertySelectorMessage {}
 
-impl StyledPropertySelectorMessage {
-    define_constructor!(StyledPropertySelectorMessage:PropertyName => fn property_name(ImmutableString));
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum StyledPropertyEditorMessage {
     BindProperty(ImmutableString),
 }
 impl MessageData for StyledPropertyEditorMessage {}
-
-impl StyledPropertyEditorMessage {
-    define_constructor!(StyledPropertyEditorMessage:BindProperty => fn bind_property(ImmutableString));
-}
 
 #[derive(Debug, Clone, Visit, Reflect, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "3a863a0f-7414-44f5-a7aa-7a6668a6d406")]

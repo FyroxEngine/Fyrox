@@ -29,7 +29,6 @@ use crate::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         uuid_provider, visitor::prelude::*,
     },
-    define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     scroll_bar::{ScrollBar, ScrollBarBuilder, ScrollBarMessage},
@@ -62,37 +61,6 @@ pub enum ScrollViewerMessage {
     VerticalScroll(f32),
     /// Sets the horizontal scrolling value.
     HorizontalScroll(f32),
-}
-
-impl ScrollViewerMessage {
-    define_constructor!(
-        /// Creates [`ScrollViewerMessage::Content`] message.
-        ScrollViewerMessage:Content => fn content(Handle<UiNode>)
-    );
-    define_constructor!(
-        /// Creates [`ScrollViewerMessage::BringIntoView`] message.
-        ScrollViewerMessage:BringIntoView => fn bring_into_view(Handle<UiNode>)
-    );
-    define_constructor!(
-        /// Creates [`ScrollViewerMessage::VScrollSpeed`] message.
-        ScrollViewerMessage:VScrollSpeed => fn v_scroll_speed(f32)
-    );
-    define_constructor!(
-        /// Creates [`ScrollViewerMessage::HScrollSpeed`] message.
-        ScrollViewerMessage:HScrollSpeed => fn h_scroll_speed(f32)
-    );
-    define_constructor!(
-        /// Creates [`ScrollViewerMessage::ScrollToEnd`] message.
-        ScrollViewerMessage:ScrollToEnd => fn scroll_to_end()
-    );
-    define_constructor!(
-        /// Creates [`ScrollViewerMessage::HorizontalScroll`] message.
-        ScrollViewerMessage:HorizontalScroll => fn horizontal_scroll(f32)
-    );
-    define_constructor!(
-        /// Creates [`ScrollViewerMessage::VerticalScroll`] message.
-        ScrollViewerMessage:VerticalScroll => fn vertical_scroll(f32)
-    );
 }
 
 impl MessageData for ScrollViewerMessage {
@@ -183,11 +151,7 @@ impl MessageData for ScrollViewerMessage {
 ///     child: Handle<UiNode>,
 ///     ui: &UserInterface,
 /// ) {
-///     ui.send_message(ScrollViewerMessage::bring_into_view(
-///         scroll_viewer,
-///         MessageDirection::ToWidget,
-///         child,
-///     ))
+///     ui.send(scroll_viewer, ScrollViewerMessage::BringIntoView(child))
 /// }
 /// ```
 #[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]

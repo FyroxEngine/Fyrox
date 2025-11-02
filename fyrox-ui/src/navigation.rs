@@ -28,7 +28,7 @@ use crate::{
         pool::Handle, reflect::prelude::*, type_traits::prelude::*, variable::InheritableVariable,
         visitor::prelude::*,
     },
-    message::{KeyCode, MessageDirection, UiMessage},
+    message::{KeyCode, UiMessage},
     scroll_viewer::{ScrollViewer, ScrollViewerMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
@@ -145,11 +145,10 @@ impl Control for NavigationLayer {
                         if let Some((scroll_viewer, _)) =
                             ui.find_component_up::<ScrollViewer>(entry.handle)
                         {
-                            ui.send_message(ScrollViewerMessage::bring_into_view(
+                            ui.send(
                                 scroll_viewer,
-                                MessageDirection::ToWidget,
-                                entry.handle,
-                            ));
+                                ScrollViewerMessage::BringIntoView(entry.handle),
+                            );
                         }
                     }
                 }

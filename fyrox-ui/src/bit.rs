@@ -35,7 +35,6 @@ use crate::{
         uuid::uuid,
         visitor::prelude::*,
     },
-    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     message::{ButtonState, UiMessage},
     widget::{Widget, WidgetBuilder},
@@ -103,10 +102,6 @@ pub enum BitFieldMessage<T: BitContainer> {
     Value(T),
 }
 impl<T: BitContainer> MessageData for BitFieldMessage<T> {}
-
-impl<T: BitContainer> BitFieldMessage<T> {
-    define_constructor!(BitFieldMessage:Value => fn value(T));
-}
 
 impl<T: BitContainer> ConstructorProvider<UiNode, UserInterface> for BitField<T> {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
@@ -359,11 +354,7 @@ where
                     }
 
                     if new_value != self.value {
-                        ui.send_message(BitFieldMessage::value(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                            new_value,
-                        ));
+                        ui.send(self.handle, BitFieldMessage::Value(new_value));
                     }
                 }
             }
@@ -385,11 +376,7 @@ where
                                 set_bit_value(self.value, bit_index, self.current_value);
                             self.bit_state = BitState::Pressed;
 
-                            ui.send_message(BitFieldMessage::value(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                new_value,
-                            ));
+                            ui.send(self.handle, BitFieldMessage::Value(new_value));
                         }
                         MouseButton::Right => {
                             message.set_handled(true);
@@ -400,11 +387,7 @@ where
                                 T::one() << T::from(bit_index).unwrap_or_default()
                             };
 
-                            ui.send_message(BitFieldMessage::value(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                new_value,
-                            ));
+                            ui.send(self.handle, BitFieldMessage::Value(new_value));
                         }
                         _ => (),
                     }

@@ -29,7 +29,7 @@ use crate::{
         gui::{
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},
-            define_constructor, define_widget_deref,
+            define_widget_deref,
             draw::DrawingContext,
             grid::{Column, GridBuilder, Row},
             message::{KeyCode, MessageDirection, OsEvent, UiMessage},
@@ -193,12 +193,6 @@ pub enum NodeSelectorMessage {
 }
 impl MessageData for NodeSelectorMessage {}
 
-impl NodeSelectorMessage {
-    define_constructor!(NodeSelectorMessage:Hierarchy => fn hierarchy(HierarchyNode));
-    define_constructor!(NodeSelectorMessage:Selection => fn selection(Vec<SelectedHandle>));
-    define_constructor!(NodeSelectorMessage:ChooseFocus => fn choose_focus());
-}
-
 #[derive(Clone)]
 struct TreeData {
     name: String,
@@ -281,11 +275,10 @@ impl Control for NodeSelector {
                     let selected_trees = self.find_selected_tree_items(ui);
 
                     if let Some(first) = selected_trees.first() {
-                        ui.send_message(ScrollViewerMessage::bring_into_view(
+                        ui.send(
                             self.scroll_viewer,
-                            MessageDirection::ToWidget,
-                            *first,
-                        ));
+                            ScrollViewerMessage::BringIntoView(*first),
+                        );
                     }
                 }
             }
@@ -293,22 +286,23 @@ impl Control for NodeSelector {
             if message.destination() == self.tree_root
                 && message.direction() == MessageDirection::FromWidget
             {
-                ui.send_message(NodeSelectorMessage::selection(
+                ui.send(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    selection
-                        .iter()
-                        .map(|s| {
-                            let tree_data = ui.node(*s).user_data_cloned::<TreeData>().unwrap();
+                    NodeSelectorMessage::Selection(
+                        selection
+                            .iter()
+                            .map(|s| {
+                                let tree_data = ui.node(*s).user_data_cloned::<TreeData>().unwrap();
 
-                            SelectedHandle {
-                                handle: tree_data.handle,
-                                inner_type_id: tree_data.inner_type_id,
-                                derived_type_ids: tree_data.derived_type_ids,
-                            }
-                        })
-                        .collect(),
-                ));
+                                SelectedHandle {
+                                    handle: tree_data.handle,
+                                    inner_type_id: tree_data.inner_type_id,
+                                    derived_type_ids: tree_data.derived_type_ids,
+                                }
+                            })
+                            .collect(),
+                    ),
+                );
             }
         } else if let Some(TreeRootMessage::ItemsChanged) = message.data() {
             if message.destination == self.tree_root
@@ -348,11 +342,10 @@ impl NodeSelector {
         let selected_trees = self.find_selected_tree_items(ui);
 
         if let Some(first) = selected_trees.first() {
-            ui.send_message(ScrollViewerMessage::bring_into_view(
+            ui.send(
                 self.scroll_viewer,
-                MessageDirection::ToWidget,
-                *first,
-            ))
+                ScrollViewerMessage::BringIntoView(*first),
+            )
         }
 
         ui.send(self.tree_root, TreeRootMessage::Select(selected_trees));
@@ -469,15 +462,16 @@ impl DerefMut for NodeSelectorWindow {
 
 impl NodeSelectorWindow {
     fn confirm(&self, ui: &UserInterface) {
-        ui.send_message(NodeSelectorMessage::selection(
+        ui.post(
             self.handle,
-            MessageDirection::FromWidget,
-            ui.node(self.selector)
-                .query_component::<NodeSelector>()
-                .unwrap()
-                .selected
-                .clone(),
-        ));
+            NodeSelectorMessage::Selection(
+                ui.node(self.selector)
+                    .query_component::<NodeSelector>()
+                    .unwrap()
+                    .selected
+                    .clone(),
+            ),
+        );
 
         ui.send(self.handle, WindowMessage::Close);
     }
@@ -545,10 +539,7 @@ impl Control for NodeSelectorWindow {
         | Some(WindowMessage::OpenModal { .. })
         | Some(WindowMessage::OpenAndAlign { .. }) = message.data()
         {
-            ui.send_message(NodeSelectorMessage::choose_focus(
-                self.selector,
-                MessageDirection::ToWidget,
-            ));
+            ui.send(self.selector, NodeSelectorMessage::ChooseFocus);
         } else if let Some(WidgetMessage::KeyDown(KeyCode::Enter | KeyCode::NumpadEnter)) =
             message.data()
         {

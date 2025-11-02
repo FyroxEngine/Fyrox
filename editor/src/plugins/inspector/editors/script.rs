@@ -27,7 +27,6 @@ use crate::fyrox::{
     graph::BaseSceneGraph,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
-        define_constructor,
         dropdown_list::{DropdownList, DropdownListMessage},
         grid::{GridBuilder, GridDimension},
         inspector::{
@@ -50,7 +49,6 @@ use crate::fyrox::{
 };
 use crate::plugins::inspector::EditorEnvironment;
 use crate::{
-    send_sync_message,
     settings::{general::ScriptEditor, SettingsData},
     DropdownListBuilder, MSG_SYNC_FLAG,
 };
@@ -71,11 +69,6 @@ pub enum ScriptPropertyEditorMessage {
     PropertyChanged(PropertyChanged),
 }
 impl MessageData for ScriptPropertyEditorMessage {}
-
-impl ScriptPropertyEditorMessage {
-    define_constructor!(ScriptPropertyEditorMessage:Value => fn value(Option<Uuid>));
-    define_constructor!(ScriptPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged));
-}
 
 #[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -117,11 +110,10 @@ impl Control for ScriptPropertyEditor {
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) =
             message.data_from::<InspectorMessage>(self.inspector)
         {
-            ui.send_message(ScriptPropertyEditorMessage::property_changed(
+            ui.post(
                 self.handle(),
-                MessageDirection::FromWidget,
-                property_changed.clone(),
-            ))
+                ScriptPropertyEditorMessage::PropertyChanged(property_changed.clone()),
+            )
         }
     }
 
@@ -202,11 +194,10 @@ impl Control for ScriptPropertyEditor {
                 .user_data_cloned::<(Uuid, Option<String>)>()
                 .expect("Must be script (UUID, Option<String>)");
 
-            ui.send_message(ScriptPropertyEditorMessage::value(
+            ui.send(
                 self.handle(),
-                MessageDirection::ToWidget,
-                Some(new_selected_script_data.0),
-            ));
+                ScriptPropertyEditorMessage::Value(Some(new_selected_script_data.0)),
+            );
         }
     }
 }
@@ -434,13 +425,9 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                 instance_ref.variant_selector,
                 DropdownListMessage::Items(new_script_definitions_items),
             );
-            send_sync_message(
-                ctx.ui,
-                ScriptPropertyEditorMessage::value(
-                    ctx.instance,
-                    MessageDirection::ToWidget,
-                    value.as_ref().map(|s| s.id()),
-                ),
+            ctx.ui.send_sync(
+                ctx.instance,
+                ScriptPropertyEditorMessage::Value(value.as_ref().map(|s| s.id())),
             );
         }
 
@@ -449,13 +436,9 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
         {
             instance_ref.need_context_update.set(false);
 
-            send_sync_message(
-                ctx.ui,
-                ScriptPropertyEditorMessage::value(
-                    ctx.instance,
-                    MessageDirection::ToWidget,
-                    value.as_ref().map(|s| s.id()),
-                ),
+            ctx.ui.send_sync(
+                ctx.instance,
+                ScriptPropertyEditorMessage::Value(value.as_ref().map(|s| s.id())),
             );
 
             let inspector = instance_ref.inspector;

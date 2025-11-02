@@ -58,7 +58,6 @@ use crate::{
         controller::SceneController,
         SelectionContainer,
     },
-    send_sync_message,
     utils::window_content,
     ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
     UserInterface,
@@ -594,14 +593,9 @@ impl AudioPanel {
 
         if let Renderer::HrtfRenderer(hrtf) = context_state.renderer_ref() {
             ui.send_sync(self.hrir_resource, WidgetMessage::Visibility(true));
-
-            send_sync_message(
-                ui,
-                ResourceFieldMessage::value(
-                    self.hrir_resource,
-                    MessageDirection::ToWidget,
-                    hrtf.hrir_sphere_resource(),
-                ),
+            ui.send_sync(
+                self.hrir_resource,
+                ResourceFieldMessage::Value(hrtf.hrir_sphere_resource()),
             );
         } else {
             ui.send_sync(self.hrir_resource, WidgetMessage::Visibility(false));

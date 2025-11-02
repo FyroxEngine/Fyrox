@@ -27,7 +27,7 @@ use fyrox_ui::{
     core::{parking_lot::Mutex, pool::Handle, SafeLock},
     grid::{Column, GridBuilder, Row},
     image::ImageBuilder,
-    message::{MessageDirection, UiMessage},
+    message::UiMessage,
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
     stack_panel::StackPanelBuilder,
     style::{resource::StyleResourceExt, Style},
@@ -257,10 +257,7 @@ impl BuildWindow {
                 self.log_text,
                 TextMessage::Text(self.log.safe_lock().clone()),
             );
-            ui.send_message(ScrollViewerMessage::scroll_to_end(
-                self.scroll_viewer,
-                MessageDirection::ToWidget,
-            ));
+            ui.send(self.scroll_viewer, ScrollViewerMessage::ScrollToEnd);
 
             self.changed.store(false, Ordering::SeqCst);
         }

@@ -215,11 +215,10 @@ impl FileBrowser {
                 TreeRootMessage::Select(vec![result.path_item]),
             );
             // Bring item of new path into view.
-            ui.send_message(ScrollViewerMessage::bring_into_view(
+            ui.send(
                 self.scroll_viewer,
-                MessageDirection::ToWidget,
-                result.path_item,
-            ));
+                ScrollViewerMessage::BringIntoView(result.path_item),
+            );
         } else {
             // Clear text field if path is invalid.
             ui.send(self.path_text, TextMessage::Text(String::new()));
@@ -273,11 +272,10 @@ impl Control for FileBrowser {
                                 ui.send(self.tree_root, TreeRootMessage::Select(vec![item]));
 
                                 // Bring item of new path into view.
-                                ui.send_message(ScrollViewerMessage::bring_into_view(
+                                ui.send(
                                     self.scroll_viewer,
-                                    MessageDirection::ToWidget,
-                                    item,
-                                ));
+                                    ScrollViewerMessage::BringIntoView(item),
+                                );
                             }
 
                             ui.send_message(message.reverse());
@@ -363,11 +361,10 @@ impl Control for FileBrowser {
                             if item.is_some() {
                                 // Select item of new path.
                                 ui.send(self.tree_root, TreeRootMessage::Select(vec![item]));
-                                ui.send_message(ScrollViewerMessage::bring_into_view(
+                                ui.send(
                                     self.scroll_viewer,
-                                    MessageDirection::ToWidget,
-                                    item,
-                                ));
+                                    ScrollViewerMessage::BringIntoView(item),
+                                );
                             }
                         }
                     }

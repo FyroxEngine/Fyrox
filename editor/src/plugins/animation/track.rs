@@ -828,11 +828,10 @@ impl TrackList {
                         _ => Default::default(),
                     };
                     if ui_node.is_some() {
-                        ui.send_message(ScrollViewerMessage::bring_into_view(
+                        ui.send(
                             self.scroll_viewer,
-                            MessageDirection::ToWidget,
-                            ui_node,
-                        ));
+                            ScrollViewerMessage::BringIntoView(ui_node),
+                        );
                     }
                 }
             }

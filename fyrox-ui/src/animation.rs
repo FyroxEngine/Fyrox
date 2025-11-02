@@ -22,7 +22,6 @@
 //! See [`AnimationPlayer`] docs for more info.
 
 use crate::message::MessageData;
-use crate::MessageDirection;
 use crate::{
     core::{
         log::{Log, MessageKind},
@@ -32,7 +31,7 @@ use crate::{
         variable::InheritableVariable,
         visitor::prelude::*,
     },
-    define_constructor, define_widget_deref,
+    define_widget_deref,
     generic_animation::value::{BoundValueCollection, TrackValue, ValueBinding},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
@@ -48,21 +47,6 @@ pub enum AnimationPlayerMessage {
     TimePosition { animation: String, time: f32 },
 }
 impl MessageData for AnimationPlayerMessage {}
-
-impl AnimationPlayerMessage {
-    define_constructor!(
-        /// Creates a new [Self::EnableAnimation] message.
-        AnimationPlayerMessage:EnableAnimation => fn enable_animation(animation: String, enabled: bool)
-    );
-    define_constructor!(
-        /// Creates a new [Self::RewindAnimation] message.
-        AnimationPlayerMessage:RewindAnimation => fn rewind_animation(animation: String)
-    );
-    define_constructor!(
-        /// Creates a new [Self::TimePosition] message.
-        AnimationPlayerMessage:TimePosition => fn time_position(animation: String, time: f32)
-    );
-}
 
 /// UI-specific animation.
 pub type Animation = crate::generic_animation::Animation<Handle<UiNode>>;

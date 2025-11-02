@@ -23,7 +23,7 @@
 
 use crate::{
     plugins::material::editor::{MaterialFieldEditorBuilder, MaterialFieldMessage},
-    send_sync_message, MSG_SYNC_FLAG,
+    MSG_SYNC_FLAG,
 };
 use std::sync::mpsc::Sender;
 
@@ -361,13 +361,9 @@ impl TileEditor for TileMaterialEditor {
             material.is_some() && bounds.is_some(),
         );
         if let Some(material) = material {
-            send_sync_message(
-                ui,
-                MaterialFieldMessage::material(
-                    self.material_field,
-                    MessageDirection::ToWidget,
-                    material.clone(),
-                ),
+            ui.send_sync(
+                self.material_field,
+                MaterialFieldMessage::Material(material.clone()),
             );
         }
         send_visibility(ui, self.bounds_field, Self::bounds_visible(state));

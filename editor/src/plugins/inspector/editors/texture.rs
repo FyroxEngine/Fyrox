@@ -28,7 +28,6 @@ use crate::{
         },
         graph::{BaseSceneGraph, SceneGraph},
         gui::{
-            define_constructor,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
             inspector::{
@@ -150,10 +149,6 @@ pub enum TextureEditorMessage {
 }
 impl MessageData for TextureEditorMessage {}
 
-impl TextureEditorMessage {
-    define_constructor!(TextureEditorMessage:Texture => fn texture(Option<TextureResource>));
-}
-
 uuid_provider!(TextureEditor = "5db49479-ff89-49b8-a038-0766253d6493");
 
 fn texture_name(texture: Option<&TextureResource>, resource_manager: &ResourceManager) -> String {
@@ -171,13 +166,14 @@ impl Control for TextureEditor {
             if message.destination() == self.image {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
                     if let Ok(relative_path) = make_relative_path(&item.path) {
-                        ui.send_message(TextureEditorMessage::texture(
+                        ui.send(
                             self.handle(),
-                            MessageDirection::ToWidget,
-                            self.selector_mixin
-                                .resource_manager
-                                .try_request::<Texture>(relative_path),
-                        ));
+                            TextureEditorMessage::Texture(
+                                self.selector_mixin
+                                    .resource_manager
+                                    .try_request::<Texture>(relative_path),
+                            ),
+                        );
                     }
                 }
             }
@@ -208,11 +204,7 @@ impl Control for TextureEditor {
                         self.sender.send(Message::ShowInAssetBrowser(path));
                     }
                 } else if message.destination() == context_menu.unassign {
-                    ui.send_message(TextureEditorMessage::texture(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        None,
-                    ));
+                    ui.send(self.handle, TextureEditorMessage::Texture(None));
                 }
             }
         }
@@ -224,10 +216,9 @@ impl Control for TextureEditor {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         self.selector_mixin
             .preview_ui_message(ui, message, |resource| {
-                TextureEditorMessage::texture(
+                UiMessage::for_widget(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    resource.try_cast::<Texture>(),
+                    TextureEditorMessage::Texture(resource.try_cast::<Texture>()),
                 )
             });
     }
@@ -386,10 +377,9 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = self.value(ctx.property_info)?;
 
-        Ok(Some(TextureEditorMessage::texture(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            value.clone(),
+            TextureEditorMessage::Texture(value.clone()),
         )))
     }
 

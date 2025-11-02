@@ -27,11 +27,10 @@ use crate::{
         graph::BaseSceneGraph,
         gui::{
             brush::Brush,
-            define_constructor,
             draw::{CommandTexture, Draw, DrawingContext},
             grid::{Column, GridBuilder, Row},
             image::ImageBuilder,
-            message::{MessageDirection, OsEvent, UiMessage},
+            message::{OsEvent, UiMessage},
             style::{resource::StyleResourceExt, Style, StyledProperty},
             text::{TextBuilder, TextMessage},
             tree::{Tree, TreeBuilder},
@@ -59,11 +58,6 @@ pub enum SceneItemMessage {
     Validate(Result<(), String>),
 }
 impl MessageData for SceneItemMessage {}
-
-impl SceneItemMessage {
-    define_constructor!(SceneItemMessage:Name => fn name(String));
-    define_constructor!(SceneItemMessage:Validate => fn validate(Result<(), String>));
-}
 
 #[derive(Copy, Clone)]
 pub enum DropAnchor {

@@ -33,7 +33,6 @@ use crate::{
         gui::{
             brush::Brush,
             button::{ButtonBuilder, ButtonMessage},
-            define_constructor,
             draw::{CommandTexture, Draw, DrawingContext},
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
@@ -106,13 +105,6 @@ where
             }
         }
     }
-}
-
-impl<T> ResourceFieldMessage<T>
-where
-    T: TypedResourceData,
-{
-    define_constructor!(ResourceFieldMessage:Value => fn value(Option<Resource<T>>));
 }
 
 pub type ResourceLoaderCallback<T> = Arc<
@@ -219,11 +211,7 @@ where
             if message.destination() == self.handle() {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
                     if let Some(value) = item.resource::<T>() {
-                        ui.send_message(ResourceFieldMessage::value(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            Some(value),
-                        ));
+                        ui.send(self.handle(), ResourceFieldMessage::Value(Some(value)));
                     }
                 }
             }
@@ -278,10 +266,9 @@ where
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         self.selector_mixin
             .preview_ui_message(ui, message, |resource| {
-                ResourceFieldMessage::value(
+                UiMessage::for_widget(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    resource.try_cast::<T>(),
+                    ResourceFieldMessage::Value(resource.try_cast::<T>()),
                 )
             });
     }
@@ -469,10 +456,9 @@ where
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Option<Resource<T>>>()?;
 
-        Ok(Some(ResourceFieldMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            value.clone(),
+            ResourceFieldMessage::Value(value.clone()),
         )))
     }
 

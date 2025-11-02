@@ -51,7 +51,6 @@ use crate::{
     },
     load_image,
     message::MessageSender,
-    send_sync_message,
     utils::window_content,
     world::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
     Mode, Settings,
@@ -588,16 +587,8 @@ impl WorldViewer {
             if let Some(item) = ui_node.cast::<SceneItem>() {
                 if let Some(name) = data_provider.name_of(item.entity_handle) {
                     if item.name() != name {
-                        send_sync_message(
-                            ui,
-                            SceneItemMessage::name(
-                                handle,
-                                MessageDirection::ToWidget,
-                                (*name).to_owned(),
-                            ),
-                        );
+                        ui.send_sync(handle, SceneItemMessage::Name((*name).to_owned()));
                     }
-
                     stack.extend_from_slice(&item.tree.items);
                 }
             } else if let Some(root) = ui_node.cast::<TreeRoot>() {
@@ -642,11 +633,7 @@ impl WorldViewer {
         if self.filter.is_empty() {
             if let Some(first) = data_provider.selection().first() {
                 if let Some(view) = self.node_to_view_map.get(first) {
-                    ui.send_message(ScrollViewerMessage::bring_into_view(
-                        self.scroll_view,
-                        MessageDirection::ToWidget,
-                        *view,
-                    ));
+                    ui.send(self.scroll_view, ScrollViewerMessage::BringIntoView(*view));
                 }
             }
         }
@@ -738,11 +725,10 @@ impl WorldViewer {
                 },
             );
 
-            ui.send_message(ScrollViewerMessage::bring_into_view(
+            ui.send(
                 self.scroll_view,
-                MessageDirection::ToWidget,
-                *tree_to_focus,
-            ));
+                ScrollViewerMessage::BringIntoView(*tree_to_focus),
+            );
         }
     }
 
@@ -846,10 +832,7 @@ impl WorldViewer {
                 if view_ref.warning_icon.is_none() && result.is_err()
                     || view_ref.warning_icon.is_some() && result.is_ok()
                 {
-                    send_sync_message(
-                        ui,
-                        SceneItemMessage::validate(*view, MessageDirection::ToWidget, result),
-                    );
+                    ui.send_sync(*view, SceneItemMessage::Validate(result));
                 }
             }
         }

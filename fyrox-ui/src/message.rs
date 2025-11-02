@@ -33,123 +33,6 @@ use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, fmt::Debug};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
-/// Defines a new message constructor for a enum variant. It is widely used in this crate to create shortcuts to create
-/// messages. Why is it needed anyway? Just to reduce boilerplate code as much as possible.
-///
-/// ## Examples
-///
-/// The following example shows how to create message constructors for various kinds of enum variants:
-///
-/// ```rust
-/// # use fyrox_ui::{
-/// #     core::pool::Handle, define_constructor, message::MessageDirection, message::UiMessage, UiNode,
-/// #     UserInterface,
-/// # };
-/// use fyrox_ui::message::MessageData;
-/// #
-/// // Message must be debuggable, comparable, cloneable.
-/// #[derive(Debug, PartialEq, Clone)]
-/// enum MyWidgetMessage {
-///     DoSomething,
-///     Foo(u32),
-///     Bar { foo: u32, baz: u8 },
-/// }
-/// impl MessageData for MyWidgetMessage{}
-///
-/// impl MyWidgetMessage {
-///     // The first option is used to create constructors plain enum variants:
-///     //
-///     //                  enum name       variant            name          perform layout?
-///     //                      v              v                 v                  v
-///     define_constructor!(MyWidgetMessage:DoSomething => fn do_something());
-///
-///     // The second option is used to create constructors for single-arg tuple enum variants:
-///     //
-///     //                  enum name     variant    name arg    perform layout?
-///     //                      v            v         v   v           v
-///     define_constructor!(MyWidgetMessage:Foo => fn foo(u32));
-///
-///     // The third option is used to create constructors for enum variants with fields:
-///     //
-///     //                  enum name     variant    name arg  type arg type  perform layout?
-///     //                      v            v         v   v     v   v    v          v
-///     define_constructor!(MyWidgetMessage:Bar => fn bar(foo: u32, baz: u8));
-/// }
-///
-/// fn using_messages(my_widget: Handle<UiNode>, ui: &UserInterface) {
-///     // Send MyWidgetMessage::DoSomething
-///     ui.send_message(MyWidgetMessage::do_something(
-///         my_widget,
-///         MessageDirection::ToWidget,
-///     ));
-///
-///     // Send MyWidgetMessage::Foo
-///     ui.send_message(MyWidgetMessage::foo(
-///         my_widget,
-///         MessageDirection::ToWidget,
-///         5,
-///     ));
-///
-///     // Send MyWidgetMessage::Bar
-///     ui.send_message(MyWidgetMessage::bar(
-///         my_widget,
-///         MessageDirection::ToWidget,
-///         1,
-///         2,
-///     ));
-/// }
-/// ```
-#[macro_export]
-macro_rules! define_constructor {
-    ($(#[$meta:meta])* $inner:ident : $inner_var:tt => fn $name:ident()) => {
-        $(#[$meta])*
-        #[must_use = "message does nothing until sent to ui"]
-        pub fn $name(destination: Handle<UiNode>, direction: MessageDirection) -> UiMessage {
-            UiMessage {
-                handled: std::cell::Cell::new(false),
-                data: Box::new($inner::$inner_var),
-                destination,
-                direction,
-                routing_strategy: Default::default(),
-                delivery_mode: Default::default(),
-                flags: 0
-            }
-        }
-    };
-
-    ($(#[$meta:meta])* $inner:ident : $inner_var:tt => fn $name:ident($typ:ty)) => {
-        $(#[$meta])*
-        #[must_use = "message does nothing until sent to ui"]
-        pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, value:$typ) -> UiMessage {
-            UiMessage {
-                handled: std::cell::Cell::new(false),
-                data: Box::new($inner::$inner_var(value)),
-                destination,
-                direction,
-                routing_strategy: Default::default(),
-                delivery_mode: Default::default(),
-                flags: 0
-            }
-        }
-    };
-
-    ($(#[$meta:meta])* $inner:ident : $inner_var:tt => fn $name:ident( $($params:ident : $types:ty),+ )) => {
-        $(#[$meta])*
-        #[must_use = "message does nothing until sent to ui"]
-        pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, $($params : $types),+) -> UiMessage {
-            UiMessage {
-                handled: std::cell::Cell::new(false),
-                data: Box::new($inner::$inner_var { $($params),+ }),
-                destination,
-                direction,
-                routing_strategy: Default::default(),
-                delivery_mode: Default::default(),
-                flags: 0
-            }
-        }
-    }
-}
-
 /// Message direction allows you to distinguish from where message has came from. Often there is a need to find out who
 /// created a message to respond properly. Imagine that we have a NumericUpDown input field for a property and we using
 /// some data source to feed data into input field. When we change something in the input field by typing, it creates a
@@ -275,7 +158,7 @@ pub enum DeliveryMode {
 ///
 /// ```rust
 /// use fyrox_ui::{
-///     core::pool::Handle, define_constructor, message::MessageDirection, message::UiMessage, UiNode,
+///     core::pool::Handle, message::MessageDirection, message::UiMessage, UiNode,
 ///     UserInterface, message::MessageData,
 /// };
 ///

@@ -34,7 +34,6 @@ use crate::{
         gui::{
             brush::Brush,
             button::{ButtonBuilder, ButtonMessage},
-            define_constructor,
             draw::{CommandTexture, Draw, DrawingContext},
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
@@ -71,10 +70,6 @@ pub enum MaterialFieldMessage {
     Material(MaterialResource),
 }
 impl MessageData for MaterialFieldMessage {}
-
-impl MaterialFieldMessage {
-    define_constructor!(MaterialFieldMessage:Material => fn material(MaterialResource));
-}
 
 #[derive(Clone, Visit, Reflect, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -136,11 +131,10 @@ impl Control for MaterialFieldEditor {
                 self.sender
                     .send(Message::OpenMaterialEditor(self.material.clone()));
             } else if message.destination() == self.make_unique {
-                ui.send_message(MaterialFieldMessage::material(
+                ui.send(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    self.material.deep_copy_as_embedded(),
-                ));
+                    MaterialFieldMessage::Material(self.material.deep_copy_as_embedded()),
+                );
             }
         } else if let Some(MaterialFieldMessage::Material(material)) = message.data() {
             if message.is_for(self.handle) && &self.material != material {
@@ -162,11 +156,7 @@ impl Control for MaterialFieldEditor {
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
                 if let Some(material) = item.resource::<Material>() {
-                    ui.send_message(MaterialFieldMessage::material(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                        material,
-                    ));
+                    ui.send(self.handle(), MaterialFieldMessage::Material(material));
                 }
             }
         } else if let Some(AssetItemMessage::Icon {
@@ -194,10 +184,9 @@ impl Control for MaterialFieldEditor {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         self.asset_selector_mixin
             .preview_ui_message(ui, message, |resource| {
-                MaterialFieldMessage::material(
+                UiMessage::for_widget(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    resource.try_cast::<Material>().unwrap(),
+                    MaterialFieldMessage::Material(resource.try_cast::<Material>().unwrap()),
                 )
             });
     }
@@ -399,10 +388,9 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<MaterialResource>()?;
-        Ok(Some(MaterialFieldMessage::material(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            value.clone(),
+            MaterialFieldMessage::Material(value.clone()),
         )))
     }
 

@@ -32,7 +32,7 @@ use crate::{
     },
     decorator::{Decorator, DecoratorMessage},
     draw::{CommandTexture, Draw, DrawingContext},
-    message::{KeyCode, MessageDirection, UiMessage},
+    message::{KeyCode, UiMessage},
     scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
     stack_panel::StackPanelBuilder,
     style::{resource::StyleResourceExt, Style},
@@ -425,11 +425,10 @@ impl Control for ListView {
                     }
                     &ListViewMessage::BringItemIntoView(item) => {
                         if self.items.contains(&item) {
-                            ui.send_message(ScrollViewerMessage::bring_into_view(
+                            ui.send(
                                 *self.scroll_viewer,
-                                MessageDirection::ToWidget,
-                                item,
-                            ));
+                                ScrollViewerMessage::BringIntoView(item),
+                            );
                         }
                     }
                 }

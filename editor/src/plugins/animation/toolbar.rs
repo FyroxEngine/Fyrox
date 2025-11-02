@@ -284,21 +284,23 @@ impl RootMotionDropdownArea {
                     )
                     .build(&mut ui.build_ctx());
 
-                    ui.send_message(NodeSelectorMessage::hierarchy(
+                    ui.send(
                         self.node_selector,
-                        MessageDirection::ToWidget,
-                        HierarchyNode::from_scene_node(root, Handle::NONE, graph),
-                    ));
+                        NodeSelectorMessage::Hierarchy(HierarchyNode::from_scene_node(
+                            root,
+                            Handle::NONE,
+                            graph,
+                        )),
+                    );
 
-                    ui.send_message(NodeSelectorMessage::selection(
+                    ui.send(
                         self.node_selector,
-                        MessageDirection::ToWidget,
-                        if settings.node.is_some() {
+                        NodeSelectorMessage::Selection(if settings.node.is_some() {
                             vec![settings.node.into()]
                         } else {
                             vec![]
-                        },
-                    ));
+                        }),
+                    );
 
                     ui.send(
                         self.node_selector,
@@ -1046,11 +1048,14 @@ impl Toolbar {
                 )
                 .build(&mut ui.build_ctx());
 
-                ui.send_message(NodeSelectorMessage::hierarchy(
+                ui.send(
                     self.node_selector,
-                    MessageDirection::ToWidget,
-                    HierarchyNode::from_scene_node(root, Handle::NONE, graph),
-                ));
+                    NodeSelectorMessage::Hierarchy(HierarchyNode::from_scene_node(
+                        root,
+                        Handle::NONE,
+                        graph,
+                    )),
+                );
 
                 ui.send(
                     self.node_selector,

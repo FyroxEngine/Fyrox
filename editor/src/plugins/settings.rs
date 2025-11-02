@@ -39,7 +39,7 @@ use crate::{
                 Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
             },
             menu::MenuItemMessage,
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
@@ -367,11 +367,10 @@ impl SettingsWindow {
 
                     if let Some(entry) = inspector.context.find_property_editor_by_tag(&user_data.0)
                     {
-                        ui.send_message(ScrollViewerMessage::bring_into_view(
+                        ui.send(
                             self.scroll_viewer,
-                            MessageDirection::ToWidget,
-                            entry.property_container,
-                        ));
+                            ScrollViewerMessage::BringIntoView(entry.property_container),
+                        );
                     }
                 }
             }

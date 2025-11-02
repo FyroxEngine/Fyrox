@@ -328,11 +328,10 @@ impl LogPanel {
         }
 
         if item_to_bring_into_view.is_some() {
-            ui.send_message(ScrollViewerMessage::bring_into_view(
+            ui.send(
                 self.messages,
-                MessageDirection::ToWidget,
-                item_to_bring_into_view,
-            ));
+                ScrollViewerMessage::BringIntoView(item_to_bring_into_view),
+            );
         }
 
         received_anything

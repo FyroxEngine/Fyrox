@@ -22,7 +22,6 @@ use crate::{
     core::{
         num_traits, pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
     },
-    define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     numeric::{NumericType, NumericUpDownBuilder, NumericUpDownMessage},
@@ -73,13 +72,6 @@ where
     Value(SMatrix<T, R, C>),
 }
 impl<const R: usize, const C: usize, T: NumericType> MessageData for MatrixEditorMessage<R, C, T> {}
-
-impl<const R: usize, const C: usize, T> MatrixEditorMessage<R, C, T>
-where
-    T: NumericType,
-{
-    define_constructor!(MatrixEditorMessage:Value => fn value(SMatrix<T, R, C>));
-}
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -170,11 +162,7 @@ where
                     if message.destination() == *field {
                         let mut new_value = self.value;
                         new_value[i] = value;
-                        ui.send_message(MatrixEditorMessage::value(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            new_value,
-                        ));
+                        ui.send(self.handle(), MatrixEditorMessage::Value(new_value));
                     }
                 }
             }

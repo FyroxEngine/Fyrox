@@ -33,7 +33,7 @@ use crate::{
         graph::BaseSceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
-            define_constructor, define_widget_deref,
+            define_widget_deref,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
             inspector::{
@@ -69,10 +69,6 @@ pub enum SurfaceDataPropertyEditorMessage {
     Value(SurfaceResource),
 }
 impl MessageData for SurfaceDataPropertyEditorMessage {}
-
-impl SurfaceDataPropertyEditorMessage {
-    define_constructor!(SurfaceDataPropertyEditorMessage:Value => fn value(SurfaceResource));
-}
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "8461a183-4fd4-4f74-a4f4-7fd8e84bf423")]
@@ -125,11 +121,10 @@ impl Control for SurfaceDataPropertyEditor {
                             .try_request::<SurfaceData>(path)
                         {
                             if let Ok(value) = block_on(request) {
-                                ui.send_message(SurfaceDataPropertyEditorMessage::value(
+                                ui.send(
                                     self.handle(),
-                                    MessageDirection::ToWidget,
-                                    value,
-                                ));
+                                    SurfaceDataPropertyEditorMessage::Value(value),
+                                );
                             }
                         }
                     }
@@ -178,10 +173,11 @@ impl Control for SurfaceDataPropertyEditor {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         self.asset_selector_mixin
             .preview_ui_message(ui, message, |resource| {
-                SurfaceDataPropertyEditorMessage::value(
+                UiMessage::for_widget(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    resource.try_cast::<SurfaceData>().unwrap(),
+                    SurfaceDataPropertyEditorMessage::Value(
+                        resource.try_cast::<SurfaceData>().unwrap(),
+                    ),
                 )
             })
     }
@@ -337,10 +333,9 @@ impl PropertyEditorDefinition for SurfaceDataPropertyEditorDefinition {
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<SurfaceResource>()?;
 
-        Ok(Some(SurfaceDataPropertyEditorMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            value.clone(),
+            SurfaceDataPropertyEditorMessage::Value(value.clone()),
         )))
     }
 

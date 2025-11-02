@@ -30,7 +30,7 @@ use crate::{
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             dropdown_list::{DropdownListBuilder, DropdownListMessage},
             image::ImageBuilder,
-            message::{MessageDirection, UiMessage},
+            message::UiMessage,
             stack_panel::StackPanelBuilder,
             text::{TextBuilder, TextMessage},
             text_box::{TextBox, TextBoxBuilder},
@@ -310,11 +310,10 @@ impl Toolbar {
                                 .map(SelectedHandle::from)
                                 .collect::<Vec<_>>();
 
-                            ui.send_message(NodeSelectorMessage::selection(
+                            ui.send(
                                 self.node_selector,
-                                MessageDirection::ToWidget,
-                                selection,
-                            ));
+                                NodeSelectorMessage::Selection(selection),
+                            );
                         }
                     }
                 }

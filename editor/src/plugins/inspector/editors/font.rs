@@ -28,7 +28,6 @@ use crate::{
         graph::BaseSceneGraph,
         gui::{
             brush::Brush,
-            define_constructor,
             draw::{CommandTexture, Draw, DrawingContext},
             font::{Font, FontResource, BUILT_IN_FONT},
             formatted_text::WrapMode,
@@ -92,10 +91,6 @@ pub enum FontFieldMessage {
 }
 impl MessageData for FontFieldMessage {}
 
-impl FontFieldMessage {
-    define_constructor!(FontFieldMessage:Font => fn font(FontResource));
-}
-
 uuid_provider!(FontField = "5db49479-ff89-49b8-a038-0766253d6493");
 
 impl Control for FontField {
@@ -119,11 +114,7 @@ impl Control for FontField {
             if message.destination() == self.handle {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
                     if let Some(font) = item.resource::<Font>() {
-                        ui.send_message(FontFieldMessage::font(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            font,
-                        ));
+                        ui.send(self.handle(), FontFieldMessage::Font(font));
                     }
                 }
             }
@@ -235,10 +226,9 @@ impl PropertyEditorDefinition for FontPropertyEditorDefinition {
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<FontResource>()?;
 
-        Ok(Some(FontFieldMessage::font(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            value.clone(),
+            FontFieldMessage::Font(value.clone()),
         )))
     }
 

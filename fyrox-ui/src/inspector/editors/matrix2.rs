@@ -94,10 +94,9 @@ impl<const R: usize, const C: usize, T: NumericType> PropertyEditorDefinition
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<SMatrix<T, R, C>>()?;
-        Ok(Some(MatrixEditorMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            *value,
+            MatrixEditorMessage::Value(*value),
         )))
     }
 

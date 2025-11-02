@@ -494,11 +494,10 @@ impl TileSetEditor {
         }
         drop(state);
         if let TileBook::Brush(brush) = &tile_book {
-            ui.send_message(ResourceFieldMessage::value(
+            ui.send(
                 self.tile_set_field,
-                MessageDirection::ToWidget,
-                brush.data_ref().tile_set(),
-            ));
+                ResourceFieldMessage::Value(brush.data_ref().tile_set()),
+            );
         }
         self.send_tabs_visible(tile_book.is_tile_set(), ui);
         ui.send(
@@ -602,11 +601,7 @@ impl TileSetEditor {
         if let TileBook::Brush(brush) = &self.tile_book {
             let brush = brush.data_ref();
             let tile_set = brush.tile_set();
-            ui.send_message(ResourceFieldMessage::value(
-                self.tile_set_field,
-                MessageDirection::ToWidget,
-                tile_set,
-            ));
+            ui.send(self.tile_set_field, ResourceFieldMessage::Value(tile_set));
         }
     }
 

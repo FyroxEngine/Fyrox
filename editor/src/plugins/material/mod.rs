@@ -210,7 +210,7 @@ macro_rules! mat_ui_view {
     ($($ty:ty),*) => {
         $(impl UiView for $ty {
             fn into_message(self, item: Handle<UiNode>) -> UiMessage {
-                MatrixEditorMessage::value(item, MessageDirection::ToWidget, self)
+               UiMessage::for_widget(item, MatrixEditorMessage::Value(self))
             }
             fn make_view(self, ctx: &mut BuildContext) -> Handle<UiNode> {
                 MatrixEditorBuilder::new(WidgetBuilder::new())
@@ -553,13 +553,9 @@ impl MaterialEditor {
         for (binding_name, binding_value) in material.bindings() {
             let view = some_or_continue!(self.find_resource_view(binding_name));
             match binding_value {
-                MaterialResourceBinding::Texture(ref binding) => send_sync_message(
-                    ui,
-                    TextureEditorMessage::texture(
-                        view.editor,
-                        MessageDirection::ToWidget,
-                        binding.value.clone(),
-                    ),
+                MaterialResourceBinding::Texture(ref binding) => ui.send_sync(
+                    view.editor,
+                    TextureEditorMessage::Texture(binding.value.clone()),
                 ),
                 MaterialResourceBinding::PropertyGroup(ref group) => {
                     let ResourceViewKind::PropertyGroup { ref property_views } = view.kind else {
@@ -594,14 +590,9 @@ impl MaterialEditor {
                 }
             }
         }
-
-        send_sync_message(
-            ui,
-            ResourceFieldMessage::value(
-                self.shader,
-                MessageDirection::ToWidget,
-                Some(material.shader().clone()),
-            ),
+        ui.send_sync(
+            self.shader,
+            ResourceFieldMessage::Value(Some(material.shader().clone())),
         );
     }
 

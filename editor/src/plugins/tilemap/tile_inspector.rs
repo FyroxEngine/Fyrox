@@ -27,7 +27,7 @@
 use crate::{
     command::{Command, CommandGroup},
     plugins::material::editor::{MaterialFieldEditorBuilder, MaterialFieldMessage},
-    send_sync_message, MSG_SYNC_FLAG,
+    MSG_SYNC_FLAG,
 };
 use fyrox::{
     asset::ResourceDataRef,
@@ -1042,13 +1042,10 @@ impl TileInspector {
                 MSG_SYNC_FLAG,
                 Vec2EditorMessage::Value(mat.tile_size),
             );
-            send_sync_message(
-                ui,
-                MaterialFieldMessage::material(
-                    self.page_material_inspector.field,
-                    MessageDirection::ToWidget,
-                    mat.material.clone(),
-                ),
+
+            ui.send_sync(
+                self.page_material_inspector.field,
+                MaterialFieldMessage::Material(mat.material.clone()),
             );
         } else if let Some((_, anim)) = state.animation_page() {
             ui.send_sync(

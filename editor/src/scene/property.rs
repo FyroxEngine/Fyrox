@@ -29,7 +29,7 @@ use crate::fyrox::{
     gui::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
-        define_constructor, define_widget_deref,
+        define_widget_deref,
         draw::DrawingContext,
         grid::{Column, GridBuilder, Row},
         message::{KeyCode, MessageDirection, OsEvent, UiMessage},
@@ -59,11 +59,6 @@ pub enum PropertySelectorMessage {
     ChooseFocus,
 }
 impl MessageData for PropertySelectorMessage {}
-
-impl PropertySelectorMessage {
-    define_constructor!(PropertySelectorMessage:Selection => fn selection(Vec<PropertyDescriptorData>));
-    define_constructor!(PropertySelectorMessage:ChooseFocus => fn choose_focus());
-}
 
 pub struct PropertyDescriptor {
     path: String,
@@ -340,11 +335,10 @@ impl PropertySelector {
         let selected_trees = self.find_selected_tree_items(ui);
 
         if let Some(first) = selected_trees.first() {
-            ui.send_message(ScrollViewerMessage::bring_into_view(
+            ui.send(
                 self.scroll_viewer,
-                MessageDirection::ToWidget,
-                *first,
-            ))
+                ScrollViewerMessage::BringIntoView(*first),
+            )
         }
 
         ui.send(self.tree_root, TreeRootMessage::Select(selected_trees));
@@ -359,19 +353,20 @@ impl Control for PropertySelector {
             if message.destination() == self.tree_root
                 && message.direction() == MessageDirection::FromWidget
             {
-                ui.send_message(PropertySelectorMessage::selection(
+                ui.send(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    selection
-                        .iter()
-                        .map(|s| {
-                            ui.node(*s)
-                                .user_data_cloned::<PropertyDescriptorData>()
-                                .unwrap()
-                                .clone()
-                        })
-                        .collect(),
-                ));
+                    PropertySelectorMessage::Selection(
+                        selection
+                            .iter()
+                            .map(|s| {
+                                ui.node(*s)
+                                    .user_data_cloned::<PropertyDescriptorData>()
+                                    .unwrap()
+                                    .clone()
+                            })
+                            .collect(),
+                    ),
+                );
             }
         } else if let Some(msg) = message.data::<PropertySelectorMessage>() {
             if message.is_for(self.handle) {
@@ -518,15 +513,16 @@ impl DerefMut for PropertySelectorWindow {
 
 impl PropertySelectorWindow {
     pub fn confirm(&self, ui: &UserInterface) {
-        ui.send_message(PropertySelectorMessage::selection(
+        ui.post(
             self.handle,
-            MessageDirection::FromWidget,
-            ui.node(self.selector)
-                .query_component::<PropertySelector>()
-                .unwrap()
-                .selected_property_paths
-                .clone(),
-        ));
+            PropertySelectorMessage::Selection(
+                ui.node(self.selector)
+                    .query_component::<PropertySelector>()
+                    .unwrap()
+                    .selected_property_paths
+                    .clone(),
+            ),
+        );
         ui.send(self.handle, WindowMessage::Close);
     }
 }
@@ -580,10 +576,7 @@ impl Control for PropertySelectorWindow {
         | Some(WindowMessage::OpenModal { .. })
         | Some(WindowMessage::OpenAndAlign { .. }) = message.data()
         {
-            ui.send_message(PropertySelectorMessage::choose_focus(
-                self.selector,
-                MessageDirection::ToWidget,
-            ));
+            ui.send(self.selector, PropertySelectorMessage::ChooseFocus);
         } else if let Some(WidgetMessage::KeyDown(KeyCode::Enter | KeyCode::NumpadEnter)) =
             message.data()
         {

@@ -25,7 +25,7 @@ use crate::fyrox::{
     },
     gui::{
         button::{ButtonBuilder, ButtonMessage},
-        define_constructor, define_widget_deref,
+        define_widget_deref,
         grid::{Column, GridBuilder, Row},
         inspector::{
             editors::{
@@ -60,10 +60,6 @@ pub enum SpriteSheetFramesPropertyEditorMessage {
     Value(SpriteSheetFramesContainer),
 }
 impl MessageData for SpriteSheetFramesPropertyEditorMessage {}
-
-impl SpriteSheetFramesPropertyEditorMessage {
-    define_constructor!(SpriteSheetFramesPropertyEditorMessage:Value => fn value(SpriteSheetFramesContainer));
-}
 
 #[derive(Clone, Debug, Reflect, Visit, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -170,10 +166,9 @@ impl PropertyEditorDefinition for SpriteSheetFramesContainerEditorDefinition {
             .property_info
             .cast_value::<SpriteSheetFramesContainer>()?;
 
-        Ok(Some(SpriteSheetFramesPropertyEditorMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            value.clone(),
+            SpriteSheetFramesPropertyEditorMessage::Value(value.clone()),
         )))
     }
 

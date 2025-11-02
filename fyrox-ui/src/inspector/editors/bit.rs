@@ -79,10 +79,9 @@ where
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<T>()?;
-        Ok(Some(BitFieldMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            *value,
+            BitFieldMessage::Value(*value),
         )))
     }
 

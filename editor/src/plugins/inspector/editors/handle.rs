@@ -29,7 +29,6 @@ use crate::{
         gui::{
             brush::Brush,
             button::{ButtonBuilder, ButtonMessage},
-            define_constructor,
             draw::{CommandTexture, Draw, DrawingContext},
             grid::{Column, GridBuilder, Row},
             image::ImageBuilder,
@@ -91,10 +90,6 @@ impl<T: Reflect> PartialEq for HandlePropertyEditorMessage<T> {
             (Self::Value(left), Self::Value(right)) => left.eq(right),
         }
     }
-}
-
-impl<T: Reflect> HandlePropertyEditorMessage<T> {
-    define_constructor!(HandlePropertyEditorMessage:Value => fn value(Handle<T>));
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -217,21 +212,16 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
         if let Some(msg) = message.data::<HandlePropertyEditorHierarchyMessage>() {
             let value = &msg.0;
             if message.is_for(self.handle()) {
-                ui.send_message(NodeSelectorMessage::hierarchy(
-                    self.selector,
-                    MessageDirection::ToWidget,
-                    value.clone(),
-                ));
+                ui.send(self.selector, NodeSelectorMessage::Hierarchy(value.clone()));
 
-                ui.send_message(NodeSelectorMessage::selection(
+                ui.send(
                     self.selector,
-                    MessageDirection::ToWidget,
-                    vec![SelectedHandle {
+                    NodeSelectorMessage::Selection(vec![SelectedHandle {
                         handle: self.value.into(),
                         inner_type_id: TypeId::of::<T>(),
                         derived_type_ids: T::derived_types().to_vec(),
-                    }],
-                ));
+                    }]),
+                );
             }
         }
 
@@ -252,12 +242,13 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if message.destination() == self.handle() {
                 if let Some(item) = ui.node(*dropped).cast::<SceneItem>() {
-                    ui.send_message(HandlePropertyEditorMessage::<T>::value(
+                    ui.send(
                         self.handle(),
-                        MessageDirection::ToWidget,
-                        // TODO: Do type check here.
-                        item.entity_handle.into(),
-                    ))
+                        HandlePropertyEditorMessage::<T>::Value(
+                            // TODO: Do type check here.
+                            item.entity_handle.into(),
+                        ),
+                    )
                 }
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
@@ -270,11 +261,10 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
                     handle: self.value.into(),
                 });
             } else if message.destination == self.make_unassigned {
-                ui.send_message(HandlePropertyEditorMessage::value(
+                ui.send(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    Handle::<T>::NONE,
-                ));
+                    HandlePropertyEditorMessage::Value(Handle::<T>::NONE),
+                );
             } else if message.destination == self.pick {
                 let node_selector = NodeSelectorWindowBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
@@ -313,11 +303,10 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
                 selected.inner_type_id == TypeId::of::<T>()
                     || selected.derived_type_ids.contains(&TypeId::of::<T>())
             }) {
-                ui.send_message(HandlePropertyEditorMessage::<T>::value(
+                ui.send(
                     self.handle,
-                    MessageDirection::ToWidget,
-                    suitable.handle.into(),
-                ));
+                    HandlePropertyEditorMessage::<T>::Value(suitable.handle.into()),
+                );
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.selector {
@@ -525,10 +514,9 @@ impl<T: Reflect> PropertyEditorDefinition for NodeHandlePropertyEditorDefinition
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Handle<T>>()?;
 
-        Ok(Some(HandlePropertyEditorMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            *value,
+            HandlePropertyEditorMessage::Value(*value),
         )))
     }
 

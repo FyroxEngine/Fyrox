@@ -115,10 +115,9 @@ impl PropertyEditorDefinition for ColorGradientPropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<ColorGradient>()?;
-        Ok(Some(ColorGradientEditorMessage::value(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            value.clone(),
+            ColorGradientEditorMessage::Value(value.clone()),
         )))
     }
 

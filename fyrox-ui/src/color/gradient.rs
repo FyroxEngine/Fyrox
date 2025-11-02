@@ -32,7 +32,7 @@ use crate::{
         type_traits::prelude::*,
         visitor::prelude::*,
     },
-    define_constructor, define_widget_deref,
+    define_widget_deref,
     draw::{CommandTexture, Draw, DrawingContext},
     grid::{Column, GridBuilder, Row},
     menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
@@ -57,10 +57,6 @@ pub enum ColorGradientEditorMessage {
     Value(ColorGradient),
 }
 impl MessageData for ColorGradientEditorMessage {}
-
-impl ColorGradientEditorMessage {
-    define_constructor!(ColorGradientEditorMessage:Value => fn value(ColorGradient));
-}
 
 #[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "50d00eb7-f30b-4973-8a36-03d6b8f007ec")]
@@ -227,11 +223,10 @@ impl Control for ColorGradientEditor {
         if message.is_for(self.handle) {
             if let Some(ColorGradientEditorMessage::Value(value)) = message.data() {
                 // Re-cast to inner field.
-                ui.send_message(ColorGradientEditorMessage::value(
+                ui.send(
                     self.gradient_field,
-                    MessageDirection::ToWidget,
-                    value.clone(),
-                ));
+                    ColorGradientEditorMessage::Value(value.clone()),
+                );
 
                 for &point in ui.node(self.points_canvas).children() {
                     ui.send(point, WidgetMessage::Remove);
@@ -252,12 +247,7 @@ impl Control for ColorGradientEditor {
         if message.direction() == MessageDirection::FromWidget {
             if let Some(ColorPointMessage::Location(_)) = message.data() {
                 let gradient = self.fetch_gradient(Handle::NONE, ui);
-
-                ui.send_message(ColorGradientEditorMessage::value(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    gradient,
-                ));
+                ui.post(self.handle, ColorGradientEditorMessage::Value(gradient));
             }
         }
     }
@@ -275,21 +265,13 @@ impl Control for ColorGradientEditor {
 
                 gradient.add_point(GradientPoint::new(location, Color::WHITE));
 
-                ui.send_message(ColorGradientEditorMessage::value(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    gradient,
-                ));
+                ui.post(self.handle, ColorGradientEditorMessage::Value(gradient));
             } else if message.destination() == self.remove_point
                 && ui.try_get_node(self.context_menu_target.get()).is_some()
             {
                 let gradient = self.fetch_gradient(self.context_menu_target.get(), ui);
 
-                ui.send_message(ColorGradientEditorMessage::value(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    gradient,
-                ));
+                ui.post(self.handle, ColorGradientEditorMessage::Value(gradient));
             }
         } else if let Some(ColorFieldMessage::Color(color)) = message.data() {
             if message.destination() == self.selector_field
@@ -314,11 +296,7 @@ impl Control for ColorGradientEditor {
                     ));
                 }
 
-                ui.send_message(ColorGradientEditorMessage::value(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    gradient,
-                ));
+                ui.post(self.handle, ColorGradientEditorMessage::Value(gradient));
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.context_menu.handle()
@@ -507,10 +485,6 @@ pub enum ColorPointMessage {
 }
 impl MessageData for ColorPointMessage {}
 
-impl ColorPointMessage {
-    define_constructor!(ColorPointMessage:Location => fn location(f32));
-}
-
 #[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "a493a603-3451-4005-8c80-559707729e70")]
 #[reflect(derived_type = "UiNode")]
@@ -587,11 +561,7 @@ impl Control for ColorPoint {
 
                                 self.dragging = false;
 
-                                ui.send_message(ColorPointMessage::location(
-                                    self.handle,
-                                    MessageDirection::FromWidget,
-                                    self.location,
-                                ));
+                                ui.post(self.handle, ColorPointMessage::Location(self.location));
                             }
                         }
                         WidgetMessage::MouseMove { pos, .. } => {
