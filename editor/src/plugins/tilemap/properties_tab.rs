@@ -43,7 +43,7 @@ use fyrox::{
     },
 };
 
-use crate::{send_sync_message, MSG_SYNC_FLAG};
+use crate::MSG_SYNC_FLAG;
 
 use super::*;
 use commands::*;
@@ -532,10 +532,7 @@ impl PropertiesTab {
             _ => Color::BLACK,
         };
         ui.send_sync(self.value_name_field, TextMessage::Text(value_name));
-        send_sync_message(
-            ui,
-            ColorFieldMessage::color(self.color_field, MessageDirection::ToWidget, color),
-        );
+        ui.send_sync(self.color_field, ColorFieldMessage::Color(color));
         let named_value = name_index.and_then(|i| prop.and_then(|p| p.named_values.get(i)));
         let value = named_value.map(|v| v.value);
         match value {

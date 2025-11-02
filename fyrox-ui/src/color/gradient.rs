@@ -332,15 +332,11 @@ impl Control for ColorGradientEditor {
                         .try_get_node(self.context_menu_target.get())
                         .and_then(|n| n.query_component::<ColorPoint>())
                     {
-                        let mut msg = ColorFieldMessage::color(
+                        ui.send_with_flags(
                             self.selector_field,
-                            MessageDirection::ToWidget,
-                            point.color(),
-                        );
-
-                        msg.flags = SYNC_FLAG;
-
-                        ui.send_message(msg)
+                            SYNC_FLAG,
+                            ColorFieldMessage::Color(point.color()),
+                        )
                     }
                 }
             }

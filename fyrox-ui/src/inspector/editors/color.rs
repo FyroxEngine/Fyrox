@@ -66,10 +66,9 @@ impl PropertyEditorDefinition for ColorPropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Color>()?;
-        Ok(Some(ColorFieldMessage::color(
+        Ok(Some(UiMessage::for_widget(
             ctx.instance,
-            MessageDirection::ToWidget,
-            *value,
+            ColorFieldMessage::Color(*value),
         )))
     }
 

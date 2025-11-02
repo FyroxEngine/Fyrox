@@ -501,10 +501,7 @@ impl TileEditor for TileColorEditor {
         }
         send_visibility(ui, self.handle, color.is_some());
         if let Some(color) = color {
-            send_sync_message(
-                ui,
-                ColorFieldMessage::color(self.field, MessageDirection::ToWidget, color),
-            );
+            ui.send_sync(self.field, ColorFieldMessage::Color(color));
         }
     }
 

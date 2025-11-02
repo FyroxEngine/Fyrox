@@ -235,7 +235,7 @@ impl UiView for bool {
 
 impl UiView for Color {
     fn into_message(self, item: Handle<UiNode>) -> UiMessage {
-        ColorFieldMessage::color(item, MessageDirection::ToWidget, self)
+        UiMessage::for_widget(item, ColorFieldMessage::Color(self))
     }
     fn make_view(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ColorFieldBuilder::new(WidgetBuilder::new())

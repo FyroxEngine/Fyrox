@@ -39,7 +39,7 @@ use fyrox::{
 
 use fyrox::scene::tilemap::{tileset::*, *};
 
-use crate::{send_sync_message, MSG_SYNC_FLAG};
+use crate::MSG_SYNC_FLAG;
 
 use super::*;
 use commands::*;
@@ -286,10 +286,7 @@ impl CollidersTab {
         };
         ui.send(self.data_panel, WidgetMessage::Enabled(sel_index.is_some()));
         ui.send_sync(self.name_field, TextMessage::Text(name));
-        send_sync_message(
-            ui,
-            ColorFieldMessage::color(self.color_field, MessageDirection::ToWidget, color),
-        );
+        ui.send_sync(self.color_field, ColorFieldMessage::Color(color));
     }
     pub fn handle_ui_message(
         &mut self,
