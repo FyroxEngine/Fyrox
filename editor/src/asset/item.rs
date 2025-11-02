@@ -33,12 +33,11 @@ use crate::{
         gui::{
             border::BorderBuilder,
             brush::Brush,
-            define_constructor,
             draw::{CommandTexture, Draw, DrawingContext},
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
-            message::{MessageDirection, MouseButton, UiMessage},
+            message::{MouseButton, UiMessage},
             style::{resource::StyleResourceExt, Style},
             text::TextBuilder,
             widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -76,12 +75,6 @@ pub enum AssetItemMessage {
     },
 }
 impl MessageData for AssetItemMessage {}
-
-impl AssetItemMessage {
-    define_constructor!(AssetItemMessage:Select => fn select(bool));
-    define_constructor!(AssetItemMessage:Icon => fn icon(texture: Option<TextureResource>, flip_y: bool, color: Color));
-    define_constructor!(AssetItemMessage:MoveTo => fn move_to(src_item_path: PathBuf, dest_dir: PathBuf));
-}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Visit, Reflect, ComponentProvider)]
