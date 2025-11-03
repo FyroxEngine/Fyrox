@@ -473,53 +473,51 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                 },
                 _ => {}
             }
-        } else if let Some(msg) = message.data::<NumericUpDownMessage<T>>() {
-            if message.is_for(self.handle()) {
-                match msg {
-                    NumericUpDownMessage::Value(value) => {
-                        let clamped = self.clamp_value(*value);
-                        if *self.value != clamped {
-                            self.value.set_value_and_mark_modified(clamped);
+        } else if let Some(msg) = message.data_for::<NumericUpDownMessage<T>>(self.handle()) {
+            match msg {
+                NumericUpDownMessage::Value(value) => {
+                    let clamped = self.clamp_value(*value);
+                    if *self.value != clamped {
+                        self.value.set_value_and_mark_modified(clamped);
 
-                            self.sync_text_field(ui);
+                        self.sync_text_field(ui);
 
-                            let mut msg = UiMessage::from_widget(
-                                self.handle,
-                                NumericUpDownMessage::Value(*self.value),
-                            );
-                            // We must maintain flags
-                            msg.set_handled(message.handled());
-                            msg.flags = message.flags;
-                            ui.send_message(msg);
-                        }
+                        let mut msg = UiMessage::from_widget(
+                            self.handle,
+                            NumericUpDownMessage::Value(*self.value),
+                        );
+                        // We must maintain flags
+                        msg.set_handled(message.handled());
+                        msg.flags = message.flags;
+                        ui.send_message(msg);
                     }
-                    NumericUpDownMessage::MinValue(min_value) => {
-                        if (*self.min_value).ne(min_value) {
-                            self.min_value.set_value_and_mark_modified(*min_value);
-                            ui.send_message(message.reverse());
-                            self.sync_value_to_bounds_if_needed(ui);
-                        }
+                }
+                NumericUpDownMessage::MinValue(min_value) => {
+                    if (*self.min_value).ne(min_value) {
+                        self.min_value.set_value_and_mark_modified(*min_value);
+                        ui.send_message(message.reverse());
+                        self.sync_value_to_bounds_if_needed(ui);
                     }
-                    NumericUpDownMessage::MaxValue(max_value) => {
-                        if (*self.max_value).ne(max_value) {
-                            self.max_value.set_value_and_mark_modified(*max_value);
-                            ui.send_message(message.reverse());
-                            self.sync_value_to_bounds_if_needed(ui);
-                        }
+                }
+                NumericUpDownMessage::MaxValue(max_value) => {
+                    if (*self.max_value).ne(max_value) {
+                        self.max_value.set_value_and_mark_modified(*max_value);
+                        ui.send_message(message.reverse());
+                        self.sync_value_to_bounds_if_needed(ui);
                     }
-                    NumericUpDownMessage::Step(step) => {
-                        if (*self.step).ne(step) {
-                            self.step.set_value_and_mark_modified(*step);
-                            ui.send_message(message.reverse());
-                            self.sync_text_field(ui);
-                        }
+                }
+                NumericUpDownMessage::Step(step) => {
+                    if (*self.step).ne(step) {
+                        self.step.set_value_and_mark_modified(*step);
+                        ui.send_message(message.reverse());
+                        self.sync_text_field(ui);
                     }
-                    NumericUpDownMessage::Precision(precision) => {
-                        if (*self.precision).ne(precision) {
-                            self.precision.set_value_and_mark_modified(*precision);
-                            ui.send_message(message.reverse());
-                            self.sync_text_field(ui);
-                        }
+                }
+                NumericUpDownMessage::Precision(precision) => {
+                    if (*self.precision).ne(precision) {
+                        self.precision.set_value_and_mark_modified(*precision);
+                        ui.send_message(message.reverse());
+                        self.sync_text_field(ui);
                     }
                 }
             }

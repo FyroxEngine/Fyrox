@@ -191,18 +191,16 @@ impl Control for DockingManager {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.is_for(self.handle) {
-            if let Some(msg) = message.data() {
-                match msg {
-                    DockingManagerMessage::Layout(layout_descriptor) => {
-                        self.set_layout(layout_descriptor, ui);
-                    }
-                    DockingManagerMessage::AddFloatingWindow(window) => {
-                        self.add_floating_window(*window)
-                    }
-                    DockingManagerMessage::RemoveFloatingWindow(window) => {
-                        self.remove_floating_window(*window)
-                    }
+        if let Some(msg) = message.data_for(self.handle) {
+            match msg {
+                DockingManagerMessage::Layout(layout_descriptor) => {
+                    self.set_layout(layout_descriptor, ui);
+                }
+                DockingManagerMessage::AddFloatingWindow(window) => {
+                    self.add_floating_window(*window)
+                }
+                DockingManagerMessage::RemoveFloatingWindow(window) => {
+                    self.remove_floating_window(*window)
                 }
             }
         }

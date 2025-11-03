@@ -1167,108 +1167,106 @@ impl Widget {
     /// Handles incoming [`WidgetMessage`]s. This method **must** be called in [`crate::control::Control::handle_routed_message`]
     /// of any derived widgets!
     pub fn handle_routed_message(&mut self, ui: &mut UserInterface, msg: &mut UiMessage) {
-        if msg.is_for(self.handle()) {
-            if let Some(msg) = msg.data::<WidgetMessage>() {
-                match msg {
-                    &WidgetMessage::Opacity(opacity) => {
-                        self.opacity.set_value_and_mark_modified(opacity);
+        if let Some(msg) = msg.data_for::<WidgetMessage>(self.handle()) {
+            match msg {
+                &WidgetMessage::Opacity(opacity) => {
+                    self.opacity.set_value_and_mark_modified(opacity);
+                }
+                WidgetMessage::Background(background) => {
+                    *self.background = background.clone();
+                }
+                WidgetMessage::Foreground(foreground) => {
+                    *self.foreground = foreground.clone();
+                }
+                WidgetMessage::Name(name) => self.name = ImmutableString::new(name),
+                &WidgetMessage::Width(width) => {
+                    if *self.width != width {
+                        self.set_width_notify(width);
                     }
-                    WidgetMessage::Background(background) => {
-                        *self.background = background.clone();
+                }
+                &WidgetMessage::Height(height) => {
+                    if *self.height != height {
+                        self.set_height_notify(height);
                     }
-                    WidgetMessage::Foreground(foreground) => {
-                        *self.foreground = foreground.clone();
+                }
+                WidgetMessage::VerticalAlignment(vertical_alignment) => {
+                    if *self.vertical_alignment != *vertical_alignment {
+                        self.set_vertical_alignment(*vertical_alignment);
                     }
-                    WidgetMessage::Name(name) => self.name = ImmutableString::new(name),
-                    &WidgetMessage::Width(width) => {
-                        if *self.width != width {
-                            self.set_width_notify(width);
-                        }
+                }
+                WidgetMessage::HorizontalAlignment(horizontal_alignment) => {
+                    if *self.horizontal_alignment != *horizontal_alignment {
+                        self.set_horizontal_alignment(*horizontal_alignment);
                     }
-                    &WidgetMessage::Height(height) => {
-                        if *self.height != height {
-                            self.set_height_notify(height);
-                        }
+                }
+                WidgetMessage::MaxSize(max_size) => {
+                    if *self.max_size != *max_size {
+                        self.set_max_size_notify(*max_size);
                     }
-                    WidgetMessage::VerticalAlignment(vertical_alignment) => {
-                        if *self.vertical_alignment != *vertical_alignment {
-                            self.set_vertical_alignment(*vertical_alignment);
-                        }
+                }
+                WidgetMessage::MinSize(min_size) => {
+                    if *self.min_size != *min_size {
+                        self.set_min_size_notify(*min_size);
                     }
-                    WidgetMessage::HorizontalAlignment(horizontal_alignment) => {
-                        if *self.horizontal_alignment != *horizontal_alignment {
-                            self.set_horizontal_alignment(*horizontal_alignment);
-                        }
+                }
+                &WidgetMessage::Row(row) => {
+                    if *self.row != row {
+                        self.set_row_notify(row);
                     }
-                    WidgetMessage::MaxSize(max_size) => {
-                        if *self.max_size != *max_size {
-                            self.set_max_size_notify(*max_size);
-                        }
+                }
+                &WidgetMessage::Column(column) => {
+                    if *self.column != column {
+                        self.set_column_notify(column);
                     }
-                    WidgetMessage::MinSize(min_size) => {
-                        if *self.min_size != *min_size {
-                            self.set_min_size_notify(*min_size);
-                        }
+                }
+                &WidgetMessage::Margin(margin) => {
+                    if *self.margin != margin {
+                        self.set_margin_notify(margin);
                     }
-                    &WidgetMessage::Row(row) => {
-                        if *self.row != row {
-                            self.set_row_notify(row);
-                        }
+                }
+                WidgetMessage::HitTestVisibility(hit_test_visibility) => {
+                    self.hit_test_visibility
+                        .set_value_and_mark_modified(*hit_test_visibility);
+                }
+                &WidgetMessage::Visibility(visibility) => {
+                    self.set_visibility(visibility);
+                }
+                &WidgetMessage::DesiredPosition(pos) => {
+                    if *self.desired_local_position != pos {
+                        self.set_desired_local_position_notify(pos);
                     }
-                    &WidgetMessage::Column(column) => {
-                        if *self.column != column {
-                            self.set_column_notify(column);
-                        }
+                }
+                &WidgetMessage::Enabled(enabled) => {
+                    self.enabled.set_value_and_mark_modified(enabled);
+                }
+                &WidgetMessage::Cursor(icon) => {
+                    self.cursor.set_value_and_mark_modified(icon);
+                }
+                WidgetMessage::LayoutTransform(transform) => {
+                    if &self.layout_transform != transform {
+                        self.set_layout_transform(*transform);
                     }
-                    &WidgetMessage::Margin(margin) => {
-                        if *self.margin != margin {
-                            self.set_margin_notify(margin);
-                        }
-                    }
-                    WidgetMessage::HitTestVisibility(hit_test_visibility) => {
-                        self.hit_test_visibility
-                            .set_value_and_mark_modified(*hit_test_visibility);
-                    }
-                    &WidgetMessage::Visibility(visibility) => {
-                        self.set_visibility(visibility);
-                    }
-                    &WidgetMessage::DesiredPosition(pos) => {
-                        if *self.desired_local_position != pos {
-                            self.set_desired_local_position_notify(pos);
-                        }
-                    }
-                    &WidgetMessage::Enabled(enabled) => {
-                        self.enabled.set_value_and_mark_modified(enabled);
-                    }
-                    &WidgetMessage::Cursor(icon) => {
-                        self.cursor.set_value_and_mark_modified(icon);
-                    }
-                    WidgetMessage::LayoutTransform(transform) => {
-                        if &self.layout_transform != transform {
-                            self.set_layout_transform(*transform);
-                        }
-                    }
-                    WidgetMessage::RenderTransform(transform) => {
-                        self.set_render_transform(*transform);
-                    }
-                    WidgetMessage::ZIndex(index) => {
-                        if *self.z_index != *index {
-                            self.set_z_index(*index);
-                            self.invalidate_layout();
-                        }
-                    }
-                    WidgetMessage::SortChildren(predicate) => {
-                        self.children
-                            .sort_unstable_by(|a, b| predicate.0(*a, *b, ui));
+                }
+                WidgetMessage::RenderTransform(transform) => {
+                    self.set_render_transform(*transform);
+                }
+                WidgetMessage::ZIndex(index) => {
+                    if *self.z_index != *index {
+                        self.set_z_index(*index);
                         self.invalidate_layout();
                     }
-                    WidgetMessage::Style(style) => {
-                        self.background.update(style);
-                        self.foreground.update(style);
-                        self.style = Some(style.clone());
-                    }
-                    _ => (),
                 }
+                WidgetMessage::SortChildren(predicate) => {
+                    self.children
+                        .sort_unstable_by(|a, b| predicate.0(*a, *b, ui));
+                    self.invalidate_layout();
+                }
+                WidgetMessage::Style(style) => {
+                    self.background.update(style);
+                    self.foreground.update(style);
+                    self.style = Some(style.clone());
+                }
+                _ => (),
             }
         }
     }

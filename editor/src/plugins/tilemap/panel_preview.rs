@@ -253,10 +253,8 @@ impl Control for PanelPreview {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
-        if message.is_for(self.handle()) {
-            if let Some(PaletteMessage::SyncToState) = message.data::<PaletteMessage>() {
-                self.sync_to_state();
-            }
+        if let Some(PaletteMessage::SyncToState) = message.data_for(self.handle()) {
+            self.sync_to_state();
         }
     }
 }

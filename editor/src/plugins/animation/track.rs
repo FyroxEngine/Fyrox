@@ -341,44 +341,41 @@ impl Control for TrackView {
             if self.track_enabled != *value {
                 ui.send(self.handle, TrackViewMessage::TrackEnabled(*value));
             }
-        } else if let Some(msg) = message.data::<TrackViewMessage>() {
-            if message.is_for(self.handle) {
-                match msg {
-                    TrackViewMessage::TrackEnabled(enabled) => {
-                        if self.track_enabled != *enabled {
-                            self.track_enabled = *enabled;
+        } else if let Some(msg) = message.data_for::<TrackViewMessage>(self.handle) {
+            match msg {
+                TrackViewMessage::TrackEnabled(enabled) => {
+                    if self.track_enabled != *enabled {
+                        self.track_enabled = *enabled;
 
-                            ui.send(
-                                self.track_enabled_switch,
-                                CheckBoxMessage::Check(Some(*enabled)),
-                            );
-
-                            ui.send_message(message.reverse());
-                        }
-                    }
-                    TrackViewMessage::TrackName(name) => {
-                        ui.send(self.name_text, TextMessage::Text(name.clone()));
-                    }
-                    TrackViewMessage::TrackTargetIsValid(result) => {
                         ui.send(
-                            self.name_text,
-                            WidgetMessage::Foreground(if result.is_ok() {
-                                ui.style.property(Style::BRUSH_TEXT)
-                            } else {
-                                ui.style.property(Style::BRUSH_ERROR)
-                            }),
+                            self.track_enabled_switch,
+                            CheckBoxMessage::Check(Some(*enabled)),
                         );
 
-                        match result {
-                            Ok(_) => {
-                                ui.send(self.name_text, WidgetMessage::Tooltip(None));
-                            }
-                            Err(reason) => {
-                                let tooltip =
-                                    make_simple_tooltip(&mut ui.build_ctx(), reason.as_str());
+                        ui.send_message(message.reverse());
+                    }
+                }
+                TrackViewMessage::TrackName(name) => {
+                    ui.send(self.name_text, TextMessage::Text(name.clone()));
+                }
+                TrackViewMessage::TrackTargetIsValid(result) => {
+                    ui.send(
+                        self.name_text,
+                        WidgetMessage::Foreground(if result.is_ok() {
+                            ui.style.property(Style::BRUSH_TEXT)
+                        } else {
+                            ui.style.property(Style::BRUSH_ERROR)
+                        }),
+                    );
 
-                                ui.send(self.name_text, WidgetMessage::Tooltip(Some(tooltip)));
-                            }
+                    match result {
+                        Ok(_) => {
+                            ui.send(self.name_text, WidgetMessage::Tooltip(None));
+                        }
+                        Err(reason) => {
+                            let tooltip = make_simple_tooltip(&mut ui.build_ctx(), reason.as_str());
+
+                            ui.send(self.name_text, WidgetMessage::Tooltip(Some(tooltip)));
                         }
                     }
                 }

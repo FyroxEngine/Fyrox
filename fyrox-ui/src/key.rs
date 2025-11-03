@@ -267,13 +267,11 @@ impl Control for HotKeyEditor {
             }
         }
 
-        if message.is_for(self.handle) {
-            if let Some(HotKeyEditorMessage::Value(value)) = message.data() {
-                if value != &*self.value {
-                    self.value.set_value_and_mark_modified(value.clone());
-                    ui.send(*self.text, TextMessage::Text(format!("{}", *self.value)));
-                    ui.send_message(message.reverse());
-                }
+        if let Some(HotKeyEditorMessage::Value(value)) = message.data_for(self.handle) {
+            if value != &*self.value {
+                self.value.set_value_and_mark_modified(value.clone());
+                ui.send(*self.text, TextMessage::Text(format!("{}", *self.value)));
+                ui.send_message(message.reverse());
             }
         }
     }
@@ -469,13 +467,11 @@ impl Control for KeyBindingEditor {
             }
         }
 
-        if message.is_for(self.handle) {
-            if let Some(KeyBindingEditorMessage::Value(value)) = message.data() {
-                if value != &*self.value {
-                    self.value.set_value_and_mark_modified(value.clone());
-                    ui.send(*self.text, TextMessage::Text(format!("{}", *self.value)));
-                    ui.send_message(message.reverse());
-                }
+        if let Some(KeyBindingEditorMessage::Value(value)) = message.data_for(self.handle) {
+            if value != &*self.value {
+                self.value.set_value_and_mark_modified(value.clone());
+                ui.send(*self.text, TextMessage::Text(format!("{}", *self.value)));
+                ui.send_message(message.reverse());
             }
         }
     }

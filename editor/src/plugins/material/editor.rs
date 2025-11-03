@@ -136,8 +136,9 @@ impl Control for MaterialFieldEditor {
                     MaterialFieldMessage::Material(self.material.deep_copy_as_embedded()),
                 );
             }
-        } else if let Some(MaterialFieldMessage::Material(material)) = message.data() {
-            if message.is_for(self.handle) && &self.material != material {
+        } else if let Some(MaterialFieldMessage::Material(material)) = message.data_for(self.handle)
+        {
+            if &self.material != material {
                 self.material = material.clone();
 
                 ui.send(
@@ -163,17 +164,15 @@ impl Control for MaterialFieldEditor {
             texture,
             flip_y,
             color,
-        }) = message.data()
+        }) = message.data_for(self.handle)
         {
-            if message.is_for(self.handle) {
-                for widget in [self.image, self.image_preview] {
-                    ui.send(widget, ImageMessage::Texture(texture.clone()));
-                    ui.send(widget, ImageMessage::Flip(*flip_y));
-                    ui.send(
-                        widget,
-                        WidgetMessage::Background(Brush::Solid(*color).into()),
-                    )
-                }
+            for widget in [self.image, self.image_preview] {
+                ui.send(widget, ImageMessage::Texture(texture.clone()));
+                ui.send(widget, ImageMessage::Flip(*flip_y));
+                ui.send(
+                    widget,
+                    WidgetMessage::Background(Brush::Solid(*color).into()),
+                )
             }
         }
 

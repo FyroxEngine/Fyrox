@@ -110,36 +110,28 @@ impl Control for TileDefinitionHandleEditor {
         if message.flags == MSG_SYNC_FLAG {
             return;
         }
-        if let Some(&TileDefinitionHandleEditorMessage::Value(handle)) = message.data() {
-            if message.is_for(self.handle()) {
-                self.value = handle;
-                ui.send_sync(self.field, TextMessage::Text(self.text()));
-                ui.send_message(message.reverse());
+        if let Some(&TileDefinitionHandleEditorMessage::Value(handle)) =
+            message.data_for(self.handle())
+        {
+            self.value = handle;
+            ui.send_sync(self.field, TextMessage::Text(self.text()));
+            ui.send_message(message.reverse());
+        } else if let Some(TextMessage::Text(text)) = message.data_from(self.field) {
+            let value = TileDefinitionHandle::parse(text);
+            if self.allow_none || value.is_some() {
+                self.value = value;
             }
-        } else if let Some(TextMessage::Text(text)) = message.data() {
-            if message.direction() == MessageDirection::FromWidget
-                && message.destination() == self.field
-            {
-                let value = TileDefinitionHandle::parse(text);
-                if self.allow_none || value.is_some() {
-                    self.value = value;
-                }
+            ui.post(
+                self.handle(),
+                TileDefinitionHandleEditorMessage::Value(self.value),
+            );
+            ui.send_sync(self.field, TextMessage::Text(self.text()));
+        } else if let Some(ButtonMessage::Click) = message.data_from(self.button) {
+            if let Some(handle) = self.value {
                 ui.post(
                     self.handle(),
-                    TileDefinitionHandleEditorMessage::Value(self.value),
+                    TileDefinitionHandleEditorMessage::Goto(handle),
                 );
-                ui.send_sync(self.field, TextMessage::Text(self.text()));
-            }
-        } else if let Some(ButtonMessage::Click) = message.data() {
-            if message.direction() == MessageDirection::FromWidget
-                && message.destination() == self.button
-            {
-                if let Some(handle) = self.value {
-                    ui.post(
-                        self.handle(),
-                        TileDefinitionHandleEditorMessage::Goto(handle),
-                    );
-                }
             }
         }
     }

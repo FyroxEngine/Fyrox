@@ -283,30 +283,28 @@ impl Control for Ruler {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(msg) = message.data::<RulerMessage>() {
-            if message.is_for(self.handle) {
-                match msg {
-                    RulerMessage::Zoom(zoom) => {
-                        self.transform.set_scale(Vector2::new(*zoom, 1.0));
+        if let Some(msg) = message.data_for::<RulerMessage>(self.handle) {
+            match msg {
+                RulerMessage::Zoom(zoom) => {
+                    self.transform.set_scale(Vector2::new(*zoom, 1.0));
+                }
+                RulerMessage::ViewPosition(position) => {
+                    self.transform.set_position(Vector2::new(*position, 0.0));
+                }
+                RulerMessage::Value(value) => {
+                    if value.ne(&self.value) {
+                        self.value = *value;
+                        ui.send_message(message.reverse());
                     }
-                    RulerMessage::ViewPosition(position) => {
-                        self.transform.set_position(Vector2::new(*position, 0.0));
-                    }
-                    RulerMessage::Value(value) => {
-                        if value.ne(&self.value) {
-                            self.value = *value;
-                            ui.send_message(message.reverse());
-                        }
-                    }
-                    RulerMessage::AddSignal(_)
-                    | RulerMessage::RemoveSignal(_)
-                    | RulerMessage::MoveSignal { .. }
-                    | RulerMessage::SelectSignal(_) => {
-                        // Do nothing. These messages are only for output.
-                    }
-                    RulerMessage::SyncSignals(signals) => {
-                        self.signals.borrow_mut().clone_from(signals);
-                    }
+                }
+                RulerMessage::AddSignal(_)
+                | RulerMessage::RemoveSignal(_)
+                | RulerMessage::MoveSignal { .. }
+                | RulerMessage::SelectSignal(_) => {
+                    // Do nothing. These messages are only for output.
+                }
+                RulerMessage::SyncSignals(signals) => {
+                    self.signals.borrow_mut().clone_from(signals);
                 }
             }
         } else if let Some(msg) = message.data::<WidgetMessage>() {

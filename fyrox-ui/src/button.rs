@@ -207,29 +207,27 @@ impl Control for Button {
                     _ => (),
                 }
             }
-        } else if let Some(msg) = message.data::<ButtonMessage>() {
-            if message.is_for(self.handle()) {
-                match msg {
-                    ButtonMessage::Click => (),
-                    ButtonMessage::Content(content) => {
-                        if self.content.is_some() {
-                            ui.send(*self.content, WidgetMessage::Remove);
-                        }
-                        self.content
-                            .set_value_and_mark_modified(content.build(&mut ui.build_ctx()));
-                        ui.send(*self.content, WidgetMessage::LinkWith(*self.decorator));
+        } else if let Some(msg) = message.data_for::<ButtonMessage>(self.handle()) {
+            match msg {
+                ButtonMessage::Click => (),
+                ButtonMessage::Content(content) => {
+                    if self.content.is_some() {
+                        ui.send(*self.content, WidgetMessage::Remove);
                     }
-                    ButtonMessage::RepeatInterval(interval) => {
-                        if *self.repeat_interval != *interval {
-                            *self.repeat_interval = *interval;
-                            ui.send_message(message.reverse());
-                        }
+                    self.content
+                        .set_value_and_mark_modified(content.build(&mut ui.build_ctx()));
+                    ui.send(*self.content, WidgetMessage::LinkWith(*self.decorator));
+                }
+                ButtonMessage::RepeatInterval(interval) => {
+                    if *self.repeat_interval != *interval {
+                        *self.repeat_interval = *interval;
+                        ui.send_message(message.reverse());
                     }
-                    ButtonMessage::RepeatClicksOnHold(repeat_clicks) => {
-                        if *self.repeat_clicks_on_hold != *repeat_clicks {
-                            *self.repeat_clicks_on_hold = *repeat_clicks;
-                            ui.send_message(message.reverse());
-                        }
+                }
+                ButtonMessage::RepeatClicksOnHold(repeat_clicks) => {
+                    if *self.repeat_clicks_on_hold != *repeat_clicks {
+                        *self.repeat_clicks_on_hold = *repeat_clicks;
+                        ui.send_message(message.reverse());
                     }
                 }
             }

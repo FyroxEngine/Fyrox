@@ -103,22 +103,18 @@ impl Control for ToggleButton {
                     _ => {}
                 }
             }
-        } else if let Some(msg) = message.data::<ToggleButtonMessage>() {
-            if message.is_for(self.handle()) {
-                match msg {
-                    ToggleButtonMessage::Toggled(value) => {
-                        if self.is_toggled != *value {
-                            self.is_toggled = *value;
-
-                            ui.send(self.decorator, DecoratorMessage::Select(self.is_toggled));
-
-                            ui.send_message(message.reverse());
-                        }
+        } else if let Some(msg) = message.data_for::<ToggleButtonMessage>(self.handle()) {
+            match msg {
+                ToggleButtonMessage::Toggled(value) => {
+                    if self.is_toggled != *value {
+                        self.is_toggled = *value;
+                        ui.send(self.decorator, DecoratorMessage::Select(self.is_toggled));
+                        ui.send_message(message.reverse());
                     }
-                    ToggleButtonMessage::Content(content) => {
-                        ui.send(self.content, WidgetMessage::Remove);
-                        ui.send(*content, WidgetMessage::LinkWith(self.decorator));
-                    }
+                }
+                ToggleButtonMessage::Content(content) => {
+                    ui.send(self.content, WidgetMessage::Remove);
+                    ui.send(*content, WidgetMessage::LinkWith(self.decorator));
                 }
             }
         }

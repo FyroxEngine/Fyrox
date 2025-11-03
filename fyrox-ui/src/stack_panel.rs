@@ -239,12 +239,10 @@ impl Control for StackPanel {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.is_for(self.handle) {
-            if let Some(StackPanelMessage::Orientation(orientation)) = message.data() {
-                if *orientation != *self.orientation {
-                    self.orientation.set_value_and_mark_modified(*orientation);
-                    self.invalidate_layout();
-                }
+        if let Some(StackPanelMessage::Orientation(orientation)) = message.data_for(self.handle) {
+            if *orientation != *self.orientation {
+                self.orientation.set_value_and_mark_modified(*orientation);
+                self.invalidate_layout();
             }
         }
     }

@@ -177,8 +177,8 @@ impl Control for TextureEditor {
                     }
                 }
             }
-        } else if let Some(TextureEditorMessage::Texture(texture)) = message.data() {
-            if &self.texture != texture && message.is_for(self.handle) {
+        } else if let Some(TextureEditorMessage::Texture(texture)) = message.data_for(self.handle) {
+            if &self.texture != texture {
                 self.texture.clone_from(texture);
 
                 ui.send(self.image, ImageMessage::Texture(self.texture.clone()));

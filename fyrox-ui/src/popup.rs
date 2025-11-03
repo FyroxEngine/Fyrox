@@ -373,111 +373,107 @@ impl Control for Popup {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(msg) = message.data::<PopupMessage>() {
-            if message.is_for(self.handle()) {
-                match msg {
-                    PopupMessage::Open => {
-                        if !*self.is_open {
-                            self.is_open.set_value_and_mark_modified(true);
-                            ui.send(self.handle(), WidgetMessage::Visibility(true));
-                            if *self.restrict_picking {
-                                ui.push_picking_restriction(RestrictionEntry {
-                                    handle: self.handle(),
-                                    stop: false,
-                                });
-                            }
-                            ui.send(self.handle(), WidgetMessage::Topmost);
-                            let position = match *self.placement {
-                                Placement::LeftTop(target) => self.left_top_placement(ui, target),
-                                Placement::RightTop(target) => self.right_top_placement(ui, target),
-                                Placement::Center(target) => self.center_placement(ui, target),
-                                Placement::LeftBottom(target) => {
-                                    self.left_bottom_placement(ui, target)
-                                }
-                                Placement::RightBottom(target) => {
-                                    self.right_bottom_placement(ui, target)
-                                }
-                                Placement::Cursor(_) => ui.cursor_position(),
-                                Placement::Position { position, .. } => position,
-                            };
-
-                            ui.send(
-                                self.handle(),
-                                WidgetMessage::DesiredPosition(
-                                    ui.screen_to_root_canvas_space(position),
-                                ),
-                            );
-                            ui.send(
-                                if self.content.is_some() {
-                                    *self.content
-                                } else {
-                                    self.handle
-                                },
-                                WidgetMessage::Focus,
-                            );
-                            if *self.smart_placement {
-                                ui.send(self.handle, PopupMessage::AdjustPosition);
-                            }
-                            ui.send_message(message.reverse());
+        if let Some(msg) = message.data_for::<PopupMessage>(self.handle()) {
+            match msg {
+                PopupMessage::Open => {
+                    if !*self.is_open {
+                        self.is_open.set_value_and_mark_modified(true);
+                        ui.send(self.handle(), WidgetMessage::Visibility(true));
+                        if *self.restrict_picking {
+                            ui.push_picking_restriction(RestrictionEntry {
+                                handle: self.handle(),
+                                stop: false,
+                            });
                         }
-                    }
-                    PopupMessage::Close => {
-                        if *self.is_open {
-                            self.is_open.set_value_and_mark_modified(false);
-                            ui.send(self.handle(), WidgetMessage::Visibility(false));
-
-                            if *self.restrict_picking {
-                                ui.remove_picking_restriction(self.handle());
-
-                                if let Some(top) = ui.top_picking_restriction() {
-                                    ui.send(top.handle, WidgetMessage::Focus);
-                                }
+                        ui.send(self.handle(), WidgetMessage::Topmost);
+                        let position = match *self.placement {
+                            Placement::LeftTop(target) => self.left_top_placement(ui, target),
+                            Placement::RightTop(target) => self.right_top_placement(ui, target),
+                            Placement::Center(target) => self.center_placement(ui, target),
+                            Placement::LeftBottom(target) => self.left_bottom_placement(ui, target),
+                            Placement::RightBottom(target) => {
+                                self.right_bottom_placement(ui, target)
                             }
+                            Placement::Cursor(_) => ui.cursor_position(),
+                            Placement::Position { position, .. } => position,
+                        };
 
-                            if ui.captured_node() == self.handle() {
-                                ui.release_mouse_capture();
-                            }
-
-                            ui.send_message(message.reverse());
-                        }
-                    }
-                    PopupMessage::Content(content) => {
-                        if *self.content != *content {
+                        ui.send(
+                            self.handle(),
+                            WidgetMessage::DesiredPosition(
+                                ui.screen_to_root_canvas_space(position),
+                            ),
+                        );
+                        ui.send(
                             if self.content.is_some() {
-                                ui.send(*self.content, WidgetMessage::Remove);
-                            }
-                            self.content.set_value_and_mark_modified(*content);
-                            ui.send(*self.content, WidgetMessage::LinkWith(*self.body));
-
-                            ui.send_message(message.reverse());
+                                *self.content
+                            } else {
+                                self.handle
+                            },
+                            WidgetMessage::Focus,
+                        );
+                        if *self.smart_placement {
+                            ui.send(self.handle, PopupMessage::AdjustPosition);
                         }
+                        ui.send_message(message.reverse());
                     }
-                    PopupMessage::Placement(placement) => {
-                        if *self.placement != *placement {
-                            self.placement.set_value_and_mark_modified(*placement);
-                            self.invalidate_layout();
-
-                            ui.send_message(message.reverse());
-                        }
-                    }
-                    PopupMessage::AdjustPosition => {
-                        let new_position =
-                            adjust_placement_position(self.screen_bounds(), ui.screen_size());
-
-                        if new_position != self.screen_position() {
-                            ui.send(
-                                self.handle,
-                                WidgetMessage::DesiredPosition(
-                                    ui.screen_to_root_canvas_space(new_position),
-                                ),
-                            );
-                        }
-                    }
-                    PopupMessage::Owner(owner) => {
-                        self.owner = *owner;
-                    }
-                    PopupMessage::RelayedMessage(_) => (),
                 }
+                PopupMessage::Close => {
+                    if *self.is_open {
+                        self.is_open.set_value_and_mark_modified(false);
+                        ui.send(self.handle(), WidgetMessage::Visibility(false));
+
+                        if *self.restrict_picking {
+                            ui.remove_picking_restriction(self.handle());
+
+                            if let Some(top) = ui.top_picking_restriction() {
+                                ui.send(top.handle, WidgetMessage::Focus);
+                            }
+                        }
+
+                        if ui.captured_node() == self.handle() {
+                            ui.release_mouse_capture();
+                        }
+
+                        ui.send_message(message.reverse());
+                    }
+                }
+                PopupMessage::Content(content) => {
+                    if *self.content != *content {
+                        if self.content.is_some() {
+                            ui.send(*self.content, WidgetMessage::Remove);
+                        }
+                        self.content.set_value_and_mark_modified(*content);
+                        ui.send(*self.content, WidgetMessage::LinkWith(*self.body));
+
+                        ui.send_message(message.reverse());
+                    }
+                }
+                PopupMessage::Placement(placement) => {
+                    if *self.placement != *placement {
+                        self.placement.set_value_and_mark_modified(*placement);
+                        self.invalidate_layout();
+
+                        ui.send_message(message.reverse());
+                    }
+                }
+                PopupMessage::AdjustPosition => {
+                    let new_position =
+                        adjust_placement_position(self.screen_bounds(), ui.screen_size());
+
+                    if new_position != self.screen_position() {
+                        ui.send(
+                            self.handle,
+                            WidgetMessage::DesiredPosition(
+                                ui.screen_to_root_canvas_space(new_position),
+                            ),
+                        );
+                    }
+                }
+                PopupMessage::Owner(owner) => {
+                    self.owner = *owner;
+                }
+                PopupMessage::RelayedMessage(_) => (),
             }
         } else if let Some(WidgetMessage::KeyDown(key)) = message.data() {
             if !message.handled() && *key == KeyCode::Escape {

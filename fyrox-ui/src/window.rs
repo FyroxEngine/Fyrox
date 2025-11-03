@@ -555,259 +555,253 @@ impl Control for Window {
             } else if message.destination() == self.close_button {
                 ui.send(self.handle(), WindowMessage::Close);
             }
-        } else if let Some(msg) = message.data::<WindowMessage>() {
-            if message.is_for(self.handle()) {
-                match msg {
-                    &WindowMessage::Open {
-                        center,
-                        focus_content,
-                    } => {
-                        // Only manage this window's visibility if it is at the root.
-                        // Otherwise it is part of something like a tile, and that parent should decide
-                        // whether the window is visible.
-                        if !self.visibility() && self.parent() == ui.root() {
-                            ui.send(self.handle(), WidgetMessage::Visibility(true));
-                            // If we are opening the window with non-finite width and height, something
-                            // has gone wrong, so correct it.
-                            if !self.width().is_finite() {
-                                Log::err(format!("Window width was {}", self.width()));
-                                self.set_width(200.0);
-                            }
-                            if !self.height().is_finite() {
-                                Log::err(format!("Window height was {}", self.height()));
-                                self.set_height(200.0);
-                            }
+        } else if let Some(msg) = message.data_for::<WindowMessage>(self.handle()) {
+            match msg {
+                &WindowMessage::Open {
+                    center,
+                    focus_content,
+                } => {
+                    // Only manage this window's visibility if it is at the root.
+                    // Otherwise it is part of something like a tile, and that parent should decide
+                    // whether the window is visible.
+                    if !self.visibility() && self.parent() == ui.root() {
+                        ui.send(self.handle(), WidgetMessage::Visibility(true));
+                        // If we are opening the window with non-finite width and height, something
+                        // has gone wrong, so correct it.
+                        if !self.width().is_finite() {
+                            Log::err(format!("Window width was {}", self.width()));
+                            self.set_width(200.0);
                         }
-                        ui.send(self.handle(), WidgetMessage::Topmost);
+                        if !self.height().is_finite() {
+                            Log::err(format!("Window height was {}", self.height()));
+                            self.set_height(200.0);
+                        }
+                    }
+                    ui.send(self.handle(), WidgetMessage::Topmost);
+                    if focus_content {
+                        ui.send(self.content_to_focus(), WidgetMessage::Focus);
+                    }
+                    if center && self.parent() == ui.root() {
+                        ui.send(self.handle(), WidgetMessage::Center);
+                    }
+                }
+                &WindowMessage::OpenAt {
+                    position,
+                    focus_content,
+                } => {
+                    if !self.visibility() {
+                        ui.send_many(
+                            self.handle(),
+                            [
+                                WidgetMessage::Visibility(true),
+                                WidgetMessage::Topmost,
+                                WidgetMessage::DesiredPosition(position),
+                            ],
+                        );
                         if focus_content {
                             ui.send(self.content_to_focus(), WidgetMessage::Focus);
                         }
-                        if center && self.parent() == ui.root() {
-                            ui.send(self.handle(), WidgetMessage::Center);
-                        }
                     }
-                    &WindowMessage::OpenAt {
-                        position,
-                        focus_content,
-                    } => {
-                        if !self.visibility() {
-                            ui.send_many(
-                                self.handle(),
-                                [
-                                    WidgetMessage::Visibility(true),
-                                    WidgetMessage::Topmost,
-                                    WidgetMessage::DesiredPosition(position),
-                                ],
-                            );
-                            if focus_content {
-                                ui.send(self.content_to_focus(), WidgetMessage::Focus);
-                            }
-                        }
-                    }
-                    &WindowMessage::OpenAndAlign {
-                        relative_to,
-                        horizontal_alignment,
-                        vertical_alignment,
-                        margin,
-                        modal,
-                        focus_content,
-                    } => {
-                        if !self.visibility() {
-                            ui.send_many(
-                                self.handle(),
-                                [
-                                    WidgetMessage::Visibility(true),
-                                    WidgetMessage::Topmost,
-                                    WidgetMessage::Align {
-                                        relative_to,
-                                        horizontal_alignment,
-                                        vertical_alignment,
-                                        margin,
-                                    },
-                                ],
-                            );
-                            if modal {
-                                ui.push_picking_restriction(RestrictionEntry {
-                                    handle: self.handle(),
-                                    stop: true,
-                                });
-                            }
-                            if focus_content {
-                                ui.send(self.content_to_focus(), WidgetMessage::Focus);
-                            }
-                        }
-                    }
-                    &WindowMessage::OpenModal {
-                        center,
-                        focus_content,
-                    } => {
-                        if !self.visibility() {
-                            ui.send_many(
-                                self.handle(),
-                                [WidgetMessage::Visibility(true), WidgetMessage::Topmost],
-                            );
-                            if center {
-                                ui.send(self.handle(), WidgetMessage::Center);
-                            }
+                }
+                &WindowMessage::OpenAndAlign {
+                    relative_to,
+                    horizontal_alignment,
+                    vertical_alignment,
+                    margin,
+                    modal,
+                    focus_content,
+                } => {
+                    if !self.visibility() {
+                        ui.send_many(
+                            self.handle(),
+                            [
+                                WidgetMessage::Visibility(true),
+                                WidgetMessage::Topmost,
+                                WidgetMessage::Align {
+                                    relative_to,
+                                    horizontal_alignment,
+                                    vertical_alignment,
+                                    margin,
+                                },
+                            ],
+                        );
+                        if modal {
                             ui.push_picking_restriction(RestrictionEntry {
                                 handle: self.handle(),
                                 stop: true,
                             });
-                            if focus_content {
-                                ui.send(self.content_to_focus(), WidgetMessage::Focus);
+                        }
+                        if focus_content {
+                            ui.send(self.content_to_focus(), WidgetMessage::Focus);
+                        }
+                    }
+                }
+                &WindowMessage::OpenModal {
+                    center,
+                    focus_content,
+                } => {
+                    if !self.visibility() {
+                        ui.send_many(
+                            self.handle(),
+                            [WidgetMessage::Visibility(true), WidgetMessage::Topmost],
+                        );
+                        if center {
+                            ui.send(self.handle(), WidgetMessage::Center);
+                        }
+                        ui.push_picking_restriction(RestrictionEntry {
+                            handle: self.handle(),
+                            stop: true,
+                        });
+                        if focus_content {
+                            ui.send(self.content_to_focus(), WidgetMessage::Focus);
+                        }
+                    }
+                }
+                WindowMessage::Close => {
+                    if self.visibility() {
+                        ui.send(self.handle(), WidgetMessage::Visibility(false));
+                        ui.remove_picking_restriction(self.handle());
+                        if self.remove_on_close {
+                            ui.send(self.handle(), WidgetMessage::Remove);
+                        }
+                    }
+                }
+                &WindowMessage::Minimize(minimized) => {
+                    if minimized {
+                        self.update_size_state(WindowSizeState::Minimized, ui);
+                    } else {
+                        self.update_size_state(WindowSizeState::Normal, ui);
+                    }
+                }
+                &WindowMessage::Maximize(maximized) => {
+                    if maximized {
+                        self.update_size_state(WindowSizeState::Maximized, ui);
+                    } else {
+                        self.update_size_state(WindowSizeState::Normal, ui);
+                    }
+                }
+                &WindowMessage::CanMinimize(value) => {
+                    if self.can_minimize != value {
+                        self.can_minimize = value;
+                        if self.minimize_button.is_some() {
+                            ui.send(self.minimize_button, WidgetMessage::Visibility(value));
+                        }
+                    }
+                }
+                &WindowMessage::CanClose(value) => {
+                    if self.can_close != value {
+                        self.can_close = value;
+                        if self.close_button.is_some() {
+                            ui.send(self.close_button, WidgetMessage::Visibility(value));
+                        }
+                    }
+                }
+                &WindowMessage::CanResize(value) => {
+                    if self.can_resize != value {
+                        self.can_resize = value;
+                        ui.send_message(message.reverse());
+                    }
+                }
+                &WindowMessage::Move(mut new_pos) => {
+                    if let Some(safe_border) = self.safe_border_size {
+                        // Clamp new position in allowed bounds. This will prevent moving the window outside of main
+                        // application window, thus leaving an opportunity to drag window to some other place.
+                        new_pos.x = new_pos.x.clamp(
+                            -(self.actual_local_size().x - safe_border.x).abs(),
+                            (ui.screen_size().x - safe_border.x).abs(),
+                        );
+                        new_pos.y = new_pos
+                            .y
+                            .clamp(0.0, (ui.screen_size().y - safe_border.y).abs());
+                    }
+
+                    if self.is_dragging && self.desired_local_position() != new_pos {
+                        ui.send(self.handle(), WidgetMessage::DesiredPosition(new_pos));
+                        ui.send_message(message.reverse());
+                    }
+                }
+                WindowMessage::MoveStart => {
+                    if !self.is_dragging {
+                        ui.capture_mouse(self.header);
+                        let initial_position = self.screen_position();
+                        self.initial_position = initial_position;
+                        self.is_dragging = true;
+
+                        if self.size_state == WindowSizeState::Maximized {
+                            self.size_state = WindowSizeState::Normal;
+                            if let Some(prev_bounds) = self.prev_bounds.take() {
+                                ui.send_many(
+                                    self.handle,
+                                    [
+                                        WidgetMessage::Width(prev_bounds.w()),
+                                        WidgetMessage::Height(prev_bounds.h()),
+                                    ],
+                                );
                             }
-                        }
-                    }
-                    WindowMessage::Close => {
-                        if self.visibility() {
-                            ui.send(self.handle(), WidgetMessage::Visibility(false));
-                            ui.remove_picking_restriction(self.handle());
-                            if self.remove_on_close {
-                                ui.send(self.handle(), WidgetMessage::Remove);
-                            }
-                        }
-                    }
-                    &WindowMessage::Minimize(minimized) => {
-                        if minimized {
-                            self.update_size_state(WindowSizeState::Minimized, ui);
-                        } else {
-                            self.update_size_state(WindowSizeState::Normal, ui);
-                        }
-                    }
-                    &WindowMessage::Maximize(maximized) => {
-                        if maximized {
-                            self.update_size_state(WindowSizeState::Maximized, ui);
-                        } else {
-                            self.update_size_state(WindowSizeState::Normal, ui);
-                        }
-                    }
-                    &WindowMessage::CanMinimize(value) => {
-                        if self.can_minimize != value {
-                            self.can_minimize = value;
-                            if self.minimize_button.is_some() {
-                                ui.send(self.minimize_button, WidgetMessage::Visibility(value));
-                            }
-                        }
-                    }
-                    &WindowMessage::CanClose(value) => {
-                        if self.can_close != value {
-                            self.can_close = value;
-                            if self.close_button.is_some() {
-                                ui.send(self.close_button, WidgetMessage::Visibility(value));
-                            }
-                        }
-                    }
-                    &WindowMessage::CanResize(value) => {
-                        if self.can_resize != value {
-                            self.can_resize = value;
-                            ui.send_message(message.reverse());
-                        }
-                    }
-                    &WindowMessage::Move(mut new_pos) => {
-                        if let Some(safe_border) = self.safe_border_size {
-                            // Clamp new position in allowed bounds. This will prevent moving the window outside of main
-                            // application window, thus leaving an opportunity to drag window to some other place.
-                            new_pos.x = new_pos.x.clamp(
-                                -(self.actual_local_size().x - safe_border.x).abs(),
-                                (ui.screen_size().x - safe_border.x).abs(),
-                            );
-                            new_pos.y = new_pos
-                                .y
-                                .clamp(0.0, (ui.screen_size().y - safe_border.y).abs());
                         }
 
-                        if self.is_dragging && self.desired_local_position() != new_pos {
-                            ui.send(self.handle(), WidgetMessage::DesiredPosition(new_pos));
-                            ui.send_message(message.reverse());
-                        }
+                        ui.send_message(message.reverse());
                     }
-                    WindowMessage::MoveStart => {
-                        if !self.is_dragging {
-                            ui.capture_mouse(self.header);
-                            let initial_position = self.screen_position();
-                            self.initial_position = initial_position;
-                            self.is_dragging = true;
+                }
+                WindowMessage::MoveEnd => {
+                    if self.is_dragging {
+                        ui.release_mouse_capture();
+                        self.is_dragging = false;
 
-                            if self.size_state == WindowSizeState::Maximized {
-                                self.size_state = WindowSizeState::Normal;
-                                if let Some(prev_bounds) = self.prev_bounds.take() {
-                                    ui.send_many(
-                                        self.handle,
-                                        [
-                                            WidgetMessage::Width(prev_bounds.w()),
-                                            WidgetMessage::Height(prev_bounds.h()),
-                                        ],
-                                    );
+                        ui.send_message(message.reverse());
+                    }
+                }
+                WindowMessage::Title(title) => {
+                    match title {
+                        WindowTitle::Text {
+                            text,
+                            font,
+                            font_size,
+                        } => {
+                            if ui.try_get_of_type::<Text>(self.title).is_some() {
+                                // Just modify existing text, this is much faster than
+                                // re-create text everytime.
+                                ui.send(self.title, TextMessage::Text(text.clone()));
+                                if let Some(font) = font {
+                                    ui.send(self.title, TextMessage::Font(font.clone()))
                                 }
+                                if let Some(font_size) = font_size {
+                                    ui.send(self.title, TextMessage::FontSize(font_size.clone()));
+                                }
+                            } else {
+                                ui.send(self.title, WidgetMessage::Remove);
+                                let font = font.clone().unwrap_or_else(|| ui.default_font.clone());
+                                let ctx = &mut ui.build_ctx();
+                                self.title = make_text_title(
+                                    ctx,
+                                    text,
+                                    font,
+                                    font_size
+                                        .clone()
+                                        .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+                                );
+                                ui.send(self.title, WidgetMessage::LinkWith(self.title_grid));
+                            }
+                        }
+                        WindowTitle::Node(node) => {
+                            if self.title.is_some() {
+                                // Remove old title.
+                                ui.send(self.title, WidgetMessage::Remove);
                             }
 
-                            ui.send_message(message.reverse());
-                        }
-                    }
-                    WindowMessage::MoveEnd => {
-                        if self.is_dragging {
-                            ui.release_mouse_capture();
-                            self.is_dragging = false;
+                            if node.is_some() {
+                                self.title = *node;
 
-                            ui.send_message(message.reverse());
-                        }
-                    }
-                    WindowMessage::Title(title) => {
-                        match title {
-                            WindowTitle::Text {
-                                text,
-                                font,
-                                font_size,
-                            } => {
-                                if ui.try_get_of_type::<Text>(self.title).is_some() {
-                                    // Just modify existing text, this is much faster than
-                                    // re-create text everytime.
-                                    ui.send(self.title, TextMessage::Text(text.clone()));
-                                    if let Some(font) = font {
-                                        ui.send(self.title, TextMessage::Font(font.clone()))
-                                    }
-                                    if let Some(font_size) = font_size {
-                                        ui.send(
-                                            self.title,
-                                            TextMessage::FontSize(font_size.clone()),
-                                        );
-                                    }
-                                } else {
-                                    ui.send(self.title, WidgetMessage::Remove);
-                                    let font =
-                                        font.clone().unwrap_or_else(|| ui.default_font.clone());
-                                    let ctx = &mut ui.build_ctx();
-                                    self.title = make_text_title(
-                                        ctx,
-                                        text,
-                                        font,
-                                        font_size.clone().unwrap_or_else(|| {
-                                            ctx.style.property(Style::FONT_SIZE)
-                                        }),
-                                    );
-                                    ui.send(self.title, WidgetMessage::LinkWith(self.title_grid));
-                                }
-                            }
-                            WindowTitle::Node(node) => {
-                                if self.title.is_some() {
-                                    // Remove old title.
-                                    ui.send(self.title, WidgetMessage::Remove);
-                                }
-
-                                if node.is_some() {
-                                    self.title = *node;
-
-                                    // Attach new one.
-                                    ui.send(self.title, WidgetMessage::LinkWith(self.title_grid));
-                                }
+                                // Attach new one.
+                                ui.send(self.title, WidgetMessage::LinkWith(self.title_grid));
                             }
                         }
                     }
-                    WindowMessage::SafeBorderSize(size) => {
-                        if &self.safe_border_size != size {
-                            self.safe_border_size = *size;
-                            ui.send_message(message.reverse());
-                        }
+                }
+                WindowMessage::SafeBorderSize(size) => {
+                    if &self.safe_border_size != size {
+                        self.safe_border_size = *size;
+                        ui.send_message(message.reverse());
                     }
                 }
             }

@@ -41,15 +41,13 @@ pub struct Segment {
 
 impl Segment {
     pub fn handle_routed_message(&mut self, self_handle: Handle<UiNode>, message: &mut UiMessage) {
-        if let Some(msg) = message.data::<SegmentMessage>() {
-            if message.is_for(self_handle) {
-                match msg {
-                    SegmentMessage::SourcePosition(pos) => {
-                        self.source_pos = *pos;
-                    }
-                    SegmentMessage::DestPosition(pos) => {
-                        self.dest_pos = *pos;
-                    }
+        if let Some(msg) = message.data_for::<SegmentMessage>(self_handle) {
+            match msg {
+                SegmentMessage::SourcePosition(pos) => {
+                    self.source_pos = *pos;
+                }
+                SegmentMessage::DestPosition(pos) => {
+                    self.dest_pos = *pos;
                 }
             }
         }

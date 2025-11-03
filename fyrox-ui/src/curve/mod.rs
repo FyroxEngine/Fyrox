@@ -837,143 +837,140 @@ impl Control for CurveEditor {
                     }
                     _ => {}
                 }
-            } else if let Some(msg) = message.data::<CurveEditorMessage>() {
-                if message.is_for(self.handle) {
-                    match msg {
-                        CurveEditorMessage::SyncBackground(curves) => {
-                            self.background_curves =
-                                CurvesContainer::from_native(self.key_brush.clone(), curves);
+            } else if let Some(msg) = message.data_for::<CurveEditorMessage>(self.handle) {
+                match msg {
+                    CurveEditorMessage::SyncBackground(curves) => {
+                        self.background_curves =
+                            CurvesContainer::from_native(self.key_brush.clone(), curves);
 
-                            for curve in self.background_curves.iter_mut() {
-                                curve.brush = self.background_curve_brush.clone();
-                            }
+                        for curve in self.background_curves.iter_mut() {
+                            curve.brush = self.background_curve_brush.clone();
                         }
-                        CurveEditorMessage::Sync(curves) => {
-                            let color_map = self
-                                .curves
-                                .iter()
-                                .map(|curve| (curve.id(), curve.brush.clone()))
-                                .collect::<Vec<_>>();
+                    }
+                    CurveEditorMessage::Sync(curves) => {
+                        let color_map = self
+                            .curves
+                            .iter()
+                            .map(|curve| (curve.id(), curve.brush.clone()))
+                            .collect::<Vec<_>>();
 
-                            self.curves =
-                                CurvesContainer::from_native(self.key_brush.clone(), curves);
+                        self.curves = CurvesContainer::from_native(self.key_brush.clone(), curves);
 
-                            self.colorize(&color_map);
-                        }
-                        CurveEditorMessage::Colorize(color_map) => {
-                            self.colorize(color_map);
-                        }
-                        CurveEditorMessage::ViewPosition(view_position) => {
-                            self.set_view_position(*view_position);
-                            ui.send_message(message.reverse());
-                        }
-                        CurveEditorMessage::Zoom(zoom) => {
-                            self.curve_transform
-                                .set_scale(zoom.simd_clamp(self.min_zoom, self.max_zoom));
-                            ui.send_message(message.reverse());
-                        }
-                        CurveEditorMessage::RemoveSelection => {
-                            self.remove_selection(ui);
-                        }
-                        CurveEditorMessage::ChangeSelectedKeysKind(kind) => {
-                            self.change_selected_keys_kind(kind.clone(), ui);
-                        }
-                        CurveEditorMessage::AddKey(screen_pos) => {
-                            let local_pos = self.screen_to_curve_space(*screen_pos);
+                        self.colorize(&color_map);
+                    }
+                    CurveEditorMessage::Colorize(color_map) => {
+                        self.colorize(color_map);
+                    }
+                    CurveEditorMessage::ViewPosition(view_position) => {
+                        self.set_view_position(*view_position);
+                        ui.send_message(message.reverse());
+                    }
+                    CurveEditorMessage::Zoom(zoom) => {
+                        self.curve_transform
+                            .set_scale(zoom.simd_clamp(self.min_zoom, self.max_zoom));
+                        ui.send_message(message.reverse());
+                    }
+                    CurveEditorMessage::RemoveSelection => {
+                        self.remove_selection(ui);
+                    }
+                    CurveEditorMessage::ChangeSelectedKeysKind(kind) => {
+                        self.change_selected_keys_kind(kind.clone(), ui);
+                    }
+                    CurveEditorMessage::AddKey(screen_pos) => {
+                        let local_pos = self.screen_to_curve_space(*screen_pos);
 
-                            let mut curves = Vec::new();
-                            if let Some(selection) = self.selection.as_ref() {
-                                if let Selection::Keys { keys } = selection {
-                                    curves.extend(self.curves.iter_mut().filter(|curve| {
-                                        for key in curve.keys() {
-                                            if keys.contains(&key.id) {
-                                                return true;
-                                            }
+                        let mut curves = Vec::new();
+                        if let Some(selection) = self.selection.as_ref() {
+                            if let Selection::Keys { keys } = selection {
+                                curves.extend(self.curves.iter_mut().filter(|curve| {
+                                    for key in curve.keys() {
+                                        if keys.contains(&key.id) {
+                                            return true;
                                         }
-                                        false
-                                    }));
-                                }
-                            } else {
-                                curves.extend(self.curves.curves.iter_mut());
-                            };
+                                    }
+                                    false
+                                }));
+                            }
+                        } else {
+                            curves.extend(self.curves.curves.iter_mut());
+                        };
 
-                            let mut added_keys = FxHashSet::default();
-                            for curve in curves {
-                                let id = Uuid::new_v4();
-                                curve.add(CurveKeyView {
-                                    position: local_pos,
-                                    kind: CurveKeyKind::Linear,
-                                    id,
-                                });
-                                added_keys.insert(id);
+                        let mut added_keys = FxHashSet::default();
+                        for curve in curves {
+                            let id = Uuid::new_v4();
+                            curve.add(CurveKeyView {
+                                position: local_pos,
+                                kind: CurveKeyKind::Linear,
+                                id,
+                            });
+                            added_keys.insert(id);
+                        }
+
+                        self.set_selection(Some(Selection::Keys { keys: added_keys }), ui);
+                        self.sort_keys();
+                        self.send_curves(ui);
+                    }
+                    CurveEditorMessage::ZoomToFit { after_layout } => {
+                        if *after_layout {
+                            // TODO: Layout system could take up to 10 frames in worst cases. This is super hackish solution
+                            // but when it works, who cares.
+                            self.zoom_to_fit_timer = Some(10);
+                        } else {
+                            self.zoom_to_fit(&ui.sender);
+                        }
+                    }
+                    CurveEditorMessage::ChangeSelectedKeysValue(value) => {
+                        self.change_selected_keys_value(*value, ui);
+                    }
+                    CurveEditorMessage::ChangeSelectedKeysLocation(location) => {
+                        self.change_selected_keys_location(*location, ui);
+                    }
+                    CurveEditorMessage::HighlightZones(zones) => {
+                        self.highlight_zones.clone_from(zones);
+                    }
+                    CurveEditorMessage::CopySelection => {
+                        if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
+                            let menu_pos =
+                                ui.node(self.context_menu.widget.handle()).screen_position();
+                            let local_menu_pos = self.screen_to_curve_space(menu_pos);
+
+                            self.clipboard.clear();
+                            for key in keys {
+                                for curve in self.curves.iter() {
+                                    if let Some(key) = curve.key_ref(*key) {
+                                        self.clipboard.push((
+                                            key.position - local_menu_pos,
+                                            key.kind.clone(),
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    CurveEditorMessage::PasteSelection => {
+                        if !self.clipboard.is_empty() {
+                            let menu_pos =
+                                ui.node(self.context_menu.widget.handle()).screen_position();
+                            let local_menu_pos = self.screen_to_curve_space(menu_pos);
+
+                            let mut selection = FxHashSet::default();
+                            for (offset, kind) in self.clipboard.iter().cloned() {
+                                for curve in self.curves.iter_mut() {
+                                    let id = Uuid::new_v4();
+
+                                    selection.insert(id);
+
+                                    curve.add(CurveKeyView {
+                                        position: local_menu_pos + offset,
+                                        kind: kind.clone(),
+                                        id,
+                                    });
+                                }
                             }
 
-                            self.set_selection(Some(Selection::Keys { keys: added_keys }), ui);
+                            self.set_selection(Some(Selection::Keys { keys: selection }), ui);
                             self.sort_keys();
                             self.send_curves(ui);
-                        }
-                        CurveEditorMessage::ZoomToFit { after_layout } => {
-                            if *after_layout {
-                                // TODO: Layout system could take up to 10 frames in worst cases. This is super hackish solution
-                                // but when it works, who cares.
-                                self.zoom_to_fit_timer = Some(10);
-                            } else {
-                                self.zoom_to_fit(&ui.sender);
-                            }
-                        }
-                        CurveEditorMessage::ChangeSelectedKeysValue(value) => {
-                            self.change_selected_keys_value(*value, ui);
-                        }
-                        CurveEditorMessage::ChangeSelectedKeysLocation(location) => {
-                            self.change_selected_keys_location(*location, ui);
-                        }
-                        CurveEditorMessage::HighlightZones(zones) => {
-                            self.highlight_zones.clone_from(zones);
-                        }
-                        CurveEditorMessage::CopySelection => {
-                            if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
-                                let menu_pos =
-                                    ui.node(self.context_menu.widget.handle()).screen_position();
-                                let local_menu_pos = self.screen_to_curve_space(menu_pos);
-
-                                self.clipboard.clear();
-                                for key in keys {
-                                    for curve in self.curves.iter() {
-                                        if let Some(key) = curve.key_ref(*key) {
-                                            self.clipboard.push((
-                                                key.position - local_menu_pos,
-                                                key.kind.clone(),
-                                            ));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        CurveEditorMessage::PasteSelection => {
-                            if !self.clipboard.is_empty() {
-                                let menu_pos =
-                                    ui.node(self.context_menu.widget.handle()).screen_position();
-                                let local_menu_pos = self.screen_to_curve_space(menu_pos);
-
-                                let mut selection = FxHashSet::default();
-                                for (offset, kind) in self.clipboard.iter().cloned() {
-                                    for curve in self.curves.iter_mut() {
-                                        let id = Uuid::new_v4();
-
-                                        selection.insert(id);
-
-                                        curve.add(CurveKeyView {
-                                            position: local_menu_pos + offset,
-                                            kind: kind.clone(),
-                                            id,
-                                        });
-                                    }
-                                }
-
-                                self.set_selection(Some(Selection::Keys { keys: selection }), ui);
-                                self.sort_keys();
-                                self.send_curves(ui);
-                            }
                         }
                     }
                 }

@@ -232,97 +232,92 @@ impl Control for ScrollBar {
                     ScrollBarMessage::Value(*self.value - *self.step),
                 );
             }
-        } else if let Some(msg) = message.data::<ScrollBarMessage>() {
-            if message.is_for(self.handle()) {
-                match *msg {
-                    ScrollBarMessage::Value(value) => {
+        } else if let Some(msg) = message.data_for::<ScrollBarMessage>(self.handle()) {
+            match *msg {
+                ScrollBarMessage::Value(value) => {
+                    let old_value = *self.value;
+                    let new_value = value.clamp(*self.min, *self.max);
+                    if (new_value - old_value).abs() > f32::EPSILON {
+                        self.value.set_value_and_mark_modified(new_value);
+                        self.invalidate_arrange();
+
+                        if self.value_text.is_some() {
+                            ui.send(
+                                *self.value_text,
+                                TextMessage::Text(format!("{:.1$}", value, *self.value_precision)),
+                            );
+                        }
+
+                        let mut response = UiMessage::from_widget(
+                            self.handle,
+                            ScrollBarMessage::Value(*self.value),
+                        );
+                        response.flags = message.flags;
+                        response.set_handled(message.handled());
+                        ui.send_message(response);
+                    }
+                }
+                ScrollBarMessage::MinValue(min) => {
+                    if *self.min != min {
+                        self.min.set_value_and_mark_modified(min);
+                        if *self.min > *self.max {
+                            std::mem::swap(&mut self.min, &mut self.max);
+                        }
                         let old_value = *self.value;
-                        let new_value = value.clamp(*self.min, *self.max);
+                        let new_value = self.value.clamp(*self.min, *self.max);
                         if (new_value - old_value).abs() > f32::EPSILON {
-                            self.value.set_value_and_mark_modified(new_value);
-                            self.invalidate_arrange();
-
-                            if self.value_text.is_some() {
-                                ui.send(
-                                    *self.value_text,
-                                    TextMessage::Text(format!(
-                                        "{:.1$}",
-                                        value, *self.value_precision
-                                    )),
-                                );
-                            }
-
-                            let mut response = UiMessage::from_widget(
-                                self.handle,
-                                ScrollBarMessage::Value(*self.value),
-                            );
-                            response.flags = message.flags;
-                            response.set_handled(message.handled());
-                            ui.send_message(response);
+                            ui.send(self.handle(), ScrollBarMessage::Value(new_value));
                         }
-                    }
-                    ScrollBarMessage::MinValue(min) => {
-                        if *self.min != min {
-                            self.min.set_value_and_mark_modified(min);
-                            if *self.min > *self.max {
-                                std::mem::swap(&mut self.min, &mut self.max);
-                            }
-                            let old_value = *self.value;
-                            let new_value = self.value.clamp(*self.min, *self.max);
-                            if (new_value - old_value).abs() > f32::EPSILON {
-                                ui.send(self.handle(), ScrollBarMessage::Value(new_value));
-                            }
 
-                            let response = UiMessage::from_widget(
-                                self.handle,
-                                ScrollBarMessage::MinValue(*self.min),
-                            );
-                            response.set_handled(message.handled());
-                            ui.send_message(response);
+                        let response = UiMessage::from_widget(
+                            self.handle,
+                            ScrollBarMessage::MinValue(*self.min),
+                        );
+                        response.set_handled(message.handled());
+                        ui.send_message(response);
+                    }
+                }
+                ScrollBarMessage::MaxValue(max) => {
+                    if *self.max != max {
+                        self.max.set_value_and_mark_modified(max);
+                        if *self.max < *self.min {
+                            std::mem::swap(&mut self.min, &mut self.max);
                         }
-                    }
-                    ScrollBarMessage::MaxValue(max) => {
-                        if *self.max != max {
-                            self.max.set_value_and_mark_modified(max);
-                            if *self.max < *self.min {
-                                std::mem::swap(&mut self.min, &mut self.max);
-                            }
-                            let old_value = *self.value;
-                            let value = self.value.clamp(*self.min, *self.max);
-                            if (value - old_value).abs() > f32::EPSILON {
-                                ui.send(self.handle(), ScrollBarMessage::Value(value));
-                            }
-
-                            let response = UiMessage::from_widget(
-                                self.handle,
-                                ScrollBarMessage::MaxValue(*self.max),
-                            );
-                            response.set_handled(message.handled());
-                            ui.send_message(response);
+                        let old_value = *self.value;
+                        let value = self.value.clamp(*self.min, *self.max);
+                        if (value - old_value).abs() > f32::EPSILON {
+                            ui.send(self.handle(), ScrollBarMessage::Value(value));
                         }
+
+                        let response = UiMessage::from_widget(
+                            self.handle,
+                            ScrollBarMessage::MaxValue(*self.max),
+                        );
+                        response.set_handled(message.handled());
+                        ui.send_message(response);
                     }
-                    ScrollBarMessage::SizeRatio(size_ratio) => {
-                        let field_size = ui.node(*self.indicator_canvas).actual_global_size();
-                        let indicator_size = ui.node(*self.indicator).actual_global_size();
+                }
+                ScrollBarMessage::SizeRatio(size_ratio) => {
+                    let field_size = ui.node(*self.indicator_canvas).actual_global_size();
+                    let indicator_size = ui.node(*self.indicator).actual_global_size();
 
-                        match *self.orientation {
-                            Orientation::Horizontal => {
-                                // minimum size of the indicator will be 15 irrespective of size ratio
-                                let new_size = (size_ratio * field_size.x).max(15.0);
-                                let old_size = indicator_size.x;
+                    match *self.orientation {
+                        Orientation::Horizontal => {
+                            // minimum size of the indicator will be 15 irrespective of size ratio
+                            let new_size = (size_ratio * field_size.x).max(15.0);
+                            let old_size = indicator_size.x;
 
-                                if new_size != old_size {
-                                    ui.send(*self.indicator, WidgetMessage::Width(new_size));
-                                }
+                            if new_size != old_size {
+                                ui.send(*self.indicator, WidgetMessage::Width(new_size));
                             }
-                            Orientation::Vertical => {
-                                // minimum size of the indicator will be 15 irrespective of size ratio
-                                let new_size = (size_ratio * field_size.y).max(15.0);
-                                let old_size = indicator_size.y;
+                        }
+                        Orientation::Vertical => {
+                            // minimum size of the indicator will be 15 irrespective of size ratio
+                            let new_size = (size_ratio * field_size.y).max(15.0);
+                            let old_size = indicator_size.y;
 
-                                if new_size != old_size {
-                                    ui.send(*self.indicator, WidgetMessage::Height(new_size));
-                                }
+                            if new_size != old_size {
+                                ui.send(*self.indicator, WidgetMessage::Height(new_size));
                             }
                         }
                     }

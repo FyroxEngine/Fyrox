@@ -554,21 +554,19 @@ impl Control for AbsmCanvas {
             self.view_position -= (new_cursor_pos - cursor_pos).scale(self.zoom);
 
             self.update_transform(ui);
-        } else if let Some(msg) = message.data::<AbsmCanvasMessage>() {
-            if message.is_for(self.handle()) {
-                match msg {
-                    AbsmCanvasMessage::SwitchMode(mode) => {
-                        // TODO: Check if other mode is active.
-                        self.mode = mode.clone();
-                    }
-                    AbsmCanvasMessage::SelectionChanged(new_selection) => {
-                        self.set_selection(new_selection, ui);
-                    }
-                    AbsmCanvasMessage::ForceSyncDependentObjects => {
-                        self.force_sync_dependent_objects(ui);
-                    }
-                    _ => (),
+        } else if let Some(msg) = message.data_for::<AbsmCanvasMessage>(self.handle) {
+            match msg {
+                AbsmCanvasMessage::SwitchMode(mode) => {
+                    // TODO: Check if other mode is active.
+                    self.mode = mode.clone();
                 }
+                AbsmCanvasMessage::SelectionChanged(new_selection) => {
+                    self.set_selection(new_selection, ui);
+                }
+                AbsmCanvasMessage::ForceSyncDependentObjects => {
+                    self.force_sync_dependent_objects(ui);
+                }
+                _ => (),
             }
         } else if let Some(SocketMessage::StartDragging) = message.data() {
             if message.direction() == MessageDirection::FromWidget {

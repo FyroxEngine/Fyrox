@@ -376,60 +376,58 @@ impl Control for ListView {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(msg) = message.data::<ListViewMessage>() {
-            if message.is_for(self.handle()) {
-                match msg {
-                    ListViewMessage::Items(items) => {
-                        // Generate new items.
-                        let item_containers = generate_item_containers(&mut ui.build_ctx(), items);
+        if let Some(msg) = message.data_for::<ListViewMessage>(self.handle()) {
+            match msg {
+                ListViewMessage::Items(items) => {
+                    // Generate new items.
+                    let item_containers = generate_item_containers(&mut ui.build_ctx(), items);
 
-                        ui.send(
-                            *self.panel,
-                            WidgetMessage::ReplaceChildren(item_containers.clone()),
-                        );
+                    ui.send(
+                        *self.panel,
+                        WidgetMessage::ReplaceChildren(item_containers.clone()),
+                    );
 
-                        self.item_containers
-                            .set_value_and_mark_modified(item_containers);
-                        self.items.set_value_and_mark_modified(items.clone());
+                    self.item_containers
+                        .set_value_and_mark_modified(item_containers);
+                    self.items.set_value_and_mark_modified(items.clone());
+
+                    self.fix_selection(ui);
+                    self.sync_decorators(ui);
+                }
+                &ListViewMessage::AddItem(item) => {
+                    let item_container = generate_item_container(&mut ui.build_ctx(), item);
+
+                    ui.send(item_container, WidgetMessage::LinkWith(*self.panel));
+
+                    self.item_containers.push(item_container);
+                    self.items.push(item);
+                }
+                ListViewMessage::Selection(selection) => {
+                    if &self.selection != selection {
+                        self.selection.clone_from(selection);
+                        self.sync_decorators(ui);
+                        ui.send_message(message.reverse());
+                    }
+                }
+                &ListViewMessage::RemoveItem(item) => {
+                    if let Some(item_position) = self.items.iter().position(|i| *i == item) {
+                        self.items.remove(item_position);
+                        self.item_containers.remove(item_position);
+
+                        let container = ui.node(item).parent();
+
+                        ui.send(container, WidgetMessage::Remove);
 
                         self.fix_selection(ui);
                         self.sync_decorators(ui);
                     }
-                    &ListViewMessage::AddItem(item) => {
-                        let item_container = generate_item_container(&mut ui.build_ctx(), item);
-
-                        ui.send(item_container, WidgetMessage::LinkWith(*self.panel));
-
-                        self.item_containers.push(item_container);
-                        self.items.push(item);
-                    }
-                    ListViewMessage::Selection(selection) => {
-                        if &self.selection != selection {
-                            self.selection.clone_from(selection);
-                            self.sync_decorators(ui);
-                            ui.send_message(message.reverse());
-                        }
-                    }
-                    &ListViewMessage::RemoveItem(item) => {
-                        if let Some(item_position) = self.items.iter().position(|i| *i == item) {
-                            self.items.remove(item_position);
-                            self.item_containers.remove(item_position);
-
-                            let container = ui.node(item).parent();
-
-                            ui.send(container, WidgetMessage::Remove);
-
-                            self.fix_selection(ui);
-                            self.sync_decorators(ui);
-                        }
-                    }
-                    &ListViewMessage::BringItemIntoView(item) => {
-                        if self.items.contains(&item) {
-                            ui.send(
-                                *self.scroll_viewer,
-                                ScrollViewerMessage::BringIntoView(item),
-                            );
-                        }
+                }
+                &ListViewMessage::BringItemIntoView(item) => {
+                    if self.items.contains(&item) {
+                        ui.send(
+                            *self.scroll_viewer,
+                            ScrollViewerMessage::BringIntoView(item),
+                        );
                     }
                 }
             }

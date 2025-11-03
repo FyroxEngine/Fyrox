@@ -241,75 +241,59 @@ impl Control for NodeSelector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(msg) = message.data::<NodeSelectorMessage>() {
-            if message.is_for(self.handle) {
-                match msg {
-                    NodeSelectorMessage::Hierarchy(hierarchy) => {
-                        let items =
-                            vec![hierarchy.make_view(&self.allowed_types, &mut ui.build_ctx())];
-                        ui.send(self.tree_root, TreeRootMessage::Items(items));
-                    }
-                    NodeSelectorMessage::Selection(selection) => {
-                        if &self.selected != selection {
-                            self.selected.clone_from(selection);
-
-                            self.sync_selection(ui);
-
-                            ui.send_message(message.reverse());
-                        }
-                    }
-                    NodeSelectorMessage::ChooseFocus => {
-                        ui.send(self.search_bar, WidgetMessage::Focus);
+        if let Some(msg) = message.data_for::<NodeSelectorMessage>(self.handle) {
+            match msg {
+                NodeSelectorMessage::Hierarchy(hierarchy) => {
+                    let items = vec![hierarchy.make_view(&self.allowed_types, &mut ui.build_ctx())];
+                    ui.send(self.tree_root, TreeRootMessage::Items(items));
+                }
+                NodeSelectorMessage::Selection(selection) => {
+                    if &self.selected != selection {
+                        self.selected.clone_from(selection);
                         self.sync_selection(ui);
+                        ui.send_message(message.reverse());
                     }
                 }
-            }
-        } else if let Some(SearchBarMessage::Text(filter_text)) = message.data() {
-            if message.destination() == self.search_bar
-                && message.direction() == MessageDirection::FromWidget
-            {
-                apply_filter_recursive(self.tree_root, &filter_text.to_lowercase(), ui);
-
-                // Bring first item of current selection in the view when clearing the filter.
-                if filter_text.is_empty() {
-                    let selected_trees = self.find_selected_tree_items(ui);
-
-                    if let Some(first) = selected_trees.first() {
-                        ui.send(
-                            self.scroll_viewer,
-                            ScrollViewerMessage::BringIntoView(*first),
-                        );
-                    }
+                NodeSelectorMessage::ChooseFocus => {
+                    ui.send(self.search_bar, WidgetMessage::Focus);
+                    self.sync_selection(ui);
                 }
             }
-        } else if let Some(TreeRootMessage::Select(selection)) = message.data() {
-            if message.destination() == self.tree_root
-                && message.direction() == MessageDirection::FromWidget
-            {
-                ui.send(
-                    self.handle,
-                    NodeSelectorMessage::Selection(
-                        selection
-                            .iter()
-                            .map(|s| {
-                                let tree_data = ui.node(*s).user_data_cloned::<TreeData>().unwrap();
+        } else if let Some(SearchBarMessage::Text(filter_text)) = message.data_from(self.search_bar)
+        {
+            apply_filter_recursive(self.tree_root, &filter_text.to_lowercase(), ui);
 
-                                SelectedHandle {
-                                    handle: tree_data.handle,
-                                    inner_type_id: tree_data.inner_type_id,
-                                    derived_type_ids: tree_data.derived_type_ids,
-                                }
-                            })
-                            .collect(),
-                    ),
-                );
+            // Bring first item of current selection in the view when clearing the filter.
+            if filter_text.is_empty() {
+                let selected_trees = self.find_selected_tree_items(ui);
+
+                if let Some(first) = selected_trees.first() {
+                    ui.send(
+                        self.scroll_viewer,
+                        ScrollViewerMessage::BringIntoView(*first),
+                    );
+                }
             }
-        } else if let Some(TreeRootMessage::ItemsChanged) = message.data() {
-            if message.destination == self.tree_root
-                && message.direction() == MessageDirection::FromWidget
-            {
-                self.sync_selection(ui);
-            }
+        } else if let Some(TreeRootMessage::Select(selection)) = message.data_from(self.tree_root) {
+            ui.send(
+                self.handle,
+                NodeSelectorMessage::Selection(
+                    selection
+                        .iter()
+                        .map(|s| {
+                            let tree_data = ui.node(*s).user_data_cloned::<TreeData>().unwrap();
+
+                            SelectedHandle {
+                                handle: tree_data.handle,
+                                inner_type_id: tree_data.inner_type_id,
+                                derived_type_ids: tree_data.derived_type_ids,
+                            }
+                        })
+                        .collect(),
+                ),
+            );
+        } else if let Some(TreeRootMessage::ItemsChanged) = message.data_from(self.tree_root) {
+            self.sync_selection(ui);
         }
     }
 }

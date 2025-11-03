@@ -268,31 +268,29 @@ impl Control for Border {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.is_for(self.handle()) {
-            if let Some(msg) = message.data::<BorderMessage>() {
-                match msg {
-                    BorderMessage::StrokeThickness(thickness) => {
-                        if *thickness != *self.stroke_thickness {
-                            self.stroke_thickness
-                                .set_value_and_mark_modified(thickness.clone());
-                            ui.send_message(message.reverse());
-                            self.invalidate_layout();
-                        }
+        if let Some(msg) = message.data_for::<BorderMessage>(self.handle()) {
+            match msg {
+                BorderMessage::StrokeThickness(thickness) => {
+                    if *thickness != *self.stroke_thickness {
+                        self.stroke_thickness
+                            .set_value_and_mark_modified(thickness.clone());
+                        ui.send_message(message.reverse());
+                        self.invalidate_layout();
                     }
-                    BorderMessage::CornerRadius(radius) => {
-                        if *radius != *self.corner_radius {
-                            self.corner_radius
-                                .set_value_and_mark_modified(radius.clone());
-                            ui.send_message(message.reverse());
-                            self.invalidate_layout();
-                        }
+                }
+                BorderMessage::CornerRadius(radius) => {
+                    if *radius != *self.corner_radius {
+                        self.corner_radius
+                            .set_value_and_mark_modified(radius.clone());
+                        ui.send_message(message.reverse());
+                        self.invalidate_layout();
                     }
-                    BorderMessage::PadByCornerRadius(pad) => {
-                        if *pad != *self.pad_by_corner_radius {
-                            self.pad_by_corner_radius.set_value_and_mark_modified(*pad);
-                            ui.send_message(message.reverse());
-                            self.invalidate_layout();
-                        }
+                }
+                BorderMessage::PadByCornerRadius(pad) => {
+                    if *pad != *self.pad_by_corner_radius {
+                        self.pad_by_corner_radius.set_value_and_mark_modified(*pad);
+                        ui.send_message(message.reverse());
+                        self.invalidate_layout();
                     }
                 }
             }

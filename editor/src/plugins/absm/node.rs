@@ -182,68 +182,66 @@ where
             } else if message.destination() == self.edit {
                 ui.post(self.handle(), AbsmNodeMessage::Edit);
             }
-        } else if let Some(msg) = message.data::<AbsmNodeMessage>() {
-            if message.is_for(self.handle()) {
-                match msg {
-                    AbsmNodeMessage::InputSockets(input_sockets) => {
-                        if input_sockets != &self.base.input_sockets {
-                            for &child in ui.node(self.input_sockets_panel).children() {
-                                ui.send(child, WidgetMessage::Remove);
-                            }
+        } else if let Some(msg) = message.data_for::<AbsmNodeMessage>(self.handle) {
+            match msg {
+                AbsmNodeMessage::InputSockets(input_sockets) => {
+                    if input_sockets != &self.base.input_sockets {
+                        for &child in ui.node(self.input_sockets_panel).children() {
+                            ui.send(child, WidgetMessage::Remove);
+                        }
 
-                            for &socket in input_sockets {
-                                ui.send(socket, WidgetMessage::LinkWith(self.input_sockets_panel));
-                            }
+                        for &socket in input_sockets {
+                            ui.send(socket, WidgetMessage::LinkWith(self.input_sockets_panel));
+                        }
 
-                            self.base.input_sockets.clone_from(input_sockets);
-                        }
+                        self.base.input_sockets.clone_from(input_sockets);
                     }
-                    AbsmNodeMessage::NormalBrush(color) => {
-                        if &self.normal_brush != color {
-                            self.normal_brush = color.clone();
-                            self.update_colors(ui);
-                        }
+                }
+                AbsmNodeMessage::NormalBrush(color) => {
+                    if &self.normal_brush != color {
+                        self.normal_brush = color.clone();
+                        self.update_colors(ui);
                     }
-                    AbsmNodeMessage::SelectedBrush(color) => {
-                        if &self.selected_brush != color {
-                            self.selected_brush = color.clone();
-                            self.update_colors(ui);
-                        }
+                }
+                AbsmNodeMessage::SelectedBrush(color) => {
+                    if &self.selected_brush != color {
+                        self.selected_brush = color.clone();
+                        self.update_colors(ui);
                     }
-                    AbsmNodeMessage::Name(name) => {
-                        if &self.name_value != name {
-                            self.name_value.clone_from(name);
-
-                            ui.send(
-                                self.name,
-                                TextMessage::Text(format!(
-                                    "{} ({})",
-                                    self.name_value, self.model_handle
-                                )),
-                            );
-                        }
-                    }
-                    AbsmNodeMessage::SetActive(active) => {
-                        let (thickness, brush) = if *active {
-                            (
-                                Thickness::uniform(3.0),
-                                Brush::Solid(Color::opaque(120, 80, 60)).into(),
-                            )
-                        } else {
-                            (
-                                Thickness::uniform(1.0),
-                                ui.style.property(Style::BRUSH_LIGHT),
-                            )
-                        };
+                }
+                AbsmNodeMessage::Name(name) => {
+                    if &self.name_value != name {
+                        self.name_value.clone_from(name);
 
                         ui.send(
-                            self.background,
-                            BorderMessage::StrokeThickness(thickness.into()),
+                            self.name,
+                            TextMessage::Text(format!(
+                                "{} ({})",
+                                self.name_value, self.model_handle
+                            )),
                         );
-                        ui.send(self.background, WidgetMessage::Foreground(brush));
                     }
-                    _ => (),
                 }
+                AbsmNodeMessage::SetActive(active) => {
+                    let (thickness, brush) = if *active {
+                        (
+                            Thickness::uniform(3.0),
+                            Brush::Solid(Color::opaque(120, 80, 60)).into(),
+                        )
+                    } else {
+                        (
+                            Thickness::uniform(1.0),
+                            ui.style.property(Style::BRUSH_LIGHT),
+                        )
+                    };
+
+                    ui.send(
+                        self.background,
+                        BorderMessage::StrokeThickness(thickness.into()),
+                    );
+                    ui.send(self.background, WidgetMessage::Foreground(brush));
+                }
+                _ => (),
             }
         }
     }

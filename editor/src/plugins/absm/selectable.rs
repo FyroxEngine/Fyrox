@@ -65,8 +65,8 @@ impl Selectable {
                 }
                 _ => {}
             }
-        } else if let Some(SelectableMessage::Select(selected)) = message.data() {
-            if message.is_for(self_handle) && self.selected != *selected {
+        } else if let Some(SelectableMessage::Select(selected)) = message.data_for(self_handle) {
+            if self.selected != *selected {
                 self.selected = *selected;
                 ui.send_message(message.reverse());
             }

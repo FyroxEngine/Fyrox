@@ -237,50 +237,48 @@ impl Control for DropdownList {
                 }
                 _ => (),
             }
-        } else if let Some(msg) = message.data::<DropdownListMessage>() {
-            if message.is_for(self.handle()) {
-                match msg {
-                    DropdownListMessage::Open => {
+        } else if let Some(msg) = message.data_for::<DropdownListMessage>(self.handle()) {
+            match msg {
+                DropdownListMessage::Open => {
+                    ui.send(
+                        *self.popup,
+                        WidgetMessage::Width(self.actual_local_size().x),
+                    );
+                    ui.send(
+                        *self.popup,
+                        PopupMessage::Placement(Placement::LeftBottom(self.handle)),
+                    );
+                    ui.send(*self.popup, PopupMessage::Open);
+                }
+                DropdownListMessage::Close => {
+                    ui.send(*self.popup, PopupMessage::Close);
+                }
+                DropdownListMessage::Items(items) => {
+                    ui.send(*self.list_view, ListViewMessage::Items(items.clone()));
+                    self.items.set_value_and_mark_modified(items.clone());
+                    self.sync_selected_item_preview(ui);
+                }
+                &DropdownListMessage::AddItem(item) => {
+                    ui.send(*self.list_view, ListViewMessage::AddItem(item));
+                    self.items.push(item);
+                }
+                &DropdownListMessage::Selection(selection) => {
+                    if selection != *self.selection {
+                        self.selection.set_value_and_mark_modified(selection);
                         ui.send(
-                            *self.popup,
-                            WidgetMessage::Width(self.actual_local_size().x),
+                            *self.list_view,
+                            ListViewMessage::Selection(
+                                selection.map(|index| vec![index]).unwrap_or_default(),
+                            ),
                         );
-                        ui.send(
-                            *self.popup,
-                            PopupMessage::Placement(Placement::LeftBottom(self.handle)),
-                        );
-                        ui.send(*self.popup, PopupMessage::Open);
-                    }
-                    DropdownListMessage::Close => {
-                        ui.send(*self.popup, PopupMessage::Close);
-                    }
-                    DropdownListMessage::Items(items) => {
-                        ui.send(*self.list_view, ListViewMessage::Items(items.clone()));
-                        self.items.set_value_and_mark_modified(items.clone());
+
                         self.sync_selected_item_preview(ui);
-                    }
-                    &DropdownListMessage::AddItem(item) => {
-                        ui.send(*self.list_view, ListViewMessage::AddItem(item));
-                        self.items.push(item);
-                    }
-                    &DropdownListMessage::Selection(selection) => {
-                        if selection != *self.selection {
-                            self.selection.set_value_and_mark_modified(selection);
-                            ui.send(
-                                *self.list_view,
-                                ListViewMessage::Selection(
-                                    selection.map(|index| vec![index]).unwrap_or_default(),
-                                ),
-                            );
 
-                            self.sync_selected_item_preview(ui);
-
-                            if *self.close_on_selection {
-                                ui.send(*self.popup, PopupMessage::Close);
-                            }
-
-                            ui.send_message(message.reverse());
+                        if *self.close_on_selection {
+                            ui.send(*self.popup, PopupMessage::Close);
                         }
+
+                        ui.send_message(message.reverse());
                     }
                 }
             }
@@ -298,18 +296,16 @@ impl Control for DropdownList {
                 // message and respond properly.
                 ui.send(self.handle, DropdownListMessage::Selection(selection));
             }
-        } else if let Some(msg) = message.data::<PopupMessage>() {
-            if message.is_for(*self.popup) {
-                match msg {
-                    PopupMessage::Open => {
-                        ui.post(self.handle, DropdownListMessage::Open);
-                    }
-                    PopupMessage::Close => {
-                        ui.post(self.handle, DropdownListMessage::Close);
-                        ui.send(self.handle, WidgetMessage::Focus);
-                    }
-                    _ => (),
+        } else if let Some(msg) = message.data_for::<PopupMessage>(*self.popup) {
+            match msg {
+                PopupMessage::Open => {
+                    ui.post(self.handle, DropdownListMessage::Open);
                 }
+                PopupMessage::Close => {
+                    ui.post(self.handle, DropdownListMessage::Close);
+                    ui.send(self.handle, WidgetMessage::Focus);
+                }
+                _ => (),
             }
         }
     }

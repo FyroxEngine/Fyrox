@@ -837,64 +837,62 @@ impl Control for TreeRoot {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(msg) = message.data::<TreeRootMessage>() {
-            if message.is_for(self.handle()) {
-                match msg {
-                    &TreeRootMessage::AddItem(item) => {
+        if let Some(msg) = message.data_for::<TreeRootMessage>(self.handle()) {
+            match msg {
+                &TreeRootMessage::AddItem(item) => {
+                    ui.send(item, WidgetMessage::LinkWith(self.panel));
+                    self.items.push(item);
+                    ui.post(self.handle, TreeRootMessage::ItemsChanged);
+                }
+                &TreeRootMessage::RemoveItem(item) => {
+                    if let Some(pos) = self.items.iter().position(|&i| i == item) {
+                        ui.send(item, WidgetMessage::Remove);
+                        self.items.remove(pos);
+                        ui.post(self.handle, TreeRootMessage::ItemsChanged);
+                    }
+                }
+                TreeRootMessage::Items(items) => {
+                    for &item in self.items.iter() {
+                        ui.send(item, WidgetMessage::Remove);
+                    }
+                    for &item in items {
                         ui.send(item, WidgetMessage::LinkWith(self.panel));
-                        self.items.push(item);
-                        ui.post(self.handle, TreeRootMessage::ItemsChanged);
                     }
-                    &TreeRootMessage::RemoveItem(item) => {
-                        if let Some(pos) = self.items.iter().position(|&i| i == item) {
-                            ui.send(item, WidgetMessage::Remove);
-                            self.items.remove(pos);
-                            ui.post(self.handle, TreeRootMessage::ItemsChanged);
-                        }
-                    }
-                    TreeRootMessage::Items(items) => {
-                        for &item in self.items.iter() {
-                            ui.send(item, WidgetMessage::Remove);
-                        }
-                        for &item in items {
-                            ui.send(item, WidgetMessage::LinkWith(self.panel));
-                        }
 
-                        self.items = items.to_vec();
-                        ui.post(self.handle, TreeRootMessage::ItemsChanged);
-                    }
-                    TreeRootMessage::Select(selected) => {
-                        if &self.selected != selected {
-                            let mut items = self.items.clone();
-                            while let Some(handle) = items.pop() {
-                                if let Some(tree_ref) = ui.try_get_of_type::<Tree>(handle) {
-                                    items.extend_from_slice(&tree_ref.items);
+                    self.items = items.to_vec();
+                    ui.post(self.handle, TreeRootMessage::ItemsChanged);
+                }
+                TreeRootMessage::Select(selected) => {
+                    if &self.selected != selected {
+                        let mut items = self.items.clone();
+                        while let Some(handle) = items.pop() {
+                            if let Some(tree_ref) = ui.try_get_of_type::<Tree>(handle) {
+                                items.extend_from_slice(&tree_ref.items);
 
-                                    let new_selection_state = if selected.contains(&handle) {
-                                        SelectionState(true)
-                                    } else {
-                                        SelectionState(false)
-                                    };
+                                let new_selection_state = if selected.contains(&handle) {
+                                    SelectionState(true)
+                                } else {
+                                    SelectionState(false)
+                                };
 
-                                    if tree_ref.is_selected != new_selection_state.0 {
-                                        ui.send(handle, TreeMessage::Select(new_selection_state));
-                                    }
+                                if tree_ref.is_selected != new_selection_state.0 {
+                                    ui.send(handle, TreeMessage::Select(new_selection_state));
                                 }
                             }
-
-                            self.selected.clone_from(selected);
-                            ui.send_message(message.reverse());
                         }
+
+                        self.selected.clone_from(selected);
+                        ui.send_message(message.reverse());
                     }
-                    TreeRootMessage::CollapseAll => {
-                        self.expand_all(ui, false);
-                    }
-                    TreeRootMessage::ExpandAll => {
-                        self.expand_all(ui, true);
-                    }
-                    TreeRootMessage::ItemsChanged => {
-                        // Do nothing.
-                    }
+                }
+                TreeRootMessage::CollapseAll => {
+                    self.expand_all(ui, false);
+                }
+                TreeRootMessage::ExpandAll => {
+                    self.expand_all(ui, true);
+                }
+                TreeRootMessage::ItemsChanged => {
+                    // Do nothing.
                 }
             }
         } else if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {

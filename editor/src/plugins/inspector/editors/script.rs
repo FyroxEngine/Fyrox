@@ -101,14 +101,14 @@ impl Control for ScriptPropertyEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(ScriptPropertyEditorMessage::Value(id)) = message.data() {
-            if message.is_for(self.handle()) && self.selected_script_uuid != *id {
+        if let Some(ScriptPropertyEditorMessage::Value(id)) = message.data_for(self.handle()) {
+            if self.selected_script_uuid != *id {
                 self.selected_script_uuid = *id;
                 self.need_context_update.set(true);
                 ui.send_message(message.reverse());
             }
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) =
-            message.data_from::<InspectorMessage>(self.inspector)
+            message.data_from(self.inspector)
         {
             ui.post(
                 self.handle(),

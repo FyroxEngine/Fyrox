@@ -411,86 +411,83 @@ impl Control for TabControl {
             {
                 self.do_drag(*pos, ui);
             }
-        } else if let Some(msg) = message.data::<TabControlMessage>() {
-            if message.is_for(self.handle()) {
-                match msg {
-                    TabControlMessage::ActiveTab(active_tab) => {
-                        if self.active_tab != *active_tab {
-                            self.set_active_tab(*active_tab, ui, message.flags);
-                        }
+        } else if let Some(msg) = message.data_for::<TabControlMessage>(self.handle()) {
+            match msg {
+                TabControlMessage::ActiveTab(active_tab) => {
+                    if self.active_tab != *active_tab {
+                        self.set_active_tab(*active_tab, ui, message.flags);
                     }
-                    TabControlMessage::ActiveTabUuid(uuid) => match uuid {
-                        Some(uuid) => {
-                            if let Some(active_tab) = self.tabs.iter().position(|t| t.uuid == *uuid)
-                            {
-                                if self.active_tab != Some(active_tab) {
-                                    self.set_active_tab(Some(active_tab), ui, message.flags);
-                                }
+                }
+                TabControlMessage::ActiveTabUuid(uuid) => match uuid {
+                    Some(uuid) => {
+                        if let Some(active_tab) = self.tabs.iter().position(|t| t.uuid == *uuid) {
+                            if self.active_tab != Some(active_tab) {
+                                self.set_active_tab(Some(active_tab), ui, message.flags);
                             }
                         }
-                        None if self.active_tab.is_some() => {
-                            self.set_active_tab(None, ui, message.flags)
-                        }
-                        _ => (),
-                    },
-                    TabControlMessage::CloseTab(_) | TabControlMessage::CloseTabByUuid(_) => {
-                        // Nothing to do.
                     }
-                    TabControlMessage::RemoveTab(index) => {
-                        // If a tab was removed, then resend the message.
-                        // Users that remove tabs using the index-based message only get the index-based message in reponse,
-                        // since presumably their application is not using UUIDs.
-                        if self.remove_tab(*index, ui) {
+                    None if self.active_tab.is_some() => {
+                        self.set_active_tab(None, ui, message.flags)
+                    }
+                    _ => (),
+                },
+                TabControlMessage::CloseTab(_) | TabControlMessage::CloseTabByUuid(_) => {
+                    // Nothing to do.
+                }
+                TabControlMessage::RemoveTab(index) => {
+                    // If a tab was removed, then resend the message.
+                    // Users that remove tabs using the index-based message only get the index-based message in reponse,
+                    // since presumably their application is not using UUIDs.
+                    if self.remove_tab(*index, ui) {
+                        ui.send_message(message.reverse());
+                    }
+                }
+                TabControlMessage::RemoveTabByUuid(uuid) => {
+                    // Find the tab that has the given uuid.
+                    let index = self.tabs.iter().position(|t| t.uuid == *uuid);
+                    // Users that remove tabs using the UUID-based message only get the UUID-based message in reponse,
+                    // since presumably their application is not using tab indices.
+                    if let Some(index) = index {
+                        if self.remove_tab(index, ui) {
                             ui.send_message(message.reverse());
                         }
                     }
-                    TabControlMessage::RemoveTabByUuid(uuid) => {
-                        // Find the tab that has the given uuid.
-                        let index = self.tabs.iter().position(|t| t.uuid == *uuid);
-                        // Users that remove tabs using the UUID-based message only get the UUID-based message in reponse,
-                        // since presumably their application is not using tab indices.
-                        if let Some(index) = index {
-                            if self.remove_tab(index, ui) {
-                                ui.send_message(message.reverse());
-                            }
-                        }
+                }
+                TabControlMessage::AddTab { uuid, definition } => {
+                    if self.tabs.iter().any(|t| &t.uuid == uuid) {
+                        ui.send(definition.header, WidgetMessage::Remove);
+                        ui.send(definition.content, WidgetMessage::Remove);
+                        return;
                     }
-                    TabControlMessage::AddTab { uuid, definition } => {
-                        if self.tabs.iter().any(|t| &t.uuid == uuid) {
-                            ui.send(definition.header, WidgetMessage::Remove);
-                            ui.send(definition.content, WidgetMessage::Remove);
-                            return;
-                        }
-                        let header = Header::build(
-                            definition,
-                            false,
-                            (*self.active_tab_brush).clone(),
-                            &mut ui.build_ctx(),
-                        );
+                    let header = Header::build(
+                        definition,
+                        false,
+                        (*self.active_tab_brush).clone(),
+                        &mut ui.build_ctx(),
+                    );
 
-                        ui.send(
-                            header.button,
-                            WidgetMessage::LinkWith(self.headers_container),
-                        );
+                    ui.send(
+                        header.button,
+                        WidgetMessage::LinkWith(self.headers_container),
+                    );
 
-                        ui.send(
-                            definition.content,
-                            WidgetMessage::LinkWith(self.content_container),
-                        );
+                    ui.send(
+                        definition.content,
+                        WidgetMessage::LinkWith(self.content_container),
+                    );
 
-                        ui.send_message(message.reverse());
+                    ui.send_message(message.reverse());
 
-                        self.tabs.push(Tab {
-                            uuid: *uuid,
-                            header_button: header.button,
-                            content: definition.content,
-                            close_button: header.close_button,
-                            header_container: header.button,
-                            user_data: definition.user_data.clone(),
-                            decorator: header.decorator,
-                            header_content: header.content,
-                        });
-                    }
+                    self.tabs.push(Tab {
+                        uuid: *uuid,
+                        header_button: header.button,
+                        content: definition.content,
+                        close_button: header.close_button,
+                        header_container: header.button,
+                        user_data: definition.user_data.clone(),
+                        decorator: header.decorator,
+                        header_content: header.content,
+                    });
                 }
             }
         }

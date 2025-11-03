@@ -94,19 +94,14 @@ impl Control for UuidEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.is_for(self.handle) {
-            if let Some(UuidEditorMessage::Value(value)) = message.data() {
-                if self.value != *value {
-                    self.value = *value;
-                    ui.send_message(message.reverse());
-
-                    ui.send(self.text, TextMessage::Text(value.to_string()));
-                }
+        if let Some(UuidEditorMessage::Value(value)) = message.data_for(self.handle) {
+            if self.value != *value {
+                self.value = *value;
+                ui.send_message(message.reverse());
+                ui.send(self.text, TextMessage::Text(value.to_string()));
             }
-        } else if message.destination() == self.generate {
-            if let Some(ButtonMessage::Click) = message.data() {
-                ui.send(self.handle, UuidEditorMessage::Value(Uuid::new_v4()));
-            }
+        } else if let Some(ButtonMessage::Click) = message.data_from(self.generate) {
+            ui.send(self.handle, UuidEditorMessage::Value(Uuid::new_v4()));
         }
     }
 }

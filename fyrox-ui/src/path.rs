@@ -136,8 +136,8 @@ impl Control for PathEditor {
                 );
                 ui.send(*self.selector, FileSelectorMessage::FocusCurrentPath);
             }
-        } else if let Some(PathEditorMessage::Path(path)) = message.data() {
-            if message.is_for(self.handle) && &*self.path != path {
+        } else if let Some(PathEditorMessage::Path(path)) = message.data_for(self.handle) {
+            if &*self.path != path {
                 self.path.set_value_and_mark_modified(path.clone());
 
                 ui.send(

@@ -93,10 +93,10 @@ impl Control for SpriteSheetFramesPropertyEditor {
                     },
                 );
             }
-        } else if let Some(SpriteSheetFramesPropertyEditorMessage::Value(value)) = message.data() {
-            if message.is_for(self.handle) {
-                self.container = value.clone();
-            }
+        } else if let Some(SpriteSheetFramesPropertyEditorMessage::Value(value)) =
+            message.data_for(self.handle)
+        {
+            self.container = value.clone();
         }
     }
 }

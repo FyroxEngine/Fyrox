@@ -105,20 +105,18 @@ impl Control for Thumb {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(msg) = message.data::<ThumbMessage>() {
-            if message.is_for(self.handle) {
-                match msg {
-                    ThumbMessage::Zoom(zoom) => {
-                        self.transform.set_scale(Vector2::new(*zoom, 1.0));
-                    }
-                    ThumbMessage::ViewPosition(position) => {
-                        self.transform.set_position(Vector2::new(*position, 0.0));
-                    }
-                    ThumbMessage::Position(value) => {
-                        if value.ne(&self.position) {
-                            self.position = *value;
-                            ui.send_message(message.reverse());
-                        }
+        if let Some(msg) = message.data_for::<ThumbMessage>(self.handle) {
+            match msg {
+                ThumbMessage::Zoom(zoom) => {
+                    self.transform.set_scale(Vector2::new(*zoom, 1.0));
+                }
+                ThumbMessage::ViewPosition(position) => {
+                    self.transform.set_position(Vector2::new(*position, 0.0));
+                }
+                ThumbMessage::Position(value) => {
+                    if value.ne(&self.position) {
+                        self.position = *value;
+                        ui.send_message(message.reverse());
                     }
                 }
             }

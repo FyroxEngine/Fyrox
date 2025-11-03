@@ -524,31 +524,29 @@ impl Control for NinePatch {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(msg) = message.data::<NinePatchMessage>() {
-            if message.is_for(self.handle()) {
-                let slice = &mut self.texture_slice;
-                match msg {
-                    NinePatchMessage::LeftMargin(margin) => {
-                        compare_and_set(slice.left_margin.deref_mut(), margin, message, ui);
-                    }
-                    NinePatchMessage::RightMargin(margin) => {
-                        compare_and_set(slice.right_margin.deref_mut(), margin, message, ui);
-                    }
-                    NinePatchMessage::TopMargin(margin) => {
-                        compare_and_set(slice.top_margin.deref_mut(), margin, message, ui);
-                    }
-                    NinePatchMessage::BottomMargin(margin) => {
-                        compare_and_set(slice.bottom_margin.deref_mut(), margin, message, ui);
-                    }
-                    NinePatchMessage::TextureRegion(region) => {
-                        compare_and_set(slice.texture_region.deref_mut(), region, message, ui);
-                    }
-                    NinePatchMessage::Texture(texture) => {
-                        compare_and_set(&mut slice.texture_source, texture, message, ui);
-                    }
-                    NinePatchMessage::DrawCenter(draw_center) => {
-                        compare_and_set(self.draw_center.deref_mut(), draw_center, message, ui);
-                    }
+        if let Some(msg) = message.data_for::<NinePatchMessage>(self.handle) {
+            let slice = &mut self.texture_slice;
+            match msg {
+                NinePatchMessage::LeftMargin(margin) => {
+                    compare_and_set(slice.left_margin.deref_mut(), margin, message, ui);
+                }
+                NinePatchMessage::RightMargin(margin) => {
+                    compare_and_set(slice.right_margin.deref_mut(), margin, message, ui);
+                }
+                NinePatchMessage::TopMargin(margin) => {
+                    compare_and_set(slice.top_margin.deref_mut(), margin, message, ui);
+                }
+                NinePatchMessage::BottomMargin(margin) => {
+                    compare_and_set(slice.bottom_margin.deref_mut(), margin, message, ui);
+                }
+                NinePatchMessage::TextureRegion(region) => {
+                    compare_and_set(slice.texture_region.deref_mut(), region, message, ui);
+                }
+                NinePatchMessage::Texture(texture) => {
+                    compare_and_set(&mut slice.texture_source, texture, message, ui);
+                }
+                NinePatchMessage::DrawCenter(draw_center) => {
+                    compare_and_set(self.draw_center.deref_mut(), draw_center, message, ui);
                 }
             }
         }

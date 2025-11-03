@@ -73,27 +73,25 @@ impl Control for AudioBusView {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.is_for(self.handle) {
-            if let Some(msg) = message.data::<AudioBusViewMessage>() {
-                match msg {
-                    AudioBusViewMessage::ChangeParent(_) => {
-                        // Do nothing.
-                    }
-                    AudioBusViewMessage::PossibleParentBuses(buses) => {
-                        self.possible_parent_buses =
-                            buses.iter().map(|(handle, _)| *handle).collect::<Vec<_>>();
+        if let Some(msg) = message.data_for::<AudioBusViewMessage>(self.handle) {
+            match msg {
+                AudioBusViewMessage::ChangeParent(_) => {
+                    // Do nothing.
+                }
+                AudioBusViewMessage::PossibleParentBuses(buses) => {
+                    self.possible_parent_buses =
+                        buses.iter().map(|(handle, _)| *handle).collect::<Vec<_>>();
 
-                        let items = make_items(buses, &mut ui.build_ctx());
+                    let items = make_items(buses, &mut ui.build_ctx());
 
-                        ui.send(self.parent_bus_selector, DropdownListMessage::Items(items))
-                    }
-                    AudioBusViewMessage::EffectNames(names) => {
-                        let items = make_effect_names(names, &mut ui.build_ctx());
-                        ui.send(self.effect_names_list, ListViewMessage::Items(items));
-                    }
-                    AudioBusViewMessage::Name(new_name) => {
-                        ui.send(self.name, TextMessage::Text(new_name.clone()))
-                    }
+                    ui.send(self.parent_bus_selector, DropdownListMessage::Items(items))
+                }
+                AudioBusViewMessage::EffectNames(names) => {
+                    let items = make_effect_names(names, &mut ui.build_ctx());
+                    ui.send(self.effect_names_list, ListViewMessage::Items(items));
+                }
+                AudioBusViewMessage::Name(new_name) => {
+                    ui.send(self.name, TextMessage::Text(new_name.clone()))
                 }
             }
         }

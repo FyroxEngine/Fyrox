@@ -131,9 +131,9 @@ impl Control for SurfaceDataPropertyEditor {
                 }
             }
         } else if let Some(SurfaceDataPropertyEditorMessage::Value(surface_resource)) =
-            message.data()
+            message.data_for(self.handle)
         {
-            if message.is_for(self.handle) && &self.surface_resource != surface_resource {
+            if &self.surface_resource != surface_resource {
                 self.surface_resource = surface_resource.clone();
                 ui.send_message(message.reverse());
 
@@ -152,17 +152,15 @@ impl Control for SurfaceDataPropertyEditor {
             texture,
             flip_y,
             color,
-        }) = message.data()
+        }) = message.data_for(self.handle)
         {
-            if message.is_for(self.handle) {
-                for widget in [self.image, self.image_preview] {
-                    ui.send(widget, ImageMessage::Texture(texture.clone()));
-                    ui.send(widget, ImageMessage::Flip(*flip_y));
-                    ui.send(
-                        widget,
-                        WidgetMessage::Background(Brush::Solid(*color).into()),
-                    )
-                }
+            for widget in [self.image, self.image_preview] {
+                ui.send(widget, ImageMessage::Texture(texture.clone()));
+                ui.send(widget, ImageMessage::Flip(*flip_y));
+                ui.send(
+                    widget,
+                    WidgetMessage::Background(Brush::Solid(*color).into()),
+                )
             }
         }
 

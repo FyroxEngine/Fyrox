@@ -148,10 +148,8 @@ impl Control for ColorGradientField {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.is_for(self.handle) {
-            if let Some(ColorGradientEditorMessage::Value(value)) = message.data() {
-                self.color_gradient = value.clone();
-            }
+        if let Some(ColorGradientEditorMessage::Value(value)) = message.data_for(self.handle) {
+            self.color_gradient = value.clone();
         }
     }
 }
@@ -220,28 +218,16 @@ impl Control for ColorGradientEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.is_for(self.handle) {
-            if let Some(ColorGradientEditorMessage::Value(value)) = message.data() {
-                // Re-cast to inner field.
-                ui.send(
-                    self.gradient_field,
-                    ColorGradientEditorMessage::Value(value.clone()),
-                );
+        if let Some(ColorGradientEditorMessage::Value(value)) = message.data_for(self.handle) {
+            // Re-cast to inner field.
+            ui.send(
+                self.gradient_field,
+                ColorGradientEditorMessage::Value(value.clone()),
+            );
 
-                for &point in ui.node(self.points_canvas).children() {
-                    ui.send(point, WidgetMessage::Remove);
-                }
-
-                let points = create_color_points(
-                    value,
-                    self.point_context_menu.clone(),
-                    &mut ui.build_ctx(),
-                );
-
-                for point in points {
-                    ui.send(point, WidgetMessage::LinkWith(self.points_canvas));
-                }
-            }
+            let points =
+                create_color_points(value, self.point_context_menu.clone(), &mut ui.build_ctx());
+            ui.send(self.points_canvas, WidgetMessage::ReplaceChildren(points));
         }
 
         if message.direction() == MessageDirection::FromWidget {

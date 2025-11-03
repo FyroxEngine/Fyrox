@@ -118,8 +118,8 @@ impl Control for FontField {
                     }
                 }
             }
-        } else if let Some(FontFieldMessage::Font(font)) = message.data::<FontFieldMessage>() {
-            if &self.font != font && message.is_for(self.handle) {
+        } else if let Some(FontFieldMessage::Font(font)) = message.data_for(self.handle) {
+            if &self.font != font {
                 self.font = font.clone();
 
                 ui.send(self.text_preview, TextMessage::Font(font.clone()));

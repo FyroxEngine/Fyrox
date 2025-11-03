@@ -340,11 +340,9 @@ impl Control for TextureSliceEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(TextureSliceEditorMessage::Slice(slice)) = message.data() {
-            if message.is_for(self.handle()) {
-                self.slice = slice.clone();
-                self.sync_thumbs(ui);
-            }
+        if let Some(TextureSliceEditorMessage::Slice(slice)) = message.data_for(self.handle()) {
+            self.slice = slice.clone();
+            self.sync_thumbs(ui);
         } else if let Some(msg) = message.data::<ThumbMessage>() {
             match msg {
                 ThumbMessage::DragStarted { position } => {

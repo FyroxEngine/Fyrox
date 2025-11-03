@@ -1384,35 +1384,33 @@ impl Control for Inspector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.is_for(self.handle) {
-            if let Some(msg) = message.data::<InspectorMessage>() {
-                match msg {
-                    InspectorMessage::Context(ctx) => {
-                        // Remove previous content.
-                        for child in self.children() {
-                            ui.send(*child, WidgetMessage::Remove);
-                        }
-
-                        // Link new panel.
-                        ui.send(ctx.stack_panel, WidgetMessage::LinkWith(self.handle));
-
-                        self.context = ctx.clone();
+        if let Some(msg) = message.data_for::<InspectorMessage>(self.handle) {
+            match msg {
+                InspectorMessage::Context(ctx) => {
+                    // Remove previous content.
+                    for child in self.children() {
+                        ui.send(*child, WidgetMessage::Remove);
                     }
-                    InspectorMessage::PropertyContextMenuStatus {
-                        can_clone,
-                        can_paste,
-                    } => {
-                        ui.send(
-                            self.context.menu.copy_value,
-                            WidgetMessage::Enabled(*can_clone),
-                        );
-                        ui.send(
-                            self.context.menu.paste_value,
-                            WidgetMessage::Enabled(*can_paste),
-                        );
-                    }
-                    _ => (),
+
+                    // Link new panel.
+                    ui.send(ctx.stack_panel, WidgetMessage::LinkWith(self.handle));
+
+                    self.context = ctx.clone();
                 }
+                InspectorMessage::PropertyContextMenuStatus {
+                    can_clone,
+                    can_paste,
+                } => {
+                    ui.send(
+                        self.context.menu.copy_value,
+                        WidgetMessage::Enabled(*can_clone),
+                    );
+                    ui.send(
+                        self.context.menu.paste_value,
+                        WidgetMessage::Enabled(*can_paste),
+                    );
+                }
+                _ => (),
             }
         }
 

@@ -185,10 +185,11 @@ where
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(RectEditorMessage::Value(value)) = message.data::<RectEditorMessage<T>>() {
-            if message.is_for(self.handle) && *value != *self.value {
+        if let Some(RectEditorMessage::Value(value)) =
+            message.data_for::<RectEditorMessage<T>>(self.handle)
+        {
+            if *value != *self.value {
                 self.value.set_value_and_mark_modified(*value);
-
                 ui.send_message(message.reverse());
             }
         } else if let Some(VecEditorMessage::Value(value)) =

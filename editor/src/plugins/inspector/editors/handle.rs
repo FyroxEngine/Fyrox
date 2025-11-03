@@ -170,73 +170,67 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(msg) = message.data::<HandlePropertyEditorNameMessage>() {
+        if let Some(msg) = message.data_for::<HandlePropertyEditorNameMessage>(self.handle()) {
             let value = &msg.0;
-            if message.is_for(self.handle()) {
-                // Handle messages from the editor, it will respond to requests and provide
-                // node names in efficient way.
-                let value = if let Some(value) = value {
-                    Some(value.as_str())
-                } else if self.value.is_none() {
-                    Some("Unassigned")
+
+            // Handle messages from the editor, it will respond to requests and provide
+            // node names in efficient way.
+            let value = if let Some(value) = value {
+                Some(value.as_str())
+            } else if self.value.is_none() {
+                Some("Unassigned")
+            } else {
+                None
+            };
+
+            if let Some(value) = value {
+                ui.send(
+                    self.text,
+                    TextMessage::Text(format!("{} ({})", value, self.value)),
+                );
+
+                let color = if self.value.is_none() {
+                    ui.style.property(Style::BRUSH_WARNING)
                 } else {
-                    None
+                    ui.style.property(Style::BRUSH_FOREGROUND)
                 };
-
-                if let Some(value) = value {
-                    ui.send(
-                        self.text,
-                        TextMessage::Text(format!("{} ({})", value, self.value)),
-                    );
-
-                    let color = if self.value.is_none() {
-                        ui.style.property(Style::BRUSH_WARNING)
-                    } else {
-                        ui.style.property(Style::BRUSH_FOREGROUND)
-                    };
-                    ui.send(self.text, WidgetMessage::Foreground(color));
-                } else {
-                    ui.send(
-                        self.text,
-                        TextMessage::Text(format!("<Invalid handle!> ({})", self.value)),
-                    );
-
-                    ui.send(
-                        self.text,
-                        WidgetMessage::Foreground(ui.style.property(Style::BRUSH_ERROR)),
-                    );
-                };
-            }
-        }
-
-        if let Some(msg) = message.data::<HandlePropertyEditorHierarchyMessage>() {
-            let value = &msg.0;
-            if message.is_for(self.handle()) {
-                ui.send(self.selector, NodeSelectorMessage::Hierarchy(value.clone()));
+                ui.send(self.text, WidgetMessage::Foreground(color));
+            } else {
+                ui.send(
+                    self.text,
+                    TextMessage::Text(format!("<Invalid handle!> ({})", self.value)),
+                );
 
                 ui.send(
-                    self.selector,
-                    NodeSelectorMessage::Selection(vec![SelectedHandle {
-                        handle: self.value.into(),
-                        inner_type_id: TypeId::of::<T>(),
-                        derived_type_ids: T::derived_types().to_vec(),
-                    }]),
+                    self.text,
+                    WidgetMessage::Foreground(ui.style.property(Style::BRUSH_ERROR)),
                 );
-            }
+            };
         }
 
-        if let Some(msg) = message.data::<HandlePropertyEditorMessage<T>>() {
-            if message.is_for(self.handle()) {
-                match msg {
-                    HandlePropertyEditorMessage::Value(handle) => {
-                        if self.value != *handle {
-                            self.value = *handle;
-                            ui.send_message(message.reverse());
-                        }
+        if let Some(msg) = message.data_for::<HandlePropertyEditorHierarchyMessage>(self.handle()) {
+            let value = &msg.0;
+            ui.send(self.selector, NodeSelectorMessage::Hierarchy(value.clone()));
+            ui.send(
+                self.selector,
+                NodeSelectorMessage::Selection(vec![SelectedHandle {
+                    handle: self.value.into(),
+                    inner_type_id: TypeId::of::<T>(),
+                    derived_type_ids: T::derived_types().to_vec(),
+                }]),
+            );
+        }
 
-                        // Sync name in any case, because it may be changed.
-                        request_name_sync(&self.sender, self.handle, self.value.into());
+        if let Some(msg) = message.data_for::<HandlePropertyEditorMessage<T>>(self.handle()) {
+            match msg {
+                HandlePropertyEditorMessage::Value(handle) => {
+                    if self.value != *handle {
+                        self.value = *handle;
+                        ui.send_message(message.reverse());
                     }
+
+                    // Sync name in any case, because it may be changed.
+                    request_name_sync(&self.sender, self.handle, self.value.into());
                 }
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {

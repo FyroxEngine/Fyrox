@@ -592,110 +592,105 @@ impl Control for MenuItem {
                 }
                 _ => {}
             }
-        } else if let Some(msg) = message.data::<MenuItemMessage>() {
-            if message.is_for(self.handle) {
-                match msg {
-                    MenuItemMessage::Select(selected) => {
-                        if *self.is_selected != *selected {
-                            self.is_selected.set_value_and_mark_modified(*selected);
+        } else if let Some(msg) = message.data_for::<MenuItemMessage>(self.handle) {
+            match msg {
+                MenuItemMessage::Select(selected) => {
+                    if *self.is_selected != *selected {
+                        self.is_selected.set_value_and_mark_modified(*selected);
 
-                            ui.send(*self.decorator, DecoratorMessage::Select(*selected));
+                        ui.send(*self.decorator, DecoratorMessage::Select(*selected));
 
-                            if *selected {
-                                ui.send(self.handle, WidgetMessage::Focus);
+                        if *selected {
+                            ui.send(self.handle, WidgetMessage::Focus);
+                        }
+                    }
+                }
+                MenuItemMessage::Open => {
+                    if !self.items_container.is_empty() && !self.is_opened(ui) {
+                        let placement = match *self.placement {
+                            MenuItemPlacement::Bottom => Placement::LeftBottom(self.handle),
+                            MenuItemPlacement::Right => Placement::RightTop(self.handle),
+                        };
+
+                        if !*self.is_selected {
+                            ui.send(self.handle, MenuItemMessage::Select(true));
+                        }
+
+                        // Open popup.
+                        ui.send(*self.items_panel, PopupMessage::Placement(placement));
+                        ui.send(*self.items_panel, PopupMessage::Open);
+                    }
+                }
+                MenuItemMessage::Close { deselect } => {
+                    if let Some(panel) = ui.node(*self.items_panel).query_component::<ContextMenu>()
+                    {
+                        if *panel.popup.is_open {
+                            ui.send(*self.items_panel, PopupMessage::Close);
+
+                            if *deselect && *self.is_selected {
+                                ui.send(self.handle, MenuItemMessage::Select(false));
+                            }
+
+                            // Recursively deselect everything in the sub-items container.
+                            for &item in &*self.items_container.items {
+                                ui.send(item, MenuItemMessage::Close { deselect: true });
                             }
                         }
                     }
-                    MenuItemMessage::Open => {
-                        if !self.items_container.is_empty() && !self.is_opened(ui) {
-                            let placement = match *self.placement {
-                                MenuItemPlacement::Bottom => Placement::LeftBottom(self.handle),
-                                MenuItemPlacement::Right => Placement::RightTop(self.handle),
-                            };
-
-                            if !*self.is_selected {
-                                ui.send(self.handle, MenuItemMessage::Select(true));
-                            }
-
-                            // Open popup.
-                            ui.send(*self.items_panel, PopupMessage::Placement(placement));
-                            ui.send(*self.items_panel, PopupMessage::Open);
-                        }
+                }
+                MenuItemMessage::Click => {}
+                MenuItemMessage::AddItem(item) => {
+                    ui.send(*item, WidgetMessage::LinkWith(*self.panel));
+                    self.items_container.push(*item);
+                    if self.items_container.len() == 1 {
+                        self.sync_arrow_visibility(ui);
                     }
-                    MenuItemMessage::Close { deselect } => {
-                        if let Some(panel) =
-                            ui.node(*self.items_panel).query_component::<ContextMenu>()
-                        {
-                            if *panel.popup.is_open {
-                                ui.send(*self.items_panel, PopupMessage::Close);
+                }
+                MenuItemMessage::RemoveItem(item) => {
+                    if let Some(position) = self.items_container.iter().position(|i| *i == *item) {
+                        self.items_container.remove(position);
 
-                                if *deselect && *self.is_selected {
-                                    ui.send(self.handle, MenuItemMessage::Select(false));
-                                }
+                        ui.send(*item, WidgetMessage::Remove);
 
-                                // Recursively deselect everything in the sub-items container.
-                                for &item in &*self.items_container.items {
-                                    ui.send(item, MenuItemMessage::Close { deselect: true });
-                                }
-                            }
-                        }
-                    }
-                    MenuItemMessage::Click => {}
-                    MenuItemMessage::AddItem(item) => {
-                        ui.send(*item, WidgetMessage::LinkWith(*self.panel));
-                        self.items_container.push(*item);
-                        if self.items_container.len() == 1 {
+                        if self.items_container.is_empty() {
                             self.sync_arrow_visibility(ui);
                         }
                     }
-                    MenuItemMessage::RemoveItem(item) => {
-                        if let Some(position) =
-                            self.items_container.iter().position(|i| *i == *item)
-                        {
-                            self.items_container.remove(position);
-
-                            ui.send(*item, WidgetMessage::Remove);
-
-                            if self.items_container.is_empty() {
-                                self.sync_arrow_visibility(ui);
-                            }
-                        }
+                }
+                MenuItemMessage::Items(items) => {
+                    for &current_item in self.items_container.iter() {
+                        ui.send(current_item, WidgetMessage::Remove);
                     }
-                    MenuItemMessage::Items(items) => {
-                        for &current_item in self.items_container.iter() {
-                            ui.send(current_item, WidgetMessage::Remove);
-                        }
 
-                        for &item in items {
-                            ui.send(item, WidgetMessage::LinkWith(*self.panel));
-                        }
-
-                        self.items_container
-                            .items
-                            .set_value_and_mark_modified(items.clone());
-
-                        self.sync_arrow_visibility(ui);
+                    for &item in items {
+                        ui.send(item, WidgetMessage::LinkWith(*self.panel));
                     }
-                    MenuItemMessage::Sort(predicate) => {
-                        let predicate = predicate.clone();
-                        ui.send(
-                            *self.panel,
-                            WidgetMessage::SortChildren(widget::SortingPredicate::new(
-                                move |a, b, ui| {
-                                    let item_a = ui.try_get_of_type::<MenuItem>(a).unwrap();
-                                    let item_b = ui.try_get_of_type::<MenuItem>(b).unwrap();
 
-                                    if let (Some(a_content), Some(b_content)) =
-                                        (item_a.content.as_ref(), item_b.content.as_ref())
-                                    {
-                                        predicate.0(a_content, b_content, ui)
-                                    } else {
-                                        Ordering::Equal
-                                    }
-                                },
-                            )),
-                        );
-                    }
+                    self.items_container
+                        .items
+                        .set_value_and_mark_modified(items.clone());
+
+                    self.sync_arrow_visibility(ui);
+                }
+                MenuItemMessage::Sort(predicate) => {
+                    let predicate = predicate.clone();
+                    ui.send(
+                        *self.panel,
+                        WidgetMessage::SortChildren(widget::SortingPredicate::new(
+                            move |a, b, ui| {
+                                let item_a = ui.try_get_of_type::<MenuItem>(a).unwrap();
+                                let item_b = ui.try_get_of_type::<MenuItem>(b).unwrap();
+
+                                if let (Some(a_content), Some(b_content)) =
+                                    (item_a.content.as_ref(), item_b.content.as_ref())
+                                {
+                                    predicate.0(a_content, b_content, ui)
+                                } else {
+                                    Ordering::Equal
+                                }
+                            },
+                        )),
+                    );
                 }
             }
         }

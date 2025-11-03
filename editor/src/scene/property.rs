@@ -349,46 +349,37 @@ impl Control for PropertySelector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(TreeRootMessage::Select(selection)) = message.data() {
-            if message.destination() == self.tree_root
-                && message.direction() == MessageDirection::FromWidget
-            {
-                ui.send(
-                    self.handle,
-                    PropertySelectorMessage::Selection(
-                        selection
-                            .iter()
-                            .map(|s| {
-                                ui.node(*s)
-                                    .user_data_cloned::<PropertyDescriptorData>()
-                                    .unwrap()
-                                    .clone()
-                            })
-                            .collect(),
-                    ),
-                );
-            }
-        } else if let Some(msg) = message.data::<PropertySelectorMessage>() {
-            if message.is_for(self.handle) {
-                match msg {
-                    PropertySelectorMessage::Selection(selection) => {
-                        if &self.selected_property_paths != selection {
-                            self.selected_property_paths.clone_from(selection);
-                            ui.send_message(message.reverse());
-                        }
-                    }
-                    PropertySelectorMessage::ChooseFocus => {
-                        ui.send(self.search_bar, WidgetMessage::Focus);
-                        self.sync_selection(ui);
+        if let Some(TreeRootMessage::Select(selection)) = message.data_from(self.tree_root) {
+            ui.send(
+                self.handle,
+                PropertySelectorMessage::Selection(
+                    selection
+                        .iter()
+                        .map(|s| {
+                            ui.node(*s)
+                                .user_data_cloned::<PropertyDescriptorData>()
+                                .unwrap()
+                                .clone()
+                        })
+                        .collect(),
+                ),
+            );
+        } else if let Some(msg) = message.data_for::<PropertySelectorMessage>(self.handle) {
+            match msg {
+                PropertySelectorMessage::Selection(selection) => {
+                    if &self.selected_property_paths != selection {
+                        self.selected_property_paths.clone_from(selection);
+                        ui.send_message(message.reverse());
                     }
                 }
+                PropertySelectorMessage::ChooseFocus => {
+                    ui.send(self.search_bar, WidgetMessage::Focus);
+                    self.sync_selection(ui);
+                }
             }
-        } else if let Some(SearchBarMessage::Text(filter_text)) = message.data() {
-            if message.destination() == self.search_bar
-                && message.direction() == MessageDirection::FromWidget
-            {
-                apply_filter_recursive(self.tree_root, &filter_text.to_lowercase(), ui);
-            }
+        } else if let Some(SearchBarMessage::Text(filter_text)) = message.data_from(self.search_bar)
+        {
+            apply_filter_recursive(self.tree_root, &filter_text.to_lowercase(), ui);
         }
     }
 }

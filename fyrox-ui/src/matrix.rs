@@ -167,28 +167,26 @@ where
                 }
             }
         } else if let Some(&MatrixEditorMessage::Value(new_value)) =
-            message.data::<MatrixEditorMessage<R, C, T>>()
+            message.data_for::<MatrixEditorMessage<R, C, T>>(self.handle)
         {
-            if message.is_for(self.handle) {
-                let mut changed = false;
+            let mut changed = false;
 
-                for i in 0..self.fields.len() {
-                    let editor = self.fields[i];
-                    let current = &mut self.value[i];
-                    let min = self.min[i];
-                    let max = self.max[i];
-                    let new = num_traits::clamp(new_value[i], min, max);
+            for i in 0..self.fields.len() {
+                let editor = self.fields[i];
+                let current = &mut self.value[i];
+                let min = self.min[i];
+                let max = self.max[i];
+                let new = num_traits::clamp(new_value[i], min, max);
 
-                    if *current != new {
-                        *current = new;
-                        ui.send(editor, NumericUpDownMessage::Value(new));
-                        changed = true;
-                    }
+                if *current != new {
+                    *current = new;
+                    ui.send(editor, NumericUpDownMessage::Value(new));
+                    changed = true;
                 }
+            }
 
-                if changed {
-                    ui.send_message(message.reverse());
-                }
+            if changed {
+                ui.send_message(message.reverse());
             }
         }
     }
