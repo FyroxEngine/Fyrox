@@ -2163,14 +2163,10 @@ impl UserInterface {
             message: None,
         };
 
-        loop {
-            if let Ok(message) = self.receiver.try_recv() {
-                poll_result.processed_messages += 1;
-                if let Some(message) = self.poll_single_message(message) {
-                    poll_result.message = Some(message);
-                    break;
-                }
-            } else {
+        while let Ok(message) = self.receiver.try_recv() {
+            poll_result.processed_messages += 1;
+            if let Some(message) = self.poll_single_message(message) {
+                poll_result.message = Some(message);
                 break;
             }
         }
