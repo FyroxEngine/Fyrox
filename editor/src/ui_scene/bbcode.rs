@@ -1,6 +1,7 @@
 use fyrox::{
     core::{pool::Handle, variable::InheritableVariable},
     engine::Engine,
+    graph::BaseSceneGraph,
     gui::{
         formatted_text::{RunSet, WrapMode},
         message::UiMessage,
@@ -76,16 +77,14 @@ impl BBCodePanel {
         &mut self,
         message: &Message,
         editor_selection: &Selection,
-        ui_scene: &mut UiScene,
+        ui_scene: Option<&UiScene>,
         engine: &mut Engine,
     ) {
         if let Message::SelectionChanged { .. } = message {
             let text_selected = editor_selection.as_ui().is_some_and(|s| {
                 s.widgets.iter().any(|n| {
                     ui_scene
-                        .ui
-                        .try_get_node_mut(*n)
-                        .map(|n| n.cast::<Text>().is_some())
+                        .and_then(|s| s.ui.try_get_node(*n).map(|n| n.cast::<Text>().is_some()))
                         .unwrap_or_default()
                 })
             });

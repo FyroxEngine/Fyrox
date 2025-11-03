@@ -183,28 +183,33 @@ impl AudioPreviewPanel {
         &mut self,
         message: &Message,
         editor_selection: &Selection,
-        game_scene: &mut GameScene,
+        mut game_scene: Option<&mut GameScene>,
         engine: &mut Engine,
     ) {
-        if let Message::DoCommand(_)
-        | Message::UndoCurrentSceneCommand
-        | Message::RedoCurrentSceneCommand = message
-        {
-            self.leave_preview_mode(game_scene, engine);
+        if let Some(game_scene) = game_scene.as_mut() {
+            if let Message::DoCommand(_)
+            | Message::UndoCurrentSceneCommand
+            | Message::RedoCurrentSceneCommand = message
+            {
+                self.leave_preview_mode(game_scene, engine);
+            }
         }
 
         if let Message::SelectionChanged { .. } = message {
-            let scene = &engine.scenes[game_scene.scene];
-            if let Some(selection) = editor_selection.as_graph() {
-                let any_sound_selected = selection
-                    .nodes
-                    .iter()
-                    .any(|n| scene.graph.try_get_of_type::<Sound>(*n).is_some());
-                engine.user_interfaces.first_mut().send(
-                    self.root_widget,
-                    WidgetMessage::Visibility(any_sound_selected),
-                );
-            }
+            let any_sound_selected = if let Some(game_scene) = game_scene {
+                let scene = &engine.scenes[game_scene.scene];
+                editor_selection.as_graph().is_some_and(|s| {
+                    s.nodes()
+                        .iter()
+                        .any(|n| scene.graph.try_get_of_type::<Sound>(*n).is_some())
+                })
+            } else {
+                false
+            };
+            engine.user_interfaces.first_mut().send(
+                self.root_widget,
+                WidgetMessage::Visibility(any_sound_selected),
+            );
         }
     }
 

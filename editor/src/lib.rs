@@ -1183,12 +1183,18 @@ impl Editor {
             }
         }
 
+        let old_selection = self
+            .scenes
+            .current_scene_entry_ref()
+            .map(|s| s.selection.clone())
+            .unwrap_or_default();
+
         self.scenes.add_and_select(entry);
 
         self.scene_viewer
             .reset_camera_projection(self.engine.user_interfaces.first());
 
-        self.on_scene_changed();
+        self.on_scene_changed(old_selection);
     }
 
     pub fn handle_hotkeys(&mut self, message: &UiMessage) {
@@ -2211,7 +2217,7 @@ impl Editor {
             entry.before_drop(engine);
 
             if closing_current_scene {
-                self.on_scene_changed();
+                self.on_scene_changed(entry.selection);
             }
 
             true
@@ -2221,12 +2227,17 @@ impl Editor {
     }
 
     fn set_current_scene(&mut self, id: Uuid) {
+        let old_selection = self
+            .scenes
+            .current_scene_entry_ref()
+            .map(|s| s.selection.clone())
+            .unwrap_or_default();
         if self.scenes.set_current_scene(id) {
-            self.on_scene_changed();
+            self.on_scene_changed(old_selection);
         }
     }
 
-    fn on_scene_changed(&mut self) {
+    fn on_scene_changed(&mut self, old_selection: Selection) {
         let ui = &self.engine.user_interfaces.first();
         if let Some(entry) = self.scenes.current_scene_entry_ref() {
             if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
@@ -2242,6 +2253,9 @@ impl Editor {
 
             self.menu.on_scene_changed(&*entry.controller, ui);
         }
+
+        self.message_sender
+            .send(Message::SelectionChanged { old_selection });
 
         self.world_viewer.clear(ui);
 
@@ -2553,39 +2567,36 @@ impl Editor {
                 if let Some(entry) = self.scenes.current_scene_entry_mut() {
                     self.asset_browser
                         .on_message(&mut self.engine, entry, &message, &self.plugins);
-                    if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
-                        self.particle_system_control_panel.handle_message(
-                            &message,
-                            &entry.selection,
-                            game_scene,
-                            &mut self.engine,
-                        );
-                        self.camera_control_panel.handle_message(
-                            &message,
-                            &entry.selection,
-                            game_scene,
-                            &mut self.engine,
-                        );
-                        self.mesh_control_panel.handle_message(
-                            &message,
-                            &entry.selection,
-                            game_scene,
-                            &mut self.engine,
-                        );
-                        self.audio_preview_panel.handle_message(
-                            &message,
-                            &entry.selection,
-                            game_scene,
-                            &mut self.engine,
-                        );
-                    } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-                        self.bbcode_panel.handle_message(
-                            &message,
-                            &entry.selection,
-                            ui_scene,
-                            &mut self.engine,
-                        );
-                    }
+                    self.particle_system_control_panel.handle_message(
+                        &message,
+                        &entry.selection,
+                        entry.controller.downcast_mut::<GameScene>(),
+                        &mut self.engine,
+                    );
+                    self.camera_control_panel.handle_message(
+                        &message,
+                        &entry.selection,
+                        entry.controller.downcast_mut::<GameScene>(),
+                        &mut self.engine,
+                    );
+                    self.mesh_control_panel.handle_message(
+                        &message,
+                        &entry.selection,
+                        entry.controller.downcast_mut::<GameScene>(),
+                        &mut self.engine,
+                    );
+                    self.audio_preview_panel.handle_message(
+                        &message,
+                        &entry.selection,
+                        entry.controller.downcast_mut::<GameScene>(),
+                        &mut self.engine,
+                    );
+                    self.bbcode_panel.handle_message(
+                        &message,
+                        &entry.selection,
+                        entry.controller.downcast_ref::<UiScene>(),
+                        &mut self.engine,
+                    );
                     needs_sync |=
                         entry
                             .controller

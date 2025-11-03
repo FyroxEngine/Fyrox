@@ -262,20 +262,23 @@ impl MeshControlPanel {
         &mut self,
         message: &Message,
         editor_selection: &Selection,
-        game_scene: &mut GameScene,
+        game_scene: Option<&mut GameScene>,
         engine: &mut Engine,
     ) {
         let Message::SelectionChanged { .. } = message else {
             return;
         };
 
-        let scene = &engine.scenes[game_scene.scene];
-
-        let any_mesh = editor_selection.as_graph().is_some_and(|s| {
-            s.nodes()
-                .iter()
-                .any(|n| scene.graph.try_get_of_type::<Mesh>(*n).is_some())
-        });
+        let any_mesh = if let Some(game_scene) = game_scene {
+            let scene = &engine.scenes[game_scene.scene];
+            editor_selection.as_graph().is_some_and(|s| {
+                s.nodes()
+                    .iter()
+                    .any(|n| scene.graph.try_get_of_type::<Mesh>(*n).is_some())
+            })
+        } else {
+            false
+        };
         engine
             .user_interfaces
             .first()

@@ -683,6 +683,50 @@ pub struct ColliderPlugin {
     panel: Option<ColliderControlPanel>,
 }
 
+impl ColliderPlugin {
+    fn on_selection(&mut self, editor: &mut Editor) -> bool {
+        let mut needs_panel = false;
+        let entry = some_or_return!(editor.scenes.current_scene_entry_mut(), false);
+        let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>(), false);
+        let scene = &mut editor.engine.scenes[game_scene.scene];
+        if let Some(mode) = entry
+            .interaction_modes
+            .remove_typed::<ColliderShapeInteractionMode>()
+        {
+            mode.shape_gizmo.destroy(scene);
+        }
+
+        let first_selected_collider = entry.selection.as_graph().and_then(|n| {
+            n.nodes().iter().find(|h| {
+                scene.graph.has_component::<Collider>(**h)
+                    || scene.graph.has_component::<dim2::collider::Collider>(**h)
+            })
+        });
+
+        if let Some(first_selected_collider) = first_selected_collider {
+            needs_panel = true;
+            let shape_gizmo = make_shape_gizmo(
+                *first_selected_collider,
+                scene,
+                game_scene.editor_objects_root,
+                false,
+            );
+
+            let move_gizmo = MoveGizmo::new(game_scene, &mut editor.engine);
+
+            entry.interaction_modes.add(ColliderShapeInteractionMode {
+                collider: *first_selected_collider,
+                shape_gizmo,
+                move_gizmo,
+                drag_context: None,
+                selected_handle: Default::default(),
+                message_sender: editor.message_sender.clone(),
+            });
+        }
+        needs_panel
+    }
+}
+
 impl EditorPlugin for ColliderPlugin {
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
         let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
@@ -698,53 +742,18 @@ impl EditorPlugin for ColliderPlugin {
     }
 
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
-        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
-        let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
-
-        let scene = &mut editor.engine.scenes[game_scene.scene];
-
-        if let Message::SelectionChanged { .. } = message {
-            if let Some(mode) = entry
-                .interaction_modes
-                .remove_typed::<ColliderShapeInteractionMode>()
-            {
-                mode.shape_gizmo.destroy(scene);
-            }
-
-            let first_selected_collider = entry.selection.as_graph().and_then(|n| {
-                n.nodes().iter().find(|h| {
-                    scene.graph.has_component::<Collider>(**h)
-                        || scene.graph.has_component::<dim2::collider::Collider>(**h)
-                })
-            });
-
-            if let Some(first_selected_collider) = first_selected_collider {
-                let shape_gizmo = make_shape_gizmo(
-                    *first_selected_collider,
-                    scene,
-                    game_scene.editor_objects_root,
-                    false,
-                );
-
-                let move_gizmo = MoveGizmo::new(game_scene, &mut editor.engine);
-
-                entry.interaction_modes.add(ColliderShapeInteractionMode {
-                    collider: *first_selected_collider,
-                    shape_gizmo,
-                    move_gizmo,
-                    drag_context: None,
-                    selected_handle: Default::default(),
-                    message_sender: editor.message_sender.clone(),
-                });
-
-                if self.panel.is_none() {
-                    let inspector = editor.plugins.get::<InspectorPlugin>();
-                    let ui = editor.engine.user_interfaces.first_mut();
-                    let panel = ColliderControlPanel::new(&mut ui.build_ctx());
-                    ui.send(panel.root_widget, WidgetMessage::LinkWith(inspector.head));
-                    self.panel = Some(panel);
-                }
-            } else if let Some(panel) = self.panel.take() {
+        if !matches!(message, Message::SelectionChanged { .. }) {
+            return;
+        }
+        let needs_panel = self.on_selection(editor);
+        if needs_panel && self.panel.is_none() {
+            let inspector = editor.plugins.get::<InspectorPlugin>();
+            let ui = editor.engine.user_interfaces.first_mut();
+            let panel = ColliderControlPanel::new(&mut ui.build_ctx());
+            ui.send(panel.root_widget, WidgetMessage::LinkWith(inspector.head));
+            self.panel = Some(panel);
+        } else if !needs_panel {
+            if let Some(panel) = self.panel.take() {
                 let ui = editor.engine.user_interfaces.first();
                 panel.destroy(ui);
             }

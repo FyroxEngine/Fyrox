@@ -107,24 +107,29 @@ impl CameraPreviewControlPanel {
         &mut self,
         message: &Message,
         editor_selection: &Selection,
-        game_scene: &mut GameScene,
+        mut game_scene: Option<&mut GameScene>,
         engine: &mut Engine,
     ) {
-        if let Message::DoCommand(_)
-        | Message::UndoCurrentSceneCommand
-        | Message::RedoCurrentSceneCommand = message
-        {
-            self.leave_preview_mode(game_scene, engine);
+        if let Some(game_scene) = game_scene.as_mut() {
+            if let Message::DoCommand(_)
+            | Message::UndoCurrentSceneCommand
+            | Message::RedoCurrentSceneCommand = message
+            {
+                self.leave_preview_mode(game_scene, engine);
+            }
         }
 
         if let Message::SelectionChanged { .. } = message {
-            let scene = &engine.scenes[game_scene.scene];
-
-            let any_camera = editor_selection.as_graph().is_some_and(|s| {
-                s.nodes
-                    .iter()
-                    .any(|n| scene.graph.try_get_of_type::<Camera>(*n).is_some())
-            });
+            let any_camera = if let Some(game_scene) = game_scene {
+                let scene = &engine.scenes[game_scene.scene];
+                editor_selection.as_graph().is_some_and(|s| {
+                    s.nodes
+                        .iter()
+                        .any(|n| scene.graph.try_get_of_type::<Camera>(*n).is_some())
+                })
+            } else {
+                false
+            };
             if any_camera {
                 engine.user_interfaces.first_mut().send(
                     self.window,
