@@ -572,13 +572,6 @@ impl Base {
         self.name.to_mutable()
     }
 
-    /// Returns shared reference to local transform of a node, can be used to fetch
-    /// some local spatial properties, such as position, rotation, scale, etc.
-    #[inline]
-    pub fn local_transform(&self) -> &Transform {
-        &self.local_transform
-    }
-
     pub(crate) fn on_connected_to_graph(
         &mut self,
         self_handle: Handle<Node>,
@@ -606,6 +599,13 @@ impl Base {
         Log::verify(sender.send(NodeMessage::new(node, kind)));
     }
 
+    /// Returns shared reference to local transform of a node, can be used to fetch
+    /// some local spatial properties, such as position, rotation, scale, etc.
+    #[inline]
+    pub fn local_transform(&self) -> &Transform {
+        &self.local_transform
+    }
+
     /// Returns mutable reference to local transform of a node, can be used to set some local spatial
     /// properties, such as position, rotation, scale, etc. To set global position and rotation, use
     /// [`super::Graph::set_global_position`] and [`super::Graph::set_global_rotation`] methods respectively.
@@ -620,6 +620,66 @@ impl Base {
     pub fn set_local_transform(&mut self, transform: Transform) {
         self.local_transform.property = transform;
         self.notify(self.self_handle, NodeMessageKind::TransformChanged);
+    }
+
+    /// Sets the new position of the node in the parent's node coordinate system.
+    #[inline]
+    pub fn set_position(&mut self, position: Vector3<f32>) {
+        self.local_transform_mut().set_position(position);
+    }
+
+    /// Sets the new position of the node in the parent's node coordinate system.
+    #[inline]
+    pub fn set_position_xyz(&mut self, x: f32, y: f32, z: f32) {
+        self.set_position(Vector3::new(x, y, z))
+    }
+
+    /// Sets the new rotation of the node in the parent's node coordinate system.
+    #[inline]
+    pub fn set_rotation(&mut self, rotation: UnitQuaternion<f32>) {
+        self.local_transform_mut().set_rotation(rotation);
+    }
+
+    /// Sets the new rotation of the node in the parent's node coordinate system.
+    #[inline]
+    pub fn set_rotation_angles(&mut self, roll: f32, pitch: f32, yaw: f32) {
+        self.set_rotation(UnitQuaternion::from_euler_angles(roll, pitch, yaw))
+    }
+
+    /// Sets the new rotation of the node around X axis in the parent's node coordinate system.
+    #[inline]
+    pub fn set_rotation_x(&mut self, angle: f32) {
+        self.set_rotation(UnitQuaternion::from_axis_angle(&Vector3::x_axis(), angle))
+    }
+
+    /// Sets the new rotation of the node around Y axis in the parent's node coordinate system.
+    #[inline]
+    pub fn set_rotation_y(&mut self, angle: f32) {
+        self.set_rotation(UnitQuaternion::from_axis_angle(&Vector3::y_axis(), angle))
+    }
+
+    /// Sets the new rotation of the node around Z axis in the parent's node coordinate system.
+    #[inline]
+    pub fn set_rotation_z(&mut self, angle: f32) {
+        self.set_rotation(UnitQuaternion::from_axis_angle(&Vector3::z_axis(), angle))
+    }
+
+    /// Sets the new scale of the node in the parent's node coordinate system.
+    #[inline]
+    pub fn set_scale(&mut self, scale: Vector3<f32>) {
+        self.local_transform_mut().set_scale(scale);
+    }
+
+    /// Sets the new scale of the node in the parent's node coordinate system.
+    #[inline]
+    pub fn set_scale_xyz(&mut self, x: f32, y: f32, z: f32) {
+        self.set_scale(Vector3::new(x, y, z));
+    }
+
+    /// Sets the new scale of the node for all axes at once in the parent's node coordinate system.
+    #[inline]
+    pub fn set_uniform_scale(&mut self, scale: f32) {
+        self.set_scale(Vector3::repeat(scale))
     }
 
     /// Tries to find properties by the name. The method returns an iterator because it possible
