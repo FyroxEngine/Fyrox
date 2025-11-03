@@ -2350,9 +2350,14 @@ impl Editor {
     fn poll_ui_messages(&mut self) -> usize {
         let mut processed = 0;
 
-        while let Some(mut ui_message) = self.engine.user_interfaces.first_mut().poll_message() {
-            self.handle_ui_message(&mut ui_message);
-            processed += 1;
+        loop {
+            let poll_result = self.engine.user_interfaces.first_mut().poll_message_queue();
+            if let Some(mut ui_message) = poll_result.message {
+                self.handle_ui_message(&mut ui_message);
+            } else {
+                break;
+            }
+            processed += poll_result.processed_messages;
         }
 
         if processed > 0 {

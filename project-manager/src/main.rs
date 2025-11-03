@@ -164,9 +164,14 @@ fn main() {
                         let elapsed = previous.elapsed();
                         if elapsed.as_secs_f32() >= time_step {
                             let mut processed = 0;
-                            while let Some(message) = ui.poll_message() {
-                                project_manager.handle_ui_message(&message, ui);
-                                processed += 1;
+                            loop {
+                                let poll_result = ui.poll_message_queue();
+                                if let Some(message) = poll_result.message {
+                                    project_manager.handle_ui_message(&message, ui);
+                                } else {
+                                    break;
+                                }
+                                processed += poll_result.processed_messages;
                             }
                             if processed > 0 {
                                 project_manager

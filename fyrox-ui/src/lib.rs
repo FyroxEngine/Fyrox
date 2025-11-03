@@ -177,7 +177,7 @@
 //!     .build(&mut ui.build_ctx());
 //!
 //! // Poll the messages coming from the widgets and react to them.
-//! while let Some(message) = ui.poll_message() {
+//! while let Some(message) = ui.poll_message_queue() {
 //!     if let Some(ButtonMessage::Click) = message.data() {
 //!         if message.destination() == button {
 //!             println!("The button was clicked!");
@@ -295,40 +295,50 @@ pub mod wrap_panel;
 use crate::{
     brush::Brush,
     canvas::Canvas,
-    constructor::WidgetConstructorContainer,
+    constructor::{new_widget_constructor_container, WidgetConstructorContainer},
     container::WidgetContainer,
     core::{
         algebra::{Matrix3, Vector2},
         color::Color,
+        futures::future::join_all,
+        log::Log,
         math::Rect,
         parking_lot::Mutex,
-        pool::Ticket,
-        pool::{Handle, Pool},
+        pool::{ErasedHandle, Handle, ObjectOrVariant, Pool, Ticket},
         reflect::prelude::*,
-        uuid::uuid,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         uuid_provider,
         visitor::prelude::*,
         SafeLock, TypeUuidProvider,
     },
     draw::{CommandTexture, Draw, DrawingContext},
-    font::FontResource,
-    font::BUILT_IN_FONT,
+    font::{FontResource, BUILT_IN_FONT},
     message::{
         ButtonState, CursorIcon, KeyboardModifiers, MessageDirection, MouseButton, OsEvent,
         UiMessage,
     },
+    message::{DeliveryMode, MessageData, RoutingStrategy},
     popup::{Placement, PopupMessage},
-    widget::{Widget, WidgetBuilder, WidgetMessage},
+    style::{
+        resource::{StyleResource, StyleResourceExt},
+        Style, DEFAULT_STYLE,
+    },
+    widget::{Widget, WidgetBuilder, WidgetMaterial, WidgetMessage},
 };
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
+pub use fyrox_animation as generic_animation;
+use fyrox_graph::{
+    AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping, PrefabData,
+    SceneGraph, SceneGraphNode,
+};
 use fyrox_resource::{
     io::{FsResourceIo, ResourceIo},
     manager::ResourceManager,
-    untyped::UntypedResource,
+    untyped::{ResourceKind, UntypedResource},
     Resource, ResourceData,
 };
+use fyrox_texture::TextureResource;
 use serde::{Deserialize, Serialize};
 use std::{
     any::TypeId,
@@ -339,7 +349,7 @@ use std::{
     ops::{Deref, DerefMut, Index, IndexMut},
     path::Path,
     sync::{
-        mpsc::{self, Receiver, Sender, TryRecvError},
+        mpsc::{self, Receiver, Sender},
         Arc,
     },
 };
@@ -348,25 +358,9 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
-use fyrox_core::log::Log;
-use fyrox_core::{err, futures::future::join_all, pool::ObjectOrVariant};
-use fyrox_graph::{
-    AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping, PrefabData,
-    SceneGraph, SceneGraphNode,
-};
+pub use fyrox_texture as texture;
 pub use node::*;
 pub use thickness::*;
-
-use crate::constructor::new_widget_constructor_container;
-use crate::message::{DeliveryMode, MessageData, RoutingStrategy};
-use crate::style::resource::{StyleResource, StyleResourceExt};
-use crate::style::{Style, DEFAULT_STYLE};
-use crate::widget::WidgetMaterial;
-pub use fyrox_animation as generic_animation;
-use fyrox_core::pool::ErasedHandle;
-use fyrox_resource::untyped::ResourceKind;
-pub use fyrox_texture as texture;
-use fyrox_texture::TextureResource;
 
 #[derive(Default, Clone, Reflect, Debug)]
 pub(crate) struct RcUiNodeHandleInner {
@@ -1158,6 +1152,11 @@ fn remap_handles(old_new_mapping: &NodeHandleMap<UiNode>, ui: &mut UserInterface
 struct VisualTransformUpdateData {
     roots: FxHashSet<Handle<UiNode>>,
     visited: Vec<bool>,
+}
+
+pub struct PollResult {
+    pub processed_messages: usize,
+    pub message: Option<UiMessage>,
 }
 
 impl UserInterface {
@@ -2153,27 +2152,36 @@ impl UserInterface {
     ///
     /// Keep in mind, that any number of widget may produce some other messages during this method
     /// call. These messages will be put at the end of the queue.
-    pub fn poll_message(&mut self) -> Option<UiMessage> {
+    ///
+    /// # Returns
+    ///
+    /// This method returns a [`PollResult`] with processed message number and the last processed message
+    /// that has [`DeliveryMode::FullCycle`]. See the diagram above for the explanation.
+    pub fn poll_message_queue(&mut self) -> PollResult {
+        let mut poll_result = PollResult {
+            processed_messages: 0,
+            message: None,
+        };
+
         loop {
-            match self.receiver.try_recv() {
-                Ok(message) => {
-                    if let Some(message) = self.poll_single_message(message) {
-                        return Some(message);
-                    } else {
-                        // Process the next message (if any).
-                    }
+            if let Ok(message) = self.receiver.try_recv() {
+                poll_result.processed_messages += 1;
+                if let Some(message) = self.poll_single_message(message) {
+                    poll_result.message = Some(message);
+                    break;
                 }
-                Err(e) => {
-                    return match e {
-                        TryRecvError::Empty => None,
-                        TryRecvError::Disconnected => {
-                            err!("The message queue was corrupted!");
-                            None
-                        }
-                    }
-                }
+            } else {
+                break;
             }
         }
+
+        poll_result
+    }
+
+    /// Same as [`Self::poll_message_queue`], but discards the number of processed message the last
+    /// processed message that has [`DeliveryMode::FullCycle`].
+    pub fn poll_message(&mut self) -> Option<UiMessage> {
+        self.poll_message_queue().message
     }
 
     fn poll_single_message(&mut self, mut message: UiMessage) -> Option<UiMessage> {

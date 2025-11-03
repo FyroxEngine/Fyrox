@@ -121,12 +121,12 @@ pub enum RoutingStrategy {
 #[derive(Default, Copy, Clone, Debug, PartialEq)]
 pub enum DeliveryMode {
     /// The message will be at first processed by the widgets (via [`crate::control::Control::handle_routed_message`] and [`crate::control::Control::preview_message`]
-    /// methods) and then will be returned to the caller of [`UserInterface::poll_message`] for further
+    /// methods) and then will be returned to the caller of [`UserInterface::poll_message_queue`] for further
     /// processing. This is the default mode.
     #[default]
     FullCycle,
 
-    /// The message will never escape the internal message queue. The [`UserInterface::poll_message`]
+    /// The message will never escape the internal message queue. The [`UserInterface::poll_message_queue`]
     /// will never return such message, and the message will only be processed by the widgets (via
     /// [`crate::control::Control::handle_routed_message`] and [`crate::control::Control::preview_message`] methods).
     /// This mode is used to break message loops at the synchronization stage when the UI state is
