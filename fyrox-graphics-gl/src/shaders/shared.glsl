@@ -336,7 +336,7 @@ vec4 S_SRGBToLinear(vec4 color) {
 }
 
 float S_Luminance(vec3 x) {
-    return dot(x, vec3(0.299, 0.587, 0.114));
+    return dot(x, vec3(0.2125, 0.7154, 0.0721));
 }
 
 ivec2 S_LinearIndexToPosition(int index, int textureWidth) {
