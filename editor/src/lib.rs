@@ -2907,12 +2907,13 @@ impl Editor {
     }
 
     pub fn is_active(&self) -> bool {
-        !self.update_loop_state.is_suspended()
+        self.settings.general.keep_editor_active
+            || (!self.update_loop_state.is_suspended()
             && (self.focused || !self.settings.general.suspend_unfocused_editor)
             // Keep the editor active if user holds any mouse button.
             || self.engine.user_interfaces.first().captured_node().is_some()
             // Keep the editor active until it fully loads all the queued scenes.
-            ||!self.loading_scenes.safe_lock().is_empty()
+            ||!self.loading_scenes.safe_lock().is_empty())
     }
 
     fn on_resumed(&mut self, event_loop: &ActiveEventLoop) {

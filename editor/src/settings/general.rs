@@ -55,6 +55,10 @@ pub struct GeneralSettings {
     #[serde(default = "default_suspension_state")]
     pub suspend_unfocused_editor: bool,
 
+    /// When set, suspends the editor will update and render itself on every frame. By default, this
+    /// option is disabled.
+    pub keep_editor_active: bool,
+
     #[serde(default = "default_script_editor")]
     pub script_editor: ScriptEditor,
 
@@ -134,6 +138,7 @@ impl Default for GeneralSettings {
         Self {
             show_node_removal_dialog: true,
             suspend_unfocused_editor: default_suspension_state(),
+            keep_editor_active: false,
             script_editor: default_script_editor(),
             max_history_entries: default_max_history_entries(),
             generate_previews: default_generate_previews(),
