@@ -61,11 +61,30 @@
                     out float outLum;
 
                     void main() {
-                        float lum0 = texture(lumSampler, texCoord).r;
-                        float lum1 = texture(lumSampler, texCoord + vec2(properties.invSize.x, 0.0)).r;
-                        float lum2 = texture(lumSampler, texCoord + properties.invSize).r;
-                        float lum3 = texture(lumSampler, texCoord + vec2(0.0, properties.invSize.y)).r;
-                        outLum = (lum0 + lum1 + lum2 + lum3) / 4.0;
+                        float x = properties.invSize.x;
+                        float y = properties.invSize.y;
+
+                        float a = texture(lumSampler, vec2(texCoord.x - 2*x, texCoord.y + 2*y)).r;
+                        float b = texture(lumSampler, vec2(texCoord.x,       texCoord.y + 2*y)).r;
+                        float c = texture(lumSampler, vec2(texCoord.x + 2*x, texCoord.y + 2*y)).r;
+
+                        float d = texture(lumSampler, vec2(texCoord.x - 2*x, texCoord.y)).r;
+                        float e = texture(lumSampler, vec2(texCoord.x,       texCoord.y)).r;
+                        float f = texture(lumSampler, vec2(texCoord.x + 2*x, texCoord.y)).r;
+
+                        float g = texture(lumSampler, vec2(texCoord.x - 2*x, texCoord.y - 2*y)).r;
+                        float h = texture(lumSampler, vec2(texCoord.x,       texCoord.y - 2*y)).r;
+                        float i = texture(lumSampler, vec2(texCoord.x + 2*x, texCoord.y - 2*y)).r;
+
+                        float j = texture(lumSampler, vec2(texCoord.x - x, texCoord.y + y)).r;
+                        float k = texture(lumSampler, vec2(texCoord.x + x, texCoord.y + y)).r;
+                        float l = texture(lumSampler, vec2(texCoord.x - x, texCoord.y - y)).r;
+                        float m = texture(lumSampler, vec2(texCoord.x + x, texCoord.y - y)).r;
+
+                        outLum = e*0.125;
+                        outLum += (a+c+g+i)*0.03125;
+                        outLum += (b+d+f+h)*0.0625;
+                        outLum += (j+k+l+m)*0.125;
                     }
                 "#,
         )

@@ -202,20 +202,22 @@ impl HighDynamicRangeRenderer {
                 )?;
             }
             LuminanceCalculationMethod::DownSampling => {
-                let mut prev_luminance = self.frame_luminance.texture();
+                let mut src = &self.frame_luminance;
 
-                for lum_buffer in self.downscale_chain.iter() {
-                    let inv_size = Vector2::repeat(1.0 / lum_buffer.size as f32);
-                    let matrix = lum_buffer.matrix();
+                for dest in self.downscale_chain.iter() {
+                    let src_inv_size = Vector2::repeat(1.0 / src.size as f32);
+                    let src_texture = src.texture();
+
+                    let matrix = dest.matrix();
 
                     let properties = PropertyGroup::from([
                         property("worldViewProjection", &matrix),
-                        property("invSize", &inv_size),
+                        property("invSize", &src_inv_size),
                     ]);
                     let material = RenderMaterial::from([
                         binding(
                             "lumSampler",
-                            (prev_luminance, &renderer_resources.nearest_clamp_sampler),
+                            (src_texture, &renderer_resources.linear_clamp_sampler),
                         ),
                         binding("properties", &properties),
                     ]);
@@ -223,16 +225,16 @@ impl HighDynamicRangeRenderer {
                     stats += renderer_resources.shaders.hdr_downscale.run_pass(
                         1,
                         &ImmutableString::new("Primary"),
-                        &lum_buffer.framebuffer,
+                        &dest.framebuffer,
                         &renderer_resources.quad,
-                        Rect::new(0, 0, lum_buffer.size as i32, lum_buffer.size as i32),
+                        Rect::new(0, 0, dest.size as i32, dest.size as i32),
                         &material,
                         uniform_buffer_cache,
                         Default::default(),
                         None,
                     )?;
 
-                    prev_luminance = lum_buffer.texture();
+                    src = dest;
                 }
             }
         }
