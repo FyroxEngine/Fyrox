@@ -1269,7 +1269,7 @@ impl EditorPlugin for RagdollPlugin {
 
         let ui = editor.engine.user_interfaces.first_mut();
         let wizard = some_or_return!(self.ragdoll_wizard.as_mut());
-        let current_scene = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let current_scene = editor.scenes.current_scene_entry_mut();
         let game_scene = some_or_return!(current_scene.controller.downcast_mut::<GameScene>());
         let graph = &mut editor.engine.scenes[game_scene.scene].graph;
         wizard.handle_ui_message(message, ui, graph, game_scene, &editor.message_sender);

@@ -888,7 +888,7 @@ impl EditorPlugin for AnimationEditorPlugin {
     }
 
     fn on_sync_to_model(&mut self, editor: &mut Editor) {
-        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let entry = editor.scenes.current_scene_entry_mut();
         let animation_editor = some_or_return!(self.animation_editor.as_mut());
         let ui = editor.engine.user_interfaces.first_mut();
         if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
@@ -927,40 +927,39 @@ impl EditorPlugin for AnimationEditorPlugin {
             }
         }
 
-        if let Some(entry) = editor.scenes.current_scene_entry_mut() {
-            let ui = editor.engine.user_interfaces.first_mut();
-            if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
-                let graph = &mut editor.engine.scenes[game_scene.scene].graph;
-                animation_editor.handle_ui_message(
-                    message,
-                    &entry.selection,
-                    graph,
-                    game_scene.scene_content_root,
-                    ui,
-                    &editor.engine.resource_manager,
-                    &editor.message_sender,
-                    game_scene.graph_switches.node_overrides.as_mut().unwrap(),
-                );
-            } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-                let ui_root = ui_scene.ui.root();
-                animation_editor.handle_ui_message(
-                    message,
-                    &entry.selection,
-                    &mut ui_scene.ui,
-                    ui_root,
-                    ui,
-                    &editor.engine.resource_manager,
-                    &editor.message_sender,
-                    ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
-                );
-            }
+        let entry = editor.scenes.current_scene_entry_mut();
+        let ui = editor.engine.user_interfaces.first_mut();
+        if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
+            let graph = &mut editor.engine.scenes[game_scene.scene].graph;
+            animation_editor.handle_ui_message(
+                message,
+                &entry.selection,
+                graph,
+                game_scene.scene_content_root,
+                ui,
+                &editor.engine.resource_manager,
+                &editor.message_sender,
+                game_scene.graph_switches.node_overrides.as_mut().unwrap(),
+            );
+        } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+            let ui_root = ui_scene.ui.root();
+            animation_editor.handle_ui_message(
+                message,
+                &entry.selection,
+                &mut ui_scene.ui,
+                ui_root,
+                ui,
+                &editor.engine.resource_manager,
+                &editor.message_sender,
+                ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
+            );
         }
 
         self.animation_editor = Some(animation_editor);
     }
 
     fn on_leave_preview_mode(&mut self, editor: &mut Editor) {
-        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let entry = editor.scenes.current_scene_entry_mut();
         let animation_editor = some_or_return!(self.animation_editor.as_mut());
         if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
             let engine = &mut editor.engine;
@@ -984,7 +983,7 @@ impl EditorPlugin for AnimationEditorPlugin {
     }
 
     fn on_update(&mut self, editor: &mut Editor) {
-        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let entry = editor.scenes.current_scene_entry_mut();
         let animation_editor = some_or_return!(self.animation_editor.as_mut());
         if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
             animation_editor.update(
@@ -1016,7 +1015,7 @@ impl EditorPlugin for AnimationEditorPlugin {
             self.on_sync_to_model(editor);
         }
 
-        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let entry = editor.scenes.current_scene_entry_mut();
         let animation_editor = some_or_return!(self.animation_editor.as_mut());
         if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
             animation_editor.handle_message(

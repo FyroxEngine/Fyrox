@@ -321,7 +321,7 @@ pub struct ReflectionProbePlugin {
 
 impl EditorPlugin for ReflectionProbePlugin {
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
-        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let entry = editor.scenes.current_scene_entry_mut();
         let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
         let panel = some_or_return!(self.panel.as_mut());
         panel.handle_ui_message(
@@ -334,7 +334,7 @@ impl EditorPlugin for ReflectionProbePlugin {
     }
 
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
-        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let entry = editor.scenes.current_scene_entry_mut();
         let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
 
         let scene = &mut editor.engine.scenes[game_scene.scene];

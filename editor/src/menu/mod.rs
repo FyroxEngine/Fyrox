@@ -80,7 +80,7 @@ pub struct Panels<'b> {
 
 pub struct MenuContext<'a, 'b> {
     pub engine: &'a mut Engine,
-    pub game_scene: Option<&'b mut EditorSceneEntry>,
+    pub game_scene: &'b mut EditorSceneEntry,
     pub panels: Panels<'b>,
     pub settings: &'b mut Settings,
     pub icon_request_sender: Sender<IconRequest>,
@@ -182,23 +182,22 @@ impl Menu {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, mut ctx: MenuContext) {
-        if let Some(entry) = ctx.game_scene.as_mut() {
-            self.edit_menu.handle_ui_message(
-                message,
-                &self.message_sender,
-                &entry.selection,
-                &mut *entry.controller,
-                ctx.engine,
-            );
+        let entry = ctx.game_scene;
+        self.edit_menu.handle_ui_message(
+            message,
+            &self.message_sender,
+            &entry.selection,
+            &mut *entry.controller,
+            ctx.engine,
+        );
 
-            self.create_entity_menu.handle_ui_message(
-                message,
-                &self.message_sender,
-                &mut *entry.controller,
-                &entry.selection,
-                ctx.engine,
-            );
-        }
+        self.create_entity_menu.handle_ui_message(
+            message,
+            &self.message_sender,
+            &mut *entry.controller,
+            &entry.selection,
+            ctx.engine,
+        );
 
         self.utils_menu.handle_ui_message(
             message,
@@ -208,7 +207,7 @@ impl Menu {
         self.file_menu.handle_ui_message(
             message,
             &self.message_sender,
-            ctx.game_scene,
+            Some(entry),
             ctx.engine,
             ctx.settings,
             &mut ctx.panels,

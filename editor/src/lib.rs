@@ -1030,12 +1030,13 @@ impl Editor {
             );
         }
 
+        let scenes = SceneContainer::new(&mut engine, &mut settings, message_sender.clone());
         let editor = Self {
             docking_manager,
             engine,
             navmesh_panel,
             scene_viewer,
-            scenes: SceneContainer::new(),
+            scenes,
             message_sender,
             message_receiver,
             world_viewer: world_outliner,
@@ -1183,11 +1184,7 @@ impl Editor {
             }
         }
 
-        let old_selection = self
-            .scenes
-            .current_scene_entry_ref()
-            .map(|s| s.selection.clone())
-            .unwrap_or_default();
+        let old_selection = self.scenes.current_scene_entry_ref().selection.clone();
 
         self.scenes.add_and_select(entry);
 
@@ -1215,18 +1212,17 @@ impl Editor {
             };
 
             let mut processed = false;
-            if let Some(scene) = self.scenes.current_scene_entry_mut() {
-                if let Some(current_interaction_mode) = scene
-                    .current_interaction_mode
-                    .and_then(|current_mode| scene.interaction_modes.get_mut(&current_mode))
-                {
-                    processed |= current_interaction_mode.on_hot_key_pressed(
-                        &hot_key,
-                        &mut *scene.controller,
-                        engine,
-                        &self.settings,
-                    );
-                }
+            let scene = self.scenes.current_scene_entry_mut();
+            if let Some(current_interaction_mode) = scene
+                .current_interaction_mode
+                .and_then(|current_mode| scene.interaction_modes.get_mut(&current_mode))
+            {
+                processed |= current_interaction_mode.on_hot_key_pressed(
+                    &hot_key,
+                    &mut *scene.controller,
+                    engine,
+                    &self.settings,
+                );
             }
 
             if !processed {
@@ -1263,104 +1259,91 @@ impl Editor {
                         play_after_build: true,
                     });
                 } else if hot_key == key_bindings.save_scene {
-                    if let Some(entry) = self.scenes.current_scene_entry_ref() {
-                        if let Some(path) = entry.path.as_ref() {
-                            self.message_sender.send(Message::SaveScene {
-                                id: entry.id,
-                                path: path.clone(),
-                            });
-                        } else {
-                            self.message_sender.send(Message::OpenSaveSceneDialog {
-                                default_file_name: entry.default_file_name(),
-                            });
-                        }
+                    let entry = self.scenes.current_scene_entry_ref();
+                    if let Some(path) = entry.path.as_ref() {
+                        self.message_sender.send(Message::SaveScene {
+                            id: entry.id,
+                            path: path.clone(),
+                        });
+                    } else {
+                        self.message_sender.send(Message::OpenSaveSceneDialog {
+                            default_file_name: entry.default_file_name(),
+                        });
                     }
                 } else if hot_key == key_bindings.save_scene_as {
-                    if let Some(entry) = self.scenes.current_scene_entry_ref() {
-                        self.menu.file_menu.open_save_file_selector(
-                            engine.user_interfaces.first_mut(),
-                            entry.default_file_name(),
-                        );
-                    }
+                    let entry = self.scenes.current_scene_entry_ref();
+                    self.menu.file_menu.open_save_file_selector(
+                        engine.user_interfaces.first_mut(),
+                        entry.default_file_name(),
+                    );
                 } else if hot_key == key_bindings.save_all_scenes {
                     self.message_sender.send(Message::SaveAllScenes);
                 } else if hot_key == key_bindings.copy_selection {
-                    if let Some(entry) = self.scenes.current_scene_entry_mut() {
-                        if let Some(graph_selection) = entry.selection.as_graph() {
-                            if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
-                                game_scene.clipboard.fill_from_selection(
-                                    graph_selection,
-                                    game_scene.scene,
-                                    engine,
-                                );
-                            } else if let Some(ui_scene) =
-                                entry.controller.downcast_mut::<UiScene>()
-                            {
-                                if let Some(selection) = entry.selection.as_ui() {
-                                    ui_scene
-                                        .clipboard
-                                        .fill_from_selection(selection, &ui_scene.ui);
-                                }
+                    let entry = self.scenes.current_scene_entry_mut();
+                    if let Some(graph_selection) = entry.selection.as_graph() {
+                        if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
+                            game_scene.clipboard.fill_from_selection(
+                                graph_selection,
+                                game_scene.scene,
+                                engine,
+                            );
+                        } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+                            if let Some(selection) = entry.selection.as_ui() {
+                                ui_scene
+                                    .clipboard
+                                    .fill_from_selection(selection, &ui_scene.ui);
                             }
                         }
                     }
                 } else if hot_key == key_bindings.paste {
-                    if let Some(controller) = self.scenes.current_scene_controller_mut() {
-                        if let Some(game_scene) = controller.downcast_mut::<GameScene>() {
-                            if !game_scene.clipboard.is_empty() {
-                                sender.do_command(PasteCommand::new(game_scene.scene_content_root));
-                            }
-                        } else if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
-                            if !ui_scene.clipboard.is_empty() {
-                                sender.do_command(PasteWidgetCommand::new(ui_scene.ui.root()));
-                            }
+                    let controller = self.scenes.current_scene_controller_mut();
+                    if let Some(game_scene) = controller.downcast_mut::<GameScene>() {
+                        if !game_scene.clipboard.is_empty() {
+                            sender.do_command(PasteCommand::new(game_scene.scene_content_root));
+                        }
+                    } else if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
+                        if !ui_scene.clipboard.is_empty() {
+                            sender.do_command(PasteWidgetCommand::new(ui_scene.ui.root()));
                         }
                     }
                 } else if hot_key == key_bindings.new_scene {
                     sender.send(Message::NewScene);
                 } else if hot_key == key_bindings.close_scene {
-                    if let Some(entry) = self.scenes.current_scene_entry_ref() {
-                        sender.send(Message::CloseScene(entry.id));
-                    }
+                    let entry = self.scenes.current_scene_entry_ref();
+                    sender.send(Message::CloseScene(entry.id));
                 } else if hot_key == key_bindings.remove_selection {
-                    if let Some(entry) = self.scenes.current_scene_entry_mut() {
-                        if !entry.selection.is_empty() {
-                            if entry.selection.is_graph() {
-                                if let Some(game_scene) =
-                                    entry.controller.downcast_mut::<GameScene>()
+                    let entry = self.scenes.current_scene_entry_mut();
+                    if !entry.selection.is_empty() {
+                        if entry.selection.is_graph() {
+                            if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
+                                if self.settings.general.show_node_removal_dialog
+                                    && game_scene.is_current_selection_has_external_refs(
+                                        &entry.selection,
+                                        &engine.scenes[game_scene.scene].graph,
+                                    )
                                 {
-                                    if self.settings.general.show_node_removal_dialog
-                                        && game_scene.is_current_selection_has_external_refs(
-                                            &entry.selection,
-                                            &engine.scenes[game_scene.scene].graph,
-                                        )
-                                    {
-                                        sender.send(Message::OpenNodeRemovalDialog);
-                                    } else {
-                                        sender.send(Message::DoCommand(
-                                            make_delete_selection_command(
-                                                &entry.selection,
-                                                game_scene,
-                                                engine,
-                                            ),
-                                        ));
-                                    }
+                                    sender.send(Message::OpenNodeRemovalDialog);
+                                } else {
+                                    sender.send(Message::DoCommand(make_delete_selection_command(
+                                        &entry.selection,
+                                        game_scene,
+                                        engine,
+                                    )));
                                 }
-                            } else if let Some(selection) = entry.selection.as_ui() {
-                                if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-                                    sender.send(Message::DoCommand(
-                                        selection.make_deletion_command(&ui_scene.ui),
-                                    ));
-                                }
+                            }
+                        } else if let Some(selection) = entry.selection.as_ui() {
+                            if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+                                sender.send(Message::DoCommand(
+                                    selection.make_deletion_command(&ui_scene.ui),
+                                ));
                             }
                         }
                     }
                 } else if hot_key == key_bindings.focus {
-                    if let Some(entry) = self.scenes.current_scene_entry_mut() {
-                        if let Some(selection) = entry.selection.as_graph() {
-                            if let Some(first) = selection.nodes.first() {
-                                sender.send(Message::FocusObject(*first));
-                            }
+                    let entry = self.scenes.current_scene_entry_mut();
+                    if let Some(selection) = entry.selection.as_graph() {
+                        if let Some(first) = selection.nodes.first() {
+                            sender.send(Message::FocusObject(*first));
                         }
                     }
                 }
@@ -1371,18 +1354,17 @@ impl Editor {
                 modifiers,
             };
 
-            if let Some(scene) = self.scenes.current_scene_entry_mut() {
-                if let Some(current_interaction_mode) = scene
-                    .current_interaction_mode
-                    .and_then(|current_mode| scene.interaction_modes.get_mut(&current_mode))
-                {
-                    current_interaction_mode.on_hot_key_released(
-                        &hot_key,
-                        &mut *scene.controller,
-                        engine,
-                        &self.settings,
-                    );
-                }
+            let scene = self.scenes.current_scene_entry_mut();
+            if let Some(current_interaction_mode) = scene
+                .current_interaction_mode
+                .and_then(|current_mode| scene.interaction_modes.get_mut(&current_mode))
+            {
+                current_interaction_mode.on_hot_key_released(
+                    &hot_key,
+                    &mut *scene.controller,
+                    engine,
+                    &self.settings,
+                );
             }
         }
     }
@@ -1470,128 +1452,126 @@ impl Editor {
 
         let current_scene_entry = self.scenes.current_scene_entry_mut();
 
-        if let Some(current_scene_entry) = current_scene_entry {
-            self.asset_browser.handle_ui_message(
+        self.asset_browser.handle_ui_message(
+            message,
+            engine,
+            current_scene_entry,
+            self.message_sender.clone(),
+        );
+        if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
+            self.particle_system_control_panel.handle_ui_message(
+                message,
+                &current_scene_entry.selection,
+                game_scene,
+                engine,
+            );
+            self.camera_control_panel.handle_ui_message(
+                message,
+                &current_scene_entry.selection,
+                game_scene,
+                engine,
+            );
+            self.mesh_control_panel.handle_ui_message(
+                message,
+                &current_scene_entry.selection,
+                game_scene,
+                engine,
+                &self.message_sender,
+            );
+            self.audio_preview_panel.handle_ui_message(
+                message,
+                &current_scene_entry.selection,
+                game_scene,
+                engine,
+            );
+
+            self.audio_panel.handle_ui_message(
+                message,
+                &current_scene_entry.selection,
+                &self.message_sender,
+                engine,
+            );
+            self.node_removal_dialog.handle_ui_message(
+                &current_scene_entry.selection,
+                game_scene,
                 message,
                 engine,
-                current_scene_entry,
-                self.message_sender.clone(),
+                &self.message_sender,
             );
-            if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
-                self.particle_system_control_panel.handle_ui_message(
-                    message,
-                    &current_scene_entry.selection,
-                    game_scene,
-                    engine,
-                );
-                self.camera_control_panel.handle_ui_message(
-                    message,
-                    &current_scene_entry.selection,
-                    game_scene,
-                    engine,
-                );
-                self.mesh_control_panel.handle_ui_message(
-                    message,
-                    &current_scene_entry.selection,
-                    game_scene,
-                    engine,
-                    &self.message_sender,
-                );
-                self.audio_preview_panel.handle_ui_message(
-                    message,
-                    &current_scene_entry.selection,
-                    game_scene,
-                    engine,
-                );
+            self.scene_settings
+                .handle_ui_message(message, &self.message_sender);
 
-                self.audio_panel.handle_ui_message(
-                    message,
-                    &current_scene_entry.selection,
-                    &self.message_sender,
-                    engine,
-                );
-                self.node_removal_dialog.handle_ui_message(
-                    &current_scene_entry.selection,
-                    game_scene,
-                    message,
-                    engine,
-                    &self.message_sender,
-                );
-                self.scene_settings
-                    .handle_ui_message(message, &self.message_sender);
+            self.navmesh_panel
+                .handle_message(message, &current_scene_entry.selection);
 
-                self.navmesh_panel
-                    .handle_message(message, &current_scene_entry.selection);
-
-                if let Some(interaction_mode) = current_scene_entry
+            if let Some(interaction_mode) =
+                current_scene_entry
                     .current_interaction_mode
                     .and_then(|current_mode| {
                         current_scene_entry.interaction_modes.get_mut(&current_mode)
                     })
-                {
-                    interaction_mode.handle_ui_message(
-                        message,
-                        &current_scene_entry.selection,
-                        game_scene,
-                        engine,
-                    );
-                }
-
-                self.scene_node_context_menu.borrow_mut().handle_ui_message(
+            {
+                interaction_mode.handle_ui_message(
                     message,
                     &current_scene_entry.selection,
                     game_scene,
                     engine,
-                    &self.message_sender,
-                    &self.settings,
-                );
-                self.world_viewer.handle_ui_message(
-                    message,
-                    &mut EditorSceneWrapper {
-                        selection: &current_scene_entry.selection,
-                        game_scene,
-                        scene: &mut engine.scenes[game_scene.scene],
-                        sender: &self.message_sender,
-                        path: current_scene_entry.path.as_deref(),
-                        resource_manager: &engine.resource_manager,
-                        instantiation_scale: self.settings.model.instantiation_scale,
-                    },
-                    engine.user_interfaces.first(),
-                    &mut self.settings,
-                );
-
-                self.light_panel
-                    .handle_ui_message(message, game_scene, engine);
-            } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>()
-            {
-                self.bbcode_panel.handle_ui_message(
-                    message,
-                    &current_scene_entry.selection,
-                    ui_scene,
-                    engine,
-                    &self.message_sender,
-                );
-                self.world_viewer.handle_ui_message(
-                    message,
-                    &mut UiSceneWorldViewerDataProvider {
-                        ui: &mut ui_scene.ui,
-                        path: current_scene_entry.path.as_deref(),
-                        selection: &current_scene_entry.selection,
-                        sender: &self.message_sender,
-                        resource_manager: &engine.resource_manager,
-                    },
-                    engine.user_interfaces.first(),
-                    &mut self.settings,
-                );
-
-                self.widget_context_menu.borrow_mut().handle_ui_message(
-                    message,
-                    &current_scene_entry.selection,
-                    ui_scene,
-                    engine,
-                    &self.message_sender,
                 );
             }
+
+            self.scene_node_context_menu.borrow_mut().handle_ui_message(
+                message,
+                &current_scene_entry.selection,
+                game_scene,
+                engine,
+                &self.message_sender,
+                &self.settings,
+            );
+            self.world_viewer.handle_ui_message(
+                message,
+                &mut EditorSceneWrapper {
+                    selection: &current_scene_entry.selection,
+                    game_scene,
+                    scene: &mut engine.scenes[game_scene.scene],
+                    sender: &self.message_sender,
+                    path: current_scene_entry.path.as_deref(),
+                    resource_manager: &engine.resource_manager,
+                    instantiation_scale: self.settings.model.instantiation_scale,
+                },
+                engine.user_interfaces.first(),
+                &mut self.settings,
+            );
+
+            self.light_panel
+                .handle_ui_message(message, game_scene, engine);
+        } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>() {
+            self.bbcode_panel.handle_ui_message(
+                message,
+                &current_scene_entry.selection,
+                ui_scene,
+                engine,
+                &self.message_sender,
+            );
+            self.world_viewer.handle_ui_message(
+                message,
+                &mut UiSceneWorldViewerDataProvider {
+                    ui: &mut ui_scene.ui,
+                    path: current_scene_entry.path.as_deref(),
+                    selection: &current_scene_entry.selection,
+                    sender: &self.message_sender,
+                    resource_manager: &engine.resource_manager,
+                },
+                engine.user_interfaces.first(),
+                &mut self.settings,
+            );
+
+            self.widget_context_menu.borrow_mut().handle_ui_message(
+                message,
+                &current_scene_entry.selection,
+                ui_scene,
+                engine,
+                &self.message_sender,
+            );
         }
 
         if let Some(MessageBoxMessage::Close(result)) = message.data() {
@@ -1636,13 +1616,15 @@ impl Editor {
             build_window.destroy(self.engine.user_interfaces.first());
         }
 
-        let Some(entry) = self.scenes.current_scene_entry_ref() else {
+        if self.scenes.is_empty() {
             Log::err("Cannot enter build mode when there is no scene!");
             return;
         };
 
+        let entry = self.scenes.current_scene_entry_ref();
+
         let Some(path) = entry.path.as_ref().cloned() else {
-            Log::err("Save you scene first!");
+            Log::err("Save your scene first!");
             return;
         };
 
@@ -1709,11 +1691,14 @@ impl Editor {
             return;
         }
 
-        if let Some(entry) = self.scenes.current_scene_entry_ref() {
-            if entry.path.is_none() {
-                Log::err("Save you scene first!");
-                return;
-            }
+        if self.scenes.is_empty() {
+            Log::err("Cannot enter build mode when there is no scene!");
+            return;
+        };
+
+        if self.scenes.current_scene_entry_ref().path.is_none() {
+            Log::err("Save your scene first!");
+            return;
         }
 
         let Some(build_profile) = self
@@ -1793,7 +1778,7 @@ impl Editor {
         let engine = &mut self.engine;
 
         self.menu.sync_to_model(
-            self.scenes.current_scene_controller_ref().is_some(),
+            self.scenes.has_active_scene(),
             engine.user_interfaces.first_mut(),
         );
 
@@ -1802,100 +1787,94 @@ impl Editor {
             exporter.sync_to_model(engine.user_interfaces.first_mut());
         }
 
-        if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            self.command_stack_viewer.sync_to_model(
-                current_scene_entry.command_stack.top,
-                current_scene_entry.controller.command_names(
-                    &mut current_scene_entry.command_stack,
-                    &mut current_scene_entry.selection,
-                    engine,
-                ),
+        let current_scene_entry = self.scenes.current_scene_entry_mut();
+        self.command_stack_viewer.sync_to_model(
+            current_scene_entry.command_stack.top,
+            current_scene_entry.controller.command_names(
+                &mut current_scene_entry.command_stack,
+                &mut current_scene_entry.selection,
+                engine,
+            ),
+            engine.user_interfaces.first_mut(),
+        );
+
+        if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
+            self.scene_settings.sync_to_model(
+                false,
+                game_scene,
+                engine,
+                self.message_sender.clone(),
+                self.asset_browser.preview_sender.clone(),
+            );
+            let sender = &self.message_sender;
+            self.world_viewer.sync_to_model(
+                &EditorSceneWrapper {
+                    selection: &current_scene_entry.selection,
+                    game_scene,
+                    scene: &mut engine.scenes[game_scene.scene],
+                    sender,
+                    path: current_scene_entry.path.as_deref(),
+                    resource_manager: &engine.resource_manager,
+                    instantiation_scale: self.settings.model.instantiation_scale,
+                },
                 engine.user_interfaces.first_mut(),
+                &self.settings,
             );
 
-            if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
-                self.scene_settings.sync_to_model(
-                    false,
-                    game_scene,
-                    engine,
-                    self.message_sender.clone(),
-                    self.asset_browser.preview_sender.clone(),
-                );
-                let sender = &self.message_sender;
-                self.world_viewer.sync_to_model(
-                    &EditorSceneWrapper {
-                        selection: &current_scene_entry.selection,
-                        game_scene,
-                        scene: &mut engine.scenes[game_scene.scene],
-                        sender,
-                        path: current_scene_entry.path.as_deref(),
-                        resource_manager: &engine.resource_manager,
-                        instantiation_scale: self.settings.model.instantiation_scale,
-                    },
-                    engine.user_interfaces.first_mut(),
-                    &self.settings,
-                );
-
-                self.audio_panel
-                    .sync_to_model(&current_scene_entry.selection, game_scene, engine);
-                self.navmesh_panel.sync_to_model(
-                    engine,
-                    &current_scene_entry.selection,
-                    game_scene,
-                );
-            } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>()
-            {
-                self.bbcode_panel.sync_to_model(
-                    &current_scene_entry.selection,
-                    ui_scene,
-                    engine.user_interfaces.first_mut(),
-                );
-                self.world_viewer.sync_to_model(
-                    &UiSceneWorldViewerDataProvider {
-                        ui: &mut ui_scene.ui,
-                        path: current_scene_entry.path.as_deref(),
-                        selection: &current_scene_entry.selection,
-                        sender: &self.message_sender,
-                        resource_manager: &engine.resource_manager,
-                    },
-                    engine.user_interfaces.first_mut(),
-                    &self.settings,
-                );
-            }
+            self.audio_panel
+                .sync_to_model(&current_scene_entry.selection, game_scene, engine);
+            self.navmesh_panel
+                .sync_to_model(engine, &current_scene_entry.selection, game_scene);
+        } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>() {
+            self.bbcode_panel.sync_to_model(
+                &current_scene_entry.selection,
+                ui_scene,
+                engine.user_interfaces.first_mut(),
+            );
+            self.world_viewer.sync_to_model(
+                &UiSceneWorldViewerDataProvider {
+                    ui: &mut ui_scene.ui,
+                    path: current_scene_entry.path.as_deref(),
+                    selection: &current_scene_entry.selection,
+                    sender: &self.message_sender,
+                    resource_manager: &engine.resource_manager,
+                },
+                engine.user_interfaces.first_mut(),
+                &self.settings,
+            );
         } else {
             self.world_viewer.clear(engine.user_interfaces.first());
         }
     }
 
     fn post_update(&mut self) {
-        if let Some(entry) = self.scenes.current_scene_entry_mut() {
-            if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
-                self.world_viewer.post_update(
-                    &EditorSceneWrapper {
-                        selection: &entry.selection,
-                        game_scene,
-                        scene: &mut self.engine.scenes[game_scene.scene],
-                        sender: &self.message_sender,
-                        path: entry.path.as_deref(),
-                        resource_manager: &self.engine.resource_manager,
-                        instantiation_scale: self.settings.model.instantiation_scale,
-                    },
-                    self.engine.user_interfaces.first_mut(),
-                    &self.settings,
-                );
-            } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-                self.world_viewer.post_update(
-                    &UiSceneWorldViewerDataProvider {
-                        ui: &mut ui_scene.ui,
-                        path: entry.path.as_deref(),
-                        selection: &entry.selection,
-                        sender: &self.message_sender,
-                        resource_manager: &self.engine.resource_manager,
-                    },
-                    self.engine.user_interfaces.first_mut(),
-                    &self.settings,
-                );
-            }
+        let entry = self.scenes.current_scene_entry_mut();
+        if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
+            self.world_viewer.post_update(
+                &EditorSceneWrapper {
+                    selection: &entry.selection,
+                    game_scene,
+                    scene: &mut self.engine.scenes[game_scene.scene],
+                    sender: &self.message_sender,
+                    path: entry.path.as_deref(),
+                    resource_manager: &self.engine.resource_manager,
+                    instantiation_scale: self.settings.model.instantiation_scale,
+                },
+                self.engine.user_interfaces.first_mut(),
+                &self.settings,
+            );
+        } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+            self.world_viewer.post_update(
+                &UiSceneWorldViewerDataProvider {
+                    ui: &mut ui_scene.ui,
+                    path: entry.path.as_deref(),
+                    selection: &entry.selection,
+                    sender: &self.message_sender,
+                    resource_manager: &self.engine.resource_manager,
+                },
+                self.engine.user_interfaces.first_mut(),
+                &self.settings,
+            );
         }
 
         for_each_plugin!(self.plugins => on_post_update(self));
@@ -1903,85 +1882,72 @@ impl Editor {
 
     fn do_current_scene_command(&mut self, command: Command) -> bool {
         let engine = &mut self.engine;
-        if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            current_scene_entry.has_unsaved_changes |= command.is_significant();
+        let current_scene_entry = self.scenes.current_scene_entry_mut();
+        current_scene_entry.has_unsaved_changes |= command.is_significant();
 
-            current_scene_entry.controller.do_command(
-                &mut current_scene_entry.command_stack,
-                command,
-                &mut current_scene_entry.selection,
-                engine,
-            );
+        current_scene_entry.controller.do_command(
+            &mut current_scene_entry.command_stack,
+            command,
+            &mut current_scene_entry.selection,
+            engine,
+        );
 
-            true
-        } else {
-            false
-        }
+        true
     }
 
     fn undo_current_scene_command(&mut self) -> bool {
         let engine = &mut self.engine;
-        if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            if let Some(command) = current_scene_entry.command_stack.top_command() {
-                current_scene_entry.has_unsaved_changes |= command.is_significant();
-            }
-
-            current_scene_entry.controller.undo(
-                &mut current_scene_entry.command_stack,
-                &mut current_scene_entry.selection,
-                engine,
-            );
-
-            true
-        } else {
-            false
+        let current_scene_entry = self.scenes.current_scene_entry_mut();
+        if let Some(command) = current_scene_entry.command_stack.top_command() {
+            current_scene_entry.has_unsaved_changes |= command.is_significant();
         }
+
+        current_scene_entry.controller.undo(
+            &mut current_scene_entry.command_stack,
+            &mut current_scene_entry.selection,
+            engine,
+        );
+
+        true
     }
 
     fn redo_current_scene_command(&mut self) -> bool {
         let engine = &mut self.engine;
-        if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            current_scene_entry.controller.redo(
-                &mut current_scene_entry.command_stack,
-                &mut current_scene_entry.selection,
-                engine,
-            );
+        let current_scene_entry = self.scenes.current_scene_entry_mut();
+        current_scene_entry.controller.redo(
+            &mut current_scene_entry.command_stack,
+            &mut current_scene_entry.selection,
+            engine,
+        );
 
-            if let Some(command) = current_scene_entry.command_stack.top_command() {
-                current_scene_entry.has_unsaved_changes |= command.is_significant();
-            }
-
-            true
-        } else {
-            false
+        if let Some(command) = current_scene_entry.command_stack.top_command() {
+            current_scene_entry.has_unsaved_changes |= command.is_significant();
         }
+
+        true
     }
 
     fn clear_current_scene_command_stack(&mut self) -> bool {
         let engine = &mut self.engine;
-        if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            current_scene_entry.controller.clear_command_stack(
-                &mut current_scene_entry.command_stack,
-                &mut current_scene_entry.selection,
-                &mut engine.scenes,
-            );
-            true
-        } else {
-            false
-        }
+        let current_scene_entry = self.scenes.current_scene_entry_mut();
+        current_scene_entry.controller.clear_command_stack(
+            &mut current_scene_entry.command_stack,
+            &mut current_scene_entry.selection,
+            &mut engine.scenes,
+        );
+        true
     }
 
     fn try_leave_preview_mode(&mut self) {
-        if let Some(entry) = self.scenes.current_scene_entry_mut() {
-            if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
-                let engine = &mut self.engine;
-                self.particle_system_control_panel
-                    .leave_preview_mode(game_scene, engine);
-                self.camera_control_panel
-                    .leave_preview_mode(game_scene, engine);
-                self.audio_preview_panel
-                    .leave_preview_mode(game_scene, engine);
-            }
+        let entry = self.scenes.current_scene_entry_mut();
+        if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
+            let engine = &mut self.engine;
+            self.particle_system_control_panel
+                .leave_preview_mode(game_scene, engine);
+            self.camera_control_panel
+                .leave_preview_mode(game_scene, engine);
+            self.audio_preview_panel
+                .leave_preview_mode(game_scene, engine);
         }
 
         for_each_plugin!(self.plugins => on_leave_preview_mode(self));
@@ -2014,10 +1980,7 @@ impl Editor {
             || self.light_panel.is_in_preview_mode()
             || self.export_window.is_some()
             || is_any_plugin_in_preview_mode
-            || self
-                .scenes
-                .current_scene_controller_ref()
-                .is_some_and(|s| s.is_interacting())
+            || self.scenes.current_scene_controller_ref().is_interacting()
             || stays_active
     }
 
@@ -2188,11 +2151,7 @@ impl Editor {
     }
 
     fn close_scene(&mut self, id: Uuid) -> bool {
-        let closing_current_scene = self
-            .scenes
-            .current_scene_entry_ref()
-            .map(|s| s.id == id)
-            .unwrap_or_default();
+        let closing_current_scene = self.scenes.current_scene_entry_ref().id == id;
 
         if closing_current_scene {
             self.try_leave_preview_mode();
@@ -2227,11 +2186,7 @@ impl Editor {
     }
 
     fn set_current_scene(&mut self, id: Uuid) {
-        let old_selection = self
-            .scenes
-            .current_scene_entry_ref()
-            .map(|s| s.selection.clone())
-            .unwrap_or_default();
+        let old_selection = self.scenes.current_scene_entry_ref().selection.clone();
         if self.scenes.set_current_scene(id) {
             self.on_scene_changed(old_selection);
         }
@@ -2239,23 +2194,21 @@ impl Editor {
 
     fn on_scene_changed(&mut self, old_selection: Selection) {
         let ui = &self.engine.user_interfaces.first();
-        if let Some(entry) = self.scenes.current_scene_entry_ref() {
-            if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
-                self.world_viewer.item_context_menu = Some(self.scene_node_context_menu.clone());
-                if let Some(overlay_pass) = self.overlay_pass.as_ref() {
-                    overlay_pass.borrow_mut().scene_handle = game_scene.scene;
-                }
-            } else if entry.controller.downcast_ref::<UiScene>().is_some() {
-                self.world_viewer.item_context_menu = Some(self.widget_context_menu.clone());
-            } else {
-                self.world_viewer.item_context_menu = None;
+        let entry = self.scenes.current_scene_entry_ref();
+        if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
+            self.world_viewer.item_context_menu = Some(self.scene_node_context_menu.clone());
+            if let Some(overlay_pass) = self.overlay_pass.as_ref() {
+                overlay_pass.borrow_mut().scene_handle = game_scene.scene;
             }
-
-            self.menu.on_scene_changed(&*entry.controller, ui);
+        } else if entry.controller.downcast_ref::<UiScene>().is_some() {
+            self.world_viewer.item_context_menu = Some(self.widget_context_menu.clone());
+        } else {
+            self.world_viewer.item_context_menu = None;
         }
 
         self.message_sender
             .send(Message::SelectionChanged { old_selection });
+        self.menu.on_scene_changed(&*entry.controller, ui);
 
         self.world_viewer.clear(ui);
 
@@ -2263,8 +2216,9 @@ impl Editor {
 
         self.world_viewer.sync_selection = true;
 
+        let scene = self.scenes.current_scene_entry_mut();
         self.scene_viewer
-            .on_current_scene_changed(self.scenes.current_scene_entry_mut(), &mut self.engine);
+            .on_current_scene_changed(scene, &mut self.engine);
 
         for_each_plugin!(self.plugins => on_scene_changed(self));
 
@@ -2528,17 +2482,16 @@ impl Editor {
 
         self.scene_viewer
             .pre_update(&self.settings, &mut self.engine);
-        if let Some(entry) = self.scenes.current_scene_entry_ref() {
-            if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
-                if let Some(stats) = self.statistics_window.as_ref() {
-                    stats.update(game_scene.scene, &self.engine);
-                }
-
-                self.light_panel.update(game_scene, &mut self.engine);
-                self.audio_preview_panel
-                    .update(&entry.selection, game_scene, &self.engine);
-                self.scene_viewer.update(game_scene, &mut self.engine);
+        let entry = self.scenes.current_scene_entry_ref();
+        if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
+            if let Some(stats) = self.statistics_window.as_ref() {
+                stats.update(game_scene.scene, &self.engine);
             }
+
+            self.light_panel.update(game_scene, &mut self.engine);
+            self.audio_preview_panel
+                .update(&entry.selection, game_scene, &self.engine);
+            self.scene_viewer.update(game_scene, &mut self.engine);
         }
 
         if let Some(overlay_pass) = self.overlay_pass.as_ref() {
@@ -2564,44 +2517,47 @@ impl Editor {
                 self.save_scene_dialog
                     .handle_message(&message, &self.message_sender);
 
-                if let Some(entry) = self.scenes.current_scene_entry_mut() {
-                    self.asset_browser
-                        .on_message(&mut self.engine, entry, &message, &self.plugins);
-                    self.particle_system_control_panel.handle_message(
-                        &message,
-                        &entry.selection,
-                        entry.controller.downcast_mut::<GameScene>(),
-                        &mut self.engine,
-                    );
-                    self.camera_control_panel.handle_message(
-                        &message,
-                        &entry.selection,
-                        entry.controller.downcast_mut::<GameScene>(),
-                        &mut self.engine,
-                    );
-                    self.mesh_control_panel.handle_message(
-                        &message,
-                        &entry.selection,
-                        entry.controller.downcast_mut::<GameScene>(),
-                        &mut self.engine,
-                    );
-                    self.audio_preview_panel.handle_message(
-                        &message,
-                        &entry.selection,
-                        entry.controller.downcast_mut::<GameScene>(),
-                        &mut self.engine,
-                    );
-                    self.bbcode_panel.handle_message(
-                        &message,
-                        &entry.selection,
-                        entry.controller.downcast_ref::<UiScene>(),
-                        &mut self.engine,
-                    );
-                    needs_sync |=
-                        entry
-                            .controller
-                            .on_message(&message, &entry.selection, &mut self.engine);
-                }
+                let entry = self.scenes.current_scene_entry_mut();
+                self.asset_browser
+                    .on_message(&mut self.engine, entry, &message, &self.plugins);
+                self.particle_system_control_panel.handle_message(
+                    &message,
+                    &entry.selection,
+                    entry.controller.downcast_mut::<GameScene>(),
+                    &mut self.engine,
+                );
+                self.camera_control_panel.handle_message(
+                    &message,
+                    &entry.selection,
+                    entry.controller.downcast_mut::<GameScene>(),
+                    &mut self.engine,
+                );
+                self.mesh_control_panel.handle_message(
+                    &message,
+                    &entry.selection,
+                    entry.controller.downcast_mut::<GameScene>(),
+                    &mut self.engine,
+                );
+                self.audio_preview_panel.handle_message(
+                    &message,
+                    &entry.selection,
+                    entry.controller.downcast_mut::<GameScene>(),
+                    &mut self.engine,
+                );
+                self.bbcode_panel.handle_message(
+                    &message,
+                    &entry.selection,
+                    entry.controller.downcast_ref::<UiScene>(),
+                    &mut self.engine,
+                );
+                needs_sync |=
+                    entry
+                        .controller
+                        .on_message(&message, &entry.selection, &mut self.engine);
+                needs_sync |=
+                    entry
+                        .controller
+                        .on_message(&message, &entry.selection, &mut self.engine);
                 self.scene_viewer.handle_message(&message, &mut self.engine);
 
                 match message {
@@ -2650,10 +2606,9 @@ impl Editor {
                         needs_sync = true;
                     }
                     Message::SetInteractionMode(mode_kind) => {
-                        if let Some(game_scene_entry) = self.scenes.current_scene_entry_mut() {
-                            game_scene_entry
-                                .set_interaction_mode(&mut self.engine, Some(mode_kind));
-                        }
+                        self.scenes
+                            .current_scene_entry_mut()
+                            .set_interaction_mode(&mut self.engine, Some(mode_kind));
                     }
                     Message::Exit { force } => self.exit(force),
                     Message::CloseScene(scene) => {
@@ -2676,15 +2631,14 @@ impl Editor {
                         needs_sync = true;
                     }
                     Message::OpenNodeRemovalDialog => {
-                        if let Some(entry) = self.scenes.current_scene_entry_ref() {
-                            // TODO
-                            if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
-                                self.node_removal_dialog.open(
-                                    &entry.selection,
-                                    game_scene,
-                                    &self.engine,
-                                )
-                            }
+                        let entry = self.scenes.current_scene_entry_ref();
+                        // TODO
+                        if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
+                            self.node_removal_dialog.open(
+                                &entry.selection,
+                                game_scene,
+                                &self.engine,
+                            )
                         }
                     }
                     Message::SetAssetBrowserCurrentDir(path) => {
@@ -2778,37 +2732,34 @@ impl Editor {
             }
         }
 
-        if let Some(entry) = self.scenes.current_scene_entry_mut() {
-            let controller = &mut entry.controller;
+        let entry = self.scenes.current_scene_entry_mut();
+        let controller = &mut entry.controller;
 
-            let screen_bounds = self
-                .scene_viewer
-                .frame_bounds(self.engine.user_interfaces.first());
-            if let Some(new_render_target) = controller.update(
+        let screen_bounds = self
+            .scene_viewer
+            .frame_bounds(self.engine.user_interfaces.first());
+        if let Some(new_render_target) = controller.update(
+            &entry.selection,
+            &mut self.engine,
+            dt,
+            entry.path.as_deref(),
+            &mut self.settings,
+            screen_bounds,
+        ) {
+            self.scene_viewer
+                .set_render_target(self.engine.user_interfaces.first(), Some(new_render_target));
+        }
+
+        if let Some(interaction_mode) = entry
+            .current_interaction_mode
+            .and_then(|current_mode| entry.interaction_modes.get_mut(&current_mode))
+        {
+            interaction_mode.update(
                 &entry.selection,
+                &mut **controller,
                 &mut self.engine,
-                dt,
-                entry.path.as_deref(),
-                &mut self.settings,
-                screen_bounds,
-            ) {
-                self.scene_viewer.set_render_target(
-                    self.engine.user_interfaces.first(),
-                    Some(new_render_target),
-                );
-            }
-
-            if let Some(interaction_mode) = entry
-                .current_interaction_mode
-                .and_then(|current_mode| entry.interaction_modes.get_mut(&current_mode))
-            {
-                interaction_mode.update(
-                    &entry.selection,
-                    &mut **controller,
-                    &mut self.engine,
-                    &self.settings,
-                );
-            }
+                &self.settings,
+            );
         }
 
         if self.settings.try_save() {
@@ -3074,17 +3025,16 @@ impl Editor {
                         }
                         WindowEvent::RedrawRequested => {
                             if self.is_active() {
-                                if let Some(entry) = self.scenes.current_scene_entry_mut() {
-                                    entry
-                                        .controller
-                                        .on_before_render(&entry.selection, &mut self.engine);
-                                }
+                                let entry = self.scenes.current_scene_entry_mut();
+                                entry
+                                    .controller
+                                    .on_before_render(&entry.selection, &mut self.engine);
 
                                 self.engine.render().unwrap();
 
-                                if let Some(scene) = self.scenes.current_scene_controller_mut() {
-                                    scene.on_after_render(&mut self.engine);
-                                }
+                                self.scenes
+                                    .current_scene_controller_mut()
+                                    .on_after_render(&mut self.engine);
                             }
                         }
                         _ => (),
@@ -3156,7 +3106,7 @@ fn update(editor: &mut Editor, event_loop: &ActiveEventLoop) {
                 if let Some(current_game_scene) = editor
                     .scenes
                     .current_scene_controller_ref()
-                    .and_then(|e| e.downcast_ref::<GameScene>())
+                    .downcast_ref::<GameScene>()
                 {
                     switches.insert(
                         current_game_scene.scene,

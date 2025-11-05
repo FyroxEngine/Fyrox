@@ -743,7 +743,7 @@ impl EditorPlugin for AbsmEditorPlugin {
     }
 
     fn on_sync_to_model(&mut self, editor: &mut Editor) {
-        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let entry = editor.scenes.current_scene_entry_mut();
         let absm_editor = some_or_return!(self.absm_editor.as_mut());
         let ui = editor.engine.user_interfaces.first_mut();
         if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
@@ -782,35 +782,34 @@ impl EditorPlugin for AbsmEditorPlugin {
             }
         }
 
-        if let Some(entry) = editor.scenes.current_scene_entry_mut() {
-            let ui = editor.engine.user_interfaces.first_mut();
-            if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
-                let graph = &mut editor.engine.scenes[game_scene.scene].graph;
-                absm_editor.handle_ui_message(
-                    message,
-                    &editor.message_sender,
-                    &entry.selection,
-                    graph,
-                    ui,
-                    game_scene.graph_switches.node_overrides.as_mut().unwrap(),
-                );
-            } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-                absm_editor.handle_ui_message(
-                    message,
-                    &editor.message_sender,
-                    &entry.selection,
-                    &mut ui_scene.ui,
-                    ui,
-                    ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
-                );
-            }
+        let entry = editor.scenes.current_scene_entry_mut();
+        let ui = editor.engine.user_interfaces.first_mut();
+        if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
+            let graph = &mut editor.engine.scenes[game_scene.scene].graph;
+            absm_editor.handle_ui_message(
+                message,
+                &editor.message_sender,
+                &entry.selection,
+                graph,
+                ui,
+                game_scene.graph_switches.node_overrides.as_mut().unwrap(),
+            );
+        } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+            absm_editor.handle_ui_message(
+                message,
+                &editor.message_sender,
+                &entry.selection,
+                &mut ui_scene.ui,
+                ui,
+                ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
+            );
         }
 
         self.absm_editor = Some(absm_editor);
     }
 
     fn on_leave_preview_mode(&mut self, editor: &mut Editor) {
-        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let entry = editor.scenes.current_scene_entry_mut();
         let absm_editor = some_or_return!(self.absm_editor.as_mut());
         if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
             let engine = &mut editor.engine;
@@ -836,7 +835,7 @@ impl EditorPlugin for AbsmEditorPlugin {
     }
 
     fn on_update(&mut self, editor: &mut Editor) {
-        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let entry = editor.scenes.current_scene_entry_mut();
         let absm_editor = some_or_return!(self.absm_editor.as_mut());
         if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
             absm_editor.update(
@@ -872,7 +871,7 @@ impl EditorPlugin for AbsmEditorPlugin {
             self.on_sync_to_model(editor);
         }
 
-        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let entry = editor.scenes.current_scene_entry_mut();
         let absm_editor = some_or_return!(self.absm_editor.as_mut());
         if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
             absm_editor.handle_message(
