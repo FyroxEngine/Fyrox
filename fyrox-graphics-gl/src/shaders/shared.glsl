@@ -379,3 +379,49 @@ vec2 S_RotateVec2(vec2 v, float angle)
     mat2 m = mat2(c, -s, s, c);
     return m * v;
 }
+
+// https://web.archive.org/web/20191027010220/http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+vec3 S_ConvertRgbToXyz(vec3 rgb)
+{
+	vec3 xyz;
+	xyz.x = dot(vec3(0.4124564, 0.3575761, 0.1804375), rgb);
+	xyz.y = dot(vec3(0.2126729, 0.7151522, 0.0721750), rgb);
+	xyz.z = dot(vec3(0.0193339, 0.1191920, 0.9503041), rgb);
+	return xyz;
+}
+
+vec3 S_ConvertXyzToRgb(vec3 xyz)
+{
+	vec3 rgb;
+	rgb.x = dot(vec3(3.2404542, -1.5371385, -0.4985314), xyz);
+	rgb.y = dot(vec3(-0.9692660, 1.8760108, 0.0415560), xyz);
+	rgb.z = dot(vec3(0.0556434, -0.2040259, 1.0572252), xyz);
+	return rgb;
+}
+
+// https://web.archive.org/web/20191027010144/http://www.brucelindbloom.com/index.html?Eqn_XYZ_to_xyY.html
+vec3 S_ConvertXyzToYxy(vec3 xyz)
+{
+	float inv = 1.0 / dot(xyz, vec3(1.0, 1.0, 1.0));
+	return vec3(xyz.y, xyz.x * inv, xyz.y * inv);
+}
+
+// https://web.archive.org/web/20191027010036/http://www.brucelindbloom.com/index.html?Eqn_xyY_to_XYZ.html
+vec3 S_ConvertYxyToXyz(vec3 Yxy)
+{
+	vec3 xyz;
+	xyz.x = Yxy.x * Yxy.y / Yxy.z;
+	xyz.y = Yxy.x;
+	xyz.z = Yxy.x * (1.0 - Yxy.y - Yxy.z) / Yxy.z;
+	return xyz;
+}
+
+vec3 convertRGB2Yxy(vec3 rgb)
+{
+	return S_ConvertXyzToYxy(S_ConvertRgbToXyz(rgb));
+}
+
+vec3 convertYxy2RGB(vec3 Yxy)
+{
+	return S_ConvertXyzToRgb(S_ConvertYxyToXyz(Yxy));
+}
