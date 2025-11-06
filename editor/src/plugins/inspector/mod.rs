@@ -371,10 +371,7 @@ impl EditorPlugin for InspectorPlugin {
     fn on_sync_to_model(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
 
-        let Some(entry) = editor.scenes.current_scene_entry_mut() else {
-            self.clear(ui);
-            return;
-        };
+        let entry = editor.scenes.current_scene_entry_mut();
 
         let mut need_clear = true;
 
@@ -434,9 +431,7 @@ impl EditorPlugin for InspectorPlugin {
     }
 
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
-        let Some(entry) = editor.scenes.current_scene_entry_mut() else {
-            return;
-        };
+        let entry = editor.scenes.current_scene_entry_mut();
 
         if (message.destination() == self.inspector
             || editor

@@ -581,7 +581,7 @@ pub enum SelectionSource {
 
 impl TileMapEditorPlugin {
     fn get_tile_map_mut<'a>(&self, editor: &'a mut Editor) -> Option<&'a mut TileMap> {
-        let entry = editor.scenes.current_scene_entry_mut()?;
+        let entry = editor.scenes.current_scene_entry_mut();
         let game_scene = entry.controller.downcast_mut::<GameScene>()?;
         let scene = &mut editor.engine.scenes[game_scene.scene];
         let node = scene.graph.try_get_node_mut(self.tile_map)?;
@@ -685,16 +685,11 @@ impl TileMapEditorPlugin {
             sender,
         );
         interaction_mode.on_tile_map_selected(tile_map);
-        // Prepare the tile map interaction mode.
-        let Some(entry) = editor.scenes.current_scene_entry_mut() else {
-            // We have somehow lost the scene entry, so remove the effects from the tile map.
-            if let Some(tile_map) = self.get_tile_map_mut(editor) {
-                tile_map.before_effects.clear();
-                tile_map.after_effects.clear();
-            }
-            return;
-        };
-        entry.interaction_modes.add(interaction_mode);
+        editor
+            .scenes
+            .current_scene_entry_mut()
+            .interaction_modes
+            .add(interaction_mode);
     }
 }
 
@@ -788,7 +783,8 @@ impl EditorPlugin for TileMapEditorPlugin {
             if let Some(interaction_mode) = editor
                 .scenes
                 .current_scene_entry_mut()
-                .and_then(|s| s.interaction_modes.of_type_mut::<TileMapInteractionMode>())
+                .interaction_modes
+                .of_type_mut::<TileMapInteractionMode>()
             {
                 interaction_mode.sync_to_state();
             }
@@ -855,9 +851,7 @@ impl EditorPlugin for TileMapEditorPlugin {
             }
         }
 
-        let Some(entry) = editor.scenes.current_scene_entry_mut() else {
-            return;
-        };
+        let entry = editor.scenes.current_scene_entry_mut();
 
         let Some(selection) = entry.selection.as_graph() else {
             return;

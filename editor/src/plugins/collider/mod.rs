@@ -686,7 +686,7 @@ pub struct ColliderPlugin {
 impl ColliderPlugin {
     fn on_selection(&mut self, editor: &mut Editor) -> bool {
         let mut needs_panel = false;
-        let entry = some_or_return!(editor.scenes.current_scene_entry_mut(), false);
+        let entry = editor.scenes.current_scene_entry_mut();
         let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>(), false);
         let scene = &mut editor.engine.scenes[game_scene.scene];
         if let Some(mode) = entry
@@ -729,7 +729,7 @@ impl ColliderPlugin {
 
 impl EditorPlugin for ColliderPlugin {
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
-        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let entry = editor.scenes.current_scene_entry_mut();
         let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
         let panel = some_or_return!(self.panel.as_mut());
         panel.handle_ui_message(
