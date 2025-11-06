@@ -177,7 +177,7 @@
 //!     .build(&mut ui.build_ctx());
 //!
 //! // Poll the messages coming from the widgets and react to them.
-//! while let Some(message) = ui.poll_message_queue() {
+//! while let Some(message) = ui.poll_message() {
 //!     if let Some(ButtonMessage::Click) = message.data() {
 //!         if message.destination() == button {
 //!             println!("The button was clicked!");
