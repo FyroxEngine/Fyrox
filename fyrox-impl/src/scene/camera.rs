@@ -319,9 +319,9 @@ uuid_provider!(Exposure = "0e35ee3d-8baa-4b0c-b3dd-6c31a08c121e");
 impl Default for Exposure {
     fn default() -> Self {
         Self::Auto {
-            key_value: 0.01556,
-            min_luminance: 0.00778,
-            max_luminance: 64.0,
+            key_value: 0.18,
+            min_luminance: 0.001,
+            max_luminance: 24.0,
         }
     }
 }
