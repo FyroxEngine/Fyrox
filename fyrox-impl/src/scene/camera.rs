@@ -290,27 +290,35 @@ impl Default for Projection {
 
 /// Exposure is a parameter that describes how many light should be collected for one
 /// frame. The higher the value, the more brighter the final frame will be and vice versa.
-#[derive(Visit, Copy, Clone, PartialEq, Debug, Reflect, AsRefStr, EnumString, VariantNames)]
+#[derive(
+    Visit,
+    Copy,
+    Clone,
+    PartialEq,
+    Debug,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+    Serialize,
+    Deserialize,
+)]
 pub enum Exposure {
     /// Automatic exposure based on the frame luminance. High luminance values will result
-    /// in lower exposure levels and vice versa. This is default option.
-    ///
-    /// # Equation
-    ///
-    /// `exposure = key_value / clamp(avg_luminance, min_luminance, max_luminance)`
+    /// in lower exposure levels and vice versa.
     Auto {
-        /// A key value in the formula above. Default is 0.01556.
-        #[reflect(min_value = 0.0, step = 0.1)]
-        key_value: f32,
-        /// A min luminance value in the formula above. Default is 0.00778.
+        /// A min luminance value. The lower the value, the higher exposure values will be used for
+        /// dark images. The default value is 0.035.
         #[reflect(min_value = 0.0, step = 0.1)]
         min_luminance: f32,
-        /// A max luminance value in the formula above. Default is 64.0.
+        /// A max luminance value. The higher the value, the lower exposure values will be used for
+        /// bright images. The default value is 10.0.
         #[reflect(min_value = 0.0, step = 0.1)]
         max_luminance: f32,
     },
 
-    /// Specific exposure level. To "disable" any HDR effects use [`std::f32::consts::E`] as a value.
+    /// Specific exposure level. To "disable" any HDR effects use 1.0 as a value. This is the default
+    /// option.
     Manual(f32),
 }
 
@@ -318,11 +326,7 @@ uuid_provider!(Exposure = "0e35ee3d-8baa-4b0c-b3dd-6c31a08c121e");
 
 impl Default for Exposure {
     fn default() -> Self {
-        Self::Auto {
-            key_value: 0.18,
-            min_luminance: 0.001,
-            max_luminance: 24.0,
-        }
+        Self::Manual(1.0)
     }
 }
 
@@ -1040,7 +1044,7 @@ impl CameraBuilder {
             z_far: 2048.0,
             viewport: Rect::new(0.0, 0.0, 1.0, 1.0),
             environment: None,
-            exposure: Exposure::Manual(std::f32::consts::E),
+            exposure: Default::default(),
             color_grading_lut: None,
             color_grading_enabled: false,
             projection: Projection::default(),

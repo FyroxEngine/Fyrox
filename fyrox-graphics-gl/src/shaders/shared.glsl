@@ -416,12 +416,12 @@ vec3 S_ConvertYxyToXyz(vec3 Yxy)
 	return xyz;
 }
 
-vec3 convertRGB2Yxy(vec3 rgb)
+vec3 S_ConvertRgbToYxy(vec3 rgb)
 {
 	return S_ConvertXyzToYxy(S_ConvertRgbToXyz(rgb));
 }
 
-vec3 convertYxy2RGB(vec3 Yxy)
+vec3 S_ConvertYxyToRgb(vec3 Yxy)
 {
 	return S_ConvertXyzToRgb(S_ConvertYxyToXyz(Yxy));
 }

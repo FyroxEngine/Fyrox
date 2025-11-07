@@ -310,20 +310,18 @@ impl HighDynamicRangeRenderer {
             })
             .unwrap_or((&self.stub_lut, &renderer_resources.nearest_clamp_sampler));
 
-        let (is_auto, key_value, min_luminance, max_luminance, fixed_exposure) = match exposure {
+        let (is_auto, min_luminance, max_luminance, fixed_exposure) = match exposure {
             Exposure::Auto {
-                key_value,
                 min_luminance,
                 max_luminance,
-            } => (true, key_value, min_luminance, max_luminance, 0.0),
-            Exposure::Manual(fixed_exposure) => (false, 0.0, 0.0, 0.0, fixed_exposure),
+            } => (true, min_luminance, max_luminance, 0.0),
+            Exposure::Manual(fixed_exposure) => (false, 0.0, 0.0, fixed_exposure),
         };
 
         let color_grading_enabled = use_color_grading && color_grading_lut.is_some();
         let properties = PropertyGroup::from([
             property("worldViewProjection", &frame_matrix),
             property("useColorGrading", &color_grading_enabled),
-            property("keyValue", &key_value),
             property("minLuminance", &min_luminance),
             property("maxLuminance", &max_luminance),
             property("autoExposure", &is_auto),

@@ -26,7 +26,6 @@
             kind: PropertyGroup([
                 (name: "worldViewProjection", kind: Matrix4()),
                 (name: "useColorGrading", kind: Bool()),
-                (name: "keyValue", kind: Float()),
                 (name: "minLuminance", kind: Float()),
                 (name: "maxLuminance", kind: Float()),
                 (name: "autoExposure", kind: Bool()),
@@ -89,21 +88,33 @@
                         return texture(colorMapSampler, scale * color + offset).rgb;
                     }
 
+                    // Narkowicz 2015, "ACES Filmic Tone Mapping Curve"
+                    float TonemapACES(float x) {
+                        const float a = 2.51;
+                        const float b = 0.03;
+                        const float c = 2.43;
+                        const float d = 0.59;
+                        const float e = 0.14;
+                        return (x * (a * x + b)) / (x * (c * x + d) + e);
+                    }
+
                     void main() {
-                        vec4 hdrColor = texture(hdrSampler, texCoord);
+                        vec4 hdrColor = texture(hdrSampler, texCoord) + texture(bloomSampler, texCoord);
 
-                        hdrColor += texture(bloomSampler, texCoord);
+                        vec3 Yxy = S_ConvertRgbToYxy(hdrColor.rgb);
 
-                        float luminance = texture(lumSampler, vec2(0.5, 0.5)).r;
-
-                        float exposure;
+                        float lp;
                         if (properties.autoExposure) {
-                            exposure = properties.keyValue / clamp(luminance, properties.minLuminance, properties.maxLuminance);
+                            float avgLum = texture(lumSampler, vec2(0.5, 0.5)).r;
+                            float clampedAvgLum = clamp(avgLum, properties.minLuminance, properties.maxLuminance);
+                            lp = Yxy.x / (9.6 * clampedAvgLum + 0.0001);
                         } else {
-                            exposure = properties.fixedExposure;
+                            lp = Yxy.x * properties.fixedExposure;
                         }
 
-                        vec4 ldrColor = vec4(vec3(1.0) - exp(-hdrColor.rgb * exposure), hdrColor.a);
+                        Yxy.x = TonemapACES(lp);
+
+                        vec4 ldrColor = vec4(S_ConvertYxyToRgb(Yxy), hdrColor.a);
 
                         if (properties.useColorGrading) {
                             outLdrColor = vec4(ColorGrading(S_LinearToSRGB(ldrColor).rgb), ldrColor.a);
