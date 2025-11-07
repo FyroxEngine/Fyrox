@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::QualitySettings;
 use crate::{
     core::{math::Rect, ImmutableString},
     graphics::{
@@ -82,13 +83,17 @@ impl BloomRenderer {
         hdr_scene_frame: &GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
+        settings: &QualitySettings,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
 
         let wvp = make_viewport_matrix(viewport);
-        let properties = PropertyGroup::from([property("worldViewProjection", &wvp)]);
+        let properties = PropertyGroup::from([
+            property("worldViewProjection", &wvp),
+            property("threshold", &settings.bloom_settings.threshold),
+        ]);
         let material = RenderMaterial::from([
             binding(
                 "hdrSampler",

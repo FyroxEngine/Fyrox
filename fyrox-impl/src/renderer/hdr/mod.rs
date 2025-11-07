@@ -28,8 +28,7 @@ use crate::{
     },
     graphics::{
         error::FrameworkError,
-        framebuffer::ReadTarget,
-        framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
+        framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer, ReadTarget},
         gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
         server::GraphicsServer,
     },
@@ -42,7 +41,7 @@ use crate::{
         hdr::{adaptation::AdaptationChain, luminance::luminance_evaluator::LuminanceEvaluator},
         make_viewport_matrix,
         resources::RendererResources,
-        RenderPassStatistics,
+        QualitySettings, RenderPassStatistics,
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
@@ -95,6 +94,23 @@ pub struct HighDynamicRangeRenderer {
     frame_luminance: LumBuffer,
     stub_lut: GpuTexture,
     lum_calculation_method: LuminanceCalculationMethod,
+}
+
+pub struct HdrRendererArgs<'a> {
+    pub server: &'a dyn GraphicsServer,
+    pub hdr_scene_frame: &'a GpuTexture,
+    pub bloom_texture: &'a GpuTexture,
+    pub ldr_framebuffer: &'a GpuFrameBuffer,
+    pub viewport: Rect<i32>,
+    pub dt: f32,
+    pub exposure: Exposure,
+    pub color_grading_lut: Option<&'a ColorGradingLut>,
+    pub use_color_grading: bool,
+    pub texture_cache: &'a mut TextureCache,
+    pub uniform_buffer_cache: &'a mut UniformBufferCache,
+    pub renderer_resources: &'a RendererResources,
+    pub resource_manager: &'a ResourceManager,
+    pub settings: &'a QualitySettings,
 }
 
 impl HighDynamicRangeRenderer {
@@ -285,21 +301,24 @@ impl HighDynamicRangeRenderer {
         )
     }
 
-    fn map_hdr_to_ldr(
-        &self,
-        server: &dyn GraphicsServer,
-        hdr_scene_frame: &GpuTexture,
-        bloom_texture: &GpuTexture,
-        ldr_framebuffer: &GpuFrameBuffer,
-        viewport: Rect<i32>,
-        exposure: Exposure,
-        color_grading_lut: Option<&ColorGradingLut>,
-        use_color_grading: bool,
-        texture_cache: &mut TextureCache,
-        uniform_buffer_cache: &mut UniformBufferCache,
-        renderer_resources: &RendererResources,
-        resource_manager: &ResourceManager,
-    ) -> Result<DrawCallStatistics, FrameworkError> {
+    fn map_hdr_to_ldr(&self, args: HdrRendererArgs) -> Result<DrawCallStatistics, FrameworkError> {
+        let HdrRendererArgs {
+            server,
+            hdr_scene_frame,
+            bloom_texture,
+            ldr_framebuffer,
+            viewport,
+            exposure,
+            color_grading_lut,
+            use_color_grading,
+            texture_cache,
+            uniform_buffer_cache,
+            renderer_resources,
+            resource_manager,
+            settings,
+            ..
+        } = args;
+
         let frame_matrix = make_viewport_matrix(viewport);
 
         let color_grading_lut_tex = color_grading_lut
@@ -316,6 +335,12 @@ impl HighDynamicRangeRenderer {
                 max_luminance,
             } => (true, min_luminance, max_luminance, 0.0),
             Exposure::Manual(fixed_exposure) => (false, 0.0, 0.0, fixed_exposure),
+        };
+
+        let bloom_texture = if settings.bloom_settings.use_bloom {
+            bloom_texture
+        } else {
+            &renderer_resources.black_dummy
         };
 
         let color_grading_enabled = use_color_grading && color_grading_lut.is_some();
@@ -360,44 +385,17 @@ impl HighDynamicRangeRenderer {
         )
     }
 
-    pub fn render(
-        &self,
-        server: &dyn GraphicsServer,
-        hdr_scene_frame: &GpuTexture,
-        bloom_texture: &GpuTexture,
-        ldr_framebuffer: &GpuFrameBuffer,
-        viewport: Rect<i32>,
-        dt: f32,
-        exposure: Exposure,
-        color_grading_lut: Option<&ColorGradingLut>,
-        use_color_grading: bool,
-        texture_cache: &mut TextureCache,
-        uniform_buffer_cache: &mut UniformBufferCache,
-        renderer_resources: &RendererResources,
-        resource_manager: &ResourceManager,
-    ) -> Result<RenderPassStatistics, FrameworkError> {
+    pub fn render(&self, args: HdrRendererArgs) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
         stats += self.calculate_frame_luminance(
-            hdr_scene_frame,
-            uniform_buffer_cache,
-            renderer_resources,
+            args.hdr_scene_frame,
+            args.uniform_buffer_cache,
+            args.renderer_resources,
         )?;
-        stats += self.calculate_avg_frame_luminance(uniform_buffer_cache, renderer_resources)?;
-        stats += self.adaptation(dt, uniform_buffer_cache, renderer_resources)?;
-        stats += self.map_hdr_to_ldr(
-            server,
-            hdr_scene_frame,
-            bloom_texture,
-            ldr_framebuffer,
-            viewport,
-            exposure,
-            color_grading_lut,
-            use_color_grading,
-            texture_cache,
-            uniform_buffer_cache,
-            renderer_resources,
-            resource_manager,
-        )?;
+        stats +=
+            self.calculate_avg_frame_luminance(args.uniform_buffer_cache, args.renderer_resources)?;
+        stats += self.adaptation(args.dt, args.uniform_buffer_cache, args.renderer_resources)?;
+        stats += self.map_hdr_to_ldr(args)?;
         Ok(stats)
     }
 }

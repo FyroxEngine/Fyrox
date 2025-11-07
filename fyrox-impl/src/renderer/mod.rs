@@ -49,6 +49,7 @@ mod settings;
 mod shadow;
 mod ssao;
 
+use crate::renderer::hdr::HdrRendererArgs;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -1138,30 +1139,34 @@ impl Renderer {
         }
 
         // Prepare glow map.
-        render_data.statistics += render_data.bloom_renderer.render(
-            render_data.hdr_scene_frame_texture(),
-            &mut self.uniform_buffer_cache,
-            &self.renderer_resources,
-        )?;
+        if self.quality_settings.bloom_settings.use_bloom {
+            render_data.statistics += render_data.bloom_renderer.render(
+                render_data.hdr_scene_frame_texture(),
+                &mut self.uniform_buffer_cache,
+                &self.renderer_resources,
+                &self.quality_settings,
+            )?;
+        }
 
         // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
         let mut dest_buf = 0;
         let mut src_buf = 1;
-        render_data.statistics += render_data.hdr_renderer.render(
+        render_data.statistics += render_data.hdr_renderer.render(HdrRendererArgs {
             server,
-            render_data.hdr_scene_frame_texture(),
-            render_data.bloom_renderer.result(),
-            &render_data.ldr_temp_framebuffer[dest_buf],
-            observer.viewport,
+            hdr_scene_frame: render_data.hdr_scene_frame_texture(),
+            bloom_texture: render_data.bloom_renderer.result(),
+            ldr_framebuffer: &render_data.ldr_temp_framebuffer[dest_buf],
+            viewport: observer.viewport,
             dt,
-            observer.exposure,
-            observer.color_grading_lut.as_ref(),
-            observer.color_grading_enabled,
-            &mut self.texture_cache,
-            &mut self.uniform_buffer_cache,
-            &self.renderer_resources,
+            exposure: observer.exposure,
+            color_grading_lut: observer.color_grading_lut.as_ref(),
+            use_color_grading: observer.color_grading_enabled,
+            texture_cache: &mut self.texture_cache,
+            uniform_buffer_cache: &mut self.uniform_buffer_cache,
+            renderer_resources: &self.renderer_resources,
             resource_manager,
-        )?;
+            settings: &self.quality_settings,
+        })?;
         std::mem::swap(&mut dest_buf, &mut src_buf);
 
         // Apply FXAA if needed.

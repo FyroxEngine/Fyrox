@@ -10,6 +10,7 @@
             name: "properties",
             kind: PropertyGroup([
                 (name: "worldViewProjection", kind: Matrix4()),
+                (name: "threshold", kind: Float(value: 1.01)),
             ]),
             binding: 0
         ),
@@ -62,7 +63,7 @@
                     void main() {
                         vec3 hdrPixel = texture(hdrSampler, texCoord).rgb;
 
-                        if (S_Luminance(hdrPixel) > 1.0) {
+                        if (S_Luminance(hdrPixel) > properties.threshold) {
                             outBrightColor = vec4(hdrPixel, 0.0);
                         } else {
                             outBrightColor = vec4(0.0);

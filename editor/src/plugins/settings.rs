@@ -22,7 +22,10 @@
 
 use crate::{
     fyrox::{
-        core::{log::Log, parking_lot::lock_api::Mutex, pool::Handle, some_or_return},
+        asset::manager::ResourceManager,
+        core::{
+            log::Log, parking_lot::lock_api::Mutex, pool::Handle, reflect::Reflect, some_or_return,
+        },
         engine::Engine,
         graph::{BaseSceneGraph, SceneGraph},
         gui::{
@@ -36,7 +39,8 @@ use crate::{
                     inspectable::InspectablePropertyEditorDefinition,
                     key::HotKeyPropertyEditorDefinition, PropertyEditorDefinitionContainer,
                 },
-                Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
+                Inspector, InspectorBuilder, InspectorContext, InspectorContextArgs,
+                InspectorMessage, PropertyAction,
             },
             menu::MenuItemMessage,
             message::UiMessage,
@@ -48,6 +52,7 @@ use crate::{
             HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         },
         renderer::QualitySettings,
+        renderer::{BloomSettings, CsmSettings, ShadowMapPrecision},
     },
     menu::create_menu_item,
     message::MessageSender,
@@ -68,10 +73,6 @@ use crate::{
     },
     Editor, MSG_SYNC_FLAG,
 };
-use fyrox::asset::manager::ResourceManager;
-use fyrox::core::reflect::Reflect;
-use fyrox::gui::inspector::InspectorContextArgs;
-use fyrox::renderer::{CsmSettings, ShadowMapPrecision};
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 use rust_fuzzy_search::fuzzy_compare;
 use std::sync::Arc;
@@ -106,6 +107,7 @@ fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<KeyBindings>::new());
     container.insert(InspectablePropertyEditorDefinition::<TerrainKeyBindings>::new());
     container.insert(InspectablePropertyEditorDefinition::<BuildSettings>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BloomSettings>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<EnvironmentVariable>::new());
     container.insert(InspectablePropertyEditorDefinition::<EnvironmentVariable>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<BuildProfile>::new());

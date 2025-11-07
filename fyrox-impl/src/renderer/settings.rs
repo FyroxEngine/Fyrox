@@ -23,6 +23,26 @@ use fyrox_core::uuid_provider;
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct BloomSettings {
+    /// Whether to use bloom effect.
+    pub use_bloom: bool,
+
+    /// A threshold value for luminance of a pixel to be considered "very bright". Only pixels
+    /// that passed this check (>=) will be included in the bloom render target and will have the glow
+    /// effect.
+    pub threshold: f32,
+}
+
+impl Default for BloomSettings {
+    fn default() -> Self {
+        Self {
+            use_bloom: true,
+            threshold: 1.01,
+        }
+    }
+}
+
 /// Quality settings allows you to find optimal balance between performance and
 /// graphics quality.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -79,9 +99,6 @@ pub struct QualitySettings {
     /// Whether to use Parallax Mapping or not.
     pub use_parallax_mapping: bool,
 
-    /// Whether to use bloom effect.
-    pub use_bloom: bool,
-
     /// Whether to use occlusion culling for geometry or not. Warning: this is experimental feature
     /// that may have bugs and unstable behavior. Disabled by default.
     #[serde(default)]
@@ -91,6 +108,9 @@ pub struct QualitySettings {
     /// feature that may have bugs and unstable behavior. Disabled by default.
     #[serde(default)]
     pub use_light_occlusion_culling: bool,
+
+    #[serde(default)]
+    pub bloom_settings: BloomSettings,
 }
 
 impl Default for QualitySettings {
@@ -125,7 +145,7 @@ impl QualitySettings {
 
             fxaa: true,
 
-            use_bloom: true,
+            bloom_settings: Default::default(),
 
             use_parallax_mapping: true,
 
@@ -161,7 +181,7 @@ impl QualitySettings {
 
             fxaa: true,
 
-            use_bloom: true,
+            bloom_settings: Default::default(),
 
             use_parallax_mapping: true,
 
@@ -202,7 +222,7 @@ impl QualitySettings {
 
             fxaa: true,
 
-            use_bloom: true,
+            bloom_settings: Default::default(),
 
             use_parallax_mapping: false,
 
@@ -243,7 +263,10 @@ impl QualitySettings {
 
             fxaa: false,
 
-            use_bloom: false,
+            bloom_settings: BloomSettings {
+                use_bloom: false,
+                ..Default::default()
+            },
 
             use_parallax_mapping: false,
 
