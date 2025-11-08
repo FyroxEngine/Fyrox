@@ -210,6 +210,12 @@ pub trait GraphicsServer: GraphicsServerAsAny {
     /// Fetches the total amount of memory used by the graphics server.
     fn memory_usage(&self) -> ServerMemoryUsage;
 
+    /// Begins a new named debug group.
+    fn push_debug_group(&self, name: &str);
+
+    /// Ends the current debug group.
+    fn pop_debug_group(&self);
+
     /// A shortcut for [`Self::create_texture`], that creates a rectangular texture with the given
     /// size and pixel kind.
     fn create_2d_render_target(

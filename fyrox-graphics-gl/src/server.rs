@@ -1530,4 +1530,19 @@ impl GraphicsServer for GlGraphicsServer {
     fn memory_usage(&self) -> ServerMemoryUsage {
         self.memory_usage.borrow().clone()
     }
+
+    fn push_debug_group(&self, name: &str) {
+        if self.gl.supports_debug() {
+            unsafe {
+                self.gl
+                    .push_debug_group(glow::DEBUG_SOURCE_APPLICATION, 0, name)
+            }
+        }
+    }
+
+    fn pop_debug_group(&self) {
+        if self.gl.supports_debug() {
+            unsafe { self.gl.pop_debug_group() }
+        }
+    }
 }
