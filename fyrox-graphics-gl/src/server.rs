@@ -1428,7 +1428,7 @@ impl GraphicsServer for GlGraphicsServer {
         )?)))
     }
 
-    fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer> {
+    fn weak(&self) -> Weak<dyn GraphicsServer> {
         self.this.borrow().as_ref().unwrap().clone()
     }
 
@@ -1532,7 +1532,7 @@ impl GraphicsServer for GlGraphicsServer {
     }
 
     fn push_debug_group(&self, name: &str) {
-        if self.gl.supports_debug() {
+        if self.gl.supports_debug() && self.named_objects.get() {
             unsafe {
                 self.gl
                     .push_debug_group(glow::DEBUG_SOURCE_APPLICATION, 0, name)
@@ -1541,7 +1541,7 @@ impl GraphicsServer for GlGraphicsServer {
     }
 
     fn pop_debug_group(&self) {
-        if self.gl.supports_debug() {
+        if self.gl.supports_debug() && self.named_objects.get() {
             unsafe { self.gl.pop_debug_group() }
         }
     }

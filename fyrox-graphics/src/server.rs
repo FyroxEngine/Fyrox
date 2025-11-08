@@ -81,6 +81,18 @@ pub type SharedGraphicsServer = Rc<dyn GraphicsServer>;
 
 define_as_any_trait!(GraphicsServerAsAny => GraphicsServer);
 
+pub struct RenderingScope {
+    server: Weak<dyn GraphicsServer>,
+}
+
+impl Drop for RenderingScope {
+    fn drop(&mut self) {
+        if let Some(server) = self.server.upgrade() {
+            server.pop_debug_group();
+        }
+    }
+}
+
 /// Graphics server is an abstraction layer over various graphics APIs used on different platforms
 /// supported by the engine. Such abstraction layer tries to provide more or less high-level and
 /// unified interface, that can be used to build graphics pipelines quickly and more or less efficiently.
@@ -168,7 +180,7 @@ pub trait GraphicsServer: GraphicsServerAsAny {
     ) -> Result<GpuGeometryBuffer, FrameworkError>;
 
     /// Creates a weak reference to the shared graphics server.
-    fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer>;
+    fn weak(&self) -> Weak<dyn GraphicsServer>;
 
     /// Sends all scheduled GPU command buffers for execution on GPU without waiting for a certain
     /// threshold.
@@ -215,6 +227,14 @@ pub trait GraphicsServer: GraphicsServerAsAny {
 
     /// Ends the current debug group.
     fn pop_debug_group(&self);
+
+    fn begin_scope(&self, name: &str) -> RenderingScope {
+        self.push_debug_group(name);
+
+        RenderingScope {
+            server: self.weak(),
+        }
+    }
 
     /// A shortcut for [`Self::create_texture`], that creates a rectangular texture with the given
     /// size and pixel kind.
