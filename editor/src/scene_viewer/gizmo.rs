@@ -103,8 +103,10 @@ impl SceneGizmo {
             EnvironmentLightingSource::AmbientColor;
         scene.rendering_options.ambient_lighting_color = Color::repeat_opaque(120);
 
-        DirectionalLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new()))
-            .build(&mut scene.graph);
+        DirectionalLightBuilder::new(BaseLightBuilder::new(
+            BaseBuilder::new().with_cast_shadows(false),
+        ))
+        .build(&mut scene.graph);
 
         let pos_x;
         let neg_x;
