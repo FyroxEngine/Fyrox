@@ -362,6 +362,8 @@ pub struct StartupData {
 
     /// A scene to load at the editor start. If it is empty, no scene will be loaded.
     pub scenes: Vec<PathBuf>,
+
+    pub named_objects: bool,
 }
 
 #[derive(Debug)]
@@ -791,7 +793,10 @@ impl Editor {
             vsync: true,
             msaa_sample_count: Some(4),
             graphics_server_constructor: Default::default(),
-            named_objects: false,
+            named_objects: startup_data
+                .as_ref()
+                .map(|d| d.named_objects)
+                .unwrap_or_default(),
         };
 
         let serialization_context = Arc::new(SerializationContext::new());

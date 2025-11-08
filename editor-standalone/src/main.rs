@@ -33,6 +33,9 @@ struct Args {
     /// List of scenes to load
     #[arg(short, long)]
     scenes: Option<Vec<String>>,
+
+    #[arg(short, long)]
+    named_objects: bool,
 }
 
 fn main() {
@@ -48,6 +51,7 @@ fn main() {
                 .iter()
                 .map(Into::into)
                 .collect(),
+            named_objects: args.named_objects,
         })
     } else {
         None
