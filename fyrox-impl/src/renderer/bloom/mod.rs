@@ -92,7 +92,7 @@ impl BloomRenderer {
         let wvp = make_viewport_matrix(viewport);
         let properties = PropertyGroup::from([
             property("worldViewProjection", &wvp),
-            property("threshold", &settings.bloom_settings.threshold),
+            property("threshold", &settings.hdr_settings.bloom_settings.threshold),
         ]);
         let material = RenderMaterial::from([
             binding(

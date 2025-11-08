@@ -18,11 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::core::reflect::prelude::*;
-use fyrox_core::uuid_provider;
+use crate::core::{reflect::prelude::*, type_traits::prelude::*};
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
+/// Bloom effect settings.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct BloomSettings {
     /// Whether to use bloom effect.
@@ -39,6 +39,56 @@ impl Default for BloomSettings {
         Self {
             use_bloom: true,
             threshold: 1.01,
+        }
+    }
+}
+
+/// Calculation method of a frame luminance for HDR rendering pipeline.
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    PartialEq,
+    Default,
+    Serialize,
+    Deserialize,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+    TypeUuidProvider,
+)]
+#[type_uuid(id = "b1994c1c-bc2f-497c-a05d-062a02b69ff1")]
+pub enum LuminanceCalculationMethod {
+    /// Simplest and fastest luminance calculation method based on average of luminance of all
+    /// pixels of the frame.
+    #[default]
+    DownSampling,
+
+    /// More flexible, yet slower, luminance calculation method.
+    Histogram,
+}
+
+/// Settings of high dynamic range rendering pipeline.
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct HdrSettings {
+    /// Whether the HDR pipeline enabled or not.
+    pub use_hdr: bool,
+
+    /// Calculation method of a frame luminance for HDR rendering pipeline.
+    pub luminance_calculation_method: LuminanceCalculationMethod,
+
+    /// Bloom effect settings.
+    #[serde(default)]
+    pub bloom_settings: BloomSettings,
+}
+
+impl Default for HdrSettings {
+    fn default() -> Self {
+        Self {
+            use_hdr: true,
+            luminance_calculation_method: LuminanceCalculationMethod::DownSampling,
+            bloom_settings: BloomSettings::default(),
         }
     }
 }
@@ -109,8 +159,9 @@ pub struct QualitySettings {
     #[serde(default)]
     pub use_light_occlusion_culling: bool,
 
+    /// HDR pipeline settings.
     #[serde(default)]
-    pub bloom_settings: BloomSettings,
+    pub hdr_settings: HdrSettings,
 }
 
 impl Default for QualitySettings {
@@ -145,7 +196,7 @@ impl QualitySettings {
 
             fxaa: true,
 
-            bloom_settings: Default::default(),
+            hdr_settings: Default::default(),
 
             use_parallax_mapping: true,
 
@@ -181,7 +232,7 @@ impl QualitySettings {
 
             fxaa: true,
 
-            bloom_settings: Default::default(),
+            hdr_settings: Default::default(),
 
             use_parallax_mapping: true,
 
@@ -222,7 +273,7 @@ impl QualitySettings {
 
             fxaa: true,
 
-            bloom_settings: Default::default(),
+            hdr_settings: Default::default(),
 
             use_parallax_mapping: false,
 
@@ -263,8 +314,11 @@ impl QualitySettings {
 
             fxaa: false,
 
-            bloom_settings: BloomSettings {
-                use_bloom: false,
+            hdr_settings: HdrSettings {
+                bloom_settings: BloomSettings {
+                    use_bloom: false,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
 
@@ -327,7 +381,9 @@ impl Default for CsmSettings {
     AsRefStr,
     EnumString,
     VariantNames,
+    TypeUuidProvider,
 )]
+#[type_uuid(id = "f9b2755b-248e-46ba-bcab-473eac1acdb8")]
 pub enum ShadowMapPrecision {
     /// Shadow map will use 2 times less memory by switching to 16bit pixel format,
     /// but "shadow acne" may occur.
@@ -336,5 +392,3 @@ pub enum ShadowMapPrecision {
     /// but could be less performant than `Half`.
     Full,
 }
-
-uuid_provider!(ShadowMapPrecision = "f9b2755b-248e-46ba-bcab-473eac1acdb8");

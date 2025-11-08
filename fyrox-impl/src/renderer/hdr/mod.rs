@@ -33,6 +33,7 @@ use crate::{
         server::GraphicsServer,
     },
     renderer::{
+        bloom::BloomRenderer,
         cache::{
             shader::{binding, property, PropertyGroup, RenderMaterial},
             texture::TextureCache,
@@ -41,19 +42,13 @@ use crate::{
         hdr::{adaptation::AdaptationChain, luminance::luminance_evaluator::LuminanceEvaluator},
         make_viewport_matrix,
         resources::RendererResources,
-        QualitySettings, RenderPassStatistics,
+        LuminanceCalculationMethod, QualitySettings, RenderPassStatistics,
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
 
 mod adaptation;
 mod luminance;
-
-#[allow(dead_code)] // TODO
-pub enum LuminanceCalculationMethod {
-    Histogram,
-    DownSampling,
-}
 
 pub struct LumBuffer {
     framebuffer: GpuFrameBuffer,
@@ -93,13 +88,14 @@ pub struct HighDynamicRangeRenderer {
     downscale_chain: [LumBuffer; 6],
     frame_luminance: LumBuffer,
     stub_lut: GpuTexture,
-    lum_calculation_method: LuminanceCalculationMethod,
+    /// Bloom contains only overly bright pixels that create light
+    /// bleeding effect (glow effect).
+    bloom_renderer: BloomRenderer,
 }
 
 pub struct HdrRendererArgs<'a> {
     pub server: &'a dyn GraphicsServer,
     pub hdr_scene_frame: &'a GpuTexture,
-    pub bloom_texture: &'a GpuTexture,
     pub ldr_framebuffer: &'a GpuFrameBuffer,
     pub viewport: Rect<i32>,
     pub dt: f32,
@@ -114,7 +110,11 @@ pub struct HdrRendererArgs<'a> {
 }
 
 impl HighDynamicRangeRenderer {
-    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
+    pub fn new(
+        width: usize,
+        height: usize,
+        server: &dyn GraphicsServer,
+    ) -> Result<Self, FrameworkError> {
         Ok(Self {
             frame_luminance: LumBuffer::new(server, 64)?,
             downscale_chain: [
@@ -137,7 +137,7 @@ impl HighDynamicRangeRenderer {
                 data: Some(&[0, 0, 0]),
                 ..Default::default()
             })?,
-            lum_calculation_method: LuminanceCalculationMethod::DownSampling,
+            bloom_renderer: BloomRenderer::new(server, width, height)?,
         })
     }
 
@@ -186,10 +186,11 @@ impl HighDynamicRangeRenderer {
         &self,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
+        luminance_calculation_method: LuminanceCalculationMethod,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
-        match self.lum_calculation_method {
+        match luminance_calculation_method {
             LuminanceCalculationMethod::Histogram => {
                 // TODO: Cloning memory from GPU to CPU is slow, but since the engine is limited
                 // by macOS's OpenGL 4.1 support and lack of compute shaders we'll build histogram
@@ -305,7 +306,6 @@ impl HighDynamicRangeRenderer {
         let HdrRendererArgs {
             server,
             hdr_scene_frame,
-            bloom_texture,
             ldr_framebuffer,
             viewport,
             exposure,
@@ -337,8 +337,8 @@ impl HighDynamicRangeRenderer {
             Exposure::Manual(fixed_exposure) => (false, 0.0, 0.0, fixed_exposure),
         };
 
-        let bloom_texture = if settings.bloom_settings.use_bloom {
-            bloom_texture
+        let bloom_texture = if settings.hdr_settings.bloom_settings.use_bloom {
+            self.bloom_renderer.result()
         } else {
             &renderer_resources.black_dummy
         };
@@ -392,8 +392,19 @@ impl HighDynamicRangeRenderer {
             args.uniform_buffer_cache,
             args.renderer_resources,
         )?;
-        stats +=
-            self.calculate_avg_frame_luminance(args.uniform_buffer_cache, args.renderer_resources)?;
+        stats += self.calculate_avg_frame_luminance(
+            args.uniform_buffer_cache,
+            args.renderer_resources,
+            args.settings.hdr_settings.luminance_calculation_method,
+        )?;
+        if args.settings.hdr_settings.bloom_settings.use_bloom {
+            stats += self.bloom_renderer.render(
+                args.hdr_scene_frame,
+                args.uniform_buffer_cache,
+                args.renderer_resources,
+                args.settings,
+            )?;
+        }
         stats += self.adaptation(args.dt, args.uniform_buffer_cache, args.renderer_resources)?;
         stats += self.map_hdr_to_ldr(args)?;
         Ok(stats)

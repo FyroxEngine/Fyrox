@@ -71,7 +71,6 @@ use crate::{
     },
     material::shader::Shader,
     renderer::{
-        bloom::BloomRenderer,
         bundle::{BundleRenderContext, RenderDataBundleStorage, RenderDataBundleStorageOptions},
         cache::texture::convert_pixel_kind,
         cache::{
@@ -215,10 +214,6 @@ pub struct RenderDataContainer {
     /// scene luminance.
     pub hdr_renderer: HighDynamicRangeRenderer,
 
-    /// Bloom contains only overly bright pixels that create light
-    /// bleeding effect (glow effect).
-    pub bloom_renderer: BloomRenderer,
-
     /// Rendering statistics for a container.
     pub statistics: SceneStatistics,
 }
@@ -310,8 +305,7 @@ impl RenderDataContainer {
             )?,
             ssao_renderer: ScreenSpaceAmbientOcclusionRenderer::new(server, width, height)?,
             gbuffer: GBuffer::new(server, width, height)?,
-            hdr_renderer: HighDynamicRangeRenderer::new(server)?,
-            bloom_renderer: BloomRenderer::new(server, width, height)?,
+            hdr_renderer: HighDynamicRangeRenderer::new(width, height, server)?,
             hdr_scene_framebuffer,
             ldr_scene_framebuffer,
             ldr_temp_framebuffer: [
@@ -1138,23 +1132,12 @@ impl Renderer {
                     })?;
         }
 
-        // Prepare glow map.
-        if self.quality_settings.bloom_settings.use_bloom {
-            render_data.statistics += render_data.bloom_renderer.render(
-                render_data.hdr_scene_frame_texture(),
-                &mut self.uniform_buffer_cache,
-                &self.renderer_resources,
-                &self.quality_settings,
-            )?;
-        }
-
         // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
         let mut dest_buf = 0;
         let mut src_buf = 1;
         render_data.statistics += render_data.hdr_renderer.render(HdrRendererArgs {
             server,
             hdr_scene_frame: render_data.hdr_scene_frame_texture(),
-            bloom_texture: render_data.bloom_renderer.result(),
             ldr_framebuffer: &render_data.ldr_temp_framebuffer[dest_buf],
             viewport: observer.viewport,
             dt,
