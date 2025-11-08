@@ -149,12 +149,12 @@ impl CameraController {
     pub fn new(
         graph: &mut Graph,
         root: Handle<Node>,
-        settings: Option<&SceneCameraSettings>,
+        settings: &Settings,
+        camera_settings: SceneCameraSettings,
         grid: Handle<Node>,
         editor_objects_root: Handle<Node>,
         scene_content_root: Handle<Node>,
     ) -> Self {
-        let settings = settings.cloned().unwrap_or_default();
         let camera;
         let camera_hinge;
         let pivot = PivotBuilder::new(
@@ -168,7 +168,8 @@ impl CameraController {
                                 ])
                                 .with_name("EditorCamera"),
                         )
-                        .with_projection(settings.projection)
+                        .with_projection(camera_settings.projection)
+                        .with_exposure(settings.camera.exposure)
                         .with_z_far(512.0)
                         .build(graph);
                         camera
@@ -179,7 +180,7 @@ impl CameraController {
                 .with_name("EditorCameraPivot")
                 .with_local_transform(
                     TransformBuilder::new()
-                        .with_local_position(settings.position)
+                        .with_local_position(camera_settings.position)
                         .build(),
                 ),
         )
@@ -192,8 +193,8 @@ impl CameraController {
             pivot,
             camera_hinge,
             camera,
-            yaw: settings.yaw,
-            pitch: settings.pitch,
+            yaw: camera_settings.yaw,
+            pitch: camera_settings.pitch,
             mouse_control_mode: MouseControlMode::None,
             z_offset: DEFAULT_Z_OFFSET,
             move_left: false,
@@ -575,6 +576,8 @@ impl CameraController {
         self.screen_size = screen_size;
 
         let camera = graph[self.camera].as_camera_mut();
+
+        camera.set_exposure(settings.camera.exposure);
 
         match camera.projection_value() {
             Projection::Perspective(_) => {

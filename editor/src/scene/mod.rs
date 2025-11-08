@@ -205,8 +205,15 @@ impl GameScene {
         let camera_controller = CameraController::new(
             &mut scene.graph,
             editor_objects_root,
+            settings,
             path.as_ref()
-                .and_then(|p| settings.scene_settings.get(*p).map(|s| &s.camera_settings)),
+                .and_then(|p| {
+                    settings
+                        .scene_settings
+                        .get(*p)
+                        .map(|s| s.camera_settings.clone())
+                })
+                .unwrap_or_default(),
             grid,
             editor_objects_root,
             scene_content_root,
