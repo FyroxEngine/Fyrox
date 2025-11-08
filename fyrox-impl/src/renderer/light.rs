@@ -248,6 +248,8 @@ impl DeferredLightRenderer {
         &mut self,
         args: DeferredRendererContext,
     ) -> Result<(RenderPassStatistics, LightingStatistics), FrameworkError> {
+        let _debug_scope = args.server.begin_scope("DeferredLighting");
+
         let mut pass_stats = RenderPassStatistics::default();
         let mut light_stats = LightingStatistics::default();
 
@@ -298,6 +300,7 @@ impl DeferredLightRenderer {
         // Fill SSAO map.
         if settings.use_ssao {
             pass_stats += ssao_renderer.render(
+                server,
                 gbuffer,
                 observer.position.projection_matrix,
                 observer.position.view_matrix.basis(),
@@ -374,7 +377,12 @@ impl DeferredLightRenderer {
             pass_stats += environment_map_specular_convolution
                 .as_ref()
                 .unwrap()
-                .render(environment_map, uniform_buffer_cache, renderer_resources)?;
+                .render(
+                    server,
+                    environment_map,
+                    uniform_buffer_cache,
+                    renderer_resources,
+                )?;
 
             // Prepare the irradiance component of the probe.
             pass_stats += environment_map_irradiance_convolution.render(
@@ -724,7 +732,7 @@ impl DeferredLightRenderer {
                                 .render(PointShadowMapRenderContext {
                                     render_mask: observer.render_mask,
                                     elapsed_time,
-                                    state: server,
+                                    server,
                                     graph: &scene.graph,
                                     light_pos: light.position,
                                     light_radius,
@@ -744,7 +752,7 @@ impl DeferredLightRenderer {
                         pass_stats += self.csm_renderer.render(CsmRenderContext {
                             elapsed_time,
                             frame_size: Vector2::new(gbuffer.width as f32, gbuffer.height as f32),
-                            state: server,
+                            server,
                             graph: &scene.graph,
                             light,
                             observer,
@@ -1040,6 +1048,7 @@ impl DeferredLightRenderer {
             // light source.
             if settings.light_scatter_enabled && light.scatter_enabled {
                 pass_stats += self.light_volume.render_volume(
+                    server,
                     light,
                     gbuffer,
                     observer.position.view_matrix,

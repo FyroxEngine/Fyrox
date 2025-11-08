@@ -76,10 +76,13 @@ impl EnvironmentMapSpecularConvolution {
 
     pub fn render(
         &self,
+        server: &dyn GraphicsServer,
         environment_map: &GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let _debug_scope = server.begin_scope("");
+
         let mut stats = RenderPassStatistics::default();
 
         let projection_matrix =

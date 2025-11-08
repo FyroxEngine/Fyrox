@@ -96,7 +96,7 @@ pub struct CsmRenderer {
 pub(crate) struct CsmRenderContext<'a, 'c> {
     pub elapsed_time: f32,
     pub frame_size: Vector2<f32>,
-    pub state: &'a dyn GraphicsServer,
+    pub server: &'a dyn GraphicsServer,
     pub graph: &'c Graph,
     pub light: &'c LightSource,
     pub observer: &'a Observer,
@@ -142,12 +142,14 @@ impl CsmRenderer {
         &mut self,
         ctx: CsmRenderContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let _debug_scope = ctx.server.begin_scope("CascadedShadowMap");
+
         let mut stats = RenderPassStatistics::default();
 
         let CsmRenderContext {
             elapsed_time,
             frame_size,
-            state,
+            server,
             graph,
             light,
             observer,
@@ -190,6 +192,8 @@ impl CsmRenderer {
         };
 
         for i in 0..CSM_NUM_CASCADES {
+            let _debug_scope = ctx.server.begin_scope(&format!("Cascade {i}"));
+
             let z_near = z_values[i];
             let mut z_far = z_values[i + 1];
 
@@ -273,7 +277,7 @@ impl CsmRenderer {
             );
 
             stats += bundle_storage.render_to_frame_buffer(
-                state,
+                server,
                 geom_cache,
                 shader_cache,
                 |_| true,

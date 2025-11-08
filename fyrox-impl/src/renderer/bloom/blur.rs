@@ -85,11 +85,14 @@ impl GaussianBlur {
 
     pub(crate) fn render(
         &self,
+        server: &dyn GraphicsServer,
         quad: &GpuGeometryBuffer,
         input: &GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let _debug_scope = server.begin_scope("GaussianBlur");
+
         let mut stats = RenderPassStatistics::default();
 
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);

@@ -142,12 +142,15 @@ impl DebugRenderer {
 
     pub(crate) fn render(
         &mut self,
+        server: &dyn GraphicsServer,
         uniform_buffer_cache: &mut UniformBufferCache,
         viewport: Rect<i32>,
         framebuffer: &GpuFrameBuffer,
         view_projection: Matrix4<f32>,
         renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let _debug_scope = server.begin_scope("DebugRendering");
+
         let mut statistics = RenderPassStatistics::default();
 
         let properties = PropertyGroup::from([property("worldViewProjection", &view_projection)]);

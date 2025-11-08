@@ -143,10 +143,13 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_frame_luminance(
         &self,
+        server: &dyn GraphicsServer,
         scene_frame: &GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
     ) -> Result<DrawCallStatistics, FrameworkError> {
+        let _debug_scope = server.begin_scope("CalculateFrameLuminance");
+
         self.frame_luminance.clear();
 
         let frame_matrix = self.frame_luminance.matrix();
@@ -184,10 +187,13 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_avg_frame_luminance(
         &self,
+        server: &dyn GraphicsServer,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
         luminance_calculation_method: LuminanceCalculationMethod,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let _debug_scope = server.begin_scope("CalculateAvgFrameLuminance");
+
         let mut stats = RenderPassStatistics::default();
 
         match luminance_calculation_method {
@@ -261,10 +267,13 @@ impl HighDynamicRangeRenderer {
 
     fn adaptation(
         &self,
+        server: &dyn GraphicsServer,
         dt: f32,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
     ) -> Result<DrawCallStatistics, FrameworkError> {
+        let _debug_scope = server.begin_scope("Adaptation");
+
         let ctx = self.adaptation_chain.begin();
         let viewport = Rect::new(0, 0, ctx.lum_buffer.size as i32, ctx.lum_buffer.size as i32);
         let matrix = ctx.lum_buffer.matrix();
@@ -318,6 +327,8 @@ impl HighDynamicRangeRenderer {
             settings,
             ..
         } = args;
+
+        let _debug_scope = args.server.begin_scope("ToneMap");
 
         let frame_matrix = make_viewport_matrix(viewport);
 
@@ -386,26 +397,35 @@ impl HighDynamicRangeRenderer {
     }
 
     pub fn render(&self, args: HdrRendererArgs) -> Result<RenderPassStatistics, FrameworkError> {
+        let _debug_scope = args.server.begin_scope("HDR");
         let mut stats = RenderPassStatistics::default();
         stats += self.calculate_frame_luminance(
+            args.server,
             args.hdr_scene_frame,
             args.uniform_buffer_cache,
             args.renderer_resources,
         )?;
         stats += self.calculate_avg_frame_luminance(
+            args.server,
             args.uniform_buffer_cache,
             args.renderer_resources,
             args.settings.hdr_settings.luminance_calculation_method,
         )?;
         if args.settings.hdr_settings.bloom_settings.use_bloom {
             stats += self.bloom_renderer.render(
+                args.server,
                 args.hdr_scene_frame,
                 args.uniform_buffer_cache,
                 args.renderer_resources,
                 args.settings,
             )?;
         }
-        stats += self.adaptation(args.dt, args.uniform_buffer_cache, args.renderer_resources)?;
+        stats += self.adaptation(
+            args.server,
+            args.dt,
+            args.uniform_buffer_cache,
+            args.renderer_resources,
+        )?;
         stats += self.map_hdr_to_ldr(args)?;
         Ok(stats)
     }

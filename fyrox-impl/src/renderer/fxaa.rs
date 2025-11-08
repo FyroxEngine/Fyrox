@@ -31,6 +31,7 @@ use crate::{
         RenderPassStatistics,
     },
 };
+use fyrox_graphics::server::GraphicsServer;
 
 #[derive(Default)]
 pub struct FxaaRenderer {}
@@ -38,12 +39,15 @@ pub struct FxaaRenderer {}
 impl FxaaRenderer {
     pub(crate) fn render(
         &self,
+        server: &dyn GraphicsServer,
         viewport: Rect<i32>,
         frame_texture: &GpuTexture,
         frame_buffer: &GpuFrameBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let _debug_scope = server.begin_scope("FXAA");
+
         let mut statistics = RenderPassStatistics::default();
 
         let frame_matrix = make_viewport_matrix(viewport);

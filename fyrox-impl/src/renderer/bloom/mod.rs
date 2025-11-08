@@ -80,11 +80,14 @@ impl BloomRenderer {
 
     pub(crate) fn render(
         &self,
+        server: &dyn GraphicsServer,
         hdr_scene_frame: &GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
         settings: &QualitySettings,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let _debug_scope = server.begin_scope("Bloom");
+
         let mut stats = RenderPassStatistics::default();
 
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
@@ -115,6 +118,7 @@ impl BloomRenderer {
         )?;
 
         stats += self.blur.render(
+            server,
             &renderer_resources.quad,
             self.glow_texture(),
             uniform_buffer_cache,

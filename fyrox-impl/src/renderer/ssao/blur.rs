@@ -63,10 +63,13 @@ impl Blur {
 
     pub(crate) fn render(
         &self,
+        server: &dyn GraphicsServer,
         input: GpuTexture,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
     ) -> Result<DrawCallStatistics, FrameworkError> {
+        let _debug_scope = server.begin_scope("BoxBlur");
+
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
 
         let wvp = make_viewport_matrix(viewport);

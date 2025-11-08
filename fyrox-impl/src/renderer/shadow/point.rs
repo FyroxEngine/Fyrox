@@ -57,7 +57,7 @@ pub struct PointShadowMapRenderer {
 pub(crate) struct PointShadowMapRenderContext<'a> {
     pub render_mask: BitMask,
     pub elapsed_time: f32,
-    pub state: &'a dyn GraphicsServer,
+    pub server: &'a dyn GraphicsServer,
     pub graph: &'a Graph,
     pub light_pos: Vector3<f32>,
     pub light_radius: f32,
@@ -133,11 +133,13 @@ impl PointShadowMapRenderer {
         &mut self,
         args: PointShadowMapRenderContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let _debug_scope = args.server.begin_scope("PointShadowMap");
+
         let mut statistics = RenderPassStatistics::default();
 
         let PointShadowMapRenderContext {
             elapsed_time,
-            state,
+            server,
             graph,
             render_mask,
             light_pos,
@@ -163,6 +165,8 @@ impl PointShadowMapRenderer {
             Matrix4::new_perspective(1.0, std::f32::consts::FRAC_PI_2, z_near, z_far);
 
         for face in self.faces.iter() {
+            let _debug_scope = server.begin_scope(&format!("Face {:?}", face.face));
+
             framebuffer.set_cubemap_face(0, face.face, 0);
             framebuffer.clear(viewport, Some(Color::WHITE), Some(1.0), None);
 
@@ -193,7 +197,7 @@ impl PointShadowMapRenderer {
             );
 
             statistics += bundle_storage.render_to_frame_buffer(
-                state,
+                server,
                 geom_cache,
                 shader_cache,
                 |_| true,

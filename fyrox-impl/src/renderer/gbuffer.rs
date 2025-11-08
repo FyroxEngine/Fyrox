@@ -180,6 +180,8 @@ impl GBuffer {
         &mut self,
         args: GBufferRenderContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let _debug_scope = args.server.begin_scope("GBuffer");
+
         let mut statistics = RenderPassStatistics::default();
 
         let GBufferRenderContext {

@@ -779,6 +779,8 @@ impl Renderer {
     /// screen. Keep in mind that ideally, the resolution of the render target should match the screen
     /// size of the UI. Otherwise, the rendered image will have some sort of aliasing issues.
     pub fn render_ui(&mut self, render_info: UiRenderInfo) -> Result<(), FrameworkError> {
+        let _debug_scope = self.server.begin_scope(&format!("UI {:p}", render_info.ui));
+
         let (frame_buffer, rt_size) = if let Some(render_target) =
             render_info.render_target.as_ref()
         {
@@ -934,7 +936,7 @@ impl Renderer {
 
         let scene_render_data = self.scene_data_map.get_mut(&scene_handle).ok_or_else(|| {
             FrameworkError::Custom(format!(
-                "No assocated render data for {scene_handle} scene!"
+                "No associated render data for {scene_handle} scene!"
             ))
         })?;
         let render_data = if let Some(render_target) = observer.render_target.as_ref() {
@@ -1083,28 +1085,37 @@ impl Renderer {
 
         let depth = render_data.gbuffer.depth();
 
-        render_data.statistics += bundle_storage.render_to_frame_buffer(
-            server,
-            &mut self.geometry_cache,
-            &mut self.shader_cache,
-            |bundle| bundle.render_path == RenderPath::Forward,
-            |_| true,
-            BundleRenderContext {
-                texture_cache: &mut self.texture_cache,
-                render_pass_name: &ImmutableString::new("Forward"),
-                frame_buffer: &render_data.hdr_scene_framebuffer,
-                viewport: observer.viewport,
-                uniform_memory_allocator: &mut self.uniform_memory_allocator,
-                resource_manager,
-                use_pom: self.quality_settings.use_parallax_mapping,
-                light_position: &Default::default(),
-                renderer_resources: &self.renderer_resources,
-                ambient_light: scene.rendering_options.ambient_lighting_color,
-                scene_depth: Some(depth),
-            },
-        )?;
+        {
+            let _debug_scope = server.begin_scope("ForwardRendering");
+
+            render_data.statistics += bundle_storage.render_to_frame_buffer(
+                server,
+                &mut self.geometry_cache,
+                &mut self.shader_cache,
+                |bundle| bundle.render_path == RenderPath::Forward,
+                |_| true,
+                BundleRenderContext {
+                    texture_cache: &mut self.texture_cache,
+                    render_pass_name: &ImmutableString::new("Forward"),
+                    frame_buffer: &render_data.hdr_scene_framebuffer,
+                    viewport: observer.viewport,
+                    uniform_memory_allocator: &mut self.uniform_memory_allocator,
+                    resource_manager,
+                    use_pom: self.quality_settings.use_parallax_mapping,
+                    light_position: &Default::default(),
+                    renderer_resources: &self.renderer_resources,
+                    ambient_light: scene.rendering_options.ambient_lighting_color,
+                    scene_depth: Some(depth),
+                },
+            )?;
+        }
 
         for render_pass in self.scene_render_passes.iter() {
+            let _debug_scope = server.begin_scope(&format!(
+                "UserRenderPass::on_hdr_render {:p}",
+                render_pass.as_ptr()
+            ));
+
             render_data.statistics +=
                 render_pass
                     .borrow_mut()
@@ -1155,6 +1166,7 @@ impl Renderer {
         // Apply FXAA if needed.
         if self.quality_settings.fxaa {
             render_data.statistics += self.fxaa_renderer.render(
+                server,
                 observer.viewport,
                 render_data.ldr_temp_frame_texture(src_buf),
                 &render_data.ldr_temp_framebuffer[dest_buf],
@@ -1176,6 +1188,7 @@ impl Renderer {
         // Render debug geometry in the LDR frame buffer.
         self.debug_renderer.set_lines(&scene.drawing_context.lines);
         render_data.statistics += self.debug_renderer.render(
+            server,
             &mut self.uniform_buffer_cache,
             observer.viewport,
             &render_data.ldr_scene_framebuffer,
@@ -1184,6 +1197,11 @@ impl Renderer {
         )?;
 
         for render_pass in self.scene_render_passes.iter() {
+            let _debug_scope = server.begin_scope(&format!(
+                "UserRenderPass::on_ldr_render {:p}",
+                render_pass.as_ptr()
+            ));
+
             render_data.statistics +=
                 render_pass
                     .borrow_mut()
@@ -1225,6 +1243,8 @@ impl Renderer {
         resource_manager: &ResourceManager,
     ) -> Result<&SceneRenderData, FrameworkError> {
         let graph = &scene.graph;
+
+        let _debug_scope = self.server.begin_scope(&format!("Scene {:p}", scene));
 
         let backbuffer_width = self.frame_size.0 as f32;
         let backbuffer_height = self.frame_size.1 as f32;
@@ -1301,6 +1321,10 @@ impl Renderer {
         // At first, render the reflection probes to off-screen render target.
         let mut need_recalculate_convolution = false;
         for observer in observers.reflection_probes.iter() {
+            let _debug_scope = self
+                .server
+                .begin_scope(&format!("Reflection Probe {:p}", observer));
+
             self.render_scene_observer(
                 observer,
                 scene_handle,
@@ -1317,6 +1341,8 @@ impl Renderer {
 
         // Then render everything else.
         for observer in observers.cameras.iter() {
+            let _debug_scope = self.server.begin_scope(&format!("Camera {:p}", observer));
+
             self.render_scene_observer(
                 observer,
                 scene_handle,
@@ -1404,6 +1430,7 @@ impl Renderer {
         let screen_matrix =
             Matrix4::new_orthographic(0.0, backbuffer_width, backbuffer_height, 0.0, -1.0, 1.0);
         self.screen_space_debug_renderer.render(
+            &*self.server,
             &mut self.uniform_buffer_cache,
             window_viewport,
             &self.backbuffer,

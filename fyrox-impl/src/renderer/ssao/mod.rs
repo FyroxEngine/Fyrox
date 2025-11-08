@@ -139,12 +139,15 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
     pub(crate) fn render(
         &self,
+        server: &dyn GraphicsServer,
         gbuffer: &GBuffer,
         projection_matrix: Matrix4<f32>,
         view_matrix: Matrix3<f32>,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let _debug_scope = server.begin_scope("SSAO");
+
         let mut stats = RenderPassStatistics::default();
 
         let viewport = Rect::new(0, 0, self.width, self.height);
@@ -206,9 +209,12 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             None,
         )?;
 
-        stats += self
-            .blur
-            .render(self.raw_ao_map(), uniform_buffer_cache, renderer_resources)?;
+        stats += self.blur.render(
+            server,
+            self.raw_ao_map(),
+            uniform_buffer_cache,
+            renderer_resources,
+        )?;
 
         Ok(stats)
     }

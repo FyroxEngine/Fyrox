@@ -128,6 +128,8 @@ impl SpotShadowMapRenderer {
         dynamic_surface_cache: &mut DynamicSurfaceCache,
         resource_manager: &ResourceManager,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let _debug_scope = server.begin_scope("SpotShadowMap");
+
         let mut statistics = RenderPassStatistics::default();
 
         let framebuffer = &self.cascades[cascade];
