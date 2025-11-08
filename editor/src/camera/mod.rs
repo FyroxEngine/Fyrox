@@ -34,7 +34,7 @@ use crate::{
         renderer::bundle::{RenderContext, RenderDataBundleStorage},
         scene::{
             base::BaseBuilder,
-            camera::{Camera, CameraBuilder, Exposure, FitParameters, Projection},
+            camera::{Camera, CameraBuilder, FitParameters, Projection},
             collider::BitMask,
             graph::Graph,
             mesh::{
@@ -169,7 +169,6 @@ impl CameraController {
                                 .with_name("EditorCamera"),
                         )
                         .with_projection(settings.projection)
-                        .with_exposure(Exposure::Manual(std::f32::consts::E))
                         .with_z_far(512.0)
                         .build(graph);
                         camera
