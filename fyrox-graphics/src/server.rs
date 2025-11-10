@@ -81,6 +81,7 @@ pub type SharedGraphicsServer = Rc<dyn GraphicsServer>;
 
 define_as_any_trait!(GraphicsServerAsAny => GraphicsServer);
 
+/// A named debug scope RAII object that automatically exits the scope on drop.
 pub struct RenderingScope {
     server: Weak<dyn GraphicsServer>,
 }
@@ -222,12 +223,19 @@ pub trait GraphicsServer: GraphicsServerAsAny {
     /// Fetches the total amount of memory used by the graphics server.
     fn memory_usage(&self) -> ServerMemoryUsage;
 
-    /// Begins a new named debug group.
+    /// Begins a new named debug group. It is recommended to use [`Self::begin_scope`] instead,
+    /// so that the compiler will manage the scope lifetime for your correctly. Otherwise, a forgotten
+    /// call to [`Self::pop_debug_group`] may cause stack overflow or underflow errors.
     fn push_debug_group(&self, name: &str);
 
     /// Ends the current debug group.
     fn pop_debug_group(&self);
 
+    /// Begins a new debug scope by creating a temporary object that automatically exits the
+    /// scope on drop. The scope could be created like so: `let _debug_scope = server.begin_scope("ScopeName");`
+    /// Note the `let _debug_scope = ...` part - it is important to keep the produced object alive
+    /// until the end of the current semantic scope. Do not call this method like so:
+    /// `server.begin_scope("VisibilityTest");` because it will enter and leave the scope instantly.
     fn begin_scope(&self, name: &str) -> RenderingScope {
         self.push_debug_group(name);
 
