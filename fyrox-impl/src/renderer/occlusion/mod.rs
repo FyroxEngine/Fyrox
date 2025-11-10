@@ -326,6 +326,7 @@ impl OcclusionTester {
 
     pub fn try_run_visibility_test<'a>(
         &mut self,
+        server: &dyn GraphicsServer,
         graph: &Graph,
         debug_renderer: Option<&mut DebugRenderer>,
         objects_to_test: impl Iterator<Item = &'a Handle<Node>>,
@@ -335,6 +336,8 @@ impl OcclusionTester {
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let _debug_scope = server.begin_scope("VisibilityTest");
+
         let mut stats = RenderPassStatistics::default();
 
         if self.visibility_buffer_optimizer.is_reading_from_gpu() {
@@ -400,6 +403,7 @@ impl OcclusionTester {
         )?;
 
         self.visibility_buffer_optimizer.optimize(
+            server,
             &self.visibility_mask,
             self.tile_size as i32,
             uniform_buffer_cache,

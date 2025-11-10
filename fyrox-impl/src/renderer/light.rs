@@ -386,6 +386,7 @@ impl DeferredLightRenderer {
 
             // Prepare the irradiance component of the probe.
             pass_stats += environment_map_irradiance_convolution.render(
+                server,
                 environment_map,
                 uniform_buffer_cache,
                 renderer_resources,

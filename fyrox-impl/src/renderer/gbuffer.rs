@@ -252,6 +252,7 @@ impl GBuffer {
             }
 
             self.occlusion_tester.try_run_visibility_test(
+                server,
                 graph,
                 None,
                 objects.iter(),

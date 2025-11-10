@@ -82,11 +82,14 @@ impl VisibilityBufferOptimizer {
 
     pub fn optimize(
         &mut self,
+        server: &dyn GraphicsServer,
         visibility_buffer: &GpuTexture,
         tile_size: i32,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let _debug_scope = server.begin_scope("VisibilityOptimizer");
+
         let mut stats = RenderPassStatistics::default();
 
         let viewport = Rect::new(0, 0, self.w_tiles as i32, self.h_tiles as i32);
