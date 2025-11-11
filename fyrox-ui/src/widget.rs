@@ -653,6 +653,10 @@ pub struct Widget {
     #[reflect(hidden)]
     #[visit(skip)]
     pub arrange_valid: Cell<bool>,
+    /// A flag, that defines whether the visual is still valid or not.
+    #[reflect(hidden)]
+    #[visit(skip)]
+    pub visual_valid: Cell<bool>,
     /// Results or previous measurement.
     #[reflect(hidden)]
     #[visit(skip)]
@@ -2060,6 +2064,7 @@ impl WidgetBuilder {
             material: self.material.into(),
             original_handle_in_resource: Default::default(),
             style: Some(ctx.style.clone()),
+            visual_valid: Cell::new(false),
         }
     }
 }

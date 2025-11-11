@@ -1343,6 +1343,7 @@ impl UserInterface {
     }
 
     fn handle_layout_events(&mut self, data: &mut VisualTransformUpdateData) {
+        #[inline(always)]
         fn invalidate_recursive_up(
             nodes: &Pool<UiNode, WidgetContainer>,
             node: Handle<UiNode>,
@@ -1365,13 +1366,18 @@ impl UserInterface {
                 }
                 LayoutEvent::ArrangementInvalidated(node) => {
                     invalidate_recursive_up(&self.nodes, node, |node_ref| {
-                        node_ref.arrange_valid.set(false)
+                        node_ref.arrange_valid.set(false);
+                        node_ref.visual_valid.set(false);
                     });
                 }
                 LayoutEvent::VisibilityChanged(node) => {
                     self.update_global_visibility(node);
                 }
                 LayoutEvent::ZIndexChanged(node) => {
+                    invalidate_recursive_up(&self.nodes, node, |node_ref| {
+                        node_ref.visual_valid.set(false);
+                    });
+
                     if let Some(node_ref) = self.nodes.try_borrow(node) {
                         // Z index affects the location of the node in its parent's children list.
                         // Hash set will remove duplicate requests of z-index updates, thus improving
@@ -1398,6 +1404,8 @@ impl UserInterface {
                     ) {
                         func(from);
                         if let Some(node) = graph.try_get_node(from) {
+                            node.visual_valid.set(false);
+
                             for &child in node.children() {
                                 traverse_recursive(graph, child, func)
                             }
