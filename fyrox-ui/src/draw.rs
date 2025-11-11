@@ -804,7 +804,7 @@ impl TransformStack {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DrawingContext {
     vertex_buffer: Vec<Vertex>,
     triangle_buffer: Vec<TriangleDefinition>,
