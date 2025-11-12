@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::draw::RenderData;
 use crate::{
     brush::Brush,
     core::{
@@ -488,6 +489,19 @@ impl DerefMut for WidgetMaterial {
     }
 }
 
+#[derive(Default, Debug, Clone)]
+pub struct WidgetRenderDataSet {
+    pub draw_result: RenderData,
+    pub post_draw_result: RenderData,
+}
+
+impl WidgetRenderDataSet {
+    pub fn clear(&mut self) {
+        self.draw_result.clear();
+        self.post_draw_result.clear();
+    }
+}
+
 /// Widget is a base UI element, that is always used to build derived, more complex, widgets. In general, it is a container
 /// for layout information, basic visual appearance, visibility options, parent-child information. It does almost nothing
 /// on its own, instead, the user interface modifies its state accordingly.
@@ -548,10 +562,9 @@ pub struct Widget {
     /// A handle to the parent node of this widget.
     #[reflect(hidden)]
     pub parent: Handle<UiNode>,
-    /// Indices of drawing commands in the drawing context emitted by this widget. It is used for picking.
     #[reflect(hidden)]
     #[visit(skip)]
-    pub command_indices: RefCell<Vec<usize>>,
+    pub render_data_set: RefCell<WidgetRenderDataSet>,
     /// A flag, that indicates that the mouse is directly over the widget. It will be raised only for top-most widget in the
     /// "stack" of widgets.
     #[reflect(hidden)]
@@ -807,6 +820,16 @@ impl Widget {
         self.invalidate_measure();
         self.invalidate_arrange();
         self.try_send_transform_changed_event();
+    }
+
+    #[inline]
+    pub fn invalidate_visual(&self) {
+        self.visual_valid.set(false);
+        if let Some(sender) = self.layout_events_sender.as_ref() {
+            sender
+                .send(LayoutEvent::VisualInvalidated(self.handle))
+                .unwrap()
+        }
     }
 
     pub(crate) fn notify_z_index_changed(&self) {
@@ -1174,12 +1197,15 @@ impl Widget {
         if let Some(msg) = msg.data_for::<WidgetMessage>(self.handle()) {
             match msg {
                 &WidgetMessage::Opacity(opacity) => {
+                    self.invalidate_visual();
                     self.opacity.set_value_and_mark_modified(opacity);
                 }
                 WidgetMessage::Background(background) => {
+                    self.invalidate_visual();
                     *self.background = background.clone();
                 }
                 WidgetMessage::Foreground(foreground) => {
+                    self.invalidate_visual();
                     *self.foreground = foreground.clone();
                 }
                 WidgetMessage::Name(name) => self.name = ImmutableString::new(name),
@@ -1241,6 +1267,7 @@ impl Widget {
                     }
                 }
                 &WidgetMessage::Enabled(enabled) => {
+                    self.invalidate_visual();
                     self.enabled.set_value_and_mark_modified(enabled);
                 }
                 &WidgetMessage::Cursor(icon) => {
@@ -1266,6 +1293,7 @@ impl Widget {
                     self.invalidate_layout();
                 }
                 WidgetMessage::Style(style) => {
+                    self.invalidate_visual();
                     self.background.update(style);
                     self.foreground.update(style);
                     self.style = Some(style.clone());
@@ -2027,7 +2055,7 @@ impl WidgetBuilder {
             prev_global_visibility: false,
             children: self.children,
             parent: Handle::NONE,
-            command_indices: Default::default(),
+            render_data_set: RefCell::new(Default::default()),
             is_mouse_directly_over: false,
             measure_valid: Cell::new(false),
             arrange_valid: Cell::new(false),

@@ -609,6 +609,7 @@ impl TooltipEntry {
 pub enum LayoutEvent {
     MeasurementInvalidated(Handle<UiNode>),
     ArrangementInvalidated(Handle<UiNode>),
+    VisualInvalidated(Handle<UiNode>),
     VisibilityChanged(Handle<UiNode>),
     ZIndexChanged(Handle<UiNode>),
     TransformChanged(Handle<UiNode>),
@@ -1060,11 +1061,7 @@ fn draw_node(
     drawing_context: &mut DrawingContext,
 ) {
     let node = &nodes[node_handle];
-    if !node.is_globally_visible() {
-        return;
-    }
-
-    if !is_on_screen(node, nodes) {
+    if node.visual_valid.get() || !node.is_globally_visible() || !is_on_screen(node, nodes) {
         return;
     }
 
@@ -1082,12 +1079,8 @@ fn draw_node(
 
     // Draw
     {
-        let start_index = drawing_context.get_commands().len();
         node.draw(drawing_context);
-        let end_index = drawing_context.get_commands().len();
-        node.command_indices
-            .borrow_mut()
-            .extend(start_index..end_index);
+        node.render_data_set.borrow_mut().draw_result = drawing_context.take_render_data();
     }
 
     // Continue on children
@@ -1100,12 +1093,8 @@ fn draw_node(
 
     // Post draw.
     {
-        let start_index = drawing_context.get_commands().len();
         node.post_draw(drawing_context);
-        let end_index = drawing_context.get_commands().len();
-        node.command_indices
-            .borrow_mut()
-            .extend(start_index..end_index);
+        node.render_data_set.borrow_mut().post_draw_result = drawing_context.take_render_data();
     }
 
     drawing_context.transform_stack.pop();
@@ -1113,6 +1102,8 @@ fn draw_node(
     if pushed {
         drawing_context.pop_opacity();
     }
+
+    node.visual_valid.set(true);
 }
 
 fn is_node_enabled(nodes: &Pool<UiNode, WidgetContainer>, handle: Handle<UiNode>) -> bool {
@@ -1357,16 +1348,39 @@ impl UserInterface {
             }
         }
 
+        #[inline(always)]
+        fn invalidate_recursive_down(
+            nodes: &Pool<UiNode, WidgetContainer>,
+            node: Handle<UiNode>,
+            callback: fn(&UiNode),
+        ) {
+            if let Some(node_ref) = nodes.try_borrow(node) {
+                (callback)(node_ref);
+
+                for child in node_ref.children() {
+                    invalidate_recursive_down(nodes, *child, callback);
+                }
+            }
+        }
+
         while let Ok(layout_event) = self.layout_events_receiver.try_recv() {
             match layout_event {
                 LayoutEvent::MeasurementInvalidated(node) => {
                     invalidate_recursive_up(&self.nodes, node, |node_ref| {
-                        node_ref.measure_valid.set(false)
+                        node_ref.measure_valid.set(false);
                     });
                 }
                 LayoutEvent::ArrangementInvalidated(node) => {
                     invalidate_recursive_up(&self.nodes, node, |node_ref| {
                         node_ref.arrange_valid.set(false);
+                    });
+
+                    invalidate_recursive_down(&self.nodes, node, |node_ref| {
+                        node_ref.visual_valid.set(false);
+                    });
+                }
+                LayoutEvent::VisualInvalidated(node) => {
+                    invalidate_recursive_up(&self.nodes, node, |node_ref| {
                         node_ref.visual_valid.set(false);
                     });
                 }
@@ -1404,8 +1418,6 @@ impl UserInterface {
                     ) {
                         func(from);
                         if let Some(node) = graph.try_get_node(from) {
-                            node.visual_valid.set(false);
-
                             for &child in node.children() {
                                 traverse_recursive(graph, child, func)
                             }
@@ -1556,10 +1568,6 @@ impl UserInterface {
     pub fn draw(&mut self) -> &DrawingContext {
         self.drawing_context.clear();
 
-        for node in self.nodes.iter_mut() {
-            node.command_indices.get_mut().clear();
-        }
-
         // Draw everything except top-most nodes.
         draw_node(&self.nodes, self.root_canvas, &mut self.drawing_context);
 
@@ -1577,10 +1585,33 @@ impl UserInterface {
             if node.is_draw_on_top() {
                 draw_node(&self.nodes, node_handle, &mut self.drawing_context);
             }
-            for &child in node.children() {
-                self.stack.push(child);
-            }
+
+            self.stack.extend_from_slice(node.children());
         }
+
+        // Merge all render data from all the widgets.
+        fn merge_recursively(
+            node_handle: Handle<UiNode>,
+            nodes: &Pool<UiNode, WidgetContainer>,
+            drawing_context: &mut DrawingContext,
+        ) {
+            let node = &nodes[node_handle];
+
+            if !node.is_globally_visible() || !is_on_screen(node, nodes) {
+                return;
+            }
+
+            drawing_context.append(&node.render_data_set.borrow().draw_result);
+
+            for child in node.children() {
+                merge_recursively(*child, nodes, drawing_context);
+            }
+
+            drawing_context.append(&node.render_data_set.borrow().post_draw_result);
+        }
+
+        self.drawing_context.clear();
+        merge_recursively(self.root_canvas, &self.nodes, &mut self.drawing_context);
 
         // Debug info rendered on top of other.
         if self.visual_debug {
@@ -1711,6 +1742,7 @@ impl UserInterface {
             }
 
             node.commit_arrange(origin, size);
+            node.visual_valid.set(false);
         }
 
         true
@@ -1791,18 +1823,18 @@ impl UserInterface {
         let mut clipped = true;
 
         let widget = self.nodes.borrow(node_handle);
+        let render_data_set = widget.render_data_set.borrow();
 
         if widget.is_globally_visible() {
             clipped = !widget.clip_bounds().contains(pt);
 
             if !clipped {
-                for command_index in widget.command_indices.borrow().iter() {
-                    if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
-                        if let Some(geometry) = command.clipping_geometry.as_ref() {
-                            if geometry.is_contains_point(pt) {
-                                clipped = false;
-                                break;
-                            }
+                // TODO: Use post draw as well.
+                for command in render_data_set.draw_result.command_buffer.iter() {
+                    if let Some(geometry) = command.clipping_geometry.as_ref() {
+                        if geometry.is_contains_point(pt) {
+                            clipped = false;
+                            break;
                         }
                     }
                 }
@@ -1824,12 +1856,16 @@ impl UserInterface {
             return false;
         }
 
+        let render_data_set = widget.render_data_set.borrow();
+
         if !self.is_node_clipped(node_handle, pt) {
-            for command_index in widget.command_indices.borrow().iter() {
-                if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
-                    if self.drawing_context.is_command_contains_point(command, pt) {
-                        return true;
-                    }
+            // TODO: Use post draw as well.
+            for command in render_data_set.draw_result.command_buffer.iter() {
+                if render_data_set
+                    .draw_result
+                    .is_command_contains_point(command, pt)
+                {
+                    return true;
                 }
             }
         }

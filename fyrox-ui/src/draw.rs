@@ -37,6 +37,7 @@ use bytemuck::{Pod, Zeroable};
 use fyrox_core::math::{round_to_step, OptionRect};
 use fyrox_material::MaterialResource;
 use fyrox_texture::TextureResource;
+use std::fmt::{Display, Formatter};
 use std::ops::Range;
 
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
@@ -805,100 +806,43 @@ impl TransformStack {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct DrawingContext {
-    vertex_buffer: Vec<Vertex>,
-    triangle_buffer: Vec<TriangleDefinition>,
-    command_buffer: Vec<Command>,
-    pub transform_stack: TransformStack,
-    opacity_stack: Vec<f32>,
-    triangles_to_commit: usize,
-    pub style: StyleResource,
-    /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
-    /// this value is **not** guaranteed to match real time. A user can change delta time with
-    /// which the engine "ticks" and this delta time affects elapsed time.
-    pub elapsed_time: f32,
+pub struct RenderData {
+    pub vertex_buffer: Vec<Vertex>,
+    pub triangle_buffer: Vec<TriangleDefinition>,
+    pub command_buffer: Vec<Command>,
 }
 
-fn get_line_thickness_vector(a: Vector2<f32>, b: Vector2<f32>, thickness: f32) -> Vector2<f32> {
-    if let Some(dir) = (b - a).try_normalize(f32::EPSILON) {
-        Vector2::new(dir.y, -dir.x).scale(thickness * 0.5)
-    } else {
-        Vector2::default()
+impl Display for RenderData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RenderData")
+            .field("Vertices Count: ", &self.vertex_buffer.len())
+            .field("Triangles Count: ", &self.triangle_buffer.len())
+            .field("Commands Count: ", &self.command_buffer.len())
+            .finish()
     }
 }
 
-impl Draw for DrawingContext {
-    #[inline(always)]
-    fn push_vertex_raw(&mut self, mut vertex: Vertex) {
-        vertex.pos = self
-            .transform_stack
-            .transform
-            .transform_point(&Point2::from(vertex.pos))
-            .coords;
-
-        self.vertex_buffer.push(vertex);
-    }
-
-    #[inline(always)]
-    fn push_triangle(&mut self, a: u32, b: u32, c: u32) {
-        self.triangle_buffer.push(TriangleDefinition([a, b, c]));
-        self.triangles_to_commit += 1;
-    }
-
-    #[inline(always)]
-    fn last_vertex_index(&self) -> u32 {
-        self.vertex_buffer.len() as u32
-    }
-}
-
-impl DrawingContext {
-    #[inline]
-    pub fn new(style: StyleResource) -> DrawingContext {
-        DrawingContext {
-            vertex_buffer: Vec::new(),
-            triangle_buffer: Vec::new(),
-            command_buffer: Vec::new(),
-            triangles_to_commit: 0,
-            opacity_stack: vec![1.0],
-            transform_stack: Default::default(),
-            style,
-            elapsed_time: 0.0,
-        }
-    }
-
-    #[inline]
+impl RenderData {
     pub fn clear(&mut self) {
         self.vertex_buffer.clear();
         self.triangle_buffer.clear();
         self.command_buffer.clear();
-        self.opacity_stack.clear();
-        self.opacity_stack.push(1.0);
-        self.triangles_to_commit = 0;
     }
 
-    #[inline]
-    pub fn get_vertices(&self) -> &[Vertex] {
-        self.vertex_buffer.as_slice()
-    }
-
-    #[inline]
-    pub fn get_triangles(&self) -> &[TriangleDefinition] {
-        self.triangle_buffer.as_slice()
-    }
-
-    #[inline]
-    pub fn get_commands(&self) -> &Vec<Command> {
-        &self.command_buffer
-    }
-
-    #[inline]
-    pub fn push_opacity(&mut self, opacity: f32) {
-        self.opacity_stack.push(opacity);
-    }
-
-    #[inline]
-    pub fn pop_opacity(&mut self) {
-        self.opacity_stack.pop().unwrap();
+    pub fn append(&mut self, other: &Self) {
+        let vertex_index_offset = self.vertex_buffer.len();
+        let triangle_index_offset = self.triangle_buffer.len();
+        self.vertex_buffer.extend_from_slice(&other.vertex_buffer);
+        for cmd in other.command_buffer.iter() {
+            let mut cmd_copy = cmd.clone();
+            cmd_copy.triangles.start += triangle_index_offset;
+            cmd_copy.triangles.end += triangle_index_offset;
+            self.command_buffer.push(cmd_copy);
+        }
+        for triangle in other.triangle_buffer.iter() {
+            self.triangle_buffer
+                .push(triangle.add(vertex_index_offset as u32));
+        }
     }
 
     #[inline]
@@ -926,13 +870,132 @@ impl DrawingContext {
 
         false
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct DrawingContext {
+    pub render_data: RenderData,
+    pub transform_stack: TransformStack,
+    opacity_stack: Vec<f32>,
+    triangles_to_commit: usize,
+    pub style: StyleResource,
+    /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
+    /// this value is **not** guaranteed to match real time. A user can change delta time with
+    /// which the engine "ticks" and this delta time affects elapsed time.
+    pub elapsed_time: f32,
+}
+
+fn get_line_thickness_vector(a: Vector2<f32>, b: Vector2<f32>, thickness: f32) -> Vector2<f32> {
+    if let Some(dir) = (b - a).try_normalize(f32::EPSILON) {
+        Vector2::new(dir.y, -dir.x).scale(thickness * 0.5)
+    } else {
+        Vector2::default()
+    }
+}
+
+impl Draw for DrawingContext {
+    #[inline(always)]
+    fn push_vertex_raw(&mut self, mut vertex: Vertex) {
+        vertex.pos = self
+            .transform_stack
+            .transform
+            .transform_point(&Point2::from(vertex.pos))
+            .coords;
+
+        self.render_data.vertex_buffer.push(vertex);
+    }
+
+    #[inline(always)]
+    fn push_triangle(&mut self, a: u32, b: u32, c: u32) {
+        self.render_data
+            .triangle_buffer
+            .push(TriangleDefinition([a, b, c]));
+        self.triangles_to_commit += 1;
+    }
+
+    #[inline(always)]
+    fn last_vertex_index(&self) -> u32 {
+        self.render_data.vertex_buffer.len() as u32
+    }
+}
+
+impl DrawingContext {
+    #[inline]
+    pub fn new(style: StyleResource) -> DrawingContext {
+        DrawingContext {
+            render_data: RenderData::default(),
+            triangles_to_commit: 0,
+            opacity_stack: vec![1.0],
+            transform_stack: Default::default(),
+            style,
+            elapsed_time: 0.0,
+        }
+    }
+
+    #[inline]
+    pub fn clear(&mut self) {
+        self.render_data.clear();
+        self.opacity_stack.clear();
+        self.opacity_stack.push(1.0);
+        self.triangles_to_commit = 0;
+    }
+
+    #[inline]
+    pub fn take_render_data(&mut self) -> RenderData {
+        let render_data = std::mem::take(&mut self.render_data);
+        self.triangles_to_commit = 0;
+        render_data
+    }
+
+    pub fn append(&mut self, render_data: &RenderData) {
+        self.render_data.append(render_data);
+    }
+
+    #[inline]
+    pub fn get_vertices(&self) -> &[Vertex] {
+        self.render_data.vertex_buffer.as_slice()
+    }
+
+    #[inline]
+    pub fn get_triangles(&self) -> &[TriangleDefinition] {
+        self.render_data.triangle_buffer.as_slice()
+    }
+
+    #[inline]
+    pub fn get_commands(&self) -> &Vec<Command> {
+        &self.render_data.command_buffer
+    }
+
+    #[inline]
+    pub fn push_opacity(&mut self, opacity: f32) {
+        self.opacity_stack.push(opacity);
+    }
+
+    #[inline]
+    pub fn pop_opacity(&mut self) {
+        self.opacity_stack.pop().unwrap();
+    }
+
+    #[inline]
+    pub fn triangle_points(
+        &self,
+        triangle: &TriangleDefinition,
+    ) -> Option<(&Vertex, &Vertex, &Vertex)> {
+        self.render_data.triangle_points(triangle)
+    }
+
+    #[inline]
+    pub fn is_command_contains_point(&self, command: &Command, pos: Vector2<f32>) -> bool {
+        self.render_data.is_command_contains_point(command, pos)
+    }
 
     #[inline]
     fn pending_range(&self) -> Range<usize> {
-        if self.triangle_buffer.is_empty() {
+        if self.render_data.triangle_buffer.is_empty() {
             0..self.triangles_to_commit
         } else {
-            (self.triangle_buffer.len() - self.triangles_to_commit)..self.triangle_buffer.len()
+            (self.render_data.triangle_buffer.len() - self.triangles_to_commit)
+                ..self.render_data.triangle_buffer.len()
         }
     }
 
@@ -940,8 +1003,8 @@ impl DrawingContext {
     fn bounds_of(&self, range: Range<usize>) -> Rect<f32> {
         let mut bounds = OptionRect::default();
         for i in range {
-            for &k in self.triangle_buffer[i].as_ref() {
-                bounds.push(self.vertex_buffer[k as usize].pos);
+            for &k in self.render_data.triangle_buffer[i].as_ref() {
+                bounds.push(self.render_data.vertex_buffer[k as usize].pos);
             }
         }
         bounds.unwrap_or_default()
@@ -961,7 +1024,7 @@ impl DrawingContext {
             let bounds = self.bounds_of(triangles.clone());
 
             let opacity = *self.opacity_stack.last().unwrap();
-            self.command_buffer.push(Command {
+            self.render_data.command_buffer.push(Command {
                 clip_bounds,
                 bounds,
                 brush,
