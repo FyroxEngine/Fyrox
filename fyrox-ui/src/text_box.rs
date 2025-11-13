@@ -507,9 +507,11 @@ impl TextBox {
                         begin: *self.caret_position,
                         end: *self.caret_position,
                     }));
+                self.invalidate_visual();
             }
         } else {
             self.selection_range.set_value_and_mark_modified(None);
+            self.invalidate_visual();
         }
 
         if lines.is_empty() {
@@ -827,6 +829,7 @@ impl TextBox {
         );
         self.ensure_caret_visible();
         self.reset_blink();
+        self.invalidate_visual();
     }
 
     /// Tries to map screen space position to a position in the text.
@@ -908,6 +911,7 @@ impl TextBox {
                         begin: left,
                         end: right,
                     }));
+                self.invalidate_visual();
             }
         }
     }
@@ -1167,6 +1171,7 @@ impl Control for TextBox {
                                             end: self.end_position(),
                                         },
                                     ));
+                                    self.invalidate_visual();
                                 }
                             }
                             KeyCode::KeyC if ui.keyboard_modifiers().control => {
@@ -1231,6 +1236,7 @@ impl Control for TextBox {
                                         end,
                                     },
                                 ));
+                                self.invalidate_visual();
                             }
                             if *self.commit_mode == TextCommitMode::Changed {
                                 self.recent.clear();
@@ -1242,6 +1248,7 @@ impl Control for TextBox {
                     WidgetMessage::Unfocus => {
                         if message.direction() == MessageDirection::FromWidget {
                             self.selection_range.set_value_and_mark_modified(None);
+                            self.invalidate_visual();
                             self.has_focus = false;
 
                             match *self.commit_mode {
@@ -1265,6 +1272,7 @@ impl Control for TextBox {
                             let select = ui.keyboard_modifiers().shift;
                             if !select {
                                 self.selection_range.set_value_and_mark_modified(None);
+                                self.invalidate_visual();
                             }
                             self.selecting = true;
                             self.has_focus = true;
@@ -1327,6 +1335,7 @@ impl Control for TextBox {
                                 }
                             }
                             self.selection_range.set_value_and_mark_modified(None);
+                            self.invalidate_visual();
                             if !text_equals(&text, new_text) {
                                 text.set_text(new_text);
                                 drop(text);
