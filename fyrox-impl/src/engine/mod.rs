@@ -2445,7 +2445,6 @@ impl Engine {
     pub fn render(&mut self) -> Result<(), FrameworkError> {
         for ui in self.user_interfaces.iter_mut() {
             ui.set_time(self.elapsed_time);
-            ui.draw();
         }
 
         if let GraphicsContext::Initialized(ref mut ctx) = self.graphics_context {

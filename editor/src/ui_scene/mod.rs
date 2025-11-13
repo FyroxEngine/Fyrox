@@ -354,8 +354,6 @@ impl SceneController for UiScene {
     }
 
     fn on_before_render(&mut self, editor_selection: &Selection, engine: &mut Engine) {
-        self.ui.draw();
-
         // Draw selection on top.
         if let Some(selection) = editor_selection.as_ui() {
             for node in selection.widgets.iter() {
