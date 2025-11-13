@@ -887,6 +887,20 @@ impl Default for UserInterface {
     }
 }
 
+#[inline(always)]
+fn invalidate_recursive_up(
+    nodes: &Pool<UiNode, WidgetContainer>,
+    node: Handle<UiNode>,
+    callback: fn(&UiNode),
+) {
+    if let Some(node_ref) = nodes.try_borrow(node) {
+        (callback)(node_ref);
+        if node_ref.parent().is_some() {
+            invalidate_recursive_up(nodes, node_ref.parent(), callback);
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct UiContainer {
     pool: Pool<UserInterface>,
@@ -1061,7 +1075,7 @@ fn draw_node(
     drawing_context: &mut DrawingContext,
 ) {
     let node = &nodes[node_handle];
-    if node.visual_valid.get() || !node.is_globally_visible() || !is_on_screen(node, nodes) {
+    if node.visual_valid.get() {
         return;
     }
 
@@ -1295,6 +1309,8 @@ impl UserInterface {
     }
 
     fn update_visual_transform(&mut self, from: Handle<UiNode>) {
+        invalidate_recursive_up(&self.nodes, from, |n| n.visual_valid.set(false));
+
         self.stack.clear();
         self.stack.push(from);
         while let Some(node_handle) = self.stack.pop() {
@@ -1320,6 +1336,7 @@ impl UserInterface {
                     let old_transform =
                         std::mem::replace(&mut widget.visual_transform, visual_transform);
                     widget.on_visual_transform_changed(&old_transform, &visual_transform);
+                    widget.visual_valid.set(false);
                 }
             }
         }
@@ -1334,35 +1351,6 @@ impl UserInterface {
     }
 
     fn handle_layout_events(&mut self, data: &mut VisualTransformUpdateData) {
-        #[inline(always)]
-        fn invalidate_recursive_up(
-            nodes: &Pool<UiNode, WidgetContainer>,
-            node: Handle<UiNode>,
-            callback: fn(&UiNode),
-        ) {
-            if let Some(node_ref) = nodes.try_borrow(node) {
-                (callback)(node_ref);
-                if node_ref.parent().is_some() {
-                    invalidate_recursive_up(nodes, node_ref.parent(), callback);
-                }
-            }
-        }
-
-        #[inline(always)]
-        fn invalidate_recursive_down(
-            nodes: &Pool<UiNode, WidgetContainer>,
-            node: Handle<UiNode>,
-            callback: fn(&UiNode),
-        ) {
-            if let Some(node_ref) = nodes.try_borrow(node) {
-                (callback)(node_ref);
-
-                for child in node_ref.children() {
-                    invalidate_recursive_down(nodes, *child, callback);
-                }
-            }
-        }
-
         while let Ok(layout_event) = self.layout_events_receiver.try_recv() {
             match layout_event {
                 LayoutEvent::MeasurementInvalidated(node) => {
@@ -1374,10 +1362,6 @@ impl UserInterface {
                     invalidate_recursive_up(&self.nodes, node, |node_ref| {
                         node_ref.arrange_valid.set(false);
                     });
-
-                    invalidate_recursive_down(&self.nodes, node, |node_ref| {
-                        node_ref.visual_valid.set(false);
-                    });
                 }
                 LayoutEvent::VisualInvalidated(node) => {
                     invalidate_recursive_up(&self.nodes, node, |node_ref| {
@@ -1388,10 +1372,6 @@ impl UserInterface {
                     self.update_global_visibility(node);
                 }
                 LayoutEvent::ZIndexChanged(node) => {
-                    invalidate_recursive_up(&self.nodes, node, |node_ref| {
-                        node_ref.visual_valid.set(false);
-                    });
-
                     if let Some(node_ref) = self.nodes.try_borrow(node) {
                         // Z index affects the location of the node in its parent's children list.
                         // Hash set will remove duplicate requests of z-index updates, thus improving
@@ -1438,6 +1418,10 @@ impl UserInterface {
 
         // Do z-index sorting.
         for node_handle in self.z_index_update_set.drain() {
+            invalidate_recursive_up(&self.nodes, node_handle, |node_ref| {
+                node_ref.visual_valid.set(false);
+            });
+
             let mbc = self.nodes.begin_multi_borrow();
             if let Ok(mut node) = mbc.try_get_mut(node_handle) {
                 node.children.sort_by_key(|handle| {
@@ -1535,6 +1519,8 @@ impl UserInterface {
             }
             handle = node.parent();
         }
+
+        self.draw();
     }
 
     pub fn style(&self) -> &StyleResource {
@@ -1565,7 +1551,7 @@ impl UserInterface {
         self.drawing_context.elapsed_time = elapsed_time;
     }
 
-    pub fn draw(&mut self) -> &DrawingContext {
+    fn draw(&mut self) {
         self.drawing_context.clear();
 
         // Draw everything except top-most nodes.
@@ -1600,6 +1586,8 @@ impl UserInterface {
             if !node.is_globally_visible() || !is_on_screen(node, nodes) {
                 return;
             }
+
+            assert!(node.visual_valid.get());
 
             drawing_context.append(&node.render_data_set.borrow().draw_result);
 
@@ -1655,8 +1643,6 @@ impl UserInterface {
                 );
             }
         }
-
-        &self.drawing_context
     }
 
     pub fn clipboard(&self) -> Option<Ref<ClipboardContext>> {
@@ -1742,7 +1728,6 @@ impl UserInterface {
             }
 
             node.commit_arrange(origin, size);
-            node.visual_valid.set(false);
         }
 
         true
