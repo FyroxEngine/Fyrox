@@ -602,6 +602,7 @@ impl Control for CurveEditor {
                                         }
                                     }
                                     self.sort_keys();
+                                    self.invalidate_visual();
                                 }
                                 OperationContext::MoveView {
                                     initial_mouse_pos,
@@ -646,6 +647,8 @@ impl Control for CurveEditor {
                                             } else {
                                                 *right_tangent = tangent;
                                             }
+
+                                            self.invalidate_visual();
                                         } else {
                                             unreachable!(
                                                 "attempt to edit tangents of non-cubic curve key!"
@@ -661,6 +664,7 @@ impl Control for CurveEditor {
                                 } => {
                                     min.set(curve_mouse_pos.inf(initial_mouse_pos));
                                     max.set(curve_mouse_pos.sup(initial_mouse_pos));
+                                    self.invalidate_visual();
                                 }
                             }
                         } else if state.left == ButtonState::Pressed {
@@ -723,6 +727,7 @@ impl Control for CurveEditor {
                                     self.sort_keys();
 
                                     self.send_curves(ui);
+                                    self.invalidate_visual();
                                 }
                                 OperationContext::BoxSelection { min, max, .. } => {
                                     let min = min.get();
@@ -746,6 +751,7 @@ impl Control for CurveEditor {
                                             ui,
                                         );
                                     }
+                                    self.invalidate_visual();
                                 }
                                 _ => {}
                             }
