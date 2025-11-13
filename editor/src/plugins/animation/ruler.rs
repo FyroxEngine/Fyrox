@@ -287,14 +287,17 @@ impl Control for Ruler {
             match msg {
                 RulerMessage::Zoom(zoom) => {
                     self.transform.set_scale(Vector2::new(*zoom, 1.0));
+                    self.invalidate_visual();
                 }
                 RulerMessage::ViewPosition(position) => {
                     self.transform.set_position(Vector2::new(*position, 0.0));
+                    self.invalidate_visual();
                 }
                 RulerMessage::Value(value) => {
                     if value.ne(&self.value) {
                         self.value = *value;
                         ui.send_message(message.reverse());
+                        self.invalidate_visual();
                     }
                 }
                 RulerMessage::AddSignal(_)
@@ -305,6 +308,7 @@ impl Control for Ruler {
                 }
                 RulerMessage::SyncSignals(signals) => {
                     self.signals.borrow_mut().clone_from(signals);
+                    self.invalidate_visual();
                 }
             }
         } else if let Some(msg) = message.data::<WidgetMessage>() {
@@ -379,6 +383,7 @@ impl Control for Ruler {
                                         self.signals.borrow_mut().iter_mut().find(|s| s.id == id)
                                     {
                                         signal.time = self.screen_to_value_space(pos.x);
+                                        self.invalidate_visual();
                                     }
                                 }
                             }

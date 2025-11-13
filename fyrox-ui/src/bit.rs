@@ -356,6 +356,7 @@ where
                     if new_value != self.value {
                         ui.send(self.handle, BitFieldMessage::Value(new_value));
                     }
+                    self.invalidate_visual();
                 }
             }
         } else if let Some(WidgetMessage::MouseDown { pos, button }) = message.data() {
@@ -406,6 +407,7 @@ where
             if *value != self.value {
                 self.value = *value;
                 ui.send_message(message.reverse());
+                self.invalidate_visual();
             }
         }
     }

@@ -336,22 +336,28 @@ impl Control for BlendSpaceField {
 
                         self.points = point_views;
                         self.point_positions.clone_from(points);
+                        self.invalidate_visual();
                     }
                     BlendSpaceFieldMessage::Triangles(triangles) => {
                         self.triangles.clone_from(triangles);
+                        self.invalidate_visual();
                     }
                     BlendSpaceFieldMessage::MinValues(min) => {
                         self.min_values = *min;
+                        self.invalidate_visual();
                     }
                     BlendSpaceFieldMessage::MaxValues(max) => {
                         self.max_values = *max;
+                        self.invalidate_visual();
                     }
                     BlendSpaceFieldMessage::SnapStep(snap_step) => {
                         self.snap_step = *snap_step;
+                        self.invalidate_visual();
                     }
                     BlendSpaceFieldMessage::SamplingPoint(sampling_point) => {
                         if message.is_for(self.handle) {
                             self.sampling_point = *sampling_point;
+                            self.invalidate_visual();
                             ui.send_message(message.reverse());
                         }
                     }
@@ -582,6 +588,7 @@ impl Control for BlendSpaceFieldPoint {
         if let Some(BlendSpaceFieldPointMessage::Select) = message.data() {
             if message.destination() == self.handle {
                 self.selected = true;
+                self.invalidate_visual();
             }
         }
     }

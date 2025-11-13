@@ -559,12 +559,15 @@ impl Control for AbsmCanvas {
                 AbsmCanvasMessage::SwitchMode(mode) => {
                     // TODO: Check if other mode is active.
                     self.mode = mode.clone();
+                    self.invalidate_visual();
                 }
                 AbsmCanvasMessage::SelectionChanged(new_selection) => {
                     self.set_selection(new_selection, ui);
+                    self.invalidate_visual();
                 }
                 AbsmCanvasMessage::ForceSyncDependentObjects => {
                     self.force_sync_dependent_objects(ui);
+                    self.invalidate_visual();
                 }
                 _ => (),
             }

@@ -846,6 +846,8 @@ impl Control for CurveEditor {
                         for curve in self.background_curves.iter_mut() {
                             curve.brush = self.background_curve_brush.clone();
                         }
+
+                        self.invalidate_visual();
                     }
                     CurveEditorMessage::Sync(curves) => {
                         let color_map = self
@@ -857,24 +859,36 @@ impl Control for CurveEditor {
                         self.curves = CurvesContainer::from_native(self.key_brush.clone(), curves);
 
                         self.colorize(&color_map);
+
+                        self.invalidate_visual();
                     }
                     CurveEditorMessage::Colorize(color_map) => {
                         self.colorize(color_map);
+
+                        self.invalidate_visual();
                     }
                     CurveEditorMessage::ViewPosition(view_position) => {
                         self.set_view_position(*view_position);
                         ui.send_message(message.reverse());
+
+                        self.invalidate_visual();
                     }
                     CurveEditorMessage::Zoom(zoom) => {
                         self.curve_transform
                             .set_scale(zoom.simd_clamp(self.min_zoom, self.max_zoom));
                         ui.send_message(message.reverse());
+
+                        self.invalidate_visual();
                     }
                     CurveEditorMessage::RemoveSelection => {
                         self.remove_selection(ui);
+
+                        self.invalidate_visual();
                     }
                     CurveEditorMessage::ChangeSelectedKeysKind(kind) => {
                         self.change_selected_keys_kind(kind.clone(), ui);
+
+                        self.invalidate_visual();
                     }
                     CurveEditorMessage::AddKey(screen_pos) => {
                         let local_pos = self.screen_to_curve_space(*screen_pos);
@@ -909,6 +923,8 @@ impl Control for CurveEditor {
                         self.set_selection(Some(Selection::Keys { keys: added_keys }), ui);
                         self.sort_keys();
                         self.send_curves(ui);
+
+                        self.invalidate_visual();
                     }
                     CurveEditorMessage::ZoomToFit { after_layout } => {
                         if *after_layout {
@@ -918,15 +934,23 @@ impl Control for CurveEditor {
                         } else {
                             self.zoom_to_fit(&ui.sender);
                         }
+
+                        self.invalidate_visual();
                     }
                     CurveEditorMessage::ChangeSelectedKeysValue(value) => {
                         self.change_selected_keys_value(*value, ui);
+
+                        self.invalidate_visual();
                     }
                     CurveEditorMessage::ChangeSelectedKeysLocation(location) => {
                         self.change_selected_keys_location(*location, ui);
+
+                        self.invalidate_visual();
                     }
                     CurveEditorMessage::HighlightZones(zones) => {
                         self.highlight_zones.clone_from(zones);
+
+                        self.invalidate_visual();
                     }
                     CurveEditorMessage::CopySelection => {
                         if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
@@ -971,6 +995,8 @@ impl Control for CurveEditor {
                             self.set_selection(Some(Selection::Keys { keys: selection }), ui);
                             self.sort_keys();
                             self.send_curves(ui);
+
+                            self.invalidate_visual();
                         }
                     }
                 }
