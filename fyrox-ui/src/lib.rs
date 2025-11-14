@@ -1099,10 +1099,7 @@ fn draw_node(
 
     // Continue on children
     for &child_node in node.children().iter() {
-        // Do not continue render of top-most nodes - they'll be rendered in separate pass.
-        if !nodes[child_node].is_draw_on_top() {
-            draw_node(nodes, child_node, drawing_context);
-        }
+        draw_node(nodes, child_node, drawing_context);
     }
 
     // Post draw.
@@ -1553,35 +1550,22 @@ impl UserInterface {
 
     fn draw(&mut self) {
         self.drawing_context.clear();
-
-        // Draw everything except top-most nodes.
         draw_node(&self.nodes, self.root_canvas, &mut self.drawing_context);
 
-        // Render top-most nodes in separate pass.
-        // TODO: This may give weird results because of invalid nesting.
-        self.stack.clear();
-        self.stack.push(self.root());
-        while let Some(node_handle) = self.stack.pop() {
-            let node = &self.nodes[node_handle];
-
-            if !is_on_screen(node, &self.nodes) {
-                continue;
-            }
-
-            if node.is_draw_on_top() {
-                draw_node(&self.nodes, node_handle, &mut self.drawing_context);
-            }
-
-            self.stack.extend_from_slice(node.children());
-        }
-
         // Merge all render data from all the widgets.
-        fn merge_recursively(
+        fn merge_recursively<F>(
             node_handle: Handle<UiNode>,
             nodes: &Pool<UiNode, WidgetContainer>,
             drawing_context: &mut DrawingContext,
-        ) {
+            filter: &mut F,
+        ) where
+            F: FnMut(&UiNode) -> bool,
+        {
             let node = &nodes[node_handle];
+
+            if !filter(node) {
+                return;
+            }
 
             if !node.is_globally_visible() || !is_on_screen(node, nodes) {
                 return;
@@ -1592,14 +1576,38 @@ impl UserInterface {
             drawing_context.append(&node.render_data_set.borrow().draw_result);
 
             for child in node.children() {
-                merge_recursively(*child, nodes, drawing_context);
+                merge_recursively(*child, nodes, drawing_context, filter);
             }
 
             drawing_context.append(&node.render_data_set.borrow().post_draw_result);
         }
 
         self.drawing_context.clear();
-        merge_recursively(self.root_canvas, &self.nodes, &mut self.drawing_context);
+
+        let mut topmost_nodes = Vec::new();
+        merge_recursively(
+            self.root_canvas,
+            &self.nodes,
+            &mut self.drawing_context,
+            &mut |node| {
+                // Skip topmost nodes. They'll be merged in a separate pass to be rendered on top.
+                if node.is_draw_on_top() {
+                    topmost_nodes.push(node.handle);
+                    false
+                } else {
+                    true
+                }
+            },
+        );
+
+        for topmost_node in topmost_nodes.drain(..) {
+            merge_recursively(
+                topmost_node,
+                &self.nodes,
+                &mut self.drawing_context,
+                &mut |_| true,
+            );
+        }
 
         // Debug info rendered on top of other.
         if self.visual_debug {
