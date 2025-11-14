@@ -489,13 +489,18 @@ impl DerefMut for WidgetMaterial {
     }
 }
 
+/// A set of data emitted by a widget during the draw pass.
 #[derive(Default, Debug, Clone)]
 pub struct WidgetRenderDataSet {
+    /// The result of calling the [`crate::control::Control::draw`] method.
     pub draw_result: RenderData,
+
+    /// The result of calling the [`crate::control::Control::post_draw`] method.
     pub post_draw_result: RenderData,
 }
 
 impl WidgetRenderDataSet {
+    /// Clears the data set.
     pub fn clear(&mut self) {
         self.draw_result.clear();
         self.post_draw_result.clear();
@@ -562,6 +567,7 @@ pub struct Widget {
     /// A handle to the parent node of this widget.
     #[reflect(hidden)]
     pub parent: Handle<UiNode>,
+    /// The visual data of the widget.
     #[reflect(hidden)]
     #[visit(skip)]
     pub render_data_set: RefCell<WidgetRenderDataSet>,
@@ -822,6 +828,10 @@ impl Widget {
         self.try_send_transform_changed_event();
     }
 
+    /// Invalidates the visual of the widget, forcing it to be fully redrawn. This method must be
+    /// called if your widget has custom implementation of [`crate::control::Control::draw`] or
+    /// [`crate::control::Control::post_draw`] methods and if it uses some properties that may be
+    /// changed at runtime. Otherwise, the widget won't be redrawn and you won't see the changes.
     #[inline]
     pub fn invalidate_visual(&self) {
         self.visual_valid.set(false);

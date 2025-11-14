@@ -402,6 +402,7 @@ where
         {
             if message.destination() == self.handle() {
                 self.bit_state = BitState::Normal;
+                self.invalidate_visual();
             }
         } else if let Some(BitFieldMessage::Value(value)) = message.data_for(self.handle) {
             if *value != self.value {
