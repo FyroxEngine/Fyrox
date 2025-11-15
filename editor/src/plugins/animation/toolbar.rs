@@ -68,7 +68,6 @@ use crate::{
         selector::{AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         Selection,
     },
-    send_sync_message,
 };
 use std::any::TypeId;
 use std::path::Path;
@@ -350,10 +349,7 @@ impl RootMotionDropdownArea {
         N: SceneGraphNode,
     {
         fn sync_checked(ui: &UserInterface, check_box: Handle<UiNode>, checked: bool) {
-            send_sync_message(
-                ui,
-                UiMessage::for_widget(check_box, CheckBoxMessage::Check(Some(checked))),
-            );
+            ui.send_sync(check_box, CheckBoxMessage::Check(Some(checked)));
         }
 
         let root_motion_enabled = animation.root_motion_settings_ref().is_some();
@@ -1225,21 +1221,13 @@ impl Toolbar {
             );
 
             ui.send_sync(self.speed, NumericUpDownMessage::Value(animation.speed()));
-
-            send_sync_message(
-                ui,
-                UiMessage::for_widget(
-                    self.looping,
-                    CheckBoxMessage::Check(Some(animation.is_loop())),
-                ),
+            ui.send_sync(
+                self.looping,
+                CheckBoxMessage::Check(Some(animation.is_loop())),
             );
-
-            send_sync_message(
-                ui,
-                UiMessage::for_widget(
-                    self.enabled,
-                    CheckBoxMessage::Check(Some(animation.is_enabled())),
-                ),
+            ui.send_sync(
+                self.enabled,
+                CheckBoxMessage::Check(Some(animation.is_enabled())),
             );
         }
 

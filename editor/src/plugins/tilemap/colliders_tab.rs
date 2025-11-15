@@ -39,8 +39,6 @@ use fyrox::{
 
 use fyrox::scene::tilemap::{tileset::*, *};
 
-use crate::MSG_SYNC_FLAG;
-
 use super::*;
 use commands::*;
 
@@ -295,7 +293,7 @@ impl CollidersTab {
         ui: &mut UserInterface,
         sender: &MessageSender,
     ) {
-        if message.direction() == MessageDirection::ToWidget || message.flags == MSG_SYNC_FLAG {
+        if message.direction() == MessageDirection::ToWidget {
             return;
         }
         if let Some(ListViewMessage::Selection(_)) = message.data() {

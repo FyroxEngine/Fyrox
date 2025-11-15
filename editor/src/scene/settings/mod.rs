@@ -50,7 +50,7 @@ use crate::{
     message::MessageSender,
     plugins::inspector::{editors::make_property_editors_container, EditorEnvironment},
     scene::commands::GameSceneContext,
-    GameScene, Message, MSG_SYNC_FLAG,
+    GameScene, Message,
 };
 use fyrox::{
     asset::manager::ResourceManager,
@@ -160,7 +160,6 @@ impl SceneSettingsWindow {
             ctx: &mut ui.build_ctx(),
             definition_container: self.property_definitions.clone(),
             environment: Some(environment),
-            sync_flag: MSG_SYNC_FLAG,
             layer_index: 0,
             generate_property_string_values: false,
             filter: PropertyFilter::new(|property| {

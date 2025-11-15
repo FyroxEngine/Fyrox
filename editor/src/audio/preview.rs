@@ -39,7 +39,7 @@ use crate::{
         },
     },
     scene::{GameScene, Selection},
-    send_sync_message, Message,
+    Message,
 };
 
 pub struct AudioPreviewPanel {
@@ -267,10 +267,10 @@ impl AudioPreviewPanel {
             assert!(node_overrides.remove(&sound_handle));
         }
 
-        send_sync_message(
-            engine.user_interfaces.first(),
-            UiMessage::for_widget(self.preview, CheckBoxMessage::Check(Some(false))),
-        );
+        engine
+            .user_interfaces
+            .first()
+            .send_sync(self.preview, CheckBoxMessage::Check(Some(false)));
 
         scene.graph.sound_context.state().destroy_sound_sources();
     }

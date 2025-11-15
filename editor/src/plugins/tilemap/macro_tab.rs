@@ -39,8 +39,6 @@ use fyrox::gui::{
 
 use fyrox::scene::tilemap::*;
 
-use crate::MSG_SYNC_FLAG;
-
 use super::*;
 
 const MISSING_MACRO: &str = "UNKNOWN MACRO";
@@ -388,7 +386,7 @@ impl MacroTab {
         message: &UiMessage,
         editor: &mut Editor,
     ) {
-        if message.direction() == MessageDirection::ToWidget || message.flags == MSG_SYNC_FLAG {
+        if message.direction() == MessageDirection::ToWidget {
             return;
         }
         if let Some(sel_index) = self.selection_index(editor.engine.user_interfaces.first_mut()) {

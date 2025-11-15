@@ -169,10 +169,6 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
     /// The list of the Inspectors property editors.
     /// This allows one property editor to make use of other property editors.
     pub definition_container: Arc<PropertyEditorDefinitionContainer>,
-    /// Controls the flags that are included with messages through the [UiMessage::flags] property.
-    /// This is used to distinguish sync messages from other messages and is handled automatically by
-    /// [InspectorContext](crate::inspector::InspectorContext).
-    pub sync_flag: u64,
     /// Editors can be nested within other editors, such as when an array
     /// editor contains editors for each element of the array.
     /// The layer_index indicates how deeply nested the editor widget we
@@ -197,11 +193,6 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
 /// This structure is passed to [PropertyEditorDefinition::create_message] in order to generate a message that will
 /// update the editor widget to the property's current value.
 pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
-    /// Controls the flags that are included with messages through the [UiMessage::flags] property.
-    /// This is used to distinguish sync messages from other messages and is handled automatically by
-    /// [InspectorContext](crate::inspector::InspectorContext).
-    /// There is no need to put this flag into the message return by the create_message method.
-    pub sync_flag: u64,
     /// The handle of widget that the message will be sent to. It should be an editor created by
     /// [PropertyEditorDefinition::create_instance].
     pub instance: Handle<UiNode>,

@@ -23,8 +23,6 @@
 use std::any::TypeId;
 use std::ops::{Deref, DerefMut};
 
-use crate::MSG_SYNC_FLAG;
-
 use super::*;
 use fyrox::gui::inspector::FieldKind;
 use fyrox::gui::message::MessageData;
@@ -107,9 +105,6 @@ impl TileDefinitionHandleEditor {
 
 impl Control for TileDefinitionHandleEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
-        if message.flags == MSG_SYNC_FLAG {
-            return;
-        }
         if let Some(&TileDefinitionHandleEditorMessage::Value(handle)) =
             message.data_for(self.handle())
         {

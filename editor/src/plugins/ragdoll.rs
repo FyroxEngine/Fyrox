@@ -63,7 +63,7 @@ use crate::{
         GameScene, Selection,
     },
     world::selection::GraphSelection,
-    Editor, MSG_SYNC_FLAG,
+    Editor,
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
@@ -1049,7 +1049,6 @@ impl RagdollWizard {
                                 ctx,
                                 definition_container: container,
                                 environment: None,
-                                sync_flag: MSG_SYNC_FLAG,
                                 layer_index: 0,
                                 generate_property_string_values: true,
                                 filter: Default::default(),

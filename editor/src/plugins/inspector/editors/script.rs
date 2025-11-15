@@ -50,7 +50,7 @@ use crate::fyrox::{
 use crate::plugins::inspector::EditorEnvironment;
 use crate::{
     settings::{general::ScriptEditor, SettingsData},
-    DropdownListBuilder, MSG_SYNC_FLAG,
+    DropdownListBuilder,
 };
 
 use fyrox::gui::inspector::InspectorContextArgs;
@@ -217,7 +217,6 @@ impl ScriptPropertyEditorBuilder {
         variant_selector: Handle<UiNode>,
         script_uuid: Option<Uuid>,
         environment: Option<Arc<dyn InspectorEnvironment>>,
-        sync_flag: u64,
         layer_index: usize,
         generate_property_string_values: bool,
         filter: PropertyFilter,
@@ -233,7 +232,6 @@ impl ScriptPropertyEditorBuilder {
                 ctx,
                 definition_container,
                 environment,
-                sync_flag,
                 layer_index,
                 generate_property_string_values,
                 filter,
@@ -368,7 +366,6 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                     variant_selector,
                     value.as_ref().map(|s| s.id()),
                     ctx.environment.clone(),
-                    ctx.sync_flag,
                     ctx.layer_index,
                     ctx.generate_property_string_values,
                     ctx.filter,
@@ -451,7 +448,6 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                         ctx: &mut ctx.ui.build_ctx(),
                         definition_container: ctx.definition_container.clone(),
                         environment: ctx.environment.clone(),
-                        sync_flag: ctx.sync_flag,
                         layer_index: ctx.layer_index + 1,
                         generate_property_string_values: ctx.generate_property_string_values,
                         filter: ctx.filter,
@@ -462,9 +458,10 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                 })
                 .unwrap_or_default();
 
-            let mut msg = UiMessage::for_widget(inspector, InspectorMessage::Context(context));
-            msg.flags = MSG_SYNC_FLAG;
-            Ok(Some(msg))
+            Ok(Some(UiMessage::for_widget(
+                inspector,
+                InspectorMessage::Context(context),
+            )))
         } else {
             let layer_index = ctx.layer_index;
             let inspector_ctx = ctx

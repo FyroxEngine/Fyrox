@@ -195,7 +195,6 @@ use std::{
 use toml_edit::DocumentMut;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
-pub const MSG_SYNC_FLAG: u64 = 1;
 
 static EDITOR_VERSION: LazyLock<String> = LazyLock::new(|| {
     let manifest = include_bytes!("../Cargo.toml");
@@ -213,18 +212,6 @@ static EDITOR_VERSION: LazyLock<String> = LazyLock::new(|| {
 
     "<unknown>".to_string()
 });
-
-pub fn send_sync_message(ui: &UserInterface, mut msg: UiMessage) {
-    msg.flags = MSG_SYNC_FLAG;
-    ui.send_message(msg);
-}
-
-pub fn send_sync_messages<const N: usize>(ui: &UserInterface, mut messages: [UiMessage; N]) {
-    for message in &mut messages {
-        message.flags = MSG_SYNC_FLAG;
-    }
-    ui.send_messages(messages);
-}
 
 lazy_static! {
     static ref EDITOR_TEXTURE_CACHE: Mutex<FxHashMap<usize, TextureResource>> = Default::default();
@@ -1375,11 +1362,6 @@ impl Editor {
     }
 
     pub fn handle_ui_message(&mut self, message: &mut UiMessage) {
-        // Prevent infinite message loops.
-        if message.has_flags(MSG_SYNC_FLAG) {
-            return;
-        }
-
         for_each_plugin!(self.plugins => on_ui_message(message, self));
 
         let engine = &mut self.engine;

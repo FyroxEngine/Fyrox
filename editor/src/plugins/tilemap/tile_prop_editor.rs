@@ -52,8 +52,6 @@ use fyrox::{
 };
 use palette::Subposition;
 
-use crate::MSG_SYNC_FLAG;
-
 use super::*;
 
 #[derive(Debug, Clone, Visit, Reflect, PartialEq)]
@@ -572,7 +570,7 @@ impl TileEditor for TilePropertyEditor {
         tile_book: &TileBook,
         sender: &MessageSender,
     ) {
-        if message.flags == MSG_SYNC_FLAG || message.direction() == MessageDirection::ToWidget {
+        if message.direction() == MessageDirection::ToWidget {
             return;
         }
         if let Some(ButtonMessage::Click) = message.data() {

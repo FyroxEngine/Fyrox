@@ -74,7 +74,6 @@ use crate::{
         GameScene, Selection, SelectionContainer,
     },
     settings::Settings,
-    MSG_SYNC_FLAG,
 };
 
 use fyrox::gui::inspector::InspectorContextArgs;
@@ -637,7 +636,6 @@ impl BrushPanel {
             ctx,
             definition_container: Arc::new(property_editors),
             environment: None,
-            sync_flag: MSG_SYNC_FLAG,
             layer_index: 0,
             generate_property_string_values: true,
             filter: Default::default(),

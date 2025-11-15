@@ -38,7 +38,7 @@ use crate::fyrox::{
 };
 use crate::{
     scene::{GameScene, Selection},
-    send_sync_message, Message, FIXED_TIMESTEP,
+    Message, FIXED_TIMESTEP,
 };
 
 pub struct ParticleSystemPreviewControlPanel {
@@ -282,11 +282,10 @@ impl ParticleSystemPreviewControlPanel {
 
             assert!(node_overrides.remove(&particle_system_handle));
         }
-
-        send_sync_message(
-            engine.user_interfaces.first(),
-            UiMessage::for_widget(self.preview, CheckBoxMessage::Check(Some(false))),
-        );
+        engine
+            .user_interfaces
+            .first()
+            .send_sync(self.preview, CheckBoxMessage::Check(Some(false)));
     }
 
     pub fn is_in_preview_mode(&self) -> bool {

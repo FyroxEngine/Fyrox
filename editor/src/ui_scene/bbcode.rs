@@ -18,7 +18,7 @@ use crate::{
     message::MessageSender,
     scene::Selection,
     ui_scene::{commands::UiSceneContext, UiScene},
-    Message, MSG_SYNC_FLAG,
+    Message,
 };
 
 pub struct BBCodePanel {
@@ -71,7 +71,7 @@ impl BBCodePanel {
                 break;
             }
         }
-        ui.send_with_flags(self.text_box, MSG_SYNC_FLAG, TextMessage::Text(bbcode));
+        ui.send_sync(self.text_box, TextMessage::Text(bbcode));
     }
     pub fn handle_message(
         &mut self,

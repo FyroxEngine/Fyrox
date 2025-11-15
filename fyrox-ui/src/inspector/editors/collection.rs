@@ -41,7 +41,7 @@ use crate::{
     VerticalAlignment,
 };
 
-use crate::message::MessageData;
+use crate::message::{DeliveryMode, MessageData};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     any::TypeId,
@@ -218,7 +218,6 @@ fn create_items<'a, 'b, T, I>(
     definition_container: Arc<PropertyEditorDefinitionContainer>,
     property_info: &FieldRef<'a, 'b>,
     ctx: &mut BuildContext,
-    sync_flag: u64,
     layer_index: usize,
     generate_property_string_values: bool,
     filter: PropertyFilter,
@@ -262,7 +261,6 @@ where
                         property_info: &proxy_property_info,
                         environment: environment.clone(),
                         definition_container: definition_container.clone(),
-                        sync_flag,
                         layer_index: layer_index + 1,
                         generate_property_string_values,
                         filter: filter.clone(),
@@ -372,7 +370,6 @@ where
         self,
         ctx: &mut BuildContext,
         property_info: &FieldRef<'a, '_>,
-        sync_flag: u64,
         name_column_width: f32,
         base_path: String,
         has_parent_object: bool,
@@ -389,7 +386,6 @@ where
                 definition_container,
                 property_info,
                 ctx,
-                sync_flag,
                 self.layer_index + 1,
                 self.generate_property_string_values,
                 self.filter,
@@ -500,7 +496,6 @@ where
                 .build(
                     ctx.build_context,
                     ctx.property_info,
-                    ctx.sync_flag,
                     ctx.name_column_width,
                     ctx.base_path.clone(),
                     ctx.has_parent_object,
@@ -519,7 +514,6 @@ where
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let PropertyEditorMessageContext {
-            sync_flag,
             instance,
             ui,
             property_info,
@@ -551,7 +545,6 @@ where
                 definition_container,
                 property_info,
                 &mut ui.build_ctx(),
-                sync_flag,
                 layer_index + 1,
                 generate_property_string_values,
                 filter,
@@ -600,7 +593,6 @@ where
                                 property_info: &proxy_property_info,
                                 environment: environment.clone(),
                                 definition_container: definition_container.clone(),
-                                sync_flag,
                                 instance: item.editor_instance.editor(),
                                 layer_index: layer_index + 1,
                                 ui,
@@ -611,7 +603,9 @@ where
                                 has_parent_object,
                             })?
                     {
-                        ui.send_message(message.with_flags(ctx.sync_flag))
+                        // TODO: Refactor `create_message` into `create_messages` to support multiple
+                        // messages. Otherwise this looks like a hack.
+                        ui.send_message(message.with_delivery_mode(DeliveryMode::SyncOnly))
                     }
                 }
             }

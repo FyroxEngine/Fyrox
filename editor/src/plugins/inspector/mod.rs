@@ -52,7 +52,7 @@ use crate::{
     scene::{controller::SceneController, GameScene, Selection},
     ui_scene::UiScene,
     utils::window_content,
-    Editor, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
+    Editor, Message, WidgetMessage, WrapMode,
 };
 use fyrox::gui::style::resource::StyleResource;
 use fyrox::{
@@ -343,7 +343,6 @@ impl InspectorPlugin {
             ctx: &mut ui.build_ctx(),
             definition_container: self.property_editors.clone(),
             environment: Some(environment),
-            sync_flag: MSG_SYNC_FLAG,
             layer_index: 0,
             generate_property_string_values: true,
             filter: Default::default(),

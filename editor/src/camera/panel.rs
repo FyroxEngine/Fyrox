@@ -37,7 +37,7 @@ use crate::{
         scene::{camera::Camera, node::Node},
     },
     scene::{GameScene, Selection},
-    send_sync_messages, Message,
+    Message,
 };
 use fyrox::core::algebra::Vector2;
 use fyrox::graph::BaseSceneGraph;
@@ -211,14 +211,8 @@ impl CameraPreviewControlPanel {
 
         // Don't keep the render target alive after the preview mode is off.
         ui.send_sync(self.preview_frame, ImageMessage::Texture(None));
-
-        send_sync_messages(
-            ui,
-            [
-                UiMessage::for_widget(self.preview, CheckBoxMessage::Check(Some(false))),
-                UiMessage::for_widget(self.preview_frame, WidgetMessage::Visibility(false)),
-            ],
-        );
+        ui.send_sync(self.preview, CheckBoxMessage::Check(Some(false)));
+        ui.send_sync(self.preview_frame, WidgetMessage::Visibility(false));
     }
 
     pub fn is_in_preview_mode(&self) -> bool {

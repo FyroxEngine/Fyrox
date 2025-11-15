@@ -47,7 +47,7 @@ use crate::{
     },
     message::MessageSender,
     plugins::{absm::command::fetch_machine, inspector::editors::make_property_editors_container},
-    Message, MSG_SYNC_FLAG,
+    Message,
 };
 use std::sync::Arc;
 
@@ -103,7 +103,6 @@ impl ParameterPanel {
                     ctx: &mut ui.build_ctx(),
                     definition_container: self.property_editors.clone(),
                     environment: None,
-                    sync_flag: MSG_SYNC_FLAG,
                     layer_index: 0,
                     generate_property_string_values: true,
                     filter: Default::default(),

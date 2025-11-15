@@ -86,9 +86,6 @@ pub struct EnumPropertyEditor<T: InspectableEnum> {
     pub environment: Option<Arc<dyn InspectorEnvironment>>,
     #[visit(skip)]
     #[reflect(hidden)]
-    pub sync_flag: u64,
-    #[visit(skip)]
-    #[reflect(hidden)]
     pub layer_index: usize,
     #[visit(skip)]
     #[reflect(hidden)]
@@ -122,7 +119,6 @@ impl<T: InspectableEnum> Clone for EnumPropertyEditor<T> {
             definition: self.definition.clone(),
             definition_container: self.definition_container.clone(),
             environment: self.environment.clone(),
-            sync_flag: self.sync_flag,
             layer_index: self.layer_index,
             generate_property_string_values: self.generate_property_string_values,
             filter: self.filter.clone(),
@@ -171,7 +167,6 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
                 ctx: &mut ui.build_ctx(),
                 definition_container: self.definition_container.clone(),
                 environment: self.environment.clone(),
-                sync_flag: self.sync_flag,
                 layer_index: self.layer_index,
                 generate_property_string_values: self.generate_property_string_values,
                 filter: self.filter.clone(),
@@ -207,7 +202,6 @@ pub struct EnumPropertyEditorBuilder {
     widget_builder: WidgetBuilder,
     definition_container: Option<Arc<PropertyEditorDefinitionContainer>>,
     environment: Option<Arc<dyn InspectorEnvironment>>,
-    sync_flag: u64,
     variant_selector: Handle<UiNode>,
     layer_index: usize,
     generate_property_string_values: bool,
@@ -220,7 +214,6 @@ impl EnumPropertyEditorBuilder {
             widget_builder,
             definition_container: None,
             environment: None,
-            sync_flag: 0,
             variant_selector: Handle::NONE,
             layer_index: 0,
             generate_property_string_values: false,
@@ -233,11 +226,6 @@ impl EnumPropertyEditorBuilder {
         definition_container: Arc<PropertyEditorDefinitionContainer>,
     ) -> Self {
         self.definition_container = Some(definition_container);
-        self
-    }
-
-    pub fn with_sync_flag(mut self, sync_flag: u64) -> Self {
-        self.sync_flag = sync_flag;
         self
     }
 
@@ -287,7 +275,6 @@ impl EnumPropertyEditorBuilder {
             ctx,
             definition_container: definition_container.clone(),
             environment: self.environment.clone(),
-            sync_flag: self.sync_flag,
             layer_index: self.layer_index,
             generate_property_string_values: self.generate_property_string_values,
             filter: self.filter.clone(),
@@ -311,7 +298,6 @@ impl EnumPropertyEditorBuilder {
             definition: definition.clone(),
             definition_container,
             environment: self.environment,
-            sync_flag: self.sync_flag,
             layer_index: self.layer_index,
             generate_property_string_values: self.generate_property_string_values,
             filter: self.filter,
@@ -441,7 +427,6 @@ where
                     .with_layer_index(ctx.layer_index + 1)
                     .with_definition_container(ctx.definition_container.clone())
                     .with_environment(ctx.environment.clone())
-                    .with_sync_flag(ctx.sync_flag)
                     .with_generate_property_string_values(ctx.generate_property_string_values)
                     .with_filter(ctx.filter)
                     .build(
@@ -504,7 +489,6 @@ where
                 ctx: &mut ctx.ui.build_ctx(),
                 definition_container: ctx.definition_container.clone(),
                 environment,
-                sync_flag: ctx.sync_flag,
                 layer_index: ctx.layer_index + 1,
                 generate_property_string_values: ctx.generate_property_string_values,
                 filter: ctx.filter,

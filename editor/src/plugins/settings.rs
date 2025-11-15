@@ -71,7 +71,7 @@ use crate::{
         selection::SelectionSettings,
         Settings,
     },
-    Editor, MSG_SYNC_FLAG,
+    Editor,
 };
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 use rust_fuzzy_search::fuzzy_compare;
@@ -269,7 +269,6 @@ impl SettingsWindow {
             ctx,
             definition_container: make_property_editors_container(sender.clone(), resource_manager),
             environment: None,
-            sync_flag: MSG_SYNC_FLAG,
             layer_index: 0,
             generate_property_string_values: true,
             filter: Default::default(),

@@ -46,7 +46,7 @@ use crate::{
     menu::create_menu_item,
     plugin::EditorPlugin,
     utils::create_file_selector,
-    Editor, MessageBoxButtons, MessageBoxMessage, MSG_SYNC_FLAG,
+    Editor, MessageBoxButtons, MessageBoxMessage,
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::some_or_return;
@@ -437,18 +437,16 @@ impl CurveEditorWindow {
                 }
             }
         } else if let Some(CurveEditorMessage::Sync(curve)) = message.data_from(self.curve_editor) {
-            if message.flags != MSG_SYNC_FLAG {
-                if let Some(curve_resource) = self.curve_resource.as_ref() {
-                    self.command_stack.do_command(
-                        Command::new(ModifyCurveCommand {
-                            curve_resource: curve_resource.clone(),
-                            curve: curve.first().cloned().unwrap(),
-                        }),
-                        &mut CurveEditorContext {},
-                    );
+            if let Some(curve_resource) = self.curve_resource.as_ref() {
+                self.command_stack.do_command(
+                    Command::new(ModifyCurveCommand {
+                        curve_resource: curve_resource.clone(),
+                        curve: curve.first().cloned().unwrap(),
+                    }),
+                    &mut CurveEditorContext {},
+                );
 
-                    self.modified = true;
-                }
+                self.modified = true;
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.menu.edit.undo {

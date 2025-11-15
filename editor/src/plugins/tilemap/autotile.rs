@@ -41,10 +41,7 @@ use fyrox::{
     },
 };
 
-use crate::{
-    command::{Command, CommandContext, CommandGroup, CommandTrait},
-    send_sync_message,
-};
+use crate::command::{Command, CommandContext, CommandGroup, CommandTrait};
 
 use super::*;
 
@@ -661,19 +658,13 @@ impl BrushMacro for AutoTileMacro {
             let adjacent = cell_data.map(|d| d.fill.include_adjacent);
             let diagonal = cell_data.map(|d| d.fill.include_diagonal);
             settings.widgets.value_field.sync(value, prop, ui);
-            send_sync_message(
-                ui,
-                UiMessage::for_widget(
-                    settings.widgets.adjacent_toggle,
-                    CheckBoxMessage::Check(adjacent),
-                ),
+            ui.send_sync(
+                settings.widgets.adjacent_toggle,
+                CheckBoxMessage::Check(adjacent),
             );
-            send_sync_message(
-                ui,
-                UiMessage::for_widget(
-                    settings.widgets.diagonal_toggle,
-                    CheckBoxMessage::Check(diagonal),
-                ),
+            ui.send_sync(
+                settings.widgets.diagonal_toggle,
+                CheckBoxMessage::Check(diagonal),
             );
             ui.send(
                 settings.widgets.handle,

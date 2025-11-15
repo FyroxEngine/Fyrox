@@ -228,7 +228,6 @@ impl SettingsWindow {
             ctx,
             definition_container: property_editors,
             environment: None,
-            sync_flag: 1,
             layer_index: 0,
             generate_property_string_values: true,
             filter: Default::default(),

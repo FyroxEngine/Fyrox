@@ -94,7 +94,6 @@ where
             ctx: ctx.build_context,
             definition_container: ctx.definition_container.clone(),
             environment: ctx.environment.clone(),
-            sync_flag: ctx.sync_flag,
             layer_index: ctx.layer_index + 1,
             generate_property_string_values: ctx.generate_property_string_values,
             filter: ctx.filter,

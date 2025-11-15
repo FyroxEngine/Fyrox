@@ -21,10 +21,7 @@
 //! A tile editor is one of the various fields that may appear along the side
 //! of the tile set editor. See the [`TileEditor`] trait for more information.
 
-use crate::{
-    plugins::material::editor::{MaterialFieldEditorBuilder, MaterialFieldMessage},
-    MSG_SYNC_FLAG,
-};
+use crate::plugins::material::editor::{MaterialFieldEditorBuilder, MaterialFieldMessage};
 use std::sync::mpsc::Sender;
 
 use super::*;
@@ -389,7 +386,7 @@ impl TileEditor for TileMaterialEditor {
         tile_book: &TileBook,
         sender: &MessageSender,
     ) {
-        if message.flags == MSG_SYNC_FLAG || message.direction() == MessageDirection::ToWidget {
+        if message.direction() == MessageDirection::ToWidget {
             return;
         }
         if let Some(MaterialFieldMessage::Material(material)) = message.data() {
@@ -517,7 +514,7 @@ impl TileEditor for TileColorEditor {
         tile_book: &TileBook,
         sender: &MessageSender,
     ) {
-        if message.direction() == MessageDirection::ToWidget || message.flags == MSG_SYNC_FLAG {
+        if message.direction() == MessageDirection::ToWidget {
             return;
         }
         if let Some(&ColorFieldMessage::Color(color)) = message.data() {
@@ -620,7 +617,7 @@ impl TileEditor for TileHandleEditor {
         tile_book: &TileBook,
         sender: &MessageSender,
     ) {
-        if message.direction() == MessageDirection::ToWidget || message.flags == MSG_SYNC_FLAG {
+        if message.direction() == MessageDirection::ToWidget {
             return;
         }
         if let Some(&TileHandleEditorMessage::Value(value)) = message.data() {

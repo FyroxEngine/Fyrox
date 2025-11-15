@@ -88,9 +88,10 @@ use crate::{
         SetMaterialBindingCommand, SetMaterialPropertyGroupPropertyValueCommand,
         SetMaterialShaderCommand,
     },
-    send_sync_message, Editor, Engine, Message,
+    Editor, Engine, Message,
 };
 use fyrox::asset::event::ResourceEvent;
+use fyrox::gui::message::DeliveryMode;
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::{mpsc::Sender, Arc};
@@ -162,7 +163,10 @@ fn make_array_view(
 fn sync_array(ui: &UserInterface, handle: Handle<UiNode>, array: &[impl UiView]) {
     let views = &**ui.try_get_of_type::<ListView>(handle).unwrap().items;
     for (item, view) in array.iter().zip(views) {
-        send_sync_message(ui, item.into_message(*view))
+        ui.send_message(
+            item.into_message(*view)
+                .with_delivery_mode(DeliveryMode::SyncOnly),
+        );
     }
 }
 
@@ -170,7 +174,10 @@ trait UiView: Default + Copy {
     fn into_message(self, item: Handle<UiNode>) -> UiMessage;
     fn make_view(self, ctx: &mut BuildContext) -> Handle<UiNode>;
     fn send(self, ui: &UserInterface, item: Handle<UiNode>) {
-        send_sync_message(ui, self.into_message(item))
+        ui.send_message(
+            self.into_message(item)
+                .with_delivery_mode(DeliveryMode::SyncOnly),
+        );
     }
 }
 

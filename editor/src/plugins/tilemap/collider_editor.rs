@@ -48,8 +48,6 @@ use fyrox::{
 };
 use std::str::FromStr;
 
-use crate::MSG_SYNC_FLAG;
-
 use super::*;
 
 const COLLIDER_NAMES: &[&str] = &["None", "Full", "Custom"];
@@ -324,7 +322,7 @@ impl TileEditor for TileColliderEditor {
         tile_book: &TileBook,
         sender: &MessageSender,
     ) {
-        if message.flags == MSG_SYNC_FLAG || message.direction() == MessageDirection::ToWidget {
+        if message.direction() == MessageDirection::ToWidget {
             return;
         }
         if let Some(ButtonMessage::Click) = message.data() {

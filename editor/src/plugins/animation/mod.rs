@@ -60,7 +60,6 @@ use crate::{
         track::TrackList,
     },
     scene::{commands::ChangeSelectionCommand, GameScene, Selection},
-    send_sync_message,
     ui_scene::UiScene,
     Editor, Message,
 };
@@ -842,12 +841,9 @@ impl AnimationEditor {
             self.track_list.panel,
             WidgetMessage::Enabled(is_animation_selected),
         );
-        send_sync_message(
-            ui,
-            UiMessage::for_widget(
-                self.toolbar.preview,
-                CheckBoxMessage::Check(Some(self.preview_mode_data.is_some())),
-            ),
+        ui.send_sync(
+            self.toolbar.preview,
+            CheckBoxMessage::Check(Some(self.preview_mode_data.is_some())),
         );
         ui.send_sync(
             self.curve_editor,

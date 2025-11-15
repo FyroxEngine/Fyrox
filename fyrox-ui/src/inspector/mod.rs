@@ -22,7 +22,7 @@
 //! structure or enumeration recursively. It's primary usage is provide unified and simple way of introspection.
 //! See [`Inspector`] docs for more info and usage examples.
 
-use crate::message::MessageData;
+use crate::message::{DeliveryMode, MessageData};
 use crate::{
     border::BorderBuilder,
     check_box::CheckBoxBuilder,
@@ -500,7 +500,6 @@ pub trait InspectorEnvironment: Any + Send + Sync + ComponentProvider {
 ///         ctx,
 ///         definition_container: Arc::new(definition_container),
 ///         environment: None,
-///         sync_flag: 1,
 ///         layer_index: 0,
 ///         generate_property_string_values: true,
 ///         filter: Default::default(),
@@ -817,10 +816,6 @@ pub struct InspectorContext {
     /// Untyped information from the application that is using the inspector. This can be used by editors that may be
     /// supplied by that application, if those editors know the actual type of this value to be able to successfully cast it.
     pub environment: Option<Arc<dyn InspectorEnvironment>>,
-    /// The value given to [UiMessage::flags] when [sync](InspectorContext::sync) is generating update messages for
-    /// editor widgets. This identifies sync messages and prevents the Inspector from trying to translate them,
-    /// and thereby it prevents sync messages from potentially creating an infinite message loop.
-    pub sync_flag: u64,
     /// Type id of the object for which the context was created.
     pub object_type_id: TypeId,
     /// A width of the property name column.
@@ -854,7 +849,6 @@ impl Default for InspectorContext {
                 PropertyEditorDefinitionContainer::with_default_editors(),
             ),
             environment: None,
-            sync_flag: 0,
             object_type_id: ().type_id(),
             name_column_width: 150.0,
             has_parent_object: false,
@@ -1039,7 +1033,6 @@ pub struct InspectorContextArgs<'a, 'b, 'c> {
     pub ctx: &'b mut BuildContext<'c>,
     pub definition_container: Arc<PropertyEditorDefinitionContainer>,
     pub environment: Option<Arc<dyn InspectorEnvironment>>,
-    pub sync_flag: u64,
     pub layer_index: usize,
     pub generate_property_string_values: bool,
     pub filter: PropertyFilter,
@@ -1061,9 +1054,6 @@ impl InspectorContext {
     /// based on the type of each field.
     /// * environment: Untyped optional generic information about the application using the inspector,
     /// which may be useful to some editors. Often this will be Fyroxed's EditorEnvironment.
-    /// * sync_flag: Flag bits to identify messages that are sent by the `sync` method to
-    /// update an editor with the current value of the property that it is editing.
-    /// This becomes the value of [UiMessage::flags].
     /// * layer_index: Inspectors can be nested within the editors of other inspectors.
     /// The layer_index is the count of how deeply nested this inspector will be.
     /// * generate_property_string_values: Should we use `format!("{:?}", field)` to construct string representations
@@ -1075,7 +1065,6 @@ impl InspectorContext {
             ctx,
             definition_container,
             environment,
-            sync_flag,
             layer_index,
             generate_property_string_values,
             filter,
@@ -1121,7 +1110,6 @@ impl InspectorContext {
                             property_info: info,
                             environment: environment.clone(),
                             definition_container: definition_container.clone(),
-                            sync_flag,
                             layer_index,
                             generate_property_string_values,
                             filter: filter.clone(),
@@ -1262,7 +1250,6 @@ impl InspectorContext {
             },
             entries,
             property_definitions: definition_container,
-            sync_flag,
             environment,
             object_type_id: object_type_id(object),
             name_column_width,
@@ -1309,7 +1296,6 @@ impl InspectorContext {
                 {
                     if let Some(property_editor) = self.find_property_editor(info.name) {
                         let ctx = PropertyEditorMessageContext {
-                            sync_flag: self.sync_flag,
                             instance: property_editor.property_editor,
                             ui,
                             property_info: info,
@@ -1326,7 +1312,7 @@ impl InspectorContext {
                         match constructor.property_editor.create_message(ctx) {
                             Ok(message) => {
                                 if let Some(mut message) = message {
-                                    message.flags = self.sync_flag;
+                                    message.delivery_mode = DeliveryMode::SyncOnly;
                                     ui.send_message(message);
                                 }
                             }
@@ -1451,7 +1437,7 @@ impl Control for Inspector {
 
         // Check each message from descendant widget and try to translate it to
         // PropertyChanged message.
-        if message.flags != self.context.sync_flag {
+        if message.delivery_mode != DeliveryMode::SyncOnly {
             let env = self.context.environment.clone();
             for entry in self.context.entries.iter() {
                 if message.destination() == entry.property_editor {

@@ -43,10 +43,7 @@ use fyrox::{
     },
 };
 
-use crate::{
-    command::{Command, CommandContext, CommandGroup, CommandTrait},
-    send_sync_message,
-};
+use crate::command::{Command, CommandContext, CommandGroup, CommandTrait};
 
 use super::*;
 
@@ -653,14 +650,10 @@ impl BrushMacro for WfcMacro {
         let tile_set = tile_set.as_deref();
         self.pattern_list.sync(pattern_id, tile_set, ui);
         self.frequency_list.sync(frequency_id, tile_set, ui);
-        send_sync_message(
-            ui,
-            UiMessage::for_widget(
-                self.edges_toggle,
-                CheckBoxMessage::Check(Some(instance.constrain_edges)),
-            ),
+        ui.send_sync(
+            self.edges_toggle,
+            CheckBoxMessage::Check(Some(instance.constrain_edges)),
         );
-
         ui.send_sync(
             self.attempts_field,
             NumericUpDownMessage::<u32>::Value(instance.max_attempts),

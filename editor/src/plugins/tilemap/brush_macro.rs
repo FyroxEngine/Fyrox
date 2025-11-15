@@ -18,11 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{
-    command::{Command, CommandContext, CommandTrait},
-    send_sync_message,
-};
-use fyrox::gui::message::MessageData;
+use crate::command::{Command, CommandContext, CommandTrait};
+use fyrox::gui::message::{DeliveryMode, MessageData};
 use fyrox::{
     asset::{untyped::UntypedResource, Resource, ResourceData, ResourceDataRef},
     core::{
@@ -775,7 +772,7 @@ impl MacroPropertyValueField {
             }
             Element::I8(v) => UiMessage::for_widget(self.textbox, NumericUpDownMessage::Value(*v)),
         };
-        send_sync_message(ui, msg);
+        ui.send_message(msg.with_delivery_mode(DeliveryMode::SyncOnly));
         if let Ok(value) = value.try_into() {
             let (index, items) = make_index_and_value_list(prop, value, &mut ui.build_ctx());
             ui.send_sync(self.list, DropdownListMessage::Items(items));
@@ -871,7 +868,7 @@ impl MacroPropertyValueField {
                             UiMessage::for_widget(self.textbox, NumericUpDownMessage::Value(v))
                         }
                     };
-                    send_sync_message(ui, msg);
+                    ui.send_message(msg.with_delivery_mode(DeliveryMode::SyncOnly));
                 }
             }
         }
