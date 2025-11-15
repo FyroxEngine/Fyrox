@@ -88,7 +88,9 @@ impl Control for Connection {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
-        self.segment.handle_routed_message(self.handle(), message);
+        if self.segment.handle_routed_message(self.handle(), message) {
+            self.invalidate_visual();
+        }
 
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {

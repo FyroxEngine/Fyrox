@@ -40,16 +40,24 @@ pub struct Segment {
 }
 
 impl Segment {
-    pub fn handle_routed_message(&mut self, self_handle: Handle<UiNode>, message: &mut UiMessage) {
+    #[must_use]
+    pub fn handle_routed_message(
+        &mut self,
+        self_handle: Handle<UiNode>,
+        message: &mut UiMessage,
+    ) -> bool {
         if let Some(msg) = message.data_for::<SegmentMessage>(self_handle) {
             match msg {
                 SegmentMessage::SourcePosition(pos) => {
                     self.source_pos = *pos;
+                    return true;
                 }
                 SegmentMessage::DestPosition(pos) => {
                     self.dest_pos = *pos;
+                    return true;
                 }
             }
         }
+        false
     }
 }

@@ -130,9 +130,15 @@ impl Control for TransitionView {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
-        self.selectable
-            .handle_routed_message(self.handle(), ui, message);
-        self.segment.handle_routed_message(self.handle(), message);
+        if self
+            .selectable
+            .handle_routed_message(self.handle(), ui, message)
+        {
+            self.invalidate_visual();
+        }
+        if self.segment.handle_routed_message(self.handle(), message) {
+            self.invalidate_visual();
+        }
 
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {

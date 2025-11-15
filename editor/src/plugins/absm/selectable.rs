@@ -41,12 +41,13 @@ pub struct Selectable {
 }
 
 impl Selectable {
+    #[must_use]
     pub fn handle_routed_message(
         &mut self,
         self_handle: Handle<UiNode>,
         ui: &mut UserInterface,
         message: &mut UiMessage,
-    ) {
+    ) -> bool {
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::MouseDown { button, .. } => {
@@ -69,7 +70,9 @@ impl Selectable {
             if self.selected != *selected {
                 self.selected = *selected;
                 ui.send_message(message.reverse());
+                return true;
             }
         }
+        false
     }
 }

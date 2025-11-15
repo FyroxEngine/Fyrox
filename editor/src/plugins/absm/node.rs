@@ -164,8 +164,12 @@ where
 {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
-        self.selectable
-            .handle_routed_message(self.handle(), ui, message);
+        if self
+            .selectable
+            .handle_routed_message(self.handle(), ui, message)
+        {
+            self.invalidate_visual();
+        }
 
         if let Some(SelectableMessage::Select(selected)) = message.data_from(self.handle()) {
             self.update_colors(ui);
