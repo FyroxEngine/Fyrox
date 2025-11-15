@@ -255,6 +255,7 @@ impl Control for PanelPreview {
         self.widget.handle_routed_message(ui, message);
         if let Some(PaletteMessage::SyncToState) = message.data_for(self.handle()) {
             self.sync_to_state();
+            self.invalidate_visual();
         }
     }
 }

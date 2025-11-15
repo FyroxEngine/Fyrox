@@ -335,12 +335,16 @@ impl Control for AlphaBar {
                             if self.alpha != alpha {
                                 self.alpha = alpha;
                                 ui.send_message(message.reverse());
+
+                                self.invalidate_visual();
                             }
                         }
                         AlphaBarMessage::Orientation(orientation) => {
                             if self.orientation != orientation {
                                 self.orientation = orientation;
                                 ui.send_message(message.reverse());
+
+                                self.invalidate_visual();
                             }
                         }
                     }
@@ -681,6 +685,7 @@ impl Control for SaturationBrightnessField {
                                     self.handle,
                                     SaturationBrightnessFieldMessage::Hue(self.hue),
                                 );
+                                self.invalidate_visual();
                             }
                         }
                         SaturationBrightnessFieldMessage::Saturation(saturation) => {
@@ -691,6 +696,7 @@ impl Control for SaturationBrightnessField {
                                     self.handle,
                                     SaturationBrightnessFieldMessage::Saturation(self.saturation),
                                 );
+                                self.invalidate_visual();
                             }
                         }
                         SaturationBrightnessFieldMessage::Brightness(brightness) => {
@@ -701,6 +707,7 @@ impl Control for SaturationBrightnessField {
                                     self.handle,
                                     SaturationBrightnessFieldMessage::Brightness(self.brightness),
                                 );
+                                self.invalidate_visual();
                             }
                         }
                     }
@@ -1215,6 +1222,8 @@ impl Control for ColorField {
                 self.color = color;
                 ui.send(self.picker, ColorPickerMessage::Color(self.color));
                 ui.send_message(message.reverse());
+
+                self.invalidate_visual();
             }
         }
     }

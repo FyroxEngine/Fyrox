@@ -2292,8 +2292,9 @@ mod test {
 
     #[test]
     fn resource_manager_register() {
-        std::fs::create_dir_all("data").expect("Could not create data directory.");
+        std::fs::create_dir_all("data2").expect("Could not create data directory.");
         let manager = ResourceManager::new(Arc::new(FsResourceIo), Arc::new(Default::default()));
+        manager.state().resource_registry.lock().set_path("data2");
         let path = PathBuf::from("test.txt");
         let metapath = append_extension(&path, ResourceMetadata::EXTENSION);
         remove_file_if_exists(&metapath).unwrap();

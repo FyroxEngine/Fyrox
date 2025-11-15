@@ -109,14 +109,17 @@ impl Control for Thumb {
             match msg {
                 ThumbMessage::Zoom(zoom) => {
                     self.transform.set_scale(Vector2::new(*zoom, 1.0));
+                    self.invalidate_visual();
                 }
                 ThumbMessage::ViewPosition(position) => {
                     self.transform.set_position(Vector2::new(*position, 0.0));
+                    self.invalidate_visual();
                 }
                 ThumbMessage::Position(value) => {
                     if value.ne(&self.position) {
                         self.position = *value;
                         ui.send_message(message.reverse());
+                        self.invalidate_visual();
                     }
                 }
             }

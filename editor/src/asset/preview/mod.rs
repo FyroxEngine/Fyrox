@@ -674,7 +674,6 @@ pub fn render_ui_to_texture(
         asset::item::DEFAULT_SIZE as u32,
         asset::item::DEFAULT_SIZE as u32,
     );
-    ui.draw();
     graphics_context
         .renderer
         .render_ui(UiRenderInfo {

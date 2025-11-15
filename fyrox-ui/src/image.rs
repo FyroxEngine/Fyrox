@@ -296,16 +296,20 @@ impl Control for Image {
                 match msg {
                     ImageMessage::Texture(tex) => {
                         self.texture.set_value_and_mark_modified(tex.clone());
+                        self.invalidate_visual();
                     }
                     &ImageMessage::Flip(flip) => {
                         self.flip.set_value_and_mark_modified(flip);
+                        self.invalidate_visual();
                     }
                     ImageMessage::UvRect(uv_rect) => {
                         self.uv_rect.set_value_and_mark_modified(*uv_rect);
+                        self.invalidate_visual();
                     }
                     ImageMessage::CheckerboardBackground(value) => {
                         self.checkerboard_background
                             .set_value_and_mark_modified(*value);
+                        self.invalidate_visual();
                     }
                 }
             }

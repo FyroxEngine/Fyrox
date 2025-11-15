@@ -701,10 +701,12 @@ impl Control for Grid {
                 }
                 GridMessage::DrawBorder(draw_border) => {
                     self.draw_border.set_value_and_mark_modified(*draw_border);
+                    self.invalidate_visual();
                 }
                 GridMessage::BorderThickness(border_thickness) => {
                     self.border_thickness
                         .set_value_and_mark_modified(*border_thickness);
+                    self.invalidate_visual();
                 }
             }
         }

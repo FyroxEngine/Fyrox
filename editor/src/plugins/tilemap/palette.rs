@@ -1897,17 +1897,20 @@ impl Control for PaletteWidget {
                     initial_view_position: self.view_position,
                     click_position: *pos,
                 };
+                self.invalidate_visual();
             } else if *button == MouseButton::Left && !message.handled() {
                 ui.send_message(DelayedMessage::message(
                     MOUSE_CLICK_DELAY_FRAMES,
                     UiMessage::for_widget(self.handle(), PaletteMessage::BeginMotion(*pos)),
                 ));
+                self.invalidate_visual();
             }
         } else if let Some(WidgetMessage::MouseUp { pos, button, .. }) = message.data() {
             ui.release_mouse_capture();
             if *button == MouseButton::Left {
                 let mouse_pos = self.calc_mouse_position(*pos);
                 self.end_motion(self.drawing_mode(), mouse_pos, ui);
+                self.invalidate_visual();
             }
             self.mode = MouseMode::None;
         } else if let Some(WidgetMessage::MouseMove { pos, .. }) = message.data() {
@@ -1922,13 +1925,16 @@ impl Control for PaletteWidget {
             self.slice_position = mouse_pos.subgrid;
             self.set_cursor_position(Some(mouse_pos.grid));
             self.continue_motion(self.drawing_mode(), mouse_pos, ui);
+            self.invalidate_visual();
         } else if let Some(WidgetMessage::MouseLeave) = message.data() {
             self.set_cursor_position(None);
+            self.invalidate_visual();
         } else if let Some(WidgetMessage::MouseWheel { amount, pos }) = message.data() {
             let tile_pos = self.screen_point_to_tile_point(*pos);
             self.zoom = (self.zoom + 0.1 * amount).clamp(0.2, 2.0);
             let new_pos = self.tile_point_to_screen_point(tile_pos);
             self.view_position += pos - new_pos;
+            self.invalidate_visual();
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
                 if let Some(material) = item.resource::<Material>() {
@@ -1964,6 +1970,7 @@ impl Control for PaletteWidget {
         } else if let Some(WidgetMessage::KeyDown(key)) = message.data() {
             if *key == KeyCode::Delete && !message.handled() && self.delete_tiles(ui) {
                 message.set_handled(true);
+                self.invalidate_visual();
             }
         }
     }

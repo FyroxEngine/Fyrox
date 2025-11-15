@@ -273,10 +273,13 @@ pub trait Control:
     ///         None,
     ///     );
     /// }
-    ///     #
-    ///     # fn handle_routed_message(&mut self, _ui: &mut UserInterface, _message: &mut UiMessage) {
-    ///     #     todo!()
-    ///     # }
+    ///
+    /// fn handle_routed_message(&mut self, _ui: &mut UserInterface, _message: &mut UiMessage) {
+    ///     // You may need to call the following method if your widget uses custom properties
+    ///     // for rendering to force it to be re-drawn. See `Widget::invalidate_visual` docs
+    ///     // for more info.
+    ///     self.invalidate_visual();
+    /// }
     /// }
     /// ```
     ///

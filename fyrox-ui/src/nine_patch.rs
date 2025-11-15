@@ -529,24 +529,31 @@ impl Control for NinePatch {
             match msg {
                 NinePatchMessage::LeftMargin(margin) => {
                     compare_and_set(slice.left_margin.deref_mut(), margin, message, ui);
+                    self.invalidate_visual();
                 }
                 NinePatchMessage::RightMargin(margin) => {
                     compare_and_set(slice.right_margin.deref_mut(), margin, message, ui);
+                    self.invalidate_visual();
                 }
                 NinePatchMessage::TopMargin(margin) => {
                     compare_and_set(slice.top_margin.deref_mut(), margin, message, ui);
+                    self.invalidate_visual();
                 }
                 NinePatchMessage::BottomMargin(margin) => {
                     compare_and_set(slice.bottom_margin.deref_mut(), margin, message, ui);
+                    self.invalidate_visual();
                 }
                 NinePatchMessage::TextureRegion(region) => {
                     compare_and_set(slice.texture_region.deref_mut(), region, message, ui);
+                    self.invalidate_visual();
                 }
                 NinePatchMessage::Texture(texture) => {
                     compare_and_set(&mut slice.texture_source, texture, message, ui);
+                    self.invalidate_visual();
                 }
                 NinePatchMessage::DrawCenter(draw_center) => {
                     compare_and_set(self.draw_center.deref_mut(), draw_center, message, ui);
+                    self.invalidate_visual();
                 }
             }
         }

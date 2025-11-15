@@ -150,6 +150,7 @@ impl Control for ColorGradientField {
 
         if let Some(ColorGradientEditorMessage::Value(value)) = message.data_for(self.handle) {
             self.color_gradient = value.clone();
+            self.invalidate_visual();
         }
     }
 }
@@ -525,6 +526,7 @@ impl Control for ColorPoint {
                                 self.location = *location;
                                 self.invalidate_layout();
                                 ui.send_message(message.reverse());
+                                self.invalidate_visual();
                             }
                         }
                     }
