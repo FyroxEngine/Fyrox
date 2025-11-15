@@ -67,6 +67,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::engine::GraphicsContext;
 use fyrox::gui::message::UiMessage;
 use fyrox::renderer::ui_renderer::UiRenderInfo;
 use std::{fs::File, io::Write, path::Path};
@@ -374,18 +375,14 @@ impl SceneController for UiScene {
         }
 
         // Render to texture.
-        Log::verify(
-            engine
-                .graphics_context
-                .as_initialized_mut()
-                .renderer
-                .render_ui(UiRenderInfo {
-                    ui: &self.ui,
-                    render_target: Some(self.render_target.clone()),
-                    clear_color: Color::DIM_GRAY,
-                    resource_manager: &engine.resource_manager,
-                }),
-        );
+        if let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context {
+            Log::verify(graphics_context.renderer.render_ui(UiRenderInfo {
+                ui: &self.ui,
+                render_target: Some(self.render_target.clone()),
+                clear_color: Color::DIM_GRAY,
+                resource_manager: &engine.resource_manager,
+            }));
+        }
     }
 
     fn on_after_render(&mut self, _engine: &mut Engine) {}

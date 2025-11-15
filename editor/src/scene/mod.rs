@@ -96,6 +96,7 @@ use crate::{
     world::selection::GraphSelection,
     Message, Settings,
 };
+use fyrox::engine::GraphicsContext;
 use fyrox::scene::collider::BitMask;
 use std::{
     cell::RefCell,
@@ -911,14 +912,15 @@ impl SceneController for GameScene {
                 ));
                 new_render_target.clone_from(&scene.rendering_options.render_target);
 
-                let gc = engine.graphics_context.as_initialized_mut();
-
-                if let Some(highlighter) = self.highlighter.as_ref() {
-                    highlighter.borrow_mut().resize(
-                        &*gc.renderer.server,
-                        frame_size.x as usize,
-                        frame_size.y as usize,
-                    );
+                if let GraphicsContext::Initialized(ref graphics_context) = engine.graphics_context
+                {
+                    if let Some(highlighter) = self.highlighter.as_ref() {
+                        highlighter.borrow_mut().resize(
+                            &*graphics_context.renderer.server,
+                            frame_size.x as usize,
+                            frame_size.y as usize,
+                        );
+                    }
                 }
             }
         }

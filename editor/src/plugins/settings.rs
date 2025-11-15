@@ -73,6 +73,7 @@ use crate::{
     },
     Editor,
 };
+use fyrox::engine::GraphicsContext;
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 use rust_fuzzy_search::fuzzy_compare;
 use std::sync::Arc;
@@ -398,18 +399,18 @@ impl SettingsWindow {
             self.apply_filter(&filter, ui);
         }
 
-        let graphics_context = engine.graphics_context.as_initialized_mut();
-
-        if settings.graphics.quality != graphics_context.renderer.get_quality_settings() {
-            if let Err(e) = graphics_context
-                .renderer
-                .set_quality_settings(&settings.graphics.quality)
-            {
-                Log::err(format!(
-                    "An error occurred at attempt to set new graphics settings: {e:?}"
-                ));
-            } else {
-                Log::info("New graphics quality settings were successfully set!");
+        if let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context {
+            if settings.graphics.quality != graphics_context.renderer.get_quality_settings() {
+                if let Err(e) = graphics_context
+                    .renderer
+                    .set_quality_settings(&settings.graphics.quality)
+                {
+                    Log::err(format!(
+                        "An error occurred at attempt to set new graphics settings: {e:?}"
+                    ));
+                } else {
+                    Log::info("New graphics quality settings were successfully set!");
+                }
             }
         }
 

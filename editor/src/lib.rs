@@ -174,6 +174,7 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::EditorSceneWrapper, menu::SceneNodeContextMenu, WorldViewer},
 };
+use fyrox::engine::GraphicsContext;
 use fyrox::event_loop::ActiveEventLoop;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
@@ -1146,17 +1147,17 @@ impl Editor {
             .file_menu
             .update_recent_files_list(self.engine.user_interfaces.first_mut(), &self.settings);
 
-        match self
-            .engine
-            .graphics_context
-            .as_initialized_mut()
-            .renderer
-            .set_quality_settings(&self.settings.graphics.quality)
+        if let GraphicsContext::Initialized(ref mut graphics_context) = self.engine.graphics_context
         {
-            Ok(_) => {
-                Log::info("Graphics settings were applied successfully!");
+            match graphics_context
+                .renderer
+                .set_quality_settings(&self.settings.graphics.quality)
+            {
+                Ok(_) => {
+                    Log::info("Graphics settings were applied successfully!");
+                }
+                Err(e) => Log::info(format!("Failed to apply graphics settings! Reason: {e:?}")),
             }
-            Err(e) => Log::info(format!("Failed to apply graphics settings! Reason: {e:?}")),
         }
     }
 
@@ -2270,15 +2271,15 @@ impl Editor {
 
         let engine = &mut self.engine;
 
-        let graphics_context = engine.graphics_context.as_initialized_mut();
-
-        graphics_context.window.set_title(&format!(
-            "FyroxEd{} {}{}: {}",
-            self.user_project_name,
-            *EDITOR_VERSION,
-            self.user_project_version,
-            working_directory.to_string_lossy()
-        ));
+        if let GraphicsContext::Initialized(ref graphics_context) = engine.graphics_context {
+            graphics_context.window.set_title(&format!(
+                "FyroxEd{} {}{}: {}",
+                self.user_project_name,
+                *EDITOR_VERSION,
+                self.user_project_version,
+                working_directory.to_string_lossy()
+            ));
+        }
 
         match FileSystemWatcher::new(&working_directory, Duration::from_secs(1)) {
             Ok(watcher) => {
@@ -2857,51 +2858,51 @@ impl Editor {
     fn on_resumed(&mut self, event_loop: &ActiveEventLoop) {
         let engine = &mut self.engine;
 
-        engine.initialize_graphics_context(event_loop).unwrap();
+        Log::verify(engine.initialize_graphics_context(event_loop));
 
-        let graphics_context = engine.graphics_context.as_initialized_mut();
+        if let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context {
+            graphics_context.set_window_icon_from_memory(
+                self.user_project_icon
+                    .as_deref()
+                    .unwrap_or(include_bytes!("../resources/icon.png")),
+            );
 
-        graphics_context.set_window_icon_from_memory(
-            self.user_project_icon
-                .as_deref()
-                .unwrap_or(include_bytes!("../resources/icon.png")),
-        );
+            // High-DPI screen support
+            Log::info(format!(
+                "UI scaling of your OS is: {}",
+                graphics_context.window.scale_factor()
+            ));
 
-        // High-DPI screen support
-        Log::info(format!(
-            "UI scaling of your OS is: {}",
-            graphics_context.window.scale_factor()
-        ));
+            set_ui_scaling(
+                engine.user_interfaces.first(),
+                graphics_context.window.scale_factor() as f32,
+            );
 
-        set_ui_scaling(
-            engine.user_interfaces.first(),
-            graphics_context.window.scale_factor() as f32,
-        );
+            let overlay_pass = OverlayRenderPass::new(graphics_context.renderer.graphics_server());
+            graphics_context
+                .renderer
+                .add_render_pass(overlay_pass.clone());
+            self.overlay_pass = Some(overlay_pass);
 
-        let overlay_pass = OverlayRenderPass::new(graphics_context.renderer.graphics_server());
-        graphics_context
-            .renderer
-            .add_render_pass(overlay_pass.clone());
-        self.overlay_pass = Some(overlay_pass);
+            let highlighter = HighlightRenderPass::new(
+                &*graphics_context.renderer.server,
+                self.settings.windows.window_size.x as usize,
+                self.settings.windows.window_size.y as usize,
+            );
+            graphics_context
+                .renderer
+                .add_render_pass(highlighter.clone());
+            self.highlighter = Some(highlighter);
 
-        let highlighter = HighlightRenderPass::new(
-            &*graphics_context.renderer.server,
-            self.settings.windows.window_size.x as usize,
-            self.settings.windows.window_size.y as usize,
-        );
-        graphics_context
-            .renderer
-            .add_render_pass(highlighter.clone());
-        self.highlighter = Some(highlighter);
-
-        match graphics_context
-            .renderer
-            .set_quality_settings(&self.settings.graphics.quality)
-        {
-            Ok(_) => {
-                Log::info("Graphics settings were applied successfully!");
+            match graphics_context
+                .renderer
+                .set_quality_settings(&self.settings.graphics.quality)
+            {
+                Ok(_) => {
+                    Log::info("Graphics settings were applied successfully!");
+                }
+                Err(e) => Log::err(format!("Failed to apply graphics settings! Reason: {e:?}")),
             }
-            Err(e) => Log::err(format!("Failed to apply graphics settings! Reason: {e:?}")),
         }
     }
 
@@ -2974,23 +2975,27 @@ impl Editor {
                                 );
                             }
 
-                            let window = &self.engine.graphics_context.as_initialized_ref().window;
+                            if let GraphicsContext::Initialized(ref graphics_context) =
+                                self.engine.graphics_context
+                            {
+                                let window = &graphics_context.window;
 
-                            let logical_size = size.to_logical(window.scale_factor());
-                            self.engine.user_interfaces.first().send_many(
-                                self.root_grid,
-                                [
-                                    WidgetMessage::Width(logical_size.width),
-                                    WidgetMessage::Height(logical_size.height),
-                                ],
-                            );
+                                let logical_size = size.to_logical(window.scale_factor());
+                                self.engine.user_interfaces.first().send_many(
+                                    self.root_grid,
+                                    [
+                                        WidgetMessage::Width(logical_size.width),
+                                        WidgetMessage::Height(logical_size.height),
+                                    ],
+                                );
 
-                            if size.width > 0 && size.height > 0 {
-                                self.settings.windows.window_size.x = size.width as f32;
-                                self.settings.windows.window_size.y = size.height as f32;
+                                if size.width > 0 && size.height > 0 {
+                                    self.settings.windows.window_size.x = size.width as f32;
+                                    self.settings.windows.window_size.y = size.height as f32;
+                                }
+
+                                self.settings.windows.window_maximized = window.is_maximized();
                             }
-
-                            self.settings.windows.window_maximized = window.is_maximized();
                         }
                         WindowEvent::Focused(focused) => {
                             self.focused = *focused;
