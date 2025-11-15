@@ -418,6 +418,7 @@ fn main() {{
         Some(StartupData {{
             working_directory: Default::default(),
             scenes: vec!["data/scene.rgs".into()],
+            named_objects: false
         }}),
     );
 
