@@ -361,7 +361,7 @@ impl UiMessage {
             destination: self.destination,
             direction: self.direction.reverse(),
             routing_strategy: self.routing_strategy,
-            delivery_mode: Default::default(),
+            delivery_mode: self.delivery_mode,
             flags: self.flags,
         }
     }
