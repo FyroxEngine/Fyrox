@@ -1359,7 +1359,7 @@ impl CurveEditor {
     }
 
     fn send_curves(&self, ui: &UserInterface) {
-        ui.send(
+        ui.post(
             self.handle,
             CurveEditorMessage::Sync(self.curves.to_native()),
         );
