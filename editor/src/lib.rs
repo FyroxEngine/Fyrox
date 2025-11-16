@@ -174,8 +174,9 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::EditorSceneWrapper, menu::SceneNodeContextMenu, WorldViewer},
 };
+use fyrox::core::info;
 use fyrox::engine::GraphicsContext;
-use fyrox::event_loop::ActiveEventLoop;
+use fyrox::event_loop::{ActiveEventLoop, ControlFlow};
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
@@ -343,6 +344,8 @@ pub struct GameLoopData {
     clock: Instant,
     lag: f32,
 }
+
+#[derive(Clone, Debug)]
 pub struct StartupData {
     /// Working directory that should be set when starting the editor. If it is empty, then
     /// current working directory won't be changed.
@@ -352,6 +355,11 @@ pub struct StartupData {
     pub scenes: Vec<PathBuf>,
 
     pub named_objects: bool,
+
+    /// A request to run the editor in automated testing mode. This means no graphics system,
+    /// OS windows, the editor will always be active (no sleeping). This option has very limited use,
+    /// and mostly intended for automated testing during the editor development.
+    pub automated_testing: bool,
 }
 
 #[derive(Debug)]
@@ -653,6 +661,7 @@ pub struct Editor {
     pub loading_scenes: Arc<Mutex<FxHashSet<PathBuf>>>,
     pub scene_loading_window: Option<SceneLoadingWindow>,
     pub default_layout: DockingManagerLayoutDescriptor,
+    pub startup_data: Option<StartupData>,
 }
 
 fn make_dark_style() -> StyleResource {
@@ -1094,6 +1103,7 @@ impl Editor {
             loading_scenes: Default::default(),
             scene_loading_window: None,
             default_layout,
+            startup_data: startup_data.clone(),
         };
 
         if let Some(data) = startup_data {
@@ -2846,7 +2856,8 @@ impl Editor {
     }
 
     pub fn is_active(&self) -> bool {
-        self.settings.general.keep_editor_active
+        self.is_in_automated_testing_mode()
+            || self.settings.general.keep_editor_active
             || (!self.update_loop_state.is_suspended()
             && (self.focused || !self.settings.general.suspend_unfocused_editor)
             // Keep the editor active if user holds any mouse button.
@@ -2855,7 +2866,17 @@ impl Editor {
             ||!self.loading_scenes.safe_lock().is_empty())
     }
 
+    fn is_in_automated_testing_mode(&self) -> bool {
+        self.startup_data
+            .as_ref()
+            .is_some_and(|d| d.automated_testing)
+    }
+
     fn on_resumed(&mut self, event_loop: &ActiveEventLoop) {
+        if self.is_in_automated_testing_mode() {
+            return;
+        }
+
         let engine = &mut self.engine;
 
         Log::verify(engine.initialize_graphics_context(event_loop));
@@ -2922,149 +2943,162 @@ impl Editor {
         }
     }
 
-    pub fn run(mut self, event_loop: EventLoop<()>) {
+    pub fn run(self, event_loop: EventLoop<()>) {
+        self.run_ex(event_loop, |_, _, _| {});
+    }
+
+    pub fn run_ex<F>(mut self, event_loop: EventLoop<()>, mut on_event: F)
+    where
+        F: FnMut(&mut Editor, &Event<()>, &ActiveEventLoop),
+    {
         Log::info("Initializing resource registry.");
         self.engine.resource_manager.update_or_load_registry();
 
         for_each_plugin!(self.plugins => on_start(&mut self));
 
         event_loop
-            .run(move |event, window_target| match event {
-                Event::AboutToWait => {
-                    if self.is_active() {
-                        update(&mut self, window_target);
-                    }
+            .run(move |event, event_loop| {
+                on_event(&mut self, &event, event_loop);
 
-                    if self.exit {
-                        window_target.exit();
+                match event {
+                    Event::AboutToWait => {
+                        if self.is_active() {
+                            update(&mut self, event_loop);
+                        }
 
-                        // Kill any active child process on exit.
-                        match self.mode {
-                            Mode::Edit => {}
-                            Mode::Build {
-                                ref mut process, ..
-                            } => {
-                                if let Some(process) = process {
+                        if self.exit {
+                            event_loop.exit();
+
+                            // Kill any active child process on exit.
+                            match self.mode {
+                                Mode::Edit => {}
+                                Mode::Build {
+                                    ref mut process, ..
+                                } => {
+                                    if let Some(process) = process {
+                                        let _ = process.kill();
+                                    }
+                                }
+                                Mode::Play {
+                                    ref mut process, ..
+                                } => {
                                     let _ = process.kill();
                                 }
                             }
-                            Mode::Play {
-                                ref mut process, ..
-                            } => {
-                                let _ = process.kill();
-                            }
                         }
                     }
-                }
-                Event::Resumed => {
-                    self.on_resumed(window_target);
-                }
-                Event::Suspended => {
-                    self.on_suspended();
-                }
-                Event::WindowEvent { ref event, .. } => {
-                    match event {
-                        WindowEvent::CloseRequested => {
-                            self.message_sender.send(Message::Exit { force: false });
-                        }
-                        WindowEvent::Resized(size) => {
-                            if let Err(e) = self.engine.set_frame_size((*size).into()) {
-                                fyrox::core::log::Log::writeln(
-                                    MessageKind::Error,
-                                    format!("Failed to set renderer size! Reason: {e:?}"),
-                                );
+                    Event::Resumed => {
+                        self.on_resumed(event_loop);
+                    }
+                    Event::Suspended => {
+                        self.on_suspended();
+                    }
+                    Event::WindowEvent { ref event, .. } => {
+                        match event {
+                            WindowEvent::CloseRequested => {
+                                self.message_sender.send(Message::Exit { force: false });
                             }
-
-                            if let GraphicsContext::Initialized(ref graphics_context) =
-                                self.engine.graphics_context
-                            {
-                                let window = &graphics_context.window;
-
-                                let logical_size = size.to_logical(window.scale_factor());
-                                self.engine.user_interfaces.first().send_many(
-                                    self.root_grid,
-                                    [
-                                        WidgetMessage::Width(logical_size.width),
-                                        WidgetMessage::Height(logical_size.height),
-                                    ],
-                                );
-
-                                if size.width > 0 && size.height > 0 {
-                                    self.settings.windows.window_size.x = size.width as f32;
-                                    self.settings.windows.window_size.y = size.height as f32;
+                            WindowEvent::Resized(size) => {
+                                if let Err(e) = self.engine.set_frame_size((*size).into()) {
+                                    fyrox::core::log::Log::writeln(
+                                        MessageKind::Error,
+                                        format!("Failed to set renderer size! Reason: {e:?}"),
+                                    );
                                 }
 
-                                self.settings.windows.window_maximized = window.is_maximized();
+                                if let GraphicsContext::Initialized(ref graphics_context) =
+                                    self.engine.graphics_context
+                                {
+                                    let window = &graphics_context.window;
+
+                                    let logical_size = size.to_logical(window.scale_factor());
+                                    self.engine.user_interfaces.first().send_many(
+                                        self.root_grid,
+                                        [
+                                            WidgetMessage::Width(logical_size.width),
+                                            WidgetMessage::Height(logical_size.height),
+                                        ],
+                                    );
+
+                                    if size.width > 0 && size.height > 0 {
+                                        self.settings.windows.window_size.x = size.width as f32;
+                                        self.settings.windows.window_size.y = size.height as f32;
+                                    }
+
+                                    self.settings.windows.window_maximized = window.is_maximized();
+                                }
                             }
-                        }
-                        WindowEvent::Focused(focused) => {
-                            self.focused = *focused;
-                            self.on_focus_changed();
-                        }
-                        WindowEvent::Moved(new_position) => {
-                            // Allow the window to go outside the screen bounds by a little. This
-                            // happens when the window is maximized.
-                            if new_position.x > -50 && new_position.y > -50 {
-                                self.settings.windows.window_position.x = new_position.x as f32;
-                                self.settings.windows.window_position.y = new_position.y as f32;
+                            WindowEvent::Focused(focused) => {
+                                self.focused = *focused;
+                                self.on_focus_changed();
                             }
-                        }
-                        WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                            set_ui_scaling(
-                                self.engine.user_interfaces.first(),
-                                *scale_factor as f32,
-                            );
-                        }
-                        WindowEvent::RedrawRequested => {
-                            if self.is_active() {
-                                let entry = self.scenes.current_scene_entry_mut();
-                                entry
-                                    .controller
-                                    .on_before_render(&entry.selection, &mut self.engine);
-
-                                self.engine.render().unwrap();
-
-                                self.scenes
-                                    .current_scene_controller_mut()
-                                    .on_after_render(&mut self.engine);
+                            WindowEvent::Moved(new_position) => {
+                                // Allow the window to go outside the screen bounds by a little. This
+                                // happens when the window is maximized.
+                                if new_position.x > -50 && new_position.y > -50 {
+                                    self.settings.windows.window_position.x = new_position.x as f32;
+                                    self.settings.windows.window_position.y = new_position.y as f32;
+                                }
                             }
+                            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                                set_ui_scaling(
+                                    self.engine.user_interfaces.first(),
+                                    *scale_factor as f32,
+                                );
+                            }
+                            WindowEvent::RedrawRequested => {
+                                if self.is_active() {
+                                    let entry = self.scenes.current_scene_entry_mut();
+                                    entry
+                                        .controller
+                                        .on_before_render(&entry.selection, &mut self.engine);
+
+                                    self.engine.render().unwrap();
+
+                                    self.scenes
+                                        .current_scene_controller_mut()
+                                        .on_after_render(&mut self.engine);
+                                }
+                            }
+                            _ => (),
                         }
-                        _ => (),
-                    }
 
-                    // Any action in the window, other than a redraw request forces the editor to
-                    // do another update pass which then pushes a redraw request to the event
-                    // queue. This check prevents infinite loop of this kind.
-                    if !matches!(event, WindowEvent::RedrawRequested) {
-                        self.update_loop_state.request_update_in_current_frame();
-                    }
-
-                    if let Some(os_event) = translate_event(event) {
-                        self.engine
-                            .user_interfaces
-                            .first_mut()
-                            .process_os_event(&os_event);
-                    }
-                }
-                Event::LoopExiting => {
-                    let ids = self.scenes.entries.iter().map(|e| e.id).collect::<Vec<_>>();
-                    for id in ids {
-                        self.close_scene(id);
-                    }
-
-                    self.settings.force_save();
-
-                    for_each_plugin!(self.plugins => on_exit(&mut self));
-                }
-                _ => {
-                    if self.is_active() {
-                        if self.is_suspended {
-                            for_each_plugin!(self.plugins => on_resumed(&mut self));
-                            self.is_suspended = false;
+                        // Any action in the window, other than a redraw request forces the editor to
+                        // do another update pass which then pushes a redraw request to the event
+                        // queue. This check prevents infinite loop of this kind.
+                        if !matches!(event, WindowEvent::RedrawRequested) {
+                            self.update_loop_state.request_update_in_current_frame();
                         }
-                    } else if !self.is_suspended {
-                        for_each_plugin!(self.plugins => on_suspended(&mut self));
-                        self.is_suspended = true;
+
+                        if let Some(os_event) = translate_event(event) {
+                            self.engine
+                                .user_interfaces
+                                .first_mut()
+                                .process_os_event(&os_event);
+                        }
+                    }
+                    Event::LoopExiting => {
+                        let ids = self.scenes.entries.iter().map(|e| e.id).collect::<Vec<_>>();
+                        for id in ids {
+                            self.close_scene(id);
+                        }
+
+                        self.settings.force_save();
+
+                        for_each_plugin!(self.plugins => on_exit(&mut self));
+
+                        info!("The editor was closed.");
+                    }
+                    _ => {
+                        if self.is_active() {
+                            if self.is_suspended {
+                                for_each_plugin!(self.plugins => on_resumed(&mut self));
+                                self.is_suspended = false;
+                            }
+                        } else if !self.is_suspended {
+                            for_each_plugin!(self.plugins => on_suspended(&mut self));
+                            self.is_suspended = true;
+                        }
                     }
                 }
             })
@@ -3209,11 +3243,13 @@ fn update(editor: &mut Editor, event_loop: &ActiveEventLoop) {
         }
     }
 
-    let window = &editor.engine.graphics_context.as_initialized_ref().window;
-    window.set_cursor_icon(translate_cursor_icon(
-        editor.engine.user_interfaces.first_mut().cursor(),
-    ));
-    window.request_redraw();
+    if let GraphicsContext::Initialized(ref graphics_context) = editor.engine.graphics_context {
+        let window = &graphics_context.window;
+        window.set_cursor_icon(translate_cursor_icon(
+            editor.engine.user_interfaces.first_mut().cursor(),
+        ));
+        window.request_redraw();
+    }
 
     if !editor.is_in_preview_mode() {
         editor.update_loop_state.decrease_counter();
