@@ -818,6 +818,14 @@ impl Widget {
             .coords
     }
 
+    /// Maps the given point from local widget's coordinates to screen.
+    #[inline]
+    pub fn local_to_screen(&self, point: Vector2<f32>) -> Vector2<f32> {
+        self.visual_transform
+            .transform_point(&Point2::from(point))
+            .coords
+    }
+
     /// Invalidates layout of the widget. **WARNING**: Do not use this method, unless you understand what you're doing,
     /// it will cause new layout pass for this widget which could be quite heavy and doing so on every frame for multiple
     /// widgets **will** cause severe performance issues.
