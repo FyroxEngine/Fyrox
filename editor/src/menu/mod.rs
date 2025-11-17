@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::asset::preview::cache::IconRequest;
 use crate::{
+    asset::preview::cache::IconRequest,
     export::ExportWindow,
     fyrox::{
         core::{algebra::Vector2, pool::Handle},
@@ -40,6 +40,7 @@ use crate::{
     stats::StatisticsWindow,
     Engine, Mode, SceneSettingsWindow,
 };
+use fyrox::core::Uuid;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 
@@ -88,36 +89,52 @@ pub struct MenuContext<'a, 'b> {
 
 pub fn create_root_menu_item(
     text: &str,
+    id: Uuid,
     items: Vec<Handle<UiNode>>,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
-    MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
-        .with_content(MenuItemContent::text_centered(text))
-        .with_items(items)
-        .build(ctx)
+    MenuItemBuilder::new(
+        WidgetBuilder::new()
+            .with_id(id)
+            .with_name(text)
+            .with_margin(Thickness::right(10.0)),
+    )
+    .with_content(MenuItemContent::text_centered(text))
+    .with_items(items)
+    .build(ctx)
 }
 
 pub fn create_menu_item(
     text: &str,
+    id: Uuid,
     items: Vec<Handle<UiNode>>,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
-    MenuItemBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)))
-        .with_content(MenuItemContent::text(text))
-        .with_items(items)
-        .build(ctx)
+    MenuItemBuilder::new(
+        WidgetBuilder::new()
+            .with_id(id)
+            .with_min_size(Vector2::new(120.0, 22.0)),
+    )
+    .with_content(MenuItemContent::text(text))
+    .with_items(items)
+    .build(ctx)
 }
 
 pub fn create_menu_item_shortcut(
     text: &str,
+    id: Uuid,
     shortcut: &str,
     items: Vec<Handle<UiNode>>,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
-    MenuItemBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)))
-        .with_content(MenuItemContent::text_with_shortcut(text, shortcut))
-        .with_items(items)
-        .build(ctx)
+    MenuItemBuilder::new(
+        WidgetBuilder::new()
+            .with_id(id)
+            .with_min_size(Vector2::new(120.0, 22.0)),
+    )
+    .with_content(MenuItemContent::text_with_shortcut(text, shortcut))
+    .with_items(items)
+    .build(ctx)
 }
 
 impl Menu {

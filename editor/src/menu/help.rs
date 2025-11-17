@@ -23,6 +23,7 @@ use crate::fyrox::{
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
 };
 use crate::menu::{create_menu_item, create_root_menu_item};
+use fyrox::core::{uuid, Uuid};
 
 pub struct HelpMenu {
     pub menu: Handle<UiNode>,
@@ -31,18 +32,24 @@ pub struct HelpMenu {
 }
 
 impl HelpMenu {
+    pub const HELP: Uuid = uuid!("ac39d24b-16e0-4150-b33b-a990d0c8b7bb");
+    pub const OPEN_BOOK: Uuid = uuid!("ad6133b9-a3b3-4fd4-9fbf-491d220ffe0a");
+    pub const OPEN_API: Uuid = uuid!("974533d3-7c20-460d-91a6-31aa91d35511");
+
     pub fn new(ctx: &mut BuildContext) -> Self {
         let open_book;
         let open_api_reference;
         let menu = create_root_menu_item(
             "Help",
+            Self::HELP,
             vec![
                 {
-                    open_book = create_menu_item("Open Book", vec![], ctx);
+                    open_book = create_menu_item("Open Book", Self::OPEN_BOOK, vec![], ctx);
                     open_book
                 },
                 {
-                    open_api_reference = create_menu_item("Open API Reference", vec![], ctx);
+                    open_api_reference =
+                        create_menu_item("Open API Reference", Self::OPEN_API, vec![], ctx);
                     open_api_reference
                 },
             ],

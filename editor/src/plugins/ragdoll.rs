@@ -66,6 +66,7 @@ use crate::{
     Editor,
 };
 use fyrox::asset::manager::ResourceManager;
+use fyrox::core::{uuid, Uuid};
 use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
 use std::{ops::Range, sync::Arc};
 
@@ -1234,6 +1235,8 @@ pub struct RagdollPlugin {
 }
 
 impl RagdollPlugin {
+    pub const RAGDOLL_WIZARD: Uuid = uuid!("314ac0b6-da33-4808-b508-e362043cbdbf");
+
     fn on_open_ragdoll_wizard_clicked(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
         let ctx = &mut ui.build_ctx();
@@ -1252,7 +1255,8 @@ impl EditorPlugin for RagdollPlugin {
     fn on_start(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
         let ctx = &mut ui.build_ctx();
-        self.open_ragdoll_wizard = create_menu_item("Ragdoll Wizard", vec![], ctx);
+        self.open_ragdoll_wizard =
+            create_menu_item("Ragdoll Wizard", Self::RAGDOLL_WIZARD, vec![], ctx);
         ui.send(
             editor.menu.utils_menu.menu,
             MenuItemMessage::AddItem(self.open_ragdoll_wizard),

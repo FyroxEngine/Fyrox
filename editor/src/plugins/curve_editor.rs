@@ -536,6 +536,8 @@ pub struct CurveEditorPlugin {
 }
 
 impl CurveEditorPlugin {
+    pub const CURVE_EDITOR: Uuid = uuid!("20705d17-741d-45bf-a9ba-ec3cee34ac2b");
+
     fn on_open_curve_editor_clicked(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
         let ctx = &mut ui.build_ctx();
@@ -550,7 +552,7 @@ impl EditorPlugin for CurveEditorPlugin {
     fn on_start(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
         let ctx = &mut ui.build_ctx();
-        self.open_curve_editor = create_menu_item("Curve Editor", vec![], ctx);
+        self.open_curve_editor = create_menu_item("Curve Editor", Self::CURVE_EDITOR, vec![], ctx);
         ui.send(
             editor.menu.utils_menu.menu,
             MenuItemMessage::AddItem(self.open_curve_editor),

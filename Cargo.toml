@@ -22,7 +22,7 @@ members = [
     "fyrox-texture",
     "fyrox-autotile",
     "fyrox-material"
-    , "fyrox-graphics-gl"]
+    , "fyrox-graphics-gl", "editor-automated-tests"]
 resolver = "2"
 
 [profile.editor-standalone]

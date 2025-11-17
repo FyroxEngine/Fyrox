@@ -77,6 +77,9 @@ struct ContextMenu {
 }
 
 impl ContextMenu {
+    pub const ADD_SIGNAL: Uuid = uuid!("c207c481-bc18-4c4b-86aa-2881eaa61e92");
+    pub const REMOVE_SIGNAL: Uuid = uuid!("0b272e64-1015-4f29-918b-8e9a12e9fffd");
+
     fn new(ctx: &mut BuildContext) -> Self {
         let add_signal;
         let remove_signal;
@@ -86,11 +89,17 @@ impl ContextMenu {
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
                             .with_child({
-                                add_signal = create_menu_item("Add Signal", vec![], ctx);
+                                add_signal =
+                                    create_menu_item("Add Signal", Self::ADD_SIGNAL, vec![], ctx);
                                 add_signal
                             })
                             .with_child({
-                                remove_signal = create_menu_item("Remove Signal", vec![], ctx);
+                                remove_signal = create_menu_item(
+                                    "Remove Signal",
+                                    Self::REMOVE_SIGNAL,
+                                    vec![],
+                                    ctx,
+                                );
                                 remove_signal
                             }),
                     )

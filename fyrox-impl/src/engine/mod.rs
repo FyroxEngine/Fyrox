@@ -1944,7 +1944,7 @@ impl Engine {
         self.performance_statistics.ui_time = instant::Instant::now() - time;
         self.elapsed_time += dt;
 
-        if let GraphicsContext::Initialized(ref ctx) = self.graphics_context {
+        if let GraphicsContext::Initialized(_) = self.graphics_context {
             self.post_update_plugins(dt, controller, lag);
 
             self.input_state.mouse.speed = Vector2::default();

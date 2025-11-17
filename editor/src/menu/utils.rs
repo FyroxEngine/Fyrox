@@ -26,6 +26,7 @@ use crate::{
     menu::{create_menu_item, create_root_menu_item, Panels},
     stats::StatisticsWindow,
 };
+use fyrox::core::{uuid, Uuid};
 
 pub struct UtilsMenu {
     pub menu: Handle<UiNode>,
@@ -33,12 +34,21 @@ pub struct UtilsMenu {
 }
 
 impl UtilsMenu {
+    pub const UTILS: Uuid = uuid!("f6a9a297-6efc-4b62-83b6-3955c0c43a00");
+    pub const RENDERING_STATISTICS: Uuid = uuid!("ecf0bdb9-f97f-4df0-b17f-7ec07bdebd4d");
+
     pub fn new(ctx: &mut BuildContext) -> Self {
         let rendering_statistics;
         let menu = create_root_menu_item(
             "Utils",
+            Self::UTILS,
             vec![{
-                rendering_statistics = create_menu_item("Rendering Statistics", vec![], ctx);
+                rendering_statistics = create_menu_item(
+                    "Rendering Statistics",
+                    Self::RENDERING_STATISTICS,
+                    vec![],
+                    ctx,
+                );
                 rendering_statistics
             }],
             ctx,

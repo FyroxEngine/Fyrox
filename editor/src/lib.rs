@@ -176,7 +176,7 @@ use crate::{
 };
 use fyrox::core::info;
 use fyrox::engine::GraphicsContext;
-use fyrox::event_loop::{ActiveEventLoop, ControlFlow};
+use fyrox::event_loop::ActiveEventLoop;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
@@ -768,10 +768,14 @@ impl Editor {
             )),
         }
 
-        let inner_size = PhysicalSize::new(
-            settings.windows.window_size.x,
-            settings.windows.window_size.y,
-        );
+        let inner_size = if startup_data.as_ref().is_some_and(|d| d.automated_testing) {
+            PhysicalSize::new(1000.0, 1000.0)
+        } else {
+            PhysicalSize::new(
+                settings.windows.window_size.x,
+                settings.windows.window_size.y,
+            )
+        };
 
         let mut window_attributes = WindowAttributes::default();
         window_attributes.maximized = settings.windows.window_maximized;
@@ -2943,14 +2947,7 @@ impl Editor {
         }
     }
 
-    pub fn run(self, event_loop: EventLoop<()>) {
-        self.run_ex(event_loop, |_, _, _| {});
-    }
-
-    pub fn run_ex<F>(mut self, event_loop: EventLoop<()>, mut on_event: F)
-    where
-        F: FnMut(&mut Editor, &Event<()>, &ActiveEventLoop),
-    {
+    pub fn run(mut self, event_loop: EventLoop<()>) {
         Log::info("Initializing resource registry.");
         self.engine.resource_manager.update_or_load_registry();
 
@@ -2958,8 +2955,6 @@ impl Editor {
 
         event_loop
             .run(move |event, event_loop| {
-                on_event(&mut self, &event, event_loop);
-
                 match event {
                     Event::AboutToWait => {
                         if self.is_active() {

@@ -123,6 +123,11 @@ struct TrackContextMenu {
 }
 
 impl TrackContextMenu {
+    pub const REMOVE_SELECTED: Uuid = uuid!("5763584b-451f-442b-a701-860b6ebe8ade");
+    pub const SET_TARGET: Uuid = uuid!("18bd0b4b-4c8d-4a47-aa32-0169dfb4f766");
+    pub const REBIND: Uuid = uuid!("56adb9f1-ea0f-4d1a-8f55-b09184e0b5cc");
+    pub const DUPLICATE: Uuid = uuid!("17ae02cc-0139-4697-9ce9-4ed680402be4");
+
     fn new(ctx: &mut BuildContext) -> Self {
         let remove_track;
         let set_target;
@@ -134,20 +139,30 @@ impl TrackContextMenu {
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
                             .with_child({
-                                remove_track =
-                                    create_menu_item("Remove Selected Tracks", vec![], ctx);
+                                remove_track = create_menu_item(
+                                    "Remove Selected Tracks",
+                                    Self::REMOVE_SELECTED,
+                                    vec![],
+                                    ctx,
+                                );
                                 remove_track
                             })
                             .with_child({
-                                set_target = create_menu_item("Set Target...", vec![], ctx);
+                                set_target = create_menu_item(
+                                    "Set Target...",
+                                    Self::SET_TARGET,
+                                    vec![],
+                                    ctx,
+                                );
                                 set_target
                             })
                             .with_child({
-                                rebind = create_menu_item("Rebind...", vec![], ctx);
+                                rebind = create_menu_item("Rebind...", Self::REBIND, vec![], ctx);
                                 rebind
                             })
                             .with_child({
-                                duplicate = create_menu_item("Duplicate", vec![], ctx);
+                                duplicate =
+                                    create_menu_item("Duplicate", Self::DUPLICATE, vec![], ctx);
                                 duplicate
                             }),
                     )

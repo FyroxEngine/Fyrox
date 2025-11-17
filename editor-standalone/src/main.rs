@@ -52,6 +52,7 @@ fn main() {
                 .map(Into::into)
                 .collect(),
             named_objects: args.named_objects,
+            automated_testing: false,
         })
     } else {
         None

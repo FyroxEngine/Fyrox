@@ -73,6 +73,7 @@ use crate::{
     },
     Editor,
 };
+use fyrox::core::{uuid, Uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 use rust_fuzzy_search::fuzzy_compare;
@@ -425,6 +426,8 @@ pub struct SettingsPlugin {
 }
 
 impl SettingsPlugin {
+    pub const SETTINGS: Uuid = uuid!("7c7799e9-d15e-44be-a70a-8e280d55ff18");
+
     fn on_open_settings_clicked(&mut self, editor: &mut Editor) {
         let window = self
             .window
@@ -447,7 +450,7 @@ impl EditorPlugin for SettingsPlugin {
     fn on_start(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
         let ctx = &mut ui.build_ctx();
-        self.open_settings = create_menu_item("Editor Settings...", vec![], ctx);
+        self.open_settings = create_menu_item("Editor Settings...", Self::SETTINGS, vec![], ctx);
         ui.send(
             editor.menu.file_menu.menu,
             MenuItemMessage::AddItem(self.open_settings),

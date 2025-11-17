@@ -43,6 +43,7 @@ use crate::{
     Engine, Message,
 };
 use fyrox::asset::manager::ResourceManager;
+use fyrox::core::{uuid, Uuid};
 use fyrox::gui::constructor::WidgetConstructorContainer;
 use fyrox::gui::menu::ContextMenuBuilder;
 use std::path::PathBuf;
@@ -80,6 +81,12 @@ fn resource_path_of_first_selected_node(
 }
 
 impl WidgetContextMenu {
+    pub const DELETE_SELECTION: Uuid = uuid!("30eef2a7-9f12-4e64-9142-b604f25e9e06");
+    pub const COPY_SELECTION: Uuid = uuid!("0a2d10bc-de1e-4196-aba6-0a51c54eb238");
+    pub const PASTE_AS_CHILD: Uuid = uuid!("d3b86c8c-1efd-4917-9543-b0f5f32f8cbd");
+    pub const MAKE_ROOT: Uuid = uuid!("968318f6-21c7-430f-a13d-36aefb61cde2");
+    pub const OPEN_ASSET: Uuid = uuid!("f3f7d0fa-e905-4371-8973-dfc1eb758e5a");
+
     pub fn new(
         widget_constructors_container: &WidgetConstructorContainer,
         ctx: &mut BuildContext,
@@ -100,6 +107,7 @@ impl WidgetContextMenu {
                             .with_child({
                                 delete_selection = create_menu_item_shortcut(
                                     "Delete Selection",
+                                    Self::DELETE_SELECTION,
                                     "Del",
                                     vec![],
                                     ctx,
@@ -109,6 +117,7 @@ impl WidgetContextMenu {
                             .with_child({
                                 copy_selection = create_menu_item_shortcut(
                                     "Copy Selection",
+                                    Self::COPY_SELECTION,
                                     "Ctrl+C",
                                     vec![],
                                     ctx,
@@ -116,15 +125,22 @@ impl WidgetContextMenu {
                                 copy_selection
                             })
                             .with_child({
-                                paste = create_menu_item("Paste As Child", vec![], ctx);
+                                paste = create_menu_item(
+                                    "Paste As Child",
+                                    Self::PASTE_AS_CHILD,
+                                    vec![],
+                                    ctx,
+                                );
                                 paste
                             })
                             .with_child({
-                                make_root = create_menu_item("Make Root", vec![], ctx);
+                                make_root =
+                                    create_menu_item("Make Root", Self::MAKE_ROOT, vec![], ctx);
                                 make_root
                             })
                             .with_child({
-                                open_asset = create_menu_item("Open Asset", vec![], ctx);
+                                open_asset =
+                                    create_menu_item("Open Asset", Self::OPEN_ASSET, vec![], ctx);
                                 open_asset
                             })
                             .with_child(widgets_menu.menu),

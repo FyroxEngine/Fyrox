@@ -62,6 +62,7 @@ use crate::{
     ui_scene::UiScene,
     Editor, Message,
 };
+use fyrox::core::{uuid, Uuid};
 use std::any::Any;
 
 mod blendspace;
@@ -708,6 +709,8 @@ pub struct AbsmEditorPlugin {
 }
 
 impl AbsmEditorPlugin {
+    pub const ABSM_EDITOR: Uuid = uuid!("2efc1759-6003-482f-a89f-b908dcbbc7da");
+
     fn get_or_create_absm_editor(
         &mut self,
         ui: &mut UserInterface,
@@ -735,7 +738,7 @@ impl EditorPlugin for AbsmEditorPlugin {
         }
 
         let ctx = &mut ui.build_ctx();
-        self.open_absm_editor = create_menu_item("ABSM Editor", vec![], ctx);
+        self.open_absm_editor = create_menu_item("ABSM Editor", Self::ABSM_EDITOR, vec![], ctx);
         ui.send(
             editor.menu.utils_menu.menu,
             MenuItemMessage::AddItem(self.open_absm_editor),

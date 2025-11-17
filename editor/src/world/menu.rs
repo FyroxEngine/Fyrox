@@ -59,6 +59,7 @@ use crate::{
     world::WorldViewerItemContextMenu,
     Engine, Message, PasteCommand,
 };
+use fyrox::core::{uuid, Uuid};
 use std::{any::TypeId, path::PathBuf};
 
 pub struct SceneNodeContextMenu {
@@ -100,6 +101,17 @@ fn resource_path_of_first_selected_node(
 }
 
 impl SceneNodeContextMenu {
+    pub const CREATE_CHILD: Uuid = uuid!("a5720895-4206-43aa-9dea-dcdccfcdd73a");
+    pub const DELETE: Uuid = uuid!("fc272ecf-1c4f-44d0-bbf1-2e21c8d9ecd2");
+    pub const COPY: Uuid = uuid!("50626c7b-b50f-4547-873c-a11b4125cdd5");
+    pub const PASTE_AS_CHILD: Uuid = uuid!("bb57ff9b-ba80-4f66-b4ad-860b98379e11");
+    pub const CREATE_PARENT: Uuid = uuid!("c58e6407-3819-4254-84c2-5a58eeb4afd9");
+    pub const REPLACE_WITH: Uuid = uuid!("92163075-4d90-4b39-ba9d-af0ebaf62348");
+    pub const SET_AS_ROOT: Uuid = uuid!("689adb98-7603-4576-a0ab-3f48c2d57d22");
+    pub const OPEN_PARENT_PREFAB: Uuid = uuid!("99903c9e-d7ac-49bd-9ee3-3bbd8536f595");
+    pub const SAVE_AS_PREFAB: Uuid = uuid!("82a70cff-b536-46fb-83c0-4a886585d871");
+    pub const RESET_INHERITABLE: Uuid = uuid!("95c6437f-dc23-4ec1-9490-d35f0864f027");
+
     pub fn new(
         serialization_context: &SerializationContext,
         widget_constructors_container: &WidgetConstructorContainer,
@@ -138,14 +150,20 @@ impl SceneNodeContextMenu {
                                 create_child
                             })
                             .with_child({
-                                delete_selection =
-                                    create_menu_item_shortcut("Delete Node(s)", "Del", vec![], ctx);
+                                delete_selection = create_menu_item_shortcut(
+                                    "Delete Node(s)",
+                                    Self::DELETE,
+                                    "Del",
+                                    vec![],
+                                    ctx,
+                                );
                                 delete_selection
                             })
                             .with_child(menu::make_menu_splitter(ctx))
                             .with_child({
                                 copy_selection = create_menu_item_shortcut(
                                     "Copy Node(s)",
+                                    Self::COPY,
                                     "Ctrl+C",
                                     vec![],
                                     ctx,
@@ -153,13 +171,20 @@ impl SceneNodeContextMenu {
                                 copy_selection
                             })
                             .with_child({
-                                paste = create_menu_item("Paste As Child Node", vec![], ctx);
+                                paste = create_menu_item(
+                                    "Paste As Child Node",
+                                    Self::PASTE_AS_CHILD,
+                                    vec![],
+                                    ctx,
+                                );
                                 paste
                             })
                             .with_child(menu::make_menu_splitter(ctx))
                             .with_child({
                                 create_parent = MenuItemBuilder::new(
-                                    WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
+                                    WidgetBuilder::new()
+                                        .with_id(Self::CREATE_PARENT)
+                                        .with_min_size(Vector2::new(120.0, 22.0)),
                                 )
                                 .with_content(MenuItemContent::text("Create Parent Node"))
                                 .with_items(create_parent_entity_menu.root_items.clone())
@@ -168,7 +193,9 @@ impl SceneNodeContextMenu {
                             })
                             .with_child({
                                 replace_with = MenuItemBuilder::new(
-                                    WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
+                                    WidgetBuilder::new()
+                                        .with_id(Self::REPLACE_WITH)
+                                        .with_min_size(Vector2::new(120.0, 22.0)),
                                 )
                                 .with_content(MenuItemContent::text("Replace With Node"))
                                 .with_items(replace_with_menu.root_items.clone())
@@ -176,22 +203,40 @@ impl SceneNodeContextMenu {
                                 replace_with
                             })
                             .with_child({
-                                make_root = create_menu_item("Set As Root Node", vec![], ctx);
+                                make_root = create_menu_item(
+                                    "Set As Root Node",
+                                    Self::SET_AS_ROOT,
+                                    vec![],
+                                    ctx,
+                                );
                                 make_root
                             })
                             .with_child(menu::make_menu_splitter(ctx))
                             .with_child({
-                                open_asset = create_menu_item("Open Parent Prefab", vec![], ctx);
+                                open_asset = create_menu_item(
+                                    "Open Parent Prefab",
+                                    Self::OPEN_PARENT_PREFAB,
+                                    vec![],
+                                    ctx,
+                                );
                                 open_asset
                             })
                             .with_child({
-                                save_as_prefab =
-                                    create_menu_item("Save Node(s) As Prefab...", vec![], ctx);
+                                save_as_prefab = create_menu_item(
+                                    "Save Node(s) As Prefab...",
+                                    Self::SAVE_AS_PREFAB,
+                                    vec![],
+                                    ctx,
+                                );
                                 save_as_prefab
                             })
                             .with_child({
-                                reset_inheritable_properties =
-                                    create_menu_item("Reset Inheritable Properties", vec![], ctx);
+                                reset_inheritable_properties = create_menu_item(
+                                    "Reset Inheritable Properties",
+                                    Self::RESET_INHERITABLE,
+                                    vec![],
+                                    ctx,
+                                );
                                 reset_inheritable_properties
                             }),
                     )

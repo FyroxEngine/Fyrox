@@ -41,6 +41,7 @@ use crate::{
     settings::{recent::RecentFiles, Settings},
     Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
+use fyrox::core::{uuid, Uuid};
 use std::{path::PathBuf, sync::mpsc::Sender};
 
 pub struct FileMenu {
@@ -70,11 +71,25 @@ fn make_recent_files_items(
     recent_files
         .scenes
         .iter()
-        .map(|f| create_menu_item(f.to_string_lossy().as_ref(), vec![], ctx))
+        .map(|f| create_menu_item(f.to_string_lossy().as_ref(), Uuid::new_v4(), vec![], ctx))
         .collect::<Vec<_>>()
 }
 
 impl FileMenu {
+    pub const FILE: Uuid = uuid!("0e55e166-f3bd-44a9-b89d-083ce2cef255");
+    pub const NEW_SCENE: Uuid = uuid!("c9e8025d-6492-4c13-a979-81ddc82dcadb");
+    pub const NEW_UI_SCENE: Uuid = uuid!("1acf882c-cc4c-4745-9cce-d23bdc5b5ced");
+    pub const LOAD_SCENE: Uuid = uuid!("8be5e160-7f60-4678-afcb-5a03d2914fe4");
+    pub const OPEN_RECENT: Uuid = uuid!("112fc0ab-0b0e-4bdf-b6d0-b91ded556f01");
+    pub const SAVE_SCENE: Uuid = uuid!("c8e575db-7de1-4150-a450-df034ddf3431");
+    pub const SAVE_SCENE_AS: Uuid = uuid!("83dd70bc-d269-4904-97cd-489fa67efff2");
+    pub const SAVE_ALL: Uuid = uuid!("48bd5fa6-0e64-4554-b834-68f7b322f842");
+    pub const CLOSE_SCENE: Uuid = uuid!("f90803c3-4ff0-4d68-8ebd-c3c24eaa6693");
+    pub const SCENE_SETTINGS: Uuid = uuid!("aa6743d0-f965-4589-9937-e0b79a350282");
+    pub const CONFIGURE: Uuid = uuid!("220274af-bc1d-47d2-8a1d-7ee4b2d409f4");
+    pub const EXPORT_PROJECT: Uuid = uuid!("699b39ae-a9c2-4af4-9ade-c36a14f96aa2");
+    pub const EXIT: Uuid = uuid!("cf62b116-37fd-4620-8594-9ca04735d45b");
+
     pub fn new(engine: &mut Engine, settings: &Settings) -> Self {
         let new_scene;
         let new_ui_scene;
@@ -104,60 +119,106 @@ impl FileMenu {
 
         let menu = create_root_menu_item(
             "File",
+            Self::FILE,
             vec![
                 {
-                    new_scene = create_menu_item_shortcut("New Scene", "Ctrl+N", vec![], ctx);
+                    new_scene = create_menu_item_shortcut(
+                        "New Scene",
+                        Self::NEW_SCENE,
+                        "Ctrl+N",
+                        vec![],
+                        ctx,
+                    );
                     new_scene
                 },
                 {
-                    new_ui_scene = create_menu_item("New UI Scene", vec![], ctx);
+                    new_ui_scene =
+                        create_menu_item("New UI Scene", Self::NEW_UI_SCENE, vec![], ctx);
                     new_ui_scene
                 },
                 {
-                    load = create_menu_item_shortcut("Load Scene...", "Ctrl+L", vec![], ctx);
+                    load = create_menu_item_shortcut(
+                        "Load Scene...",
+                        Self::LOAD_SCENE,
+                        "Ctrl+L",
+                        vec![],
+                        ctx,
+                    );
                     load
                 },
                 {
-                    recent_files_container =
-                        create_menu_item("Open Recent Scene", recent_files.clone(), ctx);
+                    recent_files_container = create_menu_item(
+                        "Open Recent Scene",
+                        Self::OPEN_RECENT,
+                        recent_files.clone(),
+                        ctx,
+                    );
                     recent_files_container
                 },
                 menu::make_menu_splitter(ctx),
                 {
-                    save = create_menu_item_shortcut("Save Scene", "Ctrl+S", vec![], ctx);
+                    save = create_menu_item_shortcut(
+                        "Save Scene",
+                        Self::SAVE_SCENE,
+                        "Ctrl+S",
+                        vec![],
+                        ctx,
+                    );
                     save
                 },
                 {
-                    save_as =
-                        create_menu_item_shortcut("Save Scene As...", "Ctrl+Shift+S", vec![], ctx);
+                    save_as = create_menu_item_shortcut(
+                        "Save Scene As...",
+                        Self::SAVE_SCENE_AS,
+                        "Ctrl+Shift+S",
+                        vec![],
+                        ctx,
+                    );
                     save_as
                 },
                 {
-                    save_all = create_menu_item_shortcut("Save All", "Ctrl+Alt+S", vec![], ctx);
+                    save_all = create_menu_item_shortcut(
+                        "Save All",
+                        Self::SAVE_ALL,
+                        "Ctrl+Alt+S",
+                        vec![],
+                        ctx,
+                    );
                     save_all
                 },
                 menu::make_menu_splitter(ctx),
                 {
-                    close_scene =
-                        create_menu_item_shortcut("Close Current Scene", "Ctrl+Q", vec![], ctx);
+                    close_scene = create_menu_item_shortcut(
+                        "Close Current Scene",
+                        Self::CLOSE_SCENE,
+                        "Ctrl+Q",
+                        vec![],
+                        ctx,
+                    );
                     close_scene
                 },
                 {
-                    open_scene_settings =
-                        create_menu_item("Current Scene Settings...", vec![], ctx);
+                    open_scene_settings = create_menu_item(
+                        "Current Scene Settings...",
+                        Self::SCENE_SETTINGS,
+                        vec![],
+                        ctx,
+                    );
                     open_scene_settings
                 },
                 menu::make_menu_splitter(ctx),
                 {
-                    configure = create_menu_item("Configure Editor...", vec![], ctx);
+                    configure =
+                        create_menu_item("Configure Editor...", Self::CONFIGURE, vec![], ctx);
                     configure
                 },
                 {
-                    export_project = create_menu_item("Export Project...", vec![], ctx);
+                    export_project =
+                        create_menu_item("Export Project...", Self::EXPORT_PROJECT, vec![], ctx);
                     export_project
                 },
                 {
-                    exit = create_menu_item_shortcut("Exit", "Alt+F4", vec![], ctx);
+                    exit = create_menu_item_shortcut("Exit", Self::EXIT, "Alt+F4", vec![], ctx);
                     exit
                 },
             ],

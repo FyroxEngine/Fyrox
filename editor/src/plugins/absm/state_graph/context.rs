@@ -50,6 +50,7 @@ use crate::{
 };
 
 use fyrox::core::reflect::Reflect;
+use fyrox::core::{uuid, Uuid};
 use fyrox::gui::menu::ContextMenuBuilder;
 
 pub struct CanvasContextMenu {
@@ -61,6 +62,9 @@ pub struct CanvasContextMenu {
 }
 
 impl CanvasContextMenu {
+    pub const CREATE_STATE: Uuid = uuid!("6a3fafe3-0362-4964-a91c-f7a4b1e4e15e");
+    pub const CONNECT_ALL: Uuid = uuid!("3db3f59f-e37a-439d-92fc-7785cf48ac49");
+
     pub fn new(ctx: &mut BuildContext) -> Self {
         let create_state;
         let connect_all_nodes;
@@ -69,11 +73,17 @@ impl CanvasContextMenu {
                 .with_content(
                     StackPanelBuilder::new(WidgetBuilder::new().with_children([
                         {
-                            create_state = create_menu_item("Create State", vec![], ctx);
+                            create_state =
+                                create_menu_item("Create State", Self::CREATE_STATE, vec![], ctx);
                             create_state
                         },
                         {
-                            connect_all_nodes = create_menu_item("Connect all nodes", vec![], ctx);
+                            connect_all_nodes = create_menu_item(
+                                "Connect all nodes",
+                                Self::CONNECT_ALL,
+                                vec![],
+                                ctx,
+                            );
                             connect_all_nodes
                         },
                     ]))
@@ -163,6 +173,12 @@ pub struct NodeContextMenu {
 }
 
 impl NodeContextMenu {
+    pub const CREATE_TRANSITION: Uuid = uuid!("4a76fffd-ed28-4451-96f1-72ff9459fc64");
+    pub const REMOVE: Uuid = uuid!("23b98c44-2cbb-499b-98b2-46fde9438c8f");
+    pub const SET_AS_ENTRY_STATE: Uuid = uuid!("bf43a306-58b9-46c8-bd8a-108bdfd1c67b");
+    pub const ENTER_STATE: Uuid = uuid!("78c899a7-b11f-4c25-969d-019272a440a3");
+    pub const CREATE_ALL_TRANSITIONS: Uuid = uuid!("75b69ca2-e11c-4d00-94e6-3e548ec3d526");
+
     pub fn new(ctx: &mut BuildContext) -> Self {
         let create_transition;
         let remove;
@@ -175,26 +191,36 @@ impl NodeContextMenu {
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
                             .with_child({
-                                create_transition =
-                                    create_menu_item("Create Transition", vec![], ctx);
+                                create_transition = create_menu_item(
+                                    "Create Transition",
+                                    Self::CREATE_TRANSITION,
+                                    vec![],
+                                    ctx,
+                                );
                                 create_transition
                             })
                             .with_child({
-                                remove = create_menu_item("Remove", vec![], ctx);
+                                remove = create_menu_item("Remove", Self::REMOVE, vec![], ctx);
                                 remove
                             })
                             .with_child({
-                                set_as_entry_state =
-                                    create_menu_item("Set As Entry State", vec![], ctx);
+                                set_as_entry_state = create_menu_item(
+                                    "Set As Entry State",
+                                    Self::SET_AS_ENTRY_STATE,
+                                    vec![],
+                                    ctx,
+                                );
                                 set_as_entry_state
                             })
                             .with_child({
-                                enter_state = create_menu_item("Enter State", vec![], ctx);
+                                enter_state =
+                                    create_menu_item("Enter State", Self::ENTER_STATE, vec![], ctx);
                                 enter_state
                             })
                             .with_child({
                                 connect_to_all_nodes = create_menu_item(
                                     "Create all transition from current state",
+                                    Self::CREATE_ALL_TRANSITIONS,
                                     vec![],
                                     ctx,
                                 );
@@ -342,13 +368,20 @@ pub struct TransitionContextMenu {
 }
 
 impl TransitionContextMenu {
+    pub const REMOVE_TRANSITION: Uuid = uuid!("57a73a49-7734-421a-bcd4-8caf44bc3a71");
+
     pub fn new(ctx: &mut BuildContext) -> Self {
         let remove;
         let menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
                 .with_content(
                     StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                        remove = create_menu_item("Remove Transition", vec![], ctx);
+                        remove = create_menu_item(
+                            "Remove Transition",
+                            Self::REMOVE_TRANSITION,
+                            vec![],
+                            ctx,
+                        );
                         remove
                     }))
                     .build(ctx),

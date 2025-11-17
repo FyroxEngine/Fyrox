@@ -35,6 +35,7 @@ use crate::{
     plugin::EditorPlugin,
     Editor,
 };
+use fyrox::core::{uuid, Uuid};
 use fyrox::gui::window::WindowTitle;
 
 /// Editor UI statistics, useful to track number of active widgets and memory consumption.
@@ -46,11 +47,16 @@ pub struct UiStatisticsPlugin {
     open_ui_stats: Handle<UiNode>,
 }
 
+impl UiStatisticsPlugin {
+    pub const UI_STATISTICS: Uuid = uuid!("6331d1a4-3194-4b80-a95b-1558c61e1b1a");
+}
+
 impl EditorPlugin for UiStatisticsPlugin {
     fn on_start(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
         let ctx = &mut ui.build_ctx();
-        self.open_ui_stats = create_menu_item("Editor UI Statistics", vec![], ctx);
+        self.open_ui_stats =
+            create_menu_item("Editor UI Statistics", Self::UI_STATISTICS, vec![], ctx);
         ui.send(
             editor.menu.utils_menu.menu,
             MenuItemMessage::AddItem(self.open_ui_stats),

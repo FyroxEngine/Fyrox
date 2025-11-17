@@ -41,6 +41,7 @@ use crate::{
     Mode,
 };
 use fyrox::core::log::Log;
+use fyrox::core::{uuid, Uuid};
 use fyrox::graph::constructor::{VariantConstructor, VariantResult};
 use fyrox::gui::constructor::WidgetConstructorContainer;
 use fyrox::gui::menu::SortingPredicate;
@@ -52,6 +53,8 @@ pub struct CreateEntityRootMenu {
 }
 
 impl CreateEntityRootMenu {
+    pub const CREATE: Uuid = uuid!("edc4d319-2e8e-4173-8b35-73ff4982f380");
+
     pub fn new(
         serialization_context: &SerializationContext,
         widget_constructors_container: &WidgetConstructorContainer,
@@ -60,7 +63,7 @@ impl CreateEntityRootMenu {
         let sub_menus =
             CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
 
-        let menu = create_root_menu_item("Create", sub_menus.root_items.clone(), ctx);
+        let menu = create_root_menu_item("Create", Self::CREATE, sub_menus.root_items.clone(), ctx);
 
         ctx.inner().send(
             menu,
@@ -131,13 +134,14 @@ impl CreateEntityMenu {
         let constructors = serialization_context.node_constructors.map();
         for constructor in constructors.values() {
             for variant in constructor.variants.iter() {
-                let item = create_menu_item(&variant.name, vec![], ctx);
+                let item = create_menu_item(&variant.name, Uuid::new_v4(), vec![], ctx);
                 constructor_views.insert(item, variant.constructor.clone());
                 if constructor.group.is_empty() {
                     root_items.push(item);
                 } else {
                     let group = *groups.entry(constructor.group).or_insert_with(|| {
-                        let group = create_menu_item(constructor.group, vec![], ctx);
+                        let group =
+                            create_menu_item(constructor.group, Uuid::new_v4(), vec![], ctx);
                         root_items.push(group);
                         group
                     });

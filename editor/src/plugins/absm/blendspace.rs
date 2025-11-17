@@ -482,6 +482,9 @@ struct BlendSpaceFieldBuilder {
 }
 
 impl BlendSpaceFieldBuilder {
+    pub const ADD_POINT: Uuid = uuid!("4482aa34-35ca-4432-978a-720b4e4375a3");
+    pub const REMOVE_POINT: Uuid = uuid!("f84cdb71-090a-463c-919d-b01c1a39ed38");
+
     fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -500,11 +503,17 @@ impl BlendSpaceFieldBuilder {
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
                             .with_child({
-                                add_point = create_menu_item("Add Point", vec![], ctx);
+                                add_point =
+                                    create_menu_item("Add Point", Self::ADD_POINT, vec![], ctx);
                                 add_point
                             })
                             .with_child({
-                                remove_point = create_menu_item("Remove Point", vec![], ctx);
+                                remove_point = create_menu_item(
+                                    "Remove Point",
+                                    Self::REMOVE_POINT,
+                                    vec![],
+                                    ctx,
+                                );
                                 remove_point
                             }),
                     )

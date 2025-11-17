@@ -65,6 +65,7 @@ use crate::{
 };
 
 use fyrox::core::reflect::Reflect;
+use fyrox::core::uuid;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::any::{Any, TypeId};
@@ -859,6 +860,8 @@ pub struct AnimationEditorPlugin {
 }
 
 impl AnimationEditorPlugin {
+    pub const ANIMATION_EDITOR: Uuid = uuid!("139e314b-89a0-4494-ae82-22487f77335d");
+
     fn get_or_create_animation_editor(&mut self, ui: &mut UserInterface) -> &mut AnimationEditor {
         self.animation_editor
             .get_or_insert_with(|| AnimationEditor::new(&mut ui.build_ctx()))
@@ -876,7 +879,8 @@ impl EditorPlugin for AnimationEditorPlugin {
         }
 
         let ctx = &mut ui.build_ctx();
-        self.open_animation_editor = create_menu_item("Animation Editor", vec![], ctx);
+        self.open_animation_editor =
+            create_menu_item("Animation Editor", Self::ANIMATION_EDITOR, vec![], ctx);
         ui.send(
             editor.menu.utils_menu.menu,
             MenuItemMessage::AddItem(self.open_animation_editor),

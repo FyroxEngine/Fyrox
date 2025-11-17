@@ -33,6 +33,7 @@ use crate::{
     scene::Selection,
     ui_scene::{commands::graph::AddWidgetCommand, UiScene},
 };
+use fyrox::core::{uuid, Uuid};
 use fyrox::gui::menu::SortingPredicate;
 
 pub struct UiMenu {
@@ -41,6 +42,8 @@ pub struct UiMenu {
 }
 
 impl UiMenu {
+    pub const MENU: Uuid = uuid!("3a3f7035-529e-4d79-a413-a4d887d5e32e");
+
     pub fn new(
         constructors: &WidgetConstructorContainer,
         name: &str,
@@ -52,13 +55,14 @@ impl UiMenu {
         let constructors = constructors.map();
         for constructor in constructors.values() {
             for variant in constructor.variants.iter() {
-                let item = create_menu_item(&variant.name, vec![], ctx);
+                let item = create_menu_item(&variant.name, Uuid::new_v4(), vec![], ctx);
                 constructor_views.insert(item, variant.constructor.clone());
                 if constructor.group.is_empty() {
                     root_items.push(item);
                 } else {
                     let group = *groups.entry(constructor.group).or_insert_with(|| {
-                        let group = create_menu_item(constructor.group, vec![], ctx);
+                        let group =
+                            create_menu_item(constructor.group, Uuid::new_v4(), vec![], ctx);
                         root_items.push(group);
                         group
                     });
@@ -67,7 +71,7 @@ impl UiMenu {
             }
         }
 
-        let menu = create_menu_item(name, root_items.clone(), ctx);
+        let menu = create_menu_item(name, Self::MENU, root_items.clone(), ctx);
 
         for root_item in root_items.iter().chain(&[menu]) {
             ctx.inner().send(
