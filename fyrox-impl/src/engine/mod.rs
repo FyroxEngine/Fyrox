@@ -1926,17 +1926,25 @@ impl Engine {
         lag: &mut f32,
         controller: ApplicationLoopController,
     ) {
-        if let GraphicsContext::Initialized(ref ctx) = self.graphics_context {
+        let screen_size = if let GraphicsContext::Initialized(ref ctx) = self.graphics_context {
             let inner_size = ctx.window.inner_size();
-            let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
+            Some(Vector2::new(
+                inner_size.width as f32,
+                inner_size.height as f32,
+            ))
+        } else {
+            None
+        };
 
-            let time = instant::Instant::now();
-            for ui in self.user_interfaces.iter_mut() {
-                ui.update(window_size, dt, ui_update_switches);
-            }
-            self.performance_statistics.ui_time = instant::Instant::now() - time;
-            self.elapsed_time += dt;
+        let time = instant::Instant::now();
+        for ui in self.user_interfaces.iter_mut() {
+            let screen_size = screen_size.unwrap_or_else(|| ui.screen_size());
+            ui.update(screen_size, dt, ui_update_switches);
+        }
+        self.performance_statistics.ui_time = instant::Instant::now() - time;
+        self.elapsed_time += dt;
 
+        if let GraphicsContext::Initialized(ref ctx) = self.graphics_context {
             self.post_update_plugins(dt, controller, lag);
 
             self.input_state.mouse.speed = Vector2::default();
