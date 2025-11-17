@@ -27,7 +27,6 @@ use crate::{
         core::{
             algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
             color::Color,
-            log::Log,
             pool::Handle,
             uuid::Uuid,
             TypeUuidProvider,
@@ -333,7 +332,6 @@ fn render_scene_to_texture(
 ) -> Option<AssetPreviewTexture> {
     let elapsed_time = engine.elapsed_time();
     let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context else {
-        Log::warn("Cannot render an asset preview when the renderer is not initialized!");
         return None;
     };
 
@@ -662,7 +660,6 @@ pub fn render_ui_to_texture(
     engine: &mut Engine,
 ) -> Option<AssetPreviewTexture> {
     let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context else {
-        Log::warn("Cannot render an asset preview when the renderer is not initialized!");
         return None;
     };
 
