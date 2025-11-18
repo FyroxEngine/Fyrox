@@ -1423,6 +1423,16 @@ impl ApplicationLoopController<'_> {
             }
         }
     }
+
+    /// Returns `true` if the loop will be destroyed in the next frame and the application will
+    /// shut down.
+    pub fn exiting(&self) -> bool {
+        match self {
+            ApplicationLoopController::Headless { running } => !running.get(),
+            ApplicationLoopController::ActiveEventLoop(event_loop) => event_loop.exiting(),
+            ApplicationLoopController::EventLoop(_) => false,
+        }
+    }
 }
 
 impl Engine {

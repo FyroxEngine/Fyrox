@@ -20,6 +20,7 @@
 
 use crate::{fyrox::gui::message::UiMessage, Editor, Message};
 use fyrox::core::define_as_any_trait;
+use fyrox::engine::ApplicationLoopController;
 
 define_as_any_trait!(EditorPluginAsAny => EditorPlugin);
 
@@ -104,11 +105,21 @@ pub trait EditorPlugin: EditorPluginAsAny {
 
     /// This method is called every frame at stable update rate of 60 FPS. It could be used to perform any contiguous
     /// actions.
-    fn on_update(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
+    fn on_update(
+        &mut self,
+        #[allow(unused_variables)] editor: &mut Editor,
+        #[allow(unused_variables)] loop_controller: ApplicationLoopController,
+    ) {
+    }
 
     /// This method is called at the end of all update routines of both the engine and the editor. It could be used to
     /// perform some actions, that require all pre-defined steps to be done.
-    fn on_post_update(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
+    fn on_post_update(
+        &mut self,
+        #[allow(unused_variables)] editor: &mut Editor,
+        #[allow(unused_variables)] loop_controller: ApplicationLoopController,
+    ) {
+    }
 
     /// This method is called when the editor receives a control message. It could be used to catch and react to specific
     /// actions in the editor (such as: scene loading, command execution, undo, redo, etc.).

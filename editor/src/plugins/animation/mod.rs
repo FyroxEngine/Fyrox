@@ -66,6 +66,7 @@ use crate::{
 
 use fyrox::core::reflect::Reflect;
 use fyrox::core::uuid;
+use fyrox::engine::ApplicationLoopController;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::any::{Any, TypeId};
@@ -982,7 +983,7 @@ impl EditorPlugin for AnimationEditorPlugin {
         animation_editor.is_in_preview_mode()
     }
 
-    fn on_update(&mut self, editor: &mut Editor) {
+    fn on_update(&mut self, editor: &mut Editor, _loop_controller: ApplicationLoopController) {
         let entry = editor.scenes.current_scene_entry_mut();
         let animation_editor = some_or_return!(self.animation_editor.as_mut());
         if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {

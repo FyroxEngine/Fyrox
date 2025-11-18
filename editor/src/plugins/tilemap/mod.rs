@@ -123,6 +123,7 @@ use crate::{
     Editor, Message,
 };
 use fyrox::asset::manager::ResourceManager;
+use fyrox::engine::ApplicationLoopController;
 use fyrox::gui::message::MessageData;
 use std::{
     fmt::Debug,
@@ -768,7 +769,7 @@ impl EditorPlugin for TileMapEditorPlugin {
         }
     }
 
-    fn on_update(&mut self, editor: &mut Editor) {
+    fn on_update(&mut self, editor: &mut Editor, _loop_controller: ApplicationLoopController) {
         self.send_delayed_messages(editor.engine.user_interfaces.first_mut());
 
         self.update_state();

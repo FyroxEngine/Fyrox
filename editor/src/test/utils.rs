@@ -18,25 +18,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#![allow(deprecated)]
-
-//! Automated tests for the entire editor.
-//! WARNING: This is experimental functionality and currently in development.
-
-use fyrox::core::{info, Uuid};
-use fyrox::{
-    core::{algebra::Vector2, log::Log},
-    event_loop::{ControlFlow, EventLoopBuilder},
-    graph::SceneGraph,
-    gui::message::{ButtonState, MouseButton, OsEvent},
+use crate::{
+    fyrox::{
+        core::{algebra::Vector2, info, Uuid},
+        engine::ApplicationLoopController,
+        graph::SceneGraph,
+        gui::message::{ButtonState, MouseButton, OsEvent},
+    },
+    plugin::EditorPlugin,
+    test::macros::Macro,
+    Editor, StartupData,
 };
-use fyroxed_base::menu::file::FileMenu;
-use fyroxed_base::{plugin::EditorPlugin, Editor, StartupData};
-use std::{panic, path::PathBuf};
+use std::path::PathBuf;
 
 /// Initializes the editor as is a user would open it, adds the specified plugin that runs the test
 /// logic.
-fn run_editor_test(name: &str, plugin: impl EditorPlugin) {
+pub fn run_editor_test(name: &str, plugin: impl EditorPlugin) {
     let path = PathBuf::from(format!("./AutomatedTests/{name}TestData"));
     if !path.exists() {
         std::fs::create_dir_all(&path).unwrap();
@@ -48,25 +45,22 @@ fn run_editor_test(name: &str, plugin: impl EditorPlugin) {
         working_directory: path.clone(),
         scenes: vec![],
         named_objects: false,
-        automated_testing: true,
     }));
 
-    let event_loop = EventLoopBuilder::new().build().unwrap();
-
-    // Keep updating the editor at full speed.
-    event_loop.set_control_flow(ControlFlow::Poll);
-
     editor.add_editor_plugin(plugin);
-    editor.run(event_loop)
+
+    editor.run_headless()
 }
 
-trait EditorExt {
+pub trait EditorTestingExtension {
+    /// Clicks at the given position.
     fn click(&mut self, position: Vector2<f32>);
 
+    /// Tries to find a widget with the given unique id and clicks at its center.
     fn click_at(&mut self, name: Uuid);
 }
 
-impl EditorExt for Editor {
+impl EditorTestingExtension for Editor {
     fn click(&mut self, position: Vector2<f32>) {
         let ui = self.engine.user_interfaces.first_mut();
         ui.process_os_event(&OsEvent::CursorMoved { position });
@@ -100,24 +94,20 @@ impl EditorExt for Editor {
 }
 
 /// Checks the main menu strip and its sub-menu items. Work-in-progress.
-#[derive(Default)]
-struct MenuTestPlugin {
-    frame: usize,
+pub struct TestPlugin {
+    test_macro: Macro,
 }
 
-impl EditorPlugin for MenuTestPlugin {
-    fn on_update(&mut self, editor: &mut Editor) {
-        match self.frame {
-            0 => editor.click_at(FileMenu::FILE),
-            1 => editor.click_at(FileMenu::NEW_SCENE),
-            2 => assert_eq!(editor.scenes.len(), 1),
-            _ => editor.exit = true,
-        }
-        self.frame += 1;
+impl TestPlugin {
+    /// Creates a new editor plugin for tests.
+    pub fn new(test_macro: Macro) -> Self {
+        Self { test_macro }
     }
 }
 
-fn main() {
-    Log::set_file_name("fyrox.log");
-    run_editor_test("MenuTest", MenuTestPlugin::default());
+impl EditorPlugin for TestPlugin {
+    /// Creates a new editor plugin for tests.
+    fn on_update(&mut self, editor: &mut Editor, loop_controller: ApplicationLoopController) {
+        self.test_macro.execute_next(editor, loop_controller)
+    }
 }

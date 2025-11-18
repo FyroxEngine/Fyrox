@@ -21,8 +21,9 @@ members = [
     "fyrox-build-tools",
     "fyrox-texture",
     "fyrox-autotile",
-    "fyrox-material"
-    , "fyrox-graphics-gl", "editor-automated-tests"]
+    "fyrox-material",
+    "fyrox-graphics-gl"
+]
 resolver = "2"
 
 [profile.editor-standalone]

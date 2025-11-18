@@ -18,44 +18,45 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use clap::Parser;
-use fyrox::core::log::Log;
-use fyrox::event_loop::EventLoop;
-use fyroxed_base::{Editor, StartupData};
+use crate::{
+    fyrox::{core::Uuid, engine::ApplicationLoopController},
+    test::utils::EditorTestingExtension,
+    Editor,
+};
+use std::collections::VecDeque;
 
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Project root directory
-    #[arg(short, long)]
-    project_directory: Option<String>,
+type Action = Box<dyn FnOnce(&mut Editor)>;
 
-    /// List of scenes to load
-    #[arg(short, long)]
-    scenes: Option<Vec<String>>,
-
-    #[arg(short, long)]
-    named_objects: bool,
+pub struct Macro {
+    pub actions: VecDeque<Action>,
 }
 
-fn main() {
-    Log::set_file_name("fyrox.log");
+impl Macro {
+    pub fn begin() -> Self {
+        Self {
+            actions: Default::default(),
+        }
+    }
 
-    let args = Args::parse();
-    let startup_data = if let Some(proj_dir) = args.project_directory {
-        Some(StartupData {
-            working_directory: proj_dir.into(),
-            scenes: args
-                .scenes
-                .unwrap_or_default()
-                .iter()
-                .map(Into::into)
-                .collect(),
-            named_objects: args.named_objects,
-        })
-    } else {
-        None
-    };
+    pub fn then(mut self, func: impl FnOnce(&mut Editor) + 'static) -> Self {
+        self.actions.push_back(Box::new(func));
+        self
+    }
 
-    Editor::new(startup_data).run(EventLoop::new().unwrap())
+    pub fn click_at(self, uuid: Uuid) -> Self {
+        self.then(move |editor| editor.click_at(uuid))
+    }
+
+    pub fn execute_next(
+        &mut self,
+        editor: &mut Editor,
+        loop_controller: ApplicationLoopController,
+    ) {
+        let Some(action) = self.actions.pop_front() else {
+            loop_controller.exit();
+            return;
+        };
+
+        action(editor);
+    }
 }

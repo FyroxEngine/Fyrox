@@ -63,6 +63,7 @@ use crate::{
     Editor, Message,
 };
 use fyrox::core::{uuid, Uuid};
+use fyrox::engine::ApplicationLoopController;
 use std::any::Any;
 
 mod blendspace;
@@ -837,7 +838,7 @@ impl EditorPlugin for AbsmEditorPlugin {
         absm_editor.is_in_preview_mode()
     }
 
-    fn on_update(&mut self, editor: &mut Editor) {
+    fn on_update(&mut self, editor: &mut Editor, _loop_controller: ApplicationLoopController) {
         let entry = editor.scenes.current_scene_entry_mut();
         let absm_editor = some_or_return!(self.absm_editor.as_mut());
         if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {

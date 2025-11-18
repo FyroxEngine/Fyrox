@@ -91,6 +91,7 @@ use crate::{
     Editor, Engine, Message,
 };
 use fyrox::asset::event::ResourceEvent;
+use fyrox::engine::ApplicationLoopController;
 use fyrox::gui::message::DeliveryMode;
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
@@ -765,7 +766,7 @@ impl EditorPlugin for MaterialPlugin {
         self.material_editor = Some(material_editor);
     }
 
-    fn on_update(&mut self, editor: &mut Editor) {
+    fn on_update(&mut self, editor: &mut Editor, _loop_controller: ApplicationLoopController) {
         let material_editor = some_or_return!(self.material_editor.as_mut());
         if let Some(receiver) = self.receiver.as_ref() {
             material_editor.update(

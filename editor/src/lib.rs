@@ -57,6 +57,9 @@ pub mod ui_scene;
 pub mod utils;
 pub mod world;
 
+#[cfg(test)]
+mod test;
+
 pub use fyrox;
 
 use crate::{
@@ -180,6 +183,7 @@ use fyrox::event_loop::ActiveEventLoop;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
+use std::cell::Cell;
 use std::{
     cell::RefCell,
     collections::VecDeque,
@@ -355,11 +359,6 @@ pub struct StartupData {
     pub scenes: Vec<PathBuf>,
 
     pub named_objects: bool,
-
-    /// A request to run the editor in automated testing mode. This means no graphics system,
-    /// OS windows, the editor will always be active (no sleeping). This option has very limited use,
-    /// and mostly intended for automated testing during the editor development.
-    pub automated_testing: bool,
 }
 
 #[derive(Debug)]
@@ -621,7 +620,6 @@ pub struct Editor {
     pub save_scene_dialog: SaveSceneConfirmationDialog,
     pub light_panel: LightPanel,
     pub menu: Menu,
-    pub exit: bool,
     pub configurator: Configurator,
     pub log: LogPanel,
     pub command_stack_viewer: CommandStackViewer,
@@ -768,14 +766,10 @@ impl Editor {
             )),
         }
 
-        let inner_size = if startup_data.as_ref().is_some_and(|d| d.automated_testing) {
-            PhysicalSize::new(1000.0, 1000.0)
-        } else {
-            PhysicalSize::new(
-                settings.windows.window_size.x,
-                settings.windows.window_size.y,
-            )
-        };
+        let inner_size = PhysicalSize::new(
+            settings.windows.window_size.x,
+            settings.windows.window_size.y,
+        );
 
         let mut window_attributes = WindowAttributes::default();
         window_attributes.maximized = settings.windows.window_maximized;
@@ -1048,7 +1042,6 @@ impl Editor {
             world_viewer: world_outliner,
             root_grid,
             menu,
-            exit: false,
             asset_browser,
             exit_message_box,
             configurator,
@@ -1849,7 +1842,7 @@ impl Editor {
         }
     }
 
-    fn post_update(&mut self) {
+    fn post_update(&mut self, loop_controller: ApplicationLoopController) {
         let entry = self.scenes.current_scene_entry_mut();
         if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
             self.world_viewer.post_update(
@@ -1879,7 +1872,7 @@ impl Editor {
             );
         }
 
-        for_each_plugin!(self.plugins => on_post_update(self));
+        for_each_plugin!(self.plugins => on_post_update(self, loop_controller));
     }
 
     fn do_current_scene_command(&mut self, command: Command) -> bool {
@@ -2131,10 +2124,10 @@ impl Editor {
         }
     }
 
-    fn exit(&mut self, force: bool) {
+    fn exit(&mut self, force: bool, loop_controller: ApplicationLoopController) {
         let engine = &mut self.engine;
         if force {
-            self.exit = true;
+            loop_controller.exit();
         } else if let Some(first_unsaved) = self.scenes.first_unsaved_scene() {
             engine.user_interfaces.first_mut().send(
                 self.exit_message_box,
@@ -2148,8 +2141,21 @@ impl Editor {
                 },
             );
         } else {
-            self.exit = true;
+            loop_controller.exit();
         }
+    }
+
+    fn on_exit(&mut self) {
+        let ids = self.scenes.entries.iter().map(|e| e.id).collect::<Vec<_>>();
+        for id in ids {
+            self.close_scene(id);
+        }
+
+        self.settings.force_save();
+
+        for_each_plugin!(self.plugins => on_exit(self));
+
+        info!("The editor was closed.");
     }
 
     fn close_scene(&mut self, id: Uuid) -> bool {
@@ -2448,8 +2454,8 @@ impl Editor {
         }
     }
 
-    fn update(&mut self, dt: f32) {
-        for_each_plugin!(self.plugins => on_update(self));
+    fn update(&mut self, dt: f32, loop_controller: ApplicationLoopController) {
+        for_each_plugin!(self.plugins => on_update(self, loop_controller));
 
         self.handle_modes(dt);
 
@@ -2612,7 +2618,7 @@ impl Editor {
                             .current_scene_entry_mut()
                             .set_interaction_mode(&mut self.engine, Some(mode_kind));
                     }
-                    Message::Exit { force } => self.exit(force),
+                    Message::Exit { force } => self.exit(force, loop_controller),
                     Message::CloseScene(scene) => {
                         needs_sync |= self.close_scene(scene);
                     }
@@ -2860,8 +2866,7 @@ impl Editor {
     }
 
     pub fn is_active(&self) -> bool {
-        self.is_in_automated_testing_mode()
-            || self.settings.general.keep_editor_active
+        self.settings.general.keep_editor_active
             || (!self.update_loop_state.is_suspended()
             && (self.focused || !self.settings.general.suspend_unfocused_editor)
             // Keep the editor active if user holds any mouse button.
@@ -2870,17 +2875,7 @@ impl Editor {
             ||!self.loading_scenes.safe_lock().is_empty())
     }
 
-    fn is_in_automated_testing_mode(&self) -> bool {
-        self.startup_data
-            .as_ref()
-            .is_some_and(|d| d.automated_testing)
-    }
-
     fn on_resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if self.is_in_automated_testing_mode() {
-            return;
-        }
-
         let engine = &mut self.engine;
 
         Log::verify(engine.initialize_graphics_context(event_loop));
@@ -2947,39 +2942,25 @@ impl Editor {
         }
     }
 
-    pub fn run(mut self, event_loop: EventLoop<()>) {
+    fn on_start(&mut self) {
         Log::info("Initializing resource registry.");
         self.engine.resource_manager.update_or_load_registry();
 
-        for_each_plugin!(self.plugins => on_start(&mut self));
+        for_each_plugin!(self.plugins => on_start(self));
+    }
+
+    pub fn run(mut self, event_loop: EventLoop<()>) {
+        self.on_start();
 
         event_loop
             .run(move |event, event_loop| {
                 match event {
                     Event::AboutToWait => {
                         if self.is_active() {
-                            update(&mut self, event_loop);
-                        }
-
-                        if self.exit {
-                            event_loop.exit();
-
-                            // Kill any active child process on exit.
-                            match self.mode {
-                                Mode::Edit => {}
-                                Mode::Build {
-                                    ref mut process, ..
-                                } => {
-                                    if let Some(process) = process {
-                                        let _ = process.kill();
-                                    }
-                                }
-                                Mode::Play {
-                                    ref mut process, ..
-                                } => {
-                                    let _ = process.kill();
-                                }
-                            }
+                            update(
+                                &mut self,
+                                ApplicationLoopController::ActiveEventLoop(event_loop),
+                            );
                         }
                     }
                     Event::Resumed => {
@@ -3073,16 +3054,7 @@ impl Editor {
                         }
                     }
                     Event::LoopExiting => {
-                        let ids = self.scenes.entries.iter().map(|e| e.id).collect::<Vec<_>>();
-                        for id in ids {
-                            self.close_scene(id);
-                        }
-
-                        self.settings.force_save();
-
-                        for_each_plugin!(self.plugins => on_exit(&mut self));
-
-                        info!("The editor was closed.");
+                        self.on_exit();
                     }
                     _ => {
                         if self.is_active() {
@@ -3099,6 +3071,30 @@ impl Editor {
             })
             .unwrap();
     }
+
+    pub fn run_headless(mut self) {
+        self.on_start();
+
+        let is_running = Cell::new(true);
+
+        while is_running.get() {
+            let elapsed = update(
+                &mut self,
+                ApplicationLoopController::Headless {
+                    running: &is_running,
+                },
+            );
+
+            // Only sleep for two-third of the remaining time step because thread::sleep tends to overshoot.
+            let sleep_time = (FIXED_TIMESTEP - elapsed).max(0.0) * 0.66666;
+
+            if sleep_time > 0.0 {
+                std::thread::sleep(Duration::from_secs_f32(sleep_time));
+            }
+        }
+
+        self.on_exit();
+    }
 }
 
 fn set_ui_scaling(ui: &UserInterface, scale: f32) {
@@ -3109,7 +3105,7 @@ fn set_ui_scaling(ui: &UserInterface, scale: f32) {
     );
 }
 
-fn update(editor: &mut Editor, event_loop: &ActiveEventLoop) {
+fn update(editor: &mut Editor, loop_controller: ApplicationLoopController) -> f32 {
     let elapsed = editor.game_loop_data.clock.elapsed().as_secs_f32();
     editor.game_loop_data.clock = Instant::now();
     editor.game_loop_data.lag += elapsed;
@@ -3152,7 +3148,7 @@ fn update(editor: &mut Editor, event_loop: &ActiveEventLoop) {
 
         editor.engine.pre_update(
             FIXED_TIMESTEP,
-            ApplicationLoopController::ActiveEventLoop(event_loop),
+            loop_controller,
             &mut editor.game_loop_data.lag,
             switches,
         );
@@ -3205,13 +3201,13 @@ fn update(editor: &mut Editor, event_loop: &ActiveEventLoop) {
             }
         }
 
-        editor.update(FIXED_TIMESTEP);
+        editor.update(FIXED_TIMESTEP, loop_controller);
 
         editor.engine.post_update(
             FIXED_TIMESTEP,
             &Default::default(),
             &mut editor.game_loop_data.lag,
-            ApplicationLoopController::ActiveEventLoop(event_loop),
+            loop_controller,
         );
 
         if need_reload_plugins {
@@ -3225,13 +3221,13 @@ fn update(editor: &mut Editor, event_loop: &ActiveEventLoop) {
 
             editor.engine.handle_plugins_hot_reloading(
                 FIXED_TIMESTEP,
-                ApplicationLoopController::ActiveEventLoop(event_loop),
+                loop_controller,
                 &mut editor.game_loop_data.lag,
                 on_plugin_reloaded,
             );
         }
 
-        editor.post_update();
+        editor.post_update(loop_controller);
 
         if editor.game_loop_data.lag >= 1.5 * FIXED_TIMESTEP {
             break;
@@ -3249,4 +3245,25 @@ fn update(editor: &mut Editor, event_loop: &ActiveEventLoop) {
     if !editor.is_in_preview_mode() {
         editor.update_loop_state.decrease_counter();
     }
+
+    if loop_controller.exiting() {
+        // Kill any active child process on exit.
+        match editor.mode {
+            Mode::Edit => {}
+            Mode::Build {
+                ref mut process, ..
+            } => {
+                if let Some(process) = process {
+                    let _ = process.kill();
+                }
+            }
+            Mode::Play {
+                ref mut process, ..
+            } => {
+                let _ = process.kill();
+            }
+        }
+    }
+
+    elapsed
 }

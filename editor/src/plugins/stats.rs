@@ -36,6 +36,7 @@ use crate::{
     Editor,
 };
 use fyrox::core::{uuid, Uuid};
+use fyrox::engine::ApplicationLoopController;
 use fyrox::gui::window::WindowTitle;
 
 /// Editor UI statistics, useful to track number of active widgets and memory consumption.
@@ -104,7 +105,7 @@ impl EditorPlugin for UiStatisticsPlugin {
         }
     }
 
-    fn on_update(&mut self, editor: &mut Editor) {
+    fn on_update(&mut self, editor: &mut Editor, _loop_controller: ApplicationLoopController) {
         if self.window.is_none() {
             return;
         }

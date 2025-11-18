@@ -18,44 +18,39 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use clap::Parser;
-use fyrox::core::log::Log;
-use fyrox::event_loop::EventLoop;
-use fyroxed_base::{Editor, StartupData};
+//! Automated tests for the entire editor.
+//! WARNING: This is experimental functionality and currently in development.
 
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Project root directory
-    #[arg(short, long)]
-    project_directory: Option<String>,
+mod macros;
+mod utils;
 
-    /// List of scenes to load
-    #[arg(short, long)]
-    scenes: Option<Vec<String>>,
+use crate::{menu::file::FileMenu, test::macros::Macro, test::utils::TestPlugin};
 
-    #[arg(short, long)]
-    named_objects: bool,
+#[test]
+fn test_open() {
+    utils::run_editor_test(
+        "Menu/File",
+        TestPlugin::new(
+            Macro::begin()
+                .click_at(FileMenu::FILE)
+                .click_at(FileMenu::NEW_SCENE)
+                .then(|editor| assert_eq!(editor.scenes.len(), 1)),
+        ),
+    );
 }
 
-fn main() {
-    Log::set_file_name("fyrox.log");
-
-    let args = Args::parse();
-    let startup_data = if let Some(proj_dir) = args.project_directory {
-        Some(StartupData {
-            working_directory: proj_dir.into(),
-            scenes: args
-                .scenes
-                .unwrap_or_default()
-                .iter()
-                .map(Into::into)
-                .collect(),
-            named_objects: args.named_objects,
-        })
-    } else {
-        None
-    };
-
-    Editor::new(startup_data).run(EventLoop::new().unwrap())
+#[test]
+fn test_close() {
+    utils::run_editor_test(
+        "Menu/Close",
+        TestPlugin::new(
+            Macro::begin()
+                .click_at(FileMenu::FILE)
+                .click_at(FileMenu::NEW_SCENE)
+                .then(|editor| assert_eq!(editor.scenes.len(), 1))
+                .click_at(FileMenu::FILE)
+                .click_at(FileMenu::CLOSE_SCENE)
+                .then(|editor| assert_eq!(editor.scenes.len(), 0)),
+        ),
+    );
 }
