@@ -314,7 +314,7 @@ where
                     .property_info
                     .cast_value::<InheritableVariable<T>>()?
                     .is_modified();
-            ctx.ui.send(
+            ctx.ui.send_sync(
                 instance.handle,
                 InheritablePropertyEditorMessage::Modified(is_modified),
             );
