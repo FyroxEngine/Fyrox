@@ -477,7 +477,12 @@ impl<T: NumericType> Control for NumericUpDown<T> {
             match msg {
                 NumericUpDownMessage::Value(value) => {
                     let clamped = self.clamp_value(*value);
-                    if *self.value != clamped {
+
+                    let is_current_value_nan = !(*self.value == *self.value);
+                    let is_new_value_nan = !(clamped == clamped);
+                    let values_equal = *self.value != clamped;
+
+                    if is_current_value_nan != is_new_value_nan && values_equal {
                         self.value.set_value_and_mark_modified(clamped);
 
                         self.sync_text_field(ui);
@@ -489,6 +494,7 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                         // We must maintain flags
                         msg.set_handled(message.handled());
                         msg.flags = message.flags;
+                        msg.delivery_mode = message.delivery_mode;
                         ui.send_message(msg);
                     }
                 }
