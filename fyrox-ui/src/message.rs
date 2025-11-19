@@ -248,6 +248,14 @@ impl Debug for UiMessage {
         if self.flags != 0 {
             write!(f, ",flags:{}", self.flags)?;
         }
+        match self.delivery_mode {
+            DeliveryMode::FullCycle => {
+                write!(f, ",full cycle")?;
+            }
+            DeliveryMode::SyncOnly => {
+                write!(f, ",sync only")?;
+            }
+        }
         write!(f, "):{:?}", self.data)
     }
 }
