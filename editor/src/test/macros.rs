@@ -23,6 +23,7 @@ use crate::{
     test::utils::EditorTestingExtension,
     Editor,
 };
+use fyrox::core::info;
 use std::collections::VecDeque;
 
 type Action = Box<dyn FnOnce(&mut Editor)>;
@@ -45,6 +46,14 @@ impl Macro {
 
     pub fn click_at(self, uuid: Uuid) -> Self {
         self.then(move |editor| editor.click_at(uuid))
+    }
+
+    pub fn click_at_text(self, uuid: Uuid, text: impl AsRef<str> + 'static) -> Self {
+        self.then(move |editor| editor.click_at_text(uuid, text.as_ref()))
+    }
+
+    pub fn skip_frame(self) -> Self {
+        self.then(|_| info!("Frame skipped."))
     }
 
     pub fn execute_next(

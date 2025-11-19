@@ -18,13 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#![allow(dead_code)]
+
 //! Automated tests for the entire editor.
 //! WARNING: This is experimental functionality and currently in development.
 
 mod macros;
 mod utils;
 
-use crate::{menu::file::FileMenu, test::macros::Macro, test::utils::TestPlugin};
+use crate::{
+    menu::file::FileMenu,
+    test::{macros::Macro, utils::TestPlugin},
+    SaveSceneConfirmationDialog,
+};
 
 #[test]
 fn test_open() {
@@ -50,6 +56,7 @@ fn test_close() {
                 .then(|editor| assert_eq!(editor.scenes.len(), 1))
                 .click_at(FileMenu::FILE)
                 .click_at(FileMenu::CLOSE_SCENE)
+                .click_at_text(SaveSceneConfirmationDialog::DIALOG_ID, "No")
                 .then(|editor| assert_eq!(editor.scenes.len(), 0)),
         ),
     );

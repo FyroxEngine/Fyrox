@@ -177,7 +177,7 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::EditorSceneWrapper, menu::SceneNodeContextMenu, WorldViewer},
 };
-use fyrox::core::info;
+use fyrox::core::{info, uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::event_loop::ActiveEventLoop;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
@@ -382,13 +382,20 @@ pub struct SaveSceneConfirmationDialog {
 }
 
 impl SaveSceneConfirmationDialog {
+    pub const DIALOG_ID: Uuid = uuid!("9828ff5f-c2e2-4e72-9b17-0d5192155a77");
+
     pub fn new(ctx: &mut BuildContext) -> Self {
         let save_message_box = MessageBoxBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(100.0))
-                .can_close(false)
-                .can_minimize(false)
-                .open(false)
-                .with_title(WindowTitle::text("Unsaved changes")),
+            WindowBuilder::new(
+                WidgetBuilder::new()
+                    .with_id(Self::DIALOG_ID)
+                    .with_width(300.0)
+                    .with_height(100.0),
+            )
+            .can_close(false)
+            .can_minimize(false)
+            .open(false)
+            .with_title(WindowTitle::text("Unsaved changes")),
         )
         .with_buttons(MessageBoxButtons::YesNoCancel)
         .build(ctx);
