@@ -1080,7 +1080,7 @@ impl MenuItemBuilder {
             },
             placement: MenuItemPlacement::Right.into(),
             panel: panel.into(),
-            clickable_when_not_empty: false.into(),
+            clickable_when_not_empty: self.clickable_when_not_empty.into(),
             decorator: decorator.into(),
             is_selected: Default::default(),
             arrow: arrow_widget.into(),
