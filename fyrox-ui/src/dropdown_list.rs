@@ -41,9 +41,10 @@ use crate::{
 };
 
 use crate::message::MessageData;
+use crate::popup::Popup;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
-    BaseSceneGraph,
+    BaseSceneGraph, SceneGraph,
 };
 use std::{
     ops::{Deref, DerefMut},
@@ -274,7 +275,9 @@ impl Control for DropdownList {
 
                         self.sync_selected_item_preview(ui);
 
-                        if *self.close_on_selection {
+                        if *self.close_on_selection
+                            && *ui.try_get_of_type::<Popup>(*self.popup).unwrap().is_open
+                        {
                             ui.send(*self.popup, PopupMessage::Close);
                         }
 
