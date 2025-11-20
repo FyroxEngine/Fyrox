@@ -29,6 +29,7 @@ use crate::{
     test::macros::Macro,
     Editor, StartupData,
 };
+use fyrox::core::pool::Handle;
 use fyrox::gui::message::UiMessage;
 use fyrox::gui::test::UserInterfaceTestingExtension;
 use std::path::PathBuf;
@@ -65,7 +66,7 @@ pub trait EditorTestingExtension {
     fn click(&mut self, position: Vector2<f32>);
 
     /// Tries to find a widget with the given unique id and clicks at its center.
-    fn click_at(&mut self, name: Uuid);
+    fn click_at(&mut self, name: Uuid) -> Handle<UiNode>;
 
     fn click_at_text(&mut self, uuid: Uuid, text: &str);
 
@@ -87,7 +88,7 @@ impl EditorTestingExtension for Editor {
         self.engine.user_interfaces.first_mut().click(position)
     }
 
-    fn click_at(&mut self, uuid: Uuid) {
+    fn click_at(&mut self, uuid: Uuid) -> Handle<UiNode> {
         self.engine.user_interfaces.first_mut().click_at(uuid)
     }
 

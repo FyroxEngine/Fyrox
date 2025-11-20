@@ -18,15 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::message::UiMessage;
-use crate::text::Text;
 use crate::{
-    core::{algebra::Vector2, pool::Handle},
+    core::{algebra::Vector2, info, pool::Handle, reflect::Reflect},
+    message::{MessageData, UiMessage},
+    text::Text,
     widget::WidgetMessage,
     BuildContext, Control, UiNode, UserInterface,
 };
-use fyrox_core::info;
-use fyrox_core::reflect::Reflect;
 use fyrox_graph::{SceneGraph, SceneGraphNode};
 use uuid::Uuid;
 
@@ -35,7 +33,7 @@ pub trait UserInterfaceTestingExtension {
     fn click(&mut self, position: Vector2<f32>);
 
     /// Tries to find a widget with the given unique id and clicks at its center.
-    fn click_at(&mut self, name: Uuid);
+    fn click_at(&mut self, uuid: Uuid) -> Handle<UiNode>;
 
     fn click_at_text(&mut self, uuid: Uuid, text: &str);
 
@@ -54,6 +52,12 @@ pub trait UserInterfaceTestingExtension {
     fn poll_all_messages(&mut self);
 
     fn poll_and_count(&mut self, pred: impl FnMut(&UiMessage) -> bool) -> usize;
+
+    fn click_at_count_response<M: MessageData + PartialEq>(
+        &mut self,
+        name: Uuid,
+        response: M,
+    ) -> usize;
 }
 
 fn is_enabled(mut handle: Handle<UiNode>, ui: &UserInterface) -> bool {
@@ -79,7 +83,7 @@ impl UserInterfaceTestingExtension for UserInterface {
         });
     }
 
-    fn click_at(&mut self, uuid: Uuid) {
+    fn click_at(&mut self, uuid: Uuid) -> Handle<UiNode> {
         assert_ne!(uuid, Uuid::default());
         if let Some((handle, n)) = self.find_from_root(&mut |n| n.id == uuid) {
             info!("{} - bounds {:?}", uuid, n.screen_bounds());
@@ -88,12 +92,13 @@ impl UserInterfaceTestingExtension for UserInterface {
             let center = n.screen_bounds().center();
             self.click(center);
             info!(
-                "Clicked at {uuid}({}:{}) at [{};{}] coords.",
+                "==== Clicked at {uuid}({}:{}) at [{};{}] coords. ====",
                 handle.index(),
                 handle.generation(),
                 center.x,
                 center.y
             );
+            handle
         } else {
             panic!("There's no widget {uuid}!")
         }
@@ -117,7 +122,7 @@ impl UserInterfaceTestingExtension for UserInterface {
                 let center = text_node.screen_bounds().center();
                 self.click(center);
                 info!(
-                    "Clicked at {text}({}:{}) at [{};{}] coords. Found from {uuid} starting location.",
+                    "==== Clicked at {text}({}:{}) at [{};{}] coords. Found from {uuid} starting location. ====",
                     text_handle.index(),
                     text_handle.generation(),
                     center.x,
@@ -127,6 +132,15 @@ impl UserInterfaceTestingExtension for UserInterface {
         } else {
             panic!("There's no widget {uuid}!")
         }
+    }
+
+    fn click_at_count_response<M: MessageData + PartialEq>(
+        &mut self,
+        uuid: Uuid,
+        response: M,
+    ) -> usize {
+        let handle = self.click_at(uuid);
+        self.poll_and_count(move |msg| msg.data_from::<M>(handle) == Some(&response))
     }
 
     fn find_by_uuid(&self, uuid: Uuid) -> Option<&UiNode> {

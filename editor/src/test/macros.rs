@@ -45,7 +45,9 @@ impl Macro {
     }
 
     pub fn click_at(self, uuid: Uuid) -> Self {
-        self.then(move |editor| editor.click_at(uuid))
+        self.then(move |editor| {
+            editor.click_at(uuid);
+        })
     }
 
     pub fn click_at_text(self, uuid: Uuid, text: impl AsRef<str> + 'static) -> Self {
