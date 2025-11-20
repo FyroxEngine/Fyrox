@@ -1324,12 +1324,64 @@ pub fn make_menu_splitter(ctx: &mut BuildContext) -> Handle<UiNode> {
 
 #[cfg(test)]
 mod test {
-    use crate::menu::{MenuBuilder, MenuItemBuilder};
-    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+    use crate::{
+        menu::{Menu, MenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
+        test::{test_widget_deletion, UserInterfaceTestingExtension},
+        widget::WidgetBuilder,
+        UserInterface,
+    };
+    use fyrox_core::algebra::Vector2;
+    use fyrox_graph::SceneGraph;
+    use uuid::uuid;
 
     #[test]
     fn test_deletion() {
         test_widget_deletion(|ctx| MenuBuilder::new(WidgetBuilder::new()).build(ctx));
         test_widget_deletion(|ctx| MenuItemBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+
+    #[test]
+    fn test_menu_interaction() {
+        let screen_size = Vector2::repeat(1000.0);
+        let mut ui = UserInterface::new(screen_size);
+        let ctx = &mut ui.build_ctx();
+        let exit_id = uuid!("2ce5379e-ffa3-410b-9fa9-d92d4d242766");
+        let exit = MenuItemBuilder::new(WidgetBuilder::new().with_id(exit_id))
+            .with_content(MenuItemContent::text("Exit"))
+            .build(ctx);
+        let save_id = uuid!("11fba834-a96b-445e-a822-f51e0441ccb5");
+        let save = MenuItemBuilder::new(WidgetBuilder::new().with_id(save_id))
+            .with_content(MenuItemContent::text("Save"))
+            .build(ctx);
+        let file_id = uuid!("93d2d166-45cc-4c01-bc4e-36dab66f99ab");
+        let file = MenuItemBuilder::new(WidgetBuilder::new().with_id(file_id))
+            .with_content(MenuItemContent::text("File"))
+            .with_items(vec![exit, save])
+            .build(ctx);
+        let menu = MenuBuilder::new(WidgetBuilder::new())
+            .with_items(vec![file])
+            .build(ctx);
+        ui.poll_all_messages();
+        assert_eq!(
+            ui.click_at_count_response(file_id, MenuItemMessage::Click),
+            0
+        );
+        assert!(ui.try_get_of_type::<Menu>(menu).unwrap().active);
+        assert_eq!(
+            ui.click_at_count_response(exit_id, MenuItemMessage::Click),
+            1
+        );
+        assert!(!ui.try_get_of_type::<Menu>(menu).unwrap().active);
+        // ====
+        assert_eq!(
+            ui.click_at_count_response(file_id, MenuItemMessage::Click),
+            0
+        );
+        assert!(ui.try_get_of_type::<Menu>(menu).unwrap().active);
+        assert_eq!(
+            ui.click_at_count_response(save_id, MenuItemMessage::Click),
+            1
+        );
+        assert!(!ui.try_get_of_type::<Menu>(menu).unwrap().active);
     }
 }
