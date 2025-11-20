@@ -545,7 +545,7 @@ impl Control for MenuItem {
                 WidgetMessage::MouseUp { .. } => {
                     if !message.handled() {
                         if self.items_container.is_empty() || *self.clickable_when_not_empty {
-                            ui.send(self.handle(), MenuItemMessage::Click);
+                            ui.post(self.handle(), MenuItemMessage::Click);
                         }
                         if self.items_container.is_empty() {
                             let menu = find_menu(self.parent(), ui);
