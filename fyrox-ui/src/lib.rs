@@ -278,6 +278,7 @@ pub mod selector;
 pub mod stack_panel;
 pub mod style;
 pub mod tab_control;
+pub mod test;
 pub mod text;
 pub mod text_box;
 mod thickness;
@@ -3890,25 +3891,6 @@ impl ResourceData for UserInterface {
 
     fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
         Some(Box::new(self.clone()))
-    }
-}
-
-pub mod test {
-    use crate::{
-        core::{algebra::Vector2, pool::Handle},
-        widget::WidgetMessage,
-        BuildContext, UiNode, UserInterface,
-    };
-
-    pub fn test_widget_deletion(constructor: impl FnOnce(&mut BuildContext) -> Handle<UiNode>) {
-        let screen_size = Vector2::new(100.0, 100.0);
-        let mut ui = UserInterface::new(screen_size);
-        let widget = constructor(&mut ui.build_ctx());
-        ui.send(widget, WidgetMessage::Remove);
-        ui.update(screen_size, 1.0 / 60.0, &Default::default());
-        while ui.poll_message().is_some() {}
-        // Only root node must be alive.
-        assert_eq!(ui.nodes().alive_count(), 1);
     }
 }
 

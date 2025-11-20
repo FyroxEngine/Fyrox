@@ -20,14 +20,9 @@
 
 use crate::{
     fyrox::{
-        core::{algebra::Vector2, info, pool::Handle, Uuid},
+        core::{algebra::Vector2, info, Uuid},
         engine::ApplicationLoopController,
-        graph::{SceneGraph, SceneGraphNode},
-        gui::{
-            message::{ButtonState, MouseButton, OsEvent},
-            text::Text,
-        },
-        gui::{Control, UiNode, UserInterface},
+        gui::{Control, UiNode},
     },
     plugin::EditorPlugin,
     settings::Settings,
@@ -35,6 +30,7 @@ use crate::{
     Editor, StartupData,
 };
 use fyrox::gui::message::UiMessage;
+use fyrox::gui::test::UserInterfaceTestingExtension;
 use std::path::PathBuf;
 
 /// Initializes the editor as is a user would open it, adds the specified plugin that runs the test
@@ -86,94 +82,28 @@ pub trait EditorTestingExtension {
     }
 }
 
-fn is_enabled(mut handle: Handle<UiNode>, ui: &UserInterface) -> bool {
-    while let Some(node) = ui.try_get(handle) {
-        if !node.enabled() {
-            return false;
-        }
-        handle = node.parent();
-    }
-    true
-}
-
 impl EditorTestingExtension for Editor {
     fn click(&mut self, position: Vector2<f32>) {
-        let ui = self.engine.user_interfaces.first_mut();
-        ui.process_os_event(&OsEvent::CursorMoved { position });
-        ui.process_os_event(&OsEvent::MouseInput {
-            button: MouseButton::Left,
-            state: ButtonState::Pressed,
-        });
-        ui.process_os_event(&OsEvent::MouseInput {
-            button: MouseButton::Left,
-            state: ButtonState::Released,
-        });
+        self.engine.user_interfaces.first_mut().click(position)
     }
 
     fn click_at(&mut self, uuid: Uuid) {
-        assert_ne!(uuid, Uuid::default());
-        let ui = self.engine.user_interfaces.first();
-        if let Some((handle, n)) = ui.find_from_root(&mut |n| n.id == uuid) {
-            assert!(is_enabled(handle, ui));
-            assert!(n.is_globally_visible());
-            let center = n.local_to_screen(n.center());
-            self.click(center);
-            info!(
-                "Clicked at {uuid}({}:{}) at [{};{}] coords.",
-                handle.index(),
-                handle.generation(),
-                center.x,
-                center.y
-            );
-        } else {
-            panic!("There's no widget {uuid}!")
-        }
+        self.engine.user_interfaces.first_mut().click_at(uuid)
     }
 
     fn click_at_text(&mut self, uuid: Uuid, text: &str) {
-        assert_ne!(uuid, Uuid::default());
-        let ui = self.engine.user_interfaces.first();
-        if let Some((start_handle, start_node)) = ui.find_from_root(&mut |n| n.id == uuid) {
-            assert!(is_enabled(start_handle, ui));
-            assert!(start_node.is_globally_visible());
-            if let Some((text_handle, text_node)) = ui.find(start_handle, &mut |n| {
-                if let Some(text_widget) = n.component_ref::<Text>() {
-                    text_widget.text() == text
-                } else {
-                    false
-                }
-            }) {
-                assert!(is_enabled(text_handle, ui));
-                assert!(text_node.is_globally_visible());
-                let center = text_node.local_to_screen(text_node.center());
-                self.click(center);
-                info!(
-                    "Clicked at {text}({}:{}) at [{};{}] coords. Found from {uuid} starting location.",
-                    text_handle.index(),
-                    text_handle.generation(),
-                    center.x,
-                    center.y
-                );
-            }
-        } else {
-            panic!("There's no widget {uuid}!")
-        }
+        self.engine
+            .user_interfaces
+            .first_mut()
+            .click_at_text(uuid, text)
     }
 
     fn find(&self, uuid: Uuid) -> Option<&UiNode> {
-        self.engine
-            .user_interfaces
-            .first()
-            .find_from_root(&mut |n| n.id == uuid)
-            .map(|(_, n)| n)
+        self.engine.user_interfaces.first().find_by_uuid(uuid)
     }
 
     fn find_of<T: Control>(&self, uuid: Uuid) -> Option<&T> {
-        self.engine
-            .user_interfaces
-            .first()
-            .find_from_root(&mut |n| n.id == uuid)
-            .and_then(|(_, n)| n.cast())
+        self.engine.user_interfaces.first().find_by_uuid_of(uuid)
     }
 }
 
