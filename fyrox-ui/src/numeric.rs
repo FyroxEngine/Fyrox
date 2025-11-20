@@ -475,6 +475,8 @@ impl<T: NumericType> Control for NumericUpDown<T> {
             }
         } else if let Some(msg) = message.data_for::<NumericUpDownMessage<T>>(self.handle()) {
             match msg {
+                // Stupid clippy does not understand that NaN != NaN by definition.
+                #[allow(clippy::eq_op)]
                 NumericUpDownMessage::Value(value) => {
                     let clamped = self.clamp_value(*value);
 
