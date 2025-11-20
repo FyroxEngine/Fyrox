@@ -85,7 +85,7 @@ impl UserInterfaceTestingExtension for UserInterface {
             info!("{} - bounds {:?}", uuid, n.screen_bounds());
             assert!(is_enabled(handle, self));
             assert!(n.is_globally_visible());
-            let center = n.local_to_screen(n.center());
+            let center = n.screen_bounds().center();
             self.click(center);
             info!(
                 "Clicked at {uuid}({}:{}) at [{};{}] coords.",
@@ -114,7 +114,7 @@ impl UserInterfaceTestingExtension for UserInterface {
             }) {
                 assert!(is_enabled(text_handle, self));
                 assert!(text_node.is_globally_visible());
-                let center = text_node.local_to_screen(text_node.center());
+                let center = text_node.screen_bounds().center();
                 self.click(center);
                 info!(
                     "Clicked at {text}({}:{}) at [{};{}] coords. Found from {uuid} starting location.",
