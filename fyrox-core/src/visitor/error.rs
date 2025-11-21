@@ -66,8 +66,7 @@ pub enum VisitError {
     RegionDoesNotExist(String),
     /// The Visitor tried to leave is current node, but somehow it had no current node. This should never happen.
     NoActiveNode,
-    /// The [`crate::Visitor::MAGIC_BINARY_CURRENT`], [`crate::Visitor::MAGIC_ASCII_CURRENT`],
-    /// [`crate::Visitor::MAGIC_BINARY_OLD`] or [`crate::Visitor::MAGIC_ASCII_OLD`]
+    /// The [`crate::Visitor::MAGIC_BINARY_CURRENT`], [`crate::Visitor::MAGIC_ASCII_CURRENT`].
     /// bytes were missing from the beginning of encoded Visitor data.
     NotSupportedFormat,
     /// Some sequence of bytes was not in UTF8 format.
