@@ -36,6 +36,7 @@ use crate::{
             dropdown_list::DropdownList,
             dropdown_menu::DropdownMenu,
             expander::Expander,
+            font::Font,
             font::FontResource,
             grid::Grid,
             image::Image,
@@ -63,6 +64,7 @@ use crate::{
             searchbar::SearchBar,
             selector::Selector,
             stack_panel::StackPanel,
+            style::{resource::StyleResource, Style},
             tab_control::TabControl,
             text::Text,
             text_box::TextBox,
@@ -76,6 +78,7 @@ use crate::{
             UiNode, UserInterface,
         },
         material::shader::{Shader, ShaderResource},
+        renderer::{HdrSettings, LuminanceCalculationMethod},
         resource::{
             curve::{CurveResource, CurveResourceState},
             model::{MaterialSearchOptions, Model, ModelResource},
@@ -84,6 +87,7 @@ use crate::{
                 TextureMinificationFilter, TextureResource, TextureWrapMode,
             },
         },
+        scene::base::SceneNodeId,
         scene::{
             self,
             base::{
@@ -169,10 +173,6 @@ use crate::{
         },
     },
 };
-use fyrox::gui::font::Font;
-use fyrox::gui::style::resource::StyleResource;
-use fyrox::gui::style::Style;
-use fyrox::scene::base::SceneNodeId;
 
 pub mod animation;
 pub mod font;
@@ -440,6 +440,7 @@ pub fn make_property_editors_container(
     container.register_inheritable_inspectable::<OrthographicProjection>();
     container.register_inheritable_inspectable::<Transform>();
     container.register_inheritable_inspectable::<CsmOptions>();
+    container.register_inheritable_inspectable::<HdrSettings>();
 
     container.register_inheritable_inspectable::<Chunk>();
     container.register_inheritable_vec_collection::<Chunk>();
@@ -473,6 +474,7 @@ pub fn make_property_editors_container(
     container.register_inheritable_enum::<EnvironmentLightingSource, _>();
     container.register_inheritable_enum::<CoordinateSystem, _>();
     container.register_inheritable_enum::<UpdateMode, _>();
+    container.register_inheritable_enum::<LuminanceCalculationMethod, _>();
 
     container.insert(EnumPropertyEditorDefinition::<Vec<ScriptRecord>>::new_optional());
     container.insert(VecCollectionPropertyEditorDefinition::<ScriptRecord>::new());
