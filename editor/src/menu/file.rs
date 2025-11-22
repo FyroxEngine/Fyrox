@@ -41,6 +41,7 @@ use crate::{
     settings::{recent::RecentFiles, Settings},
     Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
+use fyrox::asset::manager::ResourceManager;
 use fyrox::core::{uuid, Uuid};
 use std::{path::PathBuf, sync::mpsc::Sender};
 
@@ -89,6 +90,7 @@ impl FileMenu {
     pub const CONFIGURE: Uuid = uuid!("220274af-bc1d-47d2-8a1d-7ee4b2d409f4");
     pub const EXPORT_PROJECT: Uuid = uuid!("699b39ae-a9c2-4af4-9ade-c36a14f96aa2");
     pub const EXIT: Uuid = uuid!("cf62b116-37fd-4620-8594-9ca04735d45b");
+    pub const SAVE_FILE_SELECTOR: Uuid = uuid!("ddb9df20-ec54-4ebd-9493-fe06b9ac4ab2");
 
     pub fn new(engine: &mut Engine, settings: &Settings) -> Self {
         let new_scene;
@@ -276,8 +278,17 @@ impl FileMenu {
         );
     }
 
-    pub fn open_save_file_selector(&mut self, ui: &mut UserInterface, default_file_name: PathBuf) {
-        self.save_file_selector = make_save_file_selector(&mut ui.build_ctx(), default_file_name);
+    pub fn open_save_file_selector(
+        &mut self,
+        ui: &mut UserInterface,
+        resource_manager: &ResourceManager,
+        default_file_name: PathBuf,
+    ) {
+        self.save_file_selector = make_save_file_selector(
+            &mut ui.build_ctx(),
+            default_file_name,
+            Self::SAVE_FILE_SELECTOR,
+        );
 
         ui.send(
             self.save_file_selector,
@@ -286,13 +297,19 @@ impl FileMenu {
                 focus_content: true,
             },
         );
-        ui.send(
+        let registry_dir = resource_manager
+            .state()
+            .resource_registry
+            .lock()
+            .directory()
+            .unwrap()
+            .to_path_buf();
+        ui.send_many(
             self.save_file_selector,
-            FileSelectorMessage::Path(std::env::current_dir().unwrap()),
-        );
-        ui.send(
-            self.save_file_selector,
-            FileSelectorMessage::Root(std::env::current_dir().ok()),
+            [
+                FileSelectorMessage::Path(registry_dir.clone()),
+                FileSelectorMessage::Root(Some(registry_dir)),
+            ],
         );
     }
 
@@ -330,6 +347,7 @@ impl FileMenu {
                         // If scene wasn't saved yet - open Save As window.
                         self.open_save_file_selector(
                             engine.user_interfaces.first_mut(),
+                            &engine.resource_manager,
                             entry.default_file_name(),
                         );
                     }
@@ -338,6 +356,7 @@ impl FileMenu {
                 if let Some(entry) = entry {
                     self.open_save_file_selector(
                         engine.user_interfaces.first_mut(),
+                        &engine.resource_manager,
                         entry.default_file_name(),
                     );
                 }

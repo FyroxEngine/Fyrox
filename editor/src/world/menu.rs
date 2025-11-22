@@ -111,6 +111,7 @@ impl SceneNodeContextMenu {
     pub const OPEN_PARENT_PREFAB: Uuid = uuid!("99903c9e-d7ac-49bd-9ee3-3bbd8536f595");
     pub const SAVE_AS_PREFAB: Uuid = uuid!("82a70cff-b536-46fb-83c0-4a886585d871");
     pub const RESET_INHERITABLE: Uuid = uuid!("95c6437f-dc23-4ec1-9490-d35f0864f027");
+    pub const SAVE_AS_PREFAB_FILE_SELECTOR: Uuid = uuid!("5d438037-a4be-4d70-a830-138185e1a049");
 
     pub fn new(
         serialization_context: &SerializationContext,
@@ -392,8 +393,11 @@ impl SceneNodeContextMenu {
                 } else if message.destination() == self.save_as_prefab {
                     let ui = engine.user_interfaces.first_mut();
 
-                    self.save_as_prefab_dialog =
-                        make_save_file_selector(&mut ui.build_ctx(), PathBuf::from("unnamed.rgs"));
+                    self.save_as_prefab_dialog = make_save_file_selector(
+                        &mut ui.build_ctx(),
+                        PathBuf::from("unnamed.rgs"),
+                        Self::SAVE_AS_PREFAB_FILE_SELECTOR,
+                    );
 
                     ui.send(
                         self.save_as_prefab_dialog,

@@ -40,6 +40,7 @@ use crate::{
     stats::StatisticsWindow,
     Engine, Mode, SceneSettingsWindow,
 };
+use fyrox::asset::manager::ResourceManager;
 use fyrox::core::Uuid;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
@@ -178,9 +179,14 @@ impl Menu {
         self.file_menu.open_load_file_selector(ui)
     }
 
-    pub fn open_save_file_selector(&mut self, ui: &mut UserInterface, default_file_name: PathBuf) {
+    pub fn open_save_file_selector(
+        &mut self,
+        ui: &mut UserInterface,
+        resource_manager: &ResourceManager,
+        default_file_name: PathBuf,
+    ) {
         self.file_menu
-            .open_save_file_selector(ui, default_file_name)
+            .open_save_file_selector(ui, resource_manager, default_file_name)
     }
 
     pub fn sync_to_model(&mut self, has_active_scene: bool, ui: &mut UserInterface) {

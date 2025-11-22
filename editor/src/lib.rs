@@ -312,12 +312,18 @@ pub fn make_scene_file_filter() -> Filter {
 pub fn make_save_file_selector(
     ctx: &mut BuildContext,
     default_file_name: PathBuf,
+    id: Uuid,
 ) -> Handle<UiNode> {
     FileSelectorBuilder::new(
-        WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-            .with_title(WindowTitle::text("Save Scene As"))
-            .open(false)
-            .with_remove_on_close(true),
+        WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_id(id)
+                .with_width(300.0)
+                .with_height(400.0),
+        )
+        .with_title(WindowTitle::text("Save Scene As"))
+        .open(false)
+        .with_remove_on_close(true),
     )
     .with_mode(FileBrowserMode::Save { default_file_name })
     .with_path("./")
@@ -1281,6 +1287,7 @@ impl Editor {
                     let entry = self.scenes.current_scene_entry_ref();
                     self.menu.file_menu.open_save_file_selector(
                         engine.user_interfaces.first_mut(),
+                        &engine.resource_manager,
                         entry.default_file_name(),
                     );
                 } else if hot_key == key_bindings.save_all_scenes {
@@ -2682,6 +2689,7 @@ impl Editor {
                     Message::OpenSaveSceneDialog { default_file_name } => {
                         self.menu.open_save_file_selector(
                             self.engine.user_interfaces.first_mut(),
+                            &self.engine.resource_manager,
                             default_file_name,
                         );
                     }

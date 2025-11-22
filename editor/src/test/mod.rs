@@ -35,7 +35,7 @@ use crate::{
 #[test]
 fn test_open() {
     utils::run_editor_test(
-        "Menu/File",
+        "Menu/File/NewScene",
         TestPlugin::new(
             Macro::begin()
                 .click_at(FileMenu::FILE)
@@ -46,9 +46,9 @@ fn test_open() {
 }
 
 #[test]
-fn test_close() {
+fn test_close_no_save() {
     utils::run_editor_test(
-        "Menu/Close",
+        "Menu/File/CloseNoSave",
         TestPlugin::new(
             Macro::begin()
                 .click_at(FileMenu::FILE)
@@ -58,6 +58,53 @@ fn test_close() {
                 .click_at(FileMenu::CLOSE_SCENE)
                 .click_at_text(SaveSceneConfirmationDialog::DIALOG_ID, "No")
                 .then(|editor| assert_eq!(editor.scenes.len(), 0)),
+        ),
+    );
+}
+
+#[test]
+fn test_close_with_save() {
+    utils::run_editor_test(
+        "Menu/File/CloseWithSave",
+        TestPlugin::new(
+            Macro::begin()
+                .click_at(FileMenu::FILE)
+                .click_at(FileMenu::NEW_SCENE)
+                .then(|editor| assert_eq!(editor.scenes.len(), 1))
+                .click_at(FileMenu::FILE)
+                .click_at(FileMenu::CLOSE_SCENE)
+                .click_at_text(SaveSceneConfirmationDialog::DIALOG_ID, "Yes")
+                .click_at_text(FileMenu::SAVE_FILE_SELECTOR, "Save")
+                .then(|editor| assert_eq!(editor.scenes.len(), 0)),
+        ),
+    );
+}
+
+#[test]
+fn test_exit_with_save() {
+    utils::run_editor_test(
+        "Menu/File/CloseWithSave",
+        TestPlugin::new(
+            Macro::begin()
+                .click_at(FileMenu::FILE)
+                .click_at(FileMenu::NEW_SCENE)
+                .then(|editor| assert_eq!(editor.scenes.len(), 1))
+                .click_at(FileMenu::FILE)
+                .click_at(FileMenu::SAVE_SCENE)
+                .click_at_text(FileMenu::SAVE_FILE_SELECTOR, "Save")
+                .then(|editor| assert_eq!(editor.scenes.len(), 1)),
+        ),
+    );
+}
+
+#[test]
+fn test_exit() {
+    utils::run_editor_test(
+        "Menu/File/Exit",
+        TestPlugin::new(
+            Macro::begin()
+                .click_at(FileMenu::FILE)
+                .click_at(FileMenu::EXIT),
         ),
     );
 }
