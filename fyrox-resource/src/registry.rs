@@ -31,6 +31,7 @@ use crate::{
     state::WakersList,
 };
 use fxhash::FxHashSet;
+use fyrox_core::log::Log;
 use fyrox_core::{futures::executor::block_on, SafeLock};
 use ron::ser::PrettyConfig;
 use std::{
@@ -410,10 +411,21 @@ impl ResourceRegistry {
         }
     }
 
+    /// Returns `true` if the resource registry file exists, `false` - otherwise.
+    pub fn exists_sync(&self) -> bool {
+        self.io.exists_sync(&self.path)
+    }
+
     /// Same as [`Self::save`], but synchronous.
     pub fn save_sync(&self) {
         #[cfg(not(target_arch = "wasm32"))]
         if self.io.can_write() {
+            if let Some(folder) = self.path.parent() {
+                if !self.io.exists_sync(folder) {
+                    Log::verify(self.io.create_dir_all_sync(folder));
+                }
+            }
+
             match self.paths.save_sync(&self.path, &*self.io) {
                 Err(error) => {
                     err!(
@@ -523,26 +535,24 @@ impl ResourceRegistry {
             }
 
             let metadata_path = append_extension(&path, ResourceMetadata::EXTENSION);
-            let metadata = match ResourceMetadata::load_from_file_async(
-                &metadata_path,
-                &*resource_io,
-            )
-            .await
-            {
-                Ok(metadata) => metadata,
-                Err(err) => {
-                    warn!(
-                            "Unable to load metadata for {path:?} resource. Reason: {err}. The metadata \
-                            file will be added/recreated, do **NOT** delete it! Add it to the \
-                            version control!",
+            let metadata =
+                match ResourceMetadata::load_from_file_async(&metadata_path, &*resource_io).await {
+                    Ok(metadata) => metadata,
+                    Err(err) => {
+                        warn!(
+                            "Unable to load metadata for {path:?} resource. Reason: {err}.
+                            The metadata file will be added/recreated, do **NOT** delete it!
+                            Add it to the version control!",
                         );
-                    let new_metadata = ResourceMetadata::new_with_random_id();
-                    if let Err(err) = new_metadata.save_async(&metadata_path, &*resource_io).await {
-                        warn!("Unable to save resource {path:?} metadata. Reason: {err}");
+                        let new_metadata = ResourceMetadata::new_with_random_id();
+                        if let Err(err) =
+                            new_metadata.save_async(&metadata_path, &*resource_io).await
+                        {
+                            warn!("Unable to save resource {path:?} metadata. Reason: {err}");
+                        }
+                        new_metadata
                     }
-                    new_metadata
-                }
-            };
+                };
 
             if let Some(former) = container.insert(metadata.resource_id, path.clone()) {
                 warn!("Resource UUID collision between {path:?} and {former:?}");

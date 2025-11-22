@@ -946,7 +946,7 @@ impl ResourceManagerState {
         // Try to update the registry first.
         #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
         if resource_io.can_read_directories() && resource_io.can_write() {
-            fyrox_core::futures::executor::block_on(async move {
+            block_on(async move {
                 let new_data = ResourceRegistry::scan(
                     resource_io.clone(),
                     task_loaders,
@@ -956,6 +956,11 @@ impl ResourceManagerState {
                 .await;
                 let mut registry_lock = resource_registry.safe_lock();
                 registry_lock.modify().set_container(new_data);
+                // The registry may not save at the line above if there's no resources. Save it
+                // manually.
+                if !registry_lock.exists_sync() {
+                    registry_lock.save_sync();
+                }
                 registry_status.mark_as_loaded();
             });
         }
