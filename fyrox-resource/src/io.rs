@@ -87,6 +87,9 @@ pub trait ResourceIo: Send + Sync + 'static {
     /// is optional, on some platforms it may not even be supported (WebAssembly).
     fn write_file_sync(&self, path: &Path, data: &[u8]) -> Result<(), FileError>;
 
+    /// Creates a directory with all subdirectories defined by the specified path.
+    fn create_dir_all_sync(&self, path: &Path) -> Result<(), FileError>;
+
     /// Attempts to move a file at the given `source` path to the given `dest` path.
     fn move_file<'a>(
         &'a self,
@@ -162,6 +165,9 @@ pub trait ResourceIo: Send + Sync + 'static {
 
     /// Used to check whether a path exists
     fn exists<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, bool>;
+
+    /// Used to check whether a path exists
+    fn exists_sync(&self, path: &Path) -> bool;
 
     /// Used to check whether a path is a file
     fn is_file<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, bool>;
@@ -252,6 +258,11 @@ impl ResourceIo for FsResourceIo {
     fn write_file_sync(&self, path: &Path, data: &[u8]) -> Result<(), FileError> {
         let mut file = File::create(path)?;
         file.write_all(data)?;
+        Ok(())
+    }
+
+    fn create_dir_all_sync(&self, path: &Path) -> Result<(), FileError> {
+        std::fs::create_dir_all(path)?;
         Ok(())
     }
 
@@ -387,6 +398,10 @@ impl ResourceIo for FsResourceIo {
 
     fn exists<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, bool> {
         Box::pin(fyrox_core::io::exists(path))
+    }
+
+    fn exists_sync(&self, path: &Path) -> bool {
+        std::fs::exists(path).unwrap_or_default()
     }
 
     fn is_file<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, bool> {
