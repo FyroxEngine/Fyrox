@@ -64,6 +64,7 @@ use crate::{
     Message,
 };
 use cargo_metadata::camino::Utf8Path;
+use fyrox::gui::window::WindowAlignment;
 use std::{
     io::{BufRead, BufReader},
     path::PathBuf,
@@ -563,8 +564,9 @@ impl ExportWindow {
     pub fn open(&self, ui: &UserInterface) {
         ui.send(
             self.window,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );

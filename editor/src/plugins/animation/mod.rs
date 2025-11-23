@@ -69,6 +69,7 @@ use fyrox::core::uuid;
 use fyrox::engine::ApplicationLoopController;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::window::WindowAlignment;
 use std::any::{Any, TypeId};
 
 pub mod command;
@@ -305,7 +306,8 @@ impl AnimationEditor {
         ui.send(
             self.window,
             WindowMessage::Open {
-                center: true,
+                alignment: WindowAlignment::Center,
+                modal: false,
                 focus_content: true,
             },
         );

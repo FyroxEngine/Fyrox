@@ -60,6 +60,7 @@ use crate::{
     Engine, Message, PasteCommand,
 };
 use fyrox::core::{uuid, Uuid};
+use fyrox::gui::window::WindowAlignment;
 use std::{any::TypeId, path::PathBuf};
 
 pub struct SceneNodeContextMenu {
@@ -401,8 +402,9 @@ impl SceneNodeContextMenu {
 
                     ui.send(
                         self.save_as_prefab_dialog,
-                        WindowMessage::OpenModal {
-                            center: true,
+                        WindowMessage::Open {
+                            alignment: WindowAlignment::Center,
+                            modal: true,
                             focus_content: true,
                         },
                     );

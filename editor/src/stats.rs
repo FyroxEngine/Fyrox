@@ -30,6 +30,7 @@ use crate::fyrox::{
         BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
+use fyrox::gui::window::WindowAlignment;
 use fyrox::scene::Scene;
 
 pub struct StatisticsWindow {
@@ -63,11 +64,13 @@ impl StatisticsWindow {
 
         ctx.inner().send(
             window,
-            WindowMessage::OpenAndAlign {
-                relative_to: anchor,
-                horizontal_alignment: HorizontalAlignment::Right,
-                vertical_alignment: VerticalAlignment::Top,
-                margin: Thickness::uniform(2.0),
+            WindowMessage::Open {
+                alignment: WindowAlignment::Relative {
+                    relative_to: anchor,
+                    horizontal_alignment: HorizontalAlignment::Right,
+                    vertical_alignment: VerticalAlignment::Top,
+                    margin: Thickness::uniform(2.0),
+                },
                 focus_content: false,
                 modal: false,
             },

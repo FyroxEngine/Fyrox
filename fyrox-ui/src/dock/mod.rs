@@ -48,6 +48,7 @@ pub mod config;
 mod tile;
 
 use crate::message::MessageData;
+use crate::window::WindowAlignment;
 pub use tile::*;
 
 /// Supported docking manager-specific messages.
@@ -313,7 +314,8 @@ impl DockingManager {
                         ui.send(
                             floating_window,
                             WindowMessage::Open {
-                                center: false,
+                                alignment: WindowAlignment::None,
+                                modal: false,
                                 focus_content: false,
                             },
                         );

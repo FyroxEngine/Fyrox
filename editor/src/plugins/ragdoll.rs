@@ -68,6 +68,7 @@ use crate::{
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::{uuid, Uuid};
 use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
+use fyrox::gui::window::WindowAlignment;
 use std::{ops::Range, sync::Arc};
 
 #[derive(Reflect, Clone, Debug)]
@@ -1131,7 +1132,8 @@ impl RagdollWizard {
         ui.send(
             self.window,
             WindowMessage::Open {
-                center: true,
+                alignment: WindowAlignment::Center,
+                modal: false,
                 focus_content: true,
             },
         );

@@ -34,6 +34,7 @@ use crate::{
     Message,
 };
 use fyrox::core::{uuid, Uuid};
+use fyrox::gui::window::WindowAlignment;
 
 pub struct ViewMenu {
     pub menu: Handle<UiNode>,
@@ -58,7 +59,12 @@ fn switch_window_state(window: Handle<UiNode>, ui: &UserInterface, center: bool)
         ui.send(
             window,
             WindowMessage::Open {
-                center,
+                alignment: if center {
+                    WindowAlignment::Center
+                } else {
+                    WindowAlignment::None
+                },
+                modal: false,
                 focus_content: true,
             },
         )

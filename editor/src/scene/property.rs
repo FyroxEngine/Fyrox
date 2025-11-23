@@ -562,11 +562,7 @@ impl Control for PropertySelectorWindow {
 
                 ui.send(self.ok, WidgetMessage::Enabled(enabled));
             }
-        } else if let Some(WindowMessage::Open { .. })
-        | Some(WindowMessage::OpenAt { .. })
-        | Some(WindowMessage::OpenModal { .. })
-        | Some(WindowMessage::OpenAndAlign { .. }) = message.data()
-        {
+        } else if let Some(WindowMessage::Open { .. }) = message.data() {
             ui.send(self.selector, PropertySelectorMessage::ChooseFocus);
         } else if let Some(WidgetMessage::KeyDown(KeyCode::Enter | KeyCode::NumpadEnter)) =
             message.data()

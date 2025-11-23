@@ -43,6 +43,7 @@ use crate::{
 };
 
 use crate::message::MessageData;
+use crate::window::WindowAlignment;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -267,8 +268,9 @@ impl Control for MessageBox {
 
                     ui.send(
                         self.handle(),
-                        WindowMessage::OpenModal {
-                            center: true,
+                        WindowMessage::Open {
+                            alignment: WindowAlignment::Center,
+                            modal: true,
                             focus_content: true,
                         },
                     );

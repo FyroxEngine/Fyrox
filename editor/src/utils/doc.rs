@@ -30,6 +30,7 @@ use crate::fyrox::{
         BuildContext, Thickness, UiNode, UserInterface,
     },
 };
+use fyrox::gui::window::WindowAlignment;
 
 pub struct DocWindow {
     pub window: Handle<UiNode>,
@@ -69,7 +70,8 @@ impl DocWindow {
         ui.send(
             self.window,
             WindowMessage::Open {
-                center: true,
+                alignment: WindowAlignment::Center,
+                modal: false,
                 focus_content: true,
             },
         );

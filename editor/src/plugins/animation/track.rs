@@ -96,6 +96,7 @@ use crate::{
     utils,
 };
 use fyrox::gui::message::MessageData;
+use fyrox::gui::window::WindowAlignment;
 use std::{
     any::TypeId,
     cmp::Ordering,
@@ -790,8 +791,9 @@ impl TrackList {
 
                 ui.send(
                     self.node_selector,
-                    WindowMessage::OpenModal {
-                        center: true,
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Center,
+                        modal: true,
                         focus_content: true,
                     },
                 );
@@ -1013,8 +1015,9 @@ impl TrackList {
 
                 ui.send(
                     self.context_menu.target_node_selector,
-                    WindowMessage::OpenModal {
-                        center: true,
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Center,
+                        modal: true,
                         focus_content: true,
                     },
                 );
@@ -1147,8 +1150,9 @@ impl TrackList {
 
         ui.send(
             property_selector,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );

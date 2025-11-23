@@ -518,11 +518,7 @@ impl Control for NodeSelectorWindow {
                     );
                 }
             }
-        } else if let Some(WindowMessage::Open { .. })
-        | Some(WindowMessage::OpenAt { .. })
-        | Some(WindowMessage::OpenModal { .. })
-        | Some(WindowMessage::OpenAndAlign { .. }) = message.data()
-        {
+        } else if let Some(WindowMessage::Open { .. }) = message.data() {
             ui.send(self.selector, NodeSelectorMessage::ChooseFocus);
         } else if let Some(WidgetMessage::KeyDown(KeyCode::Enter | KeyCode::NumpadEnter)) =
             message.data()

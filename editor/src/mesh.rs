@@ -18,8 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::gui::widget::WidgetMessage;
-
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -56,6 +54,8 @@ use crate::{
     world::selection::GraphSelection,
     Message,
 };
+use fyrox::gui::widget::WidgetMessage;
+use fyrox::gui::window::WindowAlignment;
 
 pub struct MeshControlPanel {
     pub root_widget: Handle<UiNode>,
@@ -318,8 +318,9 @@ impl SurfaceDataViewer {
         engine.user_interfaces.first().send_many(
             self.window,
             [
-                WindowMessage::OpenModal {
-                    center: true,
+                WindowMessage::Open {
+                    alignment: WindowAlignment::Center,
+                    modal: true,
                     focus_content: true,
                 },
                 WindowMessage::Title(title),

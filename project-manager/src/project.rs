@@ -23,6 +23,7 @@ use crate::{
     settings::{Project, Settings},
     utils,
 };
+use fyrox::gui::window::WindowAlignment;
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -246,7 +247,8 @@ impl ProjectWizard {
         ctx.inner().send(
             window,
             WindowMessage::Open {
-                center: true,
+                alignment: WindowAlignment::Center,
+                modal: false,
                 focus_content: true,
             },
         );

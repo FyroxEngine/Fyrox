@@ -45,6 +45,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::gui::window::WindowAlignment;
 
 pub struct NodeRemovalDialog {
     pub window: Handle<UiNode>,
@@ -150,8 +151,9 @@ impl NodeRemovalDialog {
 
         ui.send(
             self.window,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );

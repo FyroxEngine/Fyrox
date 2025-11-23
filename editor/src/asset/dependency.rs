@@ -40,6 +40,7 @@ use crate::fyrox::{
     },
 };
 use fyrox::asset::manager::ResourceManager;
+use fyrox::gui::window::WindowAlignment;
 
 pub struct DependencyViewer {
     pub window: Handle<UiNode>,
@@ -161,7 +162,8 @@ impl DependencyViewer {
         ui.send(
             self.window,
             WindowMessage::Open {
-                center: true,
+                alignment: WindowAlignment::Center,
+                modal: false,
                 focus_content: true,
             },
         );

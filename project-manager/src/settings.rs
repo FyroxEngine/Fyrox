@@ -20,6 +20,7 @@
 
 use directories::ProjectDirs;
 use fyrox::gui::inspector::InspectorContextArgs;
+use fyrox::gui::window::WindowAlignment;
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*},
     fxhash::FxHashSet,
@@ -252,8 +253,9 @@ impl SettingsWindow {
 
         ctx.inner().send(
             window,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );

@@ -24,6 +24,7 @@ use crate::{
     upgrade::UpgradeTool,
     utils::{self, is_production_ready},
 };
+use fyrox::gui::window::WindowAlignment;
 use fyrox::{
     core::{color::Color, log::Log, pool::Handle, some_or_return},
     gui::{
@@ -939,8 +940,9 @@ impl ProjectManager {
         .build(ctx);
         ui.send(
             self.deletion_confirmation_dialog,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );
@@ -970,8 +972,9 @@ impl ProjectManager {
         .build(ctx);
         ui.send(
             self.import_project_dialog,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );

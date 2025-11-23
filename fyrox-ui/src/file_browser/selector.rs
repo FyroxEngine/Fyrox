@@ -39,6 +39,7 @@ use crate::{
 };
 
 use crate::message::MessageData;
+use crate::window::WindowAlignment;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
@@ -352,8 +353,9 @@ impl Control for FileSelectorField {
 
                 ui.send(
                     file_selector,
-                    WindowMessage::OpenModal {
-                        center: true,
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Center,
+                        modal: true,
                         focus_content: true,
                     },
                 );

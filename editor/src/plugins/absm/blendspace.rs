@@ -62,6 +62,7 @@ use fyrox::gui::menu::ContextMenuBuilder;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::window::WindowAlignment;
 use std::{
     cell::Cell,
     fmt::{Debug, Formatter},
@@ -810,7 +811,8 @@ impl BlendSpaceEditor {
         ui.send(
             self.window,
             WindowMessage::Open {
-                center: true,
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );

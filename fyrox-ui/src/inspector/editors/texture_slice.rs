@@ -57,6 +57,7 @@ use crate::{
 };
 
 use crate::message::MessageData;
+use crate::window::WindowAlignment;
 use fyrox_texture::TextureKind;
 use std::{
     any::TypeId,
@@ -759,8 +760,9 @@ impl Control for TextureSliceFieldEditor {
 
                 ui.send(
                     self.editor,
-                    WindowMessage::OpenModal {
-                        center: true,
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Center,
+                        modal: true,
                         focus_content: true,
                     },
                 );

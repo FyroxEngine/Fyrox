@@ -52,6 +52,7 @@ use crate::{
 };
 use fyrox::core::SafeLock;
 use fyrox::gui::formatted_text::WrapMode;
+use fyrox::gui::window::WindowAlignment;
 use std::{
     fs::File,
     io::Write,
@@ -138,7 +139,7 @@ impl Control for AssetRenameDialog {
             ));
 
             ui.send(self.rename, WidgetMessage::Enabled(can_be_moved));
-        } else if let Some(WindowMessage::OpenModal { .. }) = message.data() {
+        } else if let Some(WindowMessage::Open { .. }) = message.data() {
             if message.destination() == self.handle {
                 ui.send(self.name_field, WidgetMessage::Focus);
             }
@@ -394,8 +395,9 @@ impl AssetItemContextMenu {
 
                     ui.send(
                         self.delete_confirmation_dialog,
-                        WindowMessage::OpenModal {
-                            center: true,
+                        WindowMessage::Open {
+                            alignment: WindowAlignment::Center,
+                            modal: true,
                             focus_content: true,
                         },
                     );
@@ -504,8 +506,9 @@ impl AssetItemContextMenu {
                         );
                         ui.send(
                             dialog,
-                            WindowMessage::OpenModal {
-                                center: true,
+                            WindowMessage::Open {
+                                alignment: WindowAlignment::Center,
+                                modal: true,
                                 focus_content: true,
                             },
                         );

@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::message::MessageData;
+use crate::window::WindowAlignment;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
@@ -129,8 +130,9 @@ impl Control for PathEditor {
                 );
                 ui.send(
                     *self.selector,
-                    WindowMessage::OpenModal {
-                        center: true,
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Center,
+                        modal: true,
                         focus_content: true,
                     },
                 );

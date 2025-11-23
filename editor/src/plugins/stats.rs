@@ -37,7 +37,7 @@ use crate::{
 };
 use fyrox::core::{uuid, Uuid};
 use fyrox::engine::ApplicationLoopController;
-use fyrox::gui::window::WindowTitle;
+use fyrox::gui::window::{WindowAlignment, WindowTitle};
 
 /// Editor UI statistics, useful to track number of active widgets and memory consumption.
 
@@ -85,11 +85,13 @@ impl EditorPlugin for UiStatisticsPlugin {
 
                 ui.send(
                     self.window,
-                    WindowMessage::OpenAndAlign {
-                        relative_to: editor.scene_viewer.frame(),
-                        horizontal_alignment: HorizontalAlignment::Right,
-                        vertical_alignment: VerticalAlignment::Bottom,
-                        margin: Thickness::uniform(1.0),
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Relative {
+                            relative_to: editor.scene_viewer.frame(),
+                            horizontal_alignment: HorizontalAlignment::Right,
+                            vertical_alignment: VerticalAlignment::Bottom,
+                            margin: Thickness::uniform(1.0),
+                        },
                         modal: false,
                         focus_content: true,
                     },

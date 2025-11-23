@@ -45,6 +45,7 @@ use crate::fyrox::{
 use crate::plugins::inspector::editors::spritesheet::window::SpriteSheetFramesEditorWindow;
 
 use fyrox::gui::message::MessageData;
+use fyrox::gui::window::WindowAlignment;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -87,8 +88,9 @@ impl Control for SpriteSheetFramesPropertyEditor {
 
                 ui.send(
                     window,
-                    WindowMessage::OpenModal {
-                        center: true,
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Center,
+                        modal: true,
                         focus_content: true,
                     },
                 );

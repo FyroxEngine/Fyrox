@@ -42,6 +42,7 @@ use crate::{
 use fyrox::core::algebra::Vector2;
 use fyrox::graph::BaseSceneGraph;
 use fyrox::gui::widget::WidgetMessage;
+use fyrox::gui::window::WindowAlignment;
 use fyrox::scene::collider::BitMask;
 
 pub struct CameraPreviewControlPanel {
@@ -133,11 +134,13 @@ impl CameraPreviewControlPanel {
             if any_camera {
                 engine.user_interfaces.first_mut().send(
                     self.window,
-                    WindowMessage::OpenAndAlign {
-                        relative_to: self.scene_viewer_frame,
-                        horizontal_alignment: HorizontalAlignment::Right,
-                        vertical_alignment: VerticalAlignment::Top,
-                        margin: Thickness::top_right(5.0),
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Relative {
+                            relative_to: self.scene_viewer_frame,
+                            horizontal_alignment: HorizontalAlignment::Right,
+                            vertical_alignment: VerticalAlignment::Top,
+                            margin: Thickness::top_right(5.0),
+                        },
                         modal: false,
                         focus_content: false,
                     },

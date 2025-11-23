@@ -52,6 +52,7 @@ use fyrox::asset::manager::ResourceManager;
 use fyrox::core::some_or_return;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::window::WindowAlignment;
 use std::{fmt::Debug, path::PathBuf};
 
 #[derive(Debug, ComponentProvider)]
@@ -318,8 +319,9 @@ impl CurveEditorWindow {
     pub fn open(&self, ui: &UserInterface) {
         ui.send(
             self.window,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );
@@ -392,8 +394,9 @@ impl CurveEditorWindow {
 
         ui.send(
             self.save_file_selector,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );
@@ -465,8 +468,9 @@ impl CurveEditorWindow {
 
                 ui.send(
                     self.load_file_selector,
-                    WindowMessage::OpenModal {
-                        center: true,
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Center,
+                        modal: true,
                         focus_content: true,
                     },
                 );

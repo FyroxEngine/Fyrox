@@ -52,6 +52,7 @@ use crate::{
     scene::commands::GameSceneContext,
     GameScene, Message,
 };
+use fyrox::gui::window::WindowAlignment;
 use fyrox::{
     asset::manager::ResourceManager,
     graph::SceneGraph,
@@ -119,7 +120,8 @@ impl SceneSettingsWindow {
         ui.send(
             self.window,
             WindowMessage::Open {
-                center: true,
+                alignment: WindowAlignment::Center,
+                modal: false,
                 focus_content: true,
             },
         );

@@ -64,6 +64,7 @@ use crate::{
 };
 use fyrox::core::{uuid, Uuid};
 use fyrox::engine::ApplicationLoopController;
+use fyrox::gui::window::WindowAlignment;
 use std::any::Any;
 
 mod blendspace;
@@ -465,7 +466,8 @@ impl AbsmEditor {
         ui.send(
             self.window,
             WindowMessage::Open {
-                center: true,
+                alignment: WindowAlignment::Center,
+                modal: false,
                 focus_content: true,
             },
         );

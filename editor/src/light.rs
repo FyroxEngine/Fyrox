@@ -41,6 +41,7 @@ use crate::fyrox::{
 use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{message::MessageSender, scene::GameScene, Engine};
 use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
+use fyrox::gui::window::WindowAlignment;
 use std::{
     path::PathBuf,
     sync::mpsc::{Receiver, Sender},
@@ -181,8 +182,9 @@ impl ProgressWindow {
     pub fn open(&self, ui: &UserInterface) {
         ui.send(
             self.window,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );

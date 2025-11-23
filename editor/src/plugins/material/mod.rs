@@ -93,6 +93,7 @@ use crate::{
 use fyrox::asset::event::ResourceEvent;
 use fyrox::engine::ApplicationLoopController;
 use fyrox::gui::message::DeliveryMode;
+use fyrox::gui::window::WindowAlignment;
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::{mpsc::Sender, Arc};
@@ -804,7 +805,8 @@ impl EditorPlugin for MaterialPlugin {
         ui.send(
             material_editor.window,
             WindowMessage::Open {
-                center: true,
+                alignment: WindowAlignment::Center,
+                modal: false,
                 focus_content: true,
             },
         );

@@ -68,6 +68,7 @@ use crate::{
     utils::window_content,
     Mode,
 };
+use fyrox::gui::window::WindowAlignment;
 use std::collections::HashMap;
 
 pub mod selection;
@@ -168,11 +169,13 @@ impl NavmeshPanel {
         if navmesh_selected {
             engine.user_interfaces.first().send(
                 self.window,
-                WindowMessage::OpenAndAlign {
-                    relative_to: self.scene_frame,
-                    horizontal_alignment: HorizontalAlignment::Right,
-                    vertical_alignment: VerticalAlignment::Top,
-                    margin: Thickness::uniform(1.0),
+                WindowMessage::Open {
+                    alignment: WindowAlignment::Relative {
+                        relative_to: self.scene_frame,
+                        horizontal_alignment: HorizontalAlignment::Right,
+                        vertical_alignment: VerticalAlignment::Top,
+                        margin: Thickness::uniform(1.0),
+                    },
                     modal: false,
                     focus_content: false,
                 },

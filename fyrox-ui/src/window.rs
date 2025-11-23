@@ -51,29 +51,18 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-/// A set of possible messages that can be used to modify the state of a window or listen to changes
-/// in the window.
-#[derive(Debug, Clone, PartialEq)]
-pub enum WindowMessage {
-    /// Opens a window.
-    Open {
-        /// A flag that defines whether the window should be centered or not.
-        center: bool,
-        /// A flag that defines whether the content of the window should be focused when the window
-        /// is opening.
-        focus_content: bool,
-    },
-
-    /// Opens a window at the given local coordinates.
-    OpenAt {
-        position: Vector2<f32>,
-        /// A flag that defines whether the content of the window should be focused when the window
-        /// is opening.
-        focus_content: bool,
-    },
-
-    /// Opens a window (optionally modal) and aligns it relative the to the given node.
-    OpenAndAlign {
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum WindowAlignment {
+    /// No specific alignment.
+    None,
+    /// Center of the parent widget (in most cases - center of the screen, if the parent is not
+    /// specified).
+    Center,
+    /// Position (in local coordinates) relative to the left top corner of the parent widget
+    /// bounds. In most cases it is just screen coordinates.
+    Position(Vector2<f32>),
+    /// Relative alignment to the specified widget.
+    Relative {
         /// A handle of a node to which the sender of this message should be aligned to.
         relative_to: Handle<UiNode>,
         /// Horizontal alignment of the widget.
@@ -82,19 +71,19 @@ pub enum WindowMessage {
         vertical_alignment: VerticalAlignment,
         /// Margins for each side.
         margin: Thickness,
+    },
+}
+
+/// A set of possible messages that can be used to modify the state of a window or listen to changes
+/// in the window.
+#[derive(Debug, Clone, PartialEq)]
+pub enum WindowMessage {
+    /// Opens a window.
+    Open {
+        /// A flag that defines whether the window should be centered or not.
+        alignment: WindowAlignment,
         /// Should the window be opened in modal mode or not.
         modal: bool,
-        /// A flag that defines whether the content of the window should be focused when the window
-        /// is opening.
-        focus_content: bool,
-    },
-
-    /// Opens window in modal mode. Modal mode does **not** blocks current thread, instead
-    /// it just restricts mouse and keyboard events only to window so other content is not
-    /// clickable/type-able. Closing a window removes that restriction.
-    OpenModal {
-        /// A flag that defines whether the window should be centered or not.
-        center: bool,
         /// A flag that defines whether the content of the window should be focused when the window
         /// is opening.
         focus_content: bool,
@@ -558,7 +547,8 @@ impl Control for Window {
         } else if let Some(msg) = message.data_for::<WindowMessage>(self.handle()) {
             match msg {
                 &WindowMessage::Open {
-                    center,
+                    alignment,
+                    modal,
                     focus_content,
                 } => {
                     // Only manage this window's visibility if it is at the root.
@@ -581,79 +571,37 @@ impl Control for Window {
                     if focus_content {
                         ui.send(self.content_to_focus(), WidgetMessage::Focus);
                     }
-                    if center && self.parent() == ui.root() {
-                        ui.send(self.handle(), WidgetMessage::Center);
+                    if modal {
+                        ui.push_picking_restriction(RestrictionEntry {
+                            handle: self.handle(),
+                            stop: true,
+                        });
                     }
-                }
-                &WindowMessage::OpenAt {
-                    position,
-                    focus_content,
-                } => {
-                    if !self.visibility() {
-                        ui.send_many(
-                            self.handle(),
-                            [
-                                WidgetMessage::Visibility(true),
-                                WidgetMessage::Topmost,
-                                WidgetMessage::DesiredPosition(position),
-                            ],
-                        );
-                        if focus_content {
-                            ui.send(self.content_to_focus(), WidgetMessage::Focus);
+                    match alignment {
+                        WindowAlignment::None => {}
+                        WindowAlignment::Center => {
+                            if self.parent() == ui.root() {
+                                ui.send(self.handle(), WidgetMessage::Center);
+                            }
                         }
-                    }
-                }
-                &WindowMessage::OpenAndAlign {
-                    relative_to,
-                    horizontal_alignment,
-                    vertical_alignment,
-                    margin,
-                    modal,
-                    focus_content,
-                } => {
-                    if !self.visibility() {
-                        ui.send_many(
-                            self.handle(),
-                            [
-                                WidgetMessage::Visibility(true),
-                                WidgetMessage::Topmost,
+                        WindowAlignment::Position(position) => {
+                            ui.send(self.handle(), WidgetMessage::DesiredPosition(position));
+                        }
+                        WindowAlignment::Relative {
+                            relative_to,
+                            horizontal_alignment,
+                            vertical_alignment,
+                            margin,
+                        } => {
+                            ui.send(
+                                self.handle(),
                                 WidgetMessage::Align {
                                     relative_to,
                                     horizontal_alignment,
                                     vertical_alignment,
                                     margin,
                                 },
-                            ],
-                        );
-                        if modal {
-                            ui.push_picking_restriction(RestrictionEntry {
-                                handle: self.handle(),
-                                stop: true,
-                            });
-                        }
-                        if focus_content {
-                            ui.send(self.content_to_focus(), WidgetMessage::Focus);
-                        }
-                    }
-                }
-                &WindowMessage::OpenModal {
-                    center,
-                    focus_content,
-                } => {
-                    if !self.visibility() {
-                        ui.send_many(
-                            self.handle(),
-                            [WidgetMessage::Visibility(true), WidgetMessage::Topmost],
-                        );
-                        if center {
-                            ui.send(self.handle(), WidgetMessage::Center);
-                        }
-                        ui.push_picking_restriction(RestrictionEntry {
-                            handle: self.handle(),
-                            stop: true,
-                        });
-                        if focus_content {
-                            ui.send(self.content_to_focus(), WidgetMessage::Focus);
+                            );
                         }
                     }
                 }

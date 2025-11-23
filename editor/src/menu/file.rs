@@ -43,6 +43,7 @@ use crate::{
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::{uuid, Uuid};
+use fyrox::gui::window::WindowAlignment;
 use std::{path::PathBuf, sync::mpsc::Sender};
 
 pub struct FileMenu {
@@ -267,8 +268,9 @@ impl FileMenu {
     pub fn open_load_file_selector(&self, ui: &mut UserInterface) {
         ui.send(
             self.load_file_selector,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );
@@ -292,8 +294,9 @@ impl FileMenu {
 
         ui.send(
             self.save_file_selector,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );
@@ -385,8 +388,9 @@ impl FileMenu {
                 if entry.is_none() {
                     engine.user_interfaces.first().send(
                         panels.configurator_window,
-                        WindowMessage::OpenModal {
-                            center: true,
+                        WindowMessage::Open {
+                            alignment: WindowAlignment::Center,
+                            modal: true,
                             focus_content: true,
                         },
                     );

@@ -53,6 +53,7 @@ use crate::{
     message::MessageSender,
     plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
 };
+use fyrox::gui::window::WindowAlignment;
 use fyrox::scene::tilemap::brush::TileMapBrushResource;
 use macro_tab::MacroTab;
 use palette::{PaletteWidgetBuilder, DEFAULT_MATERIAL_COLOR};
@@ -426,7 +427,8 @@ impl TileSetEditor {
         ctx.inner().send(
             window,
             WindowMessage::Open {
-                center: true,
+                alignment: WindowAlignment::Center,
+                modal: false,
                 focus_content: true,
             },
         );

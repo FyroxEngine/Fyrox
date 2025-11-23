@@ -22,6 +22,7 @@
 //! adds a special "bind" button used to change style binding of the property.
 
 use crate::message::MessageData;
+use crate::window::WindowAlignment;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
@@ -290,8 +291,9 @@ impl StyledPropertySelectorBuilder {
 
         ctx.inner().send(
             window,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );

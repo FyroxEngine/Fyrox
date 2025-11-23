@@ -43,6 +43,7 @@ use crate::{
     message::MessageSender,
     Message,
 };
+use fyrox::gui::window::WindowAlignment;
 use std::path::{Path, PathBuf};
 
 pub struct ResourceCreator {
@@ -160,8 +161,9 @@ impl ResourceCreator {
     pub fn open(&self, ui: &UserInterface) {
         ui.send(
             self.window,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );

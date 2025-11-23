@@ -21,6 +21,7 @@
 use fyrox_core::algebra::{Matrix3, Vector2};
 use fyrox_core::Uuid;
 use fyrox_resource::untyped::ResourceKind;
+use fyrox_ui::window::WindowAlignment;
 use fyrox_ui::{
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
@@ -210,8 +211,9 @@ impl BuildWindow {
 
         ui.send(
             self.window,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );

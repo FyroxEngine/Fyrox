@@ -25,6 +25,7 @@
 //! will be used by that tool. It has buttons that allow the selected tiles to
 //! be rotated and flipped before they are used in the tile map.
 
+use super::*;
 use crate::{
     asset::item::AssetItem,
     fyrox::{
@@ -59,8 +60,7 @@ use crate::{
     },
 };
 use fyrox::asset::manager::ResourceManager;
-
-use super::*;
+use fyrox::gui::window::WindowAlignment;
 
 const DEFAULT_PAGE: Vector2<i32> = Vector2::new(0, 0);
 
@@ -431,11 +431,13 @@ impl TileMapPanel {
         } else {
             ui.send(
                 self.window,
-                WindowMessage::OpenAndAlign {
-                    relative_to,
-                    horizontal_alignment: HorizontalAlignment::Right,
-                    vertical_alignment: VerticalAlignment::Top,
-                    margin: Thickness::uniform(2.0),
+                WindowMessage::Open {
+                    alignment: WindowAlignment::Relative {
+                        relative_to,
+                        horizontal_alignment: HorizontalAlignment::Right,
+                        vertical_alignment: VerticalAlignment::Top,
+                        margin: Thickness::uniform(2.0),
+                    },
                     modal: false,
                     focus_content: true,
                 },

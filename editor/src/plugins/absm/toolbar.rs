@@ -58,6 +58,7 @@ use crate::{
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::utils::make_dropdown_list_option;
+use fyrox::gui::window::WindowAlignment;
 use std::any::TypeId;
 
 pub struct Toolbar {
@@ -294,8 +295,9 @@ impl Toolbar {
 
                     ui.send(
                         self.node_selector,
-                        WindowMessage::OpenModal {
-                            center: true,
+                        WindowMessage::Open {
+                            alignment: WindowAlignment::Center,
+                            modal: true,
                             focus_content: true,
                         },
                     );

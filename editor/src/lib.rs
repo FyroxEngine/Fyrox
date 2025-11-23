@@ -180,6 +180,7 @@ use crate::{
 use fyrox::core::{info, uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::event_loop::ActiveEventLoop;
+use fyrox::gui::window::WindowAlignment;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
@@ -591,8 +592,9 @@ impl SceneLoadingWindow {
 
         ctx.inner().send(
             window,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );
@@ -1134,8 +1136,9 @@ impl Editor {
             // Open configurator as usual.
             editor.engine.user_interfaces.first().send(
                 editor.configurator.window,
-                WindowMessage::OpenModal {
-                    center: true,
+                WindowMessage::Open {
+                    alignment: WindowAlignment::Center,
+                    modal: true,
                     focus_content: true,
                 },
             );

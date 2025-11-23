@@ -56,6 +56,7 @@ use crate::{
 };
 use fyrox::core::PhantomDataSendSync;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::window::WindowAlignment;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -277,8 +278,9 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
 
                 ui.send(
                     node_selector,
-                    WindowMessage::OpenModal {
-                        center: true,
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Center,
+                        modal: true,
                         focus_content: true,
                     },
                 );

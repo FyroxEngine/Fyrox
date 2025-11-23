@@ -77,6 +77,7 @@ use crate::{
 };
 
 use fyrox::gui::inspector::InspectorContextArgs;
+use fyrox::gui::window::WindowAlignment;
 use std::sync::mpsc::channel;
 use std::sync::Arc;
 
@@ -422,11 +423,13 @@ impl InteractionMode for TerrainInteractionMode {
 
         engine.user_interfaces.first_mut().send(
             self.brush_panel.window,
-            WindowMessage::OpenAndAlign {
-                relative_to: self.scene_viewer_frame,
-                horizontal_alignment: HorizontalAlignment::Right,
-                vertical_alignment: VerticalAlignment::Top,
-                margin: Thickness::top_right(5.0),
+            WindowMessage::Open {
+                alignment: WindowAlignment::Relative {
+                    relative_to: self.scene_viewer_frame,
+                    horizontal_alignment: HorizontalAlignment::Right,
+                    vertical_alignment: VerticalAlignment::Top,
+                    margin: Thickness::top_right(5.0),
+                },
                 modal: false,
                 focus_content: false,
             },

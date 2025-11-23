@@ -38,6 +38,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
 };
 
+use crate::window::WindowAlignment;
 use fyrox_core::uuid_provider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -213,8 +214,9 @@ impl Control for ItemContextMenu {
 
                 ui.send(
                     dialog,
-                    WindowMessage::OpenModal {
-                        center: true,
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Center,
+                        modal: true,
                         focus_content: true,
                     },
                 );

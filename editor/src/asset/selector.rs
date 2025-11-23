@@ -54,6 +54,7 @@ use crate::{
         },
     },
 };
+use fyrox::gui::window::WindowAlignment;
 use rust_fuzzy_search::fuzzy_compare;
 use std::{
     borrow::Cow,
@@ -426,9 +427,7 @@ impl Control for AssetSelectorWindow {
             ui.send(self.handle, WindowMessage::Close);
         } else if let Some(ButtonMessage::Click) = message.data_from(self.cancel) {
             ui.send(self.handle, WindowMessage::Close);
-        } else if let Some(WindowMessage::Open { .. } | WindowMessage::OpenModal { .. }) =
-            message.data_for(self.handle)
-        {
+        } else if let Some(WindowMessage::Open { .. }) = message.data_for(self.handle) {
             ui.send(self.search_bar, WidgetMessage::Focus);
         } else if let Some(SearchBarMessage::Text(text)) = message.data_from(self.search_bar) {
             let selector = &ui[self.selector];
@@ -592,8 +591,9 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
 
         ui.send(
             selector,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: false,
             },
         );

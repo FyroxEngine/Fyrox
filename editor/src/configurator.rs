@@ -44,6 +44,7 @@ use crate::fyrox::{
 };
 use crate::message::MessageSender;
 use crate::{Engine, Message};
+use fyrox::gui::window::WindowAlignment;
 use std::{
     env,
     path::{Path, PathBuf},
@@ -340,8 +341,9 @@ impl Configurator {
             } else if message.destination() == self.select_work_dir {
                 engine.user_interfaces.first().send(
                     self.work_dir_browser,
-                    WindowMessage::OpenModal {
-                        center: true,
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Center,
+                        modal: true,
                         focus_content: true,
                     },
                 );

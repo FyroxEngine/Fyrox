@@ -75,6 +75,7 @@ use crate::{
 };
 use fyrox::core::{uuid, Uuid};
 use fyrox::engine::GraphicsContext;
+use fyrox::gui::window::WindowAlignment;
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 use rust_fuzzy_search::fuzzy_compare;
 use std::sync::Arc;
@@ -250,7 +251,8 @@ impl SettingsWindow {
         ui.send(
             self.window,
             WindowMessage::Open {
-                center: true,
+                alignment: WindowAlignment::Center,
+                modal: false,
                 focus_content: true,
             },
         );

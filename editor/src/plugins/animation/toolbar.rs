@@ -69,6 +69,7 @@ use crate::{
         Selection,
     },
 };
+use fyrox::gui::window::WindowAlignment;
 use std::any::TypeId;
 use std::path::Path;
 
@@ -303,8 +304,9 @@ impl RootMotionDropdownArea {
 
                     ui.send(
                         self.node_selector,
-                        WindowMessage::OpenModal {
-                            center: true,
+                        WindowMessage::Open {
+                            alignment: WindowAlignment::Center,
+                            modal: true,
                             focus_content: true,
                         },
                     );
@@ -1055,8 +1057,9 @@ impl Toolbar {
 
                 ui.send(
                     self.node_selector,
-                    WindowMessage::OpenModal {
-                        center: true,
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Center,
+                        modal: true,
                         focus_content: true,
                     },
                 );
@@ -1075,8 +1078,9 @@ impl Toolbar {
 
                 ui.send(
                     self.import_file_selector,
-                    WindowMessage::OpenModal {
-                        center: true,
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Center,
+                        modal: true,
                         focus_content: true,
                     },
                 );

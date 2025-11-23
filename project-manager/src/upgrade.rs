@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{settings::Project, utils, utils::make_button};
+use fyrox::gui::window::WindowAlignment;
 use fyrox::{
     core::{log::Log, pool::Handle},
     gui::{
@@ -176,8 +177,9 @@ impl UpgradeTool {
 
         ctx.inner().send(
             window,
-            WindowMessage::OpenModal {
-                center: true,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
                 focus_content: true,
             },
         );
