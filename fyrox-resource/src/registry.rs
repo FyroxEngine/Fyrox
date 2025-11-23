@@ -31,7 +31,6 @@ use crate::{
     state::WakersList,
 };
 use fxhash::FxHashSet;
-use fyrox_core::log::Log;
 use fyrox_core::{futures::executor::block_on, SafeLock};
 use ron::ser::PrettyConfig;
 use std::{
@@ -422,7 +421,7 @@ impl ResourceRegistry {
         if self.io.can_write() {
             if let Some(folder) = self.path.parent() {
                 if !self.io.exists_sync(folder) {
-                    Log::verify(self.io.create_dir_all_sync(folder));
+                    fyrox_core::log::Log::verify(self.io.create_dir_all_sync(folder));
                 }
             }
 

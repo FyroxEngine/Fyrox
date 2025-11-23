@@ -31,12 +31,11 @@ use crate::{
     },
     file_browser::menu::ItemContextMenu,
     grid::{Column, GridBuilder, Row},
-    image::ImageBuilder,
-    message::{MessageDirection, UiMessage},
+    message::{MessageData, MessageDirection, UiMessage},
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
     text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
-    tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
+    tree::{Tree, TreeMessage, TreeRootBuilder, TreeRootMessage},
     utils::make_simple_tooltip,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
@@ -47,28 +46,24 @@ use fyrox_graph::{
     BaseSceneGraph,
 };
 use notify::Watcher;
-use std::borrow::Cow;
 use std::{
     borrow::BorrowMut,
     cmp::Ordering,
     fmt::{Debug, Formatter},
     fs::DirEntry,
     ops::{Deref, DerefMut},
-    path::{Component, Path, PathBuf, Prefix},
+    path::{Path, PathBuf},
     sync::{
         mpsc::{self, Receiver},
         Arc,
     },
     thread,
 };
-#[cfg(not(target_arch = "wasm32"))]
-use sysinfo::{DiskExt, RefreshKind, SystemExt};
 
+mod fs_tree;
 mod menu;
 mod selector;
 
-use crate::message::MessageData;
-use crate::resources::FOLDER_ICON;
 pub use selector::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -197,7 +192,7 @@ crate::define_widget_deref!(FileBrowser);
 impl FileBrowser {
     fn rebuild_from_root(&mut self, ui: &mut UserInterface) {
         // Generate new tree contents.
-        let result = build_all(
+        let fs_tree = fs_tree::FsTree::new(
             self.root.as_ref(),
             &self.path,
             self.filter.clone(),
@@ -207,18 +202,18 @@ impl FileBrowser {
         );
 
         // Replace tree contents.
-        ui.send(self.tree_root, TreeRootMessage::Items(result.root_items));
+        ui.send(self.tree_root, TreeRootMessage::Items(fs_tree.root_items));
 
-        if result.path_item.is_some() {
+        if fs_tree.path_item.is_some() {
             // Select item of new path.
             ui.send(
                 self.tree_root,
-                TreeRootMessage::Select(vec![result.path_item]),
+                TreeRootMessage::Select(vec![fs_tree.path_item]),
             );
             // Bring item of new path into view.
             ui.send(
                 self.scroll_viewer,
-                ScrollViewerMessage::BringIntoView(result.path_item),
+                ScrollViewerMessage::BringIntoView(fs_tree.path_item),
             );
         } else {
             // Clear text field if path is invalid.
@@ -240,11 +235,11 @@ impl Control for FileBrowser {
                         if message.direction() == MessageDirection::ToWidget && &self.path != path {
                             let existing_path = ignore_nonexistent_sub_dirs(path);
 
-                            let mut item = find_tree(self.tree_root, &existing_path, ui);
+                            let mut item = fs_tree::find_tree(self.tree_root, &existing_path, ui);
 
                             if item.is_none() {
                                 // Generate new tree contents.
-                                let result = build_all(
+                                let fs_tree = fs_tree::FsTree::new(
                                     self.root.as_ref(),
                                     &existing_path,
                                     self.filter.clone(),
@@ -254,9 +249,9 @@ impl Control for FileBrowser {
                                 );
 
                                 // Replace tree contents.
-                                ui.send(self.tree_root, TreeRootMessage::Items(result.root_items));
+                                ui.send(self.tree_root, TreeRootMessage::Items(fs_tree.root_items));
 
-                                item = result.path_item;
+                                item = fs_tree.path_item;
                             }
 
                             self.path.clone_from(path);
@@ -326,11 +321,12 @@ impl Control for FileBrowser {
                             return;
                         }
                         let parent_path = parent_path(&path);
-                        let existing_parent_node = find_tree(self.tree_root, &parent_path, ui);
+                        let existing_parent_node =
+                            fs_tree::find_tree(self.tree_root, &parent_path, ui);
                         if existing_parent_node.is_some() {
                             if let Some(tree) = ui.node(existing_parent_node).cast::<Tree>() {
                                 if tree.is_expanded {
-                                    build_tree(
+                                    fs_tree::build_tree(
                                         existing_parent_node,
                                         existing_parent_node == self.tree_root,
                                         path,
@@ -348,17 +344,17 @@ impl Control for FileBrowser {
                     FileBrowserMessage::Remove(path) => {
                         let path =
                             make_fs_watcher_event_path_relative_to_tree_root(&self.root, path);
-                        let node = find_tree(self.tree_root, &path, ui);
+                        let node = fs_tree::find_tree(self.tree_root, &path, ui);
                         if node.is_some() {
                             let parent_path = parent_path(&path);
-                            let parent_node = find_tree(self.tree_root, &parent_path, ui);
+                            let parent_node = fs_tree::find_tree(self.tree_root, &parent_path, ui);
                             ui.send(parent_node, TreeMessage::RemoveItem(node))
                         }
                     }
                     FileBrowserMessage::Rescan | FileBrowserMessage::Drop { .. } => (),
                     FileBrowserMessage::FocusCurrentPath => {
                         if let Ok(canonical_path) = self.path.canonicalize() {
-                            let item = find_tree(self.tree_root, &canonical_path, ui);
+                            let item = fs_tree::find_tree(self.tree_root, &canonical_path, ui);
                             if item.is_some() {
                                 // Select item of new path.
                                 ui.send(self.tree_root, TreeRootMessage::Select(vec![item]));
@@ -406,7 +402,7 @@ impl Control for FileBrowser {
                             true
                         };
                         if build {
-                            build_tree(
+                            fs_tree::build_tree(
                                 message.destination(),
                                 false,
                                 &path,
@@ -599,359 +595,6 @@ fn make_fs_watcher_event_path_relative_to_tree_root(
     }
 }
 
-fn find_tree<P: AsRef<Path>>(node: Handle<UiNode>, path: &P, ui: &UserInterface) -> Handle<UiNode> {
-    let mut tree_handle = Handle::NONE;
-    let node_ref = ui.node(node);
-
-    if let Some(tree) = node_ref.cast::<Tree>() {
-        let tree_path = tree.user_data_cloned::<PathBuf>().unwrap();
-        if tree_path == path.as_ref() {
-            tree_handle = node;
-        } else {
-            for &item in &tree.items {
-                let tree = find_tree(item, path, ui);
-                if tree.is_some() {
-                    tree_handle = tree;
-                    break;
-                }
-            }
-        }
-    } else if let Some(root) = node_ref.cast::<TreeRoot>() {
-        for &item in &root.items {
-            let tree = find_tree(item, path, ui);
-            if tree.is_some() {
-                tree_handle = tree;
-                break;
-            }
-        }
-    } else {
-        unreachable!()
-    }
-    tree_handle
-}
-
-fn build_tree_item<P: AsRef<Path>>(
-    path: P,
-    parent_path: P,
-    menu: RcUiNodeHandle,
-    expanded: bool,
-    ctx: &mut BuildContext,
-    root_title: Option<&str>,
-) -> Handle<UiNode> {
-    let content = GridBuilder::new(
-        WidgetBuilder::new()
-            .with_child(if path.as_ref().is_dir() {
-                ImageBuilder::new(
-                    WidgetBuilder::new()
-                        .with_width(16.0)
-                        .with_height(16.0)
-                        .on_column(0)
-                        .with_margin(Thickness {
-                            left: 4.0,
-                            top: 1.0,
-                            right: 1.0,
-                            bottom: 1.0,
-                        }),
-                )
-                .with_opt_texture(FOLDER_ICON.clone())
-                .build(ctx)
-            } else {
-                Handle::NONE
-            })
-            .with_child(
-                TextBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness::left(4.0))
-                        .on_column(1),
-                )
-                .with_text(
-                    if let Some(root_title) = root_title.filter(|_| path.as_ref() == Path::new("."))
-                    {
-                        root_title.to_string()
-                    } else {
-                        path.as_ref()
-                            .to_string_lossy()
-                            .replace(&parent_path.as_ref().to_string_lossy().to_string(), "")
-                            .replace('\\', "")
-                    },
-                )
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .build(ctx),
-            ),
-    )
-    .add_row(Row::stretch())
-    .add_column(Column::auto())
-    .add_column(Column::stretch())
-    .build(ctx);
-
-    let is_dir_empty = path
-        .as_ref()
-        .read_dir()
-        .map_or(true, |mut f| f.next().is_none());
-    TreeBuilder::new(
-        WidgetBuilder::new()
-            .with_user_data(Arc::new(Mutex::new(path.as_ref().to_owned())))
-            .with_context_menu(menu),
-    )
-    .with_expanded(expanded)
-    .with_always_show_expander(!is_dir_empty)
-    .with_content(content)
-    .build(ctx)
-}
-
-fn build_tree<P: AsRef<Path>>(
-    parent: Handle<UiNode>,
-    is_parent_root: bool,
-    path: P,
-    parent_path: P,
-    menu: RcUiNodeHandle,
-    root_title: Option<&str>,
-    ui: &mut UserInterface,
-) -> Handle<UiNode> {
-    let subtree = build_tree_item(
-        path,
-        parent_path,
-        menu,
-        false,
-        &mut ui.build_ctx(),
-        root_title,
-    );
-    insert_subtree_in_parent(ui, parent, is_parent_root, subtree);
-    subtree
-}
-
-fn insert_subtree_in_parent(
-    ui: &mut UserInterface,
-    parent: Handle<UiNode>,
-    is_parent_root: bool,
-    tree: Handle<UiNode>,
-) {
-    if is_parent_root {
-        ui.send(parent, TreeRootMessage::AddItem(tree));
-    } else {
-        ui.send(parent, TreeMessage::AddItem(tree));
-    }
-}
-
-struct BuildResult {
-    root_items: Vec<Handle<UiNode>>,
-    path_item: Handle<UiNode>,
-}
-
-fn disk_letter(components: &[Component]) -> Option<u8> {
-    if let Some(Component::Prefix(prefix)) = components.first() {
-        if let Prefix::Disk(disk_letter) | Prefix::VerbatimDisk(disk_letter) = prefix.kind() {
-            return Some(disk_letter);
-        }
-    }
-    None
-}
-
-fn sanitize_path(in_path: &Path, root: Option<&PathBuf>) -> PathBuf {
-    let mut out_path = PathBuf::new();
-
-    if let Ok(canonical_in_path) = in_path.canonicalize() {
-        if let Some(canonical_root) = root.and_then(|r| r.canonicalize().ok()) {
-            if let Ok(stripped) = canonical_in_path.strip_prefix(canonical_root) {
-                stripped.clone_into(&mut out_path);
-            }
-        } else {
-            out_path = canonical_in_path;
-        }
-    }
-
-    // There should be at least one component in the path. If the path is empty, this means that
-    // it "points" to the current directory.
-    if out_path.as_os_str().is_empty() {
-        out_path.push(".");
-    }
-
-    // Relative paths must always start from CurDir component (./), otherwise the root dir will be ignored
-    // and the tree will be incorrect.
-    if !out_path.is_absolute() {
-        out_path = Path::new(".").join(out_path);
-    }
-
-    out_path
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-struct DisksProvider {
-    sys: sysinfo::System,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl DisksProvider {
-    fn new() -> Self {
-        Self {
-            sys: sysinfo::System::new_with_specifics(RefreshKind::new().with_disks_list()),
-        }
-    }
-
-    fn iter(&self) -> impl Iterator<Item = (Cow<str>, u8)> {
-        self.sys.disks().iter().map(|disk| {
-            let mount_point = disk.mount_point().to_string_lossy();
-            let disk_letter = mount_point.chars().next().unwrap() as u8;
-            (mount_point, disk_letter)
-        })
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-struct DisksProvider;
-
-#[cfg(target_arch = "wasm32")]
-impl DisksProvider {
-    fn new() -> Self {
-        Self
-    }
-
-    fn iter(&self) -> impl Iterator<Item = (Cow<str>, u8)> {
-        std::iter::empty()
-    }
-}
-
-struct RootsCollection {
-    items: Vec<Handle<UiNode>>,
-    root_item: Handle<UiNode>,
-}
-
-impl RootsCollection {
-    fn new(
-        path_components: &[Component],
-        root: Option<&PathBuf>,
-        menu: &RcUiNodeHandle,
-        root_title: Option<&str>,
-        ctx: &mut BuildContext,
-    ) -> Self {
-        if let Some(root) = root {
-            let path = if std::env::current_dir().is_ok_and(|dir| &dir == root) {
-                Path::new(".")
-            } else {
-                root.as_path()
-            };
-
-            let root_item =
-                build_tree_item(path, Path::new(""), menu.clone(), true, ctx, root_title);
-            Self {
-                items: vec![root_item],
-                root_item,
-            }
-        } else {
-            let dest_disk = disk_letter(path_components);
-
-            let mut items = Vec::new();
-            let mut root_item = Handle::NONE;
-
-            for (disk, disk_letter) in DisksProvider::new().iter() {
-                let is_disk_part_of_path = dest_disk == Some(disk_letter);
-
-                let item = build_tree_item(
-                    disk.as_ref(),
-                    "",
-                    menu.clone(),
-                    is_disk_part_of_path,
-                    ctx,
-                    root_title,
-                );
-
-                if is_disk_part_of_path {
-                    root_item = item;
-                }
-
-                items.push(item);
-            }
-
-            Self { items, root_item }
-        }
-    }
-}
-
-/// Builds entire file system tree to given final_path.
-fn build_all(
-    root: Option<&PathBuf>,
-    final_path: &Path,
-    mut filter: Option<Filter>,
-    menu: RcUiNodeHandle,
-    root_title: Option<&str>,
-    ctx: &mut BuildContext,
-) -> BuildResult {
-    let dest_path = sanitize_path(final_path, root);
-
-    let dest_path_components = dest_path.components().collect::<Vec<Component>>();
-
-    let RootsCollection {
-        items: mut root_items,
-        root_item: mut parent,
-    } = RootsCollection::new(&dest_path_components, root, &menu, root_title, ctx);
-
-    let mut path_item = Handle::NONE;
-
-    // Try to build tree only for given path.
-    let mut full_path = PathBuf::new();
-    for (i, component) in dest_path_components.iter().enumerate() {
-        // Concat parts of path one by one.
-        full_path = full_path.join(component.as_os_str());
-
-        let next_component = dest_path_components.get(i + 1);
-
-        if let Some(next_component) = next_component {
-            if matches!(component, Component::Prefix(_))
-                && matches!(next_component, Component::RootDir)
-            {
-                continue;
-            }
-        }
-
-        let next = next_component.map(|p| full_path.join(p));
-
-        let mut new_parent = parent;
-        if let Ok(dir_iter) = std::fs::read_dir(&full_path) {
-            let mut entries: Vec<_> = dir_iter.flatten().collect();
-            entries.sort_unstable_by(sort_dir_entries);
-            for entry in entries {
-                let path = entry.path();
-                #[allow(clippy::blocks_in_conditions)]
-                if filter
-                    .as_mut()
-                    .is_none_or(|f| f.0.borrow_mut().deref_mut().safe_lock()(&path))
-                {
-                    let is_part_of_final_path = next.as_ref().is_some_and(|next| *next == path);
-
-                    let item = build_tree_item(
-                        &path,
-                        &full_path,
-                        menu.clone(),
-                        is_part_of_final_path,
-                        ctx,
-                        root_title,
-                    );
-
-                    if parent.is_some() {
-                        Tree::add_item(parent, item, ctx);
-                    } else {
-                        root_items.push(item);
-                    }
-
-                    if is_part_of_final_path {
-                        new_parent = item;
-                    }
-
-                    if path == dest_path {
-                        path_item = item;
-                    }
-                }
-            }
-        }
-        parent = new_parent;
-    }
-
-    BuildResult {
-        root_items,
-        path_item,
-    }
-}
-
 pub struct FileBrowserBuilder {
     widget_builder: WidgetBuilder,
     path: PathBuf,
@@ -1027,9 +670,9 @@ impl FileBrowserBuilder {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let item_context_menu = RcUiNodeHandle::new(ItemContextMenu::build(ctx), ctx.sender());
 
-        let BuildResult {
+        let fs_tree::FsTree {
             root_items: items, ..
-        } = build_all(
+        } = fs_tree::FsTree::new(
             self.root.as_ref(),
             self.path.as_path(),
             self.filter.clone(),
@@ -1244,14 +887,11 @@ fn setup_filebrowser_fs_watcher(
 
 #[cfg(test)]
 mod test {
-    use crate::file_browser::FileBrowserBuilder;
+    use crate::file_browser::{fs_tree, FileBrowserBuilder};
     use crate::test::test_widget_deletion;
     use crate::{
-        core::pool::Handle,
-        file_browser::{build_tree, find_tree},
-        tree::TreeRootBuilder,
-        widget::WidgetBuilder,
-        RcUiNodeHandle, UserInterface,
+        core::pool::Handle, tree::TreeRootBuilder, widget::WidgetBuilder, RcUiNodeHandle,
+        UserInterface,
     };
     use fyrox_core::algebra::Vector2;
     use fyrox_core::parking_lot::Mutex;
@@ -1272,7 +912,7 @@ mod test {
         )
         .build(&mut ui.build_ctx());
 
-        let path = build_tree(
+        let path = fs_tree::build_tree(
             root,
             true,
             "./test/path1",
@@ -1285,10 +925,10 @@ mod test {
         while ui.poll_message().is_some() {}
 
         // This passes.
-        assert_eq!(find_tree(root, &"./test/path1", &ui), path);
+        assert_eq!(fs_tree::find_tree(root, &"./test/path1", &ui), path);
 
         // This expected to fail
         // https://github.com/rust-lang/rust/issues/31374
-        assert_eq!(find_tree(root, &"test/path1", &ui), Handle::NONE);
+        assert_eq!(fs_tree::find_tree(root, &"test/path1", &ui), Handle::NONE);
     }
 }
