@@ -29,14 +29,13 @@ use crate::{
     widget::WidgetBuilder,
     BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::err;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     borrow::Cow,
     path::{Component, Path, PathBuf, Prefix},
     sync::Arc,
 };
-#[cfg(not(target_arch = "wasm32"))]
-use sysinfo::{DiskExt, RefreshKind, SystemExt};
 
 pub fn find_tree<P: AsRef<Path>>(
     node: Handle<UiNode>,
@@ -221,12 +220,14 @@ struct DisksProvider {
 #[cfg(not(target_arch = "wasm32"))]
 impl DisksProvider {
     fn new() -> Self {
+        use sysinfo::{RefreshKind, SystemExt};
         Self {
             sys: sysinfo::System::new_with_specifics(RefreshKind::new().with_disks_list()),
         }
     }
 
     fn iter(&self) -> impl Iterator<Item = (Cow<str>, u8)> {
+        use sysinfo::{DiskExt, SystemExt};
         self.sys.disks().iter().map(|disk| {
             let mount_point = disk.mount_point().to_string_lossy();
             let disk_letter = mount_point.chars().next().unwrap() as u8;
@@ -305,6 +306,43 @@ impl RootsCollection {
     }
 }
 
+pub fn build_single_folder(
+    parent_path: &Path,
+    tree_item: Handle<UiNode>,
+    menu: RcUiNodeHandle,
+    root_title: Option<&str>,
+    mut filter: Option<&mut Filter>,
+    ui: &mut UserInterface,
+) {
+    let Ok(dir_iter) = std::fs::read_dir(parent_path) else {
+        err!(
+            "Unable to fetch FS content for path {}!",
+            parent_path.display()
+        );
+        return;
+    };
+
+    let mut entries: Vec<_> = dir_iter.flatten().collect();
+    entries.sort_unstable_by(sort_dir_entries);
+    for entry in entries {
+        let path = entry.path();
+        if filter
+            .as_mut()
+            .is_none_or(|filter| filter.0.safe_lock()(&path))
+        {
+            build_tree(
+                tree_item,
+                false,
+                path.as_path(),
+                parent_path,
+                menu.clone(),
+                root_title,
+                ui,
+            );
+        }
+    }
+}
+
 pub struct FsTree {
     pub root_items: Vec<Handle<UiNode>>,
     pub path_item: Handle<UiNode>,
@@ -325,7 +363,7 @@ impl FsTree {
         let dest_path_components = dest_path.components().collect::<Vec<Component>>();
 
         let RootsCollection {
-            items: mut root_items,
+            items: root_items,
             root_item: mut parent,
         } = RootsCollection::new(&dest_path_components, root, &menu, root_title, ctx);
 
@@ -355,7 +393,6 @@ impl FsTree {
                 entries.sort_unstable_by(sort_dir_entries);
                 for entry in entries {
                     let path = entry.path();
-                    #[allow(clippy::blocks_in_conditions)]
                     if filter.as_mut().is_none_or(|f| f.0.safe_lock()(&path)) {
                         let is_part_of_final_path = next.as_ref().is_some_and(|next| *next == path);
 
@@ -368,11 +405,7 @@ impl FsTree {
                             root_title,
                         );
 
-                        if parent.is_some() {
-                            Tree::add_item(parent, item, ctx);
-                        } else {
-                            root_items.push(item);
-                        }
+                        Tree::add_item(parent, item, ctx);
 
                         if is_part_of_final_path {
                             new_parent = item;

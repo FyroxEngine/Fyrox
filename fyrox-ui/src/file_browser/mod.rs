@@ -391,29 +391,14 @@ impl Control for FileBrowser {
                     .user_data_cloned::<PathBuf>()
                     .unwrap()
                     .clone();
-                if let Ok(dir_iter) = std::fs::read_dir(&parent_path) {
-                    let mut entries: Vec<_> = dir_iter.flatten().collect();
-                    entries.sort_unstable_by(sort_dir_entries);
-                    for entry in entries {
-                        let path = entry.path();
-                        let build = if let Some(filter) = self.filter.as_mut() {
-                            filter.0.borrow_mut().deref_mut().safe_lock()(&path)
-                        } else {
-                            true
-                        };
-                        if build {
-                            fs_tree::build_tree(
-                                message.destination(),
-                                false,
-                                &path,
-                                &parent_path,
-                                self.item_context_menu.clone(),
-                                self.root_title.as_deref(),
-                                ui,
-                            );
-                        }
-                    }
-                }
+                fs_tree::build_single_folder(
+                    &parent_path,
+                    message.destination(),
+                    self.item_context_menu.clone(),
+                    self.root_title.as_deref(),
+                    self.filter.as_mut(),
+                    ui,
+                )
             } else {
                 // Nuke everything in collapsed item. This also will free some resources
                 // and will speed up layout pass.
