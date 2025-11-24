@@ -483,9 +483,7 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                         let rhs_nan = !(rhs == rhs);
                         if lhs_nan && rhs_nan {
                             true
-                        } else if lhs_nan && !rhs_nan {
-                            false
-                        } else if !lhs_nan && rhs_nan {
+                        } else if (lhs_nan && !rhs_nan) || (!lhs_nan && rhs_nan) {
                             false
                         } else {
                             lhs == rhs
