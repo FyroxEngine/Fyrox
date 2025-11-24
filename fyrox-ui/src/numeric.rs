@@ -475,16 +475,25 @@ impl<T: NumericType> Control for NumericUpDown<T> {
             }
         } else if let Some(msg) = message.data_for::<NumericUpDownMessage<T>>(self.handle()) {
             match msg {
-                // Stupid clippy does not understand that NaN != NaN by definition.
-                #[allow(clippy::eq_op)]
                 NumericUpDownMessage::Value(value) => {
+                    // Stupid clippy does not understand that NaN != NaN by definition.
+                    #[allow(clippy::eq_op)]
+                    fn nan_aware_eq<N: NumericType>(lhs: N, rhs: N) -> bool {
+                        let lhs_nan = !(lhs == lhs);
+                        let rhs_nan = !(rhs == rhs);
+                        if lhs_nan && rhs_nan {
+                            true
+                        } else if lhs_nan && !rhs_nan {
+                            false
+                        } else if !lhs_nan && rhs_nan {
+                            false
+                        } else {
+                            lhs == rhs
+                        }
+                    }
+
                     let clamped = self.clamp_value(*value);
-
-                    let is_current_value_nan = !(*self.value == *self.value);
-                    let is_new_value_nan = !(clamped == clamped);
-                    let values_equal = *self.value != clamped;
-
-                    if is_current_value_nan != is_new_value_nan && values_equal {
+                    if !nan_aware_eq(*self.value, clamped) {
                         self.value.set_value_and_mark_modified(clamped);
 
                         self.sync_text_field(ui);
