@@ -19,8 +19,8 @@
 // SOFTWARE.
 
 use crate::{
-    core::{parking_lot::Mutex, pool::Handle, SafeLock},
-    file_browser::{sort_dir_entries, Filter},
+    core::{err, parking_lot::Mutex, pool::Handle, SafeLock},
+    file_browser::Filter,
     grid::{Column, GridBuilder, Row},
     image::ImageBuilder,
     resources::FOLDER_ICON,
@@ -29,10 +29,11 @@ use crate::{
     widget::WidgetBuilder,
     BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_core::err;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     borrow::Cow,
+    cmp::Ordering,
+    ffi::OsString,
     path::{Component, Path, PathBuf, Prefix},
     sync::Arc,
 };
@@ -212,6 +213,39 @@ fn sanitize_path(in_path: &Path, root: Option<&PathBuf>) -> PathBuf {
     out_path
 }
 
+fn read_dir_entries(dir: &Path, filter: Option<&Filter>) -> std::io::Result<Vec<PathBuf>> {
+    #[allow(clippy::ptr_arg)]
+    fn sort_dir_entries(a: &PathBuf, b: &PathBuf) -> Ordering {
+        let a_is_dir = a.is_dir();
+        let b_is_dir = b.is_dir();
+
+        if a_is_dir && !b_is_dir {
+            Ordering::Less
+        } else if !a_is_dir && b_is_dir {
+            Ordering::Greater
+        } else {
+            fn lowercase_file_name(path: &Path) -> OsString {
+                path.file_name()
+                    .expect("file name must exist")
+                    .to_ascii_lowercase()
+            }
+            lowercase_file_name(a).cmp(&lowercase_file_name(b))
+        }
+    }
+
+    fn passes_filter(path: &Path, filter: Option<&Filter>) -> bool {
+        filter.is_none_or(|filter| filter.0.safe_lock()(path))
+    }
+
+    let mut entries = std::fs::read_dir(dir)?
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| passes_filter(path, filter))
+        .collect::<Vec<_>>();
+    entries.sort_unstable_by(sort_dir_entries);
+    Ok(entries)
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 struct DisksProvider {
     sys: sysinfo::System,
@@ -311,10 +345,10 @@ pub fn build_single_folder(
     tree_item: Handle<UiNode>,
     menu: RcUiNodeHandle,
     root_title: Option<&str>,
-    mut filter: Option<&mut Filter>,
+    filter: Option<&Filter>,
     ui: &mut UserInterface,
 ) {
-    let Ok(dir_iter) = std::fs::read_dir(parent_path) else {
+    let Ok(entries) = read_dir_entries(parent_path, filter) else {
         err!(
             "Unable to fetch FS content for path {}!",
             parent_path.display()
@@ -322,24 +356,16 @@ pub fn build_single_folder(
         return;
     };
 
-    let mut entries: Vec<_> = dir_iter.flatten().collect();
-    entries.sort_unstable_by(sort_dir_entries);
-    for entry in entries {
-        let path = entry.path();
-        if filter
-            .as_mut()
-            .is_none_or(|filter| filter.0.safe_lock()(&path))
-        {
-            build_tree(
-                tree_item,
-                false,
-                path.as_path(),
-                parent_path,
-                menu.clone(),
-                root_title,
-                ui,
-            );
-        }
+    for path in entries {
+        build_tree(
+            tree_item,
+            false,
+            path.as_path(),
+            parent_path,
+            menu.clone(),
+            root_title,
+            ui,
+        );
     }
 }
 
@@ -353,7 +379,7 @@ impl FsTree {
     pub fn new(
         root: Option<&PathBuf>,
         final_path: &Path,
-        mut filter: Option<Filter>,
+        filter: Option<&Filter>,
         menu: RcUiNodeHandle,
         root_title: Option<&str>,
         ctx: &mut BuildContext,
@@ -388,32 +414,27 @@ impl FsTree {
             let next = next_component.map(|p| full_path.join(p));
 
             let mut new_parent = parent;
-            if let Ok(dir_iter) = std::fs::read_dir(&full_path) {
-                let mut entries: Vec<_> = dir_iter.flatten().collect();
-                entries.sort_unstable_by(sort_dir_entries);
-                for entry in entries {
-                    let path = entry.path();
-                    if filter.as_mut().is_none_or(|f| f.0.safe_lock()(&path)) {
-                        let is_part_of_final_path = next.as_ref().is_some_and(|next| *next == path);
+            if let Ok(entries) = read_dir_entries(&full_path, filter) {
+                for path in entries {
+                    let is_part_of_final_path = next.as_ref().is_some_and(|next| *next == path);
 
-                        let item = build_tree_item(
-                            &path,
-                            &full_path,
-                            menu.clone(),
-                            is_part_of_final_path,
-                            ctx,
-                            root_title,
-                        );
+                    let item = build_tree_item(
+                        &path,
+                        &full_path,
+                        menu.clone(),
+                        is_part_of_final_path,
+                        ctx,
+                        root_title,
+                    );
 
-                        Tree::add_item(parent, item, ctx);
+                    Tree::add_item(parent, item, ctx);
 
-                        if is_part_of_final_path {
-                            new_parent = item;
-                        }
+                    if is_part_of_final_path {
+                        new_parent = item;
+                    }
 
-                        if path == dest_path {
-                            path_item = item;
-                        }
+                    if path == dest_path {
+                        path_item = item;
                     }
                 }
             }

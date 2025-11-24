@@ -48,9 +48,7 @@ use fyrox_graph::{
 use notify::Watcher;
 use std::{
     borrow::BorrowMut,
-    cmp::Ordering,
     fmt::{Debug, Formatter},
-    fs::DirEntry,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{
@@ -195,7 +193,7 @@ impl FileBrowser {
         let fs_tree = fs_tree::FsTree::new(
             self.root.as_ref(),
             &self.path,
-            self.filter.clone(),
+            self.filter.as_ref(),
             self.item_context_menu.clone(),
             self.root_title.as_deref(),
             &mut ui.build_ctx(),
@@ -242,7 +240,7 @@ impl Control for FileBrowser {
                                 let fs_tree = fs_tree::FsTree::new(
                                     self.root.as_ref(),
                                     &existing_path,
-                                    self.filter.clone(),
+                                    self.filter.as_ref(),
                                     self.item_context_menu.clone(),
                                     self.root_title.as_deref(),
                                     &mut ui.build_ctx(),
@@ -396,7 +394,7 @@ impl Control for FileBrowser {
                     message.destination(),
                     self.item_context_menu.clone(),
                     self.root_title.as_deref(),
-                    self.filter.as_mut(),
+                    self.filter.as_ref(),
                     ui,
                 )
             } else {
@@ -548,21 +546,6 @@ fn ignore_nonexistent_sub_dirs(path: &Path) -> PathBuf {
     existing_path
 }
 
-fn sort_dir_entries(a: &DirEntry, b: &DirEntry) -> Ordering {
-    let a_is_dir = a.path().is_dir();
-    let b_is_dir = b.path().is_dir();
-
-    if a_is_dir && !b_is_dir {
-        Ordering::Less
-    } else if !a_is_dir && b_is_dir {
-        Ordering::Greater
-    } else {
-        a.file_name()
-            .to_ascii_lowercase()
-            .cmp(&b.file_name().to_ascii_lowercase())
-    }
-}
-
 fn make_fs_watcher_event_path_relative_to_tree_root(
     root: &Option<PathBuf>,
     path: &Path,
@@ -660,7 +643,7 @@ impl FileBrowserBuilder {
         } = fs_tree::FsTree::new(
             self.root.as_ref(),
             self.path.as_path(),
-            self.filter.clone(),
+            self.filter.as_ref(),
             item_context_menu.clone(),
             self.root_title.as_deref(),
             ctx,
