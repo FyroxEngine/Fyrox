@@ -447,3 +447,64 @@ impl FsTree {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::file_browser::{fs_tree::read_dir_entries, Filter};
+    use std::{
+        fs::File,
+        path::{Path, PathBuf},
+    };
+
+    fn create_dir(path: impl AsRef<Path>) {
+        std::fs::create_dir_all(path).unwrap()
+    }
+
+    fn write_empty_file(path: impl AsRef<Path>) {
+        File::create(path).unwrap();
+    }
+
+    fn create_dirs(paths: &[PathBuf]) {
+        for path in paths {
+            create_dir(path)
+        }
+    }
+
+    fn write_empty_files(paths: &[PathBuf]) {
+        for path in paths {
+            write_empty_file(path)
+        }
+    }
+
+    fn clean_or_create(path: impl AsRef<Path>) {
+        if path.as_ref().exists() {
+            std::fs::remove_dir_all(path).unwrap();
+        } else {
+            create_dir(path);
+        }
+    }
+
+    #[test]
+    fn test_dir_fetching() {
+        let path = Path::new("./test_dir_fetching");
+        clean_or_create(path);
+        let folders = [path.join("dir1"), path.join("dir2"), path.join("dir3")];
+        let files = [path.join("file1"), path.join("file2"), path.join("file3")];
+        create_dirs(&folders);
+        write_empty_files(&files);
+        let entries = read_dir_entries(path, None).unwrap();
+        assert_eq!(entries[0..3], folders);
+        assert_eq!(entries[3..6], files);
+        let files_copy = files.clone();
+        let folders_copy = folders.clone();
+        let entries = read_dir_entries(
+            path,
+            Some(&Filter::new(move |path| {
+                path != files_copy[0] && path != folders_copy[2]
+            })),
+        )
+        .unwrap();
+        assert_eq!(entries[0..2], folders[0..2]);
+        assert_eq!(entries[2..4], files[1..3]);
+    }
+}
