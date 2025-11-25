@@ -164,8 +164,12 @@ impl Debug for FileBrowser {
 crate::define_widget_deref!(FileBrowser);
 
 impl FileBrowser {
-    fn rebuild_from_root(&mut self, ui: &mut UserInterface) {
-        // Generate new tree contents.
+    fn select_and_bring_into_view(&self, item: Handle<UiNode>, ui: &UserInterface) {
+        ui.send(self.tree_root, TreeRootMessage::Select(vec![item]));
+        ui.send(self.scroll_viewer, ScrollViewerMessage::BringIntoView(item));
+    }
+
+    fn rebuild_fs_tree(&mut self, ui: &mut UserInterface) {
         let fs_tree = fs_tree::FsTree::new(
             self.root.as_ref(),
             &self.path,
@@ -175,23 +179,35 @@ impl FileBrowser {
             &mut ui.build_ctx(),
         );
 
-        // Replace tree contents.
         ui.send(self.tree_root, TreeRootMessage::Items(fs_tree.root_items));
 
         if fs_tree.path_item.is_some() {
-            // Select item of new path.
-            ui.send(
-                self.tree_root,
-                TreeRootMessage::Select(vec![fs_tree.path_item]),
-            );
-            // Bring item of new path into view.
-            ui.send(
-                self.scroll_viewer,
-                ScrollViewerMessage::BringIntoView(fs_tree.path_item),
-            );
+            self.select_and_bring_into_view(fs_tree.path_item, ui);
         } else {
-            // Clear text field if path is invalid.
             ui.send(self.path_text, TextMessage::Text(String::new()));
+        }
+    }
+
+    fn set_path(&mut self, path: &Path, ui: &mut UserInterface) {
+        fn discard_nonexistent_sub_dirs(path: &Path) -> PathBuf {
+            let mut existing_path = path.to_owned();
+            while !existing_path.exists() {
+                if !existing_path.pop() {
+                    break;
+                }
+            }
+            existing_path
+        }
+
+        // Keep only the valid part of the supplied path. For example, if the path `foo/bar/baz`
+        // is supplied and only `foo/bar` exists, then the tree will be built only to that path.
+        self.path = discard_nonexistent_sub_dirs(path);
+
+        let existing_item = fs_tree::find_tree_item(self.tree_root, &self.path, ui);
+        if existing_item.is_some() {
+            self.select_and_bring_into_view(existing_item, ui)
+        } else {
+            self.rebuild_fs_tree(ui)
         }
     }
 }
@@ -207,47 +223,7 @@ impl Control for FileBrowser {
                 match msg {
                     FileBrowserMessage::Path(path) => {
                         if message.direction() == MessageDirection::ToWidget && &self.path != path {
-                            let existing_path = ignore_nonexistent_sub_dirs(path);
-
-                            let mut item = fs_tree::find_tree(self.tree_root, &existing_path, ui);
-
-                            if item.is_none() {
-                                // Generate new tree contents.
-                                let fs_tree = fs_tree::FsTree::new(
-                                    self.root.as_ref(),
-                                    &existing_path,
-                                    &self.filter,
-                                    self.item_context_menu.clone(),
-                                    self.root_title.as_deref(),
-                                    &mut ui.build_ctx(),
-                                );
-
-                                // Replace tree contents.
-                                ui.send(self.tree_root, TreeRootMessage::Items(fs_tree.root_items));
-
-                                item = fs_tree.path_item;
-                            }
-
-                            self.path.clone_from(path);
-
-                            // Set value of text field.
-                            ui.send(
-                                self.path_text,
-                                TextMessage::Text(path.to_string_lossy().to_string()),
-                            );
-
-                            // Path can be invalid, so we shouldn't do anything in such case.
-                            if item.is_some() {
-                                // Select item of new path.
-                                ui.send(self.tree_root, TreeRootMessage::Select(vec![item]));
-
-                                // Bring item of new path into view.
-                                ui.send(
-                                    self.scroll_viewer,
-                                    ScrollViewerMessage::BringIntoView(item),
-                                );
-                            }
-
+                            self.set_path(path, ui);
                             ui.send_message(message.reverse());
                         }
                     }
@@ -274,14 +250,14 @@ impl Control for FileBrowser {
                             };
                             self.root.clone_from(root);
                             self.path = root.clone().unwrap_or_default();
-                            self.rebuild_from_root(ui);
+                            self.rebuild_fs_tree(ui);
                             self.watcher = watcher_replacement;
                         }
                     }
                     FileBrowserMessage::Filter(filter) => {
                         if &self.filter != filter {
                             self.filter.clone_from(filter);
-                            self.rebuild_from_root(ui);
+                            self.rebuild_fs_tree(ui);
                         }
                     }
                     FileBrowserMessage::Add(path) => {
@@ -292,7 +268,7 @@ impl Control for FileBrowser {
                         }
                         let parent_path = parent_path(&path);
                         let existing_parent_node =
-                            fs_tree::find_tree(self.tree_root, &parent_path, ui);
+                            fs_tree::find_tree_item(self.tree_root, &parent_path, ui);
                         if existing_parent_node.is_some() {
                             if let Some(tree) = ui.node(existing_parent_node).cast::<Tree>() {
                                 if tree.is_expanded {
@@ -314,17 +290,18 @@ impl Control for FileBrowser {
                     FileBrowserMessage::Remove(path) => {
                         let path =
                             make_fs_watcher_event_path_relative_to_tree_root(&self.root, path);
-                        let node = fs_tree::find_tree(self.tree_root, &path, ui);
+                        let node = fs_tree::find_tree_item(self.tree_root, &path, ui);
                         if node.is_some() {
                             let parent_path = parent_path(&path);
-                            let parent_node = fs_tree::find_tree(self.tree_root, &parent_path, ui);
+                            let parent_node =
+                                fs_tree::find_tree_item(self.tree_root, &parent_path, ui);
                             ui.send(parent_node, TreeMessage::RemoveItem(node))
                         }
                     }
                     FileBrowserMessage::Rescan | FileBrowserMessage::Drop { .. } => (),
                     FileBrowserMessage::FocusCurrentPath => {
                         if let Ok(canonical_path) = self.path.canonicalize() {
-                            let item = fs_tree::find_tree(self.tree_root, &canonical_path, ui);
+                            let item = fs_tree::find_tree_item(self.tree_root, &canonical_path, ui);
                             if item.is_some() {
                                 // Select item of new path.
                                 ui.send(self.tree_root, TreeRootMessage::Select(vec![item]));
@@ -499,16 +476,6 @@ fn parent_path(path: &Path) -> PathBuf {
     let mut parent_path = path.to_owned();
     parent_path.pop();
     parent_path
-}
-
-fn ignore_nonexistent_sub_dirs(path: &Path) -> PathBuf {
-    let mut existing_path = path.to_owned();
-    while !existing_path.exists() {
-        if !existing_path.pop() {
-            break;
-        }
-    }
-    existing_path
 }
 
 fn make_fs_watcher_event_path_relative_to_tree_root(
@@ -853,10 +820,13 @@ mod test {
         while ui.poll_message().is_some() {}
 
         // This passes.
-        assert_eq!(fs_tree::find_tree(root, &"./test/path1", &ui), path);
+        assert_eq!(fs_tree::find_tree_item(root, &"./test/path1", &ui), path);
 
         // This expected to fail
         // https://github.com/rust-lang/rust/issues/31374
-        assert_eq!(fs_tree::find_tree(root, &"test/path1", &ui), Handle::NONE);
+        assert_eq!(
+            fs_tree::find_tree_item(root, &"test/path1", &ui),
+            Handle::NONE
+        );
     }
 }

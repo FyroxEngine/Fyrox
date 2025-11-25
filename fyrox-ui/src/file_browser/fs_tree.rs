@@ -38,7 +38,7 @@ use std::{
     sync::Arc,
 };
 
-pub fn find_tree<P: AsRef<Path>>(
+pub fn find_tree_item<P: AsRef<Path>>(
     node: Handle<UiNode>,
     path: &P,
     ui: &UserInterface,
@@ -52,7 +52,7 @@ pub fn find_tree<P: AsRef<Path>>(
             tree_handle = node;
         } else {
             for &item in &tree.items {
-                let tree = find_tree(item, path, ui);
+                let tree = find_tree_item(item, path, ui);
                 if tree.is_some() {
                     tree_handle = tree;
                     break;
@@ -61,7 +61,7 @@ pub fn find_tree<P: AsRef<Path>>(
         }
     } else if let Some(root) = node_ref.cast::<TreeRoot>() {
         for &item in &root.items {
-            let tree = find_tree(item, path, ui);
+            let tree = find_tree_item(item, path, ui);
             if tree.is_some() {
                 tree_handle = tree;
                 break;
