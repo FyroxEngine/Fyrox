@@ -101,7 +101,7 @@ use crate::{
                 DockingManagerMessage, TileBuilder, TileContent,
             },
             dropdown_list::DropdownListBuilder,
-            file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
+            file_browser::{FileBrowserMode, FileSelectorBuilder, PathFilter},
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             key::HotKey,
@@ -302,8 +302,8 @@ pub fn create_terrain_layer_material() -> MaterialResource {
     MaterialResource::new_embedded(material)
 }
 
-pub fn make_scene_file_filter() -> Filter {
-    Filter::new(|p: &Path| {
+pub fn make_scene_file_filter() -> PathFilter {
+    PathFilter::new(|p: &Path| {
         p.is_dir()
             || p.extension()
                 .is_some_and(|ext| matches!(ext.to_string_lossy().as_ref(), "rgs" | "ui"))

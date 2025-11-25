@@ -27,7 +27,7 @@ use crate::{
         gui::{
             brush::Brush,
             button::ButtonBuilder,
-            file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
+            file_browser::{FileBrowserMode, FileSelectorBuilder, PathFilter},
             image::ImageBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowBuilder},
@@ -104,7 +104,7 @@ pub fn create_file_selector(
     FileSelectorBuilder::new(
         WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0)).open(false),
     )
-    .with_filter(Filter::new(move |path| {
+    .with_filter(PathFilter::new(move |path| {
         path.is_dir()
             || path
                 .extension()

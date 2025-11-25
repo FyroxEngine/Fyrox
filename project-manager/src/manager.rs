@@ -33,7 +33,7 @@ use fyrox::{
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         decorator::DecoratorBuilder,
-        file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
+        file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, PathFilter},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
@@ -967,7 +967,7 @@ impl ProjectManager {
                 .open(false)
                 .with_remove_on_close(true),
         )
-        .with_filter(Filter::new(|path| path.is_dir()))
+        .with_filter(PathFilter::new(|path| path.is_dir()))
         .with_mode(FileBrowserMode::Open)
         .build(ctx);
         ui.send(

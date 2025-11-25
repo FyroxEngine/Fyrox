@@ -43,7 +43,7 @@ use crate::{
             copypasta::ClipboardProvider,
             decorator::DecoratorBuilder,
             dock::{DockingManagerBuilder, TileBuilder, TileContent},
-            file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
+            file_browser::{FileBrowserBuilder, FileBrowserMessage, PathFilter},
             grid::{Column, GridBuilder, Row},
             menu::MenuItemMessage,
             message::{MouseButton, UiMessage},
@@ -352,7 +352,7 @@ impl AssetBrowser {
                     WidgetBuilder::new().on_column(0).with_tab_index(Some(0)),
                 )
                 .with_show_path(false)
-                .with_filter(Filter::new(move |p: &Path| {
+                .with_filter(PathFilter::new(move |p: &Path| {
                     p.is_dir() && is_path_in_registry(p, &resource_manager)
                 }))
                 .with_root_title(Some("Assets".to_string()))

@@ -19,8 +19,8 @@
 // SOFTWARE.
 
 use crate::{
-    core::{err, parking_lot::Mutex, pool::Handle, SafeLock},
-    file_browser::Filter,
+    core::{err, parking_lot::Mutex, pool::Handle},
+    file_browser::PathFilter,
     grid::{Column, GridBuilder, Row},
     image::ImageBuilder,
     resources::FOLDER_ICON,
@@ -213,7 +213,7 @@ fn sanitize_path(in_path: &Path, root: Option<&PathBuf>) -> PathBuf {
     out_path
 }
 
-fn read_dir_entries(dir: &Path, filter: Option<&Filter>) -> std::io::Result<Vec<PathBuf>> {
+fn read_dir_entries(dir: &Path, filter: &PathFilter) -> std::io::Result<Vec<PathBuf>> {
     #[allow(clippy::ptr_arg)]
     fn sort_dir_entries(a: &PathBuf, b: &PathBuf) -> Ordering {
         let a_is_dir = a.is_dir();
@@ -233,14 +233,10 @@ fn read_dir_entries(dir: &Path, filter: Option<&Filter>) -> std::io::Result<Vec<
         }
     }
 
-    fn passes_filter(path: &Path, filter: Option<&Filter>) -> bool {
-        filter.is_none_or(|filter| filter.0.safe_lock()(path))
-    }
-
     let mut entries = std::fs::read_dir(dir)?
         .flatten()
         .map(|entry| entry.path())
-        .filter(|path| passes_filter(path, filter))
+        .filter(|path| filter.passes(path))
         .collect::<Vec<_>>();
     entries.sort_unstable_by(sort_dir_entries);
     Ok(entries)
@@ -345,7 +341,7 @@ pub fn build_single_folder(
     tree_item: Handle<UiNode>,
     menu: RcUiNodeHandle,
     root_title: Option<&str>,
-    filter: Option<&Filter>,
+    filter: &PathFilter,
     ui: &mut UserInterface,
 ) {
     let Ok(entries) = read_dir_entries(parent_path, filter) else {
@@ -379,7 +375,7 @@ impl FsTree {
     pub fn new(
         root: Option<&PathBuf>,
         final_path: &Path,
-        filter: Option<&Filter>,
+        filter: &PathFilter,
         menu: RcUiNodeHandle,
         root_title: Option<&str>,
         ctx: &mut BuildContext,
@@ -450,7 +446,7 @@ impl FsTree {
 
 #[cfg(test)]
 mod tests {
-    use crate::file_browser::{fs_tree::read_dir_entries, Filter};
+    use crate::file_browser::{fs_tree::read_dir_entries, PathFilter};
     use std::{
         fs::File,
         path::{Path, PathBuf},
@@ -492,16 +488,14 @@ mod tests {
         let files = [path.join("file1"), path.join("file2"), path.join("file3")];
         create_dirs(&folders);
         write_empty_files(&files);
-        let entries = read_dir_entries(path, None).unwrap();
+        let entries = read_dir_entries(path, &PathFilter::AllPass).unwrap();
         assert_eq!(entries[0..3], folders);
         assert_eq!(entries[3..6], files);
         let files_copy = files.clone();
         let folders_copy = folders.clone();
         let entries = read_dir_entries(
             path,
-            Some(&Filter::new(move |path| {
-                path != files_copy[0] && path != folders_copy[2]
-            })),
+            &PathFilter::new(move |path| path != files_copy[0] && path != folders_copy[2]),
         )
         .unwrap();
         assert_eq!(entries[0..2], folders[0..2]);

@@ -29,7 +29,7 @@ use crate::fyrox::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
         decorator::DecoratorBuilder,
-        file_browser::{FileSelectorBuilder, FileSelectorMessage, Filter},
+        file_browser::{FileSelectorBuilder, FileSelectorMessage, PathFilter},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         list_view::{ListViewBuilder, ListViewMessage},
@@ -97,7 +97,7 @@ impl Configurator {
 
         let current_path = env::current_dir().unwrap();
 
-        let filter = Filter::new(|p: &Path| p.is_dir());
+        let filter = PathFilter::new(|p: &Path| p.is_dir());
 
         let folder_browser = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))

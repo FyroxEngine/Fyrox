@@ -33,7 +33,7 @@ use crate::{
             button::{Button, ButtonBuilder, ButtonMessage},
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
-            file_browser::{FileSelectorBuilder, FileSelectorMessage, Filter},
+            file_browser::{FileSelectorBuilder, FileSelectorMessage, PathFilter},
             grid::{Column, GridBuilder, Row},
             image::ImageBuilder,
             message::{MessageDirection, UiMessage},
@@ -814,7 +814,7 @@ impl Toolbar {
                 .open(false)
                 .with_title(WindowTitle::text("Select Animation To Import")),
         )
-        .with_filter(Filter::new(|p: &Path| {
+        .with_filter(PathFilter::new(|p: &Path| {
             // TODO: Here we allow importing only FBX and GLTF files, but they can contain
             // multiple animations and it might be good to also add animation selector
             // that will be used to select a particular animation to import.

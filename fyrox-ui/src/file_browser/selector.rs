@@ -26,7 +26,9 @@ use crate::{
     },
     define_widget_deref,
     draw::DrawingContext,
-    file_browser::{FileBrowser, FileBrowserBuilder, FileBrowserMessage, FileBrowserMode, Filter},
+    file_browser::{
+        FileBrowser, FileBrowserBuilder, FileBrowserMessage, FileBrowserMode, PathFilter,
+    },
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, OsEvent, UiMessage},
     stack_panel::StackPanelBuilder,
@@ -55,7 +57,7 @@ pub enum FileSelectorMessage {
     Commit(PathBuf),
     FocusCurrentPath,
     Cancel,
-    Filter(Option<Filter>),
+    Filter(PathFilter),
 }
 impl MessageData for FileSelectorMessage {}
 
@@ -175,7 +177,7 @@ impl Control for FileSelector {
 
 pub struct FileSelectorBuilder {
     window_builder: WindowBuilder,
-    filter: Option<Filter>,
+    filter: PathFilter,
     mode: FileBrowserMode,
     path: PathBuf,
     root: Option<PathBuf>,
@@ -185,15 +187,15 @@ impl FileSelectorBuilder {
     pub fn new(window_builder: WindowBuilder) -> Self {
         Self {
             window_builder,
-            filter: None,
+            filter: PathFilter::AllPass,
             mode: FileBrowserMode::Open,
             path: "./".into(),
             root: None,
         }
     }
 
-    pub fn with_filter(mut self, filter: Filter) -> Self {
-        self.filter = Some(filter);
+    pub fn with_filter(mut self, filter: PathFilter) -> Self {
+        self.filter = filter;
         self
     }
 
@@ -269,7 +271,7 @@ impl FileSelectorBuilder {
                                 WidgetBuilder::new().on_column(0).with_tab_index(Some(0)),
                             )
                             .with_mode(self.mode)
-                            .with_opt_filter(self.filter)
+                            .with_filter(self.filter)
                             .with_path(self.path)
                             .with_opt_root(self.root)
                             .build(ctx);

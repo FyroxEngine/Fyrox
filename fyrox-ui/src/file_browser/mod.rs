@@ -26,8 +26,8 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        parking_lot::Mutex, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, visitor::prelude::*, SafeLock,
+        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
+        visitor::prelude::*, SafeLock,
     },
     file_browser::menu::ItemContextMenu,
     grid::{Column, GridBuilder, Row},
@@ -47,28 +47,26 @@ use fyrox_graph::{
 };
 use notify::Watcher;
 use std::{
-    borrow::BorrowMut,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
-    sync::{
-        mpsc::{self, Receiver},
-        Arc,
-    },
+    sync::mpsc::{self, Receiver},
     thread,
 };
 
+mod filter;
 mod fs_tree;
 mod menu;
 mod selector;
 
+pub use filter::*;
 pub use selector::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileBrowserMessage {
     Root(Option<PathBuf>),
     Path(PathBuf),
-    Filter(Option<Filter>),
+    Filter(PathFilter),
     Add(PathBuf),
     Remove(PathBuf),
     FocusCurrentPath,
@@ -82,28 +80,6 @@ pub enum FileBrowserMessage {
     },
 }
 impl MessageData for FileBrowserMessage {}
-
-#[derive(Clone)]
-#[allow(clippy::type_complexity)]
-pub struct Filter(pub Arc<Mutex<dyn FnMut(&Path) -> bool + Send>>);
-
-impl Filter {
-    pub fn new<F: FnMut(&Path) -> bool + 'static + Send>(filter: F) -> Self {
-        Self(Arc::new(Mutex::new(filter)))
-    }
-}
-
-impl PartialEq for Filter {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(&*self.0, &*other.0)
-    }
-}
-
-impl Debug for Filter {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Filter")
-    }
-}
 
 #[derive(Default, Clone, PartialEq, Eq, Hash, Debug, Visit, Reflect)]
 pub enum FileBrowserMode {
@@ -127,7 +103,7 @@ pub struct FileBrowser {
     pub root: Option<PathBuf>,
     #[visit(skip)]
     #[reflect(hidden)]
-    pub filter: Option<Filter>,
+    pub filter: PathFilter,
     pub mode: FileBrowserMode,
     pub file_name: Handle<UiNode>,
     pub file_name_value: PathBuf,
@@ -193,7 +169,7 @@ impl FileBrowser {
         let fs_tree = fs_tree::FsTree::new(
             self.root.as_ref(),
             &self.path,
-            self.filter.as_ref(),
+            &self.filter,
             self.item_context_menu.clone(),
             self.root_title.as_deref(),
             &mut ui.build_ctx(),
@@ -240,7 +216,7 @@ impl Control for FileBrowser {
                                 let fs_tree = fs_tree::FsTree::new(
                                     self.root.as_ref(),
                                     &existing_path,
-                                    self.filter.as_ref(),
+                                    &self.filter,
                                     self.item_context_menu.clone(),
                                     self.root_title.as_deref(),
                                     &mut ui.build_ctx(),
@@ -303,11 +279,7 @@ impl Control for FileBrowser {
                         }
                     }
                     FileBrowserMessage::Filter(filter) => {
-                        let equal = match (&self.filter, filter) {
-                            (Some(current), Some(new)) => std::ptr::eq(new, current),
-                            _ => false,
-                        };
-                        if !equal {
+                        if &self.filter != filter {
                             self.filter.clone_from(filter);
                             self.rebuild_from_root(ui);
                         }
@@ -315,7 +287,7 @@ impl Control for FileBrowser {
                     FileBrowserMessage::Add(path) => {
                         let path =
                             make_fs_watcher_event_path_relative_to_tree_root(&self.root, path);
-                        if filtered_out(&mut self.filter, &path) {
+                        if !self.filter.passes(&path) {
                             return;
                         }
                         let parent_path = parent_path(&path);
@@ -394,7 +366,7 @@ impl Control for FileBrowser {
                     message.destination(),
                     self.item_context_menu.clone(),
                     self.root_title.as_deref(),
-                    self.filter.as_ref(),
+                    &self.filter,
                     ui,
                 )
             } else {
@@ -529,13 +501,6 @@ fn parent_path(path: &Path) -> PathBuf {
     parent_path
 }
 
-fn filtered_out(filter: &mut Option<Filter>, path: &Path) -> bool {
-    match filter.as_mut() {
-        Some(filter) => !filter.0.borrow_mut().deref_mut().safe_lock()(path),
-        None => false,
-    }
-}
-
 fn ignore_nonexistent_sub_dirs(path: &Path) -> PathBuf {
     let mut existing_path = path.to_owned();
     while !existing_path.exists() {
@@ -566,7 +531,7 @@ fn make_fs_watcher_event_path_relative_to_tree_root(
 pub struct FileBrowserBuilder {
     widget_builder: WidgetBuilder,
     path: PathBuf,
-    filter: Option<Filter>,
+    filter: PathFilter,
     root: Option<PathBuf>,
     mode: FileBrowserMode,
     show_path: bool,
@@ -578,7 +543,7 @@ impl FileBrowserBuilder {
         Self {
             widget_builder,
             path: "./".into(),
-            filter: None,
+            filter: PathFilter::AllPass,
             root: None,
             mode: FileBrowserMode::Open,
             show_path: true,
@@ -591,12 +556,7 @@ impl FileBrowserBuilder {
         self
     }
 
-    pub fn with_filter(mut self, filter: Filter) -> Self {
-        self.filter = Some(filter);
-        self
-    }
-
-    pub fn with_opt_filter(mut self, filter: Option<Filter>) -> Self {
+    pub fn with_filter(mut self, filter: PathFilter) -> Self {
         self.filter = filter;
         self
     }
@@ -643,7 +603,7 @@ impl FileBrowserBuilder {
         } = fs_tree::FsTree::new(
             self.root.as_ref(),
             self.path.as_path(),
-            self.filter.as_ref(),
+            &self.filter,
             item_context_menu.clone(),
             self.root_title.as_deref(),
             ctx,
