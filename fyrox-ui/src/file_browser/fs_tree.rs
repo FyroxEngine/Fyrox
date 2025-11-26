@@ -385,7 +385,7 @@ impl FsTree {
         let dest_path_components = dest_path.components().collect::<Vec<Component>>();
 
         let RootsCollection {
-            items: root_items,
+            items: mut root_items,
             root_item: mut parent,
         } = RootsCollection::new(&dest_path_components, root, &menu, root_title, ctx);
 
@@ -423,7 +423,11 @@ impl FsTree {
                         root_title,
                     );
 
-                    Tree::add_item(parent, item, ctx);
+                    if parent.is_some() {
+                        Tree::add_item(parent, item, ctx);
+                    } else {
+                        root_items.push(item);
+                    }
 
                     if is_part_of_final_path {
                         new_parent = item;
