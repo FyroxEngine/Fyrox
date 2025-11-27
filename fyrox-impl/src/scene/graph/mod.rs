@@ -360,6 +360,41 @@ impl Graph {
         }
     }
 
+    /// Begins multi-borrowing and gives access to the 3D physics world at the same time. The physics
+    /// world could be used to perform shape or ray casting while having the ability to modify scene
+    /// nodes.
+    pub fn begin_multi_borrow_with_physics_3d(
+        &mut self,
+    ) -> (MultiBorrowContext<Node, NodeContainer>, &PhysicsWorld) {
+        (self.pool.begin_multi_borrow(), &self.physics)
+    }
+
+    /// Begins multi-borrowing and gives access to the 2D physics world at the same time. The physics
+    /// world could be used to perform shape or ray casting while having the ability to modify scene
+    /// nodes.
+    pub fn begin_multi_borrow_with_physics_2d(
+        &mut self,
+    ) -> (MultiBorrowContext<Node, NodeContainer>, &PhysicsWorld) {
+        (self.pool.begin_multi_borrow(), &mut self.physics)
+    }
+
+    /// Begins multi-borrowing and gives access to the 3D and 2D physics world at the same time. The
+    /// physics world could be used to perform shape or ray casting while having the ability to modify
+    /// scene nodes.
+    pub fn begin_multi_borrow_with_physics(
+        &mut self,
+    ) -> (
+        MultiBorrowContext<Node, NodeContainer>,
+        &PhysicsWorld,
+        &dim2::physics::PhysicsWorld,
+    ) {
+        (
+            self.pool.begin_multi_borrow(),
+            &self.physics,
+            &self.physics2d,
+        )
+    }
+
     /// Creates a new graph using a hierarchy of nodes specified by the `root`.
     pub fn from_hierarchy(root: Handle<Node>, other_graph: &Self) -> Self {
         let mut graph = Self::default();
