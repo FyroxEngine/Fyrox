@@ -81,6 +81,7 @@ pub fn build_tree_item<P: AsRef<Path>>(
     ctx: &mut BuildContext,
     root_title: Option<&str>,
 ) -> Handle<UiNode> {
+    dbg!(path.as_ref());
     let content = GridBuilder::new(
         WidgetBuilder::new()
             .with_child(if path.as_ref().is_dir() {
@@ -185,35 +186,32 @@ fn disk_letter(components: &[Component]) -> Option<u8> {
     None
 }
 
-fn sanitize_path(in_path: &Path, root: Option<&PathBuf>) -> PathBuf {
-    let mut out_path = PathBuf::new();
-
-    if let Ok(canonical_in_path) = in_path.canonicalize() {
-        if let Some(canonical_root) = root.and_then(|r| r.canonicalize().ok()) {
-            if let Ok(stripped) = canonical_in_path.strip_prefix(canonical_root) {
-                stripped.clone_into(&mut out_path);
-            }
-        } else {
-            out_path = canonical_in_path;
-        }
-    }
-
-    // There should be at least one component in the path. If the path is empty, this means that
-    // it "points" to the current directory.
-    if out_path.as_os_str().is_empty() {
-        out_path.push(".");
-    }
-
-    // Relative paths must always start from CurDir component (./), otherwise the root dir will be ignored
-    // and the tree will be incorrect.
-    if !out_path.is_absolute() {
-        out_path = Path::new(".").join(out_path);
-    }
-
-    out_path
+struct SanitizedPath {
+    path: PathBuf,
+    root_components_to_skip: usize,
 }
 
-fn read_dir_entries(dir: &Path, filter: &PathFilter) -> std::io::Result<Vec<PathBuf>> {
+impl SanitizedPath {
+    fn new(path: &Path, root: Option<&PathBuf>) -> std::io::Result<Self> {
+        let path = path.canonicalize()?;
+        if let Some(root) = root {
+            let canonical_root = root.canonicalize()?;
+            let root_components_to_skip = canonical_root.components().count().saturating_sub(1);
+            dbg!(&path, &canonical_root, root_components_to_skip);
+            Ok(Self {
+                path,
+                root_components_to_skip,
+            })
+        } else {
+            Ok(Self {
+                path,
+                root_components_to_skip: 0,
+            })
+        }
+    }
+}
+
+pub(super) fn read_dir_entries(dir: &Path, filter: &PathFilter) -> std::io::Result<Vec<PathBuf>> {
     #[allow(clippy::ptr_arg)]
     fn sort_dir_entries(a: &PathBuf, b: &PathBuf) -> Ordering {
         let a_is_dir = a.is_dir();
@@ -365,24 +363,38 @@ pub fn build_single_folder(
     }
 }
 
+pub fn tree_path(tree_handle: Handle<UiNode>, ui: &UserInterface) -> Option<PathBuf> {
+    ui.node(tree_handle).user_data_cloned::<PathBuf>()
+}
+
 pub struct FsTree {
     pub root_items: Vec<Handle<UiNode>>,
     pub path_item: Handle<UiNode>,
 }
 
 impl FsTree {
+    fn empty() -> Self {
+        Self {
+            root_items: Default::default(),
+            path_item: Default::default(),
+        }
+    }
+
     /// Builds entire file system tree to given final_path.
     pub fn new(
         root: Option<&PathBuf>,
-        final_path: &Path,
+        path: &Path,
         filter: &PathFilter,
         menu: RcUiNodeHandle,
         root_title: Option<&str>,
         ctx: &mut BuildContext,
-    ) -> Self {
-        let dest_path = sanitize_path(final_path, root);
+    ) -> std::io::Result<Self> {
+        let SanitizedPath {
+            path,
+            root_components_to_skip,
+        } = SanitizedPath::new(path, root)?;
 
-        let dest_path_components = dest_path.components().collect::<Vec<Component>>();
+        let dest_path_components = path.components().collect::<Vec<Component>>();
 
         let RootsCollection {
             items: mut root_items,
@@ -397,6 +409,10 @@ impl FsTree {
             // Concat parts of path one by one.
             full_path = full_path.join(component.as_os_str());
 
+            if i < root_components_to_skip {
+                continue;
+            }
+
             let next_component = dest_path_components.get(i + 1);
 
             if let Some(next_component) = next_component {
@@ -410,12 +426,12 @@ impl FsTree {
             let next = next_component.map(|p| full_path.join(p));
 
             let mut new_parent = parent;
-            if let Ok(entries) = read_dir_entries(&full_path, filter) {
-                for path in entries {
-                    let is_part_of_final_path = next.as_ref().is_some_and(|next| *next == path);
+            if let Ok(dir_entries) = read_dir_entries(&full_path, filter) {
+                for dir_path in dir_entries {
+                    let is_part_of_final_path = next.as_ref().is_some_and(|next| *next == dir_path);
 
                     let item = build_tree_item(
-                        &path,
+                        &dir_path,
                         &full_path,
                         menu.clone(),
                         is_part_of_final_path,
@@ -433,7 +449,7 @@ impl FsTree {
                         new_parent = item;
                     }
 
-                    if path == dest_path {
+                    if dir_path == path {
                         path_item = item;
                     }
                 }
@@ -441,68 +457,30 @@ impl FsTree {
             parent = new_parent;
         }
 
-        Self {
+        Ok(Self {
             root_items,
             path_item,
+        })
+    }
+
+    pub fn new_or_empty(
+        root: Option<&PathBuf>,
+        path: &Path,
+        filter: &PathFilter,
+        menu: RcUiNodeHandle,
+        root_title: Option<&str>,
+        ctx: &mut BuildContext,
+    ) -> Self {
+        match Self::new(root, path, filter, menu, root_title, ctx) {
+            Ok(fs_tree) => fs_tree,
+            Err(err) => {
+                err!(
+                    "Unable to rebuild FS tree for {} path! Reason: {}",
+                    path.display(),
+                    err
+                );
+                Self::empty()
+            }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::file_browser::{fs_tree::read_dir_entries, PathFilter};
-    use std::{
-        fs::File,
-        path::{Path, PathBuf},
-    };
-
-    fn create_dir(path: impl AsRef<Path>) {
-        std::fs::create_dir_all(path).unwrap()
-    }
-
-    fn write_empty_file(path: impl AsRef<Path>) {
-        File::create(path).unwrap();
-    }
-
-    fn create_dirs(paths: &[PathBuf]) {
-        for path in paths {
-            create_dir(path)
-        }
-    }
-
-    fn write_empty_files(paths: &[PathBuf]) {
-        for path in paths {
-            write_empty_file(path)
-        }
-    }
-
-    fn clean_or_create(path: impl AsRef<Path>) {
-        if path.as_ref().exists() {
-            std::fs::remove_dir_all(path).unwrap();
-        } else {
-            create_dir(path);
-        }
-    }
-
-    #[test]
-    fn test_dir_fetching() {
-        let path = Path::new("./test_dir_fetching");
-        clean_or_create(path);
-        let folders = [path.join("dir1"), path.join("dir2"), path.join("dir3")];
-        let files = [path.join("file1"), path.join("file2"), path.join("file3")];
-        create_dirs(&folders);
-        write_empty_files(&files);
-        let entries = read_dir_entries(path, &PathFilter::AllPass).unwrap();
-        assert_eq!(entries[0..3], folders);
-        assert_eq!(entries[3..6], files);
-        let files_copy = files.clone();
-        let folders_copy = folders.clone();
-        let entries = read_dir_entries(
-            path,
-            &PathFilter::new(move |path| path != files_copy[0] && path != folders_copy[2]),
-        )
-        .unwrap();
-        assert_eq!(entries[0..2], folders[0..2]);
-        assert_eq!(entries[2..4], files[1..3]);
     }
 }
