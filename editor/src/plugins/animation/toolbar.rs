@@ -1086,7 +1086,7 @@ impl Toolbar {
                 );
                 ui.send(
                     self.import_file_selector,
-                    FileSelectorMessage::Root(Some(std::env::current_dir().unwrap())),
+                    FileSelectorMessage::Root(Some(resource_manager.registry_folder())),
                 );
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {

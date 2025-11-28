@@ -265,7 +265,11 @@ impl FileMenu {
         );
     }
 
-    pub fn open_load_file_selector(&self, ui: &mut UserInterface) {
+    pub fn open_load_file_selector(
+        &self,
+        resource_manager: &ResourceManager,
+        ui: &mut UserInterface,
+    ) {
         ui.send(
             self.load_file_selector,
             WindowMessage::Open {
@@ -276,7 +280,7 @@ impl FileMenu {
         );
         ui.send(
             self.load_file_selector,
-            FileSelectorMessage::Root(Some(std::env::current_dir().unwrap())),
+            FileSelectorMessage::Root(Some(resource_manager.registry_folder())),
         );
     }
 
@@ -366,7 +370,10 @@ impl FileMenu {
             } else if message.destination() == self.save_all {
                 sender.send(Message::SaveAllScenes);
             } else if message.destination() == self.load {
-                self.open_load_file_selector(engine.user_interfaces.first_mut());
+                self.open_load_file_selector(
+                    &engine.resource_manager,
+                    engine.user_interfaces.first_mut(),
+                );
             } else if message.destination() == self.close_scene {
                 if let Some(entry) = entry.as_ref() {
                     if entry.need_save() {

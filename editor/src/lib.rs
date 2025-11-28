@@ -2686,8 +2686,10 @@ impl Editor {
                     }
                     Message::SwitchToEditMode => self.set_editor_mode(),
                     Message::OpenLoadSceneDialog => {
-                        self.menu
-                            .open_load_file_selector(self.engine.user_interfaces.first_mut());
+                        self.menu.open_load_file_selector(
+                            &self.engine.resource_manager,
+                            self.engine.user_interfaces.first_mut(),
+                        );
                     }
                     Message::OpenSaveSceneDialog { default_file_name } => {
                         self.menu.open_save_file_selector(

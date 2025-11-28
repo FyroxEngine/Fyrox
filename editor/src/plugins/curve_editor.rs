@@ -386,10 +386,10 @@ impl CurveEditorWindow {
         }
     }
 
-    fn open_save_file_dialog(&self, ui: &UserInterface) {
+    fn open_save_file_dialog(&self, resource_manager: &ResourceManager, ui: &UserInterface) {
         ui.send(
             self.save_file_selector,
-            FileSelectorMessage::Root(Some(std::env::current_dir().unwrap())),
+            FileSelectorMessage::Root(Some(resource_manager.registry_folder())),
         );
 
         ui.send(
@@ -463,7 +463,7 @@ impl CurveEditorWindow {
             } else if message.destination() == self.menu.file.load {
                 ui.send(
                     self.load_file_selector,
-                    FileSelectorMessage::Root(Some(std::env::current_dir().unwrap())),
+                    FileSelectorMessage::Root(Some(engine.resource_manager.registry_folder())),
                 );
 
                 ui.send(
@@ -484,7 +484,7 @@ impl CurveEditorWindow {
                 );
             } else if message.destination() == self.menu.file.save {
                 if self.path == PathBuf::default() {
-                    self.open_save_file_dialog(ui);
+                    self.open_save_file_dialog(&engine.resource_manager, ui);
                 } else {
                     self.save();
                 }
@@ -511,7 +511,7 @@ impl CurveEditorWindow {
                     }
                     MessageBoxResult::Yes => {
                         if self.path == PathBuf::default() {
-                            self.open_save_file_dialog(ui);
+                            self.open_save_file_dialog(&engine.resource_manager, ui);
                         } else {
                             self.save();
                             self.destroy(ui);

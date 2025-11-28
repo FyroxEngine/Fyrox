@@ -410,7 +410,7 @@ impl SceneNodeContextMenu {
                     );
                     ui.send(
                         self.save_as_prefab_dialog,
-                        FileSelectorMessage::Root(Some(std::env::current_dir().unwrap())),
+                        FileSelectorMessage::Root(Some(engine.resource_manager.registry_folder())),
                     );
                 } else if message.destination() == self.make_root {
                     if let Some(graph_selection) = editor_selection.as_graph() {

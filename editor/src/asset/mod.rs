@@ -627,17 +627,16 @@ impl AssetBrowser {
 
         // Collect built-in resource (only if the root folder is selected).
         if let Ok(path) = self.current_path.canonicalize() {
-            if let Ok(working_dir) = std::env::current_dir().and_then(|dir| dir.canonicalize()) {
-                if path == working_dir {
-                    let built_in_resources = resource_manager
-                        .state()
-                        .built_in_resources
-                        .keys()
-                        .cloned()
-                        .collect::<Vec<_>>();
+            let working_dir = resource_manager.registry_folder();
+            if path == working_dir {
+                let built_in_resources = resource_manager
+                    .state()
+                    .built_in_resources
+                    .keys()
+                    .cloned()
+                    .collect::<Vec<_>>();
 
-                    resources.extend_from_slice(&built_in_resources);
-                }
+                resources.extend_from_slice(&built_in_resources);
             }
         }
 

@@ -175,8 +175,12 @@ impl Menu {
         }
     }
 
-    pub fn open_load_file_selector(&self, ui: &mut UserInterface) {
-        self.file_menu.open_load_file_selector(ui)
+    pub fn open_load_file_selector(
+        &self,
+        resource_manager: &ResourceManager,
+        ui: &mut UserInterface,
+    ) {
+        self.file_menu.open_load_file_selector(resource_manager, ui)
     }
 
     pub fn open_save_file_selector(
