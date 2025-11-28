@@ -18,7 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::file_browser::fs_tree::DisksProvider;
 use crate::test::UserInterfaceTestingExtension;
+use crate::tree::{Tree, TreeRoot};
 use crate::{
     core::{algebra::Vector2, parking_lot::Mutex, pool::Handle},
     file_browser::{fs_tree, fs_tree::read_dir_entries, FileBrowserBuilder, PathFilter},
@@ -27,7 +29,7 @@ use crate::{
     widget::WidgetBuilder,
     RcUiNodeHandle, UiNode, UserInterface,
 };
-use fyrox_graph::SceneGraph;
+use fyrox_graph::{SceneGraph, SceneGraphNode};
 use std::{
     fs::File,
     path::{Path, PathBuf},
@@ -160,6 +162,33 @@ fn test_fs_tree_with_root() {
         let path = path.canonicalize().unwrap();
         assert!(find_by_path(path, &ui).is_some());
     }
+    for (mount_point, _) in DisksProvider::new().iter() {
+        assert!(find_by_path(mount_point.to_string(), &ui).is_none());
+    }
+}
+
+#[test]
+fn test_fs_tree_with_root_empty() {
+    let root = PathBuf::from("./test_fs_tree_with_root_empty");
+    clean_or_create(&root);
+    let screen_size = Vector2::repeat(1000.0);
+    let mut ui = UserInterface::new(screen_size);
+    let ctx = &mut ui.build_ctx();
+    FileBrowserBuilder::new(WidgetBuilder::new())
+        .with_root(root)
+        .build(ctx);
+    ui.poll_all_messages();
+    let mut tree_root_count = 0;
+    for node in ui.nodes() {
+        assert!(node.component_ref::<Tree>().is_none());
+        if node.has_component::<TreeRoot>() {
+            tree_root_count += 1;
+        }
+    }
+    assert_eq!(tree_root_count, 1);
+    for (mount_point, _) in DisksProvider::new().iter() {
+        assert!(find_by_path(mount_point.to_string(), &ui).is_none());
+    }
 }
 
 #[test]
@@ -185,5 +214,8 @@ fn test_fs_tree_without_root() {
     for path in paths {
         let path = path.canonicalize().unwrap();
         assert!(find_by_path(path, &ui).is_some());
+    }
+    for (mount_point, _) in DisksProvider::new().iter() {
+        assert!(find_by_path(mount_point.to_string(), &ui).is_some());
     }
 }

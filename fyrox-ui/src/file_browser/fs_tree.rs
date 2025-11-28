@@ -241,20 +241,20 @@ pub(super) fn read_dir_entries(dir: &Path, filter: &PathFilter) -> std::io::Resu
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-struct DisksProvider {
+pub(super) struct DisksProvider {
     sys: sysinfo::System,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 impl DisksProvider {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         use sysinfo::{RefreshKind, SystemExt};
         Self {
             sys: sysinfo::System::new_with_specifics(RefreshKind::new().with_disks_list()),
         }
     }
 
-    fn iter(&self) -> impl Iterator<Item = (Cow<str>, u8)> {
+    pub(super) fn iter(&self) -> impl Iterator<Item = (Cow<str>, u8)> {
         use sysinfo::{DiskExt, SystemExt};
         self.sys.disks().iter().map(|disk| {
             let mount_point = disk.mount_point().to_string_lossy();
@@ -291,20 +291,7 @@ impl RootsCollection {
         root_title: Option<&str>,
         ctx: &mut BuildContext,
     ) -> Self {
-        if let Some(root) = root {
-            let path = if std::env::current_dir().is_ok_and(|dir| &dir == root) {
-                Path::new(".")
-            } else {
-                root.as_path()
-            };
-
-            let root_item =
-                build_tree_item(path, Path::new(""), menu.clone(), true, ctx, root_title);
-            Self {
-                items: vec![root_item],
-                root_item,
-            }
-        } else {
+        if root.is_none() {
             let dest_disk = disk_letter(path_components);
 
             let mut items = Vec::new();
@@ -330,6 +317,11 @@ impl RootsCollection {
             }
 
             Self { items, root_item }
+        } else {
+            Self {
+                items: Default::default(),
+                root_item: Default::default(),
+            }
         }
     }
 }
