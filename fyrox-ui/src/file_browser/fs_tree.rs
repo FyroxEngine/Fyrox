@@ -29,7 +29,7 @@ use crate::{
     widget::WidgetBuilder,
     BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::{
     borrow::Cow,
     cmp::Ordering,
@@ -354,7 +354,8 @@ pub fn build_single_folder(
 }
 
 pub fn tree_path(tree_handle: Handle<UiNode>, ui: &UserInterface) -> Option<PathBuf> {
-    ui.node(tree_handle).user_data_cloned::<PathBuf>()
+    ui.try_get(tree_handle)
+        .and_then(|n| n.user_data_cloned::<PathBuf>())
 }
 
 pub struct FsTree {
