@@ -18,14 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::file_browser::fs_tree::DisksProvider;
-use crate::test::UserInterfaceTestingExtension;
-use crate::tree::{Tree, TreeRoot};
 use crate::{
     core::{algebra::Vector2, parking_lot::Mutex, pool::Handle},
-    file_browser::{fs_tree, fs_tree::read_dir_entries, FileBrowserBuilder, PathFilter},
-    test::test_widget_deletion,
-    tree::TreeRootBuilder,
+    file_browser::{
+        fs_tree::{self, read_dir_entries, DisksProvider},
+        FileBrowserBuilder, PathFilter,
+    },
+    test::{test_widget_deletion, UserInterfaceTestingExtension},
+    tree::{Tree, TreeRoot, TreeRootBuilder},
     widget::WidgetBuilder,
     RcUiNodeHandle, UiNode, UserInterface,
 };
@@ -155,7 +155,7 @@ fn test_fs_tree_with_root() {
     let ctx = &mut ui.build_ctx();
     FileBrowserBuilder::new(WidgetBuilder::new())
         .with_root(root)
-        .with_path(paths.last().as_deref().unwrap())
+        .with_path(paths.last().unwrap())
         .build(ctx);
     ui.poll_all_messages();
     for path in paths {
@@ -208,7 +208,7 @@ fn test_fs_tree_without_root() {
     let mut ui = UserInterface::new(screen_size);
     let ctx = &mut ui.build_ctx();
     FileBrowserBuilder::new(WidgetBuilder::new())
-        .with_path(paths.last().as_deref().unwrap())
+        .with_path(paths.last().unwrap())
         .build(ctx);
     ui.poll_all_messages();
     for path in paths {

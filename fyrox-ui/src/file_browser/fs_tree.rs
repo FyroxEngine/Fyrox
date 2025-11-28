@@ -81,7 +81,6 @@ pub fn build_tree_item<P: AsRef<Path>>(
     ctx: &mut BuildContext,
     root_title: Option<&str>,
 ) -> Handle<UiNode> {
-    dbg!(path.as_ref());
     let content = GridBuilder::new(
         WidgetBuilder::new()
             .with_child(if path.as_ref().is_dir() {
@@ -197,7 +196,6 @@ impl SanitizedPath {
         if let Some(root) = root {
             let canonical_root = root.canonicalize()?;
             let root_components_to_skip = canonical_root.components().count().saturating_sub(1);
-            dbg!(&path, &canonical_root, root_components_to_skip);
             Ok(Self {
                 path,
                 root_components_to_skip,
