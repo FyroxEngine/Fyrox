@@ -98,7 +98,6 @@ fn test_find_tree() {
         "./test/path1",
         "./test",
         RcUiNodeHandle::new(Handle::new(0, 1), ui.sender()),
-        None,
         &mut ui,
     );
 
@@ -218,4 +217,23 @@ fn test_fs_tree_without_root() {
     for (mount_point, _) in DisksProvider::new().iter() {
         assert!(find_by_path(mount_point.to_string(), &ui).is_some());
     }
+}
+
+#[test]
+fn test_fs_tree_invalid_path() {
+    let screen_size = Vector2::repeat(1000.0);
+    let mut ui = UserInterface::new(screen_size);
+    let ctx = &mut ui.build_ctx();
+    FileBrowserBuilder::new(WidgetBuilder::new())
+        .with_path("foo/bar/baz")
+        .build(ctx);
+    ui.poll_all_messages();
+    let mut tree_root_count = 0;
+    for node in ui.nodes() {
+        assert!(node.component_ref::<Tree>().is_none());
+        if node.has_component::<TreeRoot>() {
+            tree_root_count += 1;
+        }
+    }
+    assert_eq!(tree_root_count, 1);
 }

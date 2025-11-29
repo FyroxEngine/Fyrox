@@ -79,7 +79,6 @@ pub fn build_tree_item<P: AsRef<Path>>(
     menu: RcUiNodeHandle,
     expanded: bool,
     ctx: &mut BuildContext,
-    root_title: Option<&str>,
 ) -> Handle<UiNode> {
     let content = GridBuilder::new(
         WidgetBuilder::new()
@@ -108,15 +107,10 @@ pub fn build_tree_item<P: AsRef<Path>>(
                         .on_column(1),
                 )
                 .with_text(
-                    if let Some(root_title) = root_title.filter(|_| path.as_ref() == Path::new("."))
-                    {
-                        root_title.to_string()
-                    } else {
-                        path.as_ref()
-                            .to_string_lossy()
-                            .replace(&parent_path.as_ref().to_string_lossy().to_string(), "")
-                            .replace('\\', "")
-                    },
+                    path.as_ref()
+                        .to_string_lossy()
+                        .replace(&parent_path.as_ref().to_string_lossy().to_string(), "")
+                        .replace('\\', ""),
                 )
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .build(ctx),
@@ -148,41 +142,15 @@ pub fn build_tree<P: AsRef<Path>>(
     path: P,
     parent_path: P,
     menu: RcUiNodeHandle,
-    root_title: Option<&str>,
     ui: &mut UserInterface,
 ) -> Handle<UiNode> {
-    let subtree = build_tree_item(
-        path,
-        parent_path,
-        menu,
-        false,
-        &mut ui.build_ctx(),
-        root_title,
-    );
-    insert_subtree_in_parent(ui, parent, is_parent_root, subtree);
-    subtree
-}
-
-fn insert_subtree_in_parent(
-    ui: &mut UserInterface,
-    parent: Handle<UiNode>,
-    is_parent_root: bool,
-    tree: Handle<UiNode>,
-) {
+    let subtree = build_tree_item(path, parent_path, menu, false, &mut ui.build_ctx());
     if is_parent_root {
-        ui.send(parent, TreeRootMessage::AddItem(tree));
+        ui.send(parent, TreeRootMessage::AddItem(subtree));
     } else {
-        ui.send(parent, TreeMessage::AddItem(tree));
+        ui.send(parent, TreeMessage::AddItem(subtree));
     }
-}
-
-fn disk_letter(components: &[Component]) -> Option<u8> {
-    if let Some(Component::Prefix(prefix)) = components.first() {
-        if let Prefix::Disk(disk_letter) | Prefix::VerbatimDisk(disk_letter) = prefix.kind() {
-            return Some(disk_letter);
-        }
-    }
-    None
+    subtree
 }
 
 struct SanitizedPath {
@@ -286,10 +254,20 @@ impl RootsCollection {
         path_components: &[Component],
         root: Option<&PathBuf>,
         menu: &RcUiNodeHandle,
-        root_title: Option<&str>,
         ctx: &mut BuildContext,
     ) -> Self {
         if root.is_none() {
+            fn disk_letter(components: &[Component]) -> Option<u8> {
+                if let Some(Component::Prefix(prefix)) = components.first() {
+                    if let Prefix::Disk(disk_letter) | Prefix::VerbatimDisk(disk_letter) =
+                        prefix.kind()
+                    {
+                        return Some(disk_letter);
+                    }
+                }
+                None
+            }
+
             let dest_disk = disk_letter(path_components);
 
             let mut items = Vec::new();
@@ -298,14 +276,8 @@ impl RootsCollection {
             for (disk, disk_letter) in DisksProvider::new().iter() {
                 let is_disk_part_of_path = dest_disk == Some(disk_letter);
 
-                let item = build_tree_item(
-                    disk.as_ref(),
-                    "",
-                    menu.clone(),
-                    is_disk_part_of_path,
-                    ctx,
-                    root_title,
-                );
+                let item =
+                    build_tree_item(disk.as_ref(), "", menu.clone(), is_disk_part_of_path, ctx);
 
                 if is_disk_part_of_path {
                     root_item = item;
@@ -328,7 +300,6 @@ pub fn build_single_folder(
     parent_path: &Path,
     tree_item: Handle<UiNode>,
     menu: RcUiNodeHandle,
-    root_title: Option<&str>,
     filter: &PathFilter,
     ui: &mut UserInterface,
 ) {
@@ -347,7 +318,6 @@ pub fn build_single_folder(
             path.as_path(),
             parent_path,
             menu.clone(),
-            root_title,
             ui,
         );
     }
@@ -377,7 +347,6 @@ impl FsTree {
         path: &Path,
         filter: &PathFilter,
         menu: RcUiNodeHandle,
-        root_title: Option<&str>,
         ctx: &mut BuildContext,
     ) -> std::io::Result<Self> {
         let SanitizedPath {
@@ -390,7 +359,7 @@ impl FsTree {
         let RootsCollection {
             items: mut root_items,
             root_item: mut parent,
-        } = RootsCollection::new(&dest_path_components, root, &menu, root_title, ctx);
+        } = RootsCollection::new(&dest_path_components, root, &menu, ctx);
 
         let mut path_item = Handle::NONE;
 
@@ -427,7 +396,6 @@ impl FsTree {
                         menu.clone(),
                         is_part_of_final_path,
                         ctx,
-                        root_title,
                     );
 
                     if parent.is_some() {
@@ -459,10 +427,9 @@ impl FsTree {
         path: &Path,
         filter: &PathFilter,
         menu: RcUiNodeHandle,
-        root_title: Option<&str>,
         ctx: &mut BuildContext,
     ) -> Self {
-        match Self::new(root, path, filter, menu, root_title, ctx) {
+        match Self::new(root, path, filter, menu, ctx) {
             Ok(fs_tree) => fs_tree,
             Err(err) => {
                 err!(

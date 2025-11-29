@@ -125,7 +125,6 @@ pub struct FileBrowser {
     #[visit(skip)]
     #[reflect(hidden)]
     pub watcher: Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>,
-    pub root_title: Option<String>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for FileBrowser {
@@ -158,7 +157,6 @@ impl Clone for FileBrowser {
             fs_receiver: None,
             item_context_menu: self.item_context_menu.clone(),
             watcher: None,
-            root_title: self.root_title.clone(),
         }
     }
 }
@@ -183,7 +181,6 @@ impl FileBrowser {
             &self.path,
             &self.filter,
             self.item_context_menu.clone(),
-            self.root_title.as_deref(),
             &mut ui.build_ctx(),
         );
 
@@ -274,7 +271,6 @@ impl FileBrowser {
                         path,
                         parent_path,
                         self.item_context_menu.clone(),
-                        self.root_title.as_deref(),
                         ui,
                     );
                 } else if !tree.always_show_expander {
@@ -370,7 +366,6 @@ impl Control for FileBrowser {
                         &parent_path,
                         message.destination(),
                         self.item_context_menu.clone(),
-                        self.root_title.as_deref(),
                         &self.filter,
                         ui,
                     )
@@ -502,7 +497,6 @@ pub struct FileBrowserBuilder {
     root: Option<PathBuf>,
     mode: FileBrowserMode,
     show_path: bool,
-    root_title: Option<String>,
 }
 
 impl FileBrowserBuilder {
@@ -514,13 +508,7 @@ impl FileBrowserBuilder {
             root: None,
             mode: FileBrowserMode::Open,
             show_path: true,
-            root_title: None,
         }
-    }
-
-    pub fn with_root_title(mut self, root_title: Option<String>) -> Self {
-        self.root_title = root_title;
-        self
     }
 
     pub fn with_filter(mut self, filter: PathFilter) -> Self {
@@ -572,7 +560,6 @@ impl FileBrowserBuilder {
             self.path.as_path(),
             &self.filter,
             item_context_menu.clone(),
-            self.root_title.as_deref(),
             ctx,
         );
 
@@ -744,7 +731,6 @@ impl FileBrowserBuilder {
             file_name,
             watcher: setup_filebrowser_fs_watcher(fs_sender, the_path),
             item_context_menu,
-            root_title: self.root_title,
         };
         ctx.add_node(UiNode::new(browser))
     }
