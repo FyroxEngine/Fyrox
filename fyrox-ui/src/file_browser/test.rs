@@ -29,7 +29,7 @@ use crate::{
     widget::WidgetBuilder,
     RcUiNodeHandle, UiNode, UserInterface,
 };
-use fyrox_graph::{SceneGraph, SceneGraphNode};
+use fyrox_graph::SceneGraph;
 use std::{
     fs::File,
     path::{Path, PathBuf},
@@ -76,6 +76,40 @@ fn find_by_path(path: impl AsRef<Path>, ui: &UserInterface) -> Handle<UiNode> {
     })
     .map(|(h, _)| h)
     .unwrap_or_default()
+}
+
+fn write_test_tree(root: &Path) -> Vec<PathBuf> {
+    clean_or_create(root);
+    let paths = [
+        root.join("file1"),
+        root.join("file2"),
+        root.join("file3"),
+        root.join("subdir").join("file1"),
+        root.join("subdir").join("file2"),
+        root.join("subdir").join("file3"),
+    ];
+    write_empty_files(&paths);
+    paths.to_vec()
+}
+
+fn count_tree_items(ui: &UserInterface) -> usize {
+    let mut count = 0;
+    for node in ui.nodes() {
+        if node.has_component::<Tree>() {
+            count += 1;
+        }
+    }
+    count
+}
+
+fn count_tree_roots(ui: &UserInterface) -> usize {
+    let mut count = 0;
+    for node in ui.nodes() {
+        if node.has_component::<TreeRoot>() {
+            count += 1;
+        }
+    }
+    count
 }
 
 #[test]
@@ -139,16 +173,7 @@ fn test_dir_fetching() {
 #[test]
 fn test_fs_tree_with_root() {
     let root = PathBuf::from("./test_fs_tree_with_root");
-    clean_or_create(&root);
-    let paths = [
-        root.join("file1"),
-        root.join("file2"),
-        root.join("file3"),
-        root.join("subdir").join("file1"),
-        root.join("subdir").join("file2"),
-        root.join("subdir").join("file3"),
-    ];
-    write_empty_files(&paths);
+    let paths = write_test_tree(&root);
     let screen_size = Vector2::repeat(1000.0);
     let mut ui = UserInterface::new(screen_size);
     let ctx = &mut ui.build_ctx();
@@ -177,14 +202,8 @@ fn test_fs_tree_with_root_empty() {
         .with_root(root)
         .build(ctx);
     ui.poll_all_messages();
-    let mut tree_root_count = 0;
-    for node in ui.nodes() {
-        assert!(node.component_ref::<Tree>().is_none());
-        if node.has_component::<TreeRoot>() {
-            tree_root_count += 1;
-        }
-    }
-    assert_eq!(tree_root_count, 1);
+    assert_eq!(count_tree_items(&ui), 0);
+    assert_eq!(count_tree_roots(&ui), 1);
     for (mount_point, _) in DisksProvider::new().iter() {
         assert!(find_by_path(mount_point.to_string(), &ui).is_none());
     }
@@ -193,16 +212,7 @@ fn test_fs_tree_with_root_empty() {
 #[test]
 fn test_fs_tree_without_root() {
     let root = PathBuf::from("./test_fs_tree_without_root");
-    clean_or_create(&root);
-    let paths = [
-        root.join("file1"),
-        root.join("file2"),
-        root.join("file3"),
-        root.join("subdir").join("file1"),
-        root.join("subdir").join("file2"),
-        root.join("subdir").join("file3"),
-    ];
-    write_empty_files(&paths);
+    let paths = write_test_tree(&root);
     let screen_size = Vector2::repeat(1000.0);
     let mut ui = UserInterface::new(screen_size);
     let ctx = &mut ui.build_ctx();
@@ -228,12 +238,6 @@ fn test_fs_tree_invalid_path() {
         .with_path("foo/bar/baz")
         .build(ctx);
     ui.poll_all_messages();
-    let mut tree_root_count = 0;
-    for node in ui.nodes() {
-        assert!(node.component_ref::<Tree>().is_none());
-        if node.has_component::<TreeRoot>() {
-            tree_root_count += 1;
-        }
-    }
-    assert_eq!(tree_root_count, 1);
+    assert_eq!(count_tree_items(&ui), 0);
+    assert_eq!(count_tree_roots(&ui), 1);
 }
