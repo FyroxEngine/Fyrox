@@ -158,7 +158,7 @@ fn test_fs_tree_with_root() {
         .build(ctx);
     ui.poll_all_messages();
     for path in paths {
-        let path = path.canonicalize().unwrap();
+        let path = fs_tree::sanitize_path(&path).unwrap();
         assert!(find_by_path(path, &ui).is_some());
     }
     for (mount_point, _) in DisksProvider::new().iter() {
@@ -211,7 +211,7 @@ fn test_fs_tree_without_root() {
         .build(ctx);
     ui.poll_all_messages();
     for path in paths {
-        let path = path.canonicalize().unwrap();
+        let path = fs_tree::sanitize_path(&path).unwrap();
         assert!(find_by_path(path, &ui).is_some());
     }
     for (mount_point, _) in DisksProvider::new().iter() {

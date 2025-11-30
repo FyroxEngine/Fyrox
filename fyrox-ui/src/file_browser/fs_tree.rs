@@ -153,6 +153,36 @@ pub fn build_tree<P: AsRef<Path>>(
     subtree
 }
 
+pub(super) fn sanitize_path(path: &Path) -> std::io::Result<PathBuf> {
+    let canonical_path = path.canonicalize()?;
+    let mut sanitized_path = PathBuf::with_capacity(canonical_path.capacity());
+    for component in canonical_path.components() {
+        if let Component::Prefix(prefix) = component {
+            match prefix.kind() {
+                Prefix::Verbatim(_) => {
+                    // Skip
+                }
+                Prefix::VerbatimUNC(_, _) | Prefix::UNC(_, _) => {
+                    return Err(std::io::Error::other(
+                        "paths with UNC prefix aren't supported!",
+                    ))
+                }
+                Prefix::VerbatimDisk(letter) | Prefix::Disk(letter) => {
+                    sanitized_path.push(format!("{}:", char::from(letter)))
+                }
+                Prefix::DeviceNS(_) => {
+                    return Err(std::io::Error::other(
+                        "paths with device prefix aren't supported!",
+                    ))
+                }
+            }
+        } else {
+            sanitized_path.push(component);
+        }
+    }
+    Ok(sanitized_path)
+}
+
 struct SanitizedPath {
     path: PathBuf,
     root_components_to_skip: usize,
@@ -160,10 +190,10 @@ struct SanitizedPath {
 
 impl SanitizedPath {
     fn new(path: &Path, root: Option<&PathBuf>) -> std::io::Result<Self> {
-        let path = path.canonicalize()?;
+        let path = sanitize_path(path)?;
         if let Some(root) = root {
-            let canonical_root = root.canonicalize()?;
-            let root_components_to_skip = canonical_root.components().count().saturating_sub(1);
+            let sanitized_root = sanitize_path(root)?;
+            let root_components_to_skip = sanitized_root.components().count().saturating_sub(1);
             Ok(Self {
                 path,
                 root_components_to_skip,

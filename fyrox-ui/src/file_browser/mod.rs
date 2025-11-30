@@ -26,7 +26,7 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
+        log::Log, ok_or_return, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*, SafeLock,
     },
     file_browser::menu::ItemContextMenu,
@@ -45,13 +45,12 @@ use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
 };
-use notify::Watcher;
+use notify::{Event, Watcher};
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
-    sync::mpsc::{self, Receiver},
-    thread,
+    sync::mpsc::Sender,
 };
 
 mod filter;
@@ -63,6 +62,7 @@ mod selector;
 mod test;
 
 pub use filter::*;
+use fyrox_core::{err, ok_or_continue};
 pub use selector::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -98,7 +98,8 @@ pub enum FileBrowserMode {
     },
 }
 
-#[derive(Default, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Visit, Reflect, ComponentProvider, TypeUuidProvider)]
+#[type_uuid(id = "b7f4610e-4b0c-4671-9b4a-60bb45268928")]
 #[reflect(derived_type = "UiNode")]
 pub struct FileBrowser {
     pub widget: Widget,
@@ -117,14 +118,11 @@ pub struct FileBrowser {
     pub file_name_value: PathBuf,
     #[visit(skip)]
     #[reflect(hidden)]
-    pub fs_receiver: Option<Receiver<notify::Event>>,
-    #[visit(skip)]
-    #[reflect(hidden)]
     pub item_context_menu: RcUiNodeHandle,
     #[allow(clippy::type_complexity)]
     #[visit(skip)]
     #[reflect(hidden)]
-    pub watcher: Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>,
+    pub watcher: Option<notify::RecommendedWatcher>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for FileBrowser {
@@ -154,7 +152,6 @@ impl Clone for FileBrowser {
             mode: self.mode.clone(),
             file_name: self.file_name,
             file_name_value: self.file_name_value.clone(),
-            fs_receiver: None,
             item_context_menu: self.item_context_menu.clone(),
             watcher: None,
         }
@@ -168,6 +165,12 @@ impl Debug for FileBrowser {
 }
 
 crate::define_widget_deref!(FileBrowser);
+
+fn parent_path(path: &Path) -> PathBuf {
+    let mut parent_path = path.to_owned();
+    parent_path.pop();
+    parent_path
+}
 
 impl FileBrowser {
     fn select_and_bring_into_view(&self, item: Handle<UiNode>, ui: &UserInterface) {
@@ -193,7 +196,7 @@ impl FileBrowser {
         }
     }
 
-    fn set_path(&mut self, path: &Path, ui: &mut UserInterface) {
+    fn set_path(&mut self, path: &Path) {
         fn discard_nonexistent_sub_dirs(path: &Path) -> PathBuf {
             let mut existing_path = path.to_owned();
             while !existing_path.exists() {
@@ -206,8 +209,25 @@ impl FileBrowser {
 
         // Keep only the valid part of the supplied path. For example, if the path `foo/bar/baz`
         // is supplied and only `foo/bar` exists, then the tree will be built only to that path.
-        self.path = discard_nonexistent_sub_dirs(path);
+        let existing_part = discard_nonexistent_sub_dirs(path);
 
+        match fs_tree::sanitize_path(&existing_part) {
+            Ok(existing_sanitized_path) => {
+                self.path = existing_sanitized_path;
+            }
+            Err(err) => {
+                err!(
+                    "Unable to set existing part {} of the path {}. Reason {:?}",
+                    existing_part.display(),
+                    path.display(),
+                    err
+                )
+            }
+        }
+    }
+
+    fn set_path_and_rebuild_tree(&mut self, path: &Path, ui: &mut UserInterface) {
+        self.set_path(path);
         let existing_item = fs_tree::find_tree_item(self.tree_root, &self.path, ui);
         if existing_item.is_some() {
             self.select_and_bring_into_view(existing_item, ui)
@@ -218,49 +238,34 @@ impl FileBrowser {
 
     fn set_root(&mut self, root: &Option<PathBuf>, ui: &mut UserInterface) {
         let watcher_replacement = match self.watcher.take() {
-            Some((mut watcher, converter)) => {
+            Some(mut watcher) => {
                 let current_root = match &self.root {
                     Some(path) => path.clone(),
                     None => self.path.clone(),
                 };
                 if current_root.exists() {
-                    let _ = watcher.unwatch(&current_root);
+                    Log::verify(watcher.unwatch(&current_root));
                 }
                 let new_root = match &root {
                     Some(path) => path.clone(),
                     None => self.path.clone(),
                 };
-                let _ = watcher.watch(&new_root, notify::RecursiveMode::Recursive);
-                Some((watcher, converter))
+                Log::verify(watcher.watch(&new_root, notify::RecursiveMode::Recursive));
+                Some(watcher)
             }
             None => None,
         };
         self.root.clone_from(root);
-        self.path = root.clone().unwrap_or_default();
+        self.set_path(&root.clone().unwrap_or_default());
         self.rebuild_fs_tree(ui);
         self.watcher = watcher_replacement;
     }
 
-    fn make_root_relative_path(&self, path: &Path) -> PathBuf {
-        match self.root {
-            Some(ref root) => {
-                let remove_prefix = if root == Path::new(".") {
-                    std::env::current_dir().unwrap()
-                } else {
-                    root.clone()
-                };
-                PathBuf::from("./").join(path.strip_prefix(remove_prefix).unwrap_or(path))
-            }
-            None => path.to_owned(),
-        }
-    }
-
     fn on_file_added(&mut self, path: &Path, ui: &mut UserInterface) {
-        let path = self.make_root_relative_path(path);
-        if !self.filter.passes(&path) {
+        if !self.filter.passes(path) {
             return;
         }
-        let parent_path = parent_path(&path);
+        let parent_path = parent_path(path);
         let existing_parent_node = fs_tree::find_tree_item(self.tree_root, &parent_path, ui);
         if existing_parent_node.is_some() {
             if let Some(tree) = ui.node(existing_parent_node).cast::<Tree>() {
@@ -269,7 +274,7 @@ impl FileBrowser {
                         existing_parent_node,
                         existing_parent_node == self.tree_root,
                         path,
-                        parent_path,
+                        &parent_path,
                         self.item_context_menu.clone(),
                         ui,
                     );
@@ -281,12 +286,11 @@ impl FileBrowser {
     }
 
     fn on_file_removed(&mut self, path: &Path, ui: &mut UserInterface) {
-        let path = self.make_root_relative_path(path);
-        let node = fs_tree::find_tree_item(self.tree_root, &path, ui);
-        if node.is_some() {
-            let parent_path = parent_path(&path);
-            let parent_node = fs_tree::find_tree_item(self.tree_root, &parent_path, ui);
-            ui.send(parent_node, TreeMessage::RemoveItem(node))
+        let tree_item = fs_tree::find_tree_item(self.tree_root, &path, ui);
+        if tree_item.is_some() {
+            let parent_path = parent_path(path);
+            let parent_tree = fs_tree::find_tree_item(self.tree_root, &parent_path, ui);
+            ui.send(parent_tree, TreeMessage::RemoveItem(tree_item))
         }
     }
 
@@ -297,8 +301,6 @@ impl FileBrowser {
         }
     }
 }
-
-uuid_provider!(FileBrowser = "b7f4610e-4b0c-4671-9b4a-60bb45268928");
 
 impl Control for FileBrowser {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
@@ -311,7 +313,7 @@ impl Control for FileBrowser {
                 match msg {
                     FileBrowserMessage::Path(path) => {
                         if message.direction() == MessageDirection::ToWidget && &self.path != path {
-                            self.set_path(path, ui);
+                            self.set_path_and_rebuild_tree(path, ui);
                             ui.send_message(message.reverse());
                         }
                     }
@@ -328,16 +330,11 @@ impl Control for FileBrowser {
                     }
                     FileBrowserMessage::Rescan | FileBrowserMessage::Drop { .. } => (),
                     FileBrowserMessage::FocusCurrentPath => {
-                        if let Ok(canonical_path) = self.path.canonicalize() {
-                            let item = fs_tree::find_tree_item(self.tree_root, &canonical_path, ui);
-                            if item.is_some() {
-                                // Select item of new path.
-                                ui.send(self.tree_root, TreeRootMessage::Select(vec![item]));
-                                ui.send(
-                                    self.scroll_viewer,
-                                    ScrollViewerMessage::BringIntoView(item),
-                                );
-                            }
+                        let item = fs_tree::find_tree_item(self.tree_root, &self.path, ui);
+                        if item.is_some() {
+                            // Select item of new path.
+                            ui.send(self.tree_root, TreeRootMessage::Select(vec![item]));
+                            ui.send(self.scroll_viewer, ScrollViewerMessage::BringIntoView(item));
                         }
                     }
                 }
@@ -415,6 +412,7 @@ impl Control for FileBrowser {
                     }
 
                     if self.path != path {
+                        // Here we trust the content of the tree items.
                         self.path.clone_from(&path);
 
                         ui.send(
@@ -456,38 +454,12 @@ impl Control for FileBrowser {
         }
     }
 
-    fn update(&mut self, _dt: f32, ui: &mut UserInterface) {
-        if let Ok(event) = self.fs_receiver.as_ref().unwrap().try_recv() {
-            if event.need_rescan() {
-                ui.send(self.handle, FileBrowserMessage::Rescan);
-            } else {
-                for path in event.paths.iter() {
-                    match event.kind {
-                        notify::EventKind::Remove(_) => {
-                            ui.send(self.handle, FsEventMessage::Remove(path.clone()));
-                        }
-                        notify::EventKind::Create(_) => {
-                            ui.send(self.handle, FsEventMessage::Add(path.clone()));
-                        }
-                        _ => (),
-                    }
-                }
-            }
-        }
-    }
-
     fn accepts_drop(&self, widget: Handle<UiNode>, ui: &UserInterface) -> bool {
         ui.node(widget)
             .user_data
             .as_ref()
             .is_some_and(|data| data.safe_lock().downcast_ref::<PathBuf>().is_some())
     }
-}
-
-fn parent_path(path: &Path) -> PathBuf {
-    let mut parent_path = path.to_owned();
-    parent_path.pop();
-    parent_path
 }
 
 pub struct FileBrowserBuilder {
@@ -704,9 +676,7 @@ impl FileBrowserBuilder {
             Some(path) => path.clone(),
             _ => self.path.clone(),
         };
-        let (fs_sender, fs_receiver) = mpsc::channel();
         let browser = FileBrowser {
-            fs_receiver: Some(fs_receiver),
             widget,
             tree_root,
             home_dir,
@@ -729,38 +699,72 @@ impl FileBrowserBuilder {
             scroll_viewer,
             root: self.root,
             file_name,
-            watcher: setup_filebrowser_fs_watcher(fs_sender, the_path),
+            watcher: None,
             item_context_menu,
         };
-        ctx.add_node(UiNode::new(browser))
+        let file_browser_handle = ctx.add_node(UiNode::new(browser));
+        let sender = ctx.sender();
+        ctx[file_browser_handle]
+            .cast_mut::<FileBrowser>()
+            .unwrap()
+            .watcher = setup_file_browser_fs_watcher(sender, file_browser_handle, the_path);
+        file_browser_handle
     }
 }
 
-fn setup_filebrowser_fs_watcher(
-    fs_sender: mpsc::Sender<notify::Event>,
+struct EventReceiver {
+    file_browser_handle: Handle<UiNode>,
+    sender: Sender<UiMessage>,
+}
+
+impl EventReceiver {
+    fn send(&self, message: impl MessageData) {
+        Log::verify(
+            self.sender
+                .send(UiMessage::for_widget(self.file_browser_handle, message)),
+        )
+    }
+}
+
+impl notify::EventHandler for EventReceiver {
+    fn handle_event(&mut self, event: notify::Result<Event>) {
+        let event = ok_or_return!(event);
+
+        if event.need_rescan() {
+            self.send(FileBrowserMessage::Rescan);
+            return;
+        }
+
+        for path in event.paths.iter() {
+            let path = ok_or_continue!(std::path::absolute(path));
+
+            match event.kind {
+                notify::EventKind::Remove(_) => {
+                    self.send(FsEventMessage::Remove(path.clone()));
+                }
+                notify::EventKind::Create(_) => {
+                    self.send(FsEventMessage::Add(path.clone()));
+                }
+                _ => (),
+            }
+        }
+    }
+}
+
+fn setup_file_browser_fs_watcher(
+    sender: Sender<UiMessage>,
+    file_browser_handle: Handle<UiNode>,
     the_path: PathBuf,
-) -> Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)> {
-    let (tx, rx) = mpsc::channel();
-    match notify::RecommendedWatcher::new(
-        tx,
-        notify::Config::default().with_poll_interval(time::Duration::from_secs(1)),
-    ) {
+) -> Option<notify::RecommendedWatcher> {
+    let handler = EventReceiver {
+        file_browser_handle,
+        sender,
+    };
+    let config = notify::Config::default().with_poll_interval(time::Duration::from_secs(1));
+    match notify::RecommendedWatcher::new(handler, config) {
         Ok(mut watcher) => {
-            #[allow(clippy::while_let_loop)]
-            let watcher_conversion_thread = std::thread::spawn(move || loop {
-                match rx.recv() {
-                    Ok(event) => {
-                        if let Ok(event) = event {
-                            let _ = fs_sender.send(event);
-                        }
-                    }
-                    Err(_) => {
-                        break;
-                    }
-                };
-            });
-            let _ = watcher.watch(&the_path, notify::RecursiveMode::Recursive);
-            Some((watcher, watcher_conversion_thread))
+            Log::verify(watcher.watch(&the_path, notify::RecursiveMode::Recursive));
+            Some(watcher)
         }
         Err(_) => None,
     }
