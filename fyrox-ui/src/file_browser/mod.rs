@@ -31,7 +31,7 @@ use crate::{
     },
     file_browser::menu::ItemContextMenu,
     grid::{Column, GridBuilder, Row},
-    message::{MessageData, MessageDirection, UiMessage},
+    message::{MessageData, UiMessage},
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
     text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
@@ -62,7 +62,7 @@ mod selector;
 mod test;
 
 pub use filter::*;
-use fyrox_core::{err, ok_or_continue};
+use fyrox_core::{err, ok_or_continue, some_or_return};
 pub use selector::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -265,23 +265,25 @@ impl FileBrowser {
         if !self.filter.passes(path) {
             return;
         }
+
         let parent_path = parent_path(path);
         let existing_parent_node = fs_tree::find_tree_item(self.tree_root, &parent_path, ui);
-        if existing_parent_node.is_some() {
-            if let Some(tree) = ui.node(existing_parent_node).cast::<Tree>() {
-                if tree.is_expanded {
-                    fs_tree::build_tree(
-                        existing_parent_node,
-                        existing_parent_node == self.tree_root,
-                        path,
-                        &parent_path,
-                        self.item_context_menu.clone(),
-                        ui,
-                    );
-                } else if !tree.always_show_expander {
-                    ui.send(tree.handle(), TreeMessage::SetExpanderShown(true))
-                }
-            }
+        if existing_parent_node.is_none() {
+            return;
+        }
+
+        let tree = some_or_return!(ui.node(existing_parent_node).cast::<Tree>());
+        if tree.is_expanded {
+            fs_tree::build_tree(
+                existing_parent_node,
+                existing_parent_node == self.tree_root,
+                path,
+                &parent_path,
+                self.item_context_menu.clone(),
+                ui,
+            );
+        } else if !tree.always_show_expander {
+            ui.send(tree.handle(), TreeMessage::SetExpanderShown(true))
         }
     }
 
@@ -300,157 +302,191 @@ impl FileBrowser {
             FsEventMessage::Remove(path) => self.on_file_removed(path, ui),
         }
     }
+
+    fn on_file_browser_message(
+        &mut self,
+        message: &UiMessage,
+        message_data: &FileBrowserMessage,
+        ui: &mut UserInterface,
+    ) {
+        match message_data {
+            FileBrowserMessage::Path(path) => {
+                if &self.path != path {
+                    self.set_path_and_rebuild_tree(path, ui);
+                    ui.send_message(message.reverse());
+                }
+            }
+            FileBrowserMessage::Root(root) => {
+                if &self.root != root {
+                    self.set_root(root, ui)
+                }
+            }
+            FileBrowserMessage::Filter(filter) => {
+                if &self.filter != filter {
+                    self.filter.clone_from(filter);
+                    self.rebuild_fs_tree(ui);
+                }
+            }
+            FileBrowserMessage::Rescan | FileBrowserMessage::Drop { .. } => (),
+            FileBrowserMessage::FocusCurrentPath => {
+                let item = fs_tree::find_tree_item(self.tree_root, &self.path, ui);
+                if item.is_some() {
+                    // Select item of new path.
+                    ui.send(self.tree_root, TreeRootMessage::Select(vec![item]));
+                    ui.send(self.scroll_viewer, ScrollViewerMessage::BringIntoView(item));
+                }
+            }
+        }
+    }
+
+    fn on_sub_tree_expanded(
+        &mut self,
+        sub_tree: Handle<UiNode>,
+        expand: bool,
+        ui: &mut UserInterface,
+    ) {
+        if expand {
+            // Look into internals of directory and build tree items.
+            if let Some(parent_path) = fs_tree::tree_path(sub_tree, ui) {
+                fs_tree::build_single_folder(
+                    &parent_path,
+                    sub_tree,
+                    self.item_context_menu.clone(),
+                    &self.filter,
+                    ui,
+                )
+            }
+        } else {
+            // Nuke everything in collapsed item. This also will free some resources
+            // and will speed up layout pass.
+            ui.send(
+                sub_tree,
+                TreeMessage::SetItems {
+                    items: vec![],
+                    remove_previous: true,
+                },
+            );
+        }
+    }
+
+    fn on_sub_tree_selected(&mut self, sub_tree: Handle<UiNode>, ui: &UserInterface) {
+        let mut path = some_or_return!(fs_tree::tree_path(sub_tree, ui));
+
+        if let FileBrowserMode::Save { .. } = self.mode {
+            if path.is_file() {
+                ui.send(
+                    self.file_name,
+                    TextMessage::Text(
+                        path.file_name()
+                            .map(|f| f.to_string_lossy().to_string())
+                            .unwrap_or_default(),
+                    ),
+                );
+            } else {
+                path = path.join(&self.file_name_value);
+            }
+        }
+
+        if self.path != path {
+            // Here we trust the content of the tree items.
+            self.path.clone_from(&path);
+
+            ui.send(
+                self.path_text,
+                TextMessage::Text(path.to_string_lossy().to_string()),
+            );
+
+            // Do response.
+            ui.post(self.handle, FileBrowserMessage::Path(path));
+        }
+    }
+
+    fn on_drop(
+        &self,
+        what_dropped: Handle<UiNode>,
+        where_dropped: Handle<UiNode>,
+        ui: &UserInterface,
+    ) {
+        let path = some_or_return!(fs_tree::tree_path(where_dropped, ui));
+        ui.post(
+            self.handle,
+            FileBrowserMessage::Drop {
+                dropped: what_dropped,
+                path_item: where_dropped,
+                path: path.clone(),
+                dropped_path: fs_tree::tree_path(what_dropped, ui).unwrap_or_default(),
+            },
+        );
+    }
+
+    fn on_desktop_dir_clicked(&self, ui: &UserInterface) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let user_dirs = directories::UserDirs::new();
+            if let Some(desktop_dir) = user_dirs.as_ref().and_then(|dirs| dirs.desktop_dir()) {
+                ui.send(
+                    self.handle,
+                    FileBrowserMessage::Path(desktop_dir.to_path_buf()),
+                );
+            }
+        }
+    }
+
+    fn on_home_dir_clicked(&self, ui: &UserInterface) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let user_dirs = directories::UserDirs::new();
+            if let Some(home_dir) = user_dirs.as_ref().map(|dirs| dirs.home_dir()) {
+                ui.send(
+                    self.handle,
+                    FileBrowserMessage::Path(home_dir.to_path_buf()),
+                );
+            }
+        }
+    }
+
+    fn on_path_typed_in(&mut self, new_path: &str, ui: &UserInterface) {
+        if self.path.as_os_str() == new_path {
+            return;
+        }
+
+        ui.send(self.handle, FileBrowserMessage::Path(new_path.into()));
+    }
+
+    fn on_file_name_typed_in(&mut self, file_name: &str, ui: &UserInterface) {
+        self.file_name_value = file_name.into();
+        let mut combined = self.path.clone();
+        combined.set_file_name(PathBuf::from(file_name));
+        ui.send(self.handle, FileBrowserMessage::Path(combined));
+    }
 }
 
 impl Control for FileBrowser {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
-
-        if let Some(msg) = message.data_for::<FsEventMessage>(self.handle()) {
+        if let Some(msg) = message.data_for::<FsEventMessage>(self.handle) {
             self.handle_fs_event_message(msg, ui);
-        } else if let Some(msg) = message.data::<FileBrowserMessage>() {
-            if message.destination() == self.handle() {
-                match msg {
-                    FileBrowserMessage::Path(path) => {
-                        if message.direction() == MessageDirection::ToWidget && &self.path != path {
-                            self.set_path_and_rebuild_tree(path, ui);
-                            ui.send_message(message.reverse());
-                        }
-                    }
-                    FileBrowserMessage::Root(root) => {
-                        if &self.root != root {
-                            self.set_root(root, ui)
-                        }
-                    }
-                    FileBrowserMessage::Filter(filter) => {
-                        if &self.filter != filter {
-                            self.filter.clone_from(filter);
-                            self.rebuild_fs_tree(ui);
-                        }
-                    }
-                    FileBrowserMessage::Rescan | FileBrowserMessage::Drop { .. } => (),
-                    FileBrowserMessage::FocusCurrentPath => {
-                        let item = fs_tree::find_tree_item(self.tree_root, &self.path, ui);
-                        if item.is_some() {
-                            // Select item of new path.
-                            ui.send(self.tree_root, TreeRootMessage::Select(vec![item]));
-                            ui.send(self.scroll_viewer, ScrollViewerMessage::BringIntoView(item));
-                        }
-                    }
-                }
-            }
-        } else if let Some(TextMessage::Text(txt)) = message.data::<TextMessage>() {
-            if message.direction() == MessageDirection::FromWidget {
-                if message.destination() == self.path_text {
-                    self.path = txt.into();
-                } else if message.destination() == self.file_name {
-                    self.file_name_value = txt.into();
-                    ui.send(
-                        self.handle,
-                        FileBrowserMessage::Path({
-                            let mut combined = self.path.clone();
-                            combined.set_file_name(PathBuf::from(txt));
-                            combined
-                        }),
-                    );
-                }
-            }
-        } else if let Some(TreeMessage::Expand { expand, .. }) = message.data::<TreeMessage>() {
-            if *expand {
-                // Look into internals of directory and build tree items.
-                if let Some(parent_path) = fs_tree::tree_path(message.destination(), ui) {
-                    fs_tree::build_single_folder(
-                        &parent_path,
-                        message.destination(),
-                        self.item_context_menu.clone(),
-                        &self.filter,
-                        ui,
-                    )
-                }
-            } else {
-                // Nuke everything in collapsed item. This also will free some resources
-                // and will speed up layout pass.
-                ui.send(
-                    message.destination(),
-                    TreeMessage::SetItems {
-                        items: vec![],
-                        remove_previous: true,
-                    },
-                );
-            }
+        } else if let Some(message_data) = message.data_for::<FileBrowserMessage>(self.handle) {
+            self.on_file_browser_message(message, message_data, ui)
+        } else if let Some(TextMessage::Text(new_pth)) = message.data_from(self.path_text) {
+            self.on_path_typed_in(new_pth, ui);
+        } else if let Some(TextMessage::Text(file_name)) = message.data_from(self.file_name) {
+            self.on_file_name_typed_in(file_name, ui)
+        } else if let Some(TreeMessage::Expand { expand, .. }) = message.data() {
+            self.on_sub_tree_expanded(message.destination(), *expand, ui)
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if !message.handled() {
-                if let Some(path) = fs_tree::tree_path(message.destination(), ui) {
-                    ui.post(
-                        self.handle,
-                        FileBrowserMessage::Drop {
-                            dropped: *dropped,
-                            path_item: message.destination(),
-                            path: path.clone(),
-                            dropped_path: fs_tree::tree_path(*dropped, ui).unwrap_or_default(),
-                        },
-                    );
-                    message.set_handled(true);
-                }
+                self.on_drop(*dropped, message.destination(), ui);
+                message.set_handled(true);
             }
         } else if let Some(TreeRootMessage::Select(selection)) = message.data_from(self.tree_root) {
             if let Some(&first_selected) = selection.first() {
-                if let Some(mut path) = fs_tree::tree_path(first_selected, ui) {
-                    if let FileBrowserMode::Save { .. } = self.mode {
-                        if path.is_file() {
-                            ui.send(
-                                self.file_name,
-                                TextMessage::Text(
-                                    path.file_name()
-                                        .map(|f| f.to_string_lossy().to_string())
-                                        .unwrap_or_default(),
-                                ),
-                            );
-                        } else {
-                            path = path.join(&self.file_name_value);
-                        }
-                    }
-
-                    if self.path != path {
-                        // Here we trust the content of the tree items.
-                        self.path.clone_from(&path);
-
-                        ui.send(
-                            self.path_text,
-                            TextMessage::Text(path.to_string_lossy().to_string()),
-                        );
-
-                        // Do response.
-                        ui.post(self.handle, FileBrowserMessage::Path(path));
-                    }
-                }
+                self.on_sub_tree_selected(first_selected, ui)
             }
-        } else if let Some(ButtonMessage::Click) = message.data() {
-            if message.direction() == MessageDirection::FromWidget {
-                #[cfg(not(target_arch = "wasm32"))]
-                if message.destination() == self.desktop_dir {
-                    let user_dirs = directories::UserDirs::new();
-                    if let Some(desktop_dir) =
-                        user_dirs.as_ref().and_then(|dirs| dirs.desktop_dir())
-                    {
-                        ui.send(
-                            self.handle,
-                            FileBrowserMessage::Path(desktop_dir.to_path_buf()),
-                        );
-                    }
-                }
-
-                #[cfg(not(target_arch = "wasm32"))]
-                if message.destination() == self.home_dir {
-                    let user_dirs = directories::UserDirs::new();
-                    if let Some(home_dir) = user_dirs.as_ref().map(|dirs| dirs.home_dir()) {
-                        ui.send(
-                            self.handle,
-                            FileBrowserMessage::Path(home_dir.to_path_buf()),
-                        );
-                    }
-                }
-            }
+        } else if let Some(ButtonMessage::Click) = message.data_from(self.desktop_dir) {
+            self.on_desktop_dir_clicked(ui)
+        } else if let Some(ButtonMessage::Click) = message.data_from(self.home_dir) {
+            self.on_home_dir_clicked(ui)
         }
     }
 

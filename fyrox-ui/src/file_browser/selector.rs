@@ -22,29 +22,22 @@ use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
+        uuid_provider, visitor::prelude::*,
     },
     define_widget_deref,
     draw::DrawingContext,
-    file_browser::{
-        FileBrowser, FileBrowserBuilder, FileBrowserMessage, FileBrowserMode, PathFilter,
-    },
+    file_browser::{FileBrowserBuilder, FileBrowserMessage, FileBrowserMode, PathFilter},
     grid::{Column, GridBuilder, Row},
-    message::{MessageDirection, OsEvent, UiMessage},
+    message::{MessageData, MessageDirection, OsEvent, UiMessage},
     stack_panel::StackPanelBuilder,
     text::TextMessage,
     text_box::TextBoxBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    window::{Window, WindowBuilder, WindowMessage, WindowTitle},
+    window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-
-use crate::message::MessageData;
-use crate::window::WindowAlignment;
-use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -71,6 +64,7 @@ pub struct FileSelector {
     pub browser: Handle<UiNode>,
     pub ok: Handle<UiNode>,
     pub cancel: Handle<UiNode>,
+    pub selected_path: PathBuf,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for FileSelector {
@@ -127,37 +121,33 @@ impl Control for FileSelector {
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.ok {
-                let path = ui
-                    .node(self.browser)
-                    .cast::<FileBrowser>()
-                    .expect("self.browser must be FileBrowser")
-                    .path
-                    .clone();
-
-                ui.send(self.handle, FileSelectorMessage::Commit(path));
+                ui.send(
+                    self.handle,
+                    FileSelectorMessage::Commit(self.selected_path.clone()),
+                );
             } else if message.destination() == self.cancel {
                 ui.send(self.handle, FileSelectorMessage::Cancel)
             }
-        } else if let Some(msg) = message.data::<FileSelectorMessage>() {
-            if message.destination() == self.handle {
-                match msg {
-                    FileSelectorMessage::Commit(_) | FileSelectorMessage::Cancel => {
-                        ui.send(self.handle, WindowMessage::Close)
-                    }
-                    FileSelectorMessage::Path(path) => {
-                        ui.send(self.browser, FileBrowserMessage::Path(path.clone()))
-                    }
-                    FileSelectorMessage::Root(root) => {
-                        ui.send(self.browser, FileBrowserMessage::Root(root.clone()));
-                    }
-                    FileSelectorMessage::Filter(filter) => {
-                        ui.send(self.browser, FileBrowserMessage::Filter(filter.clone()));
-                    }
-                    FileSelectorMessage::FocusCurrentPath => {
-                        ui.send(self.browser, FileBrowserMessage::FocusCurrentPath);
-                    }
+        } else if let Some(msg) = message.data_for::<FileSelectorMessage>(self.handle) {
+            match msg {
+                FileSelectorMessage::Commit(_) | FileSelectorMessage::Cancel => {
+                    ui.send(self.handle, WindowMessage::Close)
+                }
+                FileSelectorMessage::Path(path) => {
+                    ui.send(self.browser, FileBrowserMessage::Path(path.clone()))
+                }
+                FileSelectorMessage::Root(root) => {
+                    ui.send(self.browser, FileBrowserMessage::Root(root.clone()));
+                }
+                FileSelectorMessage::Filter(filter) => {
+                    ui.send(self.browser, FileBrowserMessage::Filter(filter.clone()));
+                }
+                FileSelectorMessage::FocusCurrentPath => {
+                    ui.send(self.browser, FileBrowserMessage::FocusCurrentPath);
                 }
             }
+        } else if let Some(FileBrowserMessage::Path(path)) = message.data_from(self.browser) {
+            self.selected_path = path.clone();
         }
     }
 
@@ -272,7 +262,7 @@ impl FileSelectorBuilder {
                             )
                             .with_mode(self.mode)
                             .with_filter(self.filter)
-                            .with_path(self.path)
+                            .with_path(self.path.clone())
                             .with_opt_root(self.root)
                             .build(ctx);
                             browser
@@ -290,6 +280,7 @@ impl FileSelectorBuilder {
             browser,
             ok,
             cancel,
+            selected_path: self.path,
         };
 
         ctx.add_node(UiNode::new(file_selector))
