@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::message::{ButtonState, KeyCode, OsEvent};
 use crate::{
     core::{algebra::Vector2, info, pool::Handle, reflect::Reflect},
     message::{MessageData, UiMessage},
@@ -25,6 +26,7 @@ use crate::{
     widget::WidgetMessage,
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::err;
 use fyrox_graph::{SceneGraph, SceneGraphNode};
 use uuid::Uuid;
 
@@ -58,6 +60,8 @@ pub trait UserInterfaceTestingExtension {
         name: Uuid,
         response: M,
     ) -> usize;
+
+    fn type_text(&mut self, text: &str);
 }
 
 fn is_enabled(mut handle: Handle<UiNode>, ui: &UserInterface) -> bool {
@@ -178,6 +182,34 @@ impl UserInterfaceTestingExtension for UserInterface {
         let screen_size = self.screen_size();
         self.update(screen_size, 1.0 / 60.0, &Default::default());
         num
+    }
+
+    fn type_text(&mut self, text: &str) {
+        for char in text.chars() {
+            if char.is_ascii() {
+                match KeyCode::try_from(char) {
+                    Ok(button) => {
+                        self.process_os_event(&OsEvent::KeyboardInput {
+                            button,
+                            state: ButtonState::Pressed,
+                            text: char.to_string(),
+                        });
+                        self.process_os_event(&OsEvent::KeyboardInput {
+                            button,
+                            state: ButtonState::Released,
+                            text: Default::default(),
+                        });
+                    }
+                    Err(err) => {
+                        err!(
+                            "Unable to emulate {} character press. Reason: {}",
+                            char,
+                            err
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
