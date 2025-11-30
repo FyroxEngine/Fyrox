@@ -22,7 +22,7 @@ use crate::{
     core::{algebra::Vector2, parking_lot::Mutex, pool::Handle},
     file_browser::{
         fs_tree::{self, read_dir_entries, DisksProvider},
-        FileBrowserBuilder, PathFilter,
+        FileBrowserBuilder, FileBrowserMessage, PathFilter,
     },
     test::{test_widget_deletion, UserInterfaceTestingExtension},
     tree::{Tree, TreeRoot, TreeRootBuilder},
@@ -192,7 +192,7 @@ fn test_fs_tree_with_root() {
 }
 
 #[test]
-fn test_fs_tree_with_root_empty() {
+fn test_fs_tree_with_root_and_empty_tree() {
     let root = PathBuf::from("./test_fs_tree_with_root_empty");
     clean_or_create(&root);
     let screen_size = Vector2::repeat(1000.0);
@@ -216,16 +216,31 @@ fn test_fs_tree_without_root() {
     let screen_size = Vector2::repeat(1000.0);
     let mut ui = UserInterface::new(screen_size);
     let ctx = &mut ui.build_ctx();
-    FileBrowserBuilder::new(WidgetBuilder::new())
+    let browser = FileBrowserBuilder::new(WidgetBuilder::new())
         .with_path(paths.last().unwrap())
         .build(ctx);
     ui.poll_all_messages();
-    for path in paths {
+    for path in &paths {
         let path = fs_tree::sanitize_path(&path).unwrap();
         assert!(find_by_path(path, &ui).is_some());
     }
     for (mount_point, _) in DisksProvider::new().iter() {
         assert!(find_by_path(mount_point.to_string(), &ui).is_some());
+    }
+    for path in &paths {
+        ui.send(browser, FileBrowserMessage::Path(path.clone()));
+        let mut response_count = 0;
+        while let Some(message) = ui.poll_message() {
+            if let Some(FileBrowserMessage::Path(response_path)) = message.data_from(browser) {
+                response_count += 1;
+                assert_eq!(path, response_path);
+            }
+        }
+        assert_eq!(response_count, 1);
+        for path in &paths {
+            let path = fs_tree::sanitize_path(&path).unwrap();
+            assert!(find_by_path(path, &ui).is_some());
+        }
     }
 }
 
