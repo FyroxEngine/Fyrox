@@ -196,24 +196,31 @@ impl FileBrowser {
         }
     }
 
-    fn set_path(&mut self, path: &Path) {
+    /// Tries to set a new path. This method keeps only the valid part of the supplied path. For
+    /// example, if the path `foo/bar/baz` is supplied and only `foo/bar` exists, then the `foo/bar`
+    /// will be set. This method also does path normalization, which requires FS access, and the actual
+    /// path will be absolute even if the input path was relative.
+    fn set_path(&mut self, path: &Path) -> bool {
         fn discard_nonexistent_sub_dirs(path: &Path) -> PathBuf {
-            let mut existing_path = path.to_owned();
-            while !existing_path.exists() {
-                if !existing_path.pop() {
+            let mut potentially_existing_path = path.to_owned();
+            while !potentially_existing_path.exists() {
+                if !potentially_existing_path.pop() {
                     break;
                 }
             }
-            existing_path
+            potentially_existing_path
         }
 
-        // Keep only the valid part of the supplied path. For example, if the path `foo/bar/baz`
-        // is supplied and only `foo/bar` exists, then the tree will be built only to that path.
         let existing_part = discard_nonexistent_sub_dirs(path);
 
         match fs_tree::sanitize_path(&existing_part) {
             Ok(existing_sanitized_path) => {
-                self.path = existing_sanitized_path;
+                if self.path != existing_sanitized_path {
+                    self.path = existing_sanitized_path;
+                    true
+                } else {
+                    false
+                }
             }
             Err(err) => {
                 err!(
@@ -221,19 +228,27 @@ impl FileBrowser {
                     existing_part.display(),
                     path.display(),
                     err
-                )
+                );
+                false
             }
         }
     }
 
-    fn set_path_and_rebuild_tree(&mut self, path: &Path, ui: &mut UserInterface) {
-        self.set_path(path);
+    /// Same as [`Self::set_path`], but also rebuilds the file system tree to the given path.
+    /// This method keeps only the valid part of the supplied path. For example, if the path
+    /// `foo/bar/baz` is supplied and only `foo/bar` exists, then the tree will be built only to
+    /// that path.
+    fn set_path_and_rebuild_tree(&mut self, path: &Path, ui: &mut UserInterface) -> bool {
+        if !self.set_path(path) {
+            return false;
+        }
         let existing_item = fs_tree::find_tree_item(self.tree_root, &self.path, ui);
         if existing_item.is_some() {
             self.select_and_bring_into_view(existing_item, ui)
         } else {
             self.rebuild_fs_tree(ui)
         }
+        true
     }
 
     fn set_root(&mut self, root: &Option<PathBuf>, ui: &mut UserInterface) {
@@ -311,9 +326,11 @@ impl FileBrowser {
     ) {
         match message_data {
             FileBrowserMessage::Path(path) => {
-                if &self.path != path {
-                    self.set_path_and_rebuild_tree(path, ui);
-                    ui.send_message(message.reverse());
+                if self.set_path_and_rebuild_tree(path, ui) {
+                    ui.send_message(UiMessage::from_widget(
+                        message.destination(),
+                        FileBrowserMessage::Path(self.path.clone()),
+                    ));
                 }
             }
             FileBrowserMessage::Root(root) => {
@@ -450,7 +467,9 @@ impl FileBrowser {
             return;
         }
 
-        ui.send(self.handle, FileBrowserMessage::Path(new_path.into()));
+        if Path::new(new_path).exists() {
+            ui.send(self.handle, FileBrowserMessage::Path(new_path.into()));
+        }
     }
 
     fn on_file_name_typed_in(&mut self, file_name: &str, ui: &UserInterface) {
