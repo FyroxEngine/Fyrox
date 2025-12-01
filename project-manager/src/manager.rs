@@ -972,6 +972,10 @@ impl ProjectManager {
         .build(ctx);
         ui.send(
             self.import_project_dialog,
+            FileSelectorMessage::Path(PathBuf::from("./")),
+        );
+        ui.send(
+            self.import_project_dialog,
             WindowMessage::Open {
                 alignment: WindowAlignment::Center,
                 modal: true,
