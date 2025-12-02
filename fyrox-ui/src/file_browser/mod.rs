@@ -41,6 +41,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use core::time;
+use fyrox_core::{err, ok_or_continue, some_or_return};
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
@@ -53,6 +54,7 @@ use std::{
     sync::mpsc::Sender,
 };
 
+mod field;
 mod filter;
 mod fs_tree;
 mod menu;
@@ -61,8 +63,8 @@ mod selector;
 #[cfg(test)]
 mod test;
 
+pub use field::*;
 pub use filter::*;
-use fyrox_core::{err, ok_or_continue, some_or_return};
 pub use selector::*;
 
 #[derive(Debug, Clone, PartialEq)]
