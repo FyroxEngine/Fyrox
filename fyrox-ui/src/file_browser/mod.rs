@@ -260,6 +260,9 @@ impl FileBrowser {
         self.root.clone_from(root);
         self.set_path(&root.clone().unwrap_or_default());
         self.rebuild_fs_tree(ui);
+        for button in [self.home_dir, self.desktop_dir] {
+            ui.send(button, WidgetMessage::Visibility(self.root.is_none()));
+        }
         self.watcher = watcher_replacement;
     }
 
@@ -568,6 +571,7 @@ impl FileBrowserBuilder {
                             .with_child({
                                 home_dir = ButtonBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_visibility(self.root.is_none())
                                         .on_column(0)
                                         .with_width(24.0)
                                         .with_tooltip(make_simple_tooltip(ctx, "Home Folder"))
@@ -580,6 +584,7 @@ impl FileBrowserBuilder {
                             .with_child({
                                 desktop_dir = ButtonBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_visibility(self.root.is_none())
                                         .on_column(1)
                                         .with_width(24.0)
                                         .with_tooltip(make_simple_tooltip(ctx, "Desktop Folder"))
