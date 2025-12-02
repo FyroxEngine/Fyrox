@@ -33,7 +33,7 @@ use crate::{
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
-    text::{TextBuilder, TextMessage},
+    text::TextMessage,
     text_box::{TextBoxBuilder, TextCommitMode},
     tree::{Tree, TreeMessage, TreeRootBuilder, TreeRootMessage},
     utils::make_simple_tooltip,
@@ -89,15 +89,6 @@ enum FsEventMessage {
 }
 impl MessageData for FsEventMessage {}
 
-#[derive(Default, Clone, PartialEq, Eq, Hash, Debug, Visit, Reflect)]
-pub enum FileBrowserMode {
-    #[default]
-    Open,
-    Save {
-        default_file_name: PathBuf,
-    },
-}
-
 #[derive(Default, Visit, Reflect, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "b7f4610e-4b0c-4671-9b4a-60bb45268928")]
 #[reflect(derived_type = "UiNode")]
@@ -113,9 +104,6 @@ pub struct FileBrowser {
     #[visit(skip)]
     #[reflect(hidden)]
     pub filter: PathFilter,
-    pub mode: FileBrowserMode,
-    pub file_name: Handle<UiNode>,
-    pub file_name_value: PathBuf,
     #[visit(skip)]
     #[reflect(hidden)]
     pub item_context_menu: RcUiNodeHandle,
@@ -149,9 +137,6 @@ impl Clone for FileBrowser {
             path: self.path.clone(),
             root: self.root.clone(),
             filter: self.filter.clone(),
-            mode: self.mode.clone(),
-            file_name: self.file_name,
-            file_name_value: self.file_name_value.clone(),
             item_context_menu: self.item_context_menu.clone(),
             watcher: None,
         }
@@ -387,23 +372,7 @@ impl FileBrowser {
     }
 
     fn on_sub_tree_selected(&mut self, sub_tree: Handle<UiNode>, ui: &UserInterface) {
-        let mut path = some_or_return!(fs_tree::tree_path(sub_tree, ui));
-
-        if let FileBrowserMode::Save { .. } = self.mode {
-            if path.is_file() {
-                ui.send(
-                    self.file_name,
-                    TextMessage::Text(
-                        path.file_name()
-                            .map(|f| f.to_string_lossy().to_string())
-                            .unwrap_or_default(),
-                    ),
-                );
-            } else {
-                path = path.join(&self.file_name_value);
-            }
-        }
-
+        let path = some_or_return!(fs_tree::tree_path(sub_tree, ui));
         if self.path != path {
             // Here we trust the content of the tree items.
             self.path.clone_from(&path);
@@ -471,13 +440,6 @@ impl FileBrowser {
             ui.send(self.handle, FileBrowserMessage::Path(new_path.into()));
         }
     }
-
-    fn on_file_name_typed_in(&mut self, file_name: &str, ui: &UserInterface) {
-        self.file_name_value = file_name.into();
-        let mut combined = self.path.clone();
-        combined.set_file_name(PathBuf::from(file_name));
-        ui.send(self.handle, FileBrowserMessage::Path(combined));
-    }
 }
 
 impl Control for FileBrowser {
@@ -489,8 +451,6 @@ impl Control for FileBrowser {
             self.on_file_browser_message(message, message_data, ui)
         } else if let Some(TextMessage::Text(new_pth)) = message.data_from(self.path_text) {
             self.on_path_typed_in(new_pth, ui);
-        } else if let Some(TextMessage::Text(file_name)) = message.data_from(self.file_name) {
-            self.on_file_name_typed_in(file_name, ui)
         } else if let Some(TreeMessage::Expand { expand, .. }) = message.data() {
             self.on_sub_tree_expanded(message.destination(), *expand, ui)
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
@@ -522,7 +482,6 @@ pub struct FileBrowserBuilder {
     path: PathBuf,
     filter: PathFilter,
     root: Option<PathBuf>,
-    mode: FileBrowserMode,
     show_path: bool,
 }
 
@@ -533,18 +492,12 @@ impl FileBrowserBuilder {
             path: "./".into(),
             filter: PathFilter::AllPass,
             root: None,
-            mode: FileBrowserMode::Open,
             show_path: true,
         }
     }
 
     pub fn with_filter(mut self, filter: PathFilter) -> Self {
         self.filter = filter;
-        self
-    }
-
-    pub fn with_mode(mut self, mode: FileBrowserMode) -> Self {
-        self.mode = mode;
         self
     }
 
@@ -592,21 +545,14 @@ impl FileBrowserBuilder {
 
         let path_text;
         let tree_root;
-        let scroll_viewer = ScrollViewerBuilder::new(
-            WidgetBuilder::new()
-                .on_row(match self.mode {
-                    FileBrowserMode::Open => 1,
-                    FileBrowserMode::Save { .. } => 2,
-                })
-                .on_column(0),
-        )
-        .with_content({
-            tree_root = TreeRootBuilder::new(WidgetBuilder::new())
-                .with_items(items)
-                .build(ctx);
-            tree_root
-        })
-        .build(ctx);
+        let scroll_viewer = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1).on_column(0))
+            .with_content({
+                tree_root = TreeRootBuilder::new(WidgetBuilder::new())
+                    .with_items(items)
+                    .build(ctx);
+                tree_root
+            })
+            .build(ctx);
 
         let home_dir;
         let desktop_dir;
@@ -644,8 +590,6 @@ impl FileBrowserBuilder {
                             .with_child({
                                 path_text = TextBoxBuilder::new(
                                     WidgetBuilder::new()
-                                        // Disable path if we're in Save mode
-                                        .with_enabled(matches!(self.mode, FileBrowserMode::Open))
                                         .on_row(0)
                                         .on_column(2)
                                         .with_margin(Thickness::uniform(2.0)),
@@ -666,60 +610,8 @@ impl FileBrowserBuilder {
                 .with_child(scroll_viewer),
         )
         .add_column(Column::stretch())
-        .add_rows(match self.mode {
-            FileBrowserMode::Open => {
-                vec![Row::auto(), Row::stretch()]
-            }
-            FileBrowserMode::Save { .. } => {
-                vec![Row::auto(), Row::strict(24.0), Row::stretch()]
-            }
-        })
+        .add_rows(vec![Row::auto(), Row::stretch()])
         .build(ctx);
-
-        let file_name = match self.mode {
-            FileBrowserMode::Save {
-                ref default_file_name,
-            } => {
-                let file_name;
-                let name_grid = GridBuilder::new(
-                    WidgetBuilder::new()
-                        .on_row(1)
-                        .on_column(0)
-                        .with_child(
-                            TextBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(0)
-                                    .on_column(0)
-                                    .with_vertical_alignment(VerticalAlignment::Center),
-                            )
-                            .with_text("File Name:")
-                            .build(ctx),
-                        )
-                        .with_child({
-                            file_name = TextBoxBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(0)
-                                    .on_column(1)
-                                    .with_margin(Thickness::uniform(2.0)),
-                            )
-                            .with_text_commit_mode(TextCommitMode::Immediate)
-                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                            .with_text(default_file_name.to_string_lossy())
-                            .build(ctx);
-                            file_name
-                        }),
-                )
-                .add_row(Row::stretch())
-                .add_column(Column::strict(80.0))
-                .add_column(Column::stretch())
-                .build(ctx);
-
-                ctx.link(name_grid, grid);
-
-                file_name
-            }
-            FileBrowserMode::Open => Default::default(),
-        };
 
         let widget = self
             .widget_builder
@@ -737,23 +629,10 @@ impl FileBrowserBuilder {
             home_dir,
             desktop_dir,
             path_text,
-            path: match self.mode {
-                FileBrowserMode::Open => self.path,
-                FileBrowserMode::Save {
-                    ref default_file_name,
-                } => self.path.join(default_file_name),
-            },
-            file_name_value: match self.mode {
-                FileBrowserMode::Open => Default::default(),
-                FileBrowserMode::Save {
-                    ref default_file_name,
-                } => default_file_name.clone(),
-            },
+            path: self.path,
             filter: self.filter,
-            mode: self.mode,
             scroll_viewer,
             root: self.root,
-            file_name,
             watcher: None,
             item_context_menu,
         };

@@ -26,12 +26,12 @@ use crate::{
     },
     define_widget_deref,
     draw::DrawingContext,
-    file_browser::{FileBrowserBuilder, FileBrowserMessage, FileBrowserMode, PathFilter},
+    file_browser::{FileBrowserBuilder, FileBrowserMessage, PathFilter},
     grid::{Column, GridBuilder, Row},
     message::{MessageData, MessageDirection, OsEvent, UiMessage},
     stack_panel::StackPanelBuilder,
-    text::TextMessage,
-    text_box::TextBoxBuilder,
+    text::{TextBuilder, TextMessage},
+    text_box::{TextBoxBuilder, TextCommitMode},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
@@ -42,6 +42,15 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
+
+#[derive(Default, Clone, PartialEq, Eq, Hash, Debug, Visit, Reflect)]
+pub enum FileSelectorMode {
+    #[default]
+    Open,
+    Save {
+        default_file_name: PathBuf,
+    },
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileSelectorMessage {
@@ -65,6 +74,9 @@ pub struct FileSelector {
     pub ok: Handle<UiNode>,
     pub cancel: Handle<UiNode>,
     pub selected_path: PathBuf,
+    pub mode: FileSelectorMode,
+    pub file_name: Handle<UiNode>,
+    pub file_name_value: PathBuf,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for FileSelector {
@@ -148,6 +160,23 @@ impl Control for FileSelector {
             }
         } else if let Some(FileBrowserMessage::Path(path)) = message.data_from(self.browser) {
             self.selected_path = path.clone();
+
+            if let FileSelectorMode::Save { .. } = self.mode {
+                if path.is_file() {
+                    ui.send(
+                        self.file_name,
+                        TextMessage::Text(
+                            path.file_name()
+                                .map(|f| f.to_string_lossy().to_string())
+                                .unwrap_or_default(),
+                        ),
+                    );
+                } else {
+                    self.selected_path = self.selected_path.join(&self.file_name_value);
+                }
+            }
+        } else if let Some(TextMessage::Text(file_name)) = message.data_from(self.file_name) {
+            self.on_file_name_typed_in(file_name, ui)
         }
     }
 
@@ -168,7 +197,7 @@ impl Control for FileSelector {
 pub struct FileSelectorBuilder {
     window_builder: WindowBuilder,
     filter: PathFilter,
-    mode: FileBrowserMode,
+    mode: FileSelectorMode,
     path: PathBuf,
     root: Option<PathBuf>,
 }
@@ -178,7 +207,7 @@ impl FileSelectorBuilder {
         Self {
             window_builder,
             filter: PathFilter::AllPass,
-            mode: FileBrowserMode::Open,
+            mode: FileSelectorMode::Open,
             path: "./".into(),
             root: None,
         }
@@ -194,7 +223,7 @@ impl FileSelectorBuilder {
         self
     }
 
-    pub fn with_mode(mut self, mode: FileBrowserMode) -> Self {
+    pub fn with_mode(mut self, mode: FileSelectorMode) -> Self {
         self.mode = mode;
         self
     }
@@ -213,18 +242,71 @@ impl FileSelectorBuilder {
             self.window_builder.title = Some(WindowTitle::text("Select File"));
         }
 
+        let file_name;
+        let name_grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_visibility(matches!(self.mode, FileSelectorMode::Save { .. }))
+                .on_row(1)
+                .on_column(0)
+                .with_child(
+                    TextBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(0)
+                            .on_column(0)
+                            .with_vertical_alignment(VerticalAlignment::Center),
+                    )
+                    .with_text("File Name:")
+                    .build(ctx),
+                )
+                .with_child({
+                    file_name = TextBoxBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(0)
+                            .on_column(1)
+                            .with_margin(Thickness::uniform(2.0)),
+                    )
+                    .with_text_commit_mode(TextCommitMode::Immediate)
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_text(match self.mode {
+                        FileSelectorMode::Open => Default::default(),
+                        FileSelectorMode::Save {
+                            ref default_file_name,
+                        } => default_file_name.to_string_lossy().to_string(),
+                    })
+                    .build(ctx);
+                    file_name
+                }),
+        )
+        .add_row(Row::stretch())
+        .add_column(Column::strict(80.0))
+        .add_column(Column::stretch())
+        .build(ctx);
+
         let window = self
             .window_builder
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
+                        .with_child({
+                            browser = FileBrowserBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(0)
+                                    .on_column(0)
+                                    .with_tab_index(Some(0)),
+                            )
+                            .with_filter(self.filter)
+                            .with_path(self.path.clone())
+                            .with_opt_root(self.root)
+                            .build(ctx);
+                            browser
+                        })
                         .with_child(
                             StackPanelBuilder::new(
                                 WidgetBuilder::new()
                                     .with_margin(Thickness::uniform(1.0))
                                     .with_horizontal_alignment(HorizontalAlignment::Right)
+                                    .on_row(2)
                                     .on_column(0)
-                                    .on_row(1)
                                     .with_child({
                                         ok = ButtonBuilder::new(
                                             WidgetBuilder::new()
@@ -234,8 +316,8 @@ impl FileSelectorBuilder {
                                                 .with_height(30.0),
                                         )
                                         .with_text(match &self.mode {
-                                            FileBrowserMode::Open => "Open",
-                                            FileBrowserMode::Save { .. } => "Save",
+                                            FileSelectorMode::Open => "Open",
+                                            FileSelectorMode::Save { .. } => "Save",
                                         })
                                         .build(ctx);
                                         ok
@@ -256,20 +338,11 @@ impl FileSelectorBuilder {
                             .with_orientation(Orientation::Horizontal)
                             .build(ctx),
                         )
-                        .with_child({
-                            browser = FileBrowserBuilder::new(
-                                WidgetBuilder::new().on_column(0).with_tab_index(Some(0)),
-                            )
-                            .with_mode(self.mode)
-                            .with_filter(self.filter)
-                            .with_path(self.path.clone())
-                            .with_opt_root(self.root)
-                            .build(ctx);
-                            browser
-                        }),
+                        .with_child(name_grid),
                 )
                 .add_column(Column::stretch())
                 .add_row(Row::stretch())
+                .add_row(Row::auto())
                 .add_row(Row::auto())
                 .build(ctx),
             )
@@ -281,9 +354,26 @@ impl FileSelectorBuilder {
             ok,
             cancel,
             selected_path: self.path,
+            file_name_value: match self.mode {
+                FileSelectorMode::Open => Default::default(),
+                FileSelectorMode::Save {
+                    ref default_file_name,
+                } => default_file_name.clone(),
+            },
+            mode: self.mode,
+            file_name,
         };
 
         ctx.add_node(UiNode::new(file_selector))
+    }
+}
+
+impl FileSelector {
+    fn on_file_name_typed_in(&mut self, file_name: &str, ui: &UserInterface) {
+        self.file_name_value = file_name.into();
+        let mut combined = self.selected_path.clone();
+        combined.set_file_name(PathBuf::from(file_name));
+        ui.send(self.handle, FileBrowserMessage::Path(combined));
     }
 }
 
@@ -339,7 +429,7 @@ impl Control for FileSelectorField {
                 )
                 .with_path(self.path.clone())
                 .with_root(std::env::current_dir().unwrap_or_default())
-                .with_mode(FileBrowserMode::Open)
+                .with_mode(FileSelectorMode::Open)
                 .build(&mut ui.build_ctx());
 
                 self.file_selector = file_selector;

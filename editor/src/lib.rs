@@ -101,7 +101,7 @@ use crate::{
                 DockingManagerMessage, TileBuilder, TileContent,
             },
             dropdown_list::DropdownListBuilder,
-            file_browser::{FileBrowserMode, FileSelectorBuilder, PathFilter},
+            file_browser::{FileSelectorBuilder, PathFilter},
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             key::HotKey,
@@ -180,6 +180,7 @@ use crate::{
 use fyrox::core::{info, uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::event_loop::ActiveEventLoop;
+use fyrox::gui::file_browser::FileSelectorMode;
 use fyrox::gui::window::WindowAlignment;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
@@ -326,7 +327,7 @@ pub fn make_save_file_selector(
         .open(false)
         .with_remove_on_close(true),
     )
-    .with_mode(FileBrowserMode::Save { default_file_name })
+    .with_mode(FileSelectorMode::Save { default_file_name })
     .with_path("./")
     .with_filter(make_scene_file_filter())
     .build(ctx)

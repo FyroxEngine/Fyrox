@@ -31,7 +31,7 @@ use crate::{
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},
             curve::{CurveEditorBuilder, CurveEditorMessage},
-            file_browser::{FileBrowserMode, FileSelectorMessage},
+            file_browser::FileSelectorMessage,
             grid::{Column, GridBuilder, Row},
             menu::{MenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
             message::UiMessage,
@@ -50,6 +50,7 @@ use crate::{
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::some_or_return;
+use fyrox::gui::file_browser::FileSelectorMode;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::window::WindowAlignment;
@@ -121,11 +122,11 @@ pub struct CurveEditorWindow {
 
 impl CurveEditorWindow {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let load_file_selector = create_file_selector(ctx, "crv", FileBrowserMode::Open);
+        let load_file_selector = create_file_selector(ctx, "crv", FileSelectorMode::Open);
         let save_file_selector = create_file_selector(
             ctx,
             "crv",
-            FileBrowserMode::Save {
+            FileSelectorMode::Save {
                 default_file_name: PathBuf::from("unnamed.crv"),
             },
         );

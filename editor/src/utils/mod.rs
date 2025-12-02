@@ -27,7 +27,7 @@ use crate::{
         gui::{
             brush::Brush,
             button::ButtonBuilder,
-            file_browser::{FileBrowserMode, FileSelectorBuilder, PathFilter},
+            file_browser::{FileSelectorBuilder, PathFilter},
             image::ImageBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowBuilder},
@@ -36,6 +36,7 @@ use crate::{
     },
     load_image,
 };
+use fyrox::gui::file_browser::FileSelectorMode;
 use std::{fs::File, path::Path};
 
 pub mod doc;
@@ -99,7 +100,7 @@ pub fn enable_widget(handle: Handle<UiNode>, state: bool, ui: &UserInterface) {
 pub fn create_file_selector(
     ctx: &mut BuildContext,
     extension: &'static str,
-    mode: FileBrowserMode,
+    mode: FileSelectorMode,
 ) -> Handle<UiNode> {
     FileSelectorBuilder::new(
         WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0)).open(false),
