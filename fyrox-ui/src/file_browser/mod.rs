@@ -178,8 +178,6 @@ impl FileBrowser {
 
         if fs_tree.path_item.is_some() {
             self.select_and_bring_into_view(fs_tree.path_item, ui);
-        } else {
-            ui.send(self.path_text, TextMessage::Text(String::new()));
         }
     }
 
@@ -187,7 +185,7 @@ impl FileBrowser {
     /// example, if the path `foo/bar/baz` is supplied and only `foo/bar` exists, then the `foo/bar`
     /// will be set. This method also does path normalization, which requires FS access, and the actual
     /// path will be absolute even if the input path was relative.
-    fn set_path(&mut self, path: &Path) -> bool {
+    fn set_path(&mut self, path: &Path, ui: &UserInterface) -> bool {
         fn discard_nonexistent_sub_dirs(path: &Path) -> PathBuf {
             let mut potentially_existing_path = path.to_owned();
             while !potentially_existing_path.exists() {
@@ -204,6 +202,10 @@ impl FileBrowser {
             Ok(existing_sanitized_path) => {
                 if self.path != existing_sanitized_path {
                     self.path = existing_sanitized_path;
+                    ui.send(
+                        self.path_text,
+                        TextMessage::Text(self.path.to_string_lossy().to_string()),
+                    );
                     true
                 } else {
                     false
@@ -226,7 +228,7 @@ impl FileBrowser {
     /// `foo/bar/baz` is supplied and only `foo/bar` exists, then the tree will be built only to
     /// that path.
     fn set_path_and_rebuild_tree(&mut self, path: &Path, ui: &mut UserInterface) -> bool {
-        if !self.set_path(path) {
+        if !self.set_path(path, ui) {
             return false;
         }
         let existing_item = fs_tree::find_tree_item(self.tree_root, &self.path, ui);
@@ -258,7 +260,7 @@ impl FileBrowser {
             None => None,
         };
         self.root.clone_from(root);
-        self.set_path(&root.clone().unwrap_or_default());
+        self.set_path(&root.clone().unwrap_or_default(), ui);
         self.rebuild_fs_tree(ui);
         for button in [self.home_dir, self.desktop_dir] {
             ui.send(button, WidgetMessage::Visibility(self.root.is_none()));
@@ -435,16 +437,6 @@ impl FileBrowser {
             }
         }
     }
-
-    fn on_path_typed_in(&mut self, new_path: &str, ui: &UserInterface) {
-        if self.path.as_os_str() == new_path {
-            return;
-        }
-
-        if Path::new(new_path).exists() {
-            ui.send(self.handle, FileBrowserMessage::Path(new_path.into()));
-        }
-    }
 }
 
 impl Control for FileBrowser {
@@ -454,8 +446,6 @@ impl Control for FileBrowser {
             self.handle_fs_event_message(msg, ui);
         } else if let Some(message_data) = message.data_for::<FileBrowserMessage>(self.handle) {
             self.on_file_browser_message(message, message_data, ui)
-        } else if let Some(TextMessage::Text(new_pth)) = message.data_from(self.path_text) {
-            self.on_path_typed_in(new_pth, ui);
         } else if let Some(TreeMessage::Expand { expand, .. }) = message.data() {
             self.on_sub_tree_expanded(message.destination(), *expand, ui)
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
@@ -601,9 +591,15 @@ impl FileBrowserBuilder {
                                         .on_column(2)
                                         .with_margin(Thickness::uniform(2.0)),
                                 )
+                                .with_editable(false)
                                 .with_text_commit_mode(TextCommitMode::Immediate)
                                 .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .with_text(self.path.to_string_lossy().as_ref())
+                                .with_text(
+                                    fs_tree::sanitize_path(&self.path)
+                                        .ok()
+                                        .map(|p| p.to_string_lossy().to_string())
+                                        .unwrap_or_default(),
+                                )
                                 .build(ctx);
                                 path_text
                             }),
