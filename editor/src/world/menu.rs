@@ -60,6 +60,7 @@ use crate::{
     Engine, Message, PasteCommand,
 };
 use fyrox::core::{uuid, Uuid};
+use fyrox::gui::file_browser::FileType;
 use fyrox::gui::window::WindowAlignment;
 use std::{any::TypeId, path::PathBuf};
 
@@ -396,7 +397,11 @@ impl SceneNodeContextMenu {
 
                     self.save_as_prefab_dialog = make_save_file_selector(
                         &mut ui.build_ctx(),
-                        PathBuf::from("unnamed.rgs"),
+                        PathBuf::from("unnamed"),
+                        FileType {
+                            description: "Scene File".to_string(),
+                            extension: "rgs".to_string(),
+                        },
                         Self::SAVE_AS_PREFAB_FILE_SELECTOR,
                     );
 

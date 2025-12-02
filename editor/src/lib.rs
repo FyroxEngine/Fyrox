@@ -180,7 +180,7 @@ use crate::{
 use fyrox::core::{info, uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::event_loop::ActiveEventLoop;
-use fyrox::gui::file_browser::FileSelectorMode;
+use fyrox::gui::file_browser::{FileSelectorMode, FileType};
 use fyrox::gui::window::WindowAlignment;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
@@ -313,7 +313,8 @@ pub fn make_scene_file_filter() -> PathFilter {
 
 pub fn make_save_file_selector(
     ctx: &mut BuildContext,
-    default_file_name: PathBuf,
+    default_file_name_no_extension: PathBuf,
+    file_type: FileType,
     id: Uuid,
 ) -> Handle<UiNode> {
     FileSelectorBuilder::new(
@@ -327,7 +328,10 @@ pub fn make_save_file_selector(
         .open(false)
         .with_remove_on_close(true),
     )
-    .with_mode(FileSelectorMode::Save { default_file_name })
+    .with_mode(FileSelectorMode::Save {
+        default_file_name_no_extension,
+    })
+    .with_file_types(vec![file_type])
     .with_path("./")
     .with_filter(make_scene_file_filter())
     .build(ctx)
@@ -492,7 +496,7 @@ impl SaveSceneConfirmationDialog {
                                 // Otherwise, open save scene dialog and do the action after the
                                 // scene was saved.
                                 sender.send(Message::OpenSaveSceneDialog {
-                                    default_file_name: entry.default_file_name(),
+                                    default_file_info: entry.default_file_info(),
                                 })
                             }
                         }
@@ -1284,7 +1288,7 @@ impl Editor {
                         });
                     } else {
                         self.message_sender.send(Message::OpenSaveSceneDialog {
-                            default_file_name: entry.default_file_name(),
+                            default_file_info: entry.default_file_info(),
                         });
                     }
                 } else if hot_key == key_bindings.save_scene_as {
@@ -1292,7 +1296,7 @@ impl Editor {
                     self.menu.file_menu.open_save_file_selector(
                         engine.user_interfaces.first_mut(),
                         &engine.resource_manager,
-                        entry.default_file_name(),
+                        entry.default_file_info(),
                     );
                 } else if hot_key == key_bindings.save_all_scenes {
                     self.message_sender.send(Message::SaveAllScenes);
@@ -1610,7 +1614,7 @@ impl Editor {
                                     });
                                 } else {
                                     self.message_sender.send(Message::OpenSaveSceneDialog {
-                                        default_file_name: first_unsaved.default_file_name(),
+                                        default_file_info: first_unsaved.default_file_info(),
                                     });
                                 }
                             }
@@ -2692,11 +2696,11 @@ impl Editor {
                             self.engine.user_interfaces.first_mut(),
                         );
                     }
-                    Message::OpenSaveSceneDialog { default_file_name } => {
+                    Message::OpenSaveSceneDialog { default_file_info } => {
                         self.menu.open_save_file_selector(
                             self.engine.user_interfaces.first_mut(),
                             &self.engine.resource_manager,
-                            default_file_name,
+                            default_file_info,
                         );
                     }
                     Message::OpenSaveSceneConfirmationDialog { id, action } => {

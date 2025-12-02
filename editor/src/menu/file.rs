@@ -43,6 +43,7 @@ use crate::{
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::{uuid, Uuid};
+use fyrox::gui::file_browser::FileType;
 use fyrox::gui::window::WindowAlignment;
 use std::{path::PathBuf, sync::mpsc::Sender};
 
@@ -288,11 +289,12 @@ impl FileMenu {
         &mut self,
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
-        default_file_name: PathBuf,
+        default_file_info: (PathBuf, FileType),
     ) {
         self.save_file_selector = make_save_file_selector(
             &mut ui.build_ctx(),
-            default_file_name,
+            default_file_info.0,
+            default_file_info.1,
             Self::SAVE_FILE_SELECTOR,
         );
 
@@ -355,7 +357,7 @@ impl FileMenu {
                         self.open_save_file_selector(
                             engine.user_interfaces.first_mut(),
                             &engine.resource_manager,
-                            entry.default_file_name(),
+                            entry.default_file_info(),
                         );
                     }
                 }
@@ -364,7 +366,7 @@ impl FileMenu {
                     self.open_save_file_selector(
                         engine.user_interfaces.first_mut(),
                         &engine.resource_manager,
-                        entry.default_file_name(),
+                        entry.default_file_info(),
                     );
                 }
             } else if message.destination() == self.save_all {
