@@ -968,7 +968,7 @@ impl ProjectManager {
                 .open(false)
                 .with_remove_on_close(true),
         )
-        .with_filter(PathFilter::new(|path| path.is_dir()))
+        .with_filter(PathFilter::folder())
         .with_mode(FileSelectorMode::Open)
         .build(ctx);
         ui.send(

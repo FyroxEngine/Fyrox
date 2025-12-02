@@ -46,6 +46,11 @@ impl PathFilter {
     }
 
     #[inline]
+    pub fn folder() -> Self {
+        Self::new(|p: &Path| p.is_dir())
+    }
+
+    #[inline]
     pub fn passes(&self, path: impl AsRef<Path>) -> bool {
         match self {
             PathFilter::AllPass => true,

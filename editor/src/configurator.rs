@@ -97,14 +97,12 @@ impl Configurator {
 
         let current_path = env::current_dir().unwrap();
 
-        let filter = PathFilter::new(|p: &Path| p.is_dir());
-
         let folder_browser = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
                 .with_title(WindowTitle::text("Select Working Directory")),
         )
-        .with_filter(filter)
+        .with_filter(PathFilter::folder())
         .build(ctx);
 
         // Load history.
