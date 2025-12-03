@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::file_browser::fs_tree::sanitize_path;
 use crate::{
     core::{algebra::Vector2, parking_lot::Mutex, pool::Handle},
     file_browser::{
@@ -79,7 +80,8 @@ fn find_by_path(path: impl AsRef<Path>, ui: &UserInterface) -> Handle<UiNode> {
 }
 
 fn write_test_tree(root: &Path) -> Vec<PathBuf> {
-    clean_or_create(root);
+    let root = sanitize_path(root).unwrap();
+    clean_or_create(&root);
     let paths = [
         root.join("file1"),
         root.join("file2"),
