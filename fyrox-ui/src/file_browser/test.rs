@@ -80,8 +80,8 @@ fn find_by_path(path: impl AsRef<Path>, ui: &UserInterface) -> Handle<UiNode> {
 }
 
 fn write_test_tree(root: &Path) -> Vec<PathBuf> {
+    clean_or_create(root);
     let root = sanitize_path(root).unwrap();
-    clean_or_create(&root);
     let paths = [
         root.join("file1"),
         root.join("file2"),

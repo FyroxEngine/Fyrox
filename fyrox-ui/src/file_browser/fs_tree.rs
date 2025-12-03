@@ -361,6 +361,7 @@ pub fn tree_path(tree_handle: Handle<UiNode>, ui: &UserInterface) -> Option<Path
 pub struct FsTree {
     pub root_items: Vec<Handle<UiNode>>,
     pub path_item: Handle<UiNode>,
+    pub items_count: usize,
 }
 
 impl FsTree {
@@ -368,6 +369,7 @@ impl FsTree {
         Self {
             root_items: Default::default(),
             path_item: Default::default(),
+            items_count: 0,
         }
     }
 
@@ -394,6 +396,7 @@ impl FsTree {
         let mut path_item = Handle::NONE;
 
         // Try to build tree only for given path.
+        let mut items_count = 0;
         let mut full_path = PathBuf::new();
         for (i, component) in dest_path_components.iter().enumerate() {
             // Concat parts of path one by one.
@@ -441,6 +444,8 @@ impl FsTree {
                     if dir_path == path {
                         path_item = item;
                     }
+
+                    items_count += 1;
                 }
             }
             parent = new_parent;
@@ -449,6 +454,7 @@ impl FsTree {
         Ok(Self {
             root_items,
             path_item,
+            items_count,
         })
     }
 

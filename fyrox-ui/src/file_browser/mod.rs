@@ -38,7 +38,8 @@ use crate::{
     tree::{Tree, TreeMessage, TreeRootBuilder, TreeRootMessage},
     utils::make_simple_tooltip,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
+    BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
 };
 use core::time;
 use fyrox_core::{err, ok_or_continue, some_or_return};
@@ -63,6 +64,9 @@ mod selector;
 #[cfg(test)]
 mod test;
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
+use crate::text::TextBuilder;
 pub use field::*;
 pub use filter::*;
 pub use selector::*;
@@ -101,6 +105,7 @@ pub struct FileBrowser {
     pub desktop_dir: Handle<UiNode>,
     pub path_text: Handle<UiNode>,
     pub scroll_viewer: Handle<UiNode>,
+    pub no_items_message: Handle<UiNode>,
     pub path: PathBuf,
     pub root: Option<PathBuf>,
     #[visit(skip)]
@@ -136,6 +141,7 @@ impl Clone for FileBrowser {
             desktop_dir: self.desktop_dir,
             path_text: self.path_text,
             scroll_viewer: self.scroll_viewer,
+            no_items_message: self.no_items_message,
             path: self.path.clone(),
             root: self.root.clone(),
             filter: self.filter.clone(),
@@ -175,6 +181,10 @@ impl FileBrowser {
         );
 
         ui.send(self.tree_root, TreeRootMessage::Items(fs_tree.root_items));
+        ui.send(
+            self.no_items_message,
+            WidgetMessage::Visibility(fs_tree.items_count == 0),
+        );
 
         if fs_tree.path_item.is_some() {
             self.select_and_bring_into_view(fs_tree.path_item, ui);
@@ -529,7 +539,9 @@ impl FileBrowserBuilder {
         let item_context_menu = RcUiNodeHandle::new(ItemContextMenu::build(ctx), ctx.sender());
 
         let fs_tree::FsTree {
-            root_items: items, ..
+            root_items: items,
+            items_count,
+            ..
         } = fs_tree::FsTree::new_or_empty(
             self.root.as_ref(),
             self.path.as_path(),
@@ -616,10 +628,30 @@ impl FileBrowserBuilder {
         .add_rows(vec![Row::auto(), Row::stretch()])
         .build(ctx);
 
+        let no_items_message = TextBuilder::new(
+            WidgetBuilder::new()
+                .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT))
+                .with_visibility(items_count == 0)
+                .with_hit_test_visibility(false),
+        )
+        .with_vertical_text_alignment(VerticalAlignment::Center)
+        .with_horizontal_text_alignment(HorizontalAlignment::Center)
+        .with_text("This folder is empty.")
+        .build(ctx);
+
+        let root_container = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(grid)
+                .with_child(no_items_message),
+        )
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
+        .build(ctx);
+
         let widget = self
             .widget_builder
             .with_need_update(true)
-            .with_child(grid)
+            .with_child(root_container)
             .build(ctx);
 
         let the_path = match &self.root {
@@ -638,6 +670,7 @@ impl FileBrowserBuilder {
             root: self.root,
             watcher: None,
             item_context_menu,
+            no_items_message,
         };
         let file_browser_handle = ctx.add_node(UiNode::new(browser));
         let sender = ctx.sender();
