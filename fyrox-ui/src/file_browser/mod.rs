@@ -26,14 +26,15 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        log::Log, ok_or_return, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*, SafeLock,
+        err, log::Log, ok_or_continue, ok_or_return, pool::Handle, reflect::prelude::*,
+        some_or_return, type_traits::prelude::*, visitor::prelude::*, SafeLock,
     },
     file_browser::menu::ItemContextMenu,
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
-    text::TextMessage,
+    style::{resource::StyleResourceExt, Style},
+    text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
     tree::{Tree, TreeMessage, TreeRootBuilder, TreeRootMessage},
     utils::make_simple_tooltip,
@@ -42,7 +43,6 @@ use crate::{
     VerticalAlignment,
 };
 use core::time;
-use fyrox_core::{err, ok_or_continue, some_or_return};
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
@@ -53,6 +53,7 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::mpsc::Sender,
+    sync::Arc,
 };
 
 mod field;
@@ -64,11 +65,9 @@ mod selector;
 #[cfg(test)]
 mod test;
 
-use crate::style::resource::StyleResourceExt;
-use crate::style::Style;
-use crate::text::TextBuilder;
 pub use field::*;
 pub use filter::*;
+use fyrox_core::parking_lot::Mutex;
 pub use selector::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -191,6 +190,11 @@ impl FileBrowser {
         }
     }
 
+    fn set_path_internal(&mut self, path: PathBuf) {
+        self.path = path.clone();
+        self.user_data = Some(Arc::new(Mutex::new(path)));
+    }
+
     /// Tries to set a new path. This method keeps only the valid part of the supplied path. For
     /// example, if the path `foo/bar/baz` is supplied and only `foo/bar` exists, then the `foo/bar`
     /// will be set. This method also does path normalization, which requires FS access, and the actual
@@ -211,7 +215,7 @@ impl FileBrowser {
         match fs_tree::sanitize_path(&existing_part) {
             Ok(existing_sanitized_path) => {
                 if self.path != existing_sanitized_path {
-                    self.path = existing_sanitized_path;
+                    self.set_path_internal(existing_sanitized_path);
                     ui.send(
                         self.path_text,
                         TextMessage::Text(self.path.to_string_lossy().to_string()),
@@ -392,7 +396,7 @@ impl FileBrowser {
         let path = some_or_return!(fs_tree::tree_path(sub_tree, ui));
         if self.path != path {
             // Here we trust the content of the tree items.
-            self.path.clone_from(&path);
+            self.set_path_internal(path.clone());
 
             ui.send(
                 self.path_text,
@@ -422,7 +426,7 @@ impl FileBrowser {
         );
     }
 
-    fn on_desktop_dir_clicked(&self, ui: &UserInterface) {
+    fn on_desktop_dir_clicked(&self, #[allow(unused_variables)] ui: &UserInterface) {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let user_dirs = directories::UserDirs::new();
@@ -435,7 +439,7 @@ impl FileBrowser {
         }
     }
 
-    fn on_home_dir_clicked(&self, ui: &UserInterface) {
+    fn on_home_dir_clicked(&self, #[allow(unused_variables)] ui: &UserInterface) {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let user_dirs = directories::UserDirs::new();
@@ -539,6 +543,7 @@ impl FileBrowserBuilder {
         let item_context_menu = RcUiNodeHandle::new(ItemContextMenu::build(ctx), ctx.sender());
 
         let fs_tree::FsTree {
+            sanitized_path,
             root_items: items,
             items_count,
             ..
@@ -650,6 +655,8 @@ impl FileBrowserBuilder {
 
         let widget = self
             .widget_builder
+            .with_user_data(Arc::new(Mutex::new(sanitized_path)))
+            .with_context_menu(item_context_menu.clone())
             .with_need_update(true)
             .with_child(root_container)
             .build(ctx);

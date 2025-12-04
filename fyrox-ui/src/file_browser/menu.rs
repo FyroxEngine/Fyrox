@@ -22,7 +22,7 @@ use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
         algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
+        uuid_provider, visitor::prelude::*,
     },
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
@@ -34,12 +34,9 @@ use crate::{
     text::{TextBuilder, TextMessage},
     text_box::TextBoxBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    window::{WindowBuilder, WindowMessage, WindowTitle},
+    window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
 };
-
-use crate::window::WindowAlignment;
-use fyrox_core::uuid_provider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cell::{Cell, RefCell},
@@ -333,7 +330,7 @@ impl ItemContextMenu {
                 )
                 .build(ctx),
             )
-            .with_restrict_picking(false),
+            .with_restrict_picking(true),
         )
         .build_context_menu(ctx);
 
