@@ -141,7 +141,7 @@ impl ProjectWizard {
                 .on_column(1),
         )
         .with_path("./")
-        .with_filter(PathFilter::folder())
+        .with_file_types(PathFilter::folder())
         .build(ctx);
 
         let name_field = TextBoxBuilder::new(

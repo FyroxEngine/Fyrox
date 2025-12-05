@@ -23,13 +23,14 @@
 
 #![warn(missing_docs)]
 
+use crate::file_browser::PathFilter;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
         pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
         variable::InheritableVariable, visitor::prelude::*,
     },
-    file_browser::{FileSelectorBuilder, FileSelectorMessage, PathFilter},
+    file_browser::{FileSelectorBuilder, FileSelectorMessage},
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
     text::TextMessage,
@@ -89,9 +90,7 @@ pub struct PathEditor {
     /// Current path.
     pub path: InheritableVariable<PathBuf>,
     /// Current filter that will be used in the file browser created by clicking on `...` button.
-    #[visit(skip)]
-    #[reflect(hidden)]
-    pub filter: PathFilter,
+    pub file_types: PathFilter,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for PathEditor {
@@ -124,7 +123,7 @@ impl Control for PathEditor {
                         .open(false)
                         .with_title(WindowTitle::text("Select a Path")),
                     )
-                    .with_filter(self.filter.clone())
+                    .with_filter(self.file_types.clone())
                     .build(&mut ui.build_ctx()),
                 );
 
@@ -169,7 +168,7 @@ impl Control for PathEditor {
 pub struct PathEditorBuilder {
     widget_builder: WidgetBuilder,
     path: PathBuf,
-    filter: PathFilter,
+    file_types: PathFilter,
 }
 
 impl PathEditorBuilder {
@@ -178,7 +177,7 @@ impl PathEditorBuilder {
         Self {
             widget_builder,
             path: Default::default(),
-            filter: Default::default(),
+            file_types: Default::default(),
         }
     }
 
@@ -189,8 +188,8 @@ impl PathEditorBuilder {
     }
 
     /// Sets a filter that will be used in the file browser created by clicking on `...` button.
-    pub fn with_filter(mut self, filter: PathFilter) -> Self {
-        self.filter = filter;
+    pub fn with_file_types(mut self, filter: PathFilter) -> Self {
+        self.file_types = filter;
         self
     }
 
@@ -238,7 +237,7 @@ impl PathEditorBuilder {
             select: select.into(),
             selector: Default::default(),
             path: self.path.into(),
-            filter: self.filter,
+            file_types: self.file_types,
         };
         ctx.add_node(UiNode::new(canvas))
     }

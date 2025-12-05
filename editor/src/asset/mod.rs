@@ -347,14 +347,11 @@ impl AssetBrowser {
             .can_minimize(false)
             .can_maximize(false)
             .with_content({
-                let resource_manager = engine.resource_manager.clone();
                 folder_browser = FileBrowserBuilder::new(
                     WidgetBuilder::new().on_column(0).with_tab_index(Some(0)),
                 )
                 .with_show_path(false)
-                .with_filter(PathFilter::new(move |p: &Path| {
-                    p.is_dir() && is_path_in_registry(p, &resource_manager)
-                }))
+                .with_filter(PathFilter::folder())
                 .build(ctx);
                 folder_browser
             })
@@ -457,9 +454,7 @@ impl AssetBrowser {
         }
     }
 
-    pub fn set_working_directory(&mut self, engine: &mut Engine, dir: &Path) {
-        assert!(dir.is_dir());
-
+    pub fn set_working_directory(&mut self, engine: &mut Engine) {
         let ui = engine.user_interfaces.first_mut();
 
         let registry_folder = engine.resource_manager.registry_folder();
@@ -467,7 +462,7 @@ impl AssetBrowser {
         ui.send_many(
             self.folder_browser,
             [
-                FileBrowserMessage::Root(Some(dir.to_owned())),
+                FileBrowserMessage::Root(Some(registry_folder.clone())),
                 FileBrowserMessage::Path(registry_folder.clone()),
             ],
         );

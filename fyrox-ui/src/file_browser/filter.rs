@@ -18,59 +18,108 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::core::{parking_lot::Mutex, SafeLock};
+use crate::core::{reflect::prelude::*, visitor::prelude::*};
+use std::fmt::Display;
+use std::ops::Index;
 use std::{
     fmt::{Debug, Formatter},
     path::Path,
-    sync::Arc,
 };
 
-pub type FilterCallback = dyn FnMut(&Path) -> bool + Send;
+#[derive(Default, Clone, Debug, Visit, Reflect, PartialEq)]
+pub struct FileType {
+    pub description: String,
+    pub extension: String,
+}
 
-#[derive(Clone, Default)]
-pub enum PathFilter {
-    #[default]
-    AllPass,
-    Callback(Arc<Mutex<FilterCallback>>),
+impl FileType {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn new_extension(extension: impl AsRef<str>) -> Self {
+        Self {
+            description: Default::default(),
+            extension: extension.as_ref().to_string(),
+        }
+    }
+
+    pub fn with_description(mut self, description: impl AsRef<str>) -> Self {
+        self.description = description.as_ref().to_string();
+        self
+    }
+
+    pub fn with_extension(mut self, extension: impl AsRef<str>) -> Self {
+        self.extension = extension.as_ref().to_string();
+        self
+    }
+
+    pub fn matches(&self, path: &Path) -> bool {
+        path.extension()
+            .is_some_and(|ext| ext.to_string_lossy() == self.extension)
+    }
+}
+
+impl Display for FileType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} (*.{})", self.description, self.extension)
+    }
+}
+
+#[derive(Default, Clone, Debug, Visit, Reflect, PartialEq)]
+pub struct PathFilter {
+    pub folders_only: bool,
+    pub types: Vec<FileType>,
+}
+
+impl Index<usize> for PathFilter {
+    type Output = FileType;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.types.index(index)
+    }
 }
 
 impl PathFilter {
-    #[inline]
-    pub fn all_pass() -> Self {
-        Self::AllPass
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    #[inline]
-    pub fn new<F: FnMut(&Path) -> bool + 'static + Send>(filter: F) -> Self {
-        Self::Callback(Arc::new(Mutex::new(filter)))
+    pub fn with_file_type(mut self, file_type: FileType) -> Self {
+        self.types.push(file_type);
+        self
     }
 
-    #[inline]
     pub fn folder() -> Self {
-        Self::new(|p: &Path| p.is_dir())
-    }
-
-    #[inline]
-    pub fn passes(&self, path: impl AsRef<Path>) -> bool {
-        match self {
-            PathFilter::AllPass => true,
-            PathFilter::Callback(callback) => callback.safe_lock()(path.as_ref()),
+        Self {
+            folders_only: true,
+            types: Default::default(),
         }
     }
-}
 
-impl PartialEq for PathFilter {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::AllPass, Self::AllPass) => true,
-            (Self::Callback(a), Self::Callback(b)) => std::ptr::eq(&**a, &**b),
-            _ => false,
+    pub fn supports(&self, path: &Path) -> bool {
+        if self.folders_only {
+            path.is_dir()
+        } else {
+            path.is_dir()
+                || self.is_empty()
+                || self.types.iter().any(|file_type| file_type.matches(path))
         }
     }
-}
 
-impl Debug for PathFilter {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Filter")
+    pub fn len(&self) -> usize {
+        self.types.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.types.is_empty()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &FileType> {
+        self.types.iter()
+    }
+
+    pub fn get(&self, i: usize) -> Option<&FileType> {
+        self.types.get(i)
     }
 }

@@ -107,8 +107,6 @@ pub struct FileBrowser {
     pub no_items_message: Handle<UiNode>,
     pub path: PathBuf,
     pub root: Option<PathBuf>,
-    #[visit(skip)]
-    #[reflect(hidden)]
     pub filter: PathFilter,
     #[visit(skip)]
     #[reflect(hidden)]
@@ -283,7 +281,7 @@ impl FileBrowser {
     }
 
     fn on_file_added(&mut self, path: &Path, ui: &mut UserInterface) {
-        if !self.filter.passes(path) {
+        if !self.filter.supports(path) {
             return;
         }
 
@@ -499,7 +497,7 @@ impl FileBrowserBuilder {
         Self {
             widget_builder,
             path: "./".into(),
-            filter: PathFilter::AllPass,
+            filter: Default::default(),
             root: None,
             show_path: true,
         }

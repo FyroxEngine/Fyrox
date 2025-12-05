@@ -24,7 +24,7 @@ use crate::{
     upgrade::UpgradeTool,
     utils::{self, is_production_ready},
 };
-use fyrox::gui::file_browser::FileSelectorMode;
+use fyrox::gui::file_browser::{FileSelectorMode, PathFilter};
 use fyrox::gui::window::WindowAlignment;
 use fyrox::{
     core::{color::Color, log::Log, pool::Handle, some_or_return},
@@ -34,7 +34,7 @@ use fyrox::{
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         decorator::DecoratorBuilder,
-        file_browser::{FileSelectorBuilder, FileSelectorMessage, PathFilter},
+        file_browser::{FileSelectorBuilder, FileSelectorMessage},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,

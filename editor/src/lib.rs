@@ -101,7 +101,7 @@ use crate::{
                 DockingManagerMessage, TileBuilder, TileContent,
             },
             dropdown_list::DropdownListBuilder,
-            file_browser::{FileSelectorBuilder, PathFilter},
+            file_browser::FileSelectorBuilder,
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             key::HotKey,
@@ -180,7 +180,7 @@ use crate::{
 use fyrox::core::{info, uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::event_loop::ActiveEventLoop;
-use fyrox::gui::file_browser::{FileSelectorMode, FileType};
+use fyrox::gui::file_browser::{FileSelectorMode, FileType, PathFilter};
 use fyrox::gui::window::WindowAlignment;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
@@ -303,14 +303,6 @@ pub fn create_terrain_layer_material() -> MaterialResource {
     MaterialResource::new_embedded(material)
 }
 
-pub fn make_scene_file_filter() -> PathFilter {
-    PathFilter::new(|p: &Path| {
-        p.is_dir()
-            || p.extension()
-                .is_some_and(|ext| matches!(ext.to_string_lossy().as_ref(), "rgs" | "ui"))
-    })
-}
-
 pub fn make_save_file_selector(
     ctx: &mut BuildContext,
     default_file_name_no_extension: PathBuf,
@@ -331,9 +323,8 @@ pub fn make_save_file_selector(
     .with_mode(FileSelectorMode::Save {
         default_file_name_no_extension,
     })
-    .with_file_types(vec![file_type])
+    .with_filter(PathFilter::new().with_file_type(file_type))
     .with_path("./")
-    .with_filter(make_scene_file_filter())
     .build(ctx)
 }
 
@@ -2334,8 +2325,7 @@ impl Editor {
 
         engine.resource_manager.state().destroy_unused_resources();
 
-        self.asset_browser
-            .set_working_directory(engine, &working_directory);
+        self.asset_browser.set_working_directory(engine);
 
         self.world_viewer
             .on_configure(engine.user_interfaces.first(), &self.settings);

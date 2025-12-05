@@ -19,11 +19,12 @@
 // SOFTWARE.
 
 use crate::file_browser::fs_tree::sanitize_path;
+use crate::file_browser::{FileType, PathFilter};
 use crate::{
     core::{algebra::Vector2, parking_lot::Mutex, pool::Handle},
     file_browser::{
         fs_tree::{self, read_dir_entries, DisksProvider},
-        FileBrowserBuilder, FileBrowserMessage, PathFilter,
+        FileBrowserBuilder, FileBrowserMessage,
     },
     test::{test_widget_deletion, UserInterfaceTestingExtension},
     tree::{Tree, TreeRoot, TreeRootBuilder},
@@ -155,21 +156,29 @@ fn test_dir_fetching() {
     let path = Path::new("./test_dir_fetching");
     clean_or_create(path);
     let folders = [path.join("dir1"), path.join("dir2"), path.join("dir3")];
-    let files = [path.join("file1"), path.join("file2"), path.join("file3")];
+    let files = [
+        path.join("file1.foobar"),
+        path.join("file2"),
+        path.join("file3"),
+    ];
     create_dirs(&folders);
     write_empty_files(&files);
-    let entries = read_dir_entries(path, &PathFilter::AllPass).unwrap();
+    let entries = read_dir_entries(path, &PathFilter::new()).unwrap();
     assert_eq!(entries[0..3], folders);
     assert_eq!(entries[3..6], files);
-    let files_copy = files.clone();
-    let folders_copy = folders.clone();
     let entries = read_dir_entries(
         path,
-        &PathFilter::new(move |path| path != files_copy[0] && path != folders_copy[2]),
+        &PathFilter {
+            folders_only: false,
+            types: vec![FileType {
+                description: "Foobar".to_string(),
+                extension: "foobar".to_string(),
+            }],
+        },
     )
     .unwrap();
-    assert_eq!(entries[0..2], folders[0..2]);
-    assert_eq!(entries[2..4], files[1..3]);
+    assert_eq!(entries[0..3], folders[0..3]);
+    assert_eq!(entries[3..4], files[0..1]);
 }
 
 #[test]

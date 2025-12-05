@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::file_browser::PathFilter;
 use crate::{
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
@@ -27,7 +28,7 @@ use crate::{
     },
     draw::DrawingContext,
     dropdown_list::{DropdownListBuilder, DropdownListMessage},
-    file_browser::{FileBrowserBuilder, FileBrowserMessage, PathFilter},
+    file_browser::{FileBrowserBuilder, FileBrowserMessage},
     grid::{Column, GridBuilder, Row},
     message::{MessageData, OsEvent, UiMessage},
     stack_panel::StackPanelBuilder,
@@ -42,7 +43,6 @@ use crate::{
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
-    fmt::{Display, Formatter},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
@@ -56,18 +56,6 @@ pub enum FileSelectorMode {
     },
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
-pub struct FileType {
-    pub description: String,
-    pub extension: String,
-}
-
-impl Display for FileType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} (*.{})", self.description, self.extension)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileSelectorMessage {
     Root(Option<PathBuf>),
@@ -75,7 +63,7 @@ pub enum FileSelectorMessage {
     Commit(PathBuf),
     FocusCurrentPath,
     Cancel,
-    Filter(PathFilter),
+    FileTypes(PathFilter),
 }
 impl MessageData for FileSelectorMessage {}
 
@@ -93,7 +81,7 @@ pub struct FileSelector {
     pub mode: FileSelectorMode,
     pub file_name: Handle<UiNode>,
     pub file_name_value: PathBuf,
-    pub file_types: Vec<FileType>,
+    pub file_types: PathFilter,
     pub file_type_selector: Handle<UiNode>,
     pub selected_file_type: Option<usize>,
 }
@@ -141,12 +129,6 @@ fn extract_folder_path(path: &Path) -> Option<&Path> {
 fn extract_folder_path_buf(path: &Path) -> Option<PathBuf> {
     extract_folder_path(path).map(|p| p.to_path_buf())
 }
-//
-// fn discard_extension(path: &Path) -> PathBuf {
-//     let mut final_path = path.to_path_buf();
-//     final_path.set_extension("");
-//     final_path
-// }
 
 impl FileSelector {
     fn on_ok_clicked(&self, ui: &UserInterface) {
@@ -184,7 +166,7 @@ impl FileSelector {
             FileSelectorMessage::Root(root) => {
                 ui.send(self.browser, FileBrowserMessage::Root(root.clone()));
             }
-            FileSelectorMessage::Filter(filter) => {
+            FileSelectorMessage::FileTypes(filter) => {
                 ui.send(self.browser, FileBrowserMessage::Filter(filter.clone()));
             }
             FileSelectorMessage::FocusCurrentPath => {
@@ -255,7 +237,6 @@ pub struct FileSelectorBuilder {
     mode: FileSelectorMode,
     path: PathBuf,
     root: Option<PathBuf>,
-    file_types: Vec<FileType>,
     selected_file_type: Option<usize>,
 }
 
@@ -263,18 +244,12 @@ impl FileSelectorBuilder {
     pub fn new(window_builder: WindowBuilder) -> Self {
         Self {
             window_builder,
-            filter: PathFilter::AllPass,
             mode: FileSelectorMode::Open,
             path: "./".into(),
             root: None,
-            file_types: Default::default(),
+            filter: Default::default(),
             selected_file_type: None,
         }
-    }
-
-    pub fn with_filter(mut self, filter: PathFilter) -> Self {
-        self.filter = filter;
-        self
     }
 
     pub fn with_path<P: AsRef<Path>>(mut self, path: P) -> Self {
@@ -292,8 +267,8 @@ impl FileSelectorBuilder {
         self
     }
 
-    pub fn with_file_types(mut self, file_types: Vec<FileType>) -> Self {
-        self.file_types = file_types;
+    pub fn with_filter(mut self, file_types: PathFilter) -> Self {
+        self.filter = file_types;
         self
     }
 
@@ -310,7 +285,7 @@ impl FileSelectorBuilder {
         if self.window_builder.title.is_none() {
             self.window_builder.title = Some(WindowTitle::text("Select File"));
         }
-        if self.selected_file_type.is_none() && !self.file_types.is_empty() {
+        if self.selected_file_type.is_none() && !self.filter.is_empty() {
             self.selected_file_type = Some(0);
         }
 
@@ -318,7 +293,6 @@ impl FileSelectorBuilder {
         let name_grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
-                .with_visibility(matches!(self.mode, FileSelectorMode::Save { .. }))
                 .on_row(1)
                 .on_column(0)
                 .with_child(
@@ -360,7 +334,6 @@ impl FileSelectorBuilder {
         let extension_grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
-                .with_visibility(matches!(self.mode, FileSelectorMode::Save { .. }))
                 .on_row(2)
                 .on_column(0)
                 .with_child(
@@ -381,7 +354,7 @@ impl FileSelectorBuilder {
                             .with_margin(Thickness::uniform(1.0)),
                     )
                     .with_items(
-                        self.file_types
+                        self.filter
                             .iter()
                             .map(|file_type| make_dropdown_list_option(ctx, &file_type.to_string()))
                             .collect(),
@@ -408,7 +381,7 @@ impl FileSelectorBuilder {
                             .with_margin(Thickness::uniform(1.0))
                             .with_tab_index(Some(0)),
                     )
-                    .with_filter(self.filter)
+                    .with_filter(self.filter.clone())
                     .with_path(self.path.clone())
                     .with_opt_root(self.root)
                     .build(ctx);
@@ -485,7 +458,7 @@ impl FileSelectorBuilder {
                     default_file_name_no_extension: ref default_file_name,
                 } => default_file_name.clone(),
             },
-            file_types: self.file_types,
+            file_types: self.filter,
             file_type_selector: extension_selector,
             mode: self.mode,
             file_name,

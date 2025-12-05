@@ -69,9 +69,9 @@ use crate::{
         Selection,
     },
 };
+use fyrox::gui::file_browser::FileType;
 use fyrox::gui::window::WindowAlignment;
 use std::any::TypeId;
-use std::path::Path;
 
 enum ImportMode {
     Import,
@@ -814,16 +814,15 @@ impl Toolbar {
                 .open(false)
                 .with_title(WindowTitle::text("Select Animation To Import")),
         )
-        .with_filter(PathFilter::new(|p: &Path| {
+        .with_filter(
             // TODO: Here we allow importing only FBX and GLTF files, but they can contain
             // multiple animations and it might be good to also add animation selector
             // that will be used to select a particular animation to import.
-            p.is_dir()
-                || p.extension().is_some_and(|ext| {
-                    let ext = ext.to_string_lossy();
-                    ext.as_ref() == "fbx" || ext.as_ref() == "gltf" || ext.as_ref() == "glb"
-                })
-        }))
+            PathFilter::new()
+                .with_file_type(FileType::new_extension("fbx"))
+                .with_file_type(FileType::new_extension("gltf"))
+                .with_file_type(FileType::new_extension("glb")),
+        )
         .build(ctx);
 
         let root_motion_dropdown_area = RootMotionDropdownArea::new(ctx);

@@ -34,7 +34,7 @@ use crate::{
             BuildContext, UiNode, UserInterface,
         },
     },
-    make_save_file_selector, make_scene_file_filter,
+    make_save_file_selector,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
     scene::{container::EditorSceneEntry, GameScene},
@@ -43,7 +43,7 @@ use crate::{
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::{uuid, Uuid};
-use fyrox::gui::file_browser::FileType;
+use fyrox::gui::file_browser::{FileType, PathFilter};
 use fyrox::gui::window::WindowAlignment;
 use std::{path::PathBuf, sync::mpsc::Sender};
 
@@ -234,7 +234,19 @@ impl FileMenu {
                 .open(false)
                 .with_title(WindowTitle::text("Select a Scene To Load")),
         )
-        .with_filter(make_scene_file_filter())
+        .with_filter(
+            PathFilter::new()
+                .with_file_type(
+                    FileType::new()
+                        .with_extension("rgs")
+                        .with_description("Game Scene"),
+                )
+                .with_file_type(
+                    FileType::new()
+                        .with_extension("ui")
+                        .with_description("User Interface"),
+                ),
+        )
         .build(ctx);
 
         Self {
