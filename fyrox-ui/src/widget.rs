@@ -1958,6 +1958,19 @@ impl WidgetBuilder {
     }
 
     /// Sets the desired widget user data.
+    pub fn with_user_data_value_opt<T: Any + Send>(mut self, user_data: Option<T>) -> Self {
+        if let Some(data) = user_data {
+            self.user_data = Some(Arc::new(Mutex::new(data)));
+        }
+        self
+    }
+
+    /// Sets the desired widget user data.
+    pub fn with_user_data_value<T: Any + Send>(self, user_data: T) -> Self {
+        self.with_user_data_value_opt(Some(user_data))
+    }
+
+    /// Sets the desired widget user data.
     pub fn with_user_data(mut self, user_data: Arc<Mutex<dyn Any + Send>>) -> Self {
         self.user_data = Some(user_data);
         self

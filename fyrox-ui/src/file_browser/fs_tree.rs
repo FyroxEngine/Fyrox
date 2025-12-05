@@ -20,7 +20,7 @@
 
 use crate::file_browser::PathFilter;
 use crate::{
-    core::{err, parking_lot::Mutex, pool::Handle},
+    core::{err, pool::Handle},
     grid::{Column, GridBuilder, Row},
     image::ImageBuilder,
     resources::FOLDER_ICON,
@@ -35,20 +35,15 @@ use std::{
     cmp::Ordering,
     ffi::OsString,
     path::{Component, Path, PathBuf, Prefix},
-    sync::Arc,
 };
 
-pub fn find_tree_item<P: AsRef<Path>>(
-    node: Handle<UiNode>,
-    path: &P,
-    ui: &UserInterface,
-) -> Handle<UiNode> {
+pub fn find_tree_item(node: Handle<UiNode>, path: &Path, ui: &UserInterface) -> Handle<UiNode> {
     let mut tree_handle = Handle::NONE;
     let node_ref = ui.node(node);
 
     if let Some(tree) = node_ref.cast::<Tree>() {
         let tree_path = tree.user_data_cloned::<PathBuf>().unwrap();
-        if tree_path == path.as_ref() {
+        if tree_path == path {
             tree_handle = node;
         } else {
             for &item in &tree.items {
@@ -60,11 +55,16 @@ pub fn find_tree_item<P: AsRef<Path>>(
             }
         }
     } else if let Some(root) = node_ref.cast::<TreeRoot>() {
-        for &item in &root.items {
-            let tree = find_tree_item(item, path, ui);
-            if tree.is_some() {
-                tree_handle = tree;
-                break;
+        let root_path = root.user_data_cloned::<PathBuf>();
+        if root_path.as_deref() == Some(path) {
+            tree_handle = node;
+        } else {
+            for &item in &root.items {
+                let tree = find_tree_item(item, path, ui);
+                if tree.is_some() {
+                    tree_handle = tree;
+                    break;
+                }
             }
         }
     } else {
@@ -127,7 +127,7 @@ pub fn build_tree_item<P: AsRef<Path>>(
         .map_or(true, |mut f| f.next().is_none());
     TreeBuilder::new(
         WidgetBuilder::new()
-            .with_user_data(Arc::new(Mutex::new(path.as_ref().to_owned())))
+            .with_user_data_value(path.as_ref().to_owned())
             .with_context_menu(menu),
     )
     .with_expanded(expanded)
@@ -138,14 +138,13 @@ pub fn build_tree_item<P: AsRef<Path>>(
 
 pub fn build_tree<P: AsRef<Path>>(
     parent: Handle<UiNode>,
-    is_parent_root: bool,
     path: P,
     parent_path: P,
     menu: RcUiNodeHandle,
     ui: &mut UserInterface,
 ) -> Handle<UiNode> {
     let subtree = build_tree_item(path, parent_path, menu, false, &mut ui.build_ctx());
-    if is_parent_root {
+    if ui[parent].has_component::<TreeRoot>() {
         ui.send(parent, TreeRootMessage::AddItem(subtree));
     } else {
         ui.send(parent, TreeMessage::AddItem(subtree));
@@ -185,6 +184,7 @@ pub(super) fn sanitize_path(path: &Path) -> std::io::Result<PathBuf> {
 
 struct SanitizedPath {
     path: PathBuf,
+    sanitized_root: Option<PathBuf>,
     root_components_to_skip: usize,
 }
 
@@ -196,11 +196,13 @@ impl SanitizedPath {
             let root_components_to_skip = sanitized_root.components().count().saturating_sub(1);
             Ok(Self {
                 path,
+                sanitized_root: Some(sanitized_root),
                 root_components_to_skip,
             })
         } else {
             Ok(Self {
                 path,
+                sanitized_root: None,
                 root_components_to_skip: 0,
             })
         }
@@ -342,14 +344,7 @@ pub fn build_single_folder(
     };
 
     for path in entries {
-        build_tree(
-            tree_item,
-            false,
-            path.as_path(),
-            parent_path,
-            menu.clone(),
-            ui,
-        );
+        build_tree(tree_item, path.as_path(), parent_path, menu.clone(), ui);
     }
 }
 
@@ -363,6 +358,7 @@ pub struct FsTree {
     pub path_item: Handle<UiNode>,
     pub items_count: usize,
     pub sanitized_path: PathBuf,
+    pub sanitized_root: Option<PathBuf>,
 }
 
 impl FsTree {
@@ -372,6 +368,7 @@ impl FsTree {
             path_item: Default::default(),
             items_count: 0,
             sanitized_path: Default::default(),
+            sanitized_root: Default::default(),
         }
     }
 
@@ -385,6 +382,7 @@ impl FsTree {
     ) -> std::io::Result<Self> {
         let SanitizedPath {
             path,
+            sanitized_root,
             root_components_to_skip,
         } = SanitizedPath::new(path, root)?;
 
@@ -458,6 +456,7 @@ impl FsTree {
             root_items,
             path_item,
             items_count,
+            sanitized_root,
         })
     }
 

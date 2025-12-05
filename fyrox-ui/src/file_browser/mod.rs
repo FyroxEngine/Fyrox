@@ -26,17 +26,18 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        err, log::Log, ok_or_continue, ok_or_return, pool::Handle, reflect::prelude::*,
-        some_or_return, type_traits::prelude::*, visitor::prelude::*, SafeLock,
+        err, log::Log, ok_or_continue, ok_or_return, parking_lot::Mutex, pool::Handle,
+        reflect::prelude::*, some_or_return, type_traits::prelude::*, visitor::prelude::*,
+        SafeLock,
     },
-    file_browser::menu::ItemContextMenu,
+    file_browser::{fs_tree::sanitize_path, menu::ItemContextMenu},
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
     style::{resource::StyleResourceExt, Style},
     text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
-    tree::{Tree, TreeMessage, TreeRootBuilder, TreeRootMessage},
+    tree::{Tree, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
     utils::make_simple_tooltip,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode, UserInterface,
@@ -45,7 +46,7 @@ use crate::{
 use core::time;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
-    BaseSceneGraph,
+    BaseSceneGraph, SceneGraph,
 };
 use notify::{Event, Watcher};
 use std::{
@@ -67,7 +68,6 @@ mod test;
 
 pub use field::*;
 pub use filter::*;
-use fyrox_core::parking_lot::Mutex;
 pub use selector::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -252,7 +252,8 @@ impl FileBrowser {
         true
     }
 
-    fn set_root(&mut self, root: &Option<PathBuf>, ui: &mut UserInterface) {
+    fn set_root(&mut self, root: Option<&Path>, ui: &mut UserInterface) {
+        self.root = root.as_ref().and_then(|root| sanitize_path(root).ok());
         let watcher_replacement = match self.watcher.take() {
             Some(mut watcher) => {
                 let current_root = match &self.root {
@@ -262,7 +263,7 @@ impl FileBrowser {
                 if current_root.exists() {
                     Log::verify(watcher.unwatch(&current_root));
                 }
-                let new_root = match &root {
+                let new_root = match &self.root {
                     Some(path) => path.clone(),
                     None => self.path.clone(),
                 };
@@ -271,8 +272,10 @@ impl FileBrowser {
             }
             None => None,
         };
-        self.root.clone_from(root);
-        self.set_path(&root.clone().unwrap_or_default(), ui);
+        if let Some(root) = self.root.clone() {
+            self.set_path(&root, ui);
+            ui[self.tree_root].user_data = Some(Arc::new(Mutex::new(root)));
+        }
         self.rebuild_fs_tree(ui);
         for button in [self.home_dir, self.desktop_dir] {
             ui.send(button, WidgetMessage::Visibility(self.root.is_none()));
@@ -285,24 +288,34 @@ impl FileBrowser {
             return;
         }
 
-        let parent_path = parent_path(path);
-        let existing_parent_node = fs_tree::find_tree_item(self.tree_root, &parent_path, ui);
-        if existing_parent_node.is_none() {
+        if fs_tree::find_tree_item(self.tree_root, path, ui).is_some() {
             return;
         }
 
-        let tree = some_or_return!(ui.node(existing_parent_node).cast::<Tree>());
-        if tree.is_expanded {
+        let parent_path = parent_path(path);
+        let parent_node = fs_tree::find_tree_item(self.tree_root, &parent_path, ui);
+        if parent_node.is_none() {
+            return;
+        }
+
+        let mut need_build_tree = false;
+        if let Some(tree) = ui.node(parent_node).cast::<Tree>() {
+            if tree.is_expanded {
+                need_build_tree = true;
+            } else if !tree.always_show_expander {
+                ui.send(tree.handle(), TreeMessage::SetExpanderShown(true))
+            }
+        } else if ui.node(parent_node).cast::<TreeRoot>().is_some() {
+            need_build_tree = true;
+        }
+        if need_build_tree {
             fs_tree::build_tree(
-                existing_parent_node,
-                existing_parent_node == self.tree_root,
+                parent_node,
                 path,
                 &parent_path,
                 self.item_context_menu.clone(),
                 ui,
             );
-        } else if !tree.always_show_expander {
-            ui.send(tree.handle(), TreeMessage::SetExpanderShown(true))
         }
     }
 
@@ -311,7 +324,13 @@ impl FileBrowser {
         if tree_item.is_some() {
             let parent_path = parent_path(path);
             let parent_tree = fs_tree::find_tree_item(self.tree_root, &parent_path, ui);
-            ui.send(parent_tree, TreeMessage::RemoveItem(tree_item))
+            if let Some(parent_tree_node) = ui.try_get(parent_tree) {
+                if parent_tree_node.has_component::<TreeRoot>() {
+                    ui.send(parent_tree, TreeRootMessage::RemoveItem(tree_item))
+                } else {
+                    ui.send(parent_tree, TreeMessage::RemoveItem(tree_item))
+                }
+            }
         }
     }
 
@@ -339,7 +358,7 @@ impl FileBrowser {
             }
             FileBrowserMessage::Root(root) => {
                 if &self.root != root {
-                    self.set_root(root, ui)
+                    self.set_root(root.as_deref(), ui)
                 }
             }
             FileBrowserMessage::Filter(filter) => {
@@ -544,6 +563,7 @@ impl FileBrowserBuilder {
             sanitized_path,
             root_items: items,
             items_count,
+            sanitized_root,
             ..
         } = fs_tree::FsTree::new_or_empty(
             self.root.as_ref(),
@@ -557,9 +577,11 @@ impl FileBrowserBuilder {
         let tree_root;
         let scroll_viewer = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1).on_column(0))
             .with_content({
-                tree_root = TreeRootBuilder::new(WidgetBuilder::new())
-                    .with_items(items)
-                    .build(ctx);
+                tree_root = TreeRootBuilder::new(
+                    WidgetBuilder::new().with_user_data_value_opt(sanitized_root),
+                )
+                .with_items(items)
+                .build(ctx);
                 tree_root
             })
             .build(ctx);
