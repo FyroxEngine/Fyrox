@@ -21,9 +21,9 @@
 //! The module for [`NullSceneController`] that provides a [`SceneController`] for when
 //! there is no scene to control.
 
-use fyrox::core::ComponentProvider;
-
 use crate::command::CommandContext;
+use fyrox::core::ComponentProvider;
+use fyrox::gui::file_browser::FileType;
 
 use super::*;
 
@@ -143,8 +143,8 @@ impl SceneController for NullSceneController {
         None
     }
 
-    fn extension(&self) -> &str {
-        ""
+    fn file_type(&self) -> FileType {
+        Default::default()
     }
 
     fn save(

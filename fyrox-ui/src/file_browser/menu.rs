@@ -18,11 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::file_browser::fs_tree::TreeItemPath;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
         algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
+        uuid_provider, visitor::prelude::*,
     },
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
@@ -34,17 +35,13 @@ use crate::{
     text::{TextBuilder, TextMessage},
     text_box::TextBoxBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    window::{WindowBuilder, WindowMessage, WindowTitle},
+    window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
 };
-
-use crate::window::WindowAlignment;
-use fyrox_core::uuid_provider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cell::{Cell, RefCell},
     ops::{Deref, DerefMut},
-    path::PathBuf,
     sync::mpsc::Sender,
 };
 
@@ -108,15 +105,21 @@ impl Control for ItemContextMenu {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.base_menu.handle_routed_message(ui, message);
 
-        if let Some(PopupMessage::Placement(Placement::Cursor(_))) = message.data() {
-            if message.destination() == self.handle {
-                if let Some(item_path) = self.item_path(ui) {
-                    ui.send(self.make_folder, WidgetMessage::Enabled(item_path.is_dir()));
-                }
+        if let Some(PopupMessage::Placement(Placement::Cursor(_))) = message.data_from(self.handle)
+        {
+            if let Some(tree_item_path) = self.item_path(ui) {
+                ui.send(
+                    self.make_folder,
+                    WidgetMessage::Enabled(tree_item_path.path().is_dir()),
+                );
+                ui.send(
+                    self.delete,
+                    WidgetMessage::Enabled(!tree_item_path.is_root()),
+                );
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.delete {
-                if let Some(item_path) = self.item_path(ui) {
+                if let Some(tree_item_path) = self.item_path(ui) {
                     self.delete_message_box.set(
                         MessageBoxBuilder::new(
                             WindowBuilder::new(
@@ -125,7 +128,9 @@ impl Control for ItemContextMenu {
                             .with_title(WindowTitle::text("Confirm Action"))
                             .open(false),
                         )
-                        .with_text(format!("Delete {} file?", item_path.display()).as_str())
+                        .with_text(
+                            format!("Delete {} file?", tree_item_path.path().display()).as_str(),
+                        )
                         .with_buttons(MessageBoxButtons::YesNo)
                         .build(&mut ui.build_ctx()),
                     );
@@ -238,7 +243,7 @@ impl Control for ItemContextMenu {
         if let Some(MessageBoxMessage::Close(result)) = message.data() {
             if message.destination() == self.delete_message_box.get() {
                 if let MessageBoxResult::Yes = *result {
-                    if let Some(item_path) = self.item_path(ui) {
+                    if let Some(item_path) = self.item_path(ui).map(|p| p.into_path()) {
                         if item_path.is_dir() {
                             Log::verify(std::fs::remove_dir_all(item_path));
                         } else {
@@ -256,7 +261,7 @@ impl Control for ItemContextMenu {
             if let Some(dialog) = dialog_ref.as_ref() {
                 if message.destination() == dialog.dialog {
                     if !dialog.folder_name.is_empty() {
-                        if let Some(item_path) = self.item_path(ui) {
+                        if let Some(item_path) = self.item_path(ui).map(|p| p.into_path()) {
                             Log::verify(std::fs::create_dir_all(
                                 item_path.to_path_buf().join(&dialog.folder_name),
                             ));
@@ -333,7 +338,7 @@ impl ItemContextMenu {
                 )
                 .build(ctx),
             )
-            .with_restrict_picking(false),
+            .with_restrict_picking(true),
         )
         .build_context_menu(ctx);
 
@@ -348,8 +353,8 @@ impl ItemContextMenu {
         ctx.add_node(UiNode::new(menu))
     }
 
-    fn item_path(&self, ui: &UserInterface) -> Option<PathBuf> {
+    fn item_path(&self, ui: &UserInterface) -> Option<TreeItemPath> {
         ui.try_get_node(self.base_menu.popup.placement.target())
-            .and_then(|n| n.user_data_cloned::<PathBuf>())
+            .and_then(|n| n.user_data_cloned::<TreeItemPath>())
     }
 }

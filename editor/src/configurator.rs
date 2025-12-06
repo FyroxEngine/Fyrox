@@ -18,37 +18,36 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::gui::text::TextMessage;
-use crate::fyrox::{
-    core::{
-        algebra::Vector2,
-        pool::Handle,
-        visitor::{Visit, VisitResult, Visitor},
+use crate::{
+    fyrox::{
+        core::{
+            algebra::Vector2,
+            pool::Handle,
+            visitor::{Visit, VisitResult, Visitor},
+        },
+        gui::{
+            border::BorderBuilder,
+            button::{ButtonBuilder, ButtonMessage},
+            decorator::DecoratorBuilder,
+            file_browser::{FileSelectorBuilder, FileSelectorMessage, PathFilter},
+            formatted_text::WrapMode,
+            grid::{Column, GridBuilder, Row},
+            list_view::{ListViewBuilder, ListViewMessage},
+            message::UiMessage,
+            stack_panel::StackPanelBuilder,
+            text::TextBuilder,
+            text::TextMessage,
+            text_box::TextBoxBuilder,
+            widget::{WidgetBuilder, WidgetMessage},
+            window::WindowAlignment,
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
+        },
     },
-    gui::{
-        border::BorderBuilder,
-        button::{ButtonBuilder, ButtonMessage},
-        decorator::DecoratorBuilder,
-        file_browser::{FileSelectorBuilder, FileSelectorMessage, PathFilter},
-        formatted_text::WrapMode,
-        grid::{Column, GridBuilder, Row},
-        list_view::{ListViewBuilder, ListViewMessage},
-        message::UiMessage,
-        stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        text_box::TextBoxBuilder,
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
-    },
+    message::MessageSender,
+    Engine, Message,
 };
-use crate::message::MessageSender;
-use crate::{Engine, Message};
-use fyrox::gui::window::WindowAlignment;
-use std::{
-    env,
-    path::{Path, PathBuf},
-};
+use std::{env, path::PathBuf};
 
 #[derive(Default, Eq, PartialEq, Visit)]
 struct HistoryEntry {
@@ -97,14 +96,12 @@ impl Configurator {
 
         let current_path = env::current_dir().unwrap();
 
-        let filter = PathFilter::new(|p: &Path| p.is_dir());
-
         let folder_browser = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
                 .with_title(WindowTitle::text("Select Working Directory")),
         )
-        .with_filter(filter)
+        .with_filter(PathFilter::folder())
         .build(ctx);
 
         // Load history.

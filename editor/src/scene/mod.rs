@@ -97,6 +97,7 @@ use crate::{
     Message, Settings,
 };
 use fyrox::engine::GraphicsContext;
+use fyrox::gui::file_browser::FileType;
 use fyrox::scene::collider::BitMask;
 use std::{
     cell::RefCell,
@@ -749,8 +750,11 @@ impl SceneController for GameScene {
             .clone()
     }
 
-    fn extension(&self) -> &str {
-        "rgs"
+    fn file_type(&self) -> FileType {
+        FileType {
+            description: "Game Scene".to_string(),
+            extension: "rgs".to_string(),
+        }
     }
 
     fn save(

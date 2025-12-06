@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 //! A special container that is able to create widgets by their type UUID.
+use crate::file_browser::FileSelectorField;
 use crate::{
     absm::{AbsmEventProvider, AnimationBlendingStateMachine},
     animation::AnimationPlayer,
@@ -34,7 +35,7 @@ use crate::{
     dock::{DockingManager, Tile},
     dropdown_list::DropdownList,
     expander::Expander,
-    file_browser::{FileBrowser, FileSelector, FileSelectorField},
+    file_browser::{FileBrowser, FileSelector},
     grid::Grid,
     image::Image,
     inspector::Inspector,

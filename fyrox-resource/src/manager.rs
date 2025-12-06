@@ -419,6 +419,11 @@ impl ResourceManager {
         state.task_pool()
     }
 
+    /// Returns an absolute path to the registry folder (absolute version of `./data` by default).
+    pub fn registry_folder(&self) -> PathBuf {
+        self.state().registry_folder()
+    }
+
     /// Registers a new built-in resource, so it becomes accessible via [`Self::request`].
     pub fn register_built_in_resource<T: TypedResourceData>(
         &self,
@@ -1655,6 +1660,16 @@ impl ResourceManagerState {
                 .find_by_uuid(resource_uuid)
                 .map(|built_in_resource| built_in_resource.id.clone())
         }
+    }
+
+    /// Returns an absolute path to the registry folder (absolute version of `./data` by default).
+    pub fn registry_folder(&self) -> PathBuf {
+        self.resource_registry
+            .lock()
+            .path()
+            .parent()
+            .and_then(|p| p.to_path_buf().canonicalize().ok())
+            .unwrap_or_default()
     }
 
     /// Adds a new resource loader of the given type.

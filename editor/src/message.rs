@@ -38,6 +38,7 @@ use crate::{
     scene::Selection,
     SaveSceneConfirmationDialogAction,
 };
+use fyrox::gui::file_browser::FileType;
 use fyrox::gui::UserInterface;
 use fyrox::scene::Scene;
 use std::{path::PathBuf, sync::mpsc::channel, sync::mpsc::Sender};
@@ -98,7 +99,7 @@ pub enum Message {
     SwitchMode,
     OpenLoadSceneDialog,
     OpenSaveSceneDialog {
-        default_file_name: PathBuf,
+        default_file_info: (PathBuf, FileType),
     },
     OpenSaveSceneConfirmationDialog {
         id: Uuid,

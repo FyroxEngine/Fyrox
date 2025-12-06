@@ -347,15 +347,12 @@ impl AssetBrowser {
             .can_minimize(false)
             .can_maximize(false)
             .with_content({
-                let resource_manager = engine.resource_manager.clone();
                 folder_browser = FileBrowserBuilder::new(
                     WidgetBuilder::new().on_column(0).with_tab_index(Some(0)),
                 )
+                .with_no_items_text("There are no subfolders. Right-click to add one.")
                 .with_show_path(false)
-                .with_filter(PathFilter::new(move |p: &Path| {
-                    p.is_dir() && is_path_in_registry(p, &resource_manager)
-                }))
-                .with_root_title(Some("Assets".to_string()))
+                .with_filter(PathFilter::folder())
                 .build(ctx);
                 folder_browser
             })
@@ -458,20 +455,19 @@ impl AssetBrowser {
         }
     }
 
-    pub fn set_working_directory(&mut self, engine: &mut Engine, dir: &Path) {
-        assert!(dir.is_dir());
-
+    pub fn set_working_directory(&mut self, engine: &mut Engine) {
         let ui = engine.user_interfaces.first_mut();
+
+        let registry_folder = engine.resource_manager.registry_folder();
 
         ui.send_many(
             self.folder_browser,
             [
-                FileBrowserMessage::Root(Some(dir.to_owned())),
-                FileBrowserMessage::Path("./".into()),
+                FileBrowserMessage::Root(Some(registry_folder.clone())),
+                FileBrowserMessage::Path(registry_folder.clone()),
             ],
         );
-
-        self.set_path(Path::new("./"), ui, &engine.resource_manager);
+        self.set_path(&registry_folder, ui, &engine.resource_manager);
     }
 
     fn add_asset(
@@ -576,39 +572,36 @@ impl AssetBrowser {
         self.clear_assets(ui);
 
         // Add "return" item.
-        if let Some(mut parent_path) = make_relative_path(&self.current_path)
+        if let Some(absolute_parent_path) = self
+            .current_path
+            .canonicalize()
             .ok()
-            .and_then(|path| path.parent().map(|path| path.to_owned()))
+            .and_then(|current_path| current_path.parent().map(|path| path.to_owned()))
         {
-            let is_root_dir = parent_path == PathBuf::default();
-            if is_root_dir {
-                parent_path = "./".into();
+            let registry_folder = resource_manager.registry_folder();
+            if absolute_parent_path.starts_with(&registry_folder) {
+                if let Ok(relative_parent_path) = make_relative_path(absolute_parent_path) {
+                    let asset_item = AssetItemBuilder::new(
+                        WidgetBuilder::new().with_context_menu(self.context_menu.menu.clone()),
+                    )
+                    .with_icon(load_image!("../../resources/folder_return.png"))
+                    .with_path(relative_parent_path)
+                    .build(
+                        resource_manager.clone(),
+                        message_sender.clone(),
+                        &mut ui.build_ctx(),
+                    );
+
+                    self.items.push(asset_item);
+                    ui.send(asset_item, WidgetMessage::LinkWith(self.content_panel));
+                }
             }
-
-            let asset_item = AssetItemBuilder::new(
-                WidgetBuilder::new().with_context_menu(self.context_menu.menu.clone()),
-            )
-            .with_icon(load_image!("../../resources/folder_return.png"))
-            .with_path(parent_path)
-            .with_title(if is_root_dir {
-                Some("Assets".to_string())
-            } else {
-                None
-            })
-            .build(
-                resource_manager.clone(),
-                message_sender.clone(),
-                &mut ui.build_ctx(),
-            );
-
-            self.items.push(asset_item);
-            ui.send(asset_item, WidgetMessage::LinkWith(self.content_panel));
         }
 
         let mut folders = Vec::new();
         let mut resources = Vec::new();
 
-        // Get all supported assets from folder and generate previews for them.
+        // Get all supported assets from a folder and generate previews for them.
         if let Ok(dir_iter) = std::fs::read_dir(&self.current_path) {
             for path in dir_iter
                 .flatten()
@@ -625,19 +618,18 @@ impl AssetBrowser {
             }
         }
 
-        // Collect built-in resource (only if the root folder is selected).
+        // Collect built-in resource (only if the registry folder is selected).
         if let Ok(path) = self.current_path.canonicalize() {
-            if let Ok(working_dir) = std::env::current_dir().and_then(|dir| dir.canonicalize()) {
-                if path == working_dir {
-                    let built_in_resources = resource_manager
-                        .state()
-                        .built_in_resources
-                        .keys()
-                        .cloned()
-                        .collect::<Vec<_>>();
+            let working_dir = resource_manager.registry_folder();
+            if path == working_dir {
+                let built_in_resources = resource_manager
+                    .state()
+                    .built_in_resources
+                    .keys()
+                    .cloned()
+                    .collect::<Vec<_>>();
 
-                    resources.extend_from_slice(&built_in_resources);
-                }
+                resources.extend_from_slice(&built_in_resources);
             }
         }
 

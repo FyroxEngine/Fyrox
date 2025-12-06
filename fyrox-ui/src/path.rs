@@ -23,22 +23,22 @@
 
 #![warn(missing_docs)]
 
-use crate::message::MessageData;
-use crate::window::WindowAlignment;
+use crate::file_browser::PathFilter;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
-    core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{
+        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
+        variable::InheritableVariable, visitor::prelude::*,
+    },
     file_browser::{FileSelectorBuilder, FileSelectorMessage},
     grid::{Column, GridBuilder, Row},
-    message::UiMessage,
+    message::{MessageData, UiMessage},
     text::TextMessage,
     text_box::TextBoxBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    window::{WindowBuilder, WindowMessage, WindowTitle},
+    window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
-use fyrox_core::uuid_provider;
-use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     ops::{Deref, DerefMut},
@@ -89,6 +89,8 @@ pub struct PathEditor {
     pub selector: InheritableVariable<Handle<UiNode>>,
     /// Current path.
     pub path: InheritableVariable<PathBuf>,
+    /// Current filter that will be used in the file browser created by clicking on `...` button.
+    pub file_types: PathFilter,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for PathEditor {
@@ -121,6 +123,7 @@ impl Control for PathEditor {
                         .open(false)
                         .with_title(WindowTitle::text("Select a Path")),
                     )
+                    .with_filter(self.file_types.clone())
                     .build(&mut ui.build_ctx()),
                 );
 
@@ -165,6 +168,7 @@ impl Control for PathEditor {
 pub struct PathEditorBuilder {
     widget_builder: WidgetBuilder,
     path: PathBuf,
+    file_types: PathFilter,
 }
 
 impl PathEditorBuilder {
@@ -173,12 +177,19 @@ impl PathEditorBuilder {
         Self {
             widget_builder,
             path: Default::default(),
+            file_types: Default::default(),
         }
     }
 
     /// Sets the desired path.
     pub fn with_path<P: AsRef<Path>>(mut self, path: P) -> Self {
         path.as_ref().clone_into(&mut self.path);
+        self
+    }
+
+    /// Sets a filter that will be used in the file browser created by clicking on `...` button.
+    pub fn with_file_types(mut self, filter: PathFilter) -> Self {
+        self.file_types = filter;
         self
     }
 
@@ -226,6 +237,7 @@ impl PathEditorBuilder {
             select: select.into(),
             selector: Default::default(),
             path: self.path.into(),
+            file_types: self.file_types,
         };
         ctx.add_node(UiNode::new(canvas))
     }

@@ -46,6 +46,7 @@ use crate::{
         UiScene,
     },
 };
+use fyrox::gui::file_browser::FileType;
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 pub struct EditorSceneEntry {
@@ -216,8 +217,8 @@ impl EditorSceneEntry {
         }
     }
 
-    pub fn default_file_name(&self) -> PathBuf {
-        format!("unnamed.{}", self.controller.extension()).into()
+    pub fn default_file_info(&self) -> (PathBuf, FileType) {
+        (PathBuf::from("unnamed"), self.controller.file_type())
     }
 
     pub fn need_save(&self) -> bool {
