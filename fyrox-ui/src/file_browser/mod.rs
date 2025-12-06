@@ -178,19 +178,14 @@ impl FileBrowser {
         );
 
         ui.send(self.tree_root, TreeRootMessage::Items(fs_tree.root_items));
-        ui.send(
-            self.no_items_message,
-            WidgetMessage::Visibility(fs_tree.items_count == 0),
-        );
-
         if fs_tree.path_item.is_some() {
             self.select_and_bring_into_view(fs_tree.path_item, ui);
         }
     }
 
     fn set_path_internal(&mut self, path: PathBuf) {
+        assert!(path.is_absolute());
         self.path = path.clone();
-        self.user_data = Some(Arc::new(Mutex::new(path)));
     }
 
     /// Tries to set a new path. This method keeps only the valid part of the supplied path. For
@@ -274,7 +269,8 @@ impl FileBrowser {
         };
         if let Some(root) = self.root.clone() {
             self.set_path(&root, ui);
-            ui[self.tree_root].user_data = Some(Arc::new(Mutex::new(root)));
+            ui[self.tree_root].user_data = Some(Arc::new(Mutex::new(root.clone())));
+            self.user_data = Some(Arc::new(Mutex::new(root)));
         }
         self.rebuild_fs_tree(ui);
         for button in [self.home_dir, self.desktop_dir] {
@@ -319,8 +315,20 @@ impl FileBrowser {
         }
     }
 
+    fn on_items_changed(&self, ui: &UserInterface) {
+        let show_no_items_message = ui
+            .try_get_of_type::<TreeRoot>(self.tree_root)
+            .unwrap()
+            .items
+            .is_empty();
+        ui.send(
+            self.no_items_message,
+            WidgetMessage::Visibility(show_no_items_message),
+        );
+    }
+
     fn on_file_removed(&mut self, path: &Path, ui: &mut UserInterface) {
-        let tree_item = fs_tree::find_tree_item(self.tree_root, &path, ui);
+        let tree_item = fs_tree::find_tree_item(self.tree_root, path, ui);
         if tree_item.is_some() {
             let parent_path = parent_path(path);
             let parent_tree = fs_tree::find_tree_item(self.tree_root, &parent_path, ui);
@@ -492,6 +500,8 @@ impl Control for FileBrowser {
             self.on_desktop_dir_clicked(ui)
         } else if let Some(ButtonMessage::Click) = message.data_from(self.home_dir) {
             self.on_home_dir_clicked(ui)
+        } else if let Some(TreeRootMessage::ItemsChanged) = message.data_from(self.tree_root) {
+            self.on_items_changed(ui)
         }
     }
 
@@ -560,7 +570,6 @@ impl FileBrowserBuilder {
         let item_context_menu = RcUiNodeHandle::new(ItemContextMenu::build(ctx), ctx.sender());
 
         let fs_tree::FsTree {
-            sanitized_path,
             root_items: items,
             items_count,
             sanitized_root,
@@ -578,7 +587,7 @@ impl FileBrowserBuilder {
         let scroll_viewer = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1).on_column(0))
             .with_content({
                 tree_root = TreeRootBuilder::new(
-                    WidgetBuilder::new().with_user_data_value_opt(sanitized_root),
+                    WidgetBuilder::new().with_user_data_value_opt(sanitized_root.clone()),
                 )
                 .with_items(items)
                 .build(ctx);
@@ -675,7 +684,7 @@ impl FileBrowserBuilder {
 
         let widget = self
             .widget_builder
-            .with_user_data(Arc::new(Mutex::new(sanitized_path)))
+            .with_user_data_value_opt(sanitized_root)
             .with_context_menu(item_context_menu.clone())
             .with_need_update(true)
             .with_child(root_container)

@@ -357,7 +357,6 @@ pub struct FsTree {
     pub root_items: Vec<Handle<UiNode>>,
     pub path_item: Handle<UiNode>,
     pub items_count: usize,
-    pub sanitized_path: PathBuf,
     pub sanitized_root: Option<PathBuf>,
 }
 
@@ -367,7 +366,6 @@ impl FsTree {
             root_items: Default::default(),
             path_item: Default::default(),
             items_count: 0,
-            sanitized_path: Default::default(),
             sanitized_root: Default::default(),
         }
     }
@@ -452,7 +450,6 @@ impl FsTree {
         }
 
         Ok(Self {
-            sanitized_path: path,
             root_items,
             path_item,
             items_count,

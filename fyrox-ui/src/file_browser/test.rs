@@ -131,7 +131,6 @@ fn test_find_tree() {
 
     let path = fs_tree::build_tree(
         root,
-        true,
         "./test/path1",
         "./test",
         RcUiNodeHandle::new(Handle::new(0, 1), ui.sender()),
@@ -141,12 +140,15 @@ fn test_find_tree() {
     while ui.poll_message().is_some() {}
 
     // This passes.
-    assert_eq!(fs_tree::find_tree_item(root, &"./test/path1", &ui), path);
+    assert_eq!(
+        fs_tree::find_tree_item(root, Path::new("./test/path1"), &ui),
+        path
+    );
 
     // This expected to fail
     // https://github.com/rust-lang/rust/issues/31374
     assert_eq!(
-        fs_tree::find_tree_item(root, &"test/path1", &ui),
+        fs_tree::find_tree_item(root, Path::new("test/path1"), &ui),
         Handle::NONE
     );
 }

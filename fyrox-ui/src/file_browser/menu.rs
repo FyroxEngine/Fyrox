@@ -105,11 +105,10 @@ impl Control for ItemContextMenu {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.base_menu.handle_routed_message(ui, message);
 
-        if let Some(PopupMessage::Placement(Placement::Cursor(_))) = message.data() {
-            if message.destination() == self.handle {
-                if let Some(item_path) = self.item_path(ui) {
-                    ui.send(self.make_folder, WidgetMessage::Enabled(item_path.is_dir()));
-                }
+        if let Some(PopupMessage::Placement(Placement::Cursor(_))) = message.data_from(self.handle)
+        {
+            if let Some(item_path) = self.item_path(ui) {
+                ui.send(self.make_folder, WidgetMessage::Enabled(item_path.is_dir()));
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.delete {
