@@ -66,6 +66,7 @@ mod selector;
 #[cfg(test)]
 mod test;
 
+use crate::formatted_text::WrapMode;
 pub use field::*;
 pub use filter::*;
 pub use selector::*;
@@ -519,6 +520,7 @@ pub struct FileBrowserBuilder {
     filter: PathFilter,
     root: Option<PathBuf>,
     show_path: bool,
+    no_items_text: String,
 }
 
 impl FileBrowserBuilder {
@@ -529,6 +531,7 @@ impl FileBrowserBuilder {
             filter: Default::default(),
             root: None,
             show_path: true,
+            no_items_text: "This folder is empty".to_string(),
         }
     }
 
@@ -539,6 +542,11 @@ impl FileBrowserBuilder {
 
     pub fn with_show_path(mut self, show_path: bool) -> Self {
         self.show_path = show_path;
+        self
+    }
+
+    pub fn with_no_items_text(mut self, no_items_text: impl AsRef<str>) -> Self {
+        self.no_items_text = no_items_text.as_ref().to_string();
         self
     }
 
@@ -668,9 +676,10 @@ impl FileBrowserBuilder {
                 .with_visibility(items_count == 0)
                 .with_hit_test_visibility(false),
         )
+        .with_wrap(WrapMode::Word)
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Center)
-        .with_text("This folder is empty.")
+        .with_text(self.no_items_text)
         .build(ctx);
 
         let root_container = GridBuilder::new(

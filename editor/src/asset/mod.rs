@@ -350,6 +350,7 @@ impl AssetBrowser {
                 folder_browser = FileBrowserBuilder::new(
                     WidgetBuilder::new().on_column(0).with_tab_index(Some(0)),
                 )
+                .with_no_items_text("There are no subfolders. Right-click to add one.")
                 .with_show_path(false)
                 .with_filter(PathFilter::folder())
                 .build(ctx);
