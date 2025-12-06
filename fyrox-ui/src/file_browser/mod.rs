@@ -283,7 +283,7 @@ impl FileBrowser {
     }
 
     fn on_file_added(&mut self, path: &Path, ui: &mut UserInterface) {
-        if !self.filter.supports(path) {
+        if !self.filter.supports_all(path) {
             return;
         }
 
@@ -593,7 +593,7 @@ impl FileBrowserBuilder {
             ctx,
         );
 
-        let root_path = sanitized_root.map(|root| TreeItemPath::root(root));
+        let root_path = sanitized_root.map(TreeItemPath::root);
 
         let path_text;
         let tree_root;

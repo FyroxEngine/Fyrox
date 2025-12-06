@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::file_browser::PathFilter;
+use crate::widget::WidgetMessage;
 use crate::{
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
@@ -81,7 +82,7 @@ pub struct FileSelector {
     pub mode: FileSelectorMode,
     pub file_name: Handle<UiNode>,
     pub file_name_value: PathBuf,
-    pub file_types: PathFilter,
+    pub filter: PathFilter,
     pub file_type_selector: Handle<UiNode>,
     pub selected_file_type: Option<usize>,
 }
@@ -132,11 +133,7 @@ fn extract_folder_path_buf(path: &Path) -> Option<PathBuf> {
 
 impl FileSelector {
     fn on_ok_clicked(&self, ui: &UserInterface) {
-        let mut final_path = self.selected_folder.join(&self.file_name_value);
-        if let Some(file_type) = self.selected_file_type.and_then(|i| self.file_types.get(i)) {
-            final_path.set_extension(&file_type.extension);
-        }
-        ui.send(self.handle, FileSelectorMessage::Commit(final_path));
+        ui.send(self.handle, FileSelectorMessage::Commit(self.final_path()));
     }
 
     fn on_path_selected(&mut self, path: &Path, ui: &UserInterface) {
@@ -153,6 +150,8 @@ impl FileSelector {
         } else {
             self.selected_folder = path.to_path_buf();
         }
+
+        self.validate_selection(ui);
     }
 
     fn on_file_selector_message(&mut self, msg: &FileSelectorMessage, ui: &UserInterface) {
@@ -173,6 +172,36 @@ impl FileSelector {
                 ui.send(self.browser, FileBrowserMessage::FocusCurrentPath);
             }
         }
+    }
+
+    fn final_path(&self) -> PathBuf {
+        let mut final_path = self.selected_folder.join(&self.file_name_value);
+        if let Some(file_type) = self.selected_file_type.and_then(|i| self.filter.get(i)) {
+            final_path.set_extension(&file_type.extension);
+        }
+        final_path
+    }
+
+    fn validate_selection(&self, ui: &UserInterface) {
+        let final_path = self.final_path();
+        let passed = self
+            .filter
+            .supports_specific_type(&final_path, self.selected_file_type)
+            && match self.mode {
+                FileSelectorMode::Open => final_path.exists(),
+                FileSelectorMode::Save { .. } => true,
+            };
+        ui.send(self.ok, WidgetMessage::Enabled(passed))
+    }
+
+    fn on_file_type_selected(&mut self, selection: Option<usize>, ui: &UserInterface) {
+        self.selected_file_type = selection;
+        self.validate_selection(ui);
+    }
+
+    fn on_file_name_changed(&mut self, file_name: &str, ui: &UserInterface) {
+        self.file_name_value = file_name.into();
+        self.validate_selection(ui);
     }
 }
 
@@ -209,11 +238,11 @@ impl Control for FileSelector {
         } else if let Some(FileBrowserMessage::Path(path)) = message.data_from(self.browser) {
             self.on_path_selected(path, ui)
         } else if let Some(TextMessage::Text(file_name)) = message.data_from(self.file_name) {
-            self.file_name_value = file_name.into();
+            self.on_file_name_changed(file_name, ui)
         } else if let Some(DropdownListMessage::Selection(selection)) =
             message.data_from(self.file_type_selector)
         {
-            self.selected_file_type = *selection;
+            self.on_file_type_selected(*selection, ui)
         }
     }
 
@@ -292,6 +321,7 @@ impl FileSelectorBuilder {
         let file_name;
         let name_grid = GridBuilder::new(
             WidgetBuilder::new()
+                .with_visibility(!self.filter.folders_only)
                 .with_margin(Thickness::uniform(1.0))
                 .on_row(1)
                 .on_column(0)
@@ -333,6 +363,7 @@ impl FileSelectorBuilder {
         let extension_selector;
         let extension_grid = GridBuilder::new(
             WidgetBuilder::new()
+                .with_visibility(!self.filter.folders_only)
                 .with_margin(Thickness::uniform(1.0))
                 .on_row(2)
                 .on_column(0)
@@ -390,6 +421,16 @@ impl FileSelectorBuilder {
         )
         .build(ctx);
 
+        let ok_enabled = match self.mode {
+            FileSelectorMode::Open => {
+                self.path.exists()
+                    && self
+                        .filter
+                        .supports_specific_type(&self.path, self.selected_file_type)
+            }
+            FileSelectorMode::Save { .. } => true,
+        };
+
         let buttons = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
@@ -402,7 +443,8 @@ impl FileSelectorBuilder {
                             .with_tab_index(Some(1))
                             .with_margin(Thickness::uniform(1.0))
                             .with_width(100.0)
-                            .with_height(25.0),
+                            .with_height(25.0)
+                            .with_enabled(ok_enabled),
                     )
                     .with_text(match &self.mode {
                         FileSelectorMode::Open => "Open",
@@ -458,7 +500,7 @@ impl FileSelectorBuilder {
                     default_file_name_no_extension: ref default_file_name,
                 } => default_file_name.clone(),
             },
-            file_types: self.filter,
+            filter: self.filter,
             file_type_selector: extension_selector,
             mode: self.mode,
             file_name,

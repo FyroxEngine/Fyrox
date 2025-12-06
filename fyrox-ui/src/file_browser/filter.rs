@@ -97,13 +97,25 @@ impl PathFilter {
         }
     }
 
-    pub fn supports(&self, path: &Path) -> bool {
+    pub fn supports_all(&self, path: &Path) -> bool {
         if self.folders_only {
             path.is_dir()
         } else {
             path.is_dir()
                 || self.is_empty()
                 || self.types.iter().any(|file_type| file_type.matches(path))
+        }
+    }
+
+    pub fn supports_specific_type(&self, path: &Path, index: Option<usize>) -> bool {
+        if self.folders_only {
+            path.is_dir()
+        } else {
+            index.is_some_and(|index| {
+                self.types
+                    .get(index)
+                    .is_some_and(|file_type| file_type.matches(path))
+            })
         }
     }
 

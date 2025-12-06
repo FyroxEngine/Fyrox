@@ -266,7 +266,7 @@ pub(super) fn read_dir_entries(dir: &Path, filter: &PathFilter) -> std::io::Resu
     let mut entries = std::fs::read_dir(dir)?
         .flatten()
         .map(|entry| entry.path())
-        .filter(|path| filter.supports(path))
+        .filter(|path| filter.supports_all(path))
         .collect::<Vec<_>>();
     entries.sort_unstable_by(sort_dir_entries);
     Ok(entries)
