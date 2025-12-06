@@ -66,6 +66,7 @@ mod selector;
 #[cfg(test)]
 mod test;
 
+use crate::file_browser::fs_tree::TreeItemPath;
 use crate::formatted_text::WrapMode;
 pub use field::*;
 pub use filter::*;
@@ -270,8 +271,9 @@ impl FileBrowser {
         };
         if let Some(root) = self.root.clone() {
             self.set_path(&root, ui);
-            ui[self.tree_root].user_data = Some(Arc::new(Mutex::new(root.clone())));
-            self.user_data = Some(Arc::new(Mutex::new(root)));
+            let tree_item_path = Arc::new(Mutex::new(TreeItemPath::root(root.clone())));
+            ui[self.tree_root].user_data = Some(tree_item_path.clone());
+            self.user_data = Some(tree_item_path);
         }
         self.rebuild_fs_tree(ui);
         for button in [self.home_dir, self.desktop_dir] {
@@ -396,9 +398,9 @@ impl FileBrowser {
     ) {
         if expand {
             // Look into internals of directory and build tree items.
-            if let Some(parent_path) = fs_tree::tree_path(sub_tree, ui) {
+            if let Some(parent_tree_item) = fs_tree::tree_path(sub_tree, ui) {
                 fs_tree::build_single_folder(
-                    &parent_path,
+                    parent_tree_item.path(),
                     sub_tree,
                     self.item_context_menu.clone(),
                     &self.filter,
@@ -419,7 +421,7 @@ impl FileBrowser {
     }
 
     fn on_sub_tree_selected(&mut self, sub_tree: Handle<UiNode>, ui: &UserInterface) {
-        let path = some_or_return!(fs_tree::tree_path(sub_tree, ui));
+        let path = some_or_return!(fs_tree::tree_path(sub_tree, ui)).into_path();
         if self.path != path {
             // Here we trust the content of the tree items.
             self.set_path_internal(path.clone());
@@ -440,14 +442,15 @@ impl FileBrowser {
         where_dropped: Handle<UiNode>,
         ui: &UserInterface,
     ) {
-        let path = some_or_return!(fs_tree::tree_path(where_dropped, ui));
+        let path = some_or_return!(fs_tree::tree_path(where_dropped, ui)).into_path();
+        let dropped_path = some_or_return!(fs_tree::tree_path(what_dropped, ui)).into_path();
         ui.post(
             self.handle,
             FileBrowserMessage::Drop {
                 dropped: what_dropped,
                 path_item: where_dropped,
-                path: path.clone(),
-                dropped_path: fs_tree::tree_path(what_dropped, ui).unwrap_or_default(),
+                path,
+                dropped_path,
             },
         );
     }
@@ -510,7 +513,7 @@ impl Control for FileBrowser {
         ui.node(widget)
             .user_data
             .as_ref()
-            .is_some_and(|data| data.safe_lock().downcast_ref::<PathBuf>().is_some())
+            .is_some_and(|data| data.safe_lock().downcast_ref::<TreeItemPath>().is_some())
     }
 }
 
@@ -590,12 +593,14 @@ impl FileBrowserBuilder {
             ctx,
         );
 
+        let root_path = sanitized_root.map(|root| TreeItemPath::root(root));
+
         let path_text;
         let tree_root;
         let scroll_viewer = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1).on_column(0))
             .with_content({
                 tree_root = TreeRootBuilder::new(
-                    WidgetBuilder::new().with_user_data_value_opt(sanitized_root.clone()),
+                    WidgetBuilder::new().with_user_data_value_opt(root_path.clone()),
                 )
                 .with_items(items)
                 .build(ctx);
@@ -693,7 +698,7 @@ impl FileBrowserBuilder {
 
         let widget = self
             .widget_builder
-            .with_user_data_value_opt(sanitized_root)
+            .with_user_data_value_opt(root_path)
             .with_context_menu(item_context_menu.clone())
             .with_need_update(true)
             .with_child(root_container)

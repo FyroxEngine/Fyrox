@@ -37,13 +37,47 @@ use std::{
     path::{Component, Path, PathBuf, Prefix},
 };
 
+#[derive(Clone, PartialEq)]
+pub(super) struct TreeItemPath {
+    path: PathBuf,
+    is_root: bool,
+}
+
+impl TreeItemPath {
+    pub fn non_root(path: PathBuf) -> Self {
+        Self {
+            path,
+            is_root: false,
+        }
+    }
+
+    pub fn root(path: PathBuf) -> Self {
+        Self {
+            path,
+            is_root: true,
+        }
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn is_root(&self) -> bool {
+        self.is_root
+    }
+
+    pub fn into_path(self) -> PathBuf {
+        self.path
+    }
+}
+
 pub fn find_tree_item(node: Handle<UiNode>, path: &Path, ui: &UserInterface) -> Handle<UiNode> {
     let mut tree_handle = Handle::NONE;
     let node_ref = ui.node(node);
 
     if let Some(tree) = node_ref.cast::<Tree>() {
-        let tree_path = tree.user_data_cloned::<PathBuf>().unwrap();
-        if tree_path == path {
+        let tree_path = tree.user_data_cloned::<TreeItemPath>();
+        if tree_path.is_some_and(|p| p.path() == path) {
             tree_handle = node;
         } else {
             for &item in &tree.items {
@@ -55,8 +89,8 @@ pub fn find_tree_item(node: Handle<UiNode>, path: &Path, ui: &UserInterface) -> 
             }
         }
     } else if let Some(root) = node_ref.cast::<TreeRoot>() {
-        let root_path = root.user_data_cloned::<PathBuf>();
-        if root_path.as_deref() == Some(path) {
+        let root_path = root.user_data_cloned::<TreeItemPath>();
+        if root_path.is_some_and(|p| p.path() == path) {
             tree_handle = node;
         } else {
             for &item in &root.items {
@@ -127,7 +161,7 @@ pub fn build_tree_item<P: AsRef<Path>>(
         .map_or(true, |mut f| f.next().is_none());
     TreeBuilder::new(
         WidgetBuilder::new()
-            .with_user_data_value(path.as_ref().to_owned())
+            .with_user_data_value(TreeItemPath::non_root(path.as_ref().to_owned()))
             .with_context_menu(menu),
     )
     .with_expanded(expanded)
@@ -348,9 +382,9 @@ pub fn build_single_folder(
     }
 }
 
-pub fn tree_path(tree_handle: Handle<UiNode>, ui: &UserInterface) -> Option<PathBuf> {
+pub fn tree_path(tree_handle: Handle<UiNode>, ui: &UserInterface) -> Option<TreeItemPath> {
     ui.try_get(tree_handle)
-        .and_then(|n| n.user_data_cloned::<PathBuf>())
+        .and_then(|n| n.user_data_cloned::<TreeItemPath>())
 }
 
 pub struct FsTree {
