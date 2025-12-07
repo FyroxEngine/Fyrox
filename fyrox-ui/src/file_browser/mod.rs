@@ -30,7 +30,11 @@ use crate::{
         reflect::prelude::*, some_or_return, type_traits::prelude::*, visitor::prelude::*,
         SafeLock,
     },
-    file_browser::{fs_tree::sanitize_path, menu::ItemContextMenu},
+    file_browser::{
+        fs_tree::{sanitize_path, TreeItemPath},
+        menu::ItemContextMenu,
+    },
+    formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
@@ -66,8 +70,6 @@ mod selector;
 #[cfg(test)]
 mod test;
 
-use crate::file_browser::fs_tree::TreeItemPath;
-use crate::formatted_text::WrapMode;
 pub use field::*;
 pub use filter::*;
 pub use selector::*;
@@ -436,6 +438,13 @@ impl FileBrowser {
         }
     }
 
+    fn on_selection_cleared(&mut self, ui: &UserInterface) {
+        let root = some_or_return!(self.root.clone());
+        if self.set_path(&root, ui) {
+            ui.post(self.handle, FileBrowserMessage::Path(self.path.clone()));
+        }
+    }
+
     fn on_drop(
         &self,
         what_dropped: Handle<UiNode>,
@@ -499,6 +508,8 @@ impl Control for FileBrowser {
         } else if let Some(TreeRootMessage::Select(selection)) = message.data_from(self.tree_root) {
             if let Some(&first_selected) = selection.first() {
                 self.on_sub_tree_selected(first_selected, ui)
+            } else {
+                self.on_selection_cleared(ui)
             }
         } else if let Some(ButtonMessage::Click) = message.data_from(self.desktop_dir) {
             self.on_desktop_dir_clicked(ui)
@@ -506,6 +517,11 @@ impl Control for FileBrowser {
             self.on_home_dir_clicked(ui)
         } else if let Some(TreeRootMessage::ItemsChanged) = message.data_from(self.tree_root) {
             self.on_items_changed(ui)
+        } else if let Some(WidgetMessage::MouseDown { .. }) = message.data() {
+            if self.root.is_some() && !message.handled() {
+                ui.send(self.tree_root, TreeRootMessage::Select(vec![]));
+                message.set_handled(true);
+            }
         }
     }
 
