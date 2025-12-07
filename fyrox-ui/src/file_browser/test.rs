@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::file_browser::fs_tree::sanitize_path;
+use crate::file_browser::fs_tree::{sanitize_path, TreeItemPath};
 use crate::file_browser::{FileType, PathFilter};
 use crate::{
     core::{algebra::Vector2, parking_lot::Mutex, pool::Handle},
@@ -65,16 +65,15 @@ fn write_empty_files(paths: &[PathBuf]) {
 
 fn clean_or_create(path: impl AsRef<Path>) {
     if path.as_ref().exists() {
-        std::fs::remove_dir_all(path).unwrap();
-    } else {
-        create_dir(path);
+        std::fs::remove_dir_all(&path).unwrap();
     }
+    create_dir(path);
 }
 
 fn find_by_path(path: impl AsRef<Path>, ui: &UserInterface) -> Handle<UiNode> {
     ui.find_from_root(&mut |n| {
-        n.user_data_cloned::<PathBuf>()
-            .is_some_and(|p| p == path.as_ref())
+        n.user_data_cloned::<TreeItemPath>()
+            .is_some_and(|p| p.path() == path.as_ref())
     })
     .map(|(h, _)| h)
     .unwrap_or_default()
@@ -134,6 +133,7 @@ fn test_find_tree() {
         "./test/path1",
         "./test",
         RcUiNodeHandle::new(Handle::new(0, 1), ui.sender()),
+        &Default::default(),
         &mut ui,
     );
 
