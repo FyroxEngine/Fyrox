@@ -131,7 +131,7 @@ impl CurveEditorWindow {
             ctx,
             file_type,
             FileSelectorMode::Save {
-                default_file_name_no_extension: PathBuf::from("unnamed"),
+                default_file_name: PathBuf::from("unnamed.crv"),
             },
         );
 

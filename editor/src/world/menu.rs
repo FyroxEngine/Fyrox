@@ -395,13 +395,13 @@ impl SceneNodeContextMenu {
                 } else if message.destination() == self.save_as_prefab {
                     let ui = engine.user_interfaces.first_mut();
 
+                    let file_type = FileType::new()
+                        .with_description("Scene File")
+                        .with_extension("rgs");
                     self.save_as_prefab_dialog = make_save_file_selector(
                         &mut ui.build_ctx(),
-                        PathBuf::from("unnamed"),
-                        FileType {
-                            description: "Scene File".to_string(),
-                            extension: "rgs".to_string(),
-                        },
+                        file_type.make_file_name("unnamed.rgs"),
+                        file_type,
                         Self::SAVE_AS_PREFAB_FILE_SELECTOR,
                     );
 

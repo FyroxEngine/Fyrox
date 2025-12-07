@@ -218,7 +218,8 @@ impl EditorSceneEntry {
     }
 
     pub fn default_file_info(&self) -> (PathBuf, FileType) {
-        (PathBuf::from("unnamed"), self.controller.file_type())
+        let file_type = self.controller.file_type();
+        (file_type.make_file_name("unnamed"), file_type)
     }
 
     pub fn need_save(&self) -> bool {

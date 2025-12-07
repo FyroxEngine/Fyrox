@@ -21,6 +21,7 @@
 use crate::core::{reflect::prelude::*, visitor::prelude::*};
 use std::fmt::Display;
 use std::ops::Index;
+use std::path::PathBuf;
 use std::{
     fmt::{Debug, Formatter},
     path::Path,
@@ -57,6 +58,12 @@ impl FileType {
     pub fn matches(&self, path: &Path) -> bool {
         path.extension()
             .is_some_and(|ext| ext.to_string_lossy() == self.extension)
+    }
+
+    pub fn make_file_name(&self, name: &str) -> PathBuf {
+        let mut file_name = PathBuf::from(name);
+        file_name.set_extension(&self.extension);
+        file_name
     }
 }
 
@@ -110,12 +117,12 @@ impl PathFilter {
     pub fn supports_specific_type(&self, path: &Path, index: Option<usize>) -> bool {
         if self.folders_only {
             path.is_dir()
+        } else if let Some(index) = index {
+            self.types
+                .get(index)
+                .is_some_and(|file_type| file_type.matches(path))
         } else {
-            index.is_some_and(|index| {
-                self.types
-                    .get(index)
-                    .is_some_and(|file_type| file_type.matches(path))
-            })
+            self.types.iter().any(|file_type| file_type.matches(path))
         }
     }
 

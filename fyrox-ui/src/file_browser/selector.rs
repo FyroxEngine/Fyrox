@@ -53,7 +53,7 @@ pub enum FileSelectorMode {
     #[default]
     Open,
     Save {
-        default_file_name_no_extension: PathBuf,
+        default_file_name: PathBuf,
     },
 }
 
@@ -141,7 +141,7 @@ impl FileSelector {
             ui.send(
                 self.file_name,
                 TextMessage::Text(
-                    path.file_stem()
+                    path.file_name()
                         .map(|f| f.to_string_lossy().to_string())
                         .unwrap_or_default(),
                 ),
@@ -195,6 +195,9 @@ impl FileSelector {
     }
 
     fn on_file_type_selected(&mut self, selection: Option<usize>, ui: &UserInterface) {
+        // Minus one here because there's "All supported" option in the beginning of the file
+        // type selector.
+        let selection = selection.and_then(|i| i.checked_sub(1));
         self.selected_file_type = selection;
         self.validate_selection(ui);
     }
@@ -314,9 +317,6 @@ impl FileSelectorBuilder {
         if self.window_builder.title.is_none() {
             self.window_builder.title = Some(WindowTitle::text("Select File"));
         }
-        if self.selected_file_type.is_none() && !self.filter.is_empty() {
-            self.selected_file_type = Some(0);
-        }
 
         let file_name;
         let name_grid = GridBuilder::new(
@@ -348,7 +348,7 @@ impl FileSelectorBuilder {
                     .with_text(match self.mode {
                         FileSelectorMode::Open => Default::default(),
                         FileSelectorMode::Save {
-                            ref default_file_name_no_extension,
+                            default_file_name: ref default_file_name_no_extension,
                         } => default_file_name_no_extension.to_string_lossy().to_string(),
                     })
                     .build(ctx);
@@ -359,6 +359,14 @@ impl FileSelectorBuilder {
         .add_column(Column::strict(80.0))
         .add_column(Column::stretch())
         .build(ctx);
+
+        let mut filter_items = self
+            .filter
+            .iter()
+            .map(|file_type| make_dropdown_list_option(ctx, &file_type.to_string()))
+            .collect::<Vec<_>>();
+
+        filter_items.insert(0, make_dropdown_list_option(ctx, "All Supported"));
 
         let extension_selector;
         let extension_grid = GridBuilder::new(
@@ -384,12 +392,7 @@ impl FileSelectorBuilder {
                             .on_column(1)
                             .with_margin(Thickness::uniform(1.0)),
                     )
-                    .with_items(
-                        self.filter
-                            .iter()
-                            .map(|file_type| make_dropdown_list_option(ctx, &file_type.to_string()))
-                            .collect(),
-                    )
+                    .with_items(filter_items)
                     .with_close_on_selection(true)
                     .with_selected(0)
                     .build(ctx);
@@ -423,10 +426,10 @@ impl FileSelectorBuilder {
 
         let ok_enabled = match self.mode {
             FileSelectorMode::Open => {
-                self.path.exists()
-                    && self
-                        .filter
-                        .supports_specific_type(&self.path, self.selected_file_type)
+                let passed = self
+                    .filter
+                    .supports_specific_type(&self.path, self.selected_file_type);
+                self.path.exists() && passed
             }
             FileSelectorMode::Save { .. } => true,
         };
@@ -497,7 +500,7 @@ impl FileSelectorBuilder {
             file_name_value: match self.mode {
                 FileSelectorMode::Open => Default::default(),
                 FileSelectorMode::Save {
-                    default_file_name_no_extension: ref default_file_name,
+                    ref default_file_name,
                 } => default_file_name.clone(),
             },
             filter: self.filter,

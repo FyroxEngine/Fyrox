@@ -305,7 +305,7 @@ pub fn create_terrain_layer_material() -> MaterialResource {
 
 pub fn make_save_file_selector(
     ctx: &mut BuildContext,
-    default_file_name_no_extension: PathBuf,
+    default_file_name: PathBuf,
     file_type: FileType,
     id: Uuid,
 ) -> Handle<UiNode> {
@@ -320,9 +320,7 @@ pub fn make_save_file_selector(
         .open(false)
         .with_remove_on_close(true),
     )
-    .with_mode(FileSelectorMode::Save {
-        default_file_name_no_extension,
-    })
+    .with_mode(FileSelectorMode::Save { default_file_name })
     .with_filter(PathFilter::new().with_file_type(file_type))
     .with_path("./")
     .build(ctx)
