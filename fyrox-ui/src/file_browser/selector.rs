@@ -449,6 +449,7 @@ impl FileSelectorBuilder {
                             .with_height(25.0)
                             .with_enabled(ok_enabled),
                     )
+                    .with_ok_back(ctx)
                     .with_text(match &self.mode {
                         FileSelectorMode::Open => "Open",
                         FileSelectorMode::Save { .. } => "Save",
@@ -464,6 +465,7 @@ impl FileSelectorBuilder {
                             .with_width(100.0)
                             .with_height(25.0),
                     )
+                    .with_cancel_back(ctx)
                     .with_text("Cancel")
                     .build(ctx);
                     cancel
