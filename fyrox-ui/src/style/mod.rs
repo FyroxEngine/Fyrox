@@ -316,6 +316,18 @@ impl Style {
     pub const BRUSH_HIGHLIGHT: &'static str = "Global.Brush.Highlight";
     /// The name of the font size property.
     pub const FONT_SIZE: &'static str = "Global.Font.Size";
+    /// The name of the normal state brush of the `ok` context action.
+    pub const BRUSH_OK_NORMAL: &'static str = "Global.Brush.Ok.Normal";
+    /// The name of the pressed state brush of the `ok` context action.
+    pub const BRUSH_OK_PRESSED: &'static str = "Global.Brush.Ok.Pressed";
+    /// The name of the hover state brush of the `ok` context action.
+    pub const BRUSH_OK_HOVER: &'static str = "Global.Brush.Ok.Hover";
+    /// The name of the normal state brush of the `cancel` context action.
+    pub const BRUSH_CANCEL_NORMAL: &'static str = "Global.Brush.Cancel.Normal";
+    /// The name of the pressed state brush of the `cancel` context action.
+    pub const BRUSH_CANCEL_PRESSED: &'static str = "Global.Brush.Cancel.Pressed";
+    /// The name of the hover state brush of the `cancel` context action.
+    pub const BRUSH_CANCEL_HOVER: &'static str = "Global.Brush.Cancel.Hover";
 
     fn base_style() -> Style {
         let mut style = Self::default();
@@ -370,7 +382,28 @@ impl Style {
             .set(Self::BRUSH_INFORMATION, Brush::Solid(Color::ANTIQUE_WHITE))
             .set(Self::BRUSH_WARNING, Brush::Solid(Color::GOLD))
             .set(Self::BRUSH_ERROR, Brush::Solid(Color::RED))
-            .set(Self::BRUSH_OK, Brush::Solid(Color::GREEN));
+            .set(Self::BRUSH_OK, Brush::Solid(Color::GREEN))
+            .set(
+                Self::BRUSH_OK_NORMAL,
+                Brush::Solid(Color::opaque(0, 130, 0)),
+            )
+            .set(Self::BRUSH_OK_HOVER, Brush::Solid(Color::opaque(0, 150, 0)))
+            .set(
+                Self::BRUSH_OK_PRESSED,
+                Brush::Solid(Color::opaque(0, 170, 0)),
+            )
+            .set(
+                Self::BRUSH_CANCEL_NORMAL,
+                Brush::Solid(Color::opaque(130, 0, 0)),
+            )
+            .set(
+                Self::BRUSH_CANCEL_HOVER,
+                Brush::Solid(Color::opaque(150, 0, 0)),
+            )
+            .set(
+                Self::BRUSH_CANCEL_PRESSED,
+                Brush::Solid(Color::opaque(170, 0, 0)),
+            );
         style
     }
 

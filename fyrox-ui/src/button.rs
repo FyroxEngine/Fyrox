@@ -318,6 +318,15 @@ pub struct ButtonBuilder {
     repeat_clicks_on_hold: bool,
 }
 
+fn make_decorator_builder(ctx: &mut BuildContext) -> DecoratorBuilder {
+    DecoratorBuilder::new(
+        BorderBuilder::new(WidgetBuilder::new())
+            .with_pad_by_corner_radius(false)
+            .with_corner_radius(ctx.style.property(Button::CORNER_RADIUS))
+            .with_stroke_thickness(ctx.style.property(Button::BORDER_THICKNESS)),
+    )
+}
+
 impl ButtonBuilder {
     /// Creates a new button builder with a widget builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
@@ -367,6 +376,22 @@ impl ButtonBuilder {
         self
     }
 
+    /// Sets a new decorator background with `ok` style (green color by default).
+    pub fn with_ok_back(mut self, ctx: &mut BuildContext) -> Self {
+        self.back = Some(make_decorator_builder(ctx).with_ok_style(ctx).build(ctx));
+        self
+    }
+
+    /// Sets a new decorator background with `cancel` style (red color by default).
+    pub fn with_cancel_back(mut self, ctx: &mut BuildContext) -> Self {
+        self.back = Some(
+            make_decorator_builder(ctx)
+                .with_cancel_style(ctx)
+                .build(ctx),
+        );
+        self
+    }
+
     /// Set the flag, that defines whether the button should repeat click message when being hold or not.
     /// Default is `false` (disabled).
     pub fn with_repeat_clicks_on_hold(mut self, repeat: bool) -> Self {
@@ -384,20 +409,11 @@ impl ButtonBuilder {
     pub fn build_node(self, ctx: &mut BuildContext) -> UiNode {
         let content = self.content.map(|c| c.build(ctx)).unwrap_or_default();
         let back = self.back.unwrap_or_else(|| {
-            DecoratorBuilder::new(
-                BorderBuilder::new(
-                    WidgetBuilder::new()
-                        .with_foreground(ctx.style.property(Style::BRUSH_DARKER))
-                        .with_child(content),
-                )
-                .with_pad_by_corner_radius(false)
-                .with_corner_radius(ctx.style.property(Button::CORNER_RADIUS))
-                .with_stroke_thickness(ctx.style.property(Button::BORDER_THICKNESS)),
-            )
-            .with_normal_brush(ctx.style.property(Style::BRUSH_LIGHT))
-            .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHTER))
-            .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
-            .build(ctx)
+            make_decorator_builder(ctx)
+                .with_normal_brush(ctx.style.property(Style::BRUSH_LIGHT))
+                .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHTER))
+                .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
+                .build(ctx)
         });
 
         if content.is_some() {

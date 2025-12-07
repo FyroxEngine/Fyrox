@@ -331,6 +331,26 @@ impl DecoratorBuilder {
         self
     }
 
+    /// Sets new brushes for the decorator from the `ok` style (red by default).
+    pub fn with_ok_style(mut self, ctx: &mut BuildContext) -> Self {
+        self.border_builder.widget_builder.foreground =
+            Some(ctx.style.property(Style::BRUSH_DARKER));
+        self.normal_brush = Some(ctx.style.property::<Brush>(Style::BRUSH_OK_NORMAL));
+        self.hover_brush = Some(ctx.style.property::<Brush>(Style::BRUSH_OK_HOVER));
+        self.pressed_brush = Some(ctx.style.property::<Brush>(Style::BRUSH_OK_PRESSED));
+        self
+    }
+
+    /// Sets new brushes for the decorator from the `cancel` style (red by default).
+    pub fn with_cancel_style(mut self, ctx: &mut BuildContext) -> Self {
+        self.border_builder.widget_builder.foreground =
+            Some(ctx.style.property(Style::BRUSH_DARKER));
+        self.normal_brush = Some(ctx.style.property::<Brush>(Style::BRUSH_CANCEL_NORMAL));
+        self.hover_brush = Some(ctx.style.property::<Brush>(Style::BRUSH_CANCEL_HOVER));
+        self.pressed_brush = Some(ctx.style.property::<Brush>(Style::BRUSH_CANCEL_PRESSED));
+        self
+    }
+
     /// Finishes decorator instance building.
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let normal_brush = self
