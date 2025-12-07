@@ -18,8 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::file_browser::PathFilter;
-use crate::widget::WidgetMessage;
 use crate::{
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
@@ -29,21 +27,23 @@ use crate::{
     },
     draw::DrawingContext,
     dropdown_list::{DropdownListBuilder, DropdownListMessage},
-    file_browser::{FileBrowserBuilder, FileBrowserMessage},
+    file_browser::{FileBrowserBuilder, FileBrowserMessage, PathFilter},
     grid::{Column, GridBuilder, Row},
     message::{MessageData, OsEvent, UiMessage},
+    messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
     stack_panel::StackPanelBuilder,
     style::{resource::StyleResourceExt, Style},
     text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
     utils::make_dropdown_list_option,
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
+    cell::Cell,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
@@ -85,6 +85,7 @@ pub struct FileSelector {
     pub filter: PathFilter,
     pub file_type_selector: Handle<UiNode>,
     pub selected_file_type: Option<usize>,
+    pub overwrite_message_box: Cell<Handle<UiNode>>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for FileSelector {
@@ -132,8 +133,37 @@ fn extract_folder_path_buf(path: &Path) -> Option<PathBuf> {
 }
 
 impl FileSelector {
-    fn on_ok_clicked(&self, ui: &UserInterface) {
-        ui.send(self.handle, FileSelectorMessage::Commit(self.final_path()));
+    fn on_ok_clicked(&self, ui: &mut UserInterface) {
+        let final_path = self.final_path();
+
+        if final_path.exists() && matches!(self.mode, FileSelectorMode::Save { .. }) {
+            self.overwrite_message_box.set(
+                MessageBoxBuilder::new(
+                    WindowBuilder::new(WidgetBuilder::new().with_width(350.0).with_height(100.0))
+                        .with_title(WindowTitle::text("Confirm Action"))
+                        .open(false),
+                )
+                .with_text(
+                    format!(
+                        "The file {} already exist. Do you want to overwrite it?",
+                        final_path.display()
+                    )
+                    .as_str(),
+                )
+                .with_buttons(MessageBoxButtons::YesNo)
+                .build(&mut ui.build_ctx()),
+            );
+
+            ui.send(
+                self.overwrite_message_box.get(),
+                MessageBoxMessage::Open {
+                    title: None,
+                    text: None,
+                },
+            );
+        } else {
+            ui.send(self.handle, FileSelectorMessage::Commit(self.final_path()));
+        }
     }
 
     fn on_path_selected(&mut self, path: &Path, ui: &UserInterface) {
@@ -251,6 +281,18 @@ impl Control for FileSelector {
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         self.window.preview_message(ui, message);
+
+        if let Some(MessageBoxMessage::Close(result)) = message.data() {
+            if message.destination() == self.overwrite_message_box.get() {
+                if let MessageBoxResult::Yes = *result {
+                    ui.send(self.handle, FileSelectorMessage::Commit(self.final_path()));
+                }
+
+                ui.send(self.overwrite_message_box.get(), WidgetMessage::Remove);
+
+                self.overwrite_message_box.set(Handle::NONE);
+            }
+        }
     }
 
     fn handle_os_event(
@@ -474,6 +516,8 @@ impl FileSelectorBuilder {
         .with_orientation(Orientation::Horizontal)
         .build(ctx);
 
+        self.window_builder.widget_builder.preview_messages = true;
+
         let window = self
             .window_builder
             .with_content(
@@ -510,6 +554,7 @@ impl FileSelectorBuilder {
             mode: self.mode,
             file_name,
             selected_file_type: self.selected_file_type,
+            overwrite_message_box: Default::default(),
         };
 
         ctx.add_node(UiNode::new(file_selector))
