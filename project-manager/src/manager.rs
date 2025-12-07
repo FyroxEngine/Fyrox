@@ -24,6 +24,7 @@ use crate::{
     upgrade::UpgradeTool,
     utils::{self, is_production_ready},
 };
+use fyrox::gui::file_browser::{FileSelectorMode, PathFilter};
 use fyrox::gui::window::WindowAlignment;
 use fyrox::{
     core::{color::Color, log::Log, pool::Handle, some_or_return},
@@ -33,7 +34,7 @@ use fyrox::{
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         decorator::DecoratorBuilder,
-        file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, PathFilter},
+        file_browser::{FileSelectorBuilder, FileSelectorMessage},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
@@ -967,9 +968,13 @@ impl ProjectManager {
                 .open(false)
                 .with_remove_on_close(true),
         )
-        .with_filter(PathFilter::new(|path| path.is_dir()))
-        .with_mode(FileBrowserMode::Open)
+        .with_filter(PathFilter::folder())
+        .with_mode(FileSelectorMode::Open)
         .build(ctx);
+        ui.send(
+            self.import_project_dialog,
+            FileSelectorMessage::Path(PathBuf::from("./")),
+        );
         ui.send(
             self.import_project_dialog,
             WindowMessage::Open {

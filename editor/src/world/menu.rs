@@ -60,6 +60,7 @@ use crate::{
     Engine, Message, PasteCommand,
 };
 use fyrox::core::{uuid, Uuid};
+use fyrox::gui::file_browser::FileType;
 use fyrox::gui::window::WindowAlignment;
 use std::{any::TypeId, path::PathBuf};
 
@@ -394,9 +395,13 @@ impl SceneNodeContextMenu {
                 } else if message.destination() == self.save_as_prefab {
                     let ui = engine.user_interfaces.first_mut();
 
+                    let file_type = FileType::new()
+                        .with_description("Scene File")
+                        .with_extension("rgs");
                     self.save_as_prefab_dialog = make_save_file_selector(
                         &mut ui.build_ctx(),
-                        PathBuf::from("unnamed.rgs"),
+                        file_type.make_file_name("unnamed.rgs"),
+                        file_type,
                         Self::SAVE_AS_PREFAB_FILE_SELECTOR,
                     );
 
@@ -410,7 +415,7 @@ impl SceneNodeContextMenu {
                     );
                     ui.send(
                         self.save_as_prefab_dialog,
-                        FileSelectorMessage::Root(Some(std::env::current_dir().unwrap())),
+                        FileSelectorMessage::Root(Some(engine.resource_manager.registry_folder())),
                     );
                 } else if message.destination() == self.make_root {
                     if let Some(graph_selection) = editor_selection.as_graph() {

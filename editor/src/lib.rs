@@ -101,7 +101,7 @@ use crate::{
                 DockingManagerMessage, TileBuilder, TileContent,
             },
             dropdown_list::DropdownListBuilder,
-            file_browser::{FileBrowserMode, FileSelectorBuilder, PathFilter},
+            file_browser::FileSelectorBuilder,
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             key::HotKey,
@@ -180,6 +180,7 @@ use crate::{
 use fyrox::core::{info, uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::event_loop::ActiveEventLoop;
+use fyrox::gui::file_browser::{FileSelectorMode, FileType, PathFilter};
 use fyrox::gui::window::WindowAlignment;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
@@ -302,17 +303,10 @@ pub fn create_terrain_layer_material() -> MaterialResource {
     MaterialResource::new_embedded(material)
 }
 
-pub fn make_scene_file_filter() -> PathFilter {
-    PathFilter::new(|p: &Path| {
-        p.is_dir()
-            || p.extension()
-                .is_some_and(|ext| matches!(ext.to_string_lossy().as_ref(), "rgs" | "ui"))
-    })
-}
-
 pub fn make_save_file_selector(
     ctx: &mut BuildContext,
     default_file_name: PathBuf,
+    file_type: FileType,
     id: Uuid,
 ) -> Handle<UiNode> {
     FileSelectorBuilder::new(
@@ -326,9 +320,9 @@ pub fn make_save_file_selector(
         .open(false)
         .with_remove_on_close(true),
     )
-    .with_mode(FileBrowserMode::Save { default_file_name })
+    .with_mode(FileSelectorMode::Save { default_file_name })
+    .with_filter(PathFilter::new().with_file_type(file_type))
     .with_path("./")
-    .with_filter(make_scene_file_filter())
     .build(ctx)
 }
 
@@ -491,7 +485,7 @@ impl SaveSceneConfirmationDialog {
                                 // Otherwise, open save scene dialog and do the action after the
                                 // scene was saved.
                                 sender.send(Message::OpenSaveSceneDialog {
-                                    default_file_name: entry.default_file_name(),
+                                    default_file_info: entry.default_file_info(),
                                 })
                             }
                         }
@@ -1283,7 +1277,7 @@ impl Editor {
                         });
                     } else {
                         self.message_sender.send(Message::OpenSaveSceneDialog {
-                            default_file_name: entry.default_file_name(),
+                            default_file_info: entry.default_file_info(),
                         });
                     }
                 } else if hot_key == key_bindings.save_scene_as {
@@ -1291,7 +1285,7 @@ impl Editor {
                     self.menu.file_menu.open_save_file_selector(
                         engine.user_interfaces.first_mut(),
                         &engine.resource_manager,
-                        entry.default_file_name(),
+                        entry.default_file_info(),
                     );
                 } else if hot_key == key_bindings.save_all_scenes {
                     self.message_sender.send(Message::SaveAllScenes);
@@ -1609,7 +1603,7 @@ impl Editor {
                                     });
                                 } else {
                                     self.message_sender.send(Message::OpenSaveSceneDialog {
-                                        default_file_name: first_unsaved.default_file_name(),
+                                        default_file_info: first_unsaved.default_file_info(),
                                     });
                                 }
                             }
@@ -2329,8 +2323,7 @@ impl Editor {
 
         engine.resource_manager.state().destroy_unused_resources();
 
-        self.asset_browser
-            .set_working_directory(engine, &working_directory);
+        self.asset_browser.set_working_directory(engine);
 
         self.world_viewer
             .on_configure(engine.user_interfaces.first(), &self.settings);
@@ -2686,14 +2679,16 @@ impl Editor {
                     }
                     Message::SwitchToEditMode => self.set_editor_mode(),
                     Message::OpenLoadSceneDialog => {
-                        self.menu
-                            .open_load_file_selector(self.engine.user_interfaces.first_mut());
+                        self.menu.open_load_file_selector(
+                            &self.engine.resource_manager,
+                            self.engine.user_interfaces.first_mut(),
+                        );
                     }
-                    Message::OpenSaveSceneDialog { default_file_name } => {
+                    Message::OpenSaveSceneDialog { default_file_info } => {
                         self.menu.open_save_file_selector(
                             self.engine.user_interfaces.first_mut(),
                             &self.engine.resource_manager,
-                            default_file_name,
+                            default_file_info,
                         );
                     }
                     Message::OpenSaveSceneConfirmationDialog { id, action } => {

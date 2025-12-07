@@ -68,6 +68,7 @@ use crate::{
     Message,
 };
 use fyrox::engine::GraphicsContext;
+use fyrox::gui::file_browser::FileType;
 use fyrox::gui::message::UiMessage;
 use fyrox::renderer::ui_renderer::UiRenderInfo;
 use std::{fs::File, io::Write, path::Path};
@@ -249,8 +250,11 @@ impl SceneController for UiScene {
         Some(self.render_target.clone())
     }
 
-    fn extension(&self) -> &str {
-        "ui"
+    fn file_type(&self) -> FileType {
+        FileType {
+            description: "UI Scene".to_string(),
+            extension: "ui".to_string(),
+        }
     }
 
     fn save(

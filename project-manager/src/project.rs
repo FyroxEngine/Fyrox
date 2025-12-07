@@ -23,6 +23,7 @@ use crate::{
     settings::{Project, Settings},
     utils,
 };
+use fyrox::gui::file_browser::PathFilter;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::{
     core::pool::Handle,
@@ -140,6 +141,7 @@ impl ProjectWizard {
                 .on_column(1),
         )
         .with_path("./")
+        .with_file_types(PathFilter::folder())
         .build(ctx);
 
         let name_field = TextBoxBuilder::new(

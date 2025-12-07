@@ -35,6 +35,7 @@ use crate::{
     Message,
 };
 use fyrox::core::define_as_any_trait;
+use fyrox::gui::file_browser::FileType;
 use std::path::Path;
 
 define_as_any_trait!(SceneControllerAsAny => SceneController);
@@ -98,7 +99,7 @@ pub trait SceneController: SceneControllerAsAny {
 
     fn render_target(&self, engine: &Engine) -> Option<TextureResource>;
 
-    fn extension(&self) -> &str;
+    fn file_type(&self) -> FileType;
 
     fn save(
         &mut self,

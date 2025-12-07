@@ -31,7 +31,7 @@ use crate::{
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},
             curve::{CurveEditorBuilder, CurveEditorMessage},
-            file_browser::{FileBrowserMode, FileSelectorMessage},
+            file_browser::FileSelectorMessage,
             grid::{Column, GridBuilder, Row},
             menu::{MenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
             message::UiMessage,
@@ -50,6 +50,7 @@ use crate::{
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::some_or_return;
+use fyrox::gui::file_browser::{FileSelectorMode, FileType};
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::window::WindowAlignment;
@@ -121,11 +122,15 @@ pub struct CurveEditorWindow {
 
 impl CurveEditorWindow {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let load_file_selector = create_file_selector(ctx, "crv", FileBrowserMode::Open);
+        let file_type = FileType::new()
+            .with_extension("crv")
+            .with_description("Curve");
+        let load_file_selector =
+            create_file_selector(ctx, file_type.clone(), FileSelectorMode::Open);
         let save_file_selector = create_file_selector(
             ctx,
-            "crv",
-            FileBrowserMode::Save {
+            file_type,
+            FileSelectorMode::Save {
                 default_file_name: PathBuf::from("unnamed.crv"),
             },
         );
@@ -386,10 +391,10 @@ impl CurveEditorWindow {
         }
     }
 
-    fn open_save_file_dialog(&self, ui: &UserInterface) {
+    fn open_save_file_dialog(&self, resource_manager: &ResourceManager, ui: &UserInterface) {
         ui.send(
             self.save_file_selector,
-            FileSelectorMessage::Root(Some(std::env::current_dir().unwrap())),
+            FileSelectorMessage::Root(Some(resource_manager.registry_folder())),
         );
 
         ui.send(
@@ -463,7 +468,7 @@ impl CurveEditorWindow {
             } else if message.destination() == self.menu.file.load {
                 ui.send(
                     self.load_file_selector,
-                    FileSelectorMessage::Root(Some(std::env::current_dir().unwrap())),
+                    FileSelectorMessage::Root(Some(engine.resource_manager.registry_folder())),
                 );
 
                 ui.send(
@@ -484,7 +489,7 @@ impl CurveEditorWindow {
                 );
             } else if message.destination() == self.menu.file.save {
                 if self.path == PathBuf::default() {
-                    self.open_save_file_dialog(ui);
+                    self.open_save_file_dialog(&engine.resource_manager, ui);
                 } else {
                     self.save();
                 }
@@ -511,7 +516,7 @@ impl CurveEditorWindow {
                     }
                     MessageBoxResult::Yes => {
                         if self.path == PathBuf::default() {
-                            self.open_save_file_dialog(ui);
+                            self.open_save_file_dialog(&engine.resource_manager, ui);
                         } else {
                             self.save();
                             self.destroy(ui);

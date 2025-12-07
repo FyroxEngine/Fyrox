@@ -34,7 +34,7 @@ use crate::{
             BuildContext, UiNode, UserInterface,
         },
     },
-    make_save_file_selector, make_scene_file_filter,
+    make_save_file_selector,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
     scene::{container::EditorSceneEntry, GameScene},
@@ -43,6 +43,7 @@ use crate::{
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::{uuid, Uuid};
+use fyrox::gui::file_browser::{FileType, PathFilter};
 use fyrox::gui::window::WindowAlignment;
 use std::{path::PathBuf, sync::mpsc::Sender};
 
@@ -233,7 +234,19 @@ impl FileMenu {
                 .open(false)
                 .with_title(WindowTitle::text("Select a Scene To Load")),
         )
-        .with_filter(make_scene_file_filter())
+        .with_filter(
+            PathFilter::new()
+                .with_file_type(
+                    FileType::new()
+                        .with_extension("rgs")
+                        .with_description("Game Scene"),
+                )
+                .with_file_type(
+                    FileType::new()
+                        .with_extension("ui")
+                        .with_description("User Interface"),
+                ),
+        )
         .build(ctx);
 
         Self {
@@ -265,7 +278,11 @@ impl FileMenu {
         );
     }
 
-    pub fn open_load_file_selector(&self, ui: &mut UserInterface) {
+    pub fn open_load_file_selector(
+        &self,
+        resource_manager: &ResourceManager,
+        ui: &mut UserInterface,
+    ) {
         ui.send(
             self.load_file_selector,
             WindowMessage::Open {
@@ -276,7 +293,7 @@ impl FileMenu {
         );
         ui.send(
             self.load_file_selector,
-            FileSelectorMessage::Root(Some(std::env::current_dir().unwrap())),
+            FileSelectorMessage::Root(Some(resource_manager.registry_folder())),
         );
     }
 
@@ -284,11 +301,12 @@ impl FileMenu {
         &mut self,
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
-        default_file_name: PathBuf,
+        default_file_info: (PathBuf, FileType),
     ) {
         self.save_file_selector = make_save_file_selector(
             &mut ui.build_ctx(),
-            default_file_name,
+            default_file_info.0,
+            default_file_info.1,
             Self::SAVE_FILE_SELECTOR,
         );
 
@@ -351,7 +369,7 @@ impl FileMenu {
                         self.open_save_file_selector(
                             engine.user_interfaces.first_mut(),
                             &engine.resource_manager,
-                            entry.default_file_name(),
+                            entry.default_file_info(),
                         );
                     }
                 }
@@ -360,13 +378,16 @@ impl FileMenu {
                     self.open_save_file_selector(
                         engine.user_interfaces.first_mut(),
                         &engine.resource_manager,
-                        entry.default_file_name(),
+                        entry.default_file_info(),
                     );
                 }
             } else if message.destination() == self.save_all {
                 sender.send(Message::SaveAllScenes);
             } else if message.destination() == self.load {
-                self.open_load_file_selector(engine.user_interfaces.first_mut());
+                self.open_load_file_selector(
+                    &engine.resource_manager,
+                    engine.user_interfaces.first_mut(),
+                );
             } else if message.destination() == self.close_scene {
                 if let Some(entry) = entry.as_ref() {
                     if entry.need_save() {

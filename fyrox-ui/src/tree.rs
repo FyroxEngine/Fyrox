@@ -82,7 +82,7 @@ pub enum TreeMessage {
     RemoveItem(Handle<UiNode>),
     /// A message, that is used to prevent expander from being hidden when a tree does not have
     /// any child items.
-    SetExpanderShown(bool),
+    ExpanderVisible(bool),
     /// A message, that is used to specify a new set of children items of a tree.
     SetItems {
         /// A set of handles to new tree items.
@@ -521,7 +521,7 @@ impl Control for Tree {
                             }
                         }
                     }
-                    &TreeMessage::SetExpanderShown(show) => {
+                    &TreeMessage::ExpanderVisible(show) => {
                         self.always_show_expander = show;
                         self.invalidate_arrange();
                     }
