@@ -112,6 +112,7 @@ pub fn build_tree_item<P: AsRef<Path>>(
     parent_path: P,
     menu: RcUiNodeHandle,
     expanded: bool,
+    filter: &PathFilter,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     let content = GridBuilder::new(
@@ -155,17 +156,17 @@ pub fn build_tree_item<P: AsRef<Path>>(
     .add_column(Column::stretch())
     .build(ctx);
 
-    let is_dir_empty = path
-        .as_ref()
-        .read_dir()
-        .map_or(true, |mut f| f.next().is_none());
+    let is_dir_not_empty = path.as_ref().read_dir().is_ok_and(|iter| {
+        iter.flatten()
+            .any(|entry| filter.supports_all(&entry.path()))
+    });
     TreeBuilder::new(
         WidgetBuilder::new()
             .with_user_data_value(TreeItemPath::non_root(path.as_ref().to_owned()))
             .with_context_menu(menu),
     )
     .with_expanded(expanded)
-    .with_always_show_expander(!is_dir_empty)
+    .with_always_show_expander(is_dir_not_empty)
     .with_content(content)
     .build(ctx)
 }
@@ -175,9 +176,10 @@ pub fn build_tree<P: AsRef<Path>>(
     path: P,
     parent_path: P,
     menu: RcUiNodeHandle,
+    filter: &PathFilter,
     ui: &mut UserInterface,
 ) -> Handle<UiNode> {
-    let subtree = build_tree_item(path, parent_path, menu, false, &mut ui.build_ctx());
+    let subtree = build_tree_item(path, parent_path, menu, false, filter, &mut ui.build_ctx());
     if ui[parent].has_component::<TreeRoot>() {
         ui.send(parent, TreeRootMessage::AddItem(subtree));
     } else {
@@ -320,6 +322,7 @@ impl RootsCollection {
         path_components: &[Component],
         root: Option<&PathBuf>,
         menu: &RcUiNodeHandle,
+        filter: &PathFilter,
         ctx: &mut BuildContext,
     ) -> Self {
         if root.is_none() {
@@ -342,8 +345,14 @@ impl RootsCollection {
             for (disk, disk_letter) in DisksProvider::new().iter() {
                 let is_disk_part_of_path = dest_disk == Some(disk_letter);
 
-                let item =
-                    build_tree_item(disk.as_ref(), "", menu.clone(), is_disk_part_of_path, ctx);
+                let item = build_tree_item(
+                    disk.as_ref(),
+                    "",
+                    menu.clone(),
+                    is_disk_part_of_path,
+                    filter,
+                    ctx,
+                );
 
                 if is_disk_part_of_path {
                     root_item = item;
@@ -378,7 +387,14 @@ pub fn build_single_folder(
     };
 
     for path in entries {
-        build_tree(tree_item, path.as_path(), parent_path, menu.clone(), ui);
+        build_tree(
+            tree_item,
+            path.as_path(),
+            parent_path,
+            menu.clone(),
+            filter,
+            ui,
+        );
     }
 }
 
@@ -423,7 +439,7 @@ impl FsTree {
         let RootsCollection {
             items: mut root_items,
             root_item: mut parent,
-        } = RootsCollection::new(&dest_path_components, root, &menu, ctx);
+        } = RootsCollection::new(&dest_path_components, root, &menu, filter, ctx);
 
         let mut path_item = Handle::NONE;
 
@@ -460,6 +476,7 @@ impl FsTree {
                         &full_path,
                         menu.clone(),
                         is_part_of_final_path,
+                        filter,
                         ctx,
                     );
 

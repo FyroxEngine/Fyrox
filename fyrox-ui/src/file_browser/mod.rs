@@ -304,7 +304,7 @@ impl FileBrowser {
             if tree.is_expanded {
                 need_build_tree = true;
             } else if !tree.always_show_expander {
-                ui.send(tree.handle(), TreeMessage::SetExpanderShown(true))
+                ui.send(tree.handle(), TreeMessage::ExpanderVisible(true))
             }
         } else if ui.node(parent_node).cast::<TreeRoot>().is_some() {
             need_build_tree = true;
@@ -315,6 +315,7 @@ impl FileBrowser {
                 path,
                 &parent_path,
                 self.item_context_menu.clone(),
+                &self.filter,
                 ui,
             );
         }
