@@ -53,6 +53,7 @@ use fyrox_graph::{
     BaseSceneGraph, SceneGraph,
 };
 use notify::{Event, Watcher};
+use std::collections::VecDeque;
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
@@ -114,6 +115,9 @@ pub struct FileBrowser {
     pub filter: PathFilter,
     #[visit(skip)]
     #[reflect(hidden)]
+    fs_events: VecDeque<FsEventMessage>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub item_context_menu: RcUiNodeHandle,
     #[allow(clippy::type_complexity)]
     #[visit(skip)]
@@ -146,6 +150,7 @@ impl Clone for FileBrowser {
             path: self.path.clone(),
             root: self.root.clone(),
             filter: self.filter.clone(),
+            fs_events: self.fs_events.clone(),
             item_context_menu: self.item_context_menu.clone(),
             watcher: None,
         }
@@ -493,13 +498,26 @@ impl FileBrowser {
             }
         }
     }
+
+    fn register_fs_event(&mut self, fs_event: FsEventMessage) {
+        // Accumulate events in the queue with deduplication.
+        if !self.fs_events.contains(&fs_event) {
+            self.fs_events.push_back(fs_event);
+        }
+    }
 }
 
 impl Control for FileBrowser {
+    fn update(&mut self, _dt: f32, ui: &mut UserInterface) {
+        while let Some(event) = self.fs_events.pop_front() {
+            self.handle_fs_event_message(&event, ui);
+        }
+    }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
         if let Some(msg) = message.data_for::<FsEventMessage>(self.handle) {
-            self.handle_fs_event_message(msg, ui);
+            self.register_fs_event(msg.clone());
         } else if let Some(message_data) = message.data_for::<FileBrowserMessage>(self.handle) {
             self.on_file_browser_message(message, message_data, ui)
         } else if let Some(TreeMessage::Expand { expand, .. }) = message.data() {
@@ -741,6 +759,7 @@ impl FileBrowserBuilder {
             watcher: None,
             item_context_menu,
             no_items_message,
+            fs_events: Default::default(),
         };
         let file_browser_handle = ctx.add_node(UiNode::new(browser));
         let sender = ctx.sender();
