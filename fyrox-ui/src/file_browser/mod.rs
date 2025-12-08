@@ -381,7 +381,10 @@ impl FileBrowser {
                     self.rebuild_fs_tree(ui);
                 }
             }
-            FileBrowserMessage::Rescan | FileBrowserMessage::Drop { .. } => (),
+            FileBrowserMessage::Rescan => {
+                self.rebuild_fs_tree(ui);
+            }
+            FileBrowserMessage::Drop { .. } => (),
             FileBrowserMessage::FocusCurrentPath => {
                 let item = fs_tree::find_tree_item(self.tree_root, &self.path, ui);
                 if item.is_some() {
