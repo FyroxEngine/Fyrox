@@ -43,6 +43,8 @@ use crate::{
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::Uuid;
 use fyrox::gui::file_browser::FileType;
+use fyrox::gui::image::ImageBuilder;
+use fyrox::gui::texture::TextureResource;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 
@@ -124,17 +126,30 @@ pub fn create_menu_item(
 
 pub fn create_menu_item_shortcut(
     text: &str,
+    icon: Option<TextureResource>,
     id: Uuid,
     shortcut: &str,
     items: Vec<Handle<UiNode>>,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
+    let icon = match icon {
+        Some(icon) => MenuItemContent::text_with_shortcut_and_icon(
+            text,
+            shortcut,
+            ImageBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(5.0)))
+                .with_keep_aspect_ratio(true)
+                .with_texture(icon)
+                .build(ctx),
+        ),
+        None => MenuItemContent::text_with_shortcut(text, shortcut),
+    };
+
     MenuItemBuilder::new(
         WidgetBuilder::new()
             .with_id(id)
             .with_min_size(Vector2::new(120.0, 22.0)),
     )
-    .with_content(MenuItemContent::text_with_shortcut(text, shortcut))
+    .with_content(icon)
     .with_items(items)
     .build(ctx)
 }

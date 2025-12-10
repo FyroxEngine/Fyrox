@@ -155,6 +155,7 @@ impl SceneNodeContextMenu {
                             .with_child({
                                 delete_selection = create_menu_item_shortcut(
                                     "Delete Node(s)",
+                                    None,
                                     Self::DELETE,
                                     "Del",
                                     vec![],
@@ -166,6 +167,7 @@ impl SceneNodeContextMenu {
                             .with_child({
                                 copy_selection = create_menu_item_shortcut(
                                     "Copy Node(s)",
+                                    None,
                                     Self::COPY,
                                     "Ctrl+C",
                                     vec![],

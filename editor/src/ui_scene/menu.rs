@@ -107,6 +107,7 @@ impl WidgetContextMenu {
                             .with_child({
                                 delete_selection = create_menu_item_shortcut(
                                     "Delete Selection",
+                                    None,
                                     Self::DELETE_SELECTION,
                                     "Del",
                                     vec![],
@@ -117,6 +118,7 @@ impl WidgetContextMenu {
                             .with_child({
                                 copy_selection = create_menu_item_shortcut(
                                     "Copy Selection",
+                                    None,
                                     Self::COPY_SELECTION,
                                     "Ctrl+C",
                                     vec![],

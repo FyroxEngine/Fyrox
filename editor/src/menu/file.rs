@@ -128,6 +128,7 @@ impl FileMenu {
                 {
                     new_scene = create_menu_item_shortcut(
                         "New Scene",
+                        None,
                         Self::NEW_SCENE,
                         "Ctrl+N",
                         vec![],
@@ -143,6 +144,7 @@ impl FileMenu {
                 {
                     load = create_menu_item_shortcut(
                         "Load Scene...",
+                        None,
                         Self::LOAD_SCENE,
                         "Ctrl+L",
                         vec![],
@@ -163,6 +165,7 @@ impl FileMenu {
                 {
                     save = create_menu_item_shortcut(
                         "Save Scene",
+                        None,
                         Self::SAVE_SCENE,
                         "Ctrl+S",
                         vec![],
@@ -173,6 +176,7 @@ impl FileMenu {
                 {
                     save_as = create_menu_item_shortcut(
                         "Save Scene As...",
+                        None,
                         Self::SAVE_SCENE_AS,
                         "Ctrl+Shift+S",
                         vec![],
@@ -183,6 +187,7 @@ impl FileMenu {
                 {
                     save_all = create_menu_item_shortcut(
                         "Save All",
+                        None,
                         Self::SAVE_ALL,
                         "Ctrl+Alt+S",
                         vec![],
@@ -194,6 +199,7 @@ impl FileMenu {
                 {
                     close_scene = create_menu_item_shortcut(
                         "Close Current Scene",
+                        None,
                         Self::CLOSE_SCENE,
                         "Ctrl+Q",
                         vec![],
@@ -222,7 +228,8 @@ impl FileMenu {
                     export_project
                 },
                 {
-                    exit = create_menu_item_shortcut("Exit", Self::EXIT, "Alt+F4", vec![], ctx);
+                    exit =
+                        create_menu_item_shortcut("Exit", None, Self::EXIT, "Alt+F4", vec![], ctx);
                     exit
                 },
             ],

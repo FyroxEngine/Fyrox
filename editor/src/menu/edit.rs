@@ -27,6 +27,7 @@ use crate::fyrox::{
 };
 use crate::scene::controller::SceneController;
 use crate::{
+    load_image,
     menu::{create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
     scene::{commands::PasteCommand, GameScene, Selection},
@@ -60,20 +61,42 @@ impl EditMenu {
             Self::EDIT,
             vec![
                 {
-                    undo = create_menu_item_shortcut("Undo", Self::UNDO, "Ctrl+Z", vec![], ctx);
+                    undo = create_menu_item_shortcut(
+                        "Undo",
+                        load_image!("../../resources/undo.png"),
+                        Self::UNDO,
+                        "Ctrl+Z",
+                        vec![],
+                        ctx,
+                    );
                     undo
                 },
                 {
-                    redo = create_menu_item_shortcut("Redo", Self::REDO, "Ctrl+Y", vec![], ctx);
+                    redo = create_menu_item_shortcut(
+                        "Redo",
+                        load_image!("../../resources/redo.png"),
+                        Self::REDO,
+                        "Ctrl+Y",
+                        vec![],
+                        ctx,
+                    );
                     redo
                 },
                 menu::make_menu_splitter(ctx),
                 {
-                    copy = create_menu_item_shortcut("Copy", Self::COPY, "Ctrl+C", vec![], ctx);
+                    copy =
+                        create_menu_item_shortcut("Copy", None, Self::COPY, "Ctrl+C", vec![], ctx);
                     copy
                 },
                 {
-                    paste = create_menu_item_shortcut("Paste", Self::PASTE, "Ctrl+V", vec![], ctx);
+                    paste = create_menu_item_shortcut(
+                        "Paste",
+                        None,
+                        Self::PASTE,
+                        "Ctrl+V",
+                        vec![],
+                        ctx,
+                    );
                     paste
                 },
             ],
