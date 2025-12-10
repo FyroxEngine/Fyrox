@@ -20,6 +20,7 @@
 
 //! Settings window plugin.
 
+use crate::menu::create_menu_item_shortcut;
 use crate::{
     fyrox::{
         asset::manager::ResourceManager,
@@ -54,7 +55,7 @@ use crate::{
         renderer::QualitySettings,
         renderer::{BloomSettings, CsmSettings, ShadowMapPrecision},
     },
-    menu::create_menu_item,
+    load_image,
     message::MessageSender,
     plugin::EditorPlugin,
     settings::{
@@ -452,7 +453,14 @@ impl EditorPlugin for SettingsPlugin {
     fn on_start(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
         let ctx = &mut ui.build_ctx();
-        self.open_settings = create_menu_item("Editor Settings...", Self::SETTINGS, vec![], ctx);
+        self.open_settings = create_menu_item_shortcut(
+            "Editor Settings...",
+            load_image!("../../resources/settings.png"),
+            Self::SETTINGS,
+            "",
+            vec![],
+            ctx,
+        );
         ui.send(
             editor.menu.file_menu.menu,
             MenuItemMessage::AddItem(self.open_settings),

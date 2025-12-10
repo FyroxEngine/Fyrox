@@ -136,7 +136,7 @@ pub fn create_menu_item_shortcut(
         Some(icon) => MenuItemContent::text_with_shortcut_and_icon(
             text,
             shortcut,
-            ImageBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(5.0)))
+            ImageBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(4.0)))
                 .with_keep_aspect_ratio(true)
                 .with_texture(icon)
                 .build(ctx),

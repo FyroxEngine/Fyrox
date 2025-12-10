@@ -34,7 +34,7 @@ use crate::{
             BuildContext, UiNode, UserInterface,
         },
     },
-    make_save_file_selector,
+    load_image, make_save_file_selector,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
     scene::{container::EditorSceneEntry, GameScene},
@@ -128,7 +128,7 @@ impl FileMenu {
                 {
                     new_scene = create_menu_item_shortcut(
                         "New Scene",
-                        None,
+                        load_image!("../../resources/game_scene.png"),
                         Self::NEW_SCENE,
                         "Ctrl+N",
                         vec![],
@@ -137,14 +137,20 @@ impl FileMenu {
                     new_scene
                 },
                 {
-                    new_ui_scene =
-                        create_menu_item("New UI Scene", Self::NEW_UI_SCENE, vec![], ctx);
+                    new_ui_scene = create_menu_item_shortcut(
+                        "New UI Scene",
+                        load_image!("../../resources/ui_scene.png"),
+                        Self::NEW_UI_SCENE,
+                        "",
+                        vec![],
+                        ctx,
+                    );
                     new_ui_scene
                 },
                 {
                     load = create_menu_item_shortcut(
                         "Load Scene...",
-                        None,
+                        load_image!("../../resources/open-folder.png"),
                         Self::LOAD_SCENE,
                         "Ctrl+L",
                         vec![],
@@ -153,9 +159,11 @@ impl FileMenu {
                     load
                 },
                 {
-                    recent_files_container = create_menu_item(
+                    recent_files_container = create_menu_item_shortcut(
                         "Open Recent Scene",
+                        load_image!("../../resources/recent.png"),
                         Self::OPEN_RECENT,
+                        "",
                         recent_files.clone(),
                         ctx,
                     );
@@ -165,7 +173,7 @@ impl FileMenu {
                 {
                     save = create_menu_item_shortcut(
                         "Save Scene",
-                        None,
+                        load_image!("../../resources/save.png"),
                         Self::SAVE_SCENE,
                         "Ctrl+S",
                         vec![],
@@ -176,7 +184,7 @@ impl FileMenu {
                 {
                     save_as = create_menu_item_shortcut(
                         "Save Scene As...",
-                        None,
+                        load_image!("../../resources/save-as.png"),
                         Self::SAVE_SCENE_AS,
                         "Ctrl+Shift+S",
                         vec![],
@@ -187,7 +195,7 @@ impl FileMenu {
                 {
                     save_all = create_menu_item_shortcut(
                         "Save All",
-                        None,
+                        load_image!("../../resources/save_all.png"),
                         Self::SAVE_ALL,
                         "Ctrl+Alt+S",
                         vec![],
@@ -199,7 +207,7 @@ impl FileMenu {
                 {
                     close_scene = create_menu_item_shortcut(
                         "Close Current Scene",
-                        None,
+                        load_image!("../../resources/close.png"),
                         Self::CLOSE_SCENE,
                         "Ctrl+Q",
                         vec![],
@@ -208,9 +216,11 @@ impl FileMenu {
                     close_scene
                 },
                 {
-                    open_scene_settings = create_menu_item(
+                    open_scene_settings = create_menu_item_shortcut(
                         "Current Scene Settings...",
+                        load_image!("../../resources/rename.png"),
                         Self::SCENE_SETTINGS,
+                        "",
                         vec![],
                         ctx,
                     );
