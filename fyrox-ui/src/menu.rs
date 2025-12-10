@@ -45,6 +45,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
     UserInterface, VerticalAlignment,
 };
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph, SceneGraph, SceneGraphNode,
@@ -882,6 +883,20 @@ impl MenuItemContent {
         }
     }
 
+    /// Creates a menu item content with a text, a shortcut and an arrow and an icon.
+    pub fn text_with_shortcut_and_icon(
+        text: impl AsRef<str>,
+        shortcut: impl AsRef<str>,
+        icon: Handle<impl ObjectOrVariant<UiNode>>,
+    ) -> Self {
+        MenuItemContent::Text {
+            text: text.as_ref().to_owned(),
+            shortcut: shortcut.as_ref().to_owned(),
+            icon: icon.transmute(),
+            arrow: true,
+        }
+    }
+
     /// Creates a menu item content with a text and an arrow (with no icon or shortcut).
     pub fn text(text: impl AsRef<str>) -> Self {
         MenuItemContent::Text {
@@ -990,6 +1005,7 @@ impl MenuItemBuilder {
                         TextBuilder::new(
                             WidgetBuilder::new()
                                 .with_horizontal_alignment(HorizontalAlignment::Right)
+                                .with_vertical_alignment(VerticalAlignment::Center)
                                 .with_margin(Thickness::uniform(1.0))
                                 .on_column(2),
                         )
@@ -1017,7 +1033,7 @@ impl MenuItemBuilder {
                     }),
             )
             .add_row(Row::auto())
-            .add_column(Column::auto())
+            .add_column(Column::strict(25.0))
             .add_column(Column::stretch())
             .add_column(Column::auto())
             .add_column(Column::strict(10.0))
