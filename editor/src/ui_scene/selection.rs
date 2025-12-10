@@ -160,6 +160,16 @@ impl UiSelection {
         }
     }
 
+    pub fn selection_to_delete(&self, ui: &UserInterface) -> UiSelection {
+        let mut selection = self.clone();
+        // UI's root is non-deletable.
+        if let Some(root_position) = selection.widgets.iter().position(|&n| n == ui.root()) {
+            selection.widgets.remove(root_position);
+        }
+
+        selection
+    }
+
     pub fn root_widgets(&self, ui: &UserInterface) -> Vec<Handle<UiNode>> {
         // Helper function.
         fn is_descendant_of(
@@ -197,12 +207,14 @@ impl UiSelection {
     }
 
     pub fn make_deletion_command(&self, ui: &UserInterface) -> Command {
+        let selection = self.selection_to_delete(ui);
+
         // Change selection first.
         let mut command_group = CommandGroup::from(vec![Command::new(
             ChangeSelectionCommand::new(Default::default()),
         )]);
 
-        let root_nodes = self.root_widgets(ui);
+        let root_nodes = selection.root_widgets(ui);
 
         for root_node in root_nodes {
             command_group.push(DeleteWidgetsSubGraphCommand::new(root_node));
