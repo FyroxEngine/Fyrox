@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::EntityInfo;
 use crate::{
     command::{Command, SetPropertyCommand},
     fyrox::{
@@ -52,7 +53,7 @@ impl SelectionContainer for GraphSelection {
         &self,
         controller: &dyn SceneController,
         scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect, bool),
+        callback: &mut dyn FnMut(EntityInfo),
     ) {
         let game_scene = some_or_return!(controller.downcast_ref::<GameScene>());
         let scene = &scenes[game_scene.scene];
@@ -61,7 +62,10 @@ impl SelectionContainer for GraphSelection {
             .first()
             .and_then(|handle| scene.graph.try_get_node(*handle))
         {
-            (callback)(node as &dyn Reflect, node.has_inheritance_parent());
+            (callback)(EntityInfo {
+                entity: node as &dyn Reflect,
+                has_inheritance_parent: node.has_inheritance_parent(),
+            });
         }
     }
 

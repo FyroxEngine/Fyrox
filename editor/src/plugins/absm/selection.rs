@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::EntityInfo;
 use crate::{
     command::{make_command, Command, SetPropertyCommand},
     fyrox::{
@@ -164,22 +165,22 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
         &self,
         controller: &dyn SceneController,
         scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect, bool),
+        callback: &mut dyn FnMut(EntityInfo),
     ) {
         if let Some(machine) = get_machine_ref(controller, self.absm_node_handle, scenes) {
             if let Some(first) = self.entities.first() {
                 if let Some(layer_index) = self.layer {
                     if let Some(layer) = machine.layers().get(layer_index) {
                         match first {
-                            SelectedEntity::Transition(transition) => {
-                                (callback)(&layer.transitions()[*transition] as &dyn Reflect, false)
-                            }
-                            SelectedEntity::State(state) => {
-                                (callback)(&layer.states()[*state] as &dyn Reflect, false)
-                            }
-                            SelectedEntity::PoseNode(pose) => {
-                                (callback)(&layer.nodes()[*pose] as &dyn Reflect, false)
-                            }
+                            SelectedEntity::Transition(transition) => (callback)(
+                                EntityInfo::with_no_parent(&layer.transitions()[*transition]),
+                            ),
+                            SelectedEntity::State(state) => (callback)(EntityInfo::with_no_parent(
+                                &layer.states()[*state] as &dyn Reflect,
+                            )),
+                            SelectedEntity::PoseNode(pose) => (callback)(
+                                EntityInfo::with_no_parent(&layer.nodes()[*pose] as &dyn Reflect),
+                            ),
                         };
                     }
                 }

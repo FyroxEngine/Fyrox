@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::EntityInfo;
 use crate::{
     asset::preview::cache::IconRequest,
     audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
@@ -82,7 +83,7 @@ impl SelectionContainer for AudioBusSelection {
         &self,
         controller: &dyn SceneController,
         scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect, bool),
+        callback: &mut dyn FnMut(EntityInfo),
     ) {
         let game_scene = some_or_return!(controller.downcast_ref::<GameScene>());
         let scene = &scenes[game_scene.scene];
@@ -92,7 +93,7 @@ impl SelectionContainer for AudioBusSelection {
             .first()
             .and_then(|handle| state.bus_graph_ref().try_get_bus_ref(*handle))
         {
-            (callback)(effect as &dyn Reflect, false);
+            (callback)(EntityInfo::with_no_parent(effect as &dyn Reflect));
         }
     }
 

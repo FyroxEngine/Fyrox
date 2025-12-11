@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::asset::preview::cache::IconRequest;
+use crate::scene::EntityInfo;
 use crate::{
     fyrox::{
         asset::manager::ResourceManager,
@@ -382,7 +383,12 @@ impl EditorPlugin for InspectorPlugin {
         entry.selection.first_selected_entity(
             &*entry.controller,
             &editor.engine.scenes,
-            &mut |entity, has_parent_object| {
+            &mut |entity_info| {
+                let EntityInfo {
+                    entity,
+                    has_inheritance_parent,
+                } = entity_info;
+
                 if let Err(errors) = self.sync_to(entity, ui) {
                     if is_out_of_sync(&errors) {
                         let available_animations = fetch_available_animations(
@@ -401,7 +407,7 @@ impl EditorPlugin for InspectorPlugin {
                             &available_animations,
                             &editor.message_sender,
                             editor.asset_browser.preview_sender.clone(),
-                            has_parent_object,
+                            has_inheritance_parent,
                             style,
                         );
 
@@ -446,8 +452,8 @@ impl EditorPlugin for InspectorPlugin {
                         entry.selection.first_selected_entity(
                             &*entry.controller,
                             &editor.engine.scenes,
-                            &mut |entity, _| {
-                                entity.resolve_path(path, &mut |result| {
+                            &mut |entity_info| {
+                                entity_info.entity.resolve_path(path, &mut |result| {
                                     if let Ok(result) = result {
                                         self.clipboard = result.try_clone_box();
                                     }
@@ -471,8 +477,8 @@ impl EditorPlugin for InspectorPlugin {
                         entry.selection.first_selected_entity(
                             &*entry.controller,
                             &editor.engine.scenes,
-                            &mut |entity, _| {
-                                entity.resolve_path(path, &mut |result| {
+                            &mut |entity_info| {
+                                entity_info.entity.resolve_path(path, &mut |result| {
                                     if let Ok(property) = result {
                                         can_clone = property.try_clone_box().is_some();
 

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::EntityInfo;
 use crate::{
     command::{make_command, Command, CommandGroup, SetPropertyCommand},
     fyrox::{
@@ -52,12 +53,15 @@ impl SelectionContainer for UiSelection {
         &self,
         controller: &dyn SceneController,
         _scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect, bool),
+        callback: &mut dyn FnMut(EntityInfo),
     ) {
         let ui_scene = some_or_return!(controller.downcast_ref::<UiScene>());
         if let Some(first) = self.widgets.first() {
             if let Some(node) = ui_scene.ui.try_get_node(*first) {
-                (callback)(node as &dyn Reflect, node.has_inheritance_parent())
+                (callback)(EntityInfo {
+                    entity: node as &dyn Reflect,
+                    has_inheritance_parent: node.has_inheritance_parent(),
+                })
             }
         }
     }

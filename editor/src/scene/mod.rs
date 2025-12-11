@@ -1143,6 +1143,20 @@ where
     }
 }
 
+pub struct EntityInfo<'a> {
+    pub entity: &'a dyn Reflect,
+    pub has_inheritance_parent: bool,
+}
+
+impl<'a> EntityInfo<'a> {
+    pub fn with_no_parent(entity: &'a dyn Reflect) -> Self {
+        Self {
+            entity,
+            has_inheritance_parent: false,
+        }
+    }
+}
+
 pub trait SelectionContainer: BaseSelectionContainer {
     fn len(&self) -> usize;
 
@@ -1162,7 +1176,7 @@ pub trait SelectionContainer: BaseSelectionContainer {
         &self,
         controller: &dyn SceneController,
         scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect, bool),
+        callback: &mut dyn FnMut(EntityInfo),
     );
 
     fn on_property_changed(
@@ -1298,7 +1312,7 @@ impl Selection {
         &self,
         controller: &dyn SceneController,
         scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect, bool),
+        callback: &mut dyn FnMut(EntityInfo),
     ) {
         if let Some(container) = self.0.as_ref() {
             container.first_selected_entity(controller, scenes, callback);

@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::command::{CommandContext, CommandTrait};
+use crate::scene::EntityInfo;
 use crate::{
     command::{make_command, Command, SetPropertyCommand},
     fyrox::{
@@ -156,12 +157,12 @@ impl SelectionContainer for AssetSelection {
         &self,
         _controller: &dyn SceneController,
         _scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect, bool),
+        callback: &mut dyn FnMut(EntityInfo),
     ) {
         if let Some(resource) = self.resources.first() {
             if let Some(options) = resource.import_options.as_ref() {
                 let options = options.borrow();
-                callback(&**options as &dyn Reflect, false)
+                callback(EntityInfo::with_no_parent(&**options as &dyn Reflect))
             } else if resource.path.is_file() {
                 if let Ok(resource) =
                     block_on(self.resource_manager.request_untyped(&resource.path))
@@ -169,7 +170,7 @@ impl SelectionContainer for AssetSelection {
                     if !self.resource_manager.is_built_in_resource(&resource) {
                         let guard = resource.lock();
                         if let Some(data) = guard.state.data_ref() {
-                            callback(&*data.0 as &dyn Reflect, false)
+                            callback(EntityInfo::with_no_parent(&*data.0 as &dyn Reflect))
                         }
                     }
                 }

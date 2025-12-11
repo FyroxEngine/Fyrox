@@ -26,7 +26,7 @@ use crate::fyrox::{
 use crate::message::MessageSender;
 use crate::scene::commands::GameSceneContext;
 use crate::scene::controller::SceneController;
-use crate::scene::{GameScene, SelectionContainer};
+use crate::scene::{EntityInfo, GameScene, SelectionContainer};
 use fyrox::core::reflect::Reflect;
 use fyrox::core::some_or_return;
 use fyrox::engine::Engine;
@@ -61,12 +61,15 @@ impl SelectionContainer for NavmeshSelection {
         &self,
         controller: &dyn SceneController,
         scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect, bool),
+        callback: &mut dyn FnMut(EntityInfo),
     ) {
         let game_scene = some_or_return!(controller.downcast_ref::<GameScene>());
         let scene = &scenes[game_scene.scene];
         let node = scene.graph.try_get_node(self.navmesh_node).unwrap();
-        (callback)(node as &dyn Reflect, node.has_inheritance_parent());
+        (callback)(EntityInfo {
+            entity: node as &dyn Reflect,
+            has_inheritance_parent: node.has_inheritance_parent(),
+        });
     }
 
     fn on_property_changed(

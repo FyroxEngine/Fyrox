@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::EntityInfo;
 use crate::{
     command::{make_command, Command, SetPropertyCommand},
     fyrox::{
@@ -125,7 +126,7 @@ where
         &self,
         controller: &dyn SceneController,
         scenes: &SceneContainer,
-        callback: &mut dyn FnMut(&dyn Reflect, bool),
+        callback: &mut dyn FnMut(EntityInfo),
     ) {
         if let Some(container) = get_animations_container(self.animation_player, controller, scenes)
         {
@@ -134,7 +135,7 @@ where
                     self.entities.first()
                 {
                     if let Some(signal) = animation.signals().iter().find(|s| s.id == *id) {
-                        (callback)(signal as &dyn Reflect, false);
+                        (callback)(EntityInfo::with_no_parent(signal as &dyn Reflect));
                     }
                 }
             }
