@@ -33,20 +33,20 @@ use crate::{
             button::{Button, ButtonBuilder, ButtonMessage},
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
-            file_browser::{FileSelectorBuilder, FileSelectorMessage, PathFilter},
+            file_browser::{FileSelectorBuilder, FileSelectorMessage, FileType, PathFilter},
             grid::{Column, GridBuilder, Row},
             image::ImageBuilder,
             message::{MessageDirection, UiMessage},
             numeric::{NumericUpDownBuilder, NumericUpDownMessage},
             popup::{Placement, PopupBuilder, PopupMessage},
-            stack_panel::StackPanelBuilder,
             style::{resource::StyleResourceExt, Style},
             text::{TextBuilder, TextMessage},
             text_box::{TextBox, TextBoxBuilder},
             utils::{make_cross, make_dropdown_list_option_universal, make_simple_tooltip},
             vector_image::{Primitive, VectorImageBuilder},
             widget::{WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowMessage, WindowTitle},
+            window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
+            wrap_panel::WrapPanelBuilder,
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
             VerticalAlignment,
         },
@@ -69,8 +69,6 @@ use crate::{
         Selection,
     },
 };
-use fyrox::gui::file_browser::FileType;
-use fyrox::gui::window::WindowAlignment;
 use std::any::TypeId;
 
 enum ImportMode {
@@ -425,7 +423,7 @@ impl Toolbar {
                 .on_row(0)
                 .with_foreground(ctx.style.property(Style::BRUSH_LIGHT))
                 .with_child(
-                    StackPanelBuilder::new(
+                    WrapPanelBuilder::new(
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(1.0))
                             .with_child({

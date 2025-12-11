@@ -24,9 +24,10 @@ use crate::{
         asset::manager::ResourceManager,
         core::{
             algebra::Vector2, color::Color, log::Log, math::curve::Curve, math::Rect,
-            pool::ErasedHandle, pool::Handle, some_or_return, uuid::Uuid,
+            pool::ErasedHandle, pool::Handle, reflect::Reflect, some_or_return, uuid, uuid::Uuid,
             variable::InheritableVariable,
         },
+        engine::ApplicationLoopController,
         fxhash::FxHashSet,
         generic_animation::{signal::AnimationSignal, AnimationContainer},
         graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
@@ -39,8 +40,9 @@ use crate::{
             grid::{Column, GridBuilder, Row},
             menu::MenuItemMessage,
             message::UiMessage,
+            style::{resource::StyleResourceExt, Style},
             widget::{WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowMessage, WindowTitle},
+            window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, UiNode, UserInterface,
         },
         resource::model::AnimationSource,
@@ -63,13 +65,6 @@ use crate::{
     ui_scene::UiScene,
     Editor, Message,
 };
-
-use fyrox::core::reflect::Reflect;
-use fyrox::core::uuid;
-use fyrox::engine::ApplicationLoopController;
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
-use fyrox::gui::window::WindowAlignment;
 use std::any::{Any, TypeId};
 
 pub mod command;
@@ -271,7 +266,7 @@ impl AnimationEditor {
                 .with_child(toolbar.panel)
                 .with_child(payload),
         )
-        .add_row(Row::strict(26.0))
+        .add_row(Row::auto())
         .add_row(Row::stretch())
         .add_column(Column::stretch())
         .build(ctx);
