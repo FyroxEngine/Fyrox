@@ -1459,15 +1459,12 @@ impl ResourceManagerState {
         if let Some(existing) = self.find_by_resource_path(&path) {
             existing.clone()
         } else {
-            let mut registry = self.resource_registry.safe_lock();
-            let uuid = if let Some(uuid) = registry.path_to_uuid(&path) {
-                uuid
-            } else {
-                let uuid = Uuid::new_v4();
-                registry.modify().register(uuid, path);
-                uuid
+            let uuid = match self.find_uuid_or_register_new(path.clone()) {
+                Ok(uuid) => uuid,
+                Err(err) => {
+                    return UntypedResource::new_load_error(ResourceKind::External, path, err)
+                }
             };
-            drop(registry);
             let resource = UntypedResource::new_unloaded(uuid);
             self.add_resource_and_notify(resource.clone());
             resource
@@ -1522,25 +1519,30 @@ impl ResourceManagerState {
         }
     }
 
-    fn load_resource(&mut self, path: PathBuf) -> UntypedResource {
+    fn find_uuid_or_register_new(&mut self, path: PathBuf) -> Result<Uuid, LoadError> {
         let mut registry = self.resource_registry.safe_lock();
-        let uuid = if let Some(uuid) = registry.path_to_uuid(&path) {
-            uuid
+        if let Some(uuid) = registry.path_to_uuid(&path) {
+            Ok(uuid)
         } else if self.is_supported_resource(&path) {
             // This branch covers an edge case: a resource file may be created and immediately
             // loaded. Returning an error in this case is wrong, we should always try to load
             // such resources if they're supported (by extension).
             let uuid = Uuid::new_v4();
             registry.modify().register(uuid, path);
-            uuid
+            Ok(uuid)
         } else {
-            let err = LoadError::new(format!(
+            Err(LoadError::new(format!(
                 "Unable to load resource {} because it is not supported!",
                 path.display()
-            ));
-            return UntypedResource::new_load_error(ResourceKind::External, path, err);
+            )))
+        }
+    }
+
+    fn load_resource(&mut self, path: PathBuf) -> UntypedResource {
+        let uuid = match self.find_uuid_or_register_new(path.clone()) {
+            Ok(uuid) => uuid,
+            Err(err) => return UntypedResource::new_load_error(ResourceKind::External, path, err),
         };
-        drop(registry);
         let resource = UntypedResource::new_pending(uuid, ResourceKind::External);
         self.add_resource_and_notify(resource.clone());
         self.spawn_loading_task(resource.clone(), false);
