@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::utils::make_square_image_button_with_tooltip;
 use crate::{
     fyrox::{
         core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
@@ -45,8 +46,7 @@ use crate::{
             text::{TextBuilder, TextMessage},
             utils::{
                 make_dropdown_list_option, make_dropdown_list_option_universal,
-                make_dropdown_list_option_with_height, make_image_button_with_tooltip,
-                make_simple_tooltip,
+                make_dropdown_list_option_with_height, make_simple_tooltip,
             },
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -105,10 +105,8 @@ impl GridSnappingMenu {
         let z_step;
         let grid_snap_menu = DropdownMenuBuilder::new(WidgetBuilder::new())
             .with_header({
-                button = make_image_button_with_tooltip(
+                button = make_square_image_button_with_tooltip(
                     ctx,
-                    20.0,
-                    20.0,
                     load_image!("../../resources/grid_snapping.png"),
                     "Snapping Options",
                     None,

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::utils::make_square_image_button_with_tooltip;
 use crate::{
     fyrox::{
         core::pool::Handle,
@@ -30,7 +31,6 @@ use crate::{
             stack_panel::StackPanelBuilder,
             style::{resource::StyleResourceExt, Style},
             text::TextBuilder,
-            utils::make_image_button_with_tooltip,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowTitle},
             BuildContext, Thickness, UiNode, UserInterface,
@@ -60,10 +60,8 @@ impl CommandStackViewer {
         let buttons = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_child({
-                    undo = make_image_button_with_tooltip(
+                    undo = make_square_image_button_with_tooltip(
                         ctx,
-                        20.0,
-                        20.0,
                         load_image!("../../resources/undo.png"),
                         "Undo The Command",
                         Some(0),
@@ -71,10 +69,8 @@ impl CommandStackViewer {
                     undo
                 })
                 .with_child({
-                    redo = make_image_button_with_tooltip(
+                    redo = make_square_image_button_with_tooltip(
                         ctx,
-                        20.0,
-                        20.0,
                         load_image!("../../resources/redo.png"),
                         "Redo The Command",
                         Some(1),
@@ -82,10 +78,8 @@ impl CommandStackViewer {
                     redo
                 })
                 .with_child({
-                    clear = make_image_button_with_tooltip(
+                    clear = make_square_image_button_with_tooltip(
                         ctx,
-                        20.0,
-                        20.0,
                         load_image!("../../resources/clear.png"),
                         "Clear Command Stack\nChanges history will be erased.",
                         Some(2),
@@ -113,7 +107,7 @@ impl CommandStackViewer {
                         .build(ctx),
                     ),
                 )
-                .add_column(Row::strict(26.0))
+                .add_column(Column::auto())
                 .add_column(Column::stretch())
                 .add_row(Row::stretch())
                 .build(ctx),

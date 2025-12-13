@@ -142,8 +142,8 @@ impl LogPanel {
                                 .with_child({
                                     clear = make_image_button_with_tooltip(
                                         ctx,
-                                        24.0,
-                                        24.0,
+                                        18.0,
+                                        18.0,
                                         clear_icon,
                                         "Clear the log.",
                                         Some(0),
@@ -190,7 +190,7 @@ impl LogPanel {
                         .build(ctx),
                     ),
             )
-            .add_row(Row::strict(26.0))
+            .add_row(Row::auto())
             .add_row(Row::stretch())
             .add_column(Column::stretch())
             .build(ctx),

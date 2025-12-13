@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::utils::make_square_image_button_with_tooltip;
 use crate::{
     asset::{
         creator::ResourceCreator,
@@ -51,7 +52,7 @@ use crate::{
             searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
             style::{resource::StyleResourceExt, Style},
-            utils::{make_image_button_with_tooltip, make_simple_tooltip},
+            utils::make_simple_tooltip,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
@@ -293,10 +294,8 @@ impl AssetBrowser {
         .with_text("+")
         .build(ctx);
 
-        let resave_resources = make_image_button_with_tooltip(
+        let resave_resources = make_square_image_button_with_tooltip(
             ctx,
-            18.0,
-            18.0,
             load_image!("../../resources/resave.png"),
             "Resave All Native Resources\n\
             Use for assets migration from the previous versions of the engine",
@@ -304,10 +303,8 @@ impl AssetBrowser {
         );
         ctx[resave_resources].set_column(2);
 
-        let refresh = make_image_button_with_tooltip(
+        let refresh = make_square_image_button_with_tooltip(
             ctx,
-            18.0,
-            18.0,
             load_image!("../../resources/reimport.png"),
             "Refresh",
             Some(1),
@@ -318,7 +315,6 @@ impl AssetBrowser {
             WidgetBuilder::new()
                 .with_tab_index(Some(2))
                 .on_column(3)
-                .with_height(22.0)
                 .with_margin(Thickness::uniform(1.0)),
         )
         .build(ctx);

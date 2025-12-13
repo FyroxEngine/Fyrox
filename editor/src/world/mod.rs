@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::utils::make_square_image_button_with_tooltip;
 use crate::{
     asset::item::AssetItem,
     fyrox::{
@@ -40,7 +41,7 @@ use crate::{
                 TreeBuilder, TreeExpansionStrategy, TreeMessage, TreeRoot, TreeRootBuilder,
                 TreeRootMessage,
             },
-            utils::{make_image_button_with_tooltip, make_simple_tooltip},
+            utils::make_simple_tooltip,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowTitle},
             wrap_panel::WrapPanelBuilder,
@@ -227,8 +228,6 @@ impl WorldViewer {
         )
         .build(ctx);
 
-        let size = 15.0;
-
         let track_selection_tooltip = make_simple_tooltip(
             ctx,
             "Track selection. If enabled, \
@@ -267,10 +266,8 @@ impl WorldViewer {
                 .on_row(0)
                 .on_column(0)
                 .with_child({
-                    collapse_all = make_image_button_with_tooltip(
+                    collapse_all = make_square_image_button_with_tooltip(
                         ctx,
-                        size,
-                        size,
                         load_image!("../../resources/collapse.png"),
                         "Collapse Everything",
                         Some(0),
@@ -278,10 +275,8 @@ impl WorldViewer {
                     collapse_all
                 })
                 .with_child({
-                    expand_all = make_image_button_with_tooltip(
+                    expand_all = make_square_image_button_with_tooltip(
                         ctx,
-                        size,
-                        size,
                         load_image!("../../resources/expand.png"),
                         "Expand Everything",
                         Some(1),
@@ -289,10 +284,8 @@ impl WorldViewer {
                     expand_all
                 })
                 .with_child({
-                    locate_selection = make_image_button_with_tooltip(
+                    locate_selection = make_square_image_button_with_tooltip(
                         ctx,
-                        size,
-                        size,
                         load_image!("../../resources/locate.png"),
                         "Locate Selection",
                         Some(2),

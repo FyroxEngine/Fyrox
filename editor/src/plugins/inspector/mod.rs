@@ -20,6 +20,7 @@
 
 use crate::asset::preview::cache::IconRequest;
 use crate::scene::EntityInfo;
+use crate::utils::make_square_image_button_with_tooltip;
 use crate::{
     fyrox::{
         asset::manager::ResourceManager,
@@ -63,7 +64,6 @@ use fyrox::{
         inspector::InspectorContextArgs,
         stack_panel::StackPanelBuilder,
         style::{resource::StyleResourceExt, Style},
-        utils::make_image_button_with_tooltip,
     },
 };
 use std::{any::Any, sync::mpsc::Sender, sync::Arc};
@@ -257,10 +257,8 @@ impl InspectorPlugin {
                                         type_name_text
                                     })
                                     .with_child({
-                                        docs_button = make_image_button_with_tooltip(
+                                        docs_button = make_square_image_button_with_tooltip(
                                             ctx,
-                                            18.0,
-                                            18.0,
                                             load_image!("../../../resources/doc.png"),
                                             "Open Documentation",
                                             Some(0),

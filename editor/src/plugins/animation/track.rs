@@ -20,6 +20,7 @@
 
 #![allow(clippy::manual_map)]
 
+use crate::utils::make_square_image_button_with_tooltip;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -62,7 +63,7 @@ use crate::{
             text::{Text, TextBuilder, TextMessage},
             text_box::{TextBoxBuilder, TextCommitMode},
             tree::{Tree, TreeBuilder, TreeMessage, TreeRootBuilder, TreeRootMessage},
-            utils::{make_cross, make_image_button_with_tooltip, make_simple_tooltip},
+            utils::{make_cross, make_simple_tooltip},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Control, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
@@ -668,10 +669,8 @@ impl TrackList {
                             .on_column(0)
                             .with_margin(Thickness::uniform(1.0))
                             .with_child({
-                                add_track = make_image_button_with_tooltip(
+                                add_track = make_square_image_button_with_tooltip(
                                     ctx,
-                                    22.0,
-                                    22.0,
                                     load_image!("../../../resources/property_track.png"),
                                     "Add Property Track.\n\
                                     Create generic property binding to a numeric property.",
@@ -680,10 +679,8 @@ impl TrackList {
                                 add_track
                             })
                             .with_child({
-                                add_position_track = make_image_button_with_tooltip(
+                                add_position_track = make_square_image_button_with_tooltip(
                                     ctx,
-                                    22.0,
-                                    22.0,
                                     load_image!("../../../resources/position_track.png"),
                                     "Add Position Track.\n\
                                     Creates a binding to a local position of a node. \
@@ -694,10 +691,8 @@ impl TrackList {
                                 add_position_track
                             })
                             .with_child({
-                                add_scale_track = make_image_button_with_tooltip(
+                                add_scale_track = make_square_image_button_with_tooltip(
                                     ctx,
-                                    22.0,
-                                    22.0,
                                     load_image!("../../../resources/scaling_track.png"),
                                     "Add Scale Track.\n\
                                     Creates a binding to a local scale of a node. \
@@ -708,10 +703,8 @@ impl TrackList {
                                 add_scale_track
                             })
                             .with_child({
-                                add_rotation_track = make_image_button_with_tooltip(
+                                add_rotation_track = make_square_image_button_with_tooltip(
                                     ctx,
-                                    22.0,
-                                    22.0,
                                     load_image!("../../../resources/rotation_track.png"),
                                     "Add Rotation Track.\n\
                                     Creates a binding to a local rotation of a node. \

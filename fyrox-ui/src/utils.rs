@@ -233,11 +233,13 @@ pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<U
     DecoratorBuilder::new(
         BorderBuilder::new(
             WidgetBuilder::new().with_child(
-                TextBuilder::new(WidgetBuilder::new())
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                    .with_text(name)
-                    .build(ctx),
+                TextBuilder::new(
+                    WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center),
+                )
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                .with_text(name)
+                .build(ctx),
             ),
         )
         .with_corner_radius(4.0f32.into())
@@ -285,7 +287,7 @@ pub fn make_image_button_with_tooltip(
         ImageBuilder::new(
             WidgetBuilder::new()
                 .with_background(ctx.style.property(Style::BRUSH_BRIGHTEST))
-                .with_margin(Thickness::uniform(2.0))
+                .with_margin(Thickness::uniform(3.0))
                 .with_width(width)
                 .with_height(height),
         )
@@ -308,7 +310,7 @@ pub fn make_text_and_image_button_with_tooltip(
     color: Color,
     font_size: f32,
 ) -> Handle<UiNode> {
-    let margin = 2.0;
+    let margin = 3.0;
     ButtonBuilder::new(
         WidgetBuilder::new()
             .on_row(row)
