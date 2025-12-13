@@ -223,11 +223,11 @@ fn create_file_system_watcher(
         };
 
         for path in event.paths.iter() {
-            let Some(extension) = path.extension() else {
-                continue;
-            };
-
-            if is_supported_resource(extension, &resource_manager) {
+            if path.is_dir()
+                || path
+                    .extension()
+                    .is_some_and(|ext| is_supported_resource(ext, &resource_manager))
+            {
                 need_refresh_flag.store(true, Ordering::Relaxed);
                 break;
             }
