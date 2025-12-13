@@ -67,16 +67,18 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// Text box widget also supports [`TextMessage`] and [`WidgetMessage`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum TextBoxMessage {
-    /// Used to change selection brush of a text box. Use [TextBoxMessage::selection_brush`] to create the message.
+    /// Used to change selection brush of a text box.
     SelectionBrush(Brush),
-    /// Used to change caret brush of a text box. Use [TextBoxMessage::caret_brush`] to create the message.
+    /// Used to change caret brush of a text box.
     CaretBrush(Brush),
-    /// Used to change text commit mode of a text box. Use [TextBoxMessage::text_commit_mode`] to create the message.
+    /// Used to change text commit mode of a text box.
     TextCommitMode(TextCommitMode),
-    /// Used to enable or disable multiline mode of a text box. Use [TextBoxMessage::multiline`] to create the message.
+    /// Used to enable or disable multiline mode of a text box.
     Multiline(bool),
-    /// Used to enable or disable an ability to edit text box content. Use [TextBoxMessage::editable`] to create the message.
+    /// Used to enable or disable an ability to edit text box content.
     Editable(bool),
+    /// Used to set new padding for a text box.
+    Padding(Thickness),
 }
 impl MessageData for TextBoxMessage {}
 
@@ -1458,6 +1460,13 @@ impl Control for TextBox {
                         TextBoxMessage::Editable(editable) => {
                             if &*self.editable != editable {
                                 self.editable.set_value_and_mark_modified(*editable);
+                                ui.send_message(message.reverse());
+                            }
+                        }
+                        TextBoxMessage::Padding(padding) => {
+                            let mut formatted_text = self.formatted_text.borrow_mut();
+                            if &*formatted_text.padding != padding {
+                                formatted_text.padding.set_value_and_mark_modified(*padding);
                                 ui.send_message(message.reverse());
                             }
                         }
