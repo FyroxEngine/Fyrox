@@ -50,7 +50,7 @@ use crate::{
     },
     Message,
 };
-use fyrox::core::SafeLock;
+use fyrox::core::{some_or_return, SafeLock};
 use fyrox::gui::formatted_text::WrapMode;
 use fyrox::gui::window::WindowAlignment;
 use std::{
@@ -337,6 +337,28 @@ impl AssetItemContextMenu {
         }
     }
 
+    fn on_menu_placed(
+        &mut self,
+        placement_target: Handle<UiNode>,
+        ui: &UserInterface,
+        resource_manager: &ResourceManager,
+    ) {
+        self.placement_target = placement_target;
+        let item = some_or_return!(ui.try_get_of_type::<AssetItem>(self.placement_target));
+        let is_built_in = resource_manager
+            .state()
+            .built_in_resources
+            .get(&item.path)
+            .is_some();
+        let is_file = item.path.is_file();
+        for handle in [self.dependencies, self.duplicate] {
+            let is_enabled = is_file || is_built_in;
+            ui.send(handle, WidgetMessage::Enabled(is_enabled));
+        }
+        ui.send(self.delete, WidgetMessage::Enabled(is_file));
+        ui.send(self.reload, WidgetMessage::Enabled(is_file));
+    }
+
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
@@ -346,29 +368,7 @@ impl AssetItemContextMenu {
         let ui = engine.user_interfaces.first_mut();
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu.handle() {
-                self.placement_target = *target;
-                if let Some(item) = ui.try_get_of_type::<AssetItem>(self.placement_target) {
-                    for handle in [self.dependencies, self.duplicate] {
-                        let is_built_in = engine
-                            .resource_manager
-                            .state()
-                            .built_in_resources
-                            .get(&item.path)
-                            .is_some();
-                        ui.send(
-                            handle,
-                            WidgetMessage::Enabled(item.path.is_file() || is_built_in),
-                        );
-                    }
-                    if let Some(resource) = item.untyped_resource() {
-                        ui.send(
-                            self.delete,
-                            WidgetMessage::Enabled(
-                                !engine.resource_manager.is_built_in_resource(&resource),
-                            ),
-                        );
-                    }
-                }
+                self.on_menu_placed(*target, ui, &engine.resource_manager)
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if let Some(item) = ui.try_get_mut_of_type::<AssetItem>(self.placement_target) {
