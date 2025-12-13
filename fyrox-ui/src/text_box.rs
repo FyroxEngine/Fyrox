@@ -44,7 +44,8 @@ use crate::{
     message::{CursorIcon, KeyCode, MessageDirection, MouseButton, UiMessage},
     text::TextMessage,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
+    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
 
@@ -1488,6 +1489,7 @@ pub struct TextBoxBuilder {
     shadow_offset: Vector2<f32>,
     skip_chars: Vec<char>,
     font_size: Option<StyledProperty<f32>>,
+    padding: Thickness,
 }
 
 impl TextBoxBuilder {
@@ -1513,12 +1515,24 @@ impl TextBoxBuilder {
             shadow_offset: Vector2::new(1.0, 1.0),
             skip_chars: Default::default(),
             font_size: None,
+            padding: Thickness {
+                left: 5.0,
+                top: 2.0,
+                right: 5.0,
+                bottom: 2.0,
+            },
         }
     }
 
     /// Sets the desired font of the text box.
     pub fn with_font(mut self, font: FontResource) -> Self {
         self.font = Some(font);
+        self
+    }
+
+    /// Sets the desired padding of the text box.
+    pub fn with_padding(mut self, padding: Thickness) -> Self {
+        self.padding = padding;
         self
     }
 
@@ -1663,6 +1677,7 @@ impl TextBoxBuilder {
                     .with_shadow_brush(self.shadow_brush)
                     .with_shadow_dilation(self.shadow_dilation)
                     .with_shadow_offset(self.shadow_offset)
+                    .with_padding(self.padding)
                     .with_font_size(
                         self.font_size
                             .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),

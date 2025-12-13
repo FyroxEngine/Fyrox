@@ -26,7 +26,7 @@ use crate::{
     },
     font::{Font, FontGlyph, FontHeight, FontResource, BUILT_IN_FONT},
     style::StyledProperty,
-    HorizontalAlignment, VerticalAlignment,
+    HorizontalAlignment, Thickness, VerticalAlignment,
 };
 use fyrox_core::log::Log;
 use fyrox_resource::state::{LoadError, ResourceState};
@@ -297,6 +297,7 @@ pub struct FormattedText {
     /// The space between lines.
     #[visit(optional)]
     pub line_space: InheritableVariable<f32>,
+    pub padding: InheritableVariable<Thickness>,
 }
 
 impl FormattedText {
@@ -876,12 +877,16 @@ impl FormattedText {
             ));
             return Vector2::default();
         }
+        let constraint = Vector2::new(
+            (self.constraint.x - (self.padding.left + self.padding.right)).max(0.0),
+            (self.constraint.y - (self.padding.top + self.padding.bottom)).max(0.0),
+        );
         let first_indent = self.line_indent.max(0.0);
         let normal_indent = -self.line_indent.min(0.0);
         let sink = WrapSink {
             lines: &mut lines,
-            normal_width: self.constraint.x - normal_indent,
-            first_width: self.constraint.x - first_indent,
+            normal_width: constraint.x - normal_indent,
+            first_width: constraint.x - first_indent,
         };
         if let Some(mask) = *self.mask_char {
             let advance = GlyphMetrics {
@@ -922,21 +927,22 @@ impl FormattedText {
             match *self.horizontal_alignment {
                 HorizontalAlignment::Left => line.x_offset = indent,
                 HorizontalAlignment::Center => {
-                    if self.constraint.x.is_infinite() {
+                    if constraint.x.is_infinite() {
                         line.x_offset = indent;
                     } else {
-                        line.x_offset = 0.5 * (self.constraint.x - line.width).max(0.0);
+                        line.x_offset = 0.5 * (constraint.x - line.width).max(0.0);
                     }
                 }
                 HorizontalAlignment::Right => {
-                    if self.constraint.x.is_infinite() {
+                    if constraint.x.is_infinite() {
                         line.x_offset = indent;
                     } else {
-                        line.x_offset = (self.constraint.x - line.width - indent).max(0.0)
+                        line.x_offset = (constraint.x - line.width - indent).max(0.0)
                     }
                 }
                 HorizontalAlignment::Stretch => line.x_offset = indent,
             }
+            line.x_offset += self.padding.left;
         }
         // Calculate line height
         for line in lines.iter_mut() {
@@ -963,24 +969,25 @@ impl FormattedText {
         // Generate glyphs for each text line.
         self.glyphs.clear();
 
-        let cursor_y_start = match *self.vertical_alignment {
-            VerticalAlignment::Top => 0.0,
-            VerticalAlignment::Center => {
-                if self.constraint.y.is_infinite() {
-                    0.0
-                } else {
-                    (self.constraint.y - total_height).max(0.0) * 0.5
+        let cursor_y_start = self.padding.top
+            + match *self.vertical_alignment {
+                VerticalAlignment::Top => 0.0,
+                VerticalAlignment::Center => {
+                    if constraint.y.is_infinite() {
+                        0.0
+                    } else {
+                        (constraint.y - total_height).max(0.0) * 0.5
+                    }
                 }
-            }
-            VerticalAlignment::Bottom => {
-                if self.constraint.y.is_infinite() {
-                    0.0
-                } else {
-                    (self.constraint.y - total_height).max(0.0)
+                VerticalAlignment::Bottom => {
+                    if constraint.y.is_infinite() {
+                        0.0
+                    } else {
+                        (constraint.y - total_height).max(0.0)
+                    }
                 }
-            }
-            VerticalAlignment::Stretch => 0.0,
-        };
+                VerticalAlignment::Stretch => 0.0,
+            };
         let mut y: f32 = cursor_y_start.floor();
         for line in lines.iter_mut() {
             let mut x = line.x_offset.floor();
@@ -1027,8 +1034,8 @@ impl FormattedText {
             y += line.height + self.line_space();
         }
 
-        let size_x = if self.constraint.x.is_finite() {
-            self.constraint.x
+        let size_x = if constraint.x.is_finite() {
+            constraint.x
         } else {
             lines
                 .iter()
@@ -1036,8 +1043,8 @@ impl FormattedText {
                 .max_by(f32::total_cmp)
                 .unwrap_or_default()
         };
-        let size_y = if self.constraint.y.is_finite() {
-            self.constraint.y
+        let size_y = if constraint.y.is_finite() {
+            constraint.y
         } else {
             let descender = if self.mask_char.is_some() || self.runs.is_empty() {
                 GlyphMetrics {
@@ -1063,7 +1070,10 @@ impl FormattedText {
             total_height - descender
         };
         self.lines = lines;
-        Vector2::new(size_x, size_y)
+        Vector2::new(
+            size_x + self.padding.left + self.padding.right,
+            size_y + self.padding.top + self.padding.bottom,
+        )
     }
 }
 
@@ -1100,6 +1110,7 @@ pub struct FormattedTextBuilder {
     shadow_offset: Vector2<f32>,
     font_size: StyledProperty<f32>,
     super_sampling_scaling: f32,
+    padding: Thickness,
     runs: RunSet,
     /// The amount of indentation on the first line of the text.
     line_indent: f32,
@@ -1125,6 +1136,7 @@ impl FormattedTextBuilder {
             shadow_offset: Vector2::new(1.0, 1.0),
             font_size: 14.0f32.into(),
             super_sampling_scaling: 1.0,
+            padding: Thickness::uniform(0.0),
             runs: RunSet::default(),
             line_indent: 0.0,
             line_space: 0.0,
@@ -1201,6 +1213,11 @@ impl FormattedTextBuilder {
         self
     }
 
+    pub fn with_padding(mut self, padding: Thickness) -> Self {
+        self.padding = padding;
+        self
+    }
+
     /// Sets desired super sampling scaling.
     pub fn with_super_sampling_scaling(mut self, scaling: f32) -> Self {
         self.super_sampling_scaling = scaling;
@@ -1262,6 +1279,7 @@ impl FormattedTextBuilder {
             runs: self.runs,
             line_indent: self.line_indent.into(),
             line_space: self.line_space.into(),
+            padding: self.padding.into(),
         }
     }
 }
