@@ -223,7 +223,7 @@ fn create_file_system_watcher(
         };
 
         for path in event.paths.iter() {
-            if path.is_dir()
+            if path.extension().is_none()
                 || path
                     .extension()
                     .is_some_and(|ext| is_supported_resource(ext, &resource_manager))
