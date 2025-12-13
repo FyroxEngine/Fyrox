@@ -355,7 +355,10 @@ impl AssetItemContextMenu {
             let is_enabled = is_file || is_built_in;
             ui.send(handle, WidgetMessage::Enabled(is_enabled));
         }
-        ui.send(self.delete, WidgetMessage::Enabled(is_file));
+        let is_registry_folder =
+            item.path.canonicalize().ok() == Some(resource_manager.registry_folder());
+        let can_be_deleted = !is_built_in && !is_registry_folder;
+        ui.send(self.delete, WidgetMessage::Enabled(can_be_deleted));
         ui.send(self.reload, WidgetMessage::Enabled(is_file));
     }
 
