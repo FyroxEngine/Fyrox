@@ -531,11 +531,12 @@ impl AssetPreviewGenerator for ShaderPreview {
 
     fn generate_preview(
         &mut self,
-        _resource: &UntypedResource,
-        _engine: &mut Engine,
+        resource: &UntypedResource,
+        engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
-        // Shaders do not have any sensible preview, the simple icon will be used instead.
-        None
+        let mut scene = make_preview_scene(true);
+        self.generate_scene(resource, &engine.resource_manager, &mut scene, Handle::NONE);
+        render_scene_to_texture(engine, &mut scene, asset::item::DEFAULT_VEC_SIZE)
     }
 
     fn simple_icon(
