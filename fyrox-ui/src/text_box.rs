@@ -26,12 +26,13 @@
 use crate::{
     brush::Brush,
     core::{
-        algebra::{Point2, Vector2},
+        algebra::{Matrix3, Point2, Vector2},
         color::Color,
         math::Rect,
         parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
+        some_or_return,
         type_traits::prelude::*,
         uuid_provider,
         variable::InheritableVariable,
@@ -41,16 +42,15 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     font::FontResource,
     formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
-    message::{CursorIcon, KeyCode, MessageDirection, MouseButton, UiMessage},
+    message::{CursorIcon, KeyCode, MessageData, MessageDirection, MouseButton, UiMessage},
+    style::{resource::StyleResourceExt, Style, StyledProperty},
+    text::TextBuilder,
     text::TextMessage,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
-
-use fyrox_core::algebra::Matrix3;
-use fyrox_core::some_or_return;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::RefCell,
@@ -101,9 +101,6 @@ pub enum VerticalDirection {
 }
 
 pub use crate::formatted_text::Position;
-use crate::message::MessageData;
-use crate::style::resource::StyleResourceExt;
-use crate::style::{Style, StyledProperty};
 
 /// Defines the way, how the text box widget will commit the text that was typed in
 #[derive(
@@ -439,6 +436,8 @@ pub struct TextBox {
     #[visit(skip)]
     #[reflect(hidden)]
     pub recent: Vec<char>,
+    /// Placeholder widget when the search bar is empty.
+    pub placeholder: Handle<UiNode>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for TextBox {
@@ -644,12 +643,8 @@ impl TextBox {
                 .unwrap_or_default(),
         );
         self.invalidate_layout();
-        if *self.commit_mode == TextCommitMode::Immediate {
-            ui.post(
-                self.handle,
-                TextMessage::Text(self.formatted_text.borrow().text()),
-            );
-        }
+
+        self.on_text_changed(ui);
     }
 
     fn insert_str(&mut self, str: &str, ui: &UserInterface) {
@@ -674,12 +669,7 @@ impl TextBox {
                 .unwrap_or_default(),
         );
         self.invalidate_layout();
-        if *self.commit_mode == TextCommitMode::Immediate {
-            ui.post(
-                self.handle,
-                TextMessage::Text(self.formatted_text.borrow().text()),
-            );
-        }
+        self.on_text_changed(ui);
     }
 
     fn remove_before_insert(&mut self) {
@@ -701,13 +691,13 @@ impl TextBox {
 
     /// Returns current text length in characters.
     pub fn get_text_len(&self) -> usize {
-        self.formatted_text.borrow_mut().get_raw_text().len()
+        self.formatted_text.borrow().get_raw_text().len()
     }
 
     /// Returns current position the caret in the local coordinates.
     pub fn caret_local_position(&self) -> Vector2<f32> {
         self.formatted_text
-            .borrow_mut()
+            .borrow()
             .position_to_local(*self.caret_position)
     }
 
@@ -782,14 +772,7 @@ impl TextBox {
             text.build();
             drop(text);
             self.invalidate_layout();
-
-            if *self.commit_mode == TextCommitMode::Immediate {
-                ui.post(
-                    self.handle(),
-                    TextMessage::Text(self.formatted_text.borrow().text()),
-                );
-            }
-
+            self.on_text_changed(ui);
             self.set_caret_position(self.char_index_to_position(position).unwrap_or_default());
         }
     }
@@ -807,12 +790,7 @@ impl TextBox {
         self.set_caret_position(selection.left());
         self.selection_range.set_value_and_mark_modified(None);
         self.invalidate_layout();
-        if *self.commit_mode == TextCommitMode::Immediate {
-            ui.post(
-                self.handle(),
-                TextMessage::Text(self.formatted_text.borrow().text()),
-            );
-        }
+        self.on_text_changed(ui);
     }
 
     /// Checks whether the input position is correct (in bounds) or not.
@@ -847,7 +825,7 @@ impl TextBox {
 
         Some(
             self.formatted_text
-                .borrow_mut()
+                .borrow()
                 .local_to_position(point_to_check),
         )
     }
@@ -918,17 +896,35 @@ impl TextBox {
             }
         }
     }
+
+    fn on_text_changed(&self, ui: &UserInterface) {
+        if self.placeholder.is_some() {
+            ui.send(
+                self.placeholder,
+                WidgetMessage::Visibility(self.formatted_text.borrow().text.is_empty()),
+            );
+        }
+        if *self.commit_mode == TextCommitMode::Immediate {
+            ui.post(
+                self.handle,
+                TextMessage::Text(self.formatted_text.borrow().text()),
+            );
+        }
+    }
 }
 
 uuid_provider!(TextBox = "536276f2-a175-4c05-a376-5a7d8bf0d10b");
 
 impl Control for TextBox {
-    fn measure_override(&self, _: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
-        self.formatted_text
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
+        let text_size = self
+            .formatted_text
             .borrow_mut()
             .set_super_sampling_scale(self.visual_max_scaling())
             .set_constraint(available_size)
-            .build()
+            .build();
+        let children_size = self.widget.measure_override(ui, available_size);
+        text_size.sup(&children_size)
     }
 
     fn on_visual_transform_changed(
@@ -1344,10 +1340,7 @@ impl Control for TextBox {
                                 drop(text);
                                 self.invalidate_layout();
                                 self.formatted_text.borrow_mut().build();
-
-                                if *self.commit_mode == TextCommitMode::Immediate {
-                                    ui.send_message(message.reverse());
-                                }
+                                self.on_text_changed(ui);
                             }
                         }
                         TextMessage::Wrap(wrap_mode) => {
@@ -1477,8 +1470,35 @@ impl Control for TextBox {
     }
 }
 
+/// Placeholder builder.
+pub enum EmptyTextPlaceholder<'a> {
+    /// No placeholder is required.
+    None,
+    /// Simple constructor for text-based placeholders.
+    Text(&'a str),
+    /// Arbitrary widget (or any hierarchy of widgets).
+    Widget(Handle<UiNode>),
+}
+
+impl<'a> EmptyTextPlaceholder<'a> {
+    fn build(self, main_text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
+        match self {
+            EmptyTextPlaceholder::None => Handle::NONE,
+            EmptyTextPlaceholder::Text(text) => TextBuilder::new(
+                WidgetBuilder::new()
+                    .with_visibility(main_text.is_empty())
+                    .with_foreground(ctx.style.property(Style::BRUSH_LIGHTER)),
+            )
+            .with_text(text)
+            .with_vertical_text_alignment(VerticalAlignment::Center)
+            .build(ctx),
+            EmptyTextPlaceholder::Widget(widget) => widget,
+        }
+    }
+}
+
 /// Text box builder creates new [`TextBox`] instances and adds them to the user interface.
-pub struct TextBoxBuilder {
+pub struct TextBoxBuilder<'a> {
     widget_builder: WidgetBuilder,
     font: Option<FontResource>,
     text: String,
@@ -1499,9 +1519,10 @@ pub struct TextBoxBuilder {
     skip_chars: Vec<char>,
     font_size: Option<StyledProperty<f32>>,
     padding: Thickness,
+    placeholder: EmptyTextPlaceholder<'a>,
 }
 
-impl TextBoxBuilder {
+impl<'a> TextBoxBuilder<'a> {
     /// Creates new text box widget builder with the base widget builder specified.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
@@ -1530,6 +1551,7 @@ impl TextBoxBuilder {
                 right: 5.0,
                 bottom: 2.0,
             },
+            placeholder: EmptyTextPlaceholder::None,
         }
     }
 
@@ -1651,6 +1673,12 @@ impl TextBoxBuilder {
         self
     }
 
+    /// Sets the desired placeholder widget when the search bar is empty.
+    pub fn with_empty_text_placeholder(mut self, placeholder: EmptyTextPlaceholder<'a>) -> Self {
+        self.placeholder = placeholder;
+        self
+    }
+
     /// Creates a new [`TextBox`] instance and adds it to the user interface.
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let style = &ctx.style;
@@ -1664,10 +1692,18 @@ impl TextBoxBuilder {
         if self.widget_builder.cursor.is_none() {
             self.widget_builder.cursor = Some(CursorIcon::Text);
         }
+        let placeholder = self.placeholder.build(&self.text, ctx);
+        if let Some(placeholder_ref) = ctx.try_get_node_mut(placeholder) {
+            placeholder_ref
+                .hit_test_visibility
+                .set_value_and_mark_modified(false);
+            placeholder_ref.set_margin(self.padding);
+        }
 
         let text_box = TextBox {
             widget: self
                 .widget_builder
+                .with_child(placeholder)
                 .with_accepts_input(true)
                 .with_need_update(true)
                 .build(ctx),
@@ -1706,6 +1742,7 @@ impl TextBoxBuilder {
             view_position: Default::default(),
             skip_chars: self.skip_chars.into(),
             recent: Default::default(),
+            placeholder,
         };
 
         ctx.add_node(UiNode::new(text_box))

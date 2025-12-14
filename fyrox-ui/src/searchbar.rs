@@ -49,6 +49,7 @@ use crate::{
 };
 
 use crate::message::MessageData;
+use crate::text_box::EmptyTextPlaceholder;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -151,14 +152,24 @@ impl Control for SearchBar {
 }
 
 /// Search bar builder creates [`SearchBar`] widget instances and adds them to the user interface.
-pub struct SearchBarBuilder {
+pub struct SearchBarBuilder<'a> {
     widget_builder: WidgetBuilder,
+    placeholder: EmptyTextPlaceholder<'a>,
 }
 
-impl SearchBarBuilder {
+impl<'a> SearchBarBuilder<'a> {
     /// Creates a new builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
-        Self { widget_builder }
+        Self {
+            widget_builder,
+            placeholder: EmptyTextPlaceholder::None,
+        }
+    }
+
+    /// Sets the desired placeholder when the search bar is empty.
+    pub fn with_empty_text_placeholder(mut self, placeholder: EmptyTextPlaceholder<'a>) -> Self {
+        self.placeholder = placeholder;
+        self
     }
 
     /// Finishes search bar building and adds the new instance to the user interface.
@@ -213,6 +224,7 @@ impl SearchBarBuilder {
                                         .on_column(1)
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
+                                .with_empty_text_placeholder(self.placeholder)
                                 .with_text_commit_mode(TextCommitMode::Immediate)
                                 .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .build(ctx);
