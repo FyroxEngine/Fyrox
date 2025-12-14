@@ -789,6 +789,12 @@ impl AssetBrowser {
                     };
                     self.item_to_select = Some(selected_item_path.to_path_buf());
                     self.set_path(&path, ui, &engine.resource_manager);
+                } else {
+                    self.set_path(
+                        &engine.resource_manager.registry_folder(),
+                        ui,
+                        &engine.resource_manager,
+                    );
                 }
             } else {
                 self.clear_assets(ui);
