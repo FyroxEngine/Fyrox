@@ -25,6 +25,7 @@ use crate::{
     utils::{self, is_production_ready},
 };
 use fyrox::gui::file_browser::{FileSelectorMode, PathFilter};
+use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::{
     core::{color::Color, log::Log, pool::Handle, some_or_return},
@@ -408,6 +409,7 @@ impl ProjectManager {
                 .with_margin(Thickness::uniform(1.0))
                 .with_height(25.0),
         )
+        .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Search for a project"))
         .build(ctx);
         let open_settings = make_image_button_with_tooltip(
             ctx,

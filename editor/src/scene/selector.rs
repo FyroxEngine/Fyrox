@@ -50,6 +50,7 @@ use crate::{
 };
 use fyrox::gui::formatted_text::WrapMode;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::text_box::EmptyTextPlaceholder;
 use std::hash::{Hash, Hasher};
 use std::{
     any::{Any, TypeId},
@@ -377,6 +378,9 @@ impl NodeSelectorBuilder {
                 .with_child({
                     search_bar =
                         SearchBarBuilder::new(WidgetBuilder::new().with_tab_index(Some(0)))
+                            .with_empty_text_placeholder(EmptyTextPlaceholder::Text(
+                                "Search for a scene node",
+                            ))
                             .build(ctx);
                     search_bar
                 })

@@ -76,6 +76,7 @@ use crate::{
 };
 use fyrox::core::{uuid, Uuid};
 use fyrox::engine::GraphicsContext;
+use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::window::WindowAlignment;
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 use rust_fuzzy_search::fuzzy_compare;
@@ -149,6 +150,7 @@ impl SettingsWindow {
                 .on_column(0)
                 .with_uniform_margin(2.0),
         )
+        .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Search for a setting"))
         .build(ctx);
 
         let inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);

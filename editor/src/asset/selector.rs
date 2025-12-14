@@ -54,6 +54,7 @@ use crate::{
         },
     },
 };
+use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::window::WindowAlignment;
 use rust_fuzzy_search::fuzzy_compare;
 use std::{
@@ -501,6 +502,7 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
                 .with_height(22.0)
                 .with_tab_index(Some(0)),
         )
+        .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Search for an asset"))
         .build(ctx);
 
         let selector =

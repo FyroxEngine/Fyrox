@@ -47,6 +47,7 @@ use crate::fyrox::{
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::text_box::EmptyTextPlaceholder;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -444,6 +445,9 @@ impl PropertySelectorBuilder {
                             .with_margin(Thickness::uniform(1.0))
                             .with_tab_index(Some(0)),
                     )
+                    .with_empty_text_placeholder(EmptyTextPlaceholder::Text(
+                        "Search for a property",
+                    ))
                     .build(ctx);
                     search_bar
                 })

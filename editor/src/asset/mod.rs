@@ -69,6 +69,7 @@ use crate::{
     Message, Mode,
 };
 use fyrox::asset::event::ResourceEvent;
+use fyrox::gui::text_box::EmptyTextPlaceholder;
 use menu::AssetItemContextMenu;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::sync::mpsc::Receiver;
@@ -317,6 +318,7 @@ impl AssetBrowser {
                 .on_column(3)
                 .with_margin(Thickness::uniform(1.0)),
         )
+        .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Search for an asset"))
         .build(ctx);
 
         let toolbar = GridBuilder::new(

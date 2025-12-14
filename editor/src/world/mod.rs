@@ -56,6 +56,7 @@ use crate::{
     world::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
     Mode, Settings,
 };
+use fyrox::gui::text_box::EmptyTextPlaceholder;
 use rust_fuzzy_search::fuzzy_compare;
 use std::{
     borrow::Cow,
@@ -226,6 +227,7 @@ impl WorldViewer {
                 .on_column(1)
                 .with_margin(Thickness::uniform(2.0)),
         )
+        .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Search for an object"))
         .build(ctx);
 
         let track_selection_tooltip = make_simple_tooltip(
