@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 use crate::{
-    border::BorderBuilder,
     core::{
         combine_uuids,
         pool::Handle,
@@ -28,7 +27,6 @@ use crate::{
         visitor::prelude::*,
         ComponentProvider, TypeUuidProvider,
     },
-    decorator::DecoratorBuilder,
     dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
     inspector::{
         editors::{
@@ -41,10 +39,9 @@ use crate::{
         PropertyChanged, PropertyFilter,
     },
     message::{MessageData, UiMessage},
-    text::TextBuilder,
+    utils::make_dropdown_list_option,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
+    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -394,22 +391,7 @@ where
         .with_items(
             names
                 .into_iter()
-                .map(|name| {
-                    DecoratorBuilder::new(
-                        BorderBuilder::new(
-                            WidgetBuilder::new().with_child(
-                                TextBuilder::new(WidgetBuilder::new())
-                                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                                    .with_text(name)
-                                    .build(ctx.build_context),
-                            ),
-                        )
-                        .with_corner_radius(4.0f32.into())
-                        .with_pad_by_corner_radius(false),
-                    )
-                    .build(ctx.build_context)
-                })
+                .map(|name| make_dropdown_list_option(ctx.build_context, &name))
                 .collect::<Vec<_>>(),
         )
         .with_close_on_selection(true)

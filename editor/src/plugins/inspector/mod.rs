@@ -214,7 +214,9 @@ impl InspectorPlugin {
 
         let head = StackPanelBuilder::new(WidgetBuilder::new()).build(ctx);
         let footer = BorderBuilder::new(WidgetBuilder::new().on_row(3)).build(ctx);
-        let inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
+        let inspector =
+            InspectorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(3.0)))
+                .build(ctx);
         let content =
             StackPanelBuilder::new(WidgetBuilder::new().with_child(head).with_child(inspector))
                 .build(ctx);

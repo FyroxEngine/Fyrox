@@ -204,46 +204,71 @@ pub fn make_asset_preview_tooltip(
     )
 }
 
+fn adjust_decorator(builder: DecoratorBuilder, ctx: &BuildContext) -> DecoratorBuilder {
+    builder
+        .with_normal_brush(ctx.style.property(Style::BRUSH_DARKER))
+        .with_hover_brush(ctx.style.property(Style::BRUSH_DARK))
+        .with_pressed_brush(ctx.style.property(Style::BRUSH_PRIMARY))
+        .with_selected_brush(ctx.style.property(Style::BRUSH_LIGHTER_PRIMARY))
+}
+
+fn text_margin() -> Thickness {
+    Thickness {
+        left: 5.0,
+        top: 2.0,
+        right: 2.0,
+        bottom: 2.0,
+    }
+}
+
 pub fn make_dropdown_list_option_universal<T: Send + 'static>(
     ctx: &mut BuildContext,
     name: &str,
     height: f32,
     user_data: T,
 ) -> Handle<UiNode> {
-    DecoratorBuilder::new(
-        BorderBuilder::new(
-            WidgetBuilder::new()
-                .with_height(height)
-                .with_user_data(Arc::new(Mutex::new(user_data)))
-                .with_child(
-                    TextBuilder::new(WidgetBuilder::new())
-                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                        .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                        .with_text(name)
-                        .build(ctx),
-                ),
-        )
-        .with_corner_radius(4.0f32.into())
-        .with_pad_by_corner_radius(false),
+    adjust_decorator(
+        DecoratorBuilder::new(
+            BorderBuilder::new(
+                WidgetBuilder::new()
+                    .with_height(height)
+                    .with_user_data(Arc::new(Mutex::new(user_data)))
+                    .with_child(
+                        TextBuilder::new(WidgetBuilder::new().with_margin(text_margin()))
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .with_horizontal_text_alignment(HorizontalAlignment::Left)
+                            .with_text(name)
+                            .build(ctx),
+                    ),
+            )
+            .with_corner_radius(4.0f32.into())
+            .with_pad_by_corner_radius(false),
+        ),
+        ctx,
     )
     .build(ctx)
 }
 
 pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
-    DecoratorBuilder::new(
-        BorderBuilder::new(
-            WidgetBuilder::new().with_child(
-                TextBuilder::new(
-                    WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center),
-                )
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                .with_text(name)
-                .build(ctx),
-            ),
-        )
-        .with_corner_radius(4.0f32.into())
-        .with_pad_by_corner_radius(false),
+    adjust_decorator(
+        DecoratorBuilder::new(
+            BorderBuilder::new(
+                WidgetBuilder::new().with_child(
+                    TextBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(text_margin())
+                            .with_vertical_alignment(VerticalAlignment::Center),
+                    )
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_horizontal_text_alignment(HorizontalAlignment::Left)
+                    .with_text(name)
+                    .build(ctx),
+                ),
+            )
+            .with_corner_radius(4.0f32.into())
+            .with_pad_by_corner_radius(false),
+        ),
+        ctx,
     )
     .build(ctx)
 }
@@ -253,18 +278,21 @@ pub fn make_dropdown_list_option_with_height(
     name: &str,
     height: f32,
 ) -> Handle<UiNode> {
-    DecoratorBuilder::new(
-        BorderBuilder::new(
-            WidgetBuilder::new().with_height(height).with_child(
-                TextBuilder::new(WidgetBuilder::new())
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                    .with_text(name)
-                    .build(ctx),
-            ),
-        )
-        .with_corner_radius(4.0f32.into())
-        .with_pad_by_corner_radius(false),
+    adjust_decorator(
+        DecoratorBuilder::new(
+            BorderBuilder::new(
+                WidgetBuilder::new().with_height(height).with_child(
+                    TextBuilder::new(WidgetBuilder::new().with_margin(text_margin()))
+                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                        .with_horizontal_text_alignment(HorizontalAlignment::Left)
+                        .with_text(name)
+                        .build(ctx),
+                ),
+            )
+            .with_corner_radius(4.0f32.into())
+            .with_pad_by_corner_radius(false),
+        ),
+        ctx,
     )
     .build(ctx)
 }

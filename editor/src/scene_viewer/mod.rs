@@ -310,14 +310,12 @@ impl SceneViewer {
         let debug_switches;
         let contextual_actions = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .with_height(25.0)
+                .with_height(27.0)
                 .on_column(1)
                 .with_horizontal_alignment(HorizontalAlignment::Right)
                 .with_child({
                     camera_projection = DropdownListBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_width(40.0),
+                        WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                     )
                     .with_items(vec![
                         make_dropdown_list_option_with_height(ctx, "3D", 22.0),
@@ -331,9 +329,7 @@ impl SceneViewer {
                 .with_child(grid_snap_menu.menu)
                 .with_child({
                     debug_switches = DropdownListBuilder::new(
-                        WidgetBuilder::new()
-                            .with_width(90.0)
-                            .with_margin(Thickness::uniform(1.0)),
+                        WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                     )
                     .with_items(
                         GraphicsDebugSwitches::iter()
@@ -362,7 +358,7 @@ impl SceneViewer {
                 .with_child({
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
-                            .with_height(25.0)
+                            .with_height(27.0)
                             .with_horizontal_alignment(HorizontalAlignment::Right)
                             .with_child({
                                 build_profile = DropdownListBuilder::new(
@@ -372,8 +368,7 @@ impl SceneViewer {
                                             "Current Build Profile\nYou can configure \
                                             build profiles in editor settings.",
                                         ))
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_width(90.0),
+                                        .with_margin(Thickness::uniform(1.0)),
                                 )
                                 .with_items(
                                     settings

@@ -26,7 +26,7 @@ use crate::{
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
     stack_panel::StackPanelBuilder,
-    text::{TextBuilder, TextMessage},
+    text::TextMessage,
     text_box::{EmptyTextPlaceholder, TextBoxBuilder},
     widget::{WidgetBuilder, WidgetMessage},
     window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},

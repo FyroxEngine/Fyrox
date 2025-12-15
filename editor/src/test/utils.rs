@@ -20,27 +20,26 @@
 
 use crate::{
     fyrox::{
-        core::{algebra::Vector2, info, Uuid},
+        core::{algebra::Vector2, info, pool::Handle, Uuid},
         engine::ApplicationLoopController,
-        gui::{Control, UiNode},
+        gui::{message::UiMessage, test::UserInterfaceTestingExtension, Control, UiNode},
     },
     plugin::EditorPlugin,
     settings::Settings,
     test::macros::Macro,
     Editor, StartupData,
 };
-use fyrox::core::pool::Handle;
-use fyrox::gui::message::UiMessage;
-use fyrox::gui::test::UserInterfaceTestingExtension;
 use std::path::PathBuf;
 
 /// Initializes the editor as is a user would open it, adds the specified plugin that runs the test
 /// logic.
 pub fn run_editor_test(name: &str, plugin: impl EditorPlugin) {
     let path = PathBuf::from(format!("./AutomatedTests/{name}TestData"));
-    if !path.exists() {
-        std::fs::create_dir_all(&path).unwrap();
+    if path.exists() {
+        std::fs::remove_dir_all(&path).unwrap();
     }
+    std::fs::create_dir_all(&path).unwrap();
+
     let path = path.canonicalize().unwrap();
     info!("Running {name}. Working dir: {}", path.display());
 
