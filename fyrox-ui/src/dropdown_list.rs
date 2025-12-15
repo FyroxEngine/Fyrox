@@ -240,7 +240,7 @@ impl Control for DropdownList {
                 DropdownListMessage::Open => {
                     ui.send(
                         *self.popup,
-                        WidgetMessage::Width(self.actual_local_size().x),
+                        WidgetMessage::MinSize(Vector2::new(self.actual_local_size().x, 0.0)),
                     );
                     ui.send(
                         *self.popup,
