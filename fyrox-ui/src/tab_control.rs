@@ -52,7 +52,6 @@ use std::{
     any::Any,
     cmp::Ordering,
     fmt::{Debug, Formatter},
-    ops::{Deref, DerefMut},
     sync::Arc,
 };
 

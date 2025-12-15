@@ -40,11 +40,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use std::{
-    ops::{Deref, DerefMut},
-    path::Path,
-    path::PathBuf,
-};
+use std::{path::Path, path::PathBuf};
 
 /// A set of messages for the [`PathEditor`] widget.
 #[derive(Debug, Clone, PartialEq)]

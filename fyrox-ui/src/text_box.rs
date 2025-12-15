@@ -55,7 +55,6 @@ use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::RefCell,
     fmt::{Debug, Formatter},
-    ops::{Deref, DerefMut},
     sync::Arc,
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};

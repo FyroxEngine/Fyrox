@@ -45,7 +45,6 @@ use std::sync::Arc;
 use std::{
     any::TypeId,
     fmt::Debug,
-    ops::{Deref, DerefMut},
 };
 
 #[derive(Clone, Debug, PartialEq, Visit, Reflect, Default)]

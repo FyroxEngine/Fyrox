@@ -46,7 +46,7 @@ use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use fyrox_material::MaterialResource;
 use std::{
-    ops::{Deref, DerefMut},
+    ops::Deref,
     sync::mpsc::Sender,
 };
 

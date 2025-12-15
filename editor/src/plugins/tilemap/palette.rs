@@ -59,10 +59,7 @@ use crate::{
         },
     },
 };
-use std::{
-    cell::RefCell,
-    ops::{Deref, DerefMut},
-};
+use std::cell::RefCell;
 
 /// The tint of the background material that is used for tile atlas pages of tile sets.
 /// This tint makes it possible to visibly distinguish the background material from actual tiles.

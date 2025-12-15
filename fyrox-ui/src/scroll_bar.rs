@@ -47,7 +47,6 @@ use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
-use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be accepted by [`ScrollBar`] widget.
 #[derive(Debug, Clone, PartialEq)]

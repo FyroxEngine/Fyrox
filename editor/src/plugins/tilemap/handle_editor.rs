@@ -21,7 +21,6 @@
 //! Give the Fyrox Inspector the ability to edit [`TileDefinitionHandle`] properties.
 
 use std::any::TypeId;
-use std::ops::{Deref, DerefMut};
 
 use super::*;
 use fyrox::gui::inspector::FieldKind;

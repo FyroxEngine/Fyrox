@@ -66,7 +66,6 @@ use fyrox::gui::window::WindowAlignment;
 use std::{
     cell::Cell,
     fmt::{Debug, Formatter},
-    ops::{Deref, DerefMut},
 };
 
 #[derive(Debug, Clone, PartialEq)]

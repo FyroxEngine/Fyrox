@@ -46,10 +46,7 @@ use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph, SceneGraph,
 };
-use std::{
-    cell::RefCell,
-    ops::{Deref, DerefMut},
-};
+use std::cell::RefCell;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum WindowAlignment {

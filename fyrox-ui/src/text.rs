@@ -40,10 +40,7 @@ use crate::{
 use fyrox_core::algebra::Matrix3;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use std::{
-    cell::RefCell,
-    ops::{Deref, DerefMut},
-};
+use std::cell::RefCell;
 
 /// Possible messages that can be used to alternate [`Text`] widget state at runtime.
 #[derive(Debug, Clone, PartialEq)]

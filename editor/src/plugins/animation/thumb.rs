@@ -44,7 +44,6 @@ use fyrox::gui::curve::CurveTransformCell;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
-use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ThumbMessage {

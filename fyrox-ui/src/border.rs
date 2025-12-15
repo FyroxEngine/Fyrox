@@ -36,7 +36,6 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use std::ops::{Deref, DerefMut};
 
 /// The Border widget provides a stylized, static border around its child widget. Below is an example of creating a 1 pixel
 /// thick border around a button widget:

@@ -35,10 +35,7 @@ use crate::{
 
 use fyrox_core::algebra::Matrix3;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use std::{
-    cell::Cell,
-    ops::{Deref, DerefMut},
-};
+use std::cell::Cell;
 
 /// Screen is a widget that always has the size of the screen of the UI in which it is used. It is
 /// main use case is to provide automatic layout functionality, that will always provide screen size

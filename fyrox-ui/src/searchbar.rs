@@ -51,7 +51,6 @@ use crate::{
 use crate::message::MessageData;
 use crate::text_box::EmptyTextPlaceholder;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be used to get the state of a search bar.
 #[derive(Debug, Clone, PartialEq)]

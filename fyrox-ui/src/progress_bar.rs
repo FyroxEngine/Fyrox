@@ -41,7 +41,6 @@ use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be used to modify the state of a progress bar.
 #[derive(Debug, Clone, PartialEq)]

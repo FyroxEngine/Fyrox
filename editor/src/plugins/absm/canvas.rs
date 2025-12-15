@@ -50,10 +50,7 @@ use crate::plugins::absm::{
 use crate::utils::fetch_node_screen_center_ui;
 
 use fyrox::gui::message::MessageData;
-use std::{
-    cell::Cell,
-    ops::{Deref, DerefMut},
-};
+use std::cell::Cell;
 
 #[derive(Debug, Clone, PartialEq, Visit, Reflect, Default)]
 pub(crate) struct Entry {

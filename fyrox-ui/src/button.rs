@@ -40,10 +40,7 @@ use crate::{
     VerticalAlignment,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use std::{
-    cell::RefCell,
-    ops::{Deref, DerefMut},
-};
+use std::cell::RefCell;
 
 /// Messages that can be emitted by [`Button`] widget (or can be sent to the widget).
 #[derive(Debug, Clone, PartialEq)]

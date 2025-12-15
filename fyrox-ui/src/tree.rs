@@ -48,7 +48,6 @@ use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
 use std::collections::VecDeque;
-use std::ops::{Deref, DerefMut};
 
 /// Opaque selection state of a tree.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

@@ -35,7 +35,6 @@ use crate::{
 use fyrox_animation::machine::Parameter;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{SceneGraph, SceneGraphNode};
-use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// UI-specific root motion settings.

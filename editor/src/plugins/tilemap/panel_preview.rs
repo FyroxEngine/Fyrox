@@ -46,7 +46,6 @@ use crate::fyrox::{
 };
 
 use fyrox::material::MaterialResource;
-use std::ops::{Deref, DerefMut};
 
 /// The preview widget of the tile map control panel. This allows the user to see the
 /// currently selected tile stamp, including whatever transformations have been applied

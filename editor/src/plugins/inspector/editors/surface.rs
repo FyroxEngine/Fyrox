@@ -60,7 +60,6 @@ use fyrox::gui::brush::Brush;
 use fyrox::gui::message::MessageData;
 use std::{
     any::TypeId,
-    ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
 

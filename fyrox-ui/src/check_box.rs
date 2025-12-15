@@ -41,7 +41,6 @@ use crate::{
     VerticalAlignment,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use std::ops::{Deref, DerefMut};
 
 /// A set of possible check box messages.
 #[derive(Debug, Clone, PartialEq, Eq)]

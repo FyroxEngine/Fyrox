@@ -58,7 +58,6 @@ use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cell::{Cell, RefCell},
-    ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
 

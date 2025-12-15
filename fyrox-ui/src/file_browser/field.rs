@@ -34,10 +34,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use std::{
-    ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileSelectorFieldMessage {

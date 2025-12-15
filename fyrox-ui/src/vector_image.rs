@@ -38,7 +38,6 @@ use crate::{
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Primitive is a simplest shape, that consists of one or multiple lines of the same thickness.

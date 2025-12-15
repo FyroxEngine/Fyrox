@@ -38,7 +38,6 @@ use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
-use std::ops::{Deref, DerefMut};
 
 /// A set of messages, that is used to modify the state of a scroll panel.
 #[derive(Debug, Clone, PartialEq)]

@@ -41,10 +41,7 @@ use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{Display, Formatter},
-    ops::{Deref, DerefMut},
-};
+use std::fmt::{Display, Formatter};
 
 /// Hot key is a combination of a key code with an arbitrary set of keyboard modifiers (such as Ctrl, Shift, Alt keys).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect, Default, Visit)]

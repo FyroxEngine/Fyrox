@@ -34,7 +34,6 @@ use fyrox::{
     },
     scene::tilemap::{tileset::TileBounds, OrthoTransform},
 };
-use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TileBoundsMessage {

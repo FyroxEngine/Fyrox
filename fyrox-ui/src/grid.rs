@@ -38,10 +38,7 @@ use core::f32;
 use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
-use std::{
-    cell::RefCell,
-    ops::{Deref, DerefMut},
-};
+use std::cell::RefCell;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// A set of messages that can be used to modify [`Grid`] widget state.

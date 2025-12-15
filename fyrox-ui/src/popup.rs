@@ -39,7 +39,6 @@ use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
 };
-use std::ops::{Deref, DerefMut};
 
 /// A set of messages for [`Popup`] widget.
 #[derive(Debug, Clone, PartialEq)]

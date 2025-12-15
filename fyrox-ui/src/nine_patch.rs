@@ -38,7 +38,7 @@ use fyrox_graph::{
 };
 use fyrox_material::MaterialResource;
 use fyrox_texture::{TextureKind, TextureResource};
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Stretch mode for the middle sections of [`NinePatch`] widget.

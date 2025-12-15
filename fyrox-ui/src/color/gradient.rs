@@ -46,10 +46,7 @@ use crate::{
 use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
-use std::{
-    cell::Cell,
-    ops::{Deref, DerefMut},
-};
+use std::cell::Cell;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ColorGradientEditorMessage {

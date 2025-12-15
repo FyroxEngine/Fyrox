@@ -28,10 +28,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
-use std::{
-    ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
-};
+use std::sync::mpsc::Sender;
 
 /// A simple widget that opens a popup when clicked. It could be used to create dropdown menus that
 /// consolidates content of a group.

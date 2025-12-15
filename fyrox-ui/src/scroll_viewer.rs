@@ -42,7 +42,6 @@ use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph,
 };
-use std::ops::{Deref, DerefMut};
 
 /// A set of messages that could be used to alternate the state of a [`ScrollViewer`] widget.
 #[derive(Debug, Clone, PartialEq)]

@@ -39,7 +39,6 @@ use crate::{
 use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_texture::{TextureKind, TextureResource};
-use std::ops::{Deref, DerefMut};
 
 /// A set of messages that could be used to alter [`Image`] widget state at runtime.
 #[derive(Debug, Clone, PartialEq)]

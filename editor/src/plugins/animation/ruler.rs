@@ -52,7 +52,6 @@ use fyrox::gui::style::Style;
 use std::{
     cell::{Cell, RefCell},
     fmt::{Debug, Formatter},
-    ops::{Deref, DerefMut},
 };
 
 #[derive(Debug, Clone, PartialEq)]

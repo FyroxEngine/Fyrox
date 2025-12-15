@@ -59,7 +59,6 @@ use fyrox_graph::{
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Display, Formatter},
-    ops::{Deref, DerefMut},
     sync::Arc,
 };
 

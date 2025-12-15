@@ -35,7 +35,6 @@ use crate::{
 };
 
 use fyrox_graph::SceneGraph;
-use std::ops::{Deref, DerefMut};
 
 /// A widget, that handles keyboard navigation on its descendant widgets using Tab key. It should
 /// be used as a root widget for an hierarchy, that should support Tab key navigation:

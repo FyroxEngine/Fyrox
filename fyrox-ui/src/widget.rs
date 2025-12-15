@@ -1618,24 +1618,33 @@ impl Widget {
     }
 }
 
-/// Implements `Deref<Target = Widget> + DerefMut` for your widget. It is used to reduce boilerplate code and
-/// make it less bug-prone.
+/// Implements `Deref<Target = Widget> + DerefMut` for your widget via the specified struct member.
+/// It is used to reduce boilerplate code and make it less bug-prone.
 #[macro_export]
-macro_rules! define_widget_deref {
-    ($ty: ty) => {
-        impl Deref for $ty {
-            type Target = Widget;
+macro_rules! define_widget_deref_proxy {
+    ($ty:ty, $proxy:ident) => {
+        impl std::ops::Deref for $ty {
+            type Target = $crate::widget::Widget;
 
             fn deref(&self) -> &Self::Target {
-                &self.widget
+                &self.$proxy
             }
         }
 
-        impl DerefMut for $ty {
+        impl std::ops::DerefMut for $ty {
             fn deref_mut(&mut self) -> &mut Self::Target {
-                &mut self.widget
+                &mut self.$proxy
             }
         }
+    };
+}
+
+/// Implements `Deref<Target = Widget> + DerefMut` for your widget. It is used to reduce boilerplate code and
+/// make it less bug-prone. The same as `define_widget_deref_proxy!(YourType, widget)`.
+#[macro_export]
+macro_rules! define_widget_deref {
+    ($ty:ty) => {
+        $crate::define_widget_deref_proxy!($ty, widget);
     };
 }
 

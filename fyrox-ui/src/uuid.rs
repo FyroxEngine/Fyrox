@@ -37,7 +37,6 @@ use crate::{
 use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use std::ops::{Deref, DerefMut};
 
 /// A set of messages that is used to fetch or modify values of [`UuidEditor`] widgets.
 #[derive(Debug, Clone, PartialEq, Eq)]

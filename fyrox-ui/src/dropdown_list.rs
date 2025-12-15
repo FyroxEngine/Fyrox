@@ -46,10 +46,7 @@ use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     BaseSceneGraph, SceneGraph,
 };
-use std::{
-    ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
-};
+use std::sync::mpsc::Sender;
 
 /// A set of possible messages for [`DropdownList`] widget.
 #[derive(Debug, Clone, PartialEq, Eq)]

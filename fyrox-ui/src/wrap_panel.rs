@@ -40,10 +40,7 @@ use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
-use std::{
-    cell::RefCell,
-    ops::{Deref, DerefMut, Range},
-};
+use std::{cell::RefCell, ops::Range};
 
 /// A set of possible [`WrapPanel`] widget messages.
 #[derive(Debug, Clone, PartialEq, Eq)]

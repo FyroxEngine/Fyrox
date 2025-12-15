@@ -56,7 +56,6 @@ use notify::{Event, Watcher};
 use std::collections::VecDeque;
 use std::{
     fmt::{Debug, Formatter},
-    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::mpsc::Sender,
     sync::Arc,

@@ -37,7 +37,6 @@ use crate::{
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use std::ops::{Deref, DerefMut};
 
 /// A set messages that can be used to either alternate the state of an [`Expander`] widget, or to listen for
 /// state changes.

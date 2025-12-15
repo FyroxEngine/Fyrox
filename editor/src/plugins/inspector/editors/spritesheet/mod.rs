@@ -46,10 +46,7 @@ use crate::plugins::inspector::editors::spritesheet::window::SpriteSheetFramesEd
 
 use fyrox::gui::message::MessageData;
 use fyrox::gui::window::WindowAlignment;
-use std::{
-    any::TypeId,
-    ops::{Deref, DerefMut},
-};
+use std::any::TypeId;
 
 mod window;
 

@@ -34,7 +34,6 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use std::ops::{Deref, DerefMut};
 
 /// Canvas widget allows its children to have an arbitrary position on an imaginable infinite plane, it also
 /// gives the children constraints of infinite size, which forces them to take all the desired size. This widget
