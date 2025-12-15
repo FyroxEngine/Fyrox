@@ -76,6 +76,83 @@ where
     }
 }
 
+/// Proxies all the [`Control`] trait methods (except [`Control::handle_routed_message`]) to the
+/// specified struct member. This macro can be used to reduce boilerplate code for derived widgets.
+#[macro_export]
+macro_rules! control_trait_proxy_impls {
+    ($target:ident) => {
+        fn summary(&self) -> String {
+            self.$target.summary()
+        }
+
+        fn on_remove(&self, sender: &std::sync::mpsc::Sender<$crate::message::UiMessage>) {
+            self.$target.on_remove(sender)
+        }
+
+        fn measure_override(
+            &self,
+            ui: &$crate::UserInterface,
+            available_size: $crate::core::algebra::Vector2<f32>,
+        ) -> $crate::core::algebra::Vector2<f32> {
+            self.$target.measure_override(ui, available_size)
+        }
+
+        fn arrange_override(
+            &self,
+            ui: &$crate::UserInterface,
+            final_size: $crate::core::algebra::Vector2<f32>,
+        ) -> $crate::core::algebra::Vector2<f32> {
+            self.$target.arrange_override(ui, final_size)
+        }
+
+        fn draw(&self, drawing_context: &mut $crate::draw::DrawingContext) {
+            self.$target.draw(drawing_context)
+        }
+
+        fn on_visual_transform_changed(
+            &self,
+            old_transform: &$crate::core::algebra::Matrix3<f32>,
+            new_transform: &$crate::core::algebra::Matrix3<f32>,
+        ) {
+            self.$target
+                .on_visual_transform_changed(old_transform, new_transform)
+        }
+
+        fn post_draw(&self, drawing_context: &mut $crate::draw::DrawingContext) {
+            self.$target.post_draw(drawing_context)
+        }
+
+        fn update(&mut self, dt: f32, ui: &mut $crate::UserInterface) {
+            self.$target.update(dt, ui)
+        }
+
+        fn preview_message(
+            &self,
+            ui: &$crate::UserInterface,
+            message: &mut $crate::message::UiMessage,
+        ) {
+            self.$target.preview_message(ui, message)
+        }
+
+        fn handle_os_event(
+            &mut self,
+            self_handle: $crate::core::pool::Handle<$crate::UiNode>,
+            ui: &mut $crate::UserInterface,
+            event: &$crate::message::OsEvent,
+        ) {
+            self.$target.handle_os_event(self_handle, ui, event)
+        }
+
+        fn accepts_drop(
+            &self,
+            widget: $crate::core::pool::Handle<$crate::UiNode>,
+            ui: &$crate::UserInterface,
+        ) -> bool {
+            self.$target.accepts_drop(widget, ui)
+        }
+    };
+}
+
 /// Trait for all UI controls in library.
 pub trait Control:
     BaseControl + Deref<Target = Widget> + DerefMut + Reflect + Visit + ComponentProvider

@@ -27,12 +27,12 @@ use crate::message::MessageData;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
+    control_trait_proxy_impls,
     core::{
         algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         uuid_provider, variable::InheritableVariable, visitor::prelude::*,
     },
     decorator::{DecoratorBuilder, DecoratorMessage},
-    draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
     message::{ButtonState, KeyCode, OsEvent, UiMessage},
     popup::{Placement, Popup, PopupBuilder, PopupMessage},
@@ -1157,29 +1157,7 @@ impl DerefMut for ContextMenu {
 }
 
 impl Control for ContextMenu {
-    fn on_remove(&self, sender: &Sender<UiMessage>) {
-        self.popup.on_remove(sender)
-    }
-
-    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
-        self.popup.measure_override(ui, available_size)
-    }
-
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        self.popup.arrange_override(ui, final_size)
-    }
-
-    fn draw(&self, drawing_context: &mut DrawingContext) {
-        self.popup.draw(drawing_context)
-    }
-
-    fn post_draw(&self, drawing_context: &mut DrawingContext) {
-        self.popup.post_draw(drawing_context)
-    }
-
-    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
-        self.popup.update(dt, ui);
-    }
+    control_trait_proxy_impls!(popup);
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.popup.handle_routed_message(ui, message);
@@ -1198,19 +1176,6 @@ impl Control for ContextMenu {
                 }
             }
         }
-    }
-
-    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        self.popup.preview_message(ui, message)
-    }
-
-    fn handle_os_event(
-        &mut self,
-        self_handle: Handle<UiNode>,
-        ui: &mut UserInterface,
-        event: &OsEvent,
-    ) {
-        self.popup.handle_os_event(self_handle, ui, event)
     }
 }
 

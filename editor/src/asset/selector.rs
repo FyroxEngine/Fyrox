@@ -27,8 +27,8 @@ use crate::{
     fyrox::{
         asset::{manager::ResourceManager, untyped::UntypedResource, Resource, TypedResourceData},
         core::{
-            algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, some_or_continue,
-            type_traits::prelude::*, visitor::prelude::*, PhantomDataSendSync, SafeLock,
+            log::Log, pool::Handle, reflect::prelude::*, some_or_continue, type_traits::prelude::*,
+            visitor::prelude::*, PhantomDataSendSync, SafeLock,
         },
         graph::SceneGraph,
         gui::{
@@ -37,12 +37,11 @@ use crate::{
             button::{Button, ButtonBuilder, ButtonMessage},
             decorator::DecoratorBuilder,
             define_widget_deref,
-            draw::DrawingContext,
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
             list_view::{ListView, ListViewBuilder, ListViewMessage},
-            message::{MessageData, OsEvent, UiMessage},
+            message::{MessageData, UiMessage},
             searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
             text::{Text, TextBuilder},
@@ -54,6 +53,7 @@ use crate::{
         },
     },
 };
+use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::window::WindowAlignment;
 use rust_fuzzy_search::fuzzy_compare;
@@ -396,25 +396,7 @@ impl DerefMut for AssetSelectorWindow {
 }
 
 impl Control for AssetSelectorWindow {
-    fn on_remove(&self, sender: &Sender<UiMessage>) {
-        self.window.on_remove(sender);
-    }
-
-    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
-        self.window.measure_override(ui, available_size)
-    }
-
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        self.window.arrange_override(ui, final_size)
-    }
-
-    fn draw(&self, drawing_context: &mut DrawingContext) {
-        self.window.draw(drawing_context)
-    }
-
-    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
-        self.window.update(dt, ui);
-    }
+    control_trait_proxy_impls!(window);
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
@@ -448,19 +430,6 @@ impl Control for AssetSelectorWindow {
                 ui.send(*item, WidgetMessage::Visibility(is_visible));
             }
         }
-    }
-
-    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        self.window.preview_message(ui, message)
-    }
-
-    fn handle_os_event(
-        &mut self,
-        self_handle: Handle<UiNode>,
-        ui: &mut UserInterface,
-        event: &OsEvent,
-    ) {
-        self.window.handle_os_event(self_handle, ui, event)
     }
 }
 

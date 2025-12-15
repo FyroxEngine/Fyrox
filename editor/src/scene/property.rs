@@ -20,9 +20,8 @@
 
 use crate::fyrox::{
     core::{
-        algebra::Vector2, make_pretty_type_name, parking_lot::Mutex, pool::Handle,
-        reflect::prelude::*, sstorage::ImmutableString, type_traits::prelude::*, uuid_provider,
-        visitor::prelude::*,
+        make_pretty_type_name, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
+        sstorage::ImmutableString, type_traits::prelude::*, uuid_provider, visitor::prelude::*,
     },
     fxhash::FxHashSet,
     graph::BaseSceneGraph,
@@ -30,9 +29,8 @@ use crate::fyrox::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
         define_widget_deref,
-        draw::DrawingContext,
         grid::{Column, GridBuilder, Row},
-        message::{KeyCode, MessageDirection, OsEvent, UiMessage},
+        message::{KeyCode, MessageDirection, UiMessage},
         scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
         searchbar::{SearchBarBuilder, SearchBarMessage},
         stack_panel::StackPanelBuilder,
@@ -43,7 +41,7 @@ use crate::fyrox::{
         BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
 };
-
+use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -51,7 +49,7 @@ use fyrox::gui::text_box::EmptyTextPlaceholder;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
-    sync::{mpsc::Sender, Arc},
+    sync::Arc,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -525,25 +523,7 @@ impl PropertySelectorWindow {
 uuid_provider!(PropertySelectorWindow = "725e4a10-eca6-4345-9833-d54dae2f20f2");
 
 impl Control for PropertySelectorWindow {
-    fn on_remove(&self, sender: &Sender<UiMessage>) {
-        self.window.on_remove(sender)
-    }
-
-    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
-        self.window.measure_override(ui, available_size)
-    }
-
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        self.window.arrange_override(ui, final_size)
-    }
-
-    fn draw(&self, drawing_context: &mut DrawingContext) {
-        self.window.draw(drawing_context)
-    }
-
-    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
-        self.window.update(dt, ui)
-    }
+    control_trait_proxy_impls!(window);
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
@@ -576,19 +556,6 @@ impl Control for PropertySelectorWindow {
                 message.set_handled(true);
             }
         }
-    }
-
-    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        self.window.preview_message(ui, message)
-    }
-
-    fn handle_os_event(
-        &mut self,
-        self_handle: Handle<UiNode>,
-        ui: &mut UserInterface,
-        event: &OsEvent,
-    ) {
-        self.window.handle_os_event(self_handle, ui, event)
     }
 }
 

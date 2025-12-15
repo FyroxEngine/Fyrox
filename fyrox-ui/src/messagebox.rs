@@ -26,14 +26,14 @@
 
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
+    control_trait_proxy_impls,
     core::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
     },
-    draw::DrawingContext,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
-    message::{OsEvent, UiMessage},
+    message::UiMessage,
     stack_panel::StackPanelBuilder,
     text::{TextBuilder, TextMessage},
     widget::{Widget, WidgetBuilder},
@@ -214,21 +214,7 @@ uuid_provider!(MessageBox = "b14c0012-4383-45cf-b9a1-231415d95373");
 // Message box extends Window widget so it delegates most of calls
 // to inner window.
 impl Control for MessageBox {
-    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
-        self.window.measure_override(ui, available_size)
-    }
-
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        self.window.arrange_override(ui, final_size)
-    }
-
-    fn draw(&self, drawing_context: &mut DrawingContext) {
-        self.window.draw(drawing_context)
-    }
-
-    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
-        self.window.update(dt, ui);
-    }
+    control_trait_proxy_impls!(window);
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
@@ -281,19 +267,6 @@ impl Control for MessageBox {
                 }
             }
         }
-    }
-
-    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        self.window.preview_message(ui, message);
-    }
-
-    fn handle_os_event(
-        &mut self,
-        self_handle: Handle<UiNode>,
-        ui: &mut UserInterface,
-        event: &OsEvent,
-    ) {
-        self.window.handle_os_event(self_handle, ui, event);
     }
 }
 

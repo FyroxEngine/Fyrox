@@ -22,6 +22,7 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
+    control_trait_proxy_impls,
     core::{
         algebra::{Matrix3, Vector2},
         color::Color,
@@ -43,7 +44,7 @@ use crate::{
         },
         FieldKind, InspectorError, PropertyChanged,
     },
-    message::{CursorIcon, MessageDirection, OsEvent, UiMessage},
+    message::{CursorIcon, MessageDirection, UiMessage},
     nine_patch::TextureSlice,
     numeric::{NumericUpDownBuilder, NumericUpDownMessage},
     rect::{RectEditorBuilder, RectEditorMessage},
@@ -62,7 +63,6 @@ use fyrox_texture::TextureKind;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -521,38 +521,7 @@ impl DerefMut for TextureSliceEditorWindow {
 }
 
 impl Control for TextureSliceEditorWindow {
-    fn on_remove(&self, sender: &Sender<UiMessage>) {
-        self.window.on_remove(sender)
-    }
-
-    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
-        self.window.measure_override(ui, available_size)
-    }
-
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        self.window.arrange_override(ui, final_size)
-    }
-
-    fn draw(&self, drawing_context: &mut DrawingContext) {
-        self.window.draw(drawing_context)
-    }
-
-    fn on_visual_transform_changed(
-        &self,
-        old_transform: &Matrix3<f32>,
-        new_transform: &Matrix3<f32>,
-    ) {
-        self.window
-            .on_visual_transform_changed(old_transform, new_transform)
-    }
-
-    fn post_draw(&self, drawing_context: &mut DrawingContext) {
-        self.window.post_draw(drawing_context)
-    }
-
-    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
-        self.window.update(dt, ui);
-    }
+    control_trait_proxy_impls!(window);
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
@@ -601,19 +570,6 @@ impl Control for TextureSliceEditorWindow {
             slice.texture_region.set_value_and_mark_modified(*value);
             ui.send(self.handle, TextureSliceEditorMessage::Slice(slice));
         }
-    }
-
-    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        self.window.preview_message(ui, message);
-    }
-
-    fn handle_os_event(
-        &mut self,
-        self_handle: Handle<UiNode>,
-        ui: &mut UserInterface,
-        event: &OsEvent,
-    ) {
-        self.window.handle_os_event(self_handle, ui, event);
     }
 }
 

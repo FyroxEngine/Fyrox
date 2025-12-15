@@ -24,17 +24,16 @@ use crate::{
     fyrox::{
         asset::manager::ResourceManager,
         core::{
-            algebra::Vector2, futures::executor::block_on, log::Log, pool::Handle,
-            reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
+            futures::executor::block_on, log::Log, pool::Handle, reflect::prelude::*,
+            type_traits::prelude::*, visitor::prelude::*,
         },
         engine::Engine,
         graph::SceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
-            draw::DrawingContext,
             grid::{Column, GridBuilder, Row},
             menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
-            message::{OsEvent, UiMessage},
+            message::UiMessage,
             messagebox::{
                 MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult,
             },
@@ -51,6 +50,7 @@ use crate::{
     Message,
 };
 use fyrox::core::{some_or_return, SafeLock};
+use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::formatted_text::WrapMode;
 use fyrox::gui::window::WindowAlignment;
 use std::{
@@ -58,7 +58,6 @@ use std::{
     io::Write,
     ops::{Deref, DerefMut},
     path::PathBuf,
-    sync::mpsc::Sender,
 };
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
@@ -94,25 +93,7 @@ impl DerefMut for AssetRenameDialog {
 }
 
 impl Control for AssetRenameDialog {
-    fn on_remove(&self, sender: &Sender<UiMessage>) {
-        self.window.on_remove(sender);
-    }
-
-    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
-        self.window.measure_override(ui, available_size)
-    }
-
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        self.window.arrange_override(ui, final_size)
-    }
-
-    fn draw(&self, drawing_context: &mut DrawingContext) {
-        self.window.draw(drawing_context)
-    }
-
-    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
-        self.window.update(dt, ui);
-    }
+    control_trait_proxy_impls!(window);
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
@@ -144,19 +125,6 @@ impl Control for AssetRenameDialog {
                 ui.send(self.name_field, WidgetMessage::Focus);
             }
         }
-    }
-
-    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        self.window.preview_message(ui, message)
-    }
-
-    fn handle_os_event(
-        &mut self,
-        self_handle: Handle<UiNode>,
-        ui: &mut UserInterface,
-        event: &OsEvent,
-    ) {
-        self.window.handle_os_event(self_handle, ui, event)
     }
 }
 
