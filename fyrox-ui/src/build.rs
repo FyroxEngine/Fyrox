@@ -21,10 +21,9 @@
 //! Build context is used to decouple explicit UI state modification. See [`BuildContext`] docs for
 //! more info.
 
-use crate::style::resource::StyleResource;
 use crate::{
-    core::pool::Handle, font::FontResource, message::UiMessage, RestrictionEntry, UiNode,
-    UserInterface,
+    core::pool::Handle, font::FontResource, message::UiMessage, style::resource::StyleResource,
+    Control, RestrictionEntry, UiNode, UserInterface,
 };
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -131,6 +130,10 @@ impl BuildContext<'_> {
     /// Adds a new widget to the UI. See [`UiNode`] docs for more info, [`UiNode::new`] in particular.
     pub fn add_node(&mut self, node: UiNode) -> Handle<UiNode> {
         self.ui.add_node(node)
+    }
+
+    pub fn add<T: Control>(&mut self, node: T) -> Handle<T> {
+        self.ui.add_node(UiNode::new(node)).transmute()
     }
 
     /// Links the child widget with the parent widget. Child widget's position and size will be restricted by
