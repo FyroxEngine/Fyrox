@@ -18,41 +18,31 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::file_browser::fs_tree::TreeItemPath;
 use crate::{
-    button::{ButtonBuilder, ButtonMessage},
     core::{
         algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         uuid_provider, visitor::prelude::*,
     },
     draw::DrawingContext,
-    grid::{Column, GridBuilder, Row},
+    file_browser::{
+        dialog::{FolderNameDialog, FolderNameDialogMessage},
+        fs_tree::TreeItemPath,
+    },
     menu::{ContextMenu, ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
     message::{OsEvent, UiMessage},
     messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
     popup::{Placement, PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
-    text::{TextBuilder, TextMessage},
-    text_box::TextBoxBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+    window::{WindowBuilder, WindowTitle},
+    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::BaseSceneGraph;
 use std::{
-    cell::{Cell, RefCell},
+    cell::Cell,
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
-
-#[derive(Clone, Visit, Reflect, Default, Debug)]
-pub struct FolderNameDialog {
-    pub dialog: Handle<UiNode>,
-    pub folder_name_tb: Handle<UiNode>,
-    pub folder_name: String,
-    pub ok: Handle<UiNode>,
-    pub cancel: Handle<UiNode>,
-}
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -62,7 +52,7 @@ pub struct ItemContextMenu {
     pub delete: Handle<UiNode>,
     pub make_folder: Handle<UiNode>,
     pub delete_message_box: Cell<Handle<UiNode>>,
-    pub folder_name_dialog: RefCell<Option<FolderNameDialog>>,
+    pub folder_name_dialog: Handle<FolderNameDialog>,
 }
 
 impl Deref for ItemContextMenu {
@@ -144,95 +134,7 @@ impl Control for ItemContextMenu {
                     );
                 }
             } else if message.destination() == self.make_folder {
-                let ctx = &mut ui.build_ctx();
-                let ok;
-                let cancel;
-                let folder_name_tb;
-                let dialog =
-                    WindowBuilder::new(WidgetBuilder::new().with_width(220.0).with_height(100.0))
-                        .open(false)
-                        .with_title(WindowTitle::text("New Folder Name"))
-                        .with_content(
-                            GridBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_child(
-                                        TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .on_row(0),
-                                        )
-                                        .with_text("Enter a new folder name:")
-                                        .build(ctx),
-                                    )
-                                    .with_child({
-                                        folder_name_tb = TextBoxBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(2.0))
-                                                .with_height(25.0)
-                                                .on_row(1),
-                                        )
-                                        .build(ctx);
-                                        folder_name_tb
-                                    })
-                                    .with_child(
-                                        StackPanelBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_horizontal_alignment(
-                                                    HorizontalAlignment::Right,
-                                                )
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .with_height(23.0)
-                                                .on_row(3)
-                                                .with_child({
-                                                    ok = ButtonBuilder::new(
-                                                        WidgetBuilder::new()
-                                                            .with_margin(Thickness::uniform(1.0))
-                                                            .with_width(80.0),
-                                                    )
-                                                    .with_text("OK")
-                                                    .build(ctx);
-                                                    ok
-                                                })
-                                                .with_child({
-                                                    cancel = ButtonBuilder::new(
-                                                        WidgetBuilder::new()
-                                                            .with_margin(Thickness::uniform(1.0))
-                                                            .with_width(80.0),
-                                                    )
-                                                    .with_text("Cancel")
-                                                    .build(ctx);
-                                                    cancel
-                                                }),
-                                        )
-                                        .with_orientation(Orientation::Horizontal)
-                                        .build(ctx),
-                                    ),
-                            )
-                            .add_row(Row::auto())
-                            .add_row(Row::auto())
-                            .add_row(Row::stretch())
-                            .add_row(Row::auto())
-                            .add_column(Column::stretch())
-                            .build(ctx),
-                        )
-                        .build(ctx);
-
-                ui.send(
-                    dialog,
-                    WindowMessage::Open {
-                        alignment: WindowAlignment::Center,
-                        modal: true,
-                        focus_content: true,
-                    },
-                );
-
-                self.folder_name_dialog = RefCell::new(Some(FolderNameDialog {
-                    dialog,
-                    ok,
-                    cancel,
-                    folder_name_tb,
-                    folder_name: Default::default(),
-                }));
+                self.folder_name_dialog = FolderNameDialog::build_and_open(ui);
             }
         }
     }
@@ -256,40 +158,14 @@ impl Control for ItemContextMenu {
 
                 self.delete_message_box.set(Handle::NONE);
             }
-        } else if let Some(WindowMessage::Close) = message.data() {
-            let dialog_ref = self.folder_name_dialog.borrow();
-            if let Some(dialog) = dialog_ref.as_ref() {
-                if message.destination() == dialog.dialog {
-                    if !dialog.folder_name.is_empty() {
-                        if let Some(item_path) = self.item_path(ui).map(|p| p.into_path()) {
-                            Log::verify(std::fs::create_dir_all(
-                                item_path.to_path_buf().join(&dialog.folder_name),
-                            ));
-                        }
-                    }
-
-                    ui.send(dialog.dialog, WidgetMessage::Remove);
-
-                    drop(dialog_ref);
-
-                    *self.folder_name_dialog.borrow_mut() = None;
-                }
-            }
-        } else if let Some(ButtonMessage::Click) = message.data() {
-            let mut dialog = self.folder_name_dialog.borrow_mut();
-            if let Some(dialog) = dialog.as_mut() {
-                if message.destination() == dialog.ok {
-                    ui.send(dialog.dialog, WindowMessage::Close);
-                } else if message.destination() == dialog.cancel {
-                    dialog.folder_name.clear();
-                    ui.send(dialog.dialog, WindowMessage::Close);
-                }
-            }
-        } else if let Some(TextMessage::Text(text)) = message.data() {
-            let mut dialog = self.folder_name_dialog.borrow_mut();
-            if let Some(dialog) = dialog.as_mut() {
-                if message.destination() == dialog.folder_name_tb {
-                    dialog.folder_name.clone_from(text);
+        } else if let Some(FolderNameDialogMessage::Name(folder_name)) =
+            message.data_from(self.folder_name_dialog)
+        {
+            if !folder_name.is_empty() {
+                if let Some(item_path) = self.item_path(ui).map(|p| p.into_path()) {
+                    Log::verify(std::fs::create_dir_all(
+                        item_path.to_path_buf().join(folder_name),
+                    ));
                 }
             }
         }
@@ -318,7 +194,6 @@ impl ItemContextMenu {
             .with_content(
                 StackPanelBuilder::new(
                     WidgetBuilder::new()
-                        .with_width(120.0)
                         .with_child({
                             delete = MenuItemBuilder::new(
                                 WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),

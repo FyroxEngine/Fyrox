@@ -53,20 +53,19 @@ use fyrox_graph::{
     BaseSceneGraph, SceneGraph,
 };
 use notify::{Event, Watcher};
-use std::collections::VecDeque;
 use std::{
+    collections::VecDeque,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
-    sync::mpsc::Sender,
-    sync::Arc,
+    sync::{mpsc::Sender, Arc},
 };
 
+mod dialog;
 mod field;
 mod filter;
 mod fs_tree;
 mod menu;
 mod selector;
-
 #[cfg(test)]
 mod test;
 
