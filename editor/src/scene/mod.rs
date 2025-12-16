@@ -1146,6 +1146,7 @@ where
 pub struct EntityInfo<'a> {
     pub entity: &'a dyn Reflect,
     pub has_inheritance_parent: bool,
+    pub read_only: bool,
 }
 
 impl<'a> EntityInfo<'a> {
@@ -1153,6 +1154,7 @@ impl<'a> EntityInfo<'a> {
         Self {
             entity,
             has_inheritance_parent: false,
+            read_only: false,
         }
     }
 }

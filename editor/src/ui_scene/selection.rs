@@ -61,6 +61,7 @@ impl SelectionContainer for UiSelection {
                 (callback)(EntityInfo {
                     entity: node as &dyn Reflect,
                     has_inheritance_parent: node.has_inheritance_parent(),
+                    read_only: false,
                 })
             }
         }

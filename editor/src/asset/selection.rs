@@ -163,16 +163,16 @@ impl SelectionContainer for AssetSelection {
             if let Some(options) = resource.import_options.as_ref() {
                 let options = options.borrow();
                 callback(EntityInfo::with_no_parent(&**options as &dyn Reflect))
-            } else if resource.path.is_file() {
-                if let Ok(resource) =
-                    block_on(self.resource_manager.request_untyped(&resource.path))
-                {
-                    if !self.resource_manager.is_built_in_resource(&resource) {
-                        let guard = resource.lock();
-                        if let Some(data) = guard.state.data_ref() {
-                            callback(EntityInfo::with_no_parent(&*data.0 as &dyn Reflect))
-                        }
-                    }
+            } else if let Ok(resource) =
+                block_on(self.resource_manager.request_untyped(&resource.path))
+            {
+                let guard = resource.lock();
+                if let Some(data) = guard.state.data_ref() {
+                    callback(EntityInfo {
+                        entity: &*data.0 as &dyn Reflect,
+                        has_inheritance_parent: false,
+                        read_only: self.resource_manager.is_built_in_resource(&resource),
+                    });
                 }
             }
         }

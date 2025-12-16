@@ -387,6 +387,7 @@ impl EditorPlugin for InspectorPlugin {
                 let EntityInfo {
                     entity,
                     has_inheritance_parent,
+                    read_only,
                 } = entity_info;
 
                 if let Err(errors) = self.sync_to(entity, ui) {
@@ -417,6 +418,10 @@ impl EditorPlugin for InspectorPlugin {
                     }
                 } else {
                     need_clear = false;
+                }
+
+                for widget in [self.inspector, self.footer, self.head] {
+                    ui.send(widget, WidgetMessage::Enabled(!read_only));
                 }
             },
         );
