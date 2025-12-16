@@ -1068,7 +1068,7 @@ impl AssetBrowser {
                     let inspector_addon = self.inspector_addon.as_mut().unwrap();
                     let mut has_preview = false;
                     if let Some(asset_path) = selection.selected_path() {
-                        if asset_path.is_file() {
+                        if !asset_path.is_dir() {
                             if let Ok(resource) =
                                 block_on(engine.resource_manager.request_untyped(asset_path))
                             {
