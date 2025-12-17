@@ -779,6 +779,13 @@ impl ResourceManager {
         self.state().register(resource, path)
     }
 
+    /// Checks whether the given resource path corresponds to a built-in resource or not.
+    pub fn is_built_in_resource_path(&self, resource: impl AsRef<Path>) -> bool {
+        self.state()
+            .built_in_resources
+            .is_built_in_resource_path(resource)
+    }
+
     /// Checks whether the given resource is a built-in resource instance or not.
     pub fn is_built_in_resource(&self, resource: impl AsRef<UntypedResource>) -> bool {
         self.state()
