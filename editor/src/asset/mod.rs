@@ -1019,6 +1019,9 @@ impl AssetBrowser {
                         let revert;
                         let buttons = StackPanelBuilder::new(
                             WidgetBuilder::new()
+                                .with_enabled(!selection.selected_path().is_some_and(|path| {
+                                    engine.resource_manager.is_built_in_resource_path(path)
+                                }))
                                 .with_child({
                                     apply = ButtonBuilder::new(
                                         WidgetBuilder::new()

@@ -420,7 +420,7 @@ impl EditorPlugin for InspectorPlugin {
                     need_clear = false;
                 }
 
-                for widget in [self.inspector, self.footer, self.head] {
+                for widget in [self.inspector, self.head] {
                     ui.send(widget, WidgetMessage::Enabled(!read_only));
                 }
             },
