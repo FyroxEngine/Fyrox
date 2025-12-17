@@ -1003,7 +1003,20 @@ pub enum TextureWrapMode {
 uuid_provider!(TextureWrapMode = "e360d139-4374-4323-a66d-d192809d9d87");
 
 /// Texture kind defines pixel format of texture.
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Reflect)]
+#[derive(
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    Reflect,
+    Visit,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+    TypeUuidProvider,
+)]
+#[type_uuid(id = "dcca9b9c-dd1e-412c-922f-074703d35781")]
 #[repr(u32)]
 pub enum TexturePixelKind {
     /// 1 byte red.

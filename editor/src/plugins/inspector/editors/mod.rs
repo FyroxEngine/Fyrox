@@ -173,6 +173,7 @@ use crate::{
         },
     },
 };
+use fyrox::resource::texture::TexturePixelKind;
 
 pub mod animation;
 pub mod font;
@@ -471,6 +472,7 @@ pub fn make_property_editors_container(
     container.register_inheritable_enum::<DistanceModel, _>();
     container.register_inheritable_enum::<sound::Renderer, _>();
     container.register_inheritable_enum::<RenderPath, _>();
+    container.register_inheritable_enum::<TexturePixelKind, _>();
     container.register_inheritable_enum::<EnvironmentLightingSource, _>();
     container.register_inheritable_enum::<CoordinateSystem, _>();
     container.register_inheritable_enum::<UpdateMode, _>();
