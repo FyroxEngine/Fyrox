@@ -25,7 +25,12 @@ use crate::{
             pool::{ErasedHandle, Handle},
             reflect::Reflect,
         },
-        graphics::PolygonFillMode,
+        graphics::{
+            gpu_program::{SamplerKind, ShaderProperty, ShaderPropertyKind},
+            BlendEquation, BlendFactor, BlendFunc, BlendMode, BlendParameters, ColorMask,
+            CompareFunc, CullFace, DrawParameters, PolygonFillMode, ScissorBox, StencilAction,
+            StencilFunc, StencilOp,
+        },
         gui::{
             self,
             border::Border,
@@ -77,14 +82,17 @@ use crate::{
             wrap_panel::WrapPanel,
             UiNode, UserInterface,
         },
-        material::shader::{Shader, ShaderResource},
+        material::shader::{
+            RenderPassDefinition, SamplerFallback, Shader, ShaderDefinition, ShaderResource,
+            ShaderResourceDefinition, ShaderResourceKind,
+        },
         renderer::{HdrSettings, LuminanceCalculationMethod},
         resource::{
             curve::{CurveResource, CurveResourceState},
             model::{MaterialSearchOptions, Model, ModelResource},
             texture::{
                 CompressionOptions, MipFilter, TextureMagnificationFilter,
-                TextureMinificationFilter, TextureResource, TextureWrapMode,
+                TextureMinificationFilter, TexturePixelKind, TextureResource, TextureWrapMode,
             },
         },
         scene::base::SceneNodeId,
@@ -173,7 +181,6 @@ use crate::{
         },
     },
 };
-use fyrox::resource::texture::TexturePixelKind;
 
 pub mod animation;
 pub mod font;
@@ -559,6 +566,64 @@ pub fn make_property_editors_container(
 
     container.register_inheritable_enum::<TileCollider, _>();
     container.register_inheritable_enum::<RigidBodyMassPropertiesType, _>();
+
+    container.insert(InspectablePropertyEditorDefinition::<DrawParameters>::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<ShaderDefinition>::new());
+
+    container.insert(VecCollectionPropertyEditorDefinition::<RenderPassDefinition>::new());
+    container.insert(InspectablePropertyEditorDefinition::<RenderPassDefinition>::new());
+
+    container.insert(VecCollectionPropertyEditorDefinition::<
+        ShaderResourceDefinition,
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        ShaderResourceDefinition,
+    >::new());
+
+    container.insert(VecCollectionPropertyEditorDefinition::<ShaderProperty>::new());
+    container.insert(InspectablePropertyEditorDefinition::<ShaderProperty>::new());
+
+    container.insert(EnumPropertyEditorDefinition::<ShaderPropertyKind>::new());
+
+    container.insert(EnumPropertyEditorDefinition::<SamplerFallback>::new());
+    container.insert(EnumPropertyEditorDefinition::<SamplerKind>::new());
+    container.insert(EnumPropertyEditorDefinition::<ShaderResourceKind>::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<ColorMask>::new());
+
+    container.insert(EnumPropertyEditorDefinition::<CullFace>::new());
+    container.insert(EnumPropertyEditorDefinition::<CullFace>::new_optional());
+
+    container.insert(InspectablePropertyEditorDefinition::<StencilFunc>::new());
+    container.insert(EnumPropertyEditorDefinition::<StencilFunc>::new_optional());
+
+    container.insert(EnumPropertyEditorDefinition::<CompareFunc>::new());
+    container.insert(EnumPropertyEditorDefinition::<CompareFunc>::new_optional());
+
+    container.insert(InspectablePropertyEditorDefinition::<BlendParameters>::new());
+    container.insert(EnumPropertyEditorDefinition::<BlendParameters>::new_optional());
+
+    container.insert(InspectablePropertyEditorDefinition::<StencilOp>::new());
+    container.insert(EnumPropertyEditorDefinition::<StencilOp>::new_optional());
+
+    container.insert(InspectablePropertyEditorDefinition::<BlendEquation>::new());
+    container.insert(EnumPropertyEditorDefinition::<BlendEquation>::new_optional());
+
+    container.insert(InspectablePropertyEditorDefinition::<ScissorBox>::new());
+    container.insert(EnumPropertyEditorDefinition::<ScissorBox>::new_optional());
+
+    container.insert(InspectablePropertyEditorDefinition::<BlendFunc>::new());
+    container.insert(EnumPropertyEditorDefinition::<BlendFunc>::new_optional());
+
+    container.insert(EnumPropertyEditorDefinition::<BlendMode>::new());
+    container.insert(EnumPropertyEditorDefinition::<BlendMode>::new_optional());
+
+    container.insert(EnumPropertyEditorDefinition::<StencilAction>::new());
+    container.insert(EnumPropertyEditorDefinition::<StencilAction>::new_optional());
+
+    container.insert(EnumPropertyEditorDefinition::<BlendFactor>::new());
+    container.insert(EnumPropertyEditorDefinition::<BlendFactor>::new_optional());
 
     reg_node_handle_editors!(
         container,
