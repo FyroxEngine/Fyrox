@@ -74,6 +74,9 @@ use strum::{IntoEnumIterator, VariantNames};
 use strum_macros::{AsRefStr, EnumIter, EnumString, VariantNames};
 
 mod gizmo;
+mod scene_tab_context_menu;
+
+pub use scene_tab_context_menu::SceneTabContextMenu;
 
 #[derive(Default, Clone, Debug, EnumIter, AsRefStr, EnumString, VariantNames)]
 pub enum GraphicsDebugSwitches {
@@ -280,6 +283,7 @@ pub struct SceneViewer {
     scene_gizmo_image: Handle<UiNode>,
     debug_switches: Handle<UiNode>,
     grid_snap_menu: GridSnappingMenu,
+    scene_tab_context_menu: SceneTabContextMenu,
 }
 
 impl SceneViewer {
@@ -306,6 +310,7 @@ impl SceneViewer {
         .build(ctx);
 
         let grid_snap_menu = GridSnappingMenu::new(ctx, settings);
+        let scene_tab_context_menu = SceneTabContextMenu::new(ctx);
 
         let debug_switches;
         let contextual_actions = StackPanelBuilder::new(
@@ -573,6 +578,7 @@ impl SceneViewer {
             scene_gizmo_image,
             debug_switches,
             grid_snap_menu,
+            scene_tab_context_menu,
             build,
         }
     }
@@ -684,6 +690,17 @@ impl SceneViewer {
         mode: &Mode,
     ) {
         self.grid_snap_menu.handle_ui_message(message, settings);
+
+        // Handle scene tab context menu
+        let scene_ids: Vec<_> = scenes.iter().map(|e| e.id).collect();
+        let scene_paths: Vec<_> = scenes.iter().map(|e| e.path.as_deref()).collect();
+        self.scene_tab_context_menu.handle_ui_message(
+            message,
+            &self.sender,
+            &scene_ids,
+            &scene_paths,
+            engine.user_interfaces.first(),
+        );
 
         let ui = engine.user_interfaces.first_mut();
 
@@ -918,12 +935,19 @@ impl SceneViewer {
         // Add any missing tabs.
         for entry in scenes.iter() {
             if tabs.iter().all(|tab| tab.uuid != entry.id) {
-                let header = TextBuilder::new(WidgetBuilder::new().with_margin(Thickness {
-                    left: 4.0,
-                    top: 2.0,
-                    right: 4.0,
-                    bottom: 2.0,
-                }))
+                let header = TextBuilder::new(
+                    WidgetBuilder::new()
+                        .with_margin(Thickness {
+                            left: 4.0,
+                            top: 2.0,
+                            right: 4.0,
+                            bottom: 2.0,
+                        })
+                        .with_context_menu(self.scene_tab_context_menu.menu.clone())
+                        .with_user_data(std::sync::Arc::new(fyrox::core::parking_lot::Mutex::new(
+                            entry.id,
+                        ))),
+                )
                 .with_text(entry.name())
                 .build(&mut engine.user_interfaces.first_mut().build_ctx());
 
