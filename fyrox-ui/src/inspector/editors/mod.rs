@@ -112,7 +112,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_animation::machine::Parameter;
-use fyrox_core::algebra::{Matrix2, Matrix3, Matrix4};
+use fyrox_core::algebra::{Matrix2, Matrix3, Matrix4, SMatrix};
 use fyrox_texture::TextureResource;
 use std::{
     any::{Any, TypeId},
@@ -464,6 +464,14 @@ impl PropertyEditorDefinitionContainer {
         reg_matrix_property_editor! { container, MatrixPropertyEditorDefinition[2, 2]: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
         reg_matrix_property_editor! { container, MatrixPropertyEditorDefinition[3, 3]: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
         reg_matrix_property_editor! { container, MatrixPropertyEditorDefinition[4, 4]: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
+
+        container.insert(VecCollectionPropertyEditorDefinition::<SMatrix<f32, 2, 2>>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<SMatrix<f32, 3, 3>>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<SMatrix<f32, 4, 4>>::new());
+
+        container.insert(VecCollectionPropertyEditorDefinition::<SMatrix<f64, 2, 2>>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<SMatrix<f64, 3, 3>>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<SMatrix<f64, 4, 4>>::new());
 
         container.insert(CellPropertyEditorDefinition::<Matrix2<f32>>::new());
         container.insert(CellPropertyEditorDefinition::<Matrix3<f32>>::new());
