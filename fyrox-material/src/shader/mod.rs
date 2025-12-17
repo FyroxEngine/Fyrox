@@ -533,7 +533,10 @@ impl TypeUuidProvider for Shader {
 }
 
 /// A render pass definition. See [`ShaderResource`] docs for more info about render passes.
-#[derive(Default, Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Reflect, Visit)]
+#[derive(
+    Default, Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Reflect, Visit, TypeUuidProvider,
+)]
+#[type_uuid(id = "450f2f3a-bdc8-4fd8-b62e-c4c924cd94ca")]
 pub struct RenderPassDefinition {
     /// A name of render pass.
     pub name: String,
@@ -541,14 +544,18 @@ pub struct RenderPassDefinition {
     #[serde(default)]
     pub draw_parameters: DrawParameters,
     /// A source code of vertex shader.
+    #[reflect(hidden)]
     pub vertex_shader: String,
     /// Vertex shader line number.
     #[serde(default)]
+    #[reflect(hidden)]
     pub vertex_shader_line: isize,
     /// A source code of fragment shader.
+    #[reflect(hidden)]
     pub fragment_shader: String,
     /// Fragment shader line number.
     #[serde(default)]
+    #[reflect(hidden)]
     pub fragment_shader_line: isize,
 }
 

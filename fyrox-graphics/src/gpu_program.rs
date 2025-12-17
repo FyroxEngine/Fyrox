@@ -109,7 +109,23 @@ pub enum SamplerFallback {
 
 /// A sampler represents how the data of a texture is accessed, and different kinds of samplers
 /// are intended for different kinds of textures.
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, Visit, Eq, Reflect)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Default,
+    Debug,
+    PartialEq,
+    Clone,
+    Copy,
+    Visit,
+    Eq,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+    TypeUuidProvider,
+)]
+#[type_uuid(id = "50dc9197-f7f7-4a7d-9b64-9f0868785f56")]
 pub enum SamplerKind {
     /// A sampler for a 1D linear texture, a series of values that are indexed by a single coordinate
     /// and where each component of the value is a float.
@@ -143,7 +159,20 @@ pub enum SamplerKind {
 }
 
 /// Shader property with default value.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit, Clone)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Reflect,
+    Visit,
+    Clone,
+    TypeUuidProvider,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+)]
+#[type_uuid(id = "13896a77-dae6-481e-9c76-808a3d4c3ff0")]
 pub enum ShaderResourceKind {
     /// A texture.
     Texture {
@@ -173,7 +202,20 @@ pub enum ShaderResourceKind {
 /// A data type and default value for a uniform within a shader.
 /// When a material supplies an actual value, it is done using a `MaterialProperty` value
 /// from the `fyrox-material` crate.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Reflect, Visit)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Clone,
+    Reflect,
+    Visit,
+    TypeUuidProvider,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+)]
+#[type_uuid(id = "0053de9a-0911-4d26-8f8e-8a4f65e1b0a7")]
 pub enum ShaderPropertyKind {
     /// Real number.
     Float {
@@ -342,7 +384,10 @@ fn default_color_component() -> u8 {
 }
 
 /// A uniform value that is supplied to a shader by a material.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit, Clone, Default)]
+#[derive(
+    Serialize, Deserialize, Debug, PartialEq, Reflect, Visit, Clone, Default, TypeUuidProvider,
+)]
+#[type_uuid(id = "078b9f26-8fae-4f2f-99d9-9e882c439ebc")]
 pub struct ShaderProperty {
     /// The name of the value in the shader and when editing the value in the material.
     pub name: ImmutableString,
@@ -516,7 +561,10 @@ impl Default for ShaderResourceKind {
 }
 
 /// Shader resource definition.
-#[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq, Reflect, Visit)]
+#[derive(
+    Default, Serialize, Deserialize, Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider,
+)]
+#[type_uuid(id = "281df21d-ec95-42c7-a17e-a3eb4724dfc9")]
 pub struct ShaderResourceDefinition {
     /// The name of the uniform as it appears in the source code, ready to be passed to `glGetUniformLocation`.
     /// If the name begins with "fyrox_" then Fyrox will treat it specially and try to automatically generate
