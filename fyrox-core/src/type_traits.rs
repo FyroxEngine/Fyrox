@@ -21,7 +21,7 @@
 use crate::math::Rect;
 pub use fyrox_core_derive::ComponentProvider;
 pub use fyrox_core_derive::TypeUuidProvider;
-use nalgebra::{Vector2, Vector3, Vector4};
+use nalgebra::{SMatrix, Vector2, Vector3, Vector4};
 use std::any::{Any, TypeId};
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -79,6 +79,13 @@ uuid_provider!(char = "9b5050ef-b3e5-41d2-90f8-8273bcdf7bfb");
 uuid_provider!(Vector2<f32> = "79d4fae7-27f7-4d28-ac3e-6a569b025a82");
 uuid_provider!(Vector3<f32> = "85e32efb-1784-46f7-8ec0-8ee038661ed4");
 uuid_provider!(Vector4<f32> = "c5222adb-5b68-4105-93e9-4ecaee39987f");
+
+uuid_provider!(SMatrix<f32,2,2> = "9ff7f3d0-6c2c-4282-9b90-1822f3818559");
+uuid_provider!(SMatrix<f32,3,3> = "ca636377-9078-4d60-ac6a-e275e88a7e30");
+uuid_provider!(SMatrix<f32,4,4> = "b822b0c6-b396-4950-ba03-40cebad0bfc1");
+uuid_provider!(SMatrix<f64,2,2> = "3d51e09c-df48-4d22-84f7-ae805a24562a");
+uuid_provider!(SMatrix<f64,3,3> = "a3493898-6a81-40e1-9e36-9389587d0f1e");
+uuid_provider!(SMatrix<f64,4,4> = "1277658b-9da7-40fa-98ee-cbf6050c60a4");
 
 impl<T: TypeUuidProvider> TypeUuidProvider for Rect<T> {
     fn type_uuid() -> Uuid {
