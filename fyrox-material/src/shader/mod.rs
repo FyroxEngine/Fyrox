@@ -471,7 +471,8 @@ use fyrox_resource::{
 };
 use lazy_static::lazy_static;
 use ron::ser::PrettyConfig;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::ops::{Deref, DerefMut};
 use std::{
     error::Error,
     fmt::{Display, Formatter},
@@ -532,6 +533,43 @@ impl TypeUuidProvider for Shader {
     }
 }
 
+/// A simple wrapper over string to hold shader source code.
+#[derive(Default, Clone, Debug, PartialEq, Eq, Reflect, Visit, TypeUuidProvider)]
+#[type_uuid(id = "d2aa5ba0-59e8-4f21-b7af-d6aab3a65379")]
+pub struct ShaderSourceCode(pub String);
+
+impl Serialize for ShaderSourceCode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ShaderSourceCode {
+    fn deserialize<D>(deserializer: D) -> Result<ShaderSourceCode, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(Self(String::deserialize(deserializer)?))
+    }
+}
+
+impl Deref for ShaderSourceCode {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ShaderSourceCode {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 /// A render pass definition. See [`ShaderResource`] docs for more info about render passes.
 #[derive(
     Default, Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Reflect, Visit, TypeUuidProvider,
@@ -544,15 +582,13 @@ pub struct RenderPassDefinition {
     #[serde(default)]
     pub draw_parameters: DrawParameters,
     /// A source code of vertex shader.
-    #[reflect(hidden)]
-    pub vertex_shader: String,
+    pub vertex_shader: ShaderSourceCode,
     /// Vertex shader line number.
     #[serde(default)]
     #[reflect(hidden)]
     pub vertex_shader_line: isize,
     /// A source code of fragment shader.
-    #[reflect(hidden)]
-    pub fragment_shader: String,
+    pub fragment_shader: ShaderSourceCode,
     /// Fragment shader line number.
     #[serde(default)]
     #[reflect(hidden)]
@@ -1008,7 +1044,7 @@ lazy_static! {
 mod test {
     use crate::shader::{
         RenderPassDefinition, SamplerFallback, ShaderDefinition, ShaderResource,
-        ShaderResourceDefinition, ShaderResourceExtension, ShaderResourceKind,
+        ShaderResourceDefinition, ShaderResourceExtension, ShaderResourceKind, ShaderSourceCode,
     };
     use fyrox_graphics::gpu_program::SamplerKind;
     use fyrox_resource::untyped::ResourceKind;
@@ -1075,9 +1111,9 @@ mod test {
             passes: vec![RenderPassDefinition {
                 name: "GBuffer".to_string(),
                 draw_parameters: Default::default(),
-                vertex_shader: "<CODE>".to_string(),
+                vertex_shader: ShaderSourceCode("<CODE>".to_string()),
                 vertex_shader_line: 35,
-                fragment_shader: "<CODE>".to_string(),
+                fragment_shader: ShaderSourceCode("<CODE>".to_string()),
                 fragment_shader_line: 36,
             }],
             disabled_passes: vec![],
