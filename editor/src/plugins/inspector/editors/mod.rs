@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::inspector::editors::shader::field::ShaderSourceCodeEditorDefinition;
 use crate::{
     fyrox::{
         asset::{manager::ResourceManager, untyped::UntypedResource, Resource},
@@ -187,6 +188,7 @@ pub mod font;
 pub mod handle;
 pub mod resource;
 pub mod script;
+pub mod shader;
 pub mod spritesheet;
 pub mod surface;
 pub mod texture;
@@ -624,6 +626,8 @@ pub fn make_property_editors_container(
 
     container.insert(EnumPropertyEditorDefinition::<BlendFactor>::new());
     container.insert(EnumPropertyEditorDefinition::<BlendFactor>::new_optional());
+
+    container.insert(ShaderSourceCodeEditorDefinition);
 
     reg_node_handle_editors!(
         container,
