@@ -42,7 +42,7 @@ use crate::{
         ShaderSourceCodeEditor, ShaderSourceCodeEditorBuilder, ShaderSourceCodeEditorMessage,
     },
 };
-use std::any::TypeId;
+use std::{any::TypeId, cell::RefCell};
 
 #[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "f2024683-812e-4e0d-8065-7d168a82cce6")]
@@ -50,7 +50,7 @@ use std::any::TypeId;
 pub struct ShaderSourceCodeEditorField {
     widget: Widget,
     button: Handle<UiNode>,
-    code: ShaderSourceCode,
+    code: RefCell<ShaderSourceCode>,
     editor: Handle<ShaderSourceCodeEditor>,
 }
 
@@ -66,8 +66,19 @@ impl Control for ShaderSourceCodeEditorField {
                     .with_title(WindowTitle::text("Edit Shader Source Code"))
                     .open(false),
             )
-            .with_code(self.code.clone())
+            .with_code(self.code.borrow().clone())
             .build(&mut ui.build_ctx());
+        }
+    }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        if let Some(ShaderSourceCodeEditorMessage::Code(code)) = message.data_from(self.editor) {
+            *self.code.borrow_mut() = code.clone();
+
+            ui.post(
+                self.handle,
+                ShaderSourceCodeEditorMessage::Code(code.clone()),
+            );
         }
     }
 }
@@ -96,9 +107,13 @@ impl ShaderSourceCodeEditorFieldBuilder {
             .build(ctx);
 
         let editor = ShaderSourceCodeEditorField {
-            widget: self.widget_builder.with_child(button).build(ctx),
+            widget: self
+                .widget_builder
+                .with_preview_messages(true)
+                .with_child(button)
+                .build(ctx),
             button,
-            code: self.code,
+            code: RefCell::new(self.code),
             editor: Default::default(),
         };
 

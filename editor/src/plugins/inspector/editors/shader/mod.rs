@@ -18,16 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::gui::formatted_text::WrapMode;
 use fyrox::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     gui::{
         control_trait_proxy_impls, define_widget_deref_proxy,
         grid::GridBuilder,
         message::{MessageData, UiMessage},
-        text_box::TextBoxBuilder,
+        text::TextMessage,
+        text_box::{TextBoxBuilder, TextCommitMode},
         widget::WidgetBuilder,
         window::{Window, WindowAlignment, WindowBuilder, WindowMessage},
-        BuildContext, Control, UiNode, UserInterface,
+        BuildContext, Control, Thickness, UiNode, UserInterface,
     },
     material::shader::ShaderSourceCode,
 };
@@ -54,7 +56,14 @@ impl Control for ShaderSourceCodeEditor {
     control_trait_proxy_impls!(window);
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
-        self.window.handle_routed_message(ui, message)
+        self.window.handle_routed_message(ui, message);
+
+        if let Some(TextMessage::Text(text)) = message.data_from(self.text_box) {
+            ui.post(
+                self.handle(),
+                ShaderSourceCodeEditorMessage::Code(ShaderSourceCode(text.clone())),
+            )
+        }
     }
 }
 
@@ -77,9 +86,18 @@ impl ShaderSourceCodeEditorBuilder {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<ShaderSourceCodeEditor> {
-        let text_box = TextBoxBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
-            .with_text(&self.code.0)
-            .build(ctx);
+        let text_box = TextBoxBuilder::new(
+            WidgetBuilder::new()
+                .on_row(0)
+                .on_column(0)
+                .with_margin(Thickness::uniform(2.0)),
+        )
+        .with_multiline(true)
+        .with_wrap(WrapMode::Word)
+        .with_padding(Thickness::uniform(2.0))
+        .with_text_commit_mode(TextCommitMode::LostFocusPlusEnter)
+        .with_text(&self.code.0)
+        .build(ctx);
         let content = GridBuilder::new(WidgetBuilder::new().with_child(text_box)).build(ctx);
 
         let editor = ShaderSourceCodeEditor {
