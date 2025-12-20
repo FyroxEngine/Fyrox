@@ -107,6 +107,7 @@ pub struct LogPanel {
     severity: MessageKind,
     severity_list: Handle<UiNode>,
     context_menu: ContextMenu,
+    scroll_viewer: Handle<UiNode>,
     pub message_count: usize,
 }
 
@@ -120,6 +121,7 @@ impl LogPanel {
         let messages;
         let clear;
         let severity_list;
+        let scroll_viewer;
         let window = WindowBuilder::new(
             WidgetBuilder::new()
                 .with_width(400.0)
@@ -171,8 +173,8 @@ impl LogPanel {
                         .with_orientation(Orientation::Horizontal)
                         .build(ctx),
                     )
-                    .with_child(
-                        ScrollViewerBuilder::new(
+                    .with_child({
+                        scroll_viewer = ScrollViewerBuilder::new(
                             WidgetBuilder::new()
                                 .on_row(1)
                                 .on_column(0)
@@ -187,8 +189,9 @@ impl LogPanel {
                         })
                         .with_horizontal_scroll_allowed(true)
                         .with_vertical_scroll_allowed(true)
-                        .build(ctx),
-                    ),
+                        .build(ctx);
+                        scroll_viewer
+                    }),
             )
             .add_row(Row::auto())
             .add_row(Row::stretch())
@@ -208,6 +211,7 @@ impl LogPanel {
             severity_list,
             context_menu,
             message_count: 0,
+            scroll_viewer,
         }
     }
 
@@ -331,7 +335,7 @@ impl LogPanel {
 
         if item_to_bring_into_view.is_some() {
             ui.send(
-                self.messages,
+                self.scroll_viewer,
                 ScrollViewerMessage::BringIntoView(item_to_bring_into_view),
             );
         }
