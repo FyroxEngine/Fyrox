@@ -182,6 +182,7 @@ use crate::{
         },
     },
 };
+use fyrox::resource::texture::TextureKind;
 
 pub mod animation;
 pub mod font;
@@ -628,6 +629,8 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<BlendFactor>::new_optional());
 
     container.insert(ShaderSourceCodeEditorDefinition);
+
+    container.insert(EnumPropertyEditorDefinition::<TextureKind>::new());
 
     reg_node_handle_editors!(
         container,

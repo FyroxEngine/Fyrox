@@ -79,7 +79,8 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub mod loader;
 
 /// Texture kind.
-#[derive(Copy, Clone, Debug, Reflect)]
+#[derive(Copy, Clone, Debug, Reflect, AsRefStr, EnumString, VariantNames, TypeUuidProvider)]
+#[type_uuid(id = "542eb785-875b-43ce-b73a-a25024535f48")]
 pub enum TextureKind {
     /// 1D texture.
     Line {
