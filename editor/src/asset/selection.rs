@@ -136,6 +136,12 @@ impl AssetSelection {
             .filter(|p| !p.as_os_str().is_empty())
     }
 
+    pub fn has_selected_import_options(&self) -> bool {
+        self.resources
+            .first()
+            .is_some_and(|r| r.import_options.is_some())
+    }
+
     pub fn selected_import_options(&self) -> Option<RefMut<Box<dyn BaseImportOptions>>> {
         self.resources
             .first()

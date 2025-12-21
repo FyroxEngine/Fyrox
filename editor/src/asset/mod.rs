@@ -1019,9 +1019,6 @@ impl AssetBrowser {
                         let revert;
                         let buttons = StackPanelBuilder::new(
                             WidgetBuilder::new()
-                                .with_enabled(!selection.selected_path().is_some_and(|path| {
-                                    engine.resource_manager.is_built_in_resource_path(path)
-                                }))
                                 .with_child({
                                     apply = ButtonBuilder::new(
                                         WidgetBuilder::new()
@@ -1069,6 +1066,17 @@ impl AssetBrowser {
                         })
                     }
                     let inspector_addon = self.inspector_addon.as_mut().unwrap();
+                    for widget in [inspector_addon.apply, inspector_addon.revert] {
+                        engine.user_interfaces.first().send_many(
+                            widget,
+                            [
+                                WidgetMessage::Visibility(selection.has_selected_import_options()),
+                                WidgetMessage::Enabled(!selection.selected_path().is_some_and(
+                                    |path| engine.resource_manager.is_built_in_resource_path(path),
+                                )),
+                            ],
+                        )
+                    }
                     let mut has_preview = false;
                     if let Some(asset_path) = selection.selected_path() {
                         if !asset_path.is_dir() {
