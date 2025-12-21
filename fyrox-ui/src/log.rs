@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::window::WindowAlignment;
 use crate::{
     border::BorderBuilder,
     button::ButtonMessage,
@@ -30,7 +29,7 @@ use crate::{
     dropdown_list::{DropdownListBuilder, DropdownListMessage},
     grid::{Column, GridBuilder, Row},
     menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
-    message::{MessageDirection, UiMessage},
+    message::UiMessage,
     popup::{Placement, PopupBuilder, PopupMessage},
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
     stack_panel::StackPanelBuilder,
@@ -38,11 +37,11 @@ use crate::{
     text::{Text, TextBuilder},
     utils::{make_dropdown_list_option, make_image_button_with_tooltip},
     widget::{WidgetBuilder, WidgetMessage},
-    window::{WindowBuilder, WindowMessage, WindowTitle},
+    window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
     UserInterface, VerticalAlignment,
 };
-use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
+use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
 use fyrox_texture::TextureResource;
 use std::sync::mpsc::Receiver;
 
@@ -78,23 +77,18 @@ impl ContextMenu {
         }
     }
 
+    fn on_copy_clicked(&self, ui: &mut UserInterface) -> Option<()> {
+        let text = ui.find_component::<Text>(self.placement_target)?.1.text();
+        ui.clipboard_mut()?.set_contents(text).ok()
+    }
+
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
-        if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.menu.handle() {
-                self.placement_target = *target;
-            }
-        } else if let Some(MenuItemMessage::Click) = message.data() {
-            if message.destination() == self.copy {
-                if let Some(field) = ui
-                    .try_get_node(self.placement_target)
-                    .and_then(|n| n.query_component::<Text>())
-                {
-                    let text = field.text();
-                    if let Some(mut clipboard) = ui.clipboard_mut() {
-                        let _ = clipboard.set_contents(text);
-                    }
-                }
-            }
+        if let Some(PopupMessage::Placement(Placement::Cursor(target))) =
+            message.data_from(self.menu.handle())
+        {
+            self.placement_target = *target;
+        } else if let Some(MenuItemMessage::Click) = message.data_from(self.copy) {
+            self.on_copy_clicked(ui);
         }
     }
 }
@@ -236,23 +230,17 @@ impl LogPanel {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
-        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == self.clear {
-                ui.send(self.messages, WidgetMessage::ReplaceChildren(vec![]));
-            }
+        if let Some(ButtonMessage::Click) = message.data_from(self.clear) {
+            ui.send(self.messages, WidgetMessage::ReplaceChildren(vec![]));
         } else if let Some(DropdownListMessage::Selection(Some(idx))) =
-            message.data::<DropdownListMessage>()
+            message.data_from(self.severity_list)
         {
-            if message.destination() == self.severity_list
-                && message.direction() == MessageDirection::FromWidget
-            {
-                match idx {
-                    0 => self.severity = MessageKind::Information,
-                    1 => self.severity = MessageKind::Warning,
-                    2 => self.severity = MessageKind::Error,
-                    _ => (),
-                };
-            }
+            match idx {
+                0 => self.severity = MessageKind::Information,
+                1 => self.severity = MessageKind::Warning,
+                2 => self.severity = MessageKind::Error,
+                _ => (),
+            };
         }
 
         self.context_menu.handle_ui_message(message, ui);
@@ -299,6 +287,7 @@ impl LogPanel {
             let ctx = &mut ui.build_ctx();
             let item = BorderBuilder::new(
                 WidgetBuilder::new()
+                    .with_context_menu(self.context_menu.menu.clone())
                     .with_background(if count.is_multiple_of(2) {
                         ctx.style.property(Style::BRUSH_LIGHT)
                     } else {
@@ -307,7 +296,6 @@ impl LogPanel {
                     .with_child(
                         TextBuilder::new(
                             WidgetBuilder::new()
-                                .with_context_menu(self.context_menu.menu.clone())
                                 .with_margin(Thickness::uniform(2.0))
                                 .with_foreground(match msg.kind {
                                     MessageKind::Information => {
