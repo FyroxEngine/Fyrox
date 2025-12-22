@@ -42,6 +42,7 @@
 
 use crate::{reflect::prelude::*, visitor::prelude::*, ComponentProvider};
 use std::cell::UnsafeCell;
+use std::fmt::{Display, Formatter};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -244,12 +245,14 @@ where
 {
     #[inline]
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
-        self.at(index as u32).map(|p| p as &dyn Reflect)
+        self.at(index as u32).ok().map(|p| p as &dyn Reflect)
     }
 
     #[inline]
     fn reflect_index_mut(&mut self, index: usize) -> Option<&mut dyn Reflect> {
-        self.at_mut(index as u32).map(|p| p as &mut dyn Reflect)
+        self.at_mut(index as u32)
+            .ok()
+            .map(|p| p as &mut dyn Reflect)
     }
 
     #[inline]
@@ -424,6 +427,80 @@ where
     }
 }
 
+#[derive(PartialEq)]
+pub enum PoolError<T> {
+    InvalidIndex(u32),
+    InvalidGeneration(u32),
+    InvalidType(Handle<T>),
+    Empty(Handle<T>),
+    NoSuchComponent(Handle<T>),
+    MutablyBorrowed(Handle<T>),
+    ImmutablyBorrowed(Handle<T>),
+    UnknownDependentObject(Handle<T>),
+}
+
+impl<T> std::error::Error for PoolError<T> {}
+
+impl<T> Display for PoolError<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidIndex(index) => {
+                write!(
+                    f,
+                    "The index {index} of the handle is invalid and does not point to any object!"
+                )
+            }
+            Self::InvalidGeneration(generation) => {
+                write!(
+                    f,
+                    "The generation {generation} of the handle is invalid! It means that the object \
+                    at the handle was freed and it position was taken by some other object."
+                )
+            }
+            Self::InvalidType(handle) => {
+                write!(
+                    f,
+                    "The type of the object at the handle {handle} is different from what was requested!"
+                )
+            }
+            Self::Empty(handle) => {
+                write!(f, "There's no object at {handle} handle.")
+            }
+            Self::UnknownDependentObject(handle) => {
+                write!(
+                    f,
+                    "Unable to fetch the dependent object by handle {handle}, because the handle \
+                is invalid!"
+                )
+            }
+            Self::NoSuchComponent(handle) => write!(
+                f,
+                "An object at {handle} handle does not have such component.",
+            ),
+            Self::MutablyBorrowed(handle) => {
+                write!(
+                    f,
+                    "An object at {handle} handle cannot be borrowed immutably, because it is \
+                    already borrowed mutably."
+                )
+            }
+            Self::ImmutablyBorrowed(handle) => {
+                write!(
+                    f,
+                    "An object at {handle} handle cannot be borrowed mutably, because it is \
+                    already borrowed immutably."
+                )
+            }
+        }
+    }
+}
+
+impl<T> Debug for PoolError<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
 impl<T, P> Pool<T, P>
 where
     P: PayloadContainer<Element = T> + 'static,
@@ -449,26 +526,33 @@ where
         u32::try_from(self.records.len()).expect("Number of records overflowed u32")
     }
 
-    fn records_get(&self, index: u32) -> Option<&PoolRecord<T, P>> {
-        let index = usize::try_from(index).expect("Index overflowed usize");
-        self.records.get(index)
+    fn records_get(&self, index: u32) -> Result<&PoolRecord<T, P>, PoolError<T>> {
+        self.records
+            .get(usize::try_from(index).expect("Index overflowed usize"))
+            .ok_or(PoolError::InvalidIndex(index))
     }
 
-    fn records_get_mut(&mut self, index: u32) -> Option<&mut PoolRecord<T, P>> {
-        let index = usize::try_from(index).expect("Index overflowed usize");
-        self.records.get_mut(index)
-    }
-
-    #[inline]
-    pub fn try_get<U: ObjectOrVariant<T>>(&self, handle: Handle<U>) -> Option<&U> {
-        let pool_object = self.try_borrow(handle.transmute())?;
-        U::convert_to_dest_type(pool_object)
+    fn records_get_mut(&mut self, index: u32) -> Result<&mut PoolRecord<T, P>, PoolError<T>> {
+        self.records
+            .get_mut(usize::try_from(index).expect("Index overflowed usize"))
+            .ok_or(PoolError::InvalidIndex(index))
     }
 
     #[inline]
-    pub fn try_get_mut<U: ObjectOrVariant<T>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
-        let pool_object = self.try_borrow_mut(handle.transmute())?;
-        U::convert_to_dest_type_mut(pool_object)
+    pub fn try_get<U: ObjectOrVariant<T>>(&self, handle: Handle<U>) -> Result<&U, PoolError<T>> {
+        let handle = handle.transmute();
+        let pool_object = self.try_borrow(handle)?;
+        U::convert_to_dest_type(pool_object).ok_or(PoolError::InvalidType(handle))
+    }
+
+    #[inline]
+    pub fn try_get_mut<U: ObjectOrVariant<T>>(
+        &mut self,
+        handle: Handle<U>,
+    ) -> Result<&mut U, PoolError<T>> {
+        let handle = handle.transmute();
+        let pool_object = self.try_borrow_mut(handle)?;
+        U::convert_to_dest_type_mut(pool_object).ok_or(PoolError::InvalidType(handle))
     }
 
     #[inline]
@@ -714,26 +798,7 @@ where
     #[inline]
     #[must_use]
     pub fn borrow(&self, handle: Handle<T>) -> &T {
-        if let Some(record) = self.records_get(handle.index) {
-            if record.generation == handle.generation {
-                if let Some(payload) = record.payload.as_ref() {
-                    payload
-                } else {
-                    panic!("Attempt to borrow destroyed object at {handle:?} handle.");
-                }
-            } else {
-                panic!(
-                    "Attempt to use dangling handle {:?}. Record has generation {}!",
-                    handle, record.generation
-                );
-            }
-        } else {
-            panic!(
-                "Attempt to borrow object using out-of-bounds handle {:?}! Record count is {}",
-                handle,
-                self.records.len()
-            );
-        }
+        self.try_borrow(handle).unwrap()
     }
 
     /// Borrows mutable reference to an object by its handle.
@@ -756,22 +821,7 @@ where
     #[inline]
     #[must_use]
     pub fn borrow_mut(&mut self, handle: Handle<T>) -> &mut T {
-        let record_count = self.records.len();
-        if let Some(record) = self.records_get_mut(handle.index) {
-            if record.generation == handle.generation {
-                if let Some(payload) = record.payload.as_mut() {
-                    payload
-                } else {
-                    panic!("Attempt to borrow destroyed object at {handle:?} handle.");
-                }
-            } else {
-                panic!("Attempt to borrow object using dangling handle {:?}. Record has {} generation!", handle, record.generation);
-            }
-        } else {
-            panic!(
-                "Attempt to borrow object using out-of-bounds handle {handle:?}! Record count is {record_count}"
-            );
-        }
+        self.try_borrow_mut(handle).unwrap()
     }
 
     /// Borrows shared reference to an object by its handle.
@@ -780,13 +830,12 @@ where
     /// generation of pool record at handle index (in other words it means that object
     /// at handle's index is different than the object was there before).
     #[inline]
-    #[must_use]
-    pub fn try_borrow(&self, handle: Handle<T>) -> Option<&T> {
+    pub fn try_borrow(&self, handle: Handle<T>) -> Result<&T, PoolError<T>> {
         self.records_get(handle.index).and_then(|r| {
             if r.generation == handle.generation {
-                r.payload.as_ref()
+                r.payload.as_ref().ok_or(PoolError::Empty(handle))
             } else {
-                None
+                Err(PoolError::InvalidGeneration(handle.generation))
             }
         })
     }
@@ -797,13 +846,12 @@ where
     /// generation of pool record at handle index (in other words it means that object
     /// at handle's index is different than the object was there before).
     #[inline]
-    #[must_use]
-    pub fn try_borrow_mut(&mut self, handle: Handle<T>) -> Option<&mut T> {
+    pub fn try_borrow_mut(&mut self, handle: Handle<T>) -> Result<&mut T, PoolError<T>> {
         self.records_get_mut(handle.index).and_then(|r| {
             if r.generation == handle.generation {
-                r.payload.as_mut()
+                r.payload.as_mut().ok_or(PoolError::Empty(handle))
             } else {
-                None
+                Err(PoolError::InvalidGeneration(handle.generation))
             }
         })
     }
@@ -933,20 +981,22 @@ where
         &mut self,
         handle: Handle<T>,
         func: F,
-    ) -> (Option<&mut T>, Option<&mut T>)
+    ) -> (Result<&mut T, PoolError<T>>, Result<&mut T, PoolError<T>>)
     where
         F: FnOnce(&T) -> Handle<T>,
     {
         let this = unsafe { &mut *(self as *mut Pool<T, P>) };
         let first = self.try_borrow_mut(handle);
-        if let Some(first_object) = first.as_ref() {
+        if let Ok(first_object) = first.as_ref() {
             let second_handle = func(first_object);
             if second_handle != handle {
                 return (first, this.try_borrow_mut(second_handle));
+            } else {
+                return (first, Err(PoolError::MutablyBorrowed(second_handle)));
             }
         }
 
-        (first, None)
+        (first, Err(PoolError::UnknownDependentObject(handle)))
     }
 
     /// Moves object out of the pool using the given handle. All handles to the object will become invalid.
@@ -982,20 +1032,23 @@ where
     /// is invalid. After object is moved out if the pool, all handles to the object will become
     /// invalid.
     #[inline]
-    pub fn try_free(&mut self, handle: Handle<T>) -> Option<T> {
+    pub fn try_free(&mut self, handle: Handle<T>) -> Result<T, PoolError<T>> {
         let index = usize::try_from(handle.index).expect("index overflowed usize");
-        self.records.get_mut(index).and_then(|record| {
-            if record.generation == handle.generation {
-                if let Some(payload) = record.payload.take() {
-                    self.free_stack.push(handle.index);
-                    Some(payload)
+        self.records
+            .get_mut(index)
+            .ok_or(PoolError::InvalidIndex(handle.index))
+            .and_then(|record| {
+                if record.generation == handle.generation {
+                    if let Some(payload) = record.payload.take() {
+                        self.free_stack.push(handle.index);
+                        Ok(payload)
+                    } else {
+                        Err(PoolError::Empty(handle))
+                    }
                 } else {
-                    None
+                    Err(PoolError::InvalidGeneration(handle.generation))
                 }
-            } else {
-                None
-            }
-        })
+            })
     }
 
     /// Moves an object out of the pool using the given handle with a promise that the object will be returned back.
@@ -1020,49 +1073,27 @@ where
     /// [`put_back`]: Pool::put_back
     #[inline]
     pub fn take_reserve(&mut self, handle: Handle<T>) -> (Ticket<T>, T) {
-        if let Some(record) = self.records_get_mut(handle.index) {
-            if record.generation == handle.generation {
-                if let Some(payload) = record.payload.take() {
-                    let ticket = Ticket {
-                        index: handle.index,
-                        marker: PhantomData,
-                    };
-                    (ticket, payload)
-                } else {
-                    panic!("Attempt to take already taken object at handle {handle:?}!");
-                }
-            } else {
-                panic!(
-                    "Attempt to take object using dangling handle {:?}! Record generation is {}",
-                    handle, record.generation
-                );
-            }
-        } else {
-            panic!("Attempt to take destroyed object using out-of-bounds handle {:?}! Record count is {}", handle, self.records.len());
-        }
+        self.try_take_reserve(handle).unwrap()
     }
 
     /// Does the same as [`take_reserve`] but returns an option, instead of panicking.
     ///
     /// [`take_reserve`]: Pool::take_reserve
     #[inline]
-    pub fn try_take_reserve(&mut self, handle: Handle<T>) -> Option<(Ticket<T>, T)> {
-        if let Some(record) = self.records_get_mut(handle.index) {
-            if record.generation == handle.generation {
-                if let Some(payload) = record.payload.take() {
-                    let ticket = Ticket {
-                        index: handle.index,
-                        marker: PhantomData,
-                    };
-                    Some((ticket, payload))
-                } else {
-                    None
-                }
+    pub fn try_take_reserve(&mut self, handle: Handle<T>) -> Result<(Ticket<T>, T), PoolError<T>> {
+        let record = self.records_get_mut(handle.index)?;
+        if record.generation == handle.generation {
+            if let Some(payload) = record.payload.take() {
+                let ticket = Ticket {
+                    index: handle.index,
+                    marker: PhantomData,
+                };
+                Ok((ticket, payload))
             } else {
-                None
+                Err(PoolError::Empty(handle))
             }
         } else {
-            None
+            Err(PoolError::InvalidGeneration(handle.generation))
         }
     }
 
@@ -1112,22 +1143,28 @@ where
     }
 
     #[inline]
-    #[must_use]
-    pub fn at_mut(&mut self, n: u32) -> Option<&mut T> {
-        self.records_get_mut(n).and_then(|rec| rec.payload.as_mut())
+    pub fn at_mut(&mut self, n: u32) -> Result<&mut T, PoolError<T>> {
+        self.records_get_mut(n).and_then(|rec| {
+            rec.payload
+                .as_mut()
+                .ok_or(PoolError::Empty(Handle::new(n, 0)))
+        })
     }
 
     #[inline]
-    #[must_use]
-    pub fn at(&self, n: u32) -> Option<&T> {
-        self.records_get(n)
-            .and_then(|rec| rec.payload.get().as_ref())
+    pub fn at(&self, n: u32) -> Result<&T, PoolError<T>> {
+        self.records_get(n).and_then(|rec| {
+            rec.payload
+                .get()
+                .as_ref()
+                .ok_or(PoolError::Empty(Handle::new(n, 0)))
+        })
     }
 
     #[inline]
     #[must_use]
     pub fn handle_from_index(&self, n: u32) -> Handle<T> {
-        if let Some(record) = self.records_get(n) {
+        if let Ok(record) = self.records_get(n) {
             if record.generation != INVALID_GENERATION {
                 return Handle::new(n, record.generation);
             }
@@ -1216,7 +1253,7 @@ where
     /// ```
     #[inline]
     pub fn is_valid_handle(&self, handle: Handle<T>) -> bool {
-        if let Some(record) = self.records_get(handle.index) {
+        if let Ok(record) = self.records_get(handle.index) {
             record.payload.is_some() && record.generation == handle.generation
         } else {
             false
@@ -1372,24 +1409,33 @@ where
 {
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
-    pub fn try_get_component_of_type<C>(&self, handle: Handle<T>) -> Option<&C>
+    pub fn try_get_component_of_type<C>(&self, handle: Handle<T>) -> Result<&C, PoolError<T>>
     where
         C: 'static,
     {
         self.try_borrow(handle)
-            .and_then(|n| n.query_component_ref(TypeId::of::<C>()))
-            .and_then(|c| c.downcast_ref())
+            .and_then(|n| {
+                n.query_component_ref(TypeId::of::<C>())
+                    .ok_or(PoolError::NoSuchComponent(handle))
+            })
+            .and_then(|c| c.downcast_ref().ok_or(PoolError::InvalidType(handle)))
     }
 
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
-    pub fn try_get_component_of_type_mut<C>(&mut self, handle: Handle<T>) -> Option<&mut C>
+    pub fn try_get_component_of_type_mut<C>(
+        &mut self,
+        handle: Handle<T>,
+    ) -> Result<&mut C, PoolError<T>>
     where
         C: 'static,
     {
         self.try_borrow_mut(handle)
-            .and_then(|n| n.query_component_mut(TypeId::of::<C>()))
-            .and_then(|c| c.downcast_mut())
+            .and_then(|n| {
+                n.query_component_mut(TypeId::of::<C>())
+                    .ok_or(PoolError::NoSuchComponent(handle))
+            })
+            .and_then(|c| c.downcast_mut().ok_or(PoolError::InvalidType(handle)))
     }
 }
 
@@ -1594,6 +1640,7 @@ where
 
 #[cfg(test)]
 mod test {
+    use crate::pool::PoolError;
     use crate::{
         pool::{AtomicHandle, Handle, Pool, PoolRecord, INVALID_GENERATION},
         visitor::{Visit, Visitor},
@@ -1696,13 +1743,16 @@ mod test {
     fn pool_test_try_free() {
         let mut pool = Pool::<Payload>::new();
 
-        assert_eq!(pool.try_free(Handle::NONE), None);
+        assert_eq!(
+            pool.try_free(Handle::NONE),
+            Err(PoolError::InvalidIndex(Handle::<Payload>::NONE.index))
+        );
         assert_eq!(pool.free_stack.len(), 0);
 
         let handle = pool.spawn(Payload);
-        assert_eq!(pool.try_free(handle), Some(Payload));
+        assert_eq!(pool.try_free(handle), Ok(Payload));
         assert_eq!(pool.free_stack.len(), 1);
-        assert_eq!(pool.try_free(handle), None);
+        assert_eq!(pool.try_free(handle), Err(PoolError::Empty(handle)));
         assert_eq!(pool.free_stack.len(), 1);
     }
 
@@ -1740,8 +1790,11 @@ mod test {
         let a = pool.spawn(Payload);
         let b = Handle::<Payload>::default();
 
-        assert_eq!(pool.try_borrow(a), Some(&Payload));
-        assert_eq!(pool.try_borrow(b), None);
+        assert_eq!(pool.try_borrow(a), Ok(&Payload));
+        assert_eq!(
+            pool.try_borrow(b),
+            Err(PoolError::InvalidGeneration(b.generation))
+        );
     }
 
     #[test]
@@ -1791,12 +1844,12 @@ mod test {
 
         assert_eq!(
             pool.try_borrow_dependant_mut(a, |_| b),
-            (Some(&mut 42), Some(&mut 5))
+            (Ok(&mut 42), Ok(&mut 5))
         );
 
         assert_eq!(
             pool.try_borrow_dependant_mut(a, |_| a),
-            (Some(&mut 42), None)
+            (Ok(&mut 42), Err(PoolError::MutablyBorrowed(a)))
         );
     }
 
@@ -1805,7 +1858,7 @@ mod test {
         let mut pool = Pool::<u32>::new();
 
         let a = Handle::<u32>::default();
-        assert!(pool.try_take_reserve(a).is_none());
+        assert!(pool.try_take_reserve(a).is_err());
 
         let b = pool.spawn(42);
 
@@ -1813,8 +1866,8 @@ mod test {
         assert_eq!(ticket.index, 0);
         assert_eq!(payload, 42);
 
-        assert!(pool.try_take_reserve(a).is_none());
-        assert!(pool.try_take_reserve(b).is_none());
+        assert!(pool.try_take_reserve(a).is_err());
+        assert!(pool.try_take_reserve(b).is_err());
 
         pool.forget_ticket(ticket);
     }
@@ -1870,8 +1923,8 @@ mod test {
         let mut pool = Pool::<u32>::new();
         let _ = pool.spawn(42);
 
-        assert_eq!(pool.at_mut(0), Some(&mut 42));
-        assert_eq!(pool.at_mut(1), None);
+        assert_eq!(pool.at_mut(0), Ok(&mut 42));
+        assert_eq!(pool.at_mut(1), Err(PoolError::InvalidIndex(1)));
     }
 
     #[test]
@@ -1879,8 +1932,8 @@ mod test {
         let mut pool = Pool::<u32>::new();
         let _ = pool.spawn(42);
 
-        assert_eq!(pool.at(0), Some(&42));
-        assert_eq!(pool.at(1), None);
+        assert_eq!(pool.at(0), Ok(&42));
+        assert_eq!(pool.at(1), Err(PoolError::InvalidIndex(1)));
     }
 
     #[test]
