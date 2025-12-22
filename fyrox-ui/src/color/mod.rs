@@ -45,10 +45,7 @@ use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use fyrox_material::MaterialResource;
-use std::{
-    ops::Deref,
-    sync::mpsc::Sender,
-};
+use std::{ops::Deref, sync::mpsc::Sender};
 
 pub mod gradient;
 

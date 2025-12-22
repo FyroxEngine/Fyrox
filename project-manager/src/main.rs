@@ -111,23 +111,17 @@ fn main() {
 
     let mut previous = Instant::now();
 
-    #[allow(unused_assignments)]
-    let mut time_step = 1.0 / 60.0;
-
     event_loop
         .run(move |event, active_event_loop| {
             if project_manager.mode.is_build() {
                 // Keep updating with reduced rate to keep printing to the build log, but do not
                 // eat as much time as in normal update mode.
-                time_step = 1.0 / 10.0;
-
                 active_event_loop.set_control_flow(ControlFlow::wait_duration(
-                    Duration::from_secs_f32(time_step),
+                    Duration::from_secs_f32(1.0 / 10.0),
                 ));
             } else {
                 // Wait for an event.
                 active_event_loop.set_control_flow(ControlFlow::Wait);
-                time_step = 1.0 / 60.0;
             }
 
             match event {
