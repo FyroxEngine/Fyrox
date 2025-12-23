@@ -697,7 +697,7 @@ impl Visitor {
 
     /// The name of the current region. This should never be None if the Visitor is operating normally,
     /// because there should be no way to leave the initial `__ROOT__` region.
-    pub fn current_region(&self) -> Result<&str, PoolError<VisitorNode>> {
+    pub fn current_region(&self) -> Result<&str, PoolError> {
         self.nodes
             .try_borrow(self.current_node)
             .map(|n| n.name.as_str())

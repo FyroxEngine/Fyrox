@@ -75,7 +75,7 @@ impl SceneState {
 
         for index in 0..scene.graph.capacity() {
             let handle = scene.graph.handle_from_index(index);
-            let Some(node) = scene.graph.try_get_node_mut(handle) else {
+            let Ok(node) = scene.graph.try_get_node_mut(handle) else {
                 continue;
             };
 

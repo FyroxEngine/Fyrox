@@ -650,7 +650,7 @@ impl Inspector {
                 }
 
                 if pasted {
-                    if let Some(inspector) = ui.try_get_of_type::<Inspector>(inspector) {
+                    if let Ok(inspector) = ui.try_get_of_type::<Inspector>(inspector) {
                         let ctx = inspector.context.clone();
 
                         if let Err(errs) =
@@ -678,7 +678,7 @@ impl Inspector {
     ) -> Option<&ContextEntry> {
         let mut parent_handle = from;
 
-        while let Some(parent) = ui.try_get_node(parent_handle) {
+        while let Ok(parent) = ui.try_get_node(parent_handle) {
             for entry in self.context.entries.iter() {
                 if entry.property_container == parent_handle {
                     return Some(entry);
@@ -1467,7 +1467,7 @@ impl Control for Inspector {
                 if message.direction() == MessageDirection::FromWidget
                     && menu.handle() == message.destination()
                 {
-                    if let Some(popup) = ui.try_get_of_type::<Popup>(menu.handle()) {
+                    if let Ok(popup) = ui.try_get_of_type::<Popup>(menu.handle()) {
                         if let Some(entry) = self.find_property_container(popup.owner, ui) {
                             ui.post(
                                 self.handle,

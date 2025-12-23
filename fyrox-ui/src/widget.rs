@@ -1197,7 +1197,7 @@ impl Widget {
     ) -> Handle<UiNode> {
         let mut parent_handle = self.parent;
         while parent_handle.is_some() {
-            if let Some(parent_node) = ui.nodes.try_borrow(parent_handle) {
+            if let Ok(parent_node) = ui.nodes.try_borrow(parent_handle) {
                 if func(parent_node) {
                     return parent_handle;
                 }

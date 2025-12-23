@@ -138,7 +138,7 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendSpace<T> {
                 let (ib, wb) = weights[1];
                 let (ic, wc) = weights[2];
 
-                if let (Some(pose_a), Some(pose_b), Some(pose_c)) = (
+                if let (Ok(pose_a), Ok(pose_b), Ok(pose_c)) = (
                     nodes.try_borrow(self.points[ia].pose_source),
                     nodes.try_borrow(self.points[ib].pose_source),
                     nodes.try_borrow(self.points[ic].pose_source),
@@ -173,7 +173,7 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendSpace<T> {
                 let (ib, wb) = weights[1];
                 let (ic, wc) = weights[2];
 
-                if let (Some(pose_a), Some(pose_b), Some(pose_c)) = (
+                if let (Ok(pose_a), Ok(pose_b), Ok(pose_c)) = (
                     nodes.try_borrow(self.points[ia].pose_source),
                     nodes.try_borrow(self.points[ib].pose_source),
                     nodes.try_borrow(self.points[ic].pose_source),

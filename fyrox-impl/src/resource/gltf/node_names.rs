@@ -170,13 +170,13 @@ fn get_ancestor_names<'a>(
 
 fn get_ancestor_name(mut handle: Handle<Node>, depth: usize, graph: &Graph) -> Option<&str> {
     for _ in 0..depth {
-        if let Some(n) = graph.try_get_node(handle) {
+        if let Ok(n) = graph.try_get_node(handle) {
             handle = n.parent();
         } else {
             return None;
         }
     }
-    graph.try_get_node(handle).map(Node::name)
+    graph.try_get_node(handle).ok().map(Node::name)
 }
 
 fn contains_duplicate_name(names: &[&str]) -> bool {
@@ -192,7 +192,7 @@ fn contains_duplicate_name(names: &[&str]) -> bool {
 
 fn count_ancestor_depth(mut handle: Handle<Node>, list: &[Handle<Node>], graph: &Graph) -> usize {
     let mut count: usize = 0;
-    while let Some(node) = graph.try_get_node(handle) {
+    while let Ok(node) = graph.try_get_node(handle) {
         handle = node.parent();
         if list.contains(&handle) {
             count += 1;

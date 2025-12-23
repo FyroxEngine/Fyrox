@@ -32,6 +32,7 @@ use crate::{
     Animation, AnimationContainer, AnimationPose, EntityId,
 };
 use fxhash::FxHashSet;
+use fyrox_core::pool::PoolError;
 use fyrox_core::uuid::{uuid, Uuid};
 use fyrox_core::{NameProvider, TypeUuidProvider};
 use std::{
@@ -100,23 +101,23 @@ impl<T: EntityId> StateAction<T> {
         match self {
             StateAction::None => {}
             StateAction::RewindAnimation(animation) => {
-                if let Some(animation) = animations.try_get_mut(*animation) {
+                if let Ok(animation) = animations.try_get_mut(*animation) {
                     animation.rewind();
                 }
             }
             StateAction::EnableAnimation(animation) => {
-                if let Some(animation) = animations.try_get_mut(*animation) {
+                if let Ok(animation) = animations.try_get_mut(*animation) {
                     animation.set_enabled(true);
                 }
             }
             StateAction::DisableAnimation(animation) => {
-                if let Some(animation) = animations.try_get_mut(*animation) {
+                if let Ok(animation) = animations.try_get_mut(*animation) {
                     animation.set_enabled(false);
                 }
             }
             StateAction::EnableRandomAnimation(animation_handles) => {
                 if let Some(animation) = animation_handles.iter().choose(&mut rand::thread_rng()) {
-                    if let Some(animation) = animations.try_get_mut(*animation) {
+                    if let Ok(animation) = animations.try_get_mut(*animation) {
                         animation.set_enabled(true);
                     }
                 }
@@ -167,7 +168,10 @@ impl<T: EntityId> State<T> {
     }
 
     /// Returns a final pose of the state.
-    pub fn pose<'a>(&self, nodes: &'a Pool<PoseNode<T>>) -> Option<Ref<'a, AnimationPose<T>>> {
+    pub fn pose<'a>(
+        &self,
+        nodes: &'a Pool<PoseNode<T>>,
+    ) -> Result<Ref<'a, AnimationPose<T>>, PoolError> {
         nodes.try_borrow(self.root).map(|root| root.pose())
     }
 
@@ -177,7 +181,7 @@ impl<T: EntityId> State<T> {
         nodes: &Pool<PoseNode<T>>,
         animations: &mut FxHashSet<Handle<Animation<T>>>,
     ) {
-        if let Some(root) = nodes.try_borrow(self.root) {
+        if let Ok(root) = nodes.try_borrow(self.root) {
             root.collect_animations(nodes, animations);
         }
     }
@@ -189,7 +193,7 @@ impl<T: EntityId> State<T> {
         animations: &AnimationContainer<T>,
         dt: f32,
     ) {
-        if let Some(root) = nodes.try_borrow(self.root) {
+        if let Ok(root) = nodes.try_borrow(self.root) {
             root.eval_pose(nodes, params, animations, dt);
         }
     }

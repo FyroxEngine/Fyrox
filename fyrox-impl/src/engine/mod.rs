@@ -642,7 +642,7 @@ impl ScriptMessageDispatcher {
                     ScriptMessageKind::Hierarchical { root, routing } => match routing {
                         RoutingStrategy::Up => {
                             let mut node = root;
-                            while let Some(node_ref) = scene.graph.try_get_node(node) {
+                            while let Ok(node_ref) = scene.graph.try_get_node(node) {
                                 let parent = node_ref.parent();
 
                                 let mut context = ScriptMessageContext {
@@ -1188,7 +1188,7 @@ where
     T: FnMut(&mut Script, &mut C),
     C: UniversalScriptContext,
 {
-    let Some(node) = context.node() else {
+    let Ok(node) = context.node() else {
         // A node was destroyed.
         return false;
     };
@@ -1209,7 +1209,7 @@ where
     func(&mut script, context);
 
     match context.node() {
-        Some(node) => {
+        Ok(node) => {
             let entry = node
                 .scripts
                 .get_mut(index)
@@ -1222,7 +1222,7 @@ where
                 entry.script = Some(script);
             }
         }
-        None => {
+        Err(_) => {
             // If the node was deleted by the `func` call, we must send the script to destruction
             // queue, not silently drop it.
             context.destroy_script_deferred(script, index);
@@ -2032,8 +2032,8 @@ impl Engine {
                     .find(|e| e.handle == node_task_handler.scene_handle)
                 {
                     let payload = result.payload;
-                    if let Some(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle) {
-                        if let Some(node) =
+                    if let Ok(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle) {
+                        if let Ok(node) =
                             scene.graph.try_get_node_mut(node_task_handler.node_handle)
                         {
                             if let Some(mut script) = node
@@ -2062,7 +2062,7 @@ impl Engine {
                                     },
                                 );
 
-                                if let Some(node) =
+                                if let Ok(node) =
                                     scene.graph.try_get_node_mut(node_task_handler.node_handle)
                                 {
                                     if let Some(entry) =
@@ -2129,6 +2129,7 @@ impl Engine {
                 while let Some(message) = self
                     .user_interfaces
                     .try_get_mut(ui)
+                    .ok()
                     .and_then(|ui| ui.poll_message())
                 {
                     let mut context = PluginContext {

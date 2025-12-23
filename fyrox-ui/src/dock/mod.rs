@@ -226,7 +226,7 @@ impl DockingManager {
                 .borrow()
                 .iter()
                 .filter_map(|h| {
-                    ui.try_get_node(*h).map(|w| FloatingWindowDescriptor {
+                    ui.try_get_node(*h).ok().map(|w| FloatingWindowDescriptor {
                         name: w.name.clone(),
                         position: w.actual_local_position(),
                         size: w.actual_local_size(),
@@ -250,10 +250,7 @@ impl DockingManager {
             let mut windows = Vec::new();
             let mut stack = vec![root_tile_handle];
             while let Some(tile_handle) = stack.pop() {
-                if let Some(tile) = ui
-                    .try_get_node(tile_handle)
-                    .and_then(|n| n.query_component::<Tile>())
-                {
+                if let Ok(tile) = ui.try_get_of_type::<Tile>(tile_handle) {
                     match tile.content {
                         TileContent::Window(window) => {
                             if ui.is_valid_handle(window) {

@@ -149,7 +149,7 @@ fn find_window(
 
     if window_handle.is_none() {
         for other_window_handle in windows.iter().cloned() {
-            if let Some(window_node) = ui.try_get_node(other_window_handle) {
+            if let Ok(window_node) = ui.try_get_node(other_window_handle) {
                 if &window_node.name == window_name {
                     return other_window_handle;
                 }
@@ -161,8 +161,7 @@ fn find_window(
 
 impl TileDescriptor {
     pub(super) fn from_tile_handle(handle: Handle<UiNode>, ui: &UserInterface) -> Self {
-        ui.try_get_node(handle)
-            .and_then(|t| t.query_component::<Tile>())
+        ui.try_get_of_type::<Tile>(handle)
             .map(|t| Self {
                 content: TileContentDescriptor::from_tile(&t.content, ui),
             })

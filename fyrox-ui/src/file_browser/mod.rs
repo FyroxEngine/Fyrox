@@ -341,7 +341,7 @@ impl FileBrowser {
         if tree_item.is_some() {
             let parent_path = parent_path(path);
             let parent_tree = fs_tree::find_tree_item(self.tree_root, &parent_path, ui);
-            if let Some(parent_tree_node) = ui.try_get(parent_tree) {
+            if let Ok(parent_tree_node) = ui.try_get(parent_tree) {
                 if parent_tree_node.has_component::<TreeRoot>() {
                     ui.send(parent_tree, TreeRootMessage::RemoveItem(tree_item))
                 } else {

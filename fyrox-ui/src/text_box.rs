@@ -1692,7 +1692,7 @@ impl<'a> TextBoxBuilder<'a> {
             self.widget_builder.cursor = Some(CursorIcon::Text);
         }
         let placeholder = self.placeholder.build(&self.text, ctx);
-        if let Some(placeholder_ref) = ctx.try_get_node_mut(placeholder) {
+        if let Ok(placeholder_ref) = ctx.try_get_node_mut(placeholder) {
             placeholder_ref
                 .hit_test_visibility
                 .set_value_and_mark_modified(false);

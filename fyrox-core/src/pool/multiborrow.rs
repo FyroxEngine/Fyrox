@@ -163,10 +163,10 @@ where
         &'b self,
         handle: Handle<T>,
         func: F,
-    ) -> Result<Ref<'a, 'b, C>, PoolError<T>>
+    ) -> Result<Ref<'a, 'b, C>, PoolError>
     where
         C: ?Sized,
-        F: FnOnce(&T) -> Result<&C, PoolError<T>>,
+        F: FnOnce(&T) -> Result<&C, PoolError>,
     {
         let record = self.pool.records_get(handle.index)?;
 
@@ -176,14 +176,14 @@ where
 
         let current_ref_count = unsafe { record.ref_counter.get() };
         if current_ref_count < 0 {
-            return Err(PoolError::MutablyBorrowed(handle));
+            return Err(PoolError::MutablyBorrowed(handle.into()));
         }
 
         // SAFETY: We've enforced borrowing rules by the previous check.
         let payload_container = unsafe { &*record.payload.0.get() };
 
         let Some(payload) = payload_container.as_ref() else {
-            return Err(PoolError::Empty(handle));
+            return Err(PoolError::Empty(handle.into()));
         };
 
         unsafe {
@@ -206,7 +206,7 @@ where
     /// in the internal handles storage) - in this case you must increase `N`.
     /// 3) A given handle is invalid.
     #[inline]
-    pub fn try_get<'b: 'a>(&'b self, handle: Handle<T>) -> Result<Ref<'a, 'b, T>, PoolError<T>> {
+    pub fn try_get<'b: 'a>(&'b self, handle: Handle<T>) -> Result<Ref<'a, 'b, T>, PoolError> {
         self.try_get_internal(handle, |obj| Ok(obj))
     }
 
@@ -220,10 +220,10 @@ where
         &'b self,
         handle: Handle<T>,
         func: F,
-    ) -> Result<RefMut<'a, 'b, C>, PoolError<T>>
+    ) -> Result<RefMut<'a, 'b, C>, PoolError>
     where
         C: ?Sized,
-        F: FnOnce(&mut T) -> Result<&mut C, PoolError<T>>,
+        F: FnOnce(&mut T) -> Result<&mut C, PoolError>,
     {
         let record = self.pool.records_get(handle.index)?;
 
@@ -236,10 +236,10 @@ where
         let current_ref_count = unsafe { record.ref_counter.get() };
         match current_ref_count.cmp(&0) {
             Ordering::Less => {
-                return Err(PoolError::MutablyBorrowed(handle));
+                return Err(PoolError::MutablyBorrowed(handle.into()));
             }
             Ordering::Greater => {
-                return Err(PoolError::ImmutablyBorrowed(handle));
+                return Err(PoolError::ImmutablyBorrowed(handle.into()));
             }
             _ => (),
         }
@@ -248,7 +248,7 @@ where
         let payload_container = unsafe { &mut *record.payload.0.get() };
 
         let Some(payload) = payload_container.as_mut() else {
-            return Err(PoolError::Empty(handle));
+            return Err(PoolError::Empty(handle.into()));
         };
 
         // SAFETY: It is safe to access the counter because of borrow checker guarantees that
@@ -268,7 +268,7 @@ where
     pub fn try_get_mut<'b: 'a>(
         &'b self,
         handle: Handle<T>,
-    ) -> Result<RefMut<'a, 'b, T>, PoolError<T>> {
+    ) -> Result<RefMut<'a, 'b, T>, PoolError> {
         self.try_get_mut_internal(handle, |obj| Ok(obj))
     }
 
@@ -278,7 +278,7 @@ where
     }
 
     #[inline]
-    pub fn free(&self, handle: Handle<T>) -> Result<T, PoolError<T>> {
+    pub fn free(&self, handle: Handle<T>) -> Result<T, PoolError> {
         let record = self.pool.records_get(handle.index)?;
 
         if handle.generation != record.generation {
@@ -291,10 +291,10 @@ where
         let current_ref_count = unsafe { record.ref_counter.get() };
         match current_ref_count.cmp(&0) {
             Ordering::Less => {
-                return Err(PoolError::MutablyBorrowed(handle));
+                return Err(PoolError::MutablyBorrowed(handle.into()));
             }
             Ordering::Greater => {
-                return Err(PoolError::ImmutablyBorrowed(handle));
+                return Err(PoolError::ImmutablyBorrowed(handle.into()));
             }
             _ => (),
         }
@@ -303,7 +303,7 @@ where
         let payload_container = unsafe { &mut *record.payload.0.get() };
 
         let Some(payload) = payload_container.take() else {
-            return Err(PoolError::Empty(handle));
+            return Err(PoolError::Empty(handle.into()));
         };
 
         self.free_indices.borrow_mut().push(handle.index);
@@ -322,14 +322,14 @@ where
     pub fn try_get_component_of_type<'b: 'a, C>(
         &'b self,
         handle: Handle<T>,
-    ) -> Result<Ref<'a, 'b, C>, PoolError<T>>
+    ) -> Result<Ref<'a, 'b, C>, PoolError>
     where
         C: 'static,
     {
         self.try_get_internal(handle, move |obj| {
             obj.query_component_ref(TypeId::of::<C>())
                 .and_then(|c| c.downcast_ref())
-                .ok_or(PoolError::NoSuchComponent(handle))
+                .ok_or(PoolError::NoSuchComponent(handle.into()))
         })
     }
 
@@ -338,14 +338,14 @@ where
     pub fn try_get_component_of_type_mut<'b: 'a, C>(
         &'b self,
         handle: Handle<T>,
-    ) -> Result<RefMut<'a, 'b, C>, PoolError<T>>
+    ) -> Result<RefMut<'a, 'b, C>, PoolError>
     where
         C: 'static,
     {
         self.try_get_mut_internal(handle, move |obj| {
             obj.query_component_mut(TypeId::of::<C>())
                 .and_then(|c| c.downcast_mut())
-                .ok_or(PoolError::NoSuchComponent(handle))
+                .ok_or(PoolError::NoSuchComponent(handle.into()))
         })
     }
 }
@@ -378,10 +378,13 @@ mod test {
 
         // Test empty.
         {
-            assert_eq!(ctx.try_get(d).as_deref(), Err(PoolError::Empty(d)).as_ref());
+            assert_eq!(
+                ctx.try_get(d).as_deref(),
+                Err(PoolError::Empty(d.into())).as_ref()
+            );
             assert_eq!(
                 ctx.try_get_mut(d).as_deref_mut(),
-                Err(PoolError::Empty(d)).as_mut()
+                Err(PoolError::Empty(d.into())).as_mut()
             );
         }
 
@@ -404,7 +407,7 @@ mod test {
             assert_eq!(ref_a_2.as_deref(), Ok(&val_a));
             assert_eq!(
                 ctx.try_get_mut(a).as_deref(),
-                Err(PoolError::ImmutablyBorrowed(a)).as_ref()
+                Err(PoolError::ImmutablyBorrowed(a.into())).as_ref()
             );
 
             drop(ref_a_1);
@@ -433,7 +436,7 @@ mod test {
             assert_eq!(ref_b_1.as_deref_mut(), Ok(&mut val_b));
             assert_eq!(
                 ref_b_2.as_deref_mut(),
-                Err(PoolError::MutablyBorrowed(b)).as_mut()
+                Err(PoolError::MutablyBorrowed(b.into())).as_mut()
             );
 
             let mut ref_c_1 = ctx.try_get_mut(c);
@@ -441,7 +444,7 @@ mod test {
             assert_eq!(ref_c_1.as_deref_mut(), Ok(&mut val_c));
             assert_eq!(
                 ref_c_2.as_deref_mut(),
-                Err(PoolError::MutablyBorrowed(c)).as_mut()
+                Err(PoolError::MutablyBorrowed(c.into())).as_mut()
             );
         }
     }

@@ -37,6 +37,7 @@ use crate::{
     renderer::{render_source_default, Renderer},
     source::{SoundSource, Status},
 };
+use fyrox_core::pool::PoolError;
 use fyrox_core::{
     pool::{Handle, Pool},
     reflect::prelude::*,
@@ -247,7 +248,10 @@ impl State {
     }
 
     /// Returns mutable reference to sound source at given handle. If handle is invalid, this method will panic.
-    pub fn try_get_source_mut(&mut self, handle: Handle<SoundSource>) -> Option<&mut SoundSource> {
+    pub fn try_get_source_mut(
+        &mut self,
+        handle: Handle<SoundSource>,
+    ) -> Result<&mut SoundSource, PoolError> {
         self.sources.try_borrow_mut(handle)
     }
 

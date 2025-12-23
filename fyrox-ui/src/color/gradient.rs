@@ -45,7 +45,7 @@ use crate::{
 
 use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::cell::Cell;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -251,7 +251,7 @@ impl Control for ColorGradientEditor {
 
                 ui.post(self.handle, ColorGradientEditorMessage::Value(gradient));
             } else if message.destination() == self.remove_point
-                && ui.try_get_node(self.context_menu_target.get()).is_some()
+                && ui.try_get_node(self.context_menu_target.get()).is_ok()
             {
                 let gradient = self.fetch_gradient(self.context_menu_target.get(), ui);
 
@@ -290,9 +290,8 @@ impl Control for ColorGradientEditor {
                 self.context_menu_target.set(*target);
 
                 if message.destination() == self.point_context_menu.handle() {
-                    if let Some(point) = ui
-                        .try_get_node(self.context_menu_target.get())
-                        .and_then(|n| n.query_component::<ColorPoint>())
+                    if let Ok(point) =
+                        ui.try_get_of_type::<ColorPoint>(self.context_menu_target.get())
                     {
                         ui.send_with_flags(
                             self.selector_field,

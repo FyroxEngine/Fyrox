@@ -359,6 +359,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
+use fyrox_core::pool::PoolError;
 pub use fyrox_texture as texture;
 pub use node::*;
 pub use thickness::*;
@@ -894,7 +895,7 @@ fn invalidate_recursive_up(
     node: Handle<UiNode>,
     callback: fn(&UiNode),
 ) {
-    if let Some(node_ref) = nodes.try_borrow(node) {
+    if let Ok(node_ref) = nodes.try_borrow(node) {
         (callback)(node_ref);
         if node_ref.parent().is_some() {
             invalidate_recursive_up(nodes, node_ref.parent(), callback);
@@ -954,12 +955,15 @@ impl UiContainer {
     }
 
     /// Tries to borrow a user interface using its handle.
-    pub fn try_get(&self, handle: Handle<UserInterface>) -> Option<&UserInterface> {
+    pub fn try_get(&self, handle: Handle<UserInterface>) -> Result<&UserInterface, PoolError> {
         self.pool.try_borrow(handle)
     }
 
     /// Tries to borrow a user interface using its handle.
-    pub fn try_get_mut(&mut self, handle: Handle<UserInterface>) -> Option<&mut UserInterface> {
+    pub fn try_get_mut(
+        &mut self,
+        handle: Handle<UserInterface>,
+    ) -> Result<&mut UserInterface, PoolError> {
         self.pool.try_borrow_mut(handle)
     }
 
@@ -1224,7 +1228,7 @@ impl UserInterface {
         for _ in 0..indent {
             result.push_str("  ");
         }
-        let Some(node) = self.try_get(current) else {
+        let Ok(node) = self.try_get(current) else {
             use std::fmt::Write;
             writeln!(result, "{}: Failed to get", current).unwrap();
             return;
@@ -1283,10 +1287,10 @@ impl UserInterface {
                 .nodes
                 .try_borrow_dependant_mut(node_handle, |n| n.parent());
 
-            if let Some(widget) = widget {
+            if let Ok(widget) = widget {
                 self.stack.extend_from_slice(widget.children());
 
-                let visibility = if let Some(parent) = parent {
+                let visibility = if let Ok(parent) = parent {
                     widget.visibility() && parent.is_globally_visible()
                 } else {
                     widget.visibility()
@@ -1316,7 +1320,7 @@ impl UserInterface {
                 .nodes
                 .try_borrow_dependant_mut(node_handle, |n| n.parent());
 
-            if let Some(widget) = widget {
+            if let Ok(widget) = widget {
                 if widget.is_globally_visible() {
                     self.stack.extend_from_slice(widget.children());
 
@@ -1325,7 +1329,7 @@ impl UserInterface {
                     layout_transform[6] = widget.actual_local_position().x;
                     layout_transform[7] = widget.actual_local_position().y;
 
-                    let visual_transform = if let Some(parent) = parent {
+                    let visual_transform = if let Ok(parent) = parent {
                         parent.visual_transform() * layout_transform * widget.render_transform()
                     } else {
                         layout_transform * widget.render_transform()
@@ -1370,7 +1374,7 @@ impl UserInterface {
                     self.update_global_visibility(node);
                 }
                 LayoutEvent::ZIndexChanged(node) => {
-                    if let Some(node_ref) = self.nodes.try_borrow(node) {
+                    if let Ok(node_ref) = self.nodes.try_borrow(node) {
                         // Z index affects the location of the node in its parent's children list.
                         // Hash set will remove duplicate requests of z-index updates, thus improving
                         // performance.
@@ -1395,7 +1399,7 @@ impl UserInterface {
                         func: &mut impl FnMut(Handle<UiNode>),
                     ) {
                         func(from);
-                        if let Some(node) = graph.try_get_node(from) {
+                        if let Ok(node) = graph.try_get_node(from) {
                             for &child in node.children() {
                                 traverse_recursive(graph, child, func)
                             }
@@ -1458,10 +1462,11 @@ impl UserInterface {
             self.update_visual_transform(root);
 
             // Recalculate clip bounds, because they depend on the visual transform.
-            if let Some(root_ref) = self.try_get_node(root) {
+            if let Ok(root_ref) = self.try_get_node(root) {
                 self.calculate_clip_bounds(
                     root,
                     self.try_get_node(root_ref.parent())
+                        .ok()
                         .map(|c| c.clip_bounds())
                         .unwrap_or_else(|| {
                             Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y)
@@ -1529,7 +1534,7 @@ impl UserInterface {
         self.style = style;
 
         fn notify_depth_first(node: Handle<UiNode>, ui: &UserInterface) {
-            if let Some(node_ref) = ui.try_get_node(node) {
+            if let Ok(node_ref) = ui.try_get_node(node) {
                 for child in node_ref.children.iter() {
                     notify_depth_first(*child, ui);
                 }
@@ -1637,7 +1642,7 @@ impl UserInterface {
             }
         }
 
-        if let Some(keyboard_focus_node) = self.nodes.try_borrow(self.keyboard_focus_node) {
+        if let Ok(keyboard_focus_node) = self.nodes.try_borrow(self.keyboard_focus_node) {
             if keyboard_focus_node.global_visibility && keyboard_focus_node.accepts_input {
                 let bounds = keyboard_focus_node.screen_bounds().inflate(1.0, 1.0);
                 self.drawing_context.push_rounded_rect(&bounds, 1.0, 2.0, 6);
@@ -2234,7 +2239,7 @@ impl UserInterface {
         }
 
         for &handle in self.methods_registry.preview_message.iter() {
-            if let Some(node_ref) = self.nodes.try_borrow(handle) {
+            if let Ok(node_ref) = self.nodes.try_borrow(handle) {
                 node_ref.preview_message(self, &mut message);
             }
         }
@@ -2395,7 +2400,7 @@ impl UserInterface {
                     vertical_alignment,
                     margin,
                 } => {
-                    if let (Some(node), Some(relative_node)) = (
+                    if let (Ok(node), Ok(relative_node)) = (
                         self.try_get_node(message.destination()),
                         self.try_get_node(*relative_to),
                     ) {
@@ -2453,7 +2458,7 @@ impl UserInterface {
                             }
                         }
 
-                        if let Some(parent) = self.try_get_node(node.parent()) {
+                        if let Ok(parent) = self.try_get_node(node.parent()) {
                             // Transform screen anchor point into the local coordinate system
                             // of the parent node.
                             let local_anchor_point = parent.screen_to_local(screen_anchor_point);
@@ -2466,7 +2471,7 @@ impl UserInterface {
                 }
                 WidgetMessage::MouseUp { button, .. } => {
                     if *button == MouseButton::Right && !message.handled() {
-                        if let Some(picked) = self.nodes.try_borrow(self.picked_node) {
+                        if let Ok(picked) = self.nodes.try_borrow(self.picked_node) {
                             // Get the context menu from the current node or a parent node
                             let (context_menu, target) = if picked.context_menu().is_some() {
                                 (picked.context_menu(), self.picked_node)
@@ -2474,7 +2479,7 @@ impl UserInterface {
                                 let parent_handle = picked
                                     .find_by_criteria_up(self, |n| n.context_menu().is_some());
 
-                                if let Some(parent) = self.nodes.try_borrow(parent_handle) {
+                                if let Ok(parent) = self.nodes.try_borrow(parent_handle) {
                                     (parent.context_menu(), parent_handle)
                                 } else {
                                     (None, Handle::NONE)
@@ -2573,7 +2578,7 @@ impl UserInterface {
             } else {
                 let mut tooltip_owner_hovered = false;
                 let mut handle = self.picked_node;
-                while let Some(node) = self.nodes.try_borrow(handle) {
+                while let Ok(node) = self.nodes.try_borrow(handle) {
                     if let Some(tooltip) = node.tooltip.as_ref() {
                         if &entry.tooltip == tooltip {
                             tooltip_owner_hovered = true;
@@ -2598,7 +2603,7 @@ impl UserInterface {
 
         // Check for hovering over a widget with a tooltip, or hovering over a tooltip.
         let mut handle = self.picked_node;
-        while let Some(node) = self.nodes.try_borrow(handle) {
+        while let Ok(node) = self.nodes.try_borrow(handle) {
             let parent = node.parent();
 
             if let Some(tooltip) = node.tooltip() {
@@ -2874,7 +2879,7 @@ impl UserInterface {
                 state,
                 text,
             } => {
-                if let Some(keyboard_focus_node) = self.try_get_node(self.keyboard_focus_node) {
+                if let Ok(keyboard_focus_node) = self.try_get_node(self.keyboard_focus_node) {
                     if keyboard_focus_node.is_globally_visible() {
                         match state {
                             ButtonState::Pressed => {
@@ -3233,7 +3238,10 @@ impl UserInterface {
     }
 
     #[inline]
-    pub fn try_get_node_mut(&mut self, node_handle: Handle<UiNode>) -> Option<&mut UiNode> {
+    pub fn try_get_node_mut(
+        &mut self,
+        node_handle: Handle<UiNode>,
+    ) -> Result<&mut UiNode, PoolError> {
         self.nodes.try_borrow_mut(node_handle)
     }
 
@@ -3353,7 +3361,7 @@ impl UserInterface {
             }
         }
 
-        let Some(node) = self.nodes.try_borrow(node_handle) else {
+        let Ok(node) = self.nodes.try_borrow(node_handle) else {
             return Default::default();
         };
 
@@ -3488,7 +3496,10 @@ impl PrefabData for UserInterface {
 }
 
 impl AbstractSceneGraph for UserInterface {
-    fn try_get_node_untyped(&self, handle: ErasedHandle) -> Option<&dyn AbstractSceneNode> {
+    fn try_get_node_untyped(
+        &self,
+        handle: ErasedHandle,
+    ) -> Result<&dyn AbstractSceneNode, PoolError> {
         self.nodes
             .try_borrow(handle.into())
             .map(|n| n as &dyn AbstractSceneNode)
@@ -3497,7 +3508,7 @@ impl AbstractSceneGraph for UserInterface {
     fn try_get_node_untyped_mut(
         &mut self,
         handle: ErasedHandle,
-    ) -> Option<&mut dyn AbstractSceneNode> {
+    ) -> Result<&mut dyn AbstractSceneNode, PoolError> {
         self.nodes
             .try_borrow_mut(handle.into())
             .map(|n| n as &mut dyn AbstractSceneNode)
@@ -3516,7 +3527,7 @@ impl BaseSceneGraph for UserInterface {
     }
 
     #[inline]
-    fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
+    fn actual_type_id(&self, handle: Handle<Self::Node>) -> Result<TypeId, PoolError> {
         self.nodes
             .try_borrow(handle)
             .map(|n| ControlAsAny::as_any(n.0.deref()).type_id())
@@ -3533,12 +3544,15 @@ impl BaseSceneGraph for UserInterface {
     }
 
     #[inline]
-    fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+    fn try_get_node(&self, handle: Handle<Self::Node>) -> Result<&Self::Node, PoolError> {
         self.nodes.try_borrow(handle)
     }
 
     #[inline]
-    fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+    fn try_get_node_mut(
+        &mut self,
+        handle: Handle<Self::Node>,
+    ) -> Result<&mut Self::Node, PoolError> {
         self.nodes.try_borrow_mut(handle)
     }
 
@@ -3626,13 +3640,13 @@ impl BaseSceneGraph for UserInterface {
         }
     }
 
-    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
+    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Result<Vec<TypeId>, PoolError> {
         self.nodes
             .try_borrow(handle)
             .map(|n| n.0.query_derived_types().to_vec())
     }
 
-    fn actual_type_name(&self, handle: Handle<Self::Node>) -> Option<&'static str> {
+    fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError> {
         self.nodes
             .try_borrow(handle)
             .map(|n| Reflect::type_name(n.0.deref()))
@@ -3656,11 +3670,14 @@ impl SceneGraph for UserInterface {
         self.nodes.iter_mut()
     }
 
-    fn try_get<U: ObjectOrVariant<UiNode>>(&self, handle: Handle<U>) -> Option<&U> {
+    fn try_get<U: ObjectOrVariant<UiNode>>(&self, handle: Handle<U>) -> Result<&U, PoolError> {
         self.nodes.try_get(handle)
     }
 
-    fn try_get_mut<U: ObjectOrVariant<UiNode>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
+    fn try_get_mut<U: ObjectOrVariant<UiNode>>(
+        &mut self,
+        handle: Handle<U>,
+    ) -> Result<&mut U, PoolError> {
         self.nodes.try_get_mut(handle)
     }
 }

@@ -65,7 +65,7 @@ pub trait UserInterfaceTestingExtension {
 }
 
 fn is_enabled(mut handle: Handle<UiNode>, ui: &UserInterface) -> bool {
-    while let Some(node) = ui.try_get(handle) {
+    while let Ok(node) = ui.try_get(handle) {
         if !node.enabled() {
             return false;
         }
@@ -158,7 +158,7 @@ impl UserInterfaceTestingExtension for UserInterface {
 
     fn poll_all_messages(&mut self) {
         while let Some(msg) = self.poll_message() {
-            if let Some(widget) = self.try_get(msg.destination()) {
+            if let Ok(widget) = self.try_get(msg.destination()) {
                 let ty = Reflect::type_name(widget);
                 info!("[{ty}]{msg:?}");
             }
@@ -170,7 +170,7 @@ impl UserInterfaceTestingExtension for UserInterface {
     fn poll_and_count(&mut self, mut pred: impl FnMut(&UiMessage) -> bool) -> usize {
         let mut num = 0;
         while let Some(msg) = self.poll_message() {
-            if let Some(widget) = self.try_get(msg.destination()) {
+            if let Ok(widget) = self.try_get(msg.destination()) {
                 let ty = Reflect::type_name(widget);
                 info!("[{ty}]{msg:?}");
             }

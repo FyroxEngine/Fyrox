@@ -22,6 +22,7 @@
 
 //! Script is used to add custom logic to scene nodes. See [ScriptTrait] for more info.
 
+use crate::engine::input::InputState;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -39,7 +40,10 @@ use crate::{
     plugin::{Plugin, PluginContainer},
     scene::{base::NodeScriptMessage, node::Node, Scene},
 };
+use fyrox_core::pool::PoolError;
 use fyrox_core::reflect::FieldMut;
+pub use fyrox_core_derive::ScriptMessagePayload;
+use fyrox_graph::BaseSceneGraph;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -47,14 +51,10 @@ use std::{
     str::FromStr,
     sync::mpsc::Sender,
 };
-
-use crate::engine::input::InputState;
-pub use fyrox_core_derive::ScriptMessagePayload;
-use fyrox_graph::BaseSceneGraph;
 pub mod constructor;
 
 pub(crate) trait UniversalScriptContext {
-    fn node(&mut self) -> Option<&mut Node>;
+    fn node(&mut self) -> Result<&mut Node, PoolError>;
     fn destroy_script_deferred(&self, script: Script, index: usize);
     fn set_script_index(&mut self, index: usize);
 }
@@ -417,7 +417,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
 }
 
 impl UniversalScriptContext for ScriptContext<'_, '_, '_> {
-    fn node(&mut self) -> Option<&mut Node> {
+    fn node(&mut self) -> Result<&mut Node, PoolError> {
         self.scene.graph.try_get_node_mut(self.handle)
     }
 
@@ -501,7 +501,7 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
 }
 
 impl UniversalScriptContext for ScriptMessageContext<'_, '_, '_> {
-    fn node(&mut self) -> Option<&mut Node> {
+    fn node(&mut self) -> Result<&mut Node, PoolError> {
         self.scene.graph.try_get_node_mut(self.handle)
     }
 
@@ -576,7 +576,7 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
 }
 
 impl UniversalScriptContext for ScriptDeinitContext<'_, '_, '_> {
-    fn node(&mut self) -> Option<&mut Node> {
+    fn node(&mut self) -> Result<&mut Node, PoolError> {
         self.scene.graph.try_get_node_mut(self.node_handle)
     }
 

@@ -36,7 +36,7 @@ use crate::{
         visitor::prelude::*,
         ImmutableString, TypeUuidProvider,
     },
-    graph::{BaseSceneGraph, SceneGraphNode},
+    graph::BaseSceneGraph,
     scene::{
         base::{Base, BaseBuilder},
         collider::InteractionGroups,
@@ -51,6 +51,7 @@ use crate::{
 };
 
 use fyrox_graph::constructor::ConstructorProvider;
+use fyrox_graph::SceneGraph;
 use rapier2d::geometry::ColliderHandle;
 use std::{
     cell::Cell,
@@ -703,9 +704,8 @@ impl NodeTrait for Collider {
 
         if scene
             .graph
-            .try_get_node(self.parent())
-            .and_then(|p| p.component_ref::<RigidBody>())
-            .is_none()
+            .try_get_of_type::<RigidBody>(self.parent())
+            .is_err()
         {
             message += "2D Collider must be a direct child of a 3D Rigid Body node, \
             otherwise it will not have any effect!";

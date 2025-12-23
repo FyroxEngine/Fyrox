@@ -29,7 +29,7 @@ pub mod prelude {
 }
 
 use fxhash::FxHashMap;
-use fyrox_core::pool::{ErasedHandle, ObjectOrVariant, PayloadContainer};
+use fyrox_core::pool::{ErasedHandle, ObjectOrVariant, PayloadContainer, PoolError};
 use fyrox_core::reflect::ReflectHandle;
 use fyrox_core::{
     log::{Log, MessageKind},
@@ -679,11 +679,14 @@ impl<N> Default for LinkScheme<N> {
 }
 
 pub trait AbstractSceneGraph: 'static {
-    fn try_get_node_untyped(&self, handle: ErasedHandle) -> Option<&dyn AbstractSceneNode>;
+    fn try_get_node_untyped(
+        &self,
+        handle: ErasedHandle,
+    ) -> Result<&dyn AbstractSceneNode, PoolError>;
     fn try_get_node_untyped_mut(
         &mut self,
         handle: ErasedHandle,
-    ) -> Option<&mut dyn AbstractSceneNode>;
+    ) -> Result<&mut dyn AbstractSceneNode, PoolError>;
 }
 
 /// BaseSceneGraph is a dyn-compatible trait for all scene graphs to implement.
@@ -698,13 +701,13 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
     fn summary(&self) -> String;
 
     /// Returns actual type id of the node.
-    fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId>;
+    fn actual_type_id(&self, handle: Handle<Self::Node>) -> Result<TypeId, PoolError>;
 
     /// Returns actual type name of the node.
-    fn actual_type_name(&self, handle: Handle<Self::Node>) -> Option<&'static str>;
+    fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError>;
 
     /// Returns a list of derived type ids of the node.
-    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>>;
+    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Result<Vec<TypeId>, PoolError>;
 
     /// Returns a handle of the root node of the graph.
     fn root(&self) -> Handle<Self::Node>;
@@ -713,10 +716,13 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
     fn set_root(&mut self, root: Handle<Self::Node>);
 
     /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
-    fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node>;
+    fn try_get_node(&self, handle: Handle<Self::Node>) -> Result<&Self::Node, PoolError>;
 
     /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
-    fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node>;
+    fn try_get_node_mut(
+        &mut self,
+        handle: Handle<Self::Node>,
+    ) -> Result<&mut Self::Node, PoolError>;
 
     /// Checks whether the given node handle is valid or not.
     fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool;
@@ -854,33 +860,48 @@ pub trait SceneGraph: BaseSceneGraph {
     /// of nodes. It does *not* perform any tree traversal!
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
 
-    fn try_get<U: ObjectOrVariant<Self::ObjectType>>(&self, handle: Handle<U>) -> Option<&U>;
+    fn try_get<U: ObjectOrVariant<Self::ObjectType>>(
+        &self,
+        handle: Handle<U>,
+    ) -> Result<&U, PoolError>;
 
     fn try_get_mut<U: ObjectOrVariant<Self::ObjectType>>(
         &mut self,
         handle: Handle<U>,
-    ) -> Option<&mut U>;
+    ) -> Result<&mut U, PoolError>;
 
     /// Tries to borrow a node and fetch its component of specified type.
     #[inline]
-    fn try_get_of_type<T>(&self, handle: Handle<Self::Node>) -> Option<&T>
+    fn try_get_of_type<T>(&self, handle: Handle<Self::Node>) -> Result<&T, PoolError>
     where
         T: 'static,
     {
         self.try_get_node(handle)
-            .and_then(|n| n.query_component_ref(TypeId::of::<T>()))
-            .and_then(|c| c.downcast_ref())
+            .and_then(|n| {
+                n.query_component_ref(TypeId::of::<T>())
+                    .ok_or(PoolError::NoSuchComponent(handle.into()))
+            })
+            .and_then(|c| {
+                c.downcast_ref()
+                    .ok_or(PoolError::InvalidType(handle.into()))
+            })
     }
 
     /// Tries to mutably borrow a node and fetch its component of specified type.
     #[inline]
-    fn try_get_mut_of_type<T>(&mut self, handle: Handle<Self::Node>) -> Option<&mut T>
+    fn try_get_mut_of_type<T>(&mut self, handle: Handle<Self::Node>) -> Result<&mut T, PoolError>
     where
         T: 'static,
     {
         self.try_get_node_mut(handle)
-            .and_then(|n| n.query_component_mut(TypeId::of::<T>()))
-            .and_then(|c| c.downcast_mut())
+            .and_then(|n| {
+                n.query_component_mut(TypeId::of::<T>())
+                    .ok_or(PoolError::NoSuchComponent(handle.into()))
+            })
+            .and_then(|c| {
+                c.downcast_mut()
+                    .ok_or(PoolError::InvalidType(handle.into()))
+            })
     }
 
     /// Tries to borrow a node by the given handle and checks if it has a component of the specified
@@ -890,7 +911,7 @@ pub trait SceneGraph: BaseSceneGraph {
     where
         T: 'static,
     {
-        self.try_get_of_type::<T>(handle).is_some()
+        self.try_get_of_type::<T>(handle).is_ok()
     }
 
     /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
@@ -905,7 +926,7 @@ pub trait SceneGraph: BaseSceneGraph {
         C: FnMut(&Self::Node) -> Option<&T>,
         T: ?Sized,
     {
-        self.try_get_node(root_node).and_then(|root| {
+        self.try_get_node(root_node).ok().and_then(|root| {
             if let Some(x) = cmp(root) {
                 Some((root_node, x))
             } else {
@@ -926,7 +947,7 @@ pub trait SceneGraph: BaseSceneGraph {
         C: FnMut(&Self::Node) -> bool,
     {
         let mut handle = root_node;
-        while let Some(node) = self.try_get_node(handle) {
+        while let Ok(node) = self.try_get_node(handle) {
             if cmp(node) {
                 return Some((handle, node));
             }
@@ -985,7 +1006,7 @@ pub trait SceneGraph: BaseSceneGraph {
         T: ?Sized,
     {
         let mut handle = root_node;
-        while let Some(node) = self.try_get_node(handle) {
+        while let Ok(node) = self.try_get_node(handle) {
             if let Some(x) = cmp(node) {
                 return Some((handle, x));
             }
@@ -1052,7 +1073,7 @@ pub trait SceneGraph: BaseSceneGraph {
     where
         C: FnMut(&Self::Node) -> bool,
     {
-        self.try_get_node(root_node).and_then(|root| {
+        self.try_get_node(root_node).ok().and_then(|root| {
             if cmp(root) {
                 Some((root_node, root))
             } else {
@@ -1091,8 +1112,8 @@ pub trait SceneGraph: BaseSceneGraph {
         child: Handle<Self::Node>,
         offset: isize,
     ) -> Option<(Handle<Self::Node>, usize)> {
-        let parents_parent_handle = self.try_get_node(child)?.parent();
-        let parents_parent_ref = self.try_get_node(parents_parent_handle)?;
+        let parents_parent_handle = self.try_get_node(child).ok()?.parent();
+        let parents_parent_ref = self.try_get_node(parents_parent_handle).ok()?;
         let position = parents_parent_ref.child_position(child)?;
         Some((
             parents_parent_handle,
@@ -1320,6 +1341,7 @@ pub trait SceneGraph: BaseSceneGraph {
                                 .map(|resource_node| {
                                     (resource_node, node.original_handle_in_resource())
                                 })
+                                .ok()
                         }
                     };
 
@@ -1464,7 +1486,7 @@ mod test {
         AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping,
         PrefabData, SceneGraph, SceneGraphNode,
     };
-    use fyrox_core::pool::{ObjectOrVariant, ObjectOrVariantHelper};
+    use fyrox_core::pool::{ObjectOrVariant, ObjectOrVariantHelper, PoolError};
     use fyrox_core::{
         define_as_any_trait,
         pool::{ErasedHandle, Handle, PayloadContainer, Pool},
@@ -1795,7 +1817,10 @@ mod test {
     }
 
     impl AbstractSceneGraph for Graph {
-        fn try_get_node_untyped(&self, handle: ErasedHandle) -> Option<&dyn AbstractSceneNode> {
+        fn try_get_node_untyped(
+            &self,
+            handle: ErasedHandle,
+        ) -> Result<&dyn AbstractSceneNode, PoolError> {
             self.nodes
                 .try_borrow(handle.into())
                 .map(|n| n as &dyn AbstractSceneNode)
@@ -1804,7 +1829,7 @@ mod test {
         fn try_get_node_untyped_mut(
             &mut self,
             handle: ErasedHandle,
-        ) -> Option<&mut dyn AbstractSceneNode> {
+        ) -> Result<&mut dyn AbstractSceneNode, PoolError> {
             self.nodes
                 .try_borrow_mut(handle.into())
                 .map(|n| n as &mut dyn AbstractSceneNode)
@@ -1876,34 +1901,37 @@ mod test {
             let parent_handle =
                 std::mem::replace(&mut self.nodes[node_handle].parent, Handle::NONE);
 
-            if let Some(parent) = self.nodes.try_borrow_mut(parent_handle) {
+            if let Ok(parent) = self.nodes.try_borrow_mut(parent_handle) {
                 if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
                     parent.children.remove(i);
                 }
             }
         }
 
-        fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+        fn try_get_node(&self, handle: Handle<Self::Node>) -> Result<&Self::Node, PoolError> {
             self.nodes.try_borrow(handle)
         }
 
-        fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+        fn try_get_node_mut(
+            &mut self,
+            handle: Handle<Self::Node>,
+        ) -> Result<&mut Self::Node, PoolError> {
             self.nodes.try_borrow_mut(handle)
         }
 
-        fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
+        fn actual_type_id(&self, handle: Handle<Self::Node>) -> Result<TypeId, PoolError> {
             self.nodes
                 .try_borrow(handle)
                 .map(|n| NodeAsAny::as_any(n.0.deref()).type_id())
         }
 
-        fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
+        fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Result<Vec<TypeId>, PoolError> {
             self.nodes
                 .try_borrow(handle)
                 .map(|n| n.0.deref().query_derived_types().to_vec())
         }
 
-        fn actual_type_name(&self, handle: Handle<Self::Node>) -> Option<&'static str> {
+        fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError> {
             self.nodes
                 .try_borrow(handle)
                 .map(|n| n.0.deref().type_name())
@@ -1924,11 +1952,14 @@ mod test {
             self.nodes.iter_mut()
         }
 
-        fn try_get<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Option<&U> {
+        fn try_get<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Result<&U, PoolError> {
             self.nodes.try_get(handle)
         }
 
-        fn try_get_mut<U: ObjectOrVariant<Node>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
+        fn try_get_mut<U: ObjectOrVariant<Node>>(
+            &mut self,
+            handle: Handle<U>,
+        ) -> Result<&mut U, PoolError> {
             self.nodes.try_get_mut(handle)
         }
     }

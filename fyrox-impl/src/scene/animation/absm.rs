@@ -41,7 +41,7 @@ use crate::{
     },
 };
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::ops::{Deref, DerefMut};
 
 /// Scene specific root motion settings.
@@ -312,10 +312,9 @@ impl NodeTrait for AnimationBlendingStateMachine {
     }
 
     fn update(&mut self, context: &mut UpdateContext) {
-        if let Some(animation_player) = context
+        if let Ok(animation_player) = context
             .nodes
-            .try_borrow_mut(*self.animation_player)
-            .and_then(|n| n.component_mut::<AnimationPlayer>())
+            .try_get_component_of_type_mut::<AnimationPlayer>(*self.animation_player)
         {
             // Prevent animation player to apply animation to scene nodes. The animation will
             // do than instead.
@@ -333,9 +332,8 @@ impl NodeTrait for AnimationBlendingStateMachine {
     fn validate(&self, scene: &Scene) -> Result<(), String> {
         if scene
             .graph
-            .try_get_node(*self.animation_player)
-            .and_then(|n| n.component_ref::<AnimationPlayer>())
-            .is_none()
+            .try_get_of_type::<AnimationPlayer>(*self.animation_player)
+            .is_err()
         {
             Err(
                 "Animation player is not set or invalid! Animation blending state \

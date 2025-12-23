@@ -22,6 +22,7 @@
 //! for more info and examples
 
 use crate::effects::{Effect, EffectRenderTrait};
+use fyrox_core::pool::PoolError;
 use fyrox_core::{
     pool::{Handle, Pool, Ticket},
     reflect::prelude::*,
@@ -355,7 +356,7 @@ impl AudioBusGraph {
             std::mem::replace(&mut self.buses[node_handle].parent_bus, Handle::NONE);
 
         // Remove child from parent's children list
-        if let Some(parent) = self.buses.try_borrow_mut(parent_handle) {
+        if let Ok(parent) = self.buses.try_borrow_mut(parent_handle) {
             if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
                 parent.child_buses.remove(i);
             }
@@ -415,12 +416,15 @@ impl AudioBusGraph {
     }
 
     /// Tries to borrow an audio bus by its handle.
-    pub fn try_get_bus_ref(&self, handle: Handle<AudioBus>) -> Option<&AudioBus> {
+    pub fn try_get_bus_ref(&self, handle: Handle<AudioBus>) -> Result<&AudioBus, PoolError> {
         self.buses.try_borrow(handle)
     }
 
     /// Tries to borrow an audio bus by its handle.
-    pub fn try_get_bus_mut(&mut self, handle: Handle<AudioBus>) -> Option<&mut AudioBus> {
+    pub fn try_get_bus_mut(
+        &mut self,
+        handle: Handle<AudioBus>,
+    ) -> Result<&mut AudioBus, PoolError> {
         self.buses.try_borrow_mut(handle)
     }
 
@@ -439,7 +443,7 @@ impl AudioBusGraph {
     pub fn try_take_reserve_bus(
         &mut self,
         handle: Handle<AudioBus>,
-    ) -> Option<(Ticket<AudioBus>, AudioBus)> {
+    ) -> Result<(Ticket<AudioBus>, AudioBus), PoolError> {
         self.buses.try_take_reserve(handle)
     }
 
