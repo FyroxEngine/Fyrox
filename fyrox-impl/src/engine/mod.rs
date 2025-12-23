@@ -31,10 +31,6 @@ pub mod task;
 mod hotreload;
 mod wasm_utils;
 
-use crate::engine::input::InputState;
-use crate::renderer::ui_renderer::UiRenderInfo;
-use crate::resource::gltf::material::GLTF_SHADER;
-use crate::scene::skybox::SkyBoxKind;
 use crate::{
     asset::{
         event::ResourceEvent,
@@ -44,6 +40,7 @@ use crate::{
     },
     core::{
         algebra::Vector2,
+        err,
         futures::{executor::block_on, future::join_all},
         instant,
         log::Log,
@@ -51,18 +48,21 @@ use crate::{
         reflect::Reflect,
         task::TaskPool,
         variable::try_inherit_properties,
-        SafeLock,
+        visitor::error::VisitError,
+        warn, SafeLock,
     },
-    engine::{error::EngineError, task::TaskPoolHandler},
+    engine::{error::EngineError, input::InputState, task::TaskPoolHandler},
     event::Event,
     graph::{BaseSceneGraph, NodeMapping, SceneGraph},
     graphics::error::FrameworkError,
     gui::{
         constructor::WidgetConstructorContainer,
-        font::{loader::FontLoader, Font, BUILT_IN_FONT},
+        font::{
+            loader::FontLoader, Font, BOLD_ITALIC, BUILT_IN_BOLD, BUILT_IN_FONT, BUILT_IN_ITALIC,
+        },
         loader::UserInterfaceLoader,
         style::{self, resource::StyleLoader, Style},
-        UiContainer, UiUpdateSwitches, UserInterface,
+        RenderMode, UiContainer, UiUpdateSwitches, UserInterface,
     },
     material::{
         self,
@@ -74,9 +74,10 @@ use crate::{
         dylib::DyLibDynamicPlugin, DynamicPlugin, Plugin, PluginContainer, PluginContext,
         PluginRegistrationContext,
     },
-    renderer::Renderer,
+    renderer::{ui_renderer::UiRenderInfo, Renderer},
     resource::{
         curve::{loader::CurveLoader, CurveResourceState},
+        gltf::material::GLTF_SHADER,
         model::{loader::ModelLoader, Model, ModelResource},
         texture::{
             self, loader::TextureLoader, CompressionOptions, Texture, TextureImportOptions,
@@ -92,6 +93,7 @@ use crate::{
             constructor::{new_node_constructor_container, NodeConstructorContainer},
             Node,
         },
+        skybox::SkyBoxKind,
         sound::SoundEngine,
         tilemap::{
             brush::{TileMapBrush, TileMapBrushLoader},
@@ -100,6 +102,7 @@ use crate::{
         },
         Scene, SceneContainer, SceneLoader,
     },
+    script::ScriptResult,
     script::{
         constructor::ScriptConstructorContainer, DynamicTypeId, PluginsRefMut, RoutingStrategy,
         Script, ScriptContext, ScriptDeinitContext, ScriptMessage, ScriptMessageContext,
@@ -109,16 +112,12 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
-use fyrox_core::visitor::error::VisitError;
-use fyrox_core::warn;
 use fyrox_graphics::server::SharedGraphicsServer;
 use fyrox_graphics_gl::server::GlGraphicsServer;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
 };
-use fyrox_ui::font::{BOLD_ITALIC, BUILT_IN_BOLD, BUILT_IN_ITALIC};
-use fyrox_ui::RenderMode;
 use std::{
     any::TypeId,
     cell::Cell,
@@ -634,7 +633,7 @@ impl ScriptMessageDispatcher {
                                 input_state,
                             };
 
-                            process_node_scripts(&mut context, &mut |s, ctx| {
+                            process_node_scripts("on_message", &mut context, &mut |s, ctx| {
                                 s.on_message(&mut *payload, ctx)
                             })
                         }
@@ -662,9 +661,11 @@ impl ScriptMessageDispatcher {
                                 };
 
                                 if receivers.contains(&node) {
-                                    process_node_scripts(&mut context, &mut |s, ctx| {
-                                        s.on_message(&mut *payload, ctx)
-                                    });
+                                    process_node_scripts(
+                                        "on_message",
+                                        &mut context,
+                                        &mut |s, ctx| s.on_message(&mut *payload, ctx),
+                                    );
                                 }
 
                                 node = parent;
@@ -689,9 +690,11 @@ impl ScriptMessageDispatcher {
                                 };
 
                                 if receivers.contains(&node) {
-                                    process_node_scripts(&mut context, &mut |s, ctx| {
-                                        s.on_message(&mut *payload, ctx)
-                                    });
+                                    process_node_scripts(
+                                        "on_message",
+                                        &mut context,
+                                        &mut |s, ctx| s.on_message(&mut *payload, ctx),
+                                    );
                                 }
                             }
                         }
@@ -714,7 +717,7 @@ impl ScriptMessageDispatcher {
                                 input_state,
                             };
 
-                            process_node_scripts(&mut context, &mut |s, ctx| {
+                            process_node_scripts("on_message", &mut context, &mut |s, ctx| {
                                 s.on_message(&mut *payload, ctx)
                             });
                         }
@@ -864,16 +867,19 @@ impl ScriptProcessor {
                                 context.script_index = script_index;
 
                                 process_node_script(
+                                    "on_init",
                                     script_index,
                                     &mut context,
                                     &mut |script, context| {
                                         if !script.initialized {
-                                            script.on_init(context);
+                                            script.on_init(context)?;
                                             script.initialized = true;
                                         }
 
                                         // `on_start` must be called even if the script was initialized.
                                         start_queue.push_back((handle, script_index));
+
+                                        Ok(())
                                     },
                                 );
                             }
@@ -900,14 +906,17 @@ impl ScriptProcessor {
                             context.script_index = script_index;
 
                             process_node_script(
+                                "on_start",
                                 script_index,
                                 &mut context,
                                 &mut |script, context| {
                                     if script.initialized && !script.started {
-                                        script.on_start(context);
+                                        let result = script.on_start(context);
                                         script.started = true;
-
                                         update_queue.push_back((handle, script_index));
+                                        result
+                                    } else {
+                                        Ok(())
                                     }
                                 },
                             );
@@ -930,9 +939,12 @@ impl ScriptProcessor {
                         context.handle = handle;
                         context.script_index = script_index;
 
-                        process_node_script(script_index, &mut context, &mut |script, context| {
-                            script.on_update(context);
-                        });
+                        process_node_script(
+                            "on_update",
+                            script_index,
+                            &mut context,
+                            &mut |script, context| script.on_update(context),
+                        );
                     }
                 }
 
@@ -986,7 +998,9 @@ impl ScriptProcessor {
 
                 // `on_deinit` could also spawn new nodes, but we won't take those into account on
                 // this frame. They'll be correctly handled on next frame.
-                script.on_deinit(&mut context);
+                if let Err(error) = script.on_deinit(&mut context) {
+                    err!("An error occurred during on_deinit call. Reason: {error}");
+                }
             }
         }
 
@@ -1013,9 +1027,11 @@ impl ScriptProcessor {
                     let handle_node = context.scene.graph.handle_from_index(node_index);
                     context.node_handle = handle_node;
 
-                    process_node_scripts(&mut context, &mut |script, context| {
+                    process_node_scripts("on_deinit", &mut context, &mut |script, context| {
                         if script.initialized {
                             script.on_deinit(context)
+                        } else {
+                            Ok(())
                         }
                     });
                 }
@@ -1183,9 +1199,9 @@ pub struct EngineInitParams {
     pub task_pool: Arc<TaskPool>,
 }
 
-fn process_node_script<T, C>(index: usize, context: &mut C, func: &mut T) -> bool
+fn process_node_script<T, C>(caller_name: &str, index: usize, context: &mut C, func: &mut T) -> bool
 where
-    T: FnMut(&mut Script, &mut C),
+    T: FnMut(&mut Script, &mut C) -> ScriptResult,
     C: UniversalScriptContext,
 {
     let Ok(node) = context.node() else {
@@ -1206,7 +1222,9 @@ where
         return false;
     };
 
-    func(&mut script, context);
+    if let Err(error) = func(&mut script, context) {
+        err!("An error occurred during {caller_name} call. Reason: {error}");
+    }
 
     match context.node() {
         Ok(node) => {
@@ -1232,16 +1250,16 @@ where
     true
 }
 
-fn process_node_scripts<T, C>(context: &mut C, func: &mut T)
+fn process_node_scripts<T, C>(caller_name: &str, context: &mut C, func: &mut T)
 where
-    T: FnMut(&mut Script, &mut C),
+    T: FnMut(&mut Script, &mut C) -> ScriptResult,
     C: UniversalScriptContext,
 {
     let mut index = 0;
     loop {
         context.set_script_index(index);
 
-        if !process_node_script(index, context, func) {
+        if !process_node_script(caller_name, index, context, func) {
             return;
         }
 
@@ -1251,6 +1269,7 @@ where
 }
 
 pub(crate) fn process_scripts<T>(
+    caller_name: &str,
     scene: &mut Scene,
     scene_handle: Handle<Scene>,
     plugins: &mut [PluginContainer],
@@ -1265,7 +1284,7 @@ pub(crate) fn process_scripts<T>(
     input_state: &InputState,
     mut func: T,
 ) where
-    T: FnMut(&mut Script, &mut ScriptContext),
+    T: FnMut(&mut Script, &mut ScriptContext) -> ScriptResult,
 {
     let mut context = ScriptContext {
         dt,
@@ -1287,7 +1306,7 @@ pub(crate) fn process_scripts<T>(
     for node_index in 0..context.scene.graph.capacity() {
         context.handle = context.scene.graph.handle_from_index(node_index);
 
-        process_node_scripts(&mut context, &mut func);
+        process_node_scripts(caller_name, &mut context, &mut func);
     }
 }
 
@@ -2407,6 +2426,7 @@ impl Engine {
             let scene = &mut self.scenes[scene_handle];
             if *scene.enabled {
                 process_scripts(
+                    "on_os_event",
                     scene,
                     scene_handle,
                     &mut self.plugins,
@@ -2421,7 +2441,9 @@ impl Engine {
                     &self.input_state,
                     |script, context| {
                         if script.initialized && script.started {
-                            script.on_os_event(event, context);
+                            script.on_os_event(event, context)
+                        } else {
+                            Ok(())
                         }
                     },
                 )
@@ -2932,6 +2954,7 @@ impl Drop for Engine {
 #[cfg(test)]
 mod test {
     use crate::engine::ApplicationLoopController;
+    use crate::script::ScriptResult;
     use crate::{
         asset::manager::ResourceManager,
         core::{
@@ -3003,7 +3026,7 @@ mod test {
     }
 
     impl ScriptTrait for MyScript {
-        fn on_init(&mut self, ctx: &mut ScriptContext) {
+        fn on_init(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Initialized(Source::from_ctx(ctx)))
                 .unwrap();
@@ -3014,9 +3037,11 @@ mod test {
             }))
             .build(&mut ctx.scene.graph);
             assert_eq!(handle, Handle::new(2, 1));
+
+            Ok(())
         }
 
-        fn on_start(&mut self, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Started(Source::from_ctx(ctx)))
                 .unwrap();
@@ -3027,15 +3052,19 @@ mod test {
             }))
             .build(&mut ctx.scene.graph);
             assert_eq!(handle, Handle::new(3, 1));
+
+            Ok(())
         }
 
-        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) -> ScriptResult {
             self.sender
                 .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
                 .unwrap();
+
+            Ok(())
         }
 
-        fn on_update(&mut self, ctx: &mut ScriptContext) {
+        fn on_update(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Updated(Source::from_ctx(ctx)))
                 .unwrap();
@@ -3049,6 +3078,8 @@ mod test {
 
                 self.spawned = true;
             }
+
+            Ok(())
         }
     }
 
@@ -3061,28 +3092,32 @@ mod test {
     }
 
     impl ScriptTrait for MySubScript {
-        fn on_init(&mut self, ctx: &mut ScriptContext) {
+        fn on_init(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Initialized(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_start(&mut self, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Started(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) -> ScriptResult {
             self.sender
                 .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_update(&mut self, ctx: &mut ScriptContext) {
+        fn on_update(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Updated(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
     }
 
@@ -3215,15 +3250,16 @@ mod test {
     }
 
     impl ScriptTrait for ScriptListeningToMessages {
-        fn on_start(&mut self, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             ctx.message_dispatcher.subscribe_to::<MyMessage>(ctx.handle);
+            Ok(())
         }
 
         fn on_message(
             &mut self,
             message: &mut dyn ScriptMessagePayload,
             ctx: &mut ScriptMessageContext,
-        ) {
+        ) -> ScriptResult {
             let typed_message = message.downcast_ref::<MyMessage>().unwrap();
             match self.index {
                 0 => {
@@ -3250,6 +3286,8 @@ mod test {
             }
 
             self.index += 1;
+
+            Ok(())
         }
     }
 
@@ -3260,7 +3298,7 @@ mod test {
     }
 
     impl ScriptTrait for ScriptSendingMessages {
-        fn on_update(&mut self, ctx: &mut ScriptContext) {
+        fn on_update(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             match self.index {
                 0 => ctx.message_sender.send_global(MyMessage::Foo(123)),
                 1 => ctx
@@ -3269,6 +3307,8 @@ mod test {
                 _ => (),
             }
             self.index += 1;
+
+            Ok(())
         }
     }
 
@@ -3345,7 +3385,7 @@ mod test {
     }
 
     impl ScriptTrait for ScriptSpawningAsyncTasks {
-        fn on_start(&mut self, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             ctx.task_pool.spawn_script_task(
                 ctx.scene_handle,
                 ctx.handle,
@@ -3355,7 +3395,8 @@ mod test {
                     assert_eq!(result, 123u32);
                     script.num = Some(result);
                 },
-            )
+            );
+            Ok(())
         }
     }
 
@@ -3444,31 +3485,35 @@ mod test {
     }
 
     impl ScriptTrait for ScriptThatDeletesItself {
-        fn on_init(&mut self, ctx: &mut ScriptContext) {
+        fn on_init(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Initialized(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_start(&mut self, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Started(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) -> ScriptResult {
             self.sender
                 .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_update(&mut self, ctx: &mut ScriptContext) {
+        fn on_update(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Updated(Source::from_ctx(ctx)))
                 .unwrap();
 
             let node = &mut ctx.scene.graph[ctx.handle];
             node.remove_script(ctx.script_index);
+            Ok(())
         }
     }
 
@@ -3482,13 +3527,14 @@ mod test {
     }
 
     impl ScriptTrait for ScriptThatAddsScripts {
-        fn on_init(&mut self, ctx: &mut ScriptContext) {
+        fn on_init(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Initialized(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_start(&mut self, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Started(Source::from_ctx(ctx)))
                 .unwrap();
@@ -3499,18 +3545,24 @@ mod test {
                     sender: self.sender.clone(),
                 });
             }
+
+            Ok(())
         }
 
-        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) -> ScriptResult {
             self.sender
                 .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
                 .unwrap();
+
+            Ok(())
         }
 
-        fn on_update(&mut self, ctx: &mut ScriptContext) {
+        fn on_update(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Updated(Source::from_ctx(ctx)))
                 .unwrap();
+
+            Ok(())
         }
     }
 
@@ -3524,28 +3576,32 @@ mod test {
     }
 
     impl ScriptTrait for SimpleScript {
-        fn on_init(&mut self, ctx: &mut ScriptContext) {
+        fn on_init(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Initialized(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_start(&mut self, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Started(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) -> ScriptResult {
             self.sender
                 .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_update(&mut self, ctx: &mut ScriptContext) {
+        fn on_update(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
             self.sender
                 .send(Event::Updated(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
     }
 

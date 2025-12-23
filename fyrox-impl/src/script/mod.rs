@@ -22,35 +22,33 @@
 
 //! Script is used to add custom logic to scene nodes. See [ScriptTrait] for more info.
 
-use crate::engine::input::InputState;
 use crate::{
     asset::manager::ResourceManager,
     core::{
         log::Log,
-        pool::Handle,
-        reflect::{FieldRef, Reflect, ReflectArray, ReflectList},
+        pool::{Handle, PoolError},
+        reflect::{FieldMut, FieldRef, Reflect, ReflectArray, ReflectList},
         type_traits::ComponentProvider,
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
         TypeUuidProvider,
     },
-    engine::{task::TaskPoolHandler, GraphicsContext, ScriptMessageDispatcher},
+    engine::{input::InputState, task::TaskPoolHandler, GraphicsContext, ScriptMessageDispatcher},
     event::Event,
     gui::UiContainer,
     plugin::{Plugin, PluginContainer},
-    scene::{base::NodeScriptMessage, node::Node, Scene},
+    scene::{base::NodeScriptMessage, graph::GraphError, node::Node, Scene},
 };
-use fyrox_core::pool::PoolError;
-use fyrox_core::reflect::FieldMut;
 pub use fyrox_core_derive::ScriptMessagePayload;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     any::{Any, TypeId},
-    fmt::{Debug, Formatter},
+    fmt::{Debug, Display, Formatter},
     ops::{Deref, DerefMut},
     str::FromStr,
     sync::mpsc::Sender,
 };
+
 pub mod constructor;
 
 pub(crate) trait UniversalScriptContext {
@@ -336,7 +334,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
     /// # use fyrox_impl::{
     /// #     core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     /// #     plugin::Plugin,
-    /// #     script::{ScriptContext, ScriptTrait},
+    /// #     script::{ScriptContext, ScriptTrait, ScriptResult},
     /// # };
     /// #
     /// #[derive(Visit, Reflect, Default, Debug)]
@@ -352,10 +350,12 @@ pub struct ScriptContext<'a, 'b, 'c> {
     /// struct MyScript {}
     ///
     /// impl ScriptTrait for MyScript {
-    ///     fn on_update(&mut self, ctx: &mut ScriptContext) {
+    ///     fn on_update(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
     ///         let game = ctx.plugins.get::<Game>();
     ///
     ///         println!("Player name is: {}", game.player_name);
+    ///
+    ///         Ok(())
     ///     }
     /// }
     /// ```
@@ -598,6 +598,58 @@ impl UniversalScriptContext for ScriptDeinitContext<'_, '_, '_> {
     }
 }
 
+pub type AnyScriptError = Box<dyn std::error::Error>;
+
+pub enum ScriptError {
+    GraphError(GraphError),
+    PoolError(PoolError),
+    AnyError(AnyScriptError),
+}
+
+impl From<GraphError> for ScriptError {
+    fn from(value: GraphError) -> Self {
+        Self::GraphError(value)
+    }
+}
+
+impl From<PoolError> for ScriptError {
+    fn from(value: PoolError) -> Self {
+        Self::PoolError(value)
+    }
+}
+
+impl From<AnyScriptError> for ScriptError {
+    fn from(value: AnyScriptError) -> Self {
+        Self::AnyError(value)
+    }
+}
+
+impl std::error::Error for ScriptError {}
+
+impl Display for ScriptError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ScriptError::GraphError(err) => {
+                write!(f, "{}", err)
+            }
+            ScriptError::PoolError(err) => {
+                write!(f, "{}", err)
+            }
+            ScriptError::AnyError(err) => {
+                write!(f, "{}", err)
+            }
+        }
+    }
+}
+
+impl Debug for ScriptError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+pub type ScriptResult = Result<(), ScriptError>;
+
 /// Script is a set predefined methods that are called on various stages by the engine. It is used to add
 /// custom behaviour to game entities.
 pub trait ScriptTrait: BaseScript + ComponentProvider {
@@ -610,16 +662,25 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// loaded the instance. Internal flag will tell the engine that the script is initialized and this
     /// method **will not** be called. This is intentional design decision to be able to create save files
     /// in games. If you need a method that will be called in any case, use [`ScriptTrait::on_start`].
-    fn on_init(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) {}
+    fn on_init(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) -> ScriptResult {
+        Ok(())
+    }
 
     /// The method is called after [`ScriptTrait::on_init`], but in separate pass, which means that all
     /// script instances are already initialized. However, if implementor of this method creates a new
     /// node with a script, there will be a second pass of initialization. The method is guaranteed to
     /// be called once.
-    fn on_start(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) {}
+    fn on_start(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) -> ScriptResult {
+        Ok(())
+    }
 
     /// The method is called when the script is about to be destroyed. It is guaranteed to be called last.
-    fn on_deinit(&mut self, #[allow(unused_variables)] ctx: &mut ScriptDeinitContext) {}
+    fn on_deinit(
+        &mut self,
+        #[allow(unused_variables)] ctx: &mut ScriptDeinitContext,
+    ) -> ScriptResult {
+        Ok(())
+    }
 
     /// Called when there is an event from the OS. The method allows you to "listen" for events
     /// coming from the main window of your game. It could be used to react to pressed keys, mouse movements,
@@ -628,13 +689,16 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
         &mut self,
         #[allow(unused_variables)] event: &Event<()>,
         #[allow(unused_variables)] ctx: &mut ScriptContext,
-    ) {
+    ) -> ScriptResult {
+        Ok(())
     }
 
     /// Performs a single update tick of the script. The method may be called multiple times per frame, but it is guaranteed
     /// that the rate of call is stable and by default it will be called 60 times per second, but can be changed by using
     /// [`crate::engine::executor::Executor::set_desired_update_rate`] method.
-    fn on_update(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) {}
+    fn on_update(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) -> ScriptResult {
+        Ok(())
+    }
 
     /// Allows you to react to certain script messages. It could be used for communication between scripts; to
     /// bypass borrowing issues. If you need to receive messages of a particular type, you must subscribe to a type
@@ -645,7 +709,7 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     ///     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*, type_traits::prelude::*},
     ///     core::TypeUuidProvider,
     ///     script::ScriptTrait,
-    ///     script::{ScriptContext, ScriptMessageContext, ScriptMessagePayload},
+    ///     script::{ScriptContext, ScriptMessageContext, ScriptResult, ScriptMessagePayload},
     /// };
     ///
     /// struct Message;
@@ -660,19 +724,21 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// # }
     ///
     /// impl ScriptTrait for MyScript {
-    ///     fn on_start(&mut self, ctx: &mut ScriptContext) {
+    ///     fn on_start(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
     ///         // Subscription is mandatory to receive any message of the type!
-    ///         ctx.message_dispatcher.subscribe_to::<Message>(ctx.handle)
+    ///         ctx.message_dispatcher.subscribe_to::<Message>(ctx.handle);
+    ///         Ok(())
     ///     }
     ///
     ///     fn on_message(
     ///         &mut self,
     ///         message: &mut dyn ScriptMessagePayload,
     ///         ctx: &mut ScriptMessageContext,
-    ///     ) {
+    ///     ) -> ScriptResult {
     ///         if let Some(message) = message.downcast_ref::<Message>() {
     ///             // Do something.
     ///         }
+    ///         Ok(())
     ///     }
     /// }
     /// ```
@@ -680,7 +746,8 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
         &mut self,
         #[allow(unused_variables)] message: &mut dyn ScriptMessagePayload,
         #[allow(unused_variables)] ctx: &mut ScriptMessageContext,
-    ) {
+    ) -> ScriptResult {
+        Ok(())
     }
 }
 
